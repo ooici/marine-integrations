@@ -39,4 +39,4 @@ root:
 
 loggers:
   mi:
-    level: WARNING
+    level: INFO

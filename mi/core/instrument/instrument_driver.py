@@ -1031,7 +1031,6 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         """
         try:
             log.error("ASYNC Data Exception Detected: %s (%s)", exception.__class__.__name__, str(exception))
-            #log.error("ASYNC Data Exception Detected: %s%s", exception.__class__.__name__, exception)
         finally:
             self._driver_event(DriverAsyncEvent.ERROR, exception)
 

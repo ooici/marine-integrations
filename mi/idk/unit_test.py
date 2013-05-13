@@ -97,11 +97,11 @@ from ooi.logging import log
 # Do not remove this import.  It is for package building.
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
-AGENT_DISCOVER_TIMEOUT=120
-GO_ACTIVE_TIMEOUT=180
-GET_TIMEOUT=30
-SET_TIMEOUT=90
-EXECUTE_TIMEOUT=30
+AGENT_DISCOVER_TIMEOUT=500
+GO_ACTIVE_TIMEOUT=500
+GET_TIMEOUT=500
+SET_TIMEOUT=500
+EXECUTE_TIMEOUT=500
 SAMPLE_RAW_DATA="Iam Apublished Message"
 
 class DriverStartupConfigKey(BaseEnum):
@@ -587,7 +587,7 @@ class DriverTestMixin(MiUnitTest):
                 # Only test the equality if the parameter has a value.  Test for required parameters
                 # happens in assert_parameter_set
                 if(param_value != None):
-                    self.assertEqual(param_value, required_value, msg="%s value not equal: %s != %s" % (param_name, param_value, required_value))
+                    self.assertEqual(param_value, required_value, msg="%s value not equal: %s != %s" % (param_name, repr(param_value), repr(required_value)))
             except KeyError:
                 # Ignore key errors
                 pass
@@ -624,7 +624,10 @@ class DriverTestMixin(MiUnitTest):
                 # It looks like one of the interfaces between services converts unicode to string
                 # and vice versa.  So if the type is string it can be promoted to unicode so it
                 # is still valid.
-                if(param_type == unicode and isinstance(param_value, str)):
+                if (param_type == long and isinstance(param_value, int)):
+                    # we want type Long, but it is a int instance.  All good
+                    pass
+                elif (param_type == unicode and isinstance(param_value, str)):
                     # we want type unicode, but it is a string instance.  All good
                     pass
                 else:

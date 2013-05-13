@@ -201,7 +201,7 @@ class ADCP_PD0_PARSED_KEY(BaseEnum):
 
 
 class ADCP_PD0_PARSED_DataParticle(DataParticle):
-    _data_particle_type = 'UNASSIGNED IN mi.instrument.teledyne.workhorse_monitor_75_khz.particles ADCP_PD0_PARSED_DataParticle'
+    _data_particle_type = 'UNASSIGNED IN mi.instrument.teledyne.workhorse_monitor_75_khz.particles ADCP_PD0_PARSED_DataParticle' # DataParticleType.ADCP_PD0_PARSED_BEAM #
 
 
 
@@ -277,6 +277,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                     self.parse_echo_intensity_chunk(chunks[offset])
                 elif 4 == variable_leader_id:
                     self.parse_percent_good_chunk(chunks[offset])
+        #log.debug("RESULT = \n " + repr(self.final_result))
         return self.final_result
 
     def parse_fixed_chunk(self, chunk):
@@ -363,7 +364,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                   DataParticleKey.VALUE: 1 if coord_transform_type & 0b00000001 else 0})
 
         # lame, but expedient - mask off un-needed bits
-        self.coord_transform_type = coord_transform_type & 0b00011000  
+        self.coord_transform_type = coord_transform_type & 0b00011000 >> 3
 
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.HEADING_ALIGNMENT,
                                   DataParticleKey.VALUE: heading_alignment})
@@ -591,6 +592,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_4_VELOCITY,
                                       DataParticleKey.VALUE: beam_4_velocity})
             # place holders
+            """
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.WATER_VELOCITY_EAST,
                                       DataParticleKey.VALUE: []})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.WATER_VELOCITY_NORTH,
@@ -599,7 +601,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: []})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ERROR_VELOCITY,
                                       DataParticleKey.VALUE: []})
-
+            """
         elif 3 == self.coord_transform_type: # Earth Coordinates
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_EARTH
             water_velocity_east = []
@@ -622,6 +624,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ERROR_VELOCITY,
                                       DataParticleKey.VALUE: error_velocity})
             # place holders
+            """
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_1_VELOCITY,
                                       DataParticleKey.VALUE: []})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_2_VELOCITY,
@@ -630,6 +633,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: []})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BEAM_4_VELOCITY,
                                       DataParticleKey.VALUE: []})
+            """
         else:
             raise SampleException("coord_transform_type not coded for. " + str(self.coord_transform_type))
 
@@ -746,6 +750,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM4,
                                       DataParticleKey.VALUE: percent_good_beam4})
             # unused place holders
+            """
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_3BEAM,
                                       DataParticleKey.VALUE: []})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_TRANSFORMS_REJECT,
@@ -754,7 +759,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: []})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_4BEAM,
                                       DataParticleKey.VALUE: []})
-
+            """
         elif 3 == self.coord_transform_type: # Earth Coordinates
             self._data_particle_type = DataParticleType.ADCP_PD0_PARSED_EARTH
             percent_good_3beam = []
@@ -777,6 +782,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_4BEAM,
                                       DataParticleKey.VALUE: percent_good_4beam})
             # unused place holders
+            """
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM1,
                                       DataParticleKey.VALUE: []})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM2,
@@ -785,8 +791,9 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                       DataParticleKey.VALUE: []})
             self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_BEAM4,
                                       DataParticleKey.VALUE: []})
+            """
         else:
-            raise SampleException("coord_transform_type not coded for." + str(self.coord_transform_type))
+            raise SampleException("1 coord_transform_type not coded for." + str(self.coord_transform_type))
 
 
 class ADCP_SYSTEM_CONFIGURATION_KEY(BaseEnum):
@@ -856,7 +863,7 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
         lines = self.raw_data.split(NEWLINE)
 
         match = self.RE00.match(lines[0])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER] = "18444" # match.group(1)
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER] = match.group(1)
         match = self.RE01.match(lines[1])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY] = int(match.group(1))
         match = self.RE02.match(lines[2])
@@ -897,15 +904,15 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE] = match.group(2)
 
         match = self.RE23.match(lines[23])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] = str(match.group(1) + "\n")
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] = str(match.group(1)) + "\n"
         match = self.RE24.match(lines[24])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1) + "\n")
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
         match = self.RE25.match(lines[25])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1) + "\n")
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
         match = self.RE26.match(lines[26])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1) + "\n")
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
         match = self.RE27.match(lines[27])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1) + "\n")
+        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
         match = self.RE28.match(lines[28])
         matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1))
 
@@ -913,7 +920,7 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
         for (key, value) in matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
-
+        log.error("RESULT = " + repr(result))
         return result
 
 

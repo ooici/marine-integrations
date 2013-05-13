@@ -1,7 +1,6 @@
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
 
-
-SAMPLE_RAW_DATA = \
+RSN_SAMPLE_RAW_DATA = \
 "\x7f\x7f\x68\x08\x00\x06\x12\x00\x4d\x00\x8e\x00\xb0\x03\x42\x05\xd4\x06\x00\x00\x32\x28\xc8\x41\x00\x35\x04\x64\x01\x00\x80\x0c" + \
 "\xc0\x02\x01\x40\x11\x00\xd0\x07\x00\x01\x00\x00\x00\x00\x00\x00\x7d\x3d\xeb\x0f\x10\x0d\x01\x05\x32\x00\xc6\x00\x82\x00\x00\x06" + \
 "\xff\x23\xe5\x09\x00\x00\xff\x00\x0c\x48\x00\x00\x14\x80\x00\x05\x00\x0d\x03\x0f\x15\x21\x02\x2e\x00\x00\x00\xf3\x05\x00\x00\x65" + \
@@ -88,6 +87,90 @@ SAMPLE_RAW_DATA = \
 
 
 
+CG_SAMPLE_RAW_DATA = \
+"\x7f\x7f\x68\x08\x00\x06\x12\x00\x4d\x00\x8e\x00\xb0\x03\x42\x05\xd4\x06\x00\x00\x32\x28\xc8\x41\x00\x35\x04\x64\x01\x00\x20\x03" + \
+"\xc0\x02\x01\x40\x05\x00\xd0\x07\x00\x01\x00\x07\x00\x00\x00\x00\x7d\x3d\x9b\x06\xd1\x03\x01\x05\x32\x00\xc6\x00\x2e\x00\x00\x06" + \
+"\xff\x25\x54\x09\x00\x00\xff\x00\xe7\x49\x00\x00\x14\x80\x00\x01\x00\x0d\x05\x02\x17\x37\x15\x15\x00\x00\x00\xf8\x05\x17\x00\xec" + \
+"\x71\x46\xef\x08\x11\x23\x00\xb3\x08" + \
+"\x00\x00\x00\x00\x00\x00\xff\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00" + \
+"\x88\x36\x58\x09\x00\x00\x00\x00\x00\x00\x00\x14\x0d\x05\x02\x17\x37\x15\x15\x00\x01\xc7\xfe\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00" + \
+"\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80" + \
+"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x02\x4b\x06\x10\x1a\x1f\x0d\x13\x18" + \
+"\x08\x09\x09\x0d\x15\x17\x0b\x0b\x15" + \
+"\x0d\x1b\x0e\x1a\x15\x19\x10\x08\x15\x08\x0a\x0a\x0e\x14\x0d\x0b\x15\x06\x09\x09\x05\x06\x0a\x08\x0e\x12\x05\x0a\x10\x07\x0d\x08" + \
+"\x0b\x0c\x08\x09\x08\x12\x15\x08\x0a\x08\x0b\x08\x09\x0e\x0f\x0d\x10\x0e\x0b\x12\x02\x08\x0a\x0c\x03\x0e\x09\x0b\x0c\x1b\x12\x03" + \
+"\x15\x0a\x10\x08\x08\x0e\x18\x0d\x05\x0c\x12\x13\x10\x09\x09\x0e\x10\x12\x08\x0a\x0e\x10\x0e\x0d\x07\x06\x0d\x09\x03\x0d\x13\x0e" + \
+"\x0a\x1d\x13\x12\x13\x0e\x06\x03\x06" + \
+"\x0b\x06\x09\x07\x12\x06\x08\x0e\x08\x05\x0d\x07\x0b\x10\x08\x03\x0a\x0d\x15\x0e\x10\x18\x09\x10\x15\x09\x09\x11\x0b\x0e\x07\x0e" + \
+"\x08\x07\x06\x11\x09\x0e\x15\x0d\x0e\x13\x15\x08\x0d\x0b\x12\x06\x0d\x12\x0e\x05\x10\x0d\x0e\x0b\x09\x08\x09\x12\x08\x14\x0e\x08" + \
+"\x07\x0f\x0e\x10\x17\x10\x11\x04\x08\x08\x15\x10\x07\x10\x10\x0e\x04\x0b\x0e\x10\x10\x1b\x0b\x0d\x07\x09\x07\x06\x09\x03\x09\x09" + \
+"\x17\x10\x0b\x0d\x0d\x13\x08\x0b\x0e" + \
+"\x1a\x15\x10\x0a\x0b\x12\x19\x08\x0c\x09\x0d\x07\x12\x09\x09\x15\x0d\x0d\x0d\x0c\x0b\x06\x06\x18\x0d\x0e\x12\x09\x06\x0b\x0d\x0a" + \
+"\x12\x0e\x0a\x15\x04\x15\x0c\x0e\x13\x15\x15\x15\x09\x07\x08\x08\x18\x0b\x04\x0e\x14\x11\x12\x12\x03\x09\x10\x0c\x09\x09\x24\x0d" + \
+"\x05\x10\x06\x08\x06\x0e\x0b\x15\x09\x0f\x15\x07\x0d\x12\x0f\x09\x10\x12\x0d\x06\x0d\x01\x0e\x15\x14\x0e\x15\x0b\x11\x0c\x10\x0e" + \
+"\x06\x09\x08\x09\x05\x19\x03\x14\x0e" + \
+"\x05\x10\x15\x15\x10\x10\x21\x16\x08\x10\x08\x12\x08\x15\x0a\x11\x15\x0f\x0e\x0b\x09\x0b\x08\x0c\x0b\x0a\x08\x13\x02\x06\x0b\x0d" + \
+"\x0f\x14\x06\x0d\x0d\x0e\x09\x0a\x0c\x08\x14\x05\x0b\x0e\x1b\x0a\x07\x08\x0e\x1b\x16\x0c\x07\x12\x0d\x0e\x0f\x0d\x14\x0d\x18\x0c" + \
+"\x04\x10\x1d\x09\x00\x03\x23\x2b\x22\x26\x17\x26\x1b\x1d\x15\x1e\x18\x1c\x14\x1c\x17\x1a\x15\x1c\x18\x1b\x15\x1c\x18\x1a\x16\x1b" + \
+"\x18\x1b\x15\x1c\x18\x1b\x15\x1c\x19" + \
+"\x1c\x14\x1b\x19\x1b\x15\x1d\x18\x1b\x15\x1b\x16\x1b\x14\x1c\x16\x1b\x15\x1b\x17\x1b\x15\x1c\x19\x1b\x16\x1c\x18\x1c\x15\x1c\x19" + \
+"\x1b\x15\x1b\x19\x1b\x15\x1b\x17\x1b\x15\x1b\x19\x1a\x15\x1c\x18\x1a\x15\x1c\x18\x1b\x14\x1c\x19\x1a\x16\x1c\x19\x1b\x15\x1c\x17" + \
+"\x1a\x15\x1c\x18\x1b\x14\x1c\x18\x1b\x15\x1b\x18\x1b\x14\x1b\x19\x1a\x15\x1c\x17\x1b\x15\x1b\x17\x1b\x15\x1c\x18\x1b\x15\x1c\x18" + \
+"\x1b\x14\x1c\x19\x1b\x15\x1c\x17\x1a" + \
+"\x15\x1b\x19\x1b\x15\x1c\x18\x1a\x15\x1c\x18\x1b\x14\x1c\x17\x1a\x15\x1b\x18\x1a\x15\x1d\x17\x1b\x15\x1b\x16\x1b\x15\x1b\x19\x1b" + \
+"\x15\x1c\x18\x1a\x15\x1b\x18\x1b\x15\x1b\x17\x1b\x15\x1b\x17\x1a\x15\x1c\x1a\x1a\x15\x1c\x19\x1b\x15\x1c\x19\x1b\x15\x1c\x18\x1b" + \
+"\x14\x1c\x19\x1a\x14\x1c\x18\x1c\x15\x1c\x16\x1b\x15\x1b\x18\x1a\x15\x1c\x17\x1a\x15\x1d\x17\x1b\x15\x1c\x18\x1a\x15\x1c\x19\x1b" + \
+"\x15\x1c\x17\x1a\x15\x1c\x17\x1b\x15" + \
+"\x1b\x19\x1b\x15\x1c\x18\x1b\x15\x1c\x18\x1b\x15\x1b\x19\x1b\x15\x1c\x18\x1a\x15\x1c\x19\x1a\x15\x1b\x19\x1b\x15\x1c\x18\x1b\x15" + \
+"\x1c\x18\x1a\x15\x1c\x19\x1a\x15\x1b\x19\x1a\x15\x1c\x17\x1b\x15\x1c\x17\x1b\x14\x1b\x19\x1b\x15\x1b\x19\x1a\x14\x1c\x19\x1b\x15" + \
+"\x1b\x18\x1b\x16\x1d\x17\x1b\x15\x1b\x16\x1b\x15\x1b\x17\x1b\x15\x1b\x17\x1b\x15\x1c\x17\x1b\x15\x1b\x18\x1b\x14\x1c\x18\x1b\x14" + \
+"\x1c\x17\x1b\x14\x1c\x17\x1b\x15\x1c" + \
+"\x17\x1b\x15\x1c\x19\x1b\x15\x1b\x18\x1a\x15\x1c\x17\x1a\x14\x1b\x19\x1b\x15\x1c\x17\x1a\x15\x1b\x17\x1b\x15\x1c\x18\x19\x15\x1d" + \
+"\x18\x1b\x14\x1c\x18\x1a\x15\x1b\x19\x1b\x16\x1b\x18\x1b\x15\x1b\x18\x1b\x00\x04\x64\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" + \
+"\x8c\xd0\x9e\x1e" 
 
 
 
@@ -107,53 +190,130 @@ break_alarm_str = NEWLINE + "[ALARM Wakeup A]" + NEWLINE +\
 
 EF_CHAR = '\xef'
 
-CALIBRATION_RAW_DATA = \
+RSN_CALIBRATION_RAW_DATA = \
 "ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE + \
 "               Calibration date and time: 9/14/2012  09:25:32" + NEWLINE + \
 "                             S inverse" + NEWLINE + \
-"          " + EF_CHAR + "                                                  " + EF_CHAR + "" + NEWLINE + \
-"     Bx   " + EF_CHAR + "   3.9218e-01  3.9660e-01 -3.1681e-02  6.4332e-03 " + EF_CHAR + "" + NEWLINE + \
-"     By   " + EF_CHAR + "  -2.4320e-02 -1.0376e-02 -2.2428e-03 -6.0628e-01 " + EF_CHAR + "" + NEWLINE + \
-"     Bz   " + EF_CHAR + "   2.2453e-01 -2.1972e-01 -2.7990e-01 -2.4339e-03 " + EF_CHAR + "" + NEWLINE + \
-"     Err  " + EF_CHAR + "   4.6514e-01 -4.0455e-01  6.9083e-01 -1.4291e-02 " + EF_CHAR + "" + NEWLINE + \
-"          " + EF_CHAR + "                                                  " + EF_CHAR + "" + NEWLINE + \
+"          " + EF_CHAR + "                                                  " + EF_CHAR + NEWLINE + \
+"     Bx   " + EF_CHAR + "   3.9218e-01  3.9660e-01 -3.1681e-02  6.4332e-03 " + EF_CHAR + NEWLINE + \
+"     By   " + EF_CHAR + "  -2.4320e-02 -1.0376e-02 -2.2428e-03 -6.0628e-01 " + EF_CHAR + NEWLINE + \
+"     Bz   " + EF_CHAR + "   2.2453e-01 -2.1972e-01 -2.7990e-01 -2.4339e-03 " + EF_CHAR + NEWLINE + \
+"     Err  " + EF_CHAR + "   4.6514e-01 -4.0455e-01  6.9083e-01 -1.4291e-02 " + EF_CHAR + NEWLINE + \
+"          " + EF_CHAR + "                                                  " + EF_CHAR + NEWLINE + \
 "                             Coil Offset" + NEWLINE + \
-"                         " + EF_CHAR + "                " + EF_CHAR + "" + NEWLINE + \
-"                         " + EF_CHAR + "   3.4233e+04   " + EF_CHAR + "" + NEWLINE + \
-"                         " + EF_CHAR + "   3.4449e+04   " + EF_CHAR + "" + NEWLINE + \
-"                         " + EF_CHAR + "   3.4389e+04   " + EF_CHAR + "" + NEWLINE + \
-"                         " + EF_CHAR + "   3.4698e+04   " + EF_CHAR + "" + NEWLINE + \
-"                         " + EF_CHAR + "                " + EF_CHAR + "" + NEWLINE + \
+"                         " + EF_CHAR + "                " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "   3.4233e+04   " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "   3.4449e+04   " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "   3.4389e+04   " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "   3.4698e+04   " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "                " + EF_CHAR + NEWLINE + \
 "                             Electrical Null" + NEWLINE + \
-"                              " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
-"                              " + EF_CHAR + " 34285 " + EF_CHAR + "" + NEWLINE + \
-"                              " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
+"                              " + EF_CHAR + "       " + EF_CHAR + NEWLINE + \
+"                              " + EF_CHAR + " 34285 " + EF_CHAR + NEWLINE + \
+"                              " + EF_CHAR + "       " + EF_CHAR + NEWLINE + \
 "                    TILT CALIBRATION MATRICES in NVRAM" + NEWLINE + \
 "                Calibration date and time: 9/14/2012  09:14:45" + NEWLINE + \
 "              Average Temperature During Calibration was   24.4 " + EF_CHAR + "C" + NEWLINE + \
-"" + NEWLINE + \
+NEWLINE + \
 "                   Up                              Down" + NEWLINE + \
-"" + NEWLINE + \
-"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
-" Roll   " + EF_CHAR + "   7.4612e-07  -3.1727e-05 " + EF_CHAR + "     " + EF_CHAR + "  -3.0054e-07   3.2190e-05 " + EF_CHAR + "" + NEWLINE + \
-" Pitch  " + EF_CHAR + "  -3.1639e-05  -6.3505e-07 " + EF_CHAR + "     " + EF_CHAR + "  -3.1965e-05  -1.4881e-07 " + EF_CHAR + "" + NEWLINE + \
-"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
-"" + NEWLINE + \
-"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
-" Offset " + EF_CHAR + "   3.2808e+04   3.2568e+04 " + EF_CHAR + "     " + EF_CHAR + "   3.2279e+04   3.3047e+04 " + EF_CHAR + "" + NEWLINE + \
-"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + "" + NEWLINE + \
-"" + NEWLINE + \
-"                             " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
-"                      Null   " + EF_CHAR + " 33500 " + EF_CHAR + "" + NEWLINE + \
-"                             " + EF_CHAR + "       " + EF_CHAR + "" + NEWLINE + \
-"" + NEWLINE + \
-"" + NEWLINE + \
-"" + NEWLINE + \
-"" + NEWLINE + \
-"" + NEWLINE + \
+NEWLINE + \
+"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + NEWLINE + \
+" Roll   " + EF_CHAR + "   7.4612e-07  -3.1727e-05 " + EF_CHAR + "     " + EF_CHAR + "  -3.0054e-07   3.2190e-05 " + EF_CHAR + NEWLINE + \
+" Pitch  " + EF_CHAR + "  -3.1639e-05  -6.3505e-07 " + EF_CHAR + "     " + EF_CHAR + "  -3.1965e-05  -1.4881e-07 " + EF_CHAR + NEWLINE + \
+"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + NEWLINE + \
+NEWLINE + \
+"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + NEWLINE + \
+" Offset " + EF_CHAR + "   3.2808e+04   3.2568e+04 " + EF_CHAR + "     " + EF_CHAR + "   3.2279e+04   3.3047e+04 " + EF_CHAR + NEWLINE + \
+"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + NEWLINE + \
+NEWLINE + \
+"                             " + EF_CHAR + "       " + EF_CHAR + NEWLINE + \
+"                      Null   " + EF_CHAR + " 33500 " + EF_CHAR + NEWLINE + \
+"                             " + EF_CHAR + "       " + EF_CHAR + NEWLINE + \
+NEWLINE + \
+NEWLINE + \
+NEWLINE + \
+NEWLINE + \
+NEWLINE + \
 ">"
 
-PS0_RAW_DATA = \
+CG_CALIBRATION_RAW_DATA = \
+"ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE + \
+"               Calibration date and time: 12/14/2012  15:01:59" + NEWLINE + \
+"                             S inverse" + NEWLINE + \
+"          " + EF_CHAR + "                                                  " + EF_CHAR + NEWLINE + \
+"     Bx   " + EF_CHAR + "   4.5971e-01 -4.3188e-01  2.5594e-02 -6.4585e-03 " + EF_CHAR + NEWLINE + \
+"     By   " + EF_CHAR + "  -3.0328e-02  3.0124e-02 -4.0265e-02  6.0791e-01 " + EF_CHAR + NEWLINE + \
+"     Bz   " + EF_CHAR + "   2.3864e-01  2.2808e-01  3.2896e-01  2.4285e-02 " + EF_CHAR + NEWLINE + \
+"     Err  " + EF_CHAR + "   5.0144e-01  4.9284e-01 -7.0207e-01 -4.5907e-02 " + EF_CHAR + NEWLINE + \
+"          " + EF_CHAR + "                                                  " + EF_CHAR + NEWLINE + \
+"                             Coil Offset" + NEWLINE + \
+"                         " + EF_CHAR + "                " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "   3.4143e+04   " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "   3.3943e+04   " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "   3.4059e+04   " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "   3.3528e+04   " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "                " + EF_CHAR + NEWLINE + \
+"                             Electrical Null" + NEWLINE + \
+"                              " + EF_CHAR + "       " + EF_CHAR + NEWLINE + \
+"                              " + EF_CHAR + " 34441 " + EF_CHAR + NEWLINE + \
+"                              " + EF_CHAR + "       " + EF_CHAR + NEWLINE + \
+"                    TILT CALIBRATION MATRICES in NVRAM" + NEWLINE + \
+"                Calibration date and time: 12/14/2012  14:55:19" + NEWLINE + \
+"              Average Temperature During Calibration was   23.3 " + EF_CHAR + "C" + NEWLINE + \
+NEWLINE + \
+"                   Up                              Down" + NEWLINE + \
+NEWLINE + \
+"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + NEWLINE + \
+" Roll   " + EF_CHAR + "  -3.7232e-08  -2.8741e-05 " + EF_CHAR + "     " + EF_CHAR + "  -1.0957e-08   3.0921e-05 " + EF_CHAR + NEWLINE + \
+" Pitch  " + EF_CHAR + "  -2.8553e-05   1.2566e-07 " + EF_CHAR + "     " + EF_CHAR + "  -3.1241e-05  -4.9307e-08 " + EF_CHAR + NEWLINE + \
+"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + NEWLINE + \
+NEWLINE + \
+"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + NEWLINE + \
+" Offset " + EF_CHAR + "   3.3216e+04   3.3314e+04 " + EF_CHAR + "     " + EF_CHAR + "   3.3685e+04   3.2469e+04 " + EF_CHAR + NEWLINE + \
+"        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + NEWLINE + \
+NEWLINE + \
+"                             " + EF_CHAR + "       " + EF_CHAR + NEWLINE + \
+"                      Null   " + EF_CHAR + " 33459 " + EF_CHAR + NEWLINE + \
+"                             " + EF_CHAR + "       " + EF_CHAR + NEWLINE + \
+NEWLINE + \
+NEWLINE + \
+NEWLINE + \
+NEWLINE + \
+NEWLINE + \
+">"
+
+CG_PS0_RAW_DATA = \
+"Instrument S/N:  18919" + NEWLINE +\
+"       Frequency:  76800 HZ" + NEWLINE +\
+"   Configuration:  4 BEAM, JANUS" + NEWLINE +\
+"     Match Layer:  10" + NEWLINE +\
+"      Beam Angle:  20 DEGREES" + NEWLINE +\
+"    Beam Pattern:  CONVEX" + NEWLINE +\
+"     Orientation:  UP" + NEWLINE +\
+"       Sensor(s):  HEADING  TILT 1  TILT 2  DEPTH  TEMPERATURE  PRESSURE" + NEWLINE +\
+"Pressure Sens Coefficients:" + NEWLINE +\
+"              c3 = +4.074753E-12" + NEWLINE +\
+"              c2 = +8.083932E-07" + NEWLINE +\
+"              c1 = +1.241627E+00" + NEWLINE +\
+"          Offset = +3.805579E+00" + NEWLINE +\
+NEWLINE +\
+"Temp Sens Offset:  -0.08 degrees C" + NEWLINE +\
+NEWLINE +\
+"    CPU Firmware:  50.40 [0]" + NEWLINE +\
+"   Boot Code Ver:  Required:  1.16   Actual:  1.16" + NEWLINE +\
+"    DEMOD #1 Ver:  ad48, Type:  1f" + NEWLINE +\
+"    DEMOD #2 Ver:  ad48, Type:  1f" + NEWLINE +\
+"    PWRTIMG  Ver:  85d3, Type:   7" + NEWLINE +\
+NEWLINE +\
+"Board Serial Number Data:" + NEWLINE +\
+"   B3  00 00 06 FF 2A 00  09 DSP727-2001-06H" + NEWLINE +\
+"   2D  00 00 06 F6 17 D8  09 TUN727-1005-06X" + NEWLINE +\
+"   2E  00 00 06 FF 25 54  09 CPU727-2011-00E" + NEWLINE +\
+"   3C  00 00 06 FF 2E 3C  09 HPA727-3009-00B " + NEWLINE +\
+"   C2  00 00 06 FF 09 46  09 HPI727-3007-00A" + NEWLINE +\
+"   D5  00 00 06 FF 06 E9  09 REC727-1004-06A" + NEWLINE +\
+">" 
+RSN_PS0_RAW_DATA = \
 "Instrument S/N:  18444" + NEWLINE +\
 "       Frequency:  76800 HZ" + NEWLINE +\
 "   Configuration:  4 BEAM, JANUS" + NEWLINE +\
@@ -167,15 +327,15 @@ PS0_RAW_DATA = \
 "              c2 = +1.281892E-06" + NEWLINE +\
 "              c1 = +1.375793E+00" + NEWLINE +\
 "          Offset = +1.338634E+01" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "Temp Sens Offset:  -0.01 degrees C" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "    CPU Firmware:  50.40 [0]" + NEWLINE +\
 "   Boot Code Ver:  Required:  1.16   Actual:  1.16" + NEWLINE +\
 "    DEMOD #1 Ver:  ad48, Type:  1f" + NEWLINE +\
 "    DEMOD #2 Ver:  ad48, Type:  1f" + NEWLINE +\
 "    PWRTIMG  Ver:  85d3, Type:   7" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "Board Serial Number Data:" + NEWLINE +\
 "   72  00 00 06 FE BC D8  09 HPA727-3009-00B " + NEWLINE +\
 "   81  00 00 06 F5 CD 9E  09 REC727-1004-06A" + NEWLINE +\
@@ -188,19 +348,19 @@ PS0_RAW_DATA = \
 
 PS3_RAW_DATA = \
 "Beam Width:   3.7 degrees" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "Beam     Elevation     Azimuth" + NEWLINE +\
 "  1         -70.00      270.00" + NEWLINE +\
 "  2         -70.00       90.00" + NEWLINE +\
 "  3         -70.00        0.01" + NEWLINE +\
 "  4         -70.00      180.00" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "Beam Directional Matrix (Down):" + NEWLINE +\
 "  0.3420    0.0000    0.9397    0.2419" + NEWLINE +\
 " -0.3420    0.0000    0.9397    0.2419" + NEWLINE +\
 "  0.0000   -0.3420    0.9397   -0.2419" + NEWLINE +\
 "  0.0000    0.3420    0.9397   -0.2419" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "Instrument Transformation Matrix (Down):    Q14:" + NEWLINE +\
 "  1.4619   -1.4619    0.0000    0.0000       23952  -23952       0       0" + NEWLINE +\
 "  0.0000    0.0000   -1.4619    1.4619           0       0  -23952   23952" + NEWLINE +\
@@ -218,7 +378,7 @@ FD_RAW_DATA = \
 "Overflow Count        =     0" + NEWLINE +\
 "Time of first fault:    13/02/11,10:05:43.29" + NEWLINE +\
 "Time of last fault:     13/02/22,12:59:26.80" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "Fault Log:" + NEWLINE +\
 "Entry #  0 Code=0a08h  Count=    5  Delta=7679898 Time=13/02/22,12:59:26.66" + NEWLINE +\
 " Parameter = 00000000h" + NEWLINE +\
@@ -270,9 +430,9 @@ PT200_RAW_DATA = \
 "Ambient  Temperature =    18.44 Degrees C" + NEWLINE +\
 "  Attitude Temperature =    21.55 Degrees C" + NEWLINE +\
 "  Internal Moisture    = 8F26h" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "Correlation Magnitude: Narrow Bandwidth" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "               Lag  Bm1  Bm2  Bm3  Bm4" + NEWLINE +\
 "                 0  255  255  255  255" + NEWLINE +\
 "                 1  153  136  134  164" + NEWLINE +\
@@ -282,20 +442,20 @@ PT200_RAW_DATA = \
 "                 5   29   17    8   38" + NEWLINE +\
 "                 6   24    7    3   63" + NEWLINE +\
 "                 7   15    7   12   83" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "  High Gain RSSI:    63   58   74   73" + NEWLINE +\
 "   Low Gain RSSI:     6    7   10    8" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "  SIN Duty Cycle:    49   49   50   49" + NEWLINE +\
 "  COS Duty Cycle:    50   48   50   49" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "Receive Test Results = $00020000 ... FAIL" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "IXMT    =      5.4 Amps rms  [Data=7bh]" + NEWLINE +\
 "VXMT    =    387.2 Volts rms [Data=b9h]" + NEWLINE +\
 "   Z    =     71.8 Ohms" + NEWLINE +\
 "Transmit Test Results = $0 ... PASS" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "    0    0    0    0" + NEWLINE +\
 "    0    0    0    0" + NEWLINE +\
 "    0    0    0    0" + NEWLINE +\
@@ -315,7 +475,7 @@ PT200_RAW_DATA = \
 "        19       7     4     6     5     3 Khz" + NEWLINE +\
 "   results          PASS  PASS  PASS  FAIL" + NEWLINE +\
 "RSSI Time Constant:" + NEWLINE +\
-"" + NEWLINE +\
+NEWLINE +\
 "RSSI Filter Strobe 1 =   38400 Hz" + NEWLINE +\
 "  time   Bm1   Bm2   Bm3   Bm4" + NEWLINE +\
 "  msec  cnts  cnts  cnts  cnts" + NEWLINE +\
@@ -518,7 +678,7 @@ get_params_output = \
             "DW  0 ------------------ Current ID on RS-485 Bus" + NEWLINE +\
             ">" + NEWLINE +\
             ">RI?" + NEWLINE +\
-            "" + NEWLINE +\
+            NEWLINE +\
             "Deployment Auto Increment is ENABLED" + NEWLINE +\
             NEWLINE +\
             ">" + NEWLINE +\
