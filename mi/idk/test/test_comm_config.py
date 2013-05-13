@@ -169,7 +169,7 @@ class TestCommConfig(MiUnitTest):
         types = CommConfig.valid_type_list()
         log.debug( "types: %s" % types)
         
-        known_types = [ConfigTypes.ETHERNET, ConfigTypes.SERIAL]
+        known_types = [ConfigTypes.ETHERNET, ConfigTypes.SERIAL, ConfigTypes.BOTPT]
         
         self.assertEqual(sorted(types), sorted(known_types))
         
