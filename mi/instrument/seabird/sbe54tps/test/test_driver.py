@@ -805,6 +805,10 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest, SeaBird54tpsMixin
 
         self.assert_direct_access_stop_telnet()
 
+        self.assert_agent_state(ResourceAgentState.COMMAND)
+        retval = self.instrument_agent_client.get_capabilities()
+        log.debug("capabilities: %s", retval)
+
         # verify the setting got restored.
         self.assert_enter_command_mode()
         self.assert_get_parameter(Parameter.SAMPLE_PERIOD, 5)

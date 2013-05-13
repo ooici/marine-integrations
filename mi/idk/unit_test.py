@@ -294,7 +294,7 @@ class DriverTestMixin(MiUnitTest):
         elif (isinstance(data_particle, dict)):
             sample_dict = data_particle
         else:
-            raise IDKException("invalid data particle type")
+            raise IDKException("invalid data particle type: %s", type(data_particle))
 
         return sample_dict
 
