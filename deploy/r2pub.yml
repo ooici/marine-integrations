@@ -368,7 +368,7 @@ apps:
       attachments: res/preload/r2_ioc/attachments
       scenario: BASE,BETA
       #categories: Constraint,Contact,User,Org,UserRole,CoordinateSystem,ParameterFunctions,ParameterDefs,ParameterDictionary,Alerts,StreamConfiguration,PlatformModel,InstrumentModel,Observatory,Subsite,PlatformSite,InstrumentSite,StreamDefinition,PlatformDevice,PlatformAgent,PlatformAgentInstance,InstrumentAgent,ExternalDataProvider,ExternalDatasetModel,ExternalDataset,ExternalDatasetAgent,ExternalDatasetAgentInstance,InstrumentDevice,InstrumentAgentInstance,DataProduct,TransformFunction,DataProcessDefinition,DataProcess,Parser,Attachment,DataProductLink,WorkflowDefinition,Workflow,Deployment,Scheduler
-      #categories: ParameterDefs,ParameterDictionary,StreamConfiguration,StreamDefinition
+      categories: ParameterDefs,ParameterDictionary,StreamConfiguration,StreamDefinition
 
   # LAST SERVICE GATEWAY SERVICE
   #
