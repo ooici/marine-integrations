@@ -9,6 +9,7 @@
 from mock import patch
 from pyon.core.bootstrap import CFG
 
+import subprocess
 import re
 import os
 import time
@@ -31,6 +32,9 @@ import gevent
 import json
 import ntplib
 import time
+
+from pprint import PrettyPrinter
+
 from pyon.core.exception import IonException, ExceptionFactory
 from mock import Mock
 from mi.core.unit_test import MiIntTestCase
@@ -56,6 +60,7 @@ from interface.objects import AgentCommand
 
 from mi.idk.util import convert_enum_to_dict
 from mi.idk.comm_config import CommConfig
+from mi.idk.comm_config import ConfigTypes
 from mi.idk.config import Config
 from mi.idk.common import Singleton
 from mi.idk.instrument_agent_client import InstrumentAgentClient
@@ -89,7 +94,7 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 from ion.agents.port.port_agent_process import PortAgentProcess
 
 from pyon.core.exception import Conflict
-from pyon.core.exception import ResourceError
+from pyon.core.exception import ResourceError, BadRequest
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 from ooi.logging import log
@@ -102,6 +107,11 @@ GO_ACTIVE_TIMEOUT=500
 GET_TIMEOUT=500
 SET_TIMEOUT=500
 EXECUTE_TIMEOUT=500
+#AGENT_DISCOVER_TIMEOUT=180
+#GO_ACTIVE_TIMEOUT=400
+#GET_TIMEOUT=30
+#SET_TIMEOUT=90
+#EXECUTE_TIMEOUT=30
 SAMPLE_RAW_DATA="Iam Apublished Message"
 
 class DriverStartupConfigKey(BaseEnum):
@@ -154,8 +164,8 @@ class InstrumentDriverTestConfig(Singleton):
 
     driver_startup_config = {}
 
-    container_deploy_file = 'res/deploy/r2idk.yml'
-    publisher_deploy_file = 'res/deploy/r2idk.yml'
+    container_deploy_file = 'deploy/r2qual.yml'
+    publisher_deploy_file = 'deploy/r2pub.yml'
 
     initialized   = False
 
@@ -342,7 +352,7 @@ class DriverTestMixin(MiUnitTest):
         @param require_instrument_timestamp: should we verify the instrument timestamp exists
         """
         sample_dict = self.convert_data_particle_to_dict(data_particle)
-        log.debug("SAMPLEDICT: %s" % sample_dict)
+        log.debug("SAMPLEDICT: %s", sample_dict)
 
         self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME], stream_name)
         self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID], DataParticleValue.JSON_DATA)
@@ -406,7 +416,7 @@ class DriverTestMixin(MiUnitTest):
         pd = driver._protocol._param_dict
 
         for (name, config) in param_dict.items():
-            log.debug("Verify parameter: %s" % name)
+            log.debug("Verify parameter: %s", name)
             self.assertIsInstance(config, dict)
 
             startup = config.get(ParameterTestConfigKey.STARTUP)
@@ -532,7 +542,7 @@ class DriverTestMixin(MiUnitTest):
 
         # get all the sample parameter names
         sample_keys = sample_values.keys()
-        log.info("Sample Keys: %s" % sample_keys)
+        log.info("Sample Keys: %s", sample_keys)
 
         # split the parameters into optional and required
         for key, param in param_dict.items():
@@ -545,8 +555,8 @@ class DriverTestMixin(MiUnitTest):
             else:
                 required_keys.append(key)
 
-        log.info("Required Keys: %s" % required_keys)
-        log.info("Optional Keys: %s" % optional_keys)
+        log.info("Required Keys: %s", required_keys)
+        log.info("Optional Keys: %s", optional_keys)
 
         # Lets verify all required parameters are there
         for required in required_keys:
@@ -558,7 +568,7 @@ class DriverTestMixin(MiUnitTest):
             if(optional in sample_keys):
                 sample_keys.remove(optional)
 
-        log.info("Unknown Keys: %s" % sample_keys)
+        log.info("Unknown Keys: %s", sample_keys)
 
         # If there is anything left in the sample keys then it's a problem
         self.assertEqual(len(sample_keys), 0)
@@ -574,7 +584,7 @@ class DriverTestMixin(MiUnitTest):
         for (param_name, param_value) in sample_values.items():
             # get the parameter type
             param_def = param_dict.get(param_name)
-            log.debug("Particle Def (%s) " % param_def)
+            log.debug("Particle Def (%s) ", param_def)
             self.assertIsNotNone(param_def)
             if(isinstance(param_def, dict)):
                 param_type = param_def.get(ParameterTestConfigKey.TYPE)
@@ -600,7 +610,7 @@ class DriverTestMixin(MiUnitTest):
         @param param_dict: dictionary containing parameter validation information
         """
         for (param_name, param_value) in sample_values.items():
-            log.debug("Data Particle Parameter (%s): %s" % (param_name, type(param_value)))
+            log.debug("Data Particle Parameter (%s): %s", param_name, type(param_value))
 
             # get the parameter type
             param_def = param_dict.get(param_name)
@@ -650,7 +660,8 @@ class DriverTestMixin(MiUnitTest):
         self.assertIsNotNone(config_json)
         config = json.loads(config_json)
 
-        log.debug("Config: %s", config)
+        pp = PrettyPrinter()
+        log.debug("Config: %s", pp.pformat(config))
 
         self.assert_driver_schema_parameters(config, parameters)
         self.assert_driver_schema_capabilities(config, capabilities)
@@ -836,9 +847,9 @@ class InstrumentDriverTestCase(MiIntTestCase):
         @brief Setup test cases.
         """
         log.debug("*********************************************************************")
-        log.debug("Starting Test %s" % self._testMethodName)
+        log.debug("Starting Test %s", self._testMethodName)
         log.debug("*********************************************************************")
-        log.debug("ID: %s" % self.id())
+        log.debug("ID: %s", self.id())
         log.debug("InstrumentDriverTestCase setUp")
 
         # Test to ensure we have initialized our test config
@@ -944,7 +955,6 @@ class InstrumentDriverTestCase(MiIntTestCase):
 
         config = {
             'device_addr' : comm_config.device_addr,
-            'device_port' : comm_config.device_port,
 
             'command_port': comm_config.command_port,
             'data_port': comm_config.data_port,
@@ -954,6 +964,13 @@ class InstrumentDriverTestCase(MiIntTestCase):
             'process_type': PortAgentProcessType.UNIX,
             'log_level': 5,
             }
+
+        if ConfigTypes.BOTPT == comm_config.config_type:
+            config['instrument_type'] = ConfigTypes.BOTPT
+            config['device_tx_port'] = comm_config.device_tx_port
+            config['device_rx_port'] = comm_config.device_rx_port
+        else:
+            config['device_port'] = comm_config.device_port
 
         if(comm_config.sniffer_prefix): config['telnet_sniffer_prefix'] = comm_config.sniffer_prefix
         if(comm_config.sniffer_suffix): config['telnet_sniffer_suffix'] = comm_config.sniffer_suffix
@@ -974,7 +991,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
         log.debug("Startup Port Agent")
 
         config = self.port_agent_config()
-        log.debug("port agent config: %s" % config)
+        log.debug("port agent config: %s", config)
 
         port_agent = PortAgentProcess.launch_process(config, timeout = 60, test_mode = True)
 
@@ -996,7 +1013,6 @@ class InstrumentDriverTestCase(MiIntTestCase):
         if self.port_agent:
             log.debug("found port agent, now stop it")
             self.port_agent.stop()
-
         self.port_agent = None
 
     
@@ -1073,12 +1089,11 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         Assert that every item in subset is in superset
         """
-
         # use assertTrue here intentionally because it's easier to unit test
         # this method.
-        if len(superset):
+        if len (superset):
             self.assertTrue(len(subset) > 0)
-
+            
         for item in subset:
             self.assertTrue(item in superset)
 
@@ -1095,7 +1110,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
 
         for k in occurances:
             if occurances[k] > 1:
-                log.error(str(obj) + " has ambigous duplicate values for '" + str(k) + "'")
+                log.error(str(obj) + " has ambiguous duplicate values for '" + str(k) + "'")
                 self.assertEqual(1, occurances[k])
 
     def assert_chunker_sample(self, chunker, sample):
@@ -1324,7 +1339,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         @param verify_values: Should we validate values?
         """
         sample_data = SAMPLE_RAW_DATA
-        log.debug("Sample to publish: %s" % sample_data)
+        log.debug("Sample to publish: %s", sample_data)
 
         # Create and populate the port agent packet.
         port_agent_packet = PortAgentPacket()
@@ -1338,7 +1353,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         self.assertEqual(len(self._data_particle_received), 1)
         particle = self._data_particle_received.pop()
         particle_dict = json.loads(particle)
-        log.debug("Raw Particle: %s" % particle_dict)
+        log.debug("Raw Particle: %s", particle_dict)
 
         # Verify the data particle
         self.assert_particle_raw(particle_dict, verify_values)
@@ -1358,7 +1373,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         """
         ts = ntplib.system_to_ntp_time(time.time())
 
-        log.debug("Sample to publish: %s" % sample_data)
+        log.debug("Sample to publish: %s", sample_data)
         # Create and populate the port agent packet.
         port_agent_packet = PortAgentPacket()
         port_agent_packet.attach_data(sample_data)
@@ -1379,7 +1394,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
             if(stream_type != CommonDataParticleType.RAW):
                 particles.append(p)
 
-        log.debug("Non raw particles: %s " % particles)
+        log.debug("Non raw particles: %s ", particles)
         self.assertEqual(len(particles), 1)
 
         # Verify the data particle
@@ -1410,8 +1425,8 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
 
         expected_states = sorted(capabilities.keys())
 
-        log.debug("Defined Protocol States: %s" % fsm_states)
-        log.debug("Expected Protocol States: %s" % expected_states)
+        log.debug("Defined Protocol States: %s", fsm_states)
+        log.debug("Expected Protocol States: %s", expected_states)
 
         self.assertEqual(fsm_states, expected_states)
 
@@ -1435,8 +1450,8 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
 
         expected_capabilities.sort()
 
-        log.debug("All Reported Capabilities: %s" % all_capabilities)
-        log.debug("All Expected Capabilities: %s" % expected_capabilities)
+        log.debug("All Reported Capabilities: %s", all_capabilities)
+        log.debug("All Expected Capabilities: %s", expected_capabilities)
 
         self.assertEqual(all_capabilities, expected_capabilities)
 
@@ -1457,9 +1472,9 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
             reported_capabilities = sorted(driver._protocol._protocol_fsm.get_events(current_state=True))
             expected_capabilities = sorted(capability_list)
 
-            log.debug("Current Driver State: %s" % state)
-            log.debug("Expected Capabilities: %s" % expected_capabilities)
-            log.debug("Reported Capabilities: %s" % reported_capabilities)
+            log.debug("Current Driver State: %s", state)
+            log.debug("Expected Capabilities: %s", expected_capabilities)
+            log.debug("Reported Capabilities: %s", reported_capabilities)
 
             self.assertEqual(reported_capabilities, expected_capabilities)
 
@@ -1503,7 +1518,6 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         state is command mode.  If the final state is auto sample then we will stop
         which should land us in autosample
         """
-        log.info("test_connect test started")
 
         # Test the driver is in state unconfigured.
         self.assert_current_state(DriverConnectionState.UNCONFIGURED)
@@ -1535,7 +1549,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             reply = self.driver_client.cmd_dvr('execute_resource', DriverEvent.START_AUTOSAMPLE)
             state = self.driver_client.cmd_dvr('get_resource_state')
 
-        log.debug("initialize final state: %s" % state)
+        log.debug("initialize final state: %s", state)
         # Test the driver is in the correct mode
         if(final_state == DriverProtocolState.AUTOSAMPLE):
             self.assertEqual(state, DriverProtocolState.AUTOSAMPLE)
@@ -1623,14 +1637,14 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             current_value = self.assert_get(param)
             config_change = current_value != value
 
-            log.debug("current value: %s new value: %s, config_change: %s" % (current_value, value, config_change))
+            log.debug("current value: %s new value: %s, config_change: %s", (current_value, value, config_change))
             self.assert_set(param, value, True)
             self.assert_get(param, value)
 
             time.sleep(1)
             events = self.get_events(DriverAsyncEvent.CONFIG_CHANGE)
 
-            log.debug("got config change events: %d" % len(events))
+            log.debug("got config change events: %d", len(events))
             if(config_change):
                 self.assertTrue(len(events) > 0)
             else:
@@ -1641,7 +1655,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             self.clear_events()
             self.assert_set(param, value, True)
             time.sleep(1)
-            log.debug("pass #2 got config change events: %d" % len(events))
+            log.debug("pass #2 got config change events: %d", len(events))
             events = self.get_events(DriverAsyncEvent.CONFIG_CHANGE)
             self.assertEqual(len(events), 0)
 
@@ -1657,7 +1671,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         reply = self.driver_client.cmd_dvr('set_resource', param_dict)
         self.assertIsNone(reply, None)
-
+        
         for (key, value) in param_dict.items():
             self.assert_get(key, value)
 
@@ -1701,6 +1715,24 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         # If we have made it this far then no exception was raised
         self.fail("No exception raised")
+    
+    def assert_ion_exception(self, ex, call, *args):
+        """
+        Take a generic ION exception that comes in as a BadRequest, parse it
+        and verify that it is the correct type of exception. This gets around
+        the hiding of exceptions that the ION system does.
+        @param ex The exception we are expecting
+        @param call The method to call
+        @param args The args to add to that call to get it to go
+        """
+        try:
+            call(*args)
+        except BadRequest as badreq:
+            if(self._driver_exception_match(badreq, ex)):
+                log.debug("Expected exception raised: %s", ex)
+                return
+        except Exception as e:
+            self.fail("Call returned bad exception: %s" % e)
 
     def _driver_exception_match(self, ion_exception, expected_exception, error_regex=None):
         """
@@ -1756,11 +1788,11 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         """
         # Execute the command
         reply = self.driver_client.cmd_dvr('execute_resource', command, )
-        log.debug("Execute driver command: %s" % command)
-        log.debug("Reply type: %s" % type(reply))
+        log.debug("Execute driver command: %s", command)
+        log.debug("Reply type: %s", type(reply))
 
         if(delay):
-            log.debug("sleeping for a bit: %d" % delay)
+            log.debug("sleeping for a bit: %d", delay)
             time.sleep(delay)
 
         # Get the value to check in the reply
@@ -1772,12 +1804,12 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
                 value = value_function(reply)
 
         if(expected != None):
-            log.debug("command reply: %s" % value)
+            log.debug("command reply: %s", value)
             self.assertIsNotNone(value)
             self.assertEqual(value, expected)
 
         if(regex != None):
-            log.debug("command reply: %s" % value)
+            log.debug("command reply: %s", value)
             self.assertIsNotNone(value)
             self.assertRegexpMatches(value, regex)
 
@@ -1880,7 +1912,6 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
                 DriverSchedulerConfigKey.DATE: "%s" % dt
             }
         }
-
         # get the current driver configuration
         config = self.driver_client.cmd_dvr('get_init_params')
 
@@ -1889,22 +1920,19 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             config = {}
         if(not config.get(DriverStartupConfigKey.SCHEDULER)):
             config[DriverStartupConfigKey.SCHEDULER] = {}
-
         config[DriverStartupConfigKey.SCHEDULER][job_name] = scheduler_config
 
         # Currently the only way to setup schedulers is via the startup config
         # mechanism.  We may need to expose scheduler specific capability in the
         # future, but this should work in the intrum.
         self.driver_client.cmd_dvr('set_init_params', config)
-        log.debug("SET CONFIG, set_init_params: %s" % config)
+        log.debug("SET CONFIG, set_init_params: %s", config)
 
         # Walk the driver to command mode.
         self.assert_initialize_driver()
-
         # We explicitly call apply startup params because we don't know if the
         # driver does it for us.  It should, but it is tested in another test.
         self.driver_client.cmd_dvr('apply_startup_params')
-
         # Transition to autosample if command supplied
         if(autosample_command):
             self.assert_driver_command(autosample_command)
@@ -1912,11 +1940,11 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         # Ensure we have at least 5 seconds before the event should fire
         safe_time = datetime.datetime.now() + datetime.timedelta(0,5)
         self.assertGreaterEqual(dt, safe_time, msg="Trigger time already in the past. Increase your delay")
-
         time.sleep(2)
 
         # Now verify that the job is triggered and it does what we think it should
         if(assert_callback):
+            log.debug("Asserting callback now")
             assert_callback()
 
     ###
@@ -1992,7 +2020,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.container = self.instrument_agent_manager.container
 
-        log.debug("Packet Config: %s" % self.test_config.instrument_agent_packet_config)
+        log.debug("Packet Config: %s", self.test_config.instrument_agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.instrument_agent_packet_config,
         )
@@ -2220,7 +2248,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         
         expected_agent_cmd = capabilities.get(AgentCapabilityType.AGENT_COMMAND)
         expected_agent_cmd.sort()
-        expected_agent_param = capabilities.get(AgentCapabilityType.AGENT_PARAMETER)
+        expected_agent_param = self._common_agent_parameters()
+        #expected_agent_param = capabilities.get(AgentCapabilityType.AGENT_PARAMETER)
         expected_agent_param.sort()
         expected_res_cmd = capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)
         expected_res_cmd.sort()
@@ -2233,16 +2262,16 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         retval = self.instrument_agent_client.get_capabilities()
         agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
 
-        log.debug("Agent Commands: %s " % str(agt_cmds))
-        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.AGENT_COMMAND))
-        log.debug("Agent Parameters: %s " % str(agt_pars))
-        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.AGENT_PARAMETER))
-        log.debug("Resource Commands: %s " % str(res_cmds))
-        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.RESOURCE_COMMAND))
-        log.debug("Resource Interface: %s " % str(res_iface))
-        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE))
-        log.debug("Resource Parameter: %s " % str(res_pars))
-        log.debug("Compared to: %s", capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER))
+        log.debug("Agent Commands: %s ", str(agt_cmds))
+        log.debug("Compared to: %s", expected_agent_cmd)
+        log.debug("Agent Parameters: %s ", str(agt_pars))
+        log.debug("Compared to: %s", expected_agent_param)
+        log.debug("Resource Commands: %s ", str(res_cmds))
+        log.debug("Compared to: %s", expected_res_cmd)
+        log.debug("Resource Interface: %s ", str(res_iface))
+        log.debug("Compared to: %s", expected_res_int)
+        log.debug("Resource Parameter: %s ", str(res_pars))
+        log.debug("Compared to: %s", expected_res_param)
         
         # Compare to what we are supposed to have
         self.assertEqual(expected_agent_cmd, agt_cmds)
@@ -2282,7 +2311,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # have been read or the default timeout has been reached.
         samples = self.data_subscribers.get_samples(sample_queue, sample_count, timeout = timeout)
         self.assertGreaterEqual(len(samples), sample_count)
-        log.trace("SAMPLE: %s" % samples)
+        log.trace("SAMPLE: %s", samples)
 
         # Verify
         for sample in samples:
@@ -2327,7 +2356,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # Assert we got 3 samples.
         for sample in samples:
-            log.debug("SAMPLE: %s" % sample)
+            log.debug("SAMPLE: %s", sample)
             particle_callback(sample)
 
     def assert_sample_async(self, sampleDataAssert, sampleQueue,
@@ -2349,7 +2378,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assertGreaterEqual(len(samples), sample_count)
 
         for s in samples:
-            log.debug("SAMPLE: %s" % s)
+            log.debug("SAMPLE: %s", s)
             sampleDataAssert(s)
 
     def assert_reset(self):
@@ -2359,7 +2388,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.debug("Reset Agent Now!")
 
         state = self.instrument_agent_client.get_agent_state()
-        log.debug("Current State: %s" % state)
+        log.debug("Current State: %s", state)
 
         if(state == ResourceAgentState.DIRECT_ACCESS):
             self.assert_direct_access_stop_telnet()
@@ -2368,6 +2397,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         if(state != ResourceAgentState.UNINITIALIZED):
             self.assert_agent_command(ResourceAgentEvent.RESET)
             self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
+
+        state = self.instrument_agent_client.get_agent_state()
+        log.debug("Reset State: %s", state)
 
     def assert_get_parameter(self, name, value):
         '''
@@ -2408,14 +2440,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         # Call get and verify the value is correct.
         #result = self.instrument_agent_client.get_resource(getParams)
         #self.assertEqual(result[name], value)
-
-    def assert_agent_state(self, expected_state):
-        '''
-        Verify that the agent state is what we expect
-        @param expected_state: the state we think the agent is in
-        '''
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, expected_state)
 
     def assert_stop_autosample(self, timeout=GO_ACTIVE_TIMEOUT):
         '''
@@ -2499,7 +2523,6 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
-
         # start 'telnet' client with returned address and port
         self.tcp_client = TcpClient(retval.result['ip_address'], retval.result['port'])
 
@@ -2987,7 +3010,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
 
         self.container = self.instrument_agent_manager.container
 
-        log.debug("Packet Config: %s" % self.test_config.instrument_agent_packet_config)
+        log.debug("Packet Config: %s", self.test_config.instrument_agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.instrument_agent_packet_config,
             use_default_stream=False
@@ -3024,7 +3047,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         timeout = time.time() + 10
         while(timeout > time.time()):
             if(self._instrument_simulator.port > 0):
-                log.debug("Instrument simulator initialized on port %s" % self._instrument_simulator.port)
+                log.debug("Instrument simulator initialized on port %s", self._instrument_simulator.port)
                 return
 
             log.debug("waiting for simulator to bind. sleeping")
@@ -3111,21 +3134,50 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         log.info("Sent GO_ACTIVE; IA state = %s", state)
         self.assertEqual(state, ResourceAgentState.COMMAND)
-
-    def assert_sample_async(self, data, sampleDataAssert, sampleQueue, timeout=GO_ACTIVE_TIMEOUT):
+        
+    def assert_async_response_from_cmd(self, command, sampleDataAssert, sampleQueue, timeout=GO_ACTIVE_TIMEOUT):
         """
-        force a sample into the port agent and watch a queue for a
-        data granule.
+        Force a sample to come through an agent based on a command
+        @param command Command to execute to the instrument agent
+        @param sampleDataAssert The method to use to assert the returned data
+        is in the right format.
+        @param sampleQueue The queue to look in for this type of data. Probably
+        a DataParticleType object
+        @param timeout The timeout to use when not found
         """
         self.data_subscribers.clear_sample_queue(sampleQueue)
-        self._instrument_simulator.send(data)
-        log.debug("Simulating instrument input: %s" % data)
+        self.assert_initialize_driver()
+        
+        cmd = AgentCommand(command=command)
+        reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
         samples = self.data_subscribers.get_samples(sampleQueue, timeout=timeout)
         self.assertGreaterEqual(len(samples), 1)
         sample = samples.pop()
 
-        log.debug("SAMPLE: %s" % sample)
+        log.debug("SAMPLE: %s", sample)
+        sampleDataAssert(sample)
+
+    def assert_sample_async(self, data, sampleDataAssert, sampleQueue, timeout=GO_ACTIVE_TIMEOUT):
+        """
+        Force a sample into the port agent and watch a queue for a
+        data granule.
+        @param command Command to execute to the instrument agent
+        @param sampleDataAssert The method to use to assert the returned data
+        is in the right format.
+        @param sampleQueue The queue to look in for this type of data. Probably
+        a DataParticleType object
+        @param timeout The timeout to use when not found
+        """
+        self.data_subscribers.clear_sample_queue(sampleQueue)
+        self._instrument_simulator.send(data)
+        log.debug("Simulating instrument input: %s", data)
+
+        samples = self.data_subscribers.get_samples(sampleQueue, timeout=timeout)
+        self.assertGreaterEqual(len(samples), 1)
+        sample = samples.pop()
+
+        log.debug("SAMPLE: %s", sample)
         sampleDataAssert(sample)
 
     def assert_reset(self):
@@ -3135,7 +3187,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         log.debug("Reset Agent Now!")
 
         state = self.instrument_agent_client.get_agent_state()
-        log.debug("Current State: %s" % state)
+        log.debug("Current State: %s", state)
 
         # If in DA mode walk it out
         if(state == ResourceAgentState.DIRECT_ACCESS):
@@ -3149,3 +3201,5 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
 
             state = self.instrument_agent_client.get_agent_state()
             self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+    
+    

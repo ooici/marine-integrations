@@ -221,7 +221,7 @@ class TestUnitDataParticle(MiUnitTestCase):
         
         self.assertRaises(ReadOnlyException, test_particle.set_value,
                           DataParticleKey.INTERNAL_TIMESTAMP,
-                          self.sample_internal_timestamp+(86400*600))
+                          ntplib.system_to_ntp_time(time.time()+(86400*600)))
         
         self.assertRaises(NotImplementedException, test_particle.get_value,
                           "bad_key")

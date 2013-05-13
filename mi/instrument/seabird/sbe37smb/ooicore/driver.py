@@ -44,9 +44,9 @@ log = get_logger()
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    PARSED = 'parsed'
-    DEVICE_CALIBRATION = 'device_calibration_parsed'
-    DEVICE_STATUS = 'device_status_parsed'
+    PARSED = 'ctd_parsed_param_dict'
+    DEVICE_CALIBRATION = 'device_calibration_parsed' # supported in preload even?
+    DEVICE_STATUS = 'device_status_parsed' # supported in preload even?
     
 class InstrumentCmds(BaseEnum):
     """

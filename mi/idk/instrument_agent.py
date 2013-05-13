@@ -40,22 +40,17 @@ class InstrumentAgent(ion.agents.instrument.instrument_agent.InstrumentAgent):
         # If the sample event is encoded, load it back to a dict.
         if isinstance(val, str):
             val = json.loads(val)
-
         try:
             stream_name = val['stream_name']
-            publisher = self._data_publishers.get(stream_name)
-
-            if(not publisher):
-                log.error("publish to undefined stream '%s'" % stream_name)
-
-            publisher.publish(val)
+            
+            self._asp.on_sample(val)
 
             log.debug('Instrument agent %s published data particle on stream %s.' % (self._proc_name, stream_name))
-            log.debug('PUB: %s' % str(val))
+            log.trace('Published value: %s' % str(val))
 
-        except:
-            log.error('Instrument agent %s could not publish data.',
-                      self._proc_name)
+        except Exception as e:
+            log.error('Instrument agent %s could not publish data. Exception caught was %s',
+                      self._proc_name, e)
 
     def _construct_packet_factories(self):
         '''
@@ -91,8 +86,9 @@ class PublisherInstrumentAgent(ion.agents.instrument.instrument_agent.Instrument
         self._dvr_client.cmd_dvr('connect')
 
         # Reset the connection id and index.
-        self._connection_ID = uuid.uuid4()
-        self._connection_index = {key : 0 for key in self.aparam_streams.keys()}
+        #self._connection_ID = uuid.uuid4()
+        #self._connection_index = {key : 0 for key in self.aparam_streams.keys()}
+        self._asp.reset_connection()
 
         return (next_state, result)
 
