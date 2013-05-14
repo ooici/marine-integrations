@@ -14,8 +14,6 @@ __license__ = 'Apache 2.0'
 
 import time
 import re
-import ntplib
-import numpy
 
 from mi.core.common import BaseEnum
 from mi.core.time import get_timestamp_delayed
@@ -406,8 +404,7 @@ class mavs4InstrumentDriver(SingleConnectionInstrumentDriver):
 ###############################################################################
 
 class Mavs4SampleDataParticleKey(BaseEnum):
-    TIMESTAMP                = "date_time_string"
-    FRACTIONAL_SECOND        = 'fractional_second'
+    DATE_TIME_STRING         = "date_time_string"
     ACOUSTIC_AXIS_VELOCITY_A = 'velocity_beam_a'
     ACOUSTIC_AXIS_VELOCITY_B = 'velocity_beam_b'
     ACOUSTIC_AXIS_VELOCITY_C = 'velocity_beam_c'
@@ -442,11 +439,11 @@ class Mavs4SampleDataParticle(DataParticle):
         #log.debug('_build_parsed_values: match=%s', match.group(0))
                 
         try:
-            datetime = match.group(1) + ' ' + match.group(2)
-            timestamp = time.strptime(datetime, "%m %d %Y %H %M %S")
-            self.set_internal_timestamp(unix_time=time.mktime(timestamp))
-            ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
             fractional_second = int(match.group(3))
+            datetime = "%s %s.%s" % (match.group(1), match.group(2), fractional_second)
+            datetime_nofrac = "%s %s" % (match.group(1), match.group(2))
+            timestamp = time.strptime(datetime_nofrac, "%m %d %Y %H %M %S")
+            self.set_internal_timestamp(unix_time=(time.mktime(timestamp)+fractional_second))
             acoustic_axis_velocity_a = str(match.group(4))
             acoustic_axis_velocity_b = str(match.group(5))
             acoustic_axis_velocity_c = str(match.group(6))
@@ -463,10 +460,8 @@ class Mavs4SampleDataParticle(DataParticle):
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
                      
-        result = [{DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: ntp_timestamp},
-                  {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.FRACTIONAL_SECOND,
-                   DataParticleKey.VALUE: fractional_second},
+        result = [{DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.DATE_TIME_STRING,
+                   DataParticleKey.VALUE: datetime},
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_A,
                    DataParticleKey.VALUE: acoustic_axis_velocity_a},
                   {DataParticleKey.VALUE_ID: Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_B,
