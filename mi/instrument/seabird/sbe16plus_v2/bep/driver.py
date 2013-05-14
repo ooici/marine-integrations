@@ -804,11 +804,11 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
 
         result = self._do_cmd_resp(Command.GETSD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
         log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
-        result = self._do_cmd_resp(Command.GETHD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        result += self._do_cmd_resp(Command.GETHD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
         log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
-        result = self._do_cmd_resp(Command.GETCD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        result += self._do_cmd_resp(Command.GETCD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
         log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
-        result = self._do_cmd_resp(Command.GETCC, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        result += self._do_cmd_resp(Command.GETCC, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
         log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
 
         return (next_state, (next_agent_state, result))
@@ -849,11 +849,11 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
 
         result = self._do_cmd_resp(Command.GETSD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
         log.debug("_handler_autosample_acquire_status: GetSD Response: %s", result)
-        result = self._do_cmd_resp(Command.GETHD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        result += self._do_cmd_resp(Command.GETHD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
         log.debug("_handler_autosample_acquire_status: GetHD Response: %s", result)
-        result = self._do_cmd_resp(Command.GETCD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        result += self._do_cmd_resp(Command.GETCD, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
         log.debug("_handler_autosample_acquire_status: GetCD Response: %s", result)
-        result = self._do_cmd_resp(Command.GETCC, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
+        result += self._do_cmd_resp(Command.GETCC, timeout=sbe16plus_driver.TIMEOUT, expected_prompt=sbe16plus_driver.Prompt.EXECUTED)
         log.debug("_handler_autosample_acquire_status: GetCC Response: %s", result)
 
         log.debug("_handler_autosample_acquire_status: sending the QS command to restart sampling")
