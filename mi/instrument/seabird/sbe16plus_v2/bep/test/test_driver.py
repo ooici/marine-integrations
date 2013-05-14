@@ -91,11 +91,11 @@ SeaBird16plusMixin.VALID_DS_RESPONSE =  'SBE 16plus V 2.5  SERIAL NO. 6841    28
     'pump = run pump during sample, delay before sampling = 0.0 seconds, delay after sampling = 0.0 seconds' + NEWLINE + \
     'transmit real-time = yes' + NEWLINE + \
     'battery cutoff =  7.5 volts' + NEWLINE + \
-    'pressure sensor = strain gauge, range = 160.0' + NEWLINE + \
-    'SBE 38 = no, SBE 50 = no, WETLABS = no, OPTODE = no, SBE63 = no, Gas Tension Device = no' + NEWLINE + \
+    'pressure sensor = quartz with temp comp, range = 160.0' + NEWLINE + \
+    'SBE 38 = no, SBE 50 = no, WETLABS = no, OPTODE = yes, SBE63 = no, Gas Tension Device = no' + NEWLINE + \
     'Ext Volt 0 = yes, Ext Volt 1 = yes' + NEWLINE + \
-    'Ext Volt 2 = yes, Ext Volt 3 = yes' + NEWLINE + \
-    'Ext Volt 4 = yes, Ext Volt 5 = yes' + NEWLINE + \
+    'Ext Volt 2 = no, Ext Volt 3 = no' + NEWLINE + \
+    'Ext Volt 4 = no, Ext Volt 5 = no' + NEWLINE + \
     'echo characters = yes' + NEWLINE + \
     'output format = raw HEX' + NEWLINE + \
     'serial sync mode disabled' + NEWLINE
@@ -532,6 +532,68 @@ class UnitFromIDK(SBEUnitTestCase):
         self.assert_particle_published(driver, self.VALID_GETSD_RESPONSE, self.assert_particle_status, True)
         self.assert_particle_published(driver, self.VALID_GETCD_RESPONSE, self.assert_particle_configuration, True)
         
+    def test_parse_ds(self):
+        """
+        Create a mock port agent
+        """
+        driver = self.InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
+        source = self.VALID_DS_RESPONSE
+
+        baseline = driver._protocol._param_dict.get_current_timestamp()
+
+        # First verify that parse ds sets all know parameters.
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_all(baseline)
+        log.debug("Param Dict Values: %s" % pd)
+        log.debug("Param Sample: %s" % source)
+        self.assert_driver_parameters(pd, True)
+
+        # Now change some things and make sure they are parsed properly
+        # Note:  Only checking parameters that can change.
+
+        # Logging
+        source = source.replace("= not logging", "= logging")
+        log.debug("Param Sample: %s" % source)
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_all(baseline)
+        self.assertTrue(pd.get(Parameter.LOGGING))
+
+        # Sync Mode
+        source = source.replace("serial sync mode disabled", "serial sync mode enabled")
+        log.debug("Param Sample: %s" % source)
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_all(baseline)
+        self.assertTrue(pd.get(Parameter.SYNCMODE))
+
+        # Pump Mode 0
+        source = source.replace("run pump during sample", "no pump")
+        log.debug("Param Sample: %s" % source)
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_all(baseline)
+        self.assertEqual(pd.get(Parameter.PUMP_MODE), 0)
+
+        # Pump Mode 1
+        source = source.replace("no pump", "run pump for 0.5 sec")
+        log.debug("Param Sample: %s" % source)
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_all(baseline)
+        self.assertEqual(pd.get(Parameter.PUMP_MODE), 1)
+
+        # Pressure Sensor type 2
+        source = source.replace("quartz with temp comp", "quartz without temp comp")
+        log.debug("Param Sample: %s" % source)
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_all(baseline)
+        self.assertEqual(pd.get(Parameter.PTYPE), 2)
+
+        # Pressure Sensor type 3
+        source = source.replace("quartz without temp comp", "strain gauge")
+        log.debug("Param Sample: %s" % source)
+        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        pd = driver._protocol._param_dict.get_all(baseline)
+        self.assertEqual(pd.get(Parameter.PTYPE), 1)
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
