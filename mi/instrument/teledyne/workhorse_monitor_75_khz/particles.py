@@ -277,7 +277,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                     self.parse_echo_intensity_chunk(chunks[offset])
                 elif 4 == variable_leader_id:
                     self.parse_percent_good_chunk(chunks[offset])
-        #log.debug("RESULT = \n " + repr(self.final_result))
+        log.debug("DATA PARTICLE = \n " + repr(self.final_result))
         return self.final_result
 
     def parse_fixed_chunk(self, chunk):
@@ -920,7 +920,6 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
         for (key, value) in matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
-        log.error("RESULT = " + repr(result))
         return result
 
 

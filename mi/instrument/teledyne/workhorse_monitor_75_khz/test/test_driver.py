@@ -143,6 +143,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         log.debug("REPLY = " + str(reply))
         self.assert_driver_parameters(reply, True)
 
+    @unittest.skip("passes, runs long long time. disabled for all but final test.")
     def test_set(self):
         """
         Test all set commands. Verify all exception cases.
@@ -811,9 +812,11 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         Verify the device configuration command can be triggered and run in autosample
         """
 
-        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=250, 
+        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=300, # 250, 
             autosample_command=ProtocolEvent.START_AUTOSAMPLE)
+        log.debug("AM I IN AUTOSAMPLE MODE?")
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
+        log.debug("I AM IN AUTOSAMPLE MODE!!!!")
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
     def assert_acquire_status(self):
