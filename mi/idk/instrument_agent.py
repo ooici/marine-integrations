@@ -18,11 +18,39 @@ __license__ = 'Apache 2.0'
 
 # ION imports.
 import ion.agents.instrument.instrument_agent
+from ion.agents.agent_stream_publisher import AgentStreamPublisher
 
 from pyon.public import log
 
 import json
 import uuid
+
+class IDKAgentStreamPublisher(AgentStreamPublisher):
+    def _publish_stream_buffer(self, stream_name):
+        """
+        overloaded so that data particles are published not granules
+        """
+        try:
+            buf_len = len(self._stream_buffers[stream_name])
+            if buf_len == 0:
+                return
+
+            publisher = self._publishers[stream_name]
+
+            for x in range(buf_len):
+                particle = self._stream_buffers[stream_name].pop()
+                publisher.publish(particle)
+
+                log.info('Outgoing particle: %s', particle)
+
+                log.info('Instrument agent %s published data particle on stream %s.',
+                    self._agent._proc_name, stream_name)
+                log.info('Connection id: %s, connection index: %i.',
+                    self._connection_ID.hex, self._connection_index[stream_name])
+        except:
+            log.exception('Instrument agent %s could not publish data on stream %s.',
+                self._agent._proc_name, stream_name)
+
 
 class InstrumentAgent(ion.agents.instrument.instrument_agent.InstrumentAgent):
     """
@@ -31,6 +59,15 @@ class InstrumentAgent(ion.agents.instrument.instrument_agent.InstrumentAgent):
     """
     def __init__(self, *args, **kwargs):
         ion.agents.instrument.instrument_agent.InstrumentAgent.__init__(self, *args, **kwargs)
+
+    def on_init(self):
+        """
+        overloaded so we can change the stream publisher object
+        """
+        super(InstrumentAgent, self).on_init()
+
+        # Set up streams.
+        self._asp = IDKAgentStreamPublisher(self)
 
     def _async_driver_event_sample(self, val, ts):
         '''
@@ -86,8 +123,9 @@ class PublisherInstrumentAgent(ion.agents.instrument.instrument_agent.Instrument
         self._dvr_client.cmd_dvr('connect')
 
         # Reset the connection id and index.
-        self._connection_ID = uuid.uuid4()
-        self._connection_index = {key : 0 for key in self.aparam_streams.keys()}
+        #self._connection_ID = uuid.uuid4()
+        #self._connection_index = {key : 0 for key in self.aparam_streams.keys()}
+        self._asp.reset_connection()
 
         return (next_state, result)
 

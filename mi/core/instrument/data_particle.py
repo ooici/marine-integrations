@@ -16,7 +16,6 @@ import copy
 import ntplib
 import base64
 import json
-import ntplib
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException, InstrumentParameterException

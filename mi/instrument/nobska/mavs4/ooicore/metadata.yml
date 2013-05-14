@@ -5,4 +5,4 @@ driver_metadata:
   driver_name: ooicore
   email: wcbollenbacher@ucsd.edu
   release_notes: .
-  version: '0.0.1'
+  version: '0.0.8'

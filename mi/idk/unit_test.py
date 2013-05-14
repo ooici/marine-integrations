@@ -32,6 +32,9 @@ import gevent
 import json
 import ntplib
 import time
+
+from pprint import PrettyPrinter
+
 from pyon.core.exception import IonException, ExceptionFactory
 from mock import Mock
 from mi.core.unit_test import MiIntTestCase
@@ -57,6 +60,7 @@ from interface.objects import AgentCommand
 
 from mi.idk.util import convert_enum_to_dict
 from mi.idk.comm_config import CommConfig
+from mi.idk.comm_config import ConfigTypes
 from mi.idk.config import Config
 from mi.idk.common import Singleton
 from mi.idk.instrument_agent_client import InstrumentAgentClient
@@ -155,8 +159,8 @@ class InstrumentDriverTestConfig(Singleton):
 
     driver_startup_config = {}
 
-    container_deploy_file = 'res/deploy/r2idk.yml'
-    publisher_deploy_file = 'res/deploy/r2idk.yml'
+    container_deploy_file = 'deploy/r2qual.yml'
+    publisher_deploy_file = 'deploy/r2pub.yml'
 
     initialized   = False
 
@@ -285,7 +289,7 @@ class DriverTestMixin(MiUnitTest):
         elif (isinstance(data_particle, dict)):
             sample_dict = data_particle
         else:
-            raise IDKException("invalid data particle type")
+            raise IDKException("invalid data particle type: %s", type(data_particle))
 
         return sample_dict
 
@@ -648,7 +652,8 @@ class DriverTestMixin(MiUnitTest):
         self.assertIsNotNone(config_json)
         config = json.loads(config_json)
 
-        log.debug("Config: %s", config)
+        pp = PrettyPrinter()
+        log.debug("Config: %s", pp.pformat(config))
 
         self.assert_driver_schema_parameters(config, parameters)
         self.assert_driver_schema_capabilities(config, capabilities)
@@ -942,7 +947,6 @@ class InstrumentDriverTestCase(MiIntTestCase):
 
         config = {
             'device_addr' : comm_config.device_addr,
-            'device_port' : comm_config.device_port,
 
             'command_port': comm_config.command_port,
             'data_port': comm_config.data_port,
@@ -952,6 +956,13 @@ class InstrumentDriverTestCase(MiIntTestCase):
             'process_type': PortAgentProcessType.UNIX,
             'log_level': 5,
             }
+
+        if ConfigTypes.BOTPT == comm_config.config_type:
+            config['instrument_type'] = ConfigTypes.BOTPT
+            config['device_tx_port'] = comm_config.device_tx_port
+            config['device_rx_port'] = comm_config.device_rx_port
+        else:
+            config['device_port'] = comm_config.device_port
 
         if(comm_config.sniffer_prefix): config['telnet_sniffer_prefix'] = comm_config.sniffer_prefix
         if(comm_config.sniffer_suffix): config['telnet_sniffer_suffix'] = comm_config.sniffer_suffix
@@ -1072,9 +1083,9 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         # use assertTrue here intentionally because it's easier to unit test
         # this method.
-        if len(superset):
+        if len (superset):
             self.assertTrue(len(subset) > 0)
-
+            
         for item in subset:
             self.assertTrue(item in superset)
 
