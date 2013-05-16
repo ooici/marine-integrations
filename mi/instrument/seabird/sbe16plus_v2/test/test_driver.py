@@ -1038,12 +1038,20 @@ class SBEQualTestCase(SeaBirdQualificationTest, SeaBird16plusMixin):
         self.assert_enter_command_mode()
 
         self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
-        self.assert_execute_resource(ProtocolEvent.ACQUIRE_STATUS)
 
-        # Now verify that at least the date matches
+        # get the time from the driver
         check_new_params = self.instrument_agent_client.get_resource([Parameter.DATE_TIME])
+        # convert driver's time from formatted date/time string to seconds integer
         instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.DATE_TIME).lower(), "%d %b %Y %H:%M:%S"))
-        self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 15)
+
+        # need to convert local machine's time to date/time string and back to seconds to 'drop' the DST attribute so test passes
+        # get time from local machine
+        lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+        # convert local time from formatted date/time string to seconds integer to drop DST
+        local_time = time.mktime(time.strptime(lt, "%d %b %Y %H:%M:%S"))
+
+        # Now verify that the time matches to within 15 seconds
+        self.assertLessEqual(abs(instrument_time - local_time), 15)
 
     def test_get_capabilities(self):
         """
