@@ -1,8 +1,0 @@
-driver_metadata:
-  author: Lytle Johnson
-  driver_make: teledyne
-  driver_model: workhorse_monitor_150khz
-  driver_name: cgsn
-  email: catrax@rockisland.com
-  release_notes: moving to teledyne
-  version: '0.01'
