@@ -1055,6 +1055,7 @@ class SBE16_NO_Protocol(sbe16plus_driver.SBE16Protocol):
                              str,
                              type=ParameterDictType.INT,
                              display_name="Ncycles",
+                             default_value = 1,
                              startup_param = True,
                              direct_access = False)
         self._param_dict.add(sbe16plus_driver.Parameter.PAROS_INTEGRATION,
