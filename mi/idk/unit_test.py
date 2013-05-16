@@ -1629,7 +1629,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             current_value = self.assert_get(param)
             config_change = current_value != value
 
-            log.debug("current value: %s new value: %s, config_change: %s", (current_value, value, config_change))
+            log.debug("current value: %s new value: %s, config_change: %s", current_value, value, config_change)
             self.assert_set(param, value, True)
             self.assert_get(param, value)
 
