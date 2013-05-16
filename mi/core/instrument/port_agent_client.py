@@ -74,6 +74,8 @@ class PortAgentPacket():
     PORT_AGENT_FAULT = 5
     INSTRUMENT_COMMAND = 6
     HEARTBEAT = 7
+    PICKLED_DATA_FROM_INSTRUMENT = 8
+    PICKLED_DATA_FROM_DRIVER = 9
 
     def __init__(self, packetType = None):
         self.__header = None
@@ -712,6 +714,11 @@ class Listener(threading.Thread):
             self.callback_raw(paPacket)
             self.callback_data(paPacket)
         elif packet_type == PortAgentPacket.DATA_FROM_DRIVER:
+            self.callback_raw(paPacket)
+        elif packet_type == PortAgentPacket.PICKLED_DATA_FROM_INSTRUMENT:
+            self.callback_raw(paPacket)
+            self.callback_data(paPacket)
+        elif packet_type == PortAgentPacket.PICKLED_DATA_FROM_DRIVER:
             self.callback_raw(paPacket)
         elif packet_type == PortAgentPacket.PORT_AGENT_COMMAND:
             self.callback_raw(paPacket)
