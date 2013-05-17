@@ -375,6 +375,7 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         self.rawCallbackCalled = False
         self.dataCallbackCalled = False
         self.errorCallbackCalled = False
+        self.paPacket = None
         
     def tearDown(self):
         """
@@ -398,6 +399,7 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
             
     def myGotData(self, paPacket):
         self.dataCallbackCalled = True
+        self.paPacket = paPacket
         if paPacket.is_valid():
             validity = "valid"
         else:
@@ -543,7 +545,92 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         self.assertFalse(exceptionCaught)
         self.assertTrue(self.rawCallbackCalled)
         self.assertTrue(self.dataCallbackCalled)
-    
+
+
+    def test_start_paClient_no_port_agent_big_data(self):
+
+        self.resetTestVars()
+
+        logging.getLogger('mi.core.instrument.port_agent_client').setLevel(logging.DEBUG)
+
+        # I put this in here because PortAgentPacket cannot make a new packet
+        # with a valid checksum.
+        def makepacket(msgtype, timestamp, data):
+            from struct import Struct
+
+            SYNC = (0xA3, 0x9D, 0x7A)
+            HEADER_FORMAT = "!BBBBHHd"
+            header_struct = Struct(HEADER_FORMAT)
+            HEADER_SIZE = header_struct.size
+
+            def calculateChecksum(data, seed=0):
+                n = seed
+                for datum in data:
+                    n ^= datum
+                return n
+
+            def pack_header(buf, msgtype, pktsize, checksum, timestamp):
+                sync1, sync2, sync3 = SYNC
+                header_struct.pack_into(buf, 0, sync1, sync2, sync3, msgtype, pktsize,
+                                        checksum, timestamp)
+
+            pktsize = HEADER_SIZE + len(data)
+            pkt = bytearray(pktsize)
+            pack_header(pkt, msgtype, pktsize, 0, timestamp)
+            pkt[HEADER_SIZE:] = data
+            checksum = calculateChecksum(pkt)
+            pack_header(pkt, msgtype, pktsize, checksum, timestamp)
+            return pkt
+
+        # Make a BIG packet
+        data = "A" * (2**16 - HEADER_SIZE - 1)
+        txpkt = makepacket(PortAgentPacket.DATA_FROM_INSTRUMENT, 0.0, data)
+
+        def handle(sock, addr):
+            # Send it in pieces
+            sock.sendall(txpkt[:1500])
+            time.sleep(1)
+            sock.sendall(txpkt[1500:])
+            time.sleep(10)
+
+        import gevent.server
+        dataserver = gevent.server.StreamServer((self.ipaddr, self.data_port), handle)
+        cmdserver = gevent.server.StreamServer((self.ipaddr, self.cmd_port), lambda x, y: None)
+
+        paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
+
+        try:
+            dataserver.start()
+            cmdserver.start()
+            paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotListenerError, self.myGotError)
+
+        except InstrumentConnectionException as e:
+            log.error("Exception caught: %r" % (e))
+            raise
+
+        else:
+            time.sleep(5)
+
+        finally:
+            paClient.stop_comms()
+            dataserver.kill()
+            cmdserver.kill()
+
+
+        """
+        Assert that the error_callback was not called, that an exception was not
+        caught, and that the data and raw callbacks were called.
+        """
+        self.assertFalse(self.errorCallbackCalled)
+        self.assertTrue(self.rawCallbackCalled)
+        self.assertTrue(self.dataCallbackCalled)
+
+        self.assertEquals(self.paPacket.get_data_length(), len(data))
+        self.assertEquals(len(self.paPacket.get_data()), len(data))
+        # don't use assertEquals b/c it will print 64kb
+        self.assert_(self.paPacket.get_data() == data)
+
+
     def test_start_paClient_lost_port_agent_tx_rx(self):
         """
         This test starts the port agent and the instrument_simulator and
