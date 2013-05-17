@@ -257,8 +257,7 @@ class Mavs4Mixin(DriverTestMixin):
     }    
         
     _sample_parameters = {
-        Mavs4SampleDataParticleKey.TIMESTAMP: {TYPE: float, VALUE: 3565047050.0},
-        Mavs4SampleDataParticleKey.FRACTIONAL_SECOND: {TYPE: int, VALUE: 40},
+        Mavs4SampleDataParticleKey.DATE_TIME_STRING: {TYPE: unicode, VALUE: "12 20 2012 18 50 50.40"},
         Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_A: {TYPE: unicode, VALUE: "FDC5"},
         Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_B: {TYPE: unicode, VALUE: "FF70"},
         Mavs4SampleDataParticleKey.ACOUSTIC_AXIS_VELOCITY_C: {TYPE: unicode, VALUE: "FF1B"},
@@ -353,7 +352,7 @@ class Mavs4Mixin(DriverTestMixin):
         self.assert_status_data_particle_header(data_particle, DataParticleType.STATUS)
         self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
 
-    TIME_TO_SET = '03/29/2002 11:11:42'
+    TIME_TO_SET = '03/29/2012 11:11:42'
 
 
 #################################### RULES ####################################
@@ -754,8 +753,10 @@ class Testmavs4_INT(InstrumentDriverIntegrationTestCase, Mavs4Mixin):
                 log.debug('parsed sample=%s\n' %sample)
                 sample_dict = eval(sample['value'])     # turn string into dictionary
                 values = sample_dict['values']          # get particle dictionary
+                log.debug('sample_dict: %s\nvalues: %s', sample_dict, values)
                 # pull timestamp out of particle
-                ntp_timestamp = [item for item in values if item["value_id"] == Mavs4SampleDataParticleKey.TIMESTAMP][0]['value']
+                ntp_timestamp = sample_dict[DataParticleKey.INTERNAL_TIMESTAMP]
+                #ntp_timestamp = [item for item in values if item["value_id"] == Mavs4SampleDataParticleKey.TIMESTAMP][0]['value']
                 float_timestamp = ntplib.ntp_to_system_time(ntp_timestamp)
                 log.debug('dt=%s' %time.ctime(float_timestamp))
         self.assertTrue(len(sample_events) >= 2)
