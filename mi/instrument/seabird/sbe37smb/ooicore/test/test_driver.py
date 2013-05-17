@@ -142,7 +142,7 @@ DEFAULT = ParameterTestConfigKey.DEFAULT
 ## Initialize the test parameters
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.seabird.sbe37smb.ooicore.driver',
-    driver_class="SBE37Driver",
+    driver_class="InstrumentDriver",
 
     instrument_agent_resource_id = '123xyz',
     instrument_agent_preload_id = 'IA2',
