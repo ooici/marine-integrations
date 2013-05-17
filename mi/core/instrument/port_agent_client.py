@@ -57,6 +57,10 @@ MAX_RECOVERY_ATTEMPTS = 1  # !! MUST BE 1 and ONLY 1 (see above comment) !!
 
 MAX_SEND_ATTEMPTS = 15              # Max number of times we can get EAGAIN
 
+
+class SocketClosed(Exception): pass
+
+
 class PortAgentPacket():
     """
     An object that encapsulates the details packets that are sent to and
@@ -745,14 +749,6 @@ class Listener(threading.Thread):
         Receive HEADER_SIZE bytes to receive the entire header.  From that,
         get the length of the whole packet (including header); compute the
         length of the remaining data and read that.  
-        NOTE (DHE): I've noticed in my testing that if my test server
-        (simulating the port agent) goes away, the client socket (ours)
-        goes into a CLOSE_WAIT condition and stays there for a long time. 
-        When that happens, this method loops furiously and for a long time. 
-        I have not had the patience to wait it out, so I don't know how long
-        it will last.  When it happens though, 0 bytes are received, which
-        should never happen unless something is wrong.  So if that happens,
-        I'm considering it an error.
         """
         log.info('Logger client listener started.')
         if self.heartbeat:
@@ -760,58 +756,73 @@ class Listener(threading.Thread):
 
         while not self._done:
             try:
-                received_header = False
+                log.debug('RX NEW PACKET')
+                header = bytearray(HEADER_SIZE)
+                headerview = memoryview(header)
                 bytes_left = HEADER_SIZE
-                while not received_header and not self._done: 
-                    header = self.sock.recv(bytes_left)
-                    bytes_left -= len(header)
-                    if bytes_left == 0:
-                        received_header = True
-                        paPacket = PortAgentPacket()         
-                        paPacket.unpack_header(header)         
-                        data_size = paPacket.get_data_length()
-                        bytes_left = data_size
-                    elif len(header) == 0:
-                        errorString = 'Zero bytes received from port_agent socket'
-                        log.error(errorString)
-                        self._invoke_error_callback(self.recovery_attempt, errorString)
-                        """
-                        This next statement causes the thread to exit.  This 
-                        thread is done regardless of which condition exists 
-                        above; it is the job of the callbacks to restart the
-                        thread
-                        """
-                        self._done = True
-                
-                received_data = False
-                while not received_data and not self._done: 
-                    data = self.sock.recv(bytes_left)
-                    bytes_left -= len(data)
-                    if bytes_left == 0:
-                        received_data = True
-                        paPacket.attach_data(data)
-                    elif len(data) == 0:
-                        errorString = 'Zero bytes received from port_agent socket'
-                        log.error(errorString)
-                        self._invoke_error_callback(self.recovery_attempt, errorString)
-                        """
-                        This next statement causes the thread to exit.
-                        """
-                        self._done = True
+                while bytes_left and not self._done:
+                    try:
+                        bytesrx = self.sock.recv_into(headerview[HEADER_SIZE - bytes_left:], bytes_left)
+                        log.debug('RX HEADER BYTES %d LEFT %d SOCK %r' % (
+                                                    bytesrx, bytes_left, self.sock,))
+                        if bytesrx <= 0:
+                            raise SocketClosed()
+                        bytes_left -= bytesrx
+                    except socket.error as e:
+                        if e.errno == errno.EWOULDBLOCK:
+                            time.sleep(.1)
+                        else:
+                            raise
+
+                paPacket = PortAgentPacket()
+                paPacket.unpack_header(str(header))
+                data_size = paPacket.get_data_length()
+                bytes_left = data_size
+
+                log.debug('Expecting DATA BYTES %d' % data_size)
+
+                data = bytearray(data_size)
+                dataview = memoryview(data)
+
+                while bytes_left and not self._done:
+                    try:
+                        bytesrx = self.sock.recv_into(dataview[data_size - bytes_left:], bytes_left)
+                        log.debug('RX DATA BYTES %d LEFT %d SOCK %r' % (
+                                                    bytesrx, bytes_left, self.sock,))
+                        if bytesrx <= 0:
+                            raise SocketClosed()
+                        bytes_left -= bytesrx
+                    except socket.error as e:
+                        if e.errno == errno.EWOULDBLOCK:
+                            time.sleep(.1)
+                        else:
+                            raise
+
+                paPacket.attach_data(str(data))
 
                 if not self._done:
                     """
                     Should have complete port agent packet.
                     """
+                    log.debug("HANDLE PACKET")
                     self.handle_packet(paPacket)
 
+            except SocketClosed:
+                errorString = 'Zero bytes received from port_agent socket'
+                log.error(errorString)
+                self._invoke_error_callback(self.recovery_attempt, errorString)
+                """
+                This next statement causes the thread to exit.  This 
+                thread is done regardless of which condition exists 
+                above; it is the job of the callbacks to restart the
+                thread
+                """
+                self._done = True
+
             except socket.error as e:
-                if e.errno == errno.EWOULDBLOCK:
-                    time.sleep(.1)
-                else:
-                    errorString = 'Socket error while receiving from port agent: %r'  % (e)
-                    log.error(errorString)
-                    self._invoke_error_callback(self.recovery_attempt, errorString)
+                errorString = 'Socket error while receiving from port agent: %r'  % (e)
+                log.error(errorString)
+                self._invoke_error_callback(self.recovery_attempt, errorString)
 
             except Exception as e:
                 self.default_callback_error(e)
