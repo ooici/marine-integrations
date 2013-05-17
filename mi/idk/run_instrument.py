@@ -195,7 +195,7 @@ class RunInstrument(MiIntTestCase):
             # Create agent config.
             agent_config = {
                 'driver_config' : DVR_CONFIG,
-                'stream_config' : self._stream_config,
+                'stream_config' : self.stream_config,
                 'agent'         : {'resource_id': IA_RESOURCE_ID},
                 'test_mode' : True
             }
@@ -291,7 +291,7 @@ class RunInstrument(MiIntTestCase):
         dataset_management = DatasetManagementServiceClient() 
            
         # Create streams and subscriptions for each stream named in driver.
-        self._stream_config = {}
+        self.stream_config = {}
 
         streams = {
             'parsed' : 'ctd_parsed_param_dict',
