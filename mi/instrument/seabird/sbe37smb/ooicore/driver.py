@@ -190,7 +190,7 @@ CALIBRATION_DATA_REGEX_MATCHER = re.compile(CALIBRATION_DATA_REGEX, re.DOTALL)
 # Seabird Electronics 37-SMP MicroCAT Driver.
 ###############################################################################
 
-class InstrumentDriver(SingleConnectionInstrumentDriver):
+class SBE37Driver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass for SBE37 driver.
     Subclasses SingleConnectionInstrumentDriver with connection state
