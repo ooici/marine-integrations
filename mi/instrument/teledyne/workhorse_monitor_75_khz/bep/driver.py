@@ -368,6 +368,11 @@ class Protocol(WorkhorseProtocol):
         except socket.error, msg:
             log.error("WHOOPS! 2")
         sock.send("break 500\r\n")
+        time.sleep(5)
+        sock.send("break 500\r\n")
+        time.sleep(5)
+        log.debug("SENT BREAK")
+        log.debug("self._linebuf = " + str(self._linebuf))
         sock.close()
 
     pass

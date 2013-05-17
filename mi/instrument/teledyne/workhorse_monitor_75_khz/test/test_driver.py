@@ -129,6 +129,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
     def setUp(self):
         TeledyneIntegrationTest.setUp(self)
 
+
     ###
     #    Add instrument specific integration tests
     ###
@@ -143,7 +144,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         log.debug("REPLY = " + str(reply))
         self.assert_driver_parameters(reply, True)
 
-    @unittest.skip("passes, runs long long time. disabled for all but final test.")
+    @unittest.skip('Passes, takes a long time enable for final test.')
     def test_set(self):
         """
         Test all set commands. Verify all exception cases.
@@ -812,7 +813,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         Verify the device configuration command can be triggered and run in autosample
         """
 
-        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=300, # 250, 
+        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=250, # 250, 
             autosample_command=ProtocolEvent.START_AUTOSAMPLE)
         log.debug("AM I IN AUTOSAMPLE MODE?")
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
@@ -825,14 +826,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         self.clear_events()
         self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=300)
-
+    #+
     def test_scheduled_device_configuration_command(self):
         """
         Verify the device status command can be triggered and run in command
         """
         self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=300)
         self.assert_current_state(ProtocolState.COMMAND)
-
+    #+
     def test_scheduled_device_configuration_autosample(self):
         """
         Verify the device status command can be triggered and run in autosample
@@ -851,14 +852,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         dt = self.assert_get(Parameter.TIME)
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:13].upper() in dt.upper())
-
+    #+
     def test_scheduled_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
         self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=250)
         self.assert_current_state(ProtocolState.COMMAND)
-
+    #+
     def test_scheduled_clock_sync_autosample(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected

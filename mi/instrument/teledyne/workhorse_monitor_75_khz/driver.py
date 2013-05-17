@@ -587,20 +587,21 @@ class WorkhorseProtocol(TeledyneProtocol):
         """
         Send a BREAK to attempt to wake the device.
         """
-
-        log.debug("IN _send_break SLEEPING 3 seconds before clearing buffer.")
-        time.sleep(3)
+        #self._connection.send_break(400)
+        log.debug("IN _send_break, clearing buffer.")
         self._promptbuf = ''
         self._linebuf = ''
         self._send_break_cmd()
         break_confirmation = []
+        log.debug("self._linebuf = " + self._linebuf)
+
         break_confirmation.append("[BREAK Wakeup A]" + NEWLINE + \
         "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
         "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
         "All Rights Reserved.")
-        #break_confirmation.append("[BREAK Wakeup A]")
+        break_confirmation.append("[BREAK Wakeup A]")
         found = False
-        resend_delay = 15 # 5 seconds to wait for a reply.
+        timeout = 30 
         count = 0
         while (not found):
             log.debug("WAIT FOR BREAK TRY #" + str(count))
@@ -609,11 +610,14 @@ class WorkhorseProtocol(TeledyneProtocol):
                 if break_message in self._linebuf:
                     log.debug("GOT A BREAK MATCH ==> " + str(break_message))
                     found = True
-            if count > resend_delay:
+            if count > timeout:
                 if True != found:
-                    self._send_break_cmd()
-            time.sleep(5)
+                    raise InstrumentTimeoutException("NO BREAK RESPONSE.")
+            time.sleep(1)
         self._chunker._clean_buffer(len(self._chunker.raw_chunk_list))
+        self._promptbuf = ''
+        self._linebuf = ''
+        return True
 
     def _send_wakeup(self):
         """

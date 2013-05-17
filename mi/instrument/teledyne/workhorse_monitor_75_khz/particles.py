@@ -210,7 +210,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         Parse the base portion of the particle
         """
         if "[BREAK Wakeup A]" in self.raw_data:
-            raise SampleException("BREAK encountered, something is not right.")
+            raise SampleException("BREAK encountered, Seems someone is escaping autosample mode.")
 
         self.final_result = []
 
@@ -277,7 +277,6 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                     self.parse_echo_intensity_chunk(chunks[offset])
                 elif 4 == variable_leader_id:
                     self.parse_percent_good_chunk(chunks[offset])
-        log.debug("DATA PARTICLE = \n " + repr(self.final_result))
         return self.final_result
 
     def parse_fixed_chunk(self, chunk):

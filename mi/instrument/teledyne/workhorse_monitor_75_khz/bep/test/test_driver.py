@@ -167,7 +167,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.ROLL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.SALINITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 35, VALUE: 35},
         Parameter.COORDINATE_TRANSFORMATION: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '11111', VALUE: '11111'},
-        Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1111101"},
+        Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1010101"}, # "1111101"
         Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
         Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
         Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:01.00'},
@@ -475,7 +475,7 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_PS0DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-        log.error("IN assert_particle_pd0_data")
+        log.debug("IN assert_particle_pd0_data")
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_EARTH)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
 
@@ -488,6 +488,32 @@ class ADCPTMixin(DriverTestMixin):
 class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
     def setUp(self):
         WorkhorseDriverUnitTest.setUp(self)
+
+    def test_send_break(self):
+        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        self.protocol = Protocol(Prompt, NEWLINE, my_event_callback)
+        def fake_send_break1_cmd():
+            log.error("IN fake_send_break1_cmd")
+            self.protocol._linebuf =  "[BREAK Wakeup A]\n" + \
+                                     "  Polled Mode is OFF -- Battery Saver is ONWorkHorse Broadband ADCP Version 50.40\n" + \
+                                     "Teledyne RD Instruments (c) 1996-2010\n" + \
+                                     "All Rights Reserved."
+
+        def fake_send_break2_cmd():
+            log.error("IN fake_send_break2_cmd")
+            self.protocol._linebuf = "[BREAK Wakeup A]" + NEWLINE + \
+                                    "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
+                                    "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
+                                    "All Rights Reserved."
+                                    
+        self.protocol._send_break_cmd = fake_send_break1_cmd
+
+        self.assertTrue(self.protocol._send_break())
+
+        self.protocol._send_break_cmd = fake_send_break2_cmd
+
+        self.assertTrue(self.protocol._send_break())
+
 
     def test_driver_schema(self):
         """
@@ -686,8 +712,8 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         self.assert_start_autosample()
 
         self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=50) # ADCP_PD0_PARSED_BEAM
-        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=20)
-        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=20)
+        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=50)
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=50)
 
         # Stop autosample and do run a couple commands.
         self.assert_stop_autosample()
@@ -702,8 +728,8 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         self.assert_start_autosample()
 
         self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=200)
-        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=20)
-        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=20)
+        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=50)
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=50)
 
         # Stop autosample and do run a couple commands.
         self.assert_stop_autosample()
