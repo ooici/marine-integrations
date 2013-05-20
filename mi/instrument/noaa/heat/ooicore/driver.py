@@ -79,6 +79,8 @@ class ProtocolEvent(BaseEnum):
     EXIT = DriverEvent.EXIT
     GET = DriverEvent.GET
     SET = DriverEvent.SET
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     DISCOVER = DriverEvent.DISCOVER
     HEAT_ON = ExportedInstrumentCommand.HEAT_ON
     HEAT_OFF = ExportedInstrumentCommand.HEAT_OFF
@@ -89,6 +91,7 @@ class Capability(BaseEnum):
     """
     GET = ProtocolEvent.GET
     SET = ProtocolEvent.SET
+    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     HEAT_ON = ProtocolEvent.HEAT_ON
     HEAT_OFF = ProtocolEvent.HEAT_OFF
     
@@ -155,8 +158,12 @@ class HEATCommandResponse():
             heat_time = match.group(1)
             timestamp = time.strptime(heat_time, "%Y/%m/%d %H:%M:%S")
             #if heat_duration_value == int(match.group(2)):
-            if heat_duration_value == match.group(2):
+            rx_heat_duration_value = match.group(2)
+            if heat_duration_value == rx_heat_duration_value:
                 retValue = True
+            else:
+                log.error("BOTPT HEAT Responded with: %s; expected %s",
+                          rx_heat_duration_value, heat_duration_value)
 
         except ValueError:
             raise SampleException("ValueError while converting data: [%s]" %
@@ -165,7 +172,7 @@ class HEATCommandResponse():
         return retValue
 
 class DataParticleType(BaseEnum):
-    HEAT_PARSED = 'heat_sample'
+    HEAT_PARSED = 'botpt_heat_sample'
 
 class HEATDataParticleKey(BaseEnum):
     TIME = "heat_time"
@@ -191,6 +198,7 @@ class HEATDataParticle(DataParticle):
         Hour = hh
         Minutes = mm
         Seconds = ss
+        NOTE: The above time expression is all grouped into one string.
         X_TILT = xxxx (integer degrees)
         Y_TILT = yyyy (integer degrees)
         Temp = tttt (integer degrees C)
@@ -204,16 +212,6 @@ class HEATDataParticle(DataParticle):
         @return: regex string
         """
         pattern = r'HEAT,' # pattern starts with HEAT '
-        """
-        DHE: changing this to one string
-        pattern += r'([0-9]{4})/' # 1 year  
-        pattern += r'([0-9]{2})/' # 2 month
-        pattern += r'([0-9]{2})' # 3 day
-        pattern += r' ?'
-        pattern += r'([0-9]{2}):' # 4 hours
-        pattern += r'([0-9]{2}):' # 5 minutes
-        pattern += r'([0-9]{2}),' # 6 seconds
-        """
         pattern += r'(.*),' # 1 time
         pattern += r'(-*[0-9]+),' # 2 x-tilt
         pattern += r'(-*[0-9]+),' # 3 y-tilt
@@ -243,15 +241,6 @@ class HEATDataParticle(DataParticle):
                                   self.raw_data)
             
         try:
-            """
-            year = match.group(1)
-            month = match.group(2)
-            month = match.group(2)
-            day = match.group(3)
-            hour = match.group(4)
-            minutes = match.group(5)
-            seconds = match.group(6)
-            """
             heat_time = match.group(1)
             timestamp = time.strptime(heat_time, "%Y/%m/%d %H:%M:%S")
             self.set_internal_timestamp(unix_time=time.mktime(timestamp))
@@ -349,10 +338,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
 
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.HEAT_ON, self._handler_command_heat_on)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.HEAT_OFF, self._handler_command_heat_off)
 
@@ -585,6 +579,34 @@ class Protocol(CommandResponseInstrumentProtocol):
         return (ProtocolState.COMMAND, ResourceAgentState.IDLE)
 
     ########################################################################
+    # Autosample handlers.
+    ########################################################################
+
+    def _handler_autosample_enter(self, *args, **kwargs):
+        """
+        Enter autosample state.
+        """
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_autosample_exit(self, *args, **kwargs):
+        """
+        Exit command state.
+        """
+        pass
+
+    def _handler_autosample_stop_autosample(self):
+        """
+        """
+        result = None
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+        
+        return (next_state, (next_agent_state, result))
+
+    ########################################################################
     # Command handlers.
     ########################################################################
 
@@ -635,6 +657,15 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.info("BOTPT HEAT Driver: heat duration already %d; not changing.", new_heat_duration)
         
         return (next_state, result)
+
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        """
+        """
+        result = None
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_heat_on(self, *args, **kwargs):
         """
