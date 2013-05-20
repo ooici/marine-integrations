@@ -805,6 +805,10 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest, SeaBird54tpsMixin
 
         self.assert_direct_access_stop_telnet()
 
+        self.assert_agent_state(ResourceAgentState.COMMAND)
+        retval = self.instrument_agent_client.get_capabilities()
+        log.debug("capabilities: %s", retval)
+
         # verify the setting got restored.
         self.assert_enter_command_mode()
         self.assert_get_parameter(Parameter.SAMPLE_PERIOD, 5)
@@ -830,6 +834,42 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest, SeaBird54tpsMixin
         lt = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         log.debug("TIME: %s && %s" % (lt, check_new_params[Parameter.TIME]))
         self.assertTrue(lt[:12].upper() in check_new_params[Parameter.TIME].upper())
+
+    def test_sample_interval_set(self):
+        """
+        https://jira.oceanobservatories.org/tasks/browse/CISWMI-147
+        There was an issue raised that the sample interval set wasn't behaving
+        consistantly.  This test is intended to replicate the error and veriy
+        the fix.
+        """
+        self.assert_enter_command_mode()
+
+        log.debug("getting ready to set some parameters!  Start watching the sniffer")
+        time.sleep(30)
+
+        self.assert_set_parameter(Parameter.SAMPLE_PERIOD, 15)
+        self.assert_start_autosample()
+        self.assert_stop_autosample()
+        self.assert_get_parameter(Parameter.SAMPLE_PERIOD, 15)
+        self.assert_direct_access_start_telnet()
+        self.assert_direct_access_stop_telnet()
+        self.assert_get_parameter(Parameter.SAMPLE_PERIOD, 15)
+
+        self.assert_set_parameter(Parameter.SAMPLE_PERIOD, 10)
+        self.assert_start_autosample()
+        self.assert_stop_autosample()
+        self.assert_get_parameter(Parameter.SAMPLE_PERIOD, 10)
+        self.assert_direct_access_start_telnet()
+        self.assert_direct_access_stop_telnet()
+        self.assert_get_parameter(Parameter.SAMPLE_PERIOD, 10)
+
+        self.assert_set_parameter(Parameter.SAMPLE_PERIOD, 20)
+        self.assert_start_autosample()
+        self.assert_stop_autosample()
+        self.assert_get_parameter(Parameter.SAMPLE_PERIOD, 20)
+        self.assert_direct_access_start_telnet()
+        self.assert_direct_access_stop_telnet()
+        self.assert_get_parameter(Parameter.SAMPLE_PERIOD, 20)
 
     def test_startup_params_first_pass(self):
         """

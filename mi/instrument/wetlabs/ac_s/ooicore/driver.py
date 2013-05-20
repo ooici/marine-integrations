@@ -32,6 +32,7 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.driver_dict import DriverDictKey
 
 from struct import pack
 
@@ -401,6 +402,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._chunker = StringChunker(Protocol.sieve_function)
 
+        self._build_driver_dict()
+
     @staticmethod
     def sieve_function(raw_data):
         """
@@ -438,6 +441,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         return [x for x in events if Capability.has(x)]
 
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with options
+        """
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
 
     ########################################################################
     # Unknown handlers.
