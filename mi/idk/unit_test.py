@@ -1510,7 +1510,6 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         state is command mode.  If the final state is auto sample then we will stop
         which should land us in autosample
         """
-
         # Test the driver is in state unconfigured.
         self.assert_current_state(DriverConnectionState.UNCONFIGURED)
 
@@ -1525,7 +1524,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         # Test the driver is in unknown state.
         self.assert_current_state(DriverProtocolState.UNKNOWN)
-
+        
         # Configure driver for comms and transition to disconnected.
         reply = self.driver_client.cmd_dvr('discover_state')
 
@@ -1547,7 +1546,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             self.assertEqual(state, DriverProtocolState.AUTOSAMPLE)
         else:
             self.assertEqual(state, DriverProtocolState.COMMAND)
-
+        
     def assert_startup_parameters(self, parameter_assert, new_values=None, get_values=None):
         """
         Verify that driver startup parameters are set properly.  To

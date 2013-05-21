@@ -591,6 +591,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         """
         log.debug("Getting metadata from driver...")
         if self._protocol:
+            log.debug("Getting metadata from protocol...")            
             return json.dumps(self._protocol.get_config_metadata_dict(),
                               sort_keys=True)
             
@@ -883,7 +884,6 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         """
         next_state = None
         result = None
-        
         self._build_protocol()
         self._connection.init_comms(self._protocol.got_data, 
                                     self._protocol.got_raw,
