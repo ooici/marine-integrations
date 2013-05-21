@@ -42,25 +42,28 @@ from mi.instrument.teledyne.test.test_driver import TeledyneIntegrationTest
 from mi.instrument.teledyne.test.test_driver import TeledyneQualificationTest
 from mi.instrument.teledyne.test.test_driver import TeledynePublicationTest
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import WorkhorseInstrumentDriver
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseInstrumentDriver
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import DataParticleType
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolState
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolEvent
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import DataParticleType
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ProtocolState
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ProtocolEvent
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import Parameter
 
-from mi.instrument.teledyne.driver import ScheduledJob
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ScheduledJob
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import Prompt
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import NEWLINE
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_DataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_KEY
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_CONFIGURATION_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_COMPASS_CALIBRATION_KEY
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_COMPASS_CALIBRATION_DataParticle
 
-#from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import PS3_RAW_DATA
-#from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import FD_RAW_DATA
-#from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import PT200_RAW_DATA
+#from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import SAMPLE_RAW_DATA 
+#from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CALIBRATION_RAW_DATA
+#from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import PS0_RAW_DATA
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import PS3_RAW_DATA
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import FD_RAW_DATA
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import PT200_RAW_DATA
 
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
@@ -79,6 +82,22 @@ from mi.idk.unit_test import GET_TIMEOUT
 from mi.idk.unit_test import SET_TIMEOUT
 from mi.idk.unit_test import EXECUTE_TIMEOUT
 
+#AGENT_DISCOVER_TIMEOUT=3600
+#GO_ACTIVE_TIMEOUT=3600 # i have a slow instrument
+#GET_TIMEOUT=3000
+#SET_TIMEOUT=9000
+#EXECUTE_TIMEOUT=3000
+
+#tolerance = 500
+
+# Globals
+#raw_stream_received = False
+#parsed_stream_received = False
+
+
+
+
+
 
 #################################### RULES ####################################
 #                                                                             #
@@ -91,7 +110,7 @@ from mi.idk.unit_test import EXECUTE_TIMEOUT
 #                                                                             #
 # Qualification tests are driven through the instrument_agent                 #
 #                                                                             #
-###############################################################################
+############
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -110,6 +129,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
     def setUp(self):
         TeledyneIntegrationTest.setUp(self)
 
+
     ###
     #    Add instrument specific integration tests
     ###
@@ -124,6 +144,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         log.debug("REPLY = " + str(reply))
         self.assert_driver_parameters(reply, True)
 
+    @unittest.skip('Passes, takes a long time enable for final test.')
     def test_set(self):
         """
         Test all set commands. Verify all exception cases.
@@ -805,14 +826,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         self.clear_events()
         self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=300)
-
+    #+
     def test_scheduled_device_configuration_command(self):
         """
         Verify the device status command can be triggered and run in command
         """
         self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=300)
         self.assert_current_state(ProtocolState.COMMAND)
-
+    #+
     def test_scheduled_device_configuration_autosample(self):
         """
         Verify the device status command can be triggered and run in autosample
@@ -940,7 +961,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.TIME).lower(), "%Y/%m/%d,%H:%M:%S %Z"))
 
-        self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 30)
+        self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 15)
 
     def test_get_capabilities(self):
         """
@@ -1156,3 +1177,14 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 class WorkhorseDriverPublicationTest(TeledynePublicationTest):
     def setUp(self):
         TeledynePublicationTest.setUp(self)
+
+    def test_granule_generation(self):
+        self.assert_initialize_driver()
+
+        # Currently these tests only verify that the data granule is generated, but the values
+        # are not tested.  We will eventually need to replace log.debug with a better callback
+        # function that actually tests the granule.
+        self.assert_sample_async("raw data", log.debug, DataParticleType.RAW, timeout=10)
+        self.assert_sample_async(SAMPLE_RAW_DATA, log.debug, DataParticleType.ADCP_PD0_PARSED_BEAM, timeout=10)
+        self.assert_sample_async(PS0_RAW_DATA, log.debug, DataParticleType.ADCP_SYSTEM_CONFIGURATION, timeout=10)
+        self.assert_sample_async(CALIBRATION_RAW_DATA, log.debug, DataParticleType.ADCP_COMPASS_CALIBRATION, timeout=10)

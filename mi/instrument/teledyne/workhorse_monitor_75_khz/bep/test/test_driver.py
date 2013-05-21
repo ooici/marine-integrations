@@ -1,16 +1,7 @@
 """
-@package mi.instrument.teledyne.workhorse_monitor_75_khz.cgsn.test.test_driver
+@package mi.instrument.teledyne.workhorse_monitor_75_khz.bep.test.test_driver
 @author Roger Unwin
 @brief Test cases for InstrumentDriver
-
-USAGE:
- Make tests verbose and provide stdout
-   * From the IDK
-       $ bin/test_driver
-       $ bin/test_driver -u
-       $ bin/test_driver -i
-       $ bin/test_driver -q
-
 """
 
 __author__ = 'Roger Unwin'
@@ -30,7 +21,8 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import Wor
 from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import DataParticleType
 from mi.idk.unit_test import InstrumentDriverTestCase
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CG_SAMPLE_RAW_DATA 
+from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CG_SAMPLE_RAW_DATA
+from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CG_SAMPLE_RAW_DATA2
 from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CG_CALIBRATION_RAW_DATA
 from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CG_PS0_RAW_DATA
 
@@ -42,7 +34,7 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolEvent
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ScheduledJob
+from mi.instrument.teledyne.driver import ScheduledJob
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Capability
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import InstrumentCmds
 
@@ -167,7 +159,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.ROLL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.SALINITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 35, VALUE: 35},
         Parameter.COORDINATE_TRANSFORMATION: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '11111', VALUE: '11111'},
-        Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1010101"}, # "1111101"
+        Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1111101"}, 
         Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
         Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
         Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:01.00'},
@@ -493,19 +485,19 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         self.protocol = Protocol(Prompt, NEWLINE, my_event_callback)
         def fake_send_break1_cmd():
-            log.error("IN fake_send_break1_cmd")
+            log.debug("IN fake_send_break1_cmd")
             self.protocol._linebuf =  "[BREAK Wakeup A]\n" + \
                                      "  Polled Mode is OFF -- Battery Saver is ONWorkHorse Broadband ADCP Version 50.40\n" + \
                                      "Teledyne RD Instruments (c) 1996-2010\n" + \
                                      "All Rights Reserved."
 
         def fake_send_break2_cmd():
-            log.error("IN fake_send_break2_cmd")
+            log.debug("IN fake_send_break2_cmd")
             self.protocol._linebuf = "[BREAK Wakeup A]" + NEWLINE + \
                                     "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
                                     "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
                                     "All Rights Reserved."
-                                    
+
         self.protocol._send_break_cmd = fake_send_break1_cmd
 
         self.assertTrue(self.protocol._send_break())
@@ -513,7 +505,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.protocol._send_break_cmd = fake_send_break2_cmd
 
         self.assertTrue(self.protocol._send_break())
-
 
     def test_driver_schema(self):
         """
@@ -537,7 +528,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_particle_published(driver, CG_CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
         self.assert_particle_published(driver, CG_PS0_RAW_DATA, self.assert_particle_system_configuration, True)
         self.assert_particle_published(driver, CG_SAMPLE_RAW_DATA, self.assert_particle_pd0_data, True)
-
+        
     def test_driver_parameters(self):
         """
         Verify the set of parameters known by the driver
@@ -590,7 +581,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
-
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -607,7 +597,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
-    # FAILS
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
@@ -744,4 +733,18 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
 ###############################################################################
 @attr('PUB', group='mi')
 class PubFromIDK(WorkhorseDriverPublicationTest):
-    pass
+    def setUp(self):
+        WorkhorseDriverPublicationTest.setUp(self)
+
+    def test_granule_generation(self):
+        self.assert_initialize_driver()
+
+        # Currently these tests only verify that the data granule is generated, but the values
+        # are not tested.  We will eventually need to replace log.debug with a better callback
+        # function that actually tests the granule.
+        self.assert_sample_async("raw data", log.debug, DataParticleType.RAW, timeout=10)
+        self.assert_sample_async(CG_SAMPLE_RAW_DATA, log.debug, DataParticleType.ADCP_PD0_PARSED_BEAM, timeout=10)
+        self.assert_sample_async(CG_PS0_RAW_DATA, log.debug, DataParticleType.ADCP_SYSTEM_CONFIGURATION, timeout=10)
+        self.assert_sample_async(CG_CALIBRATION_RAW_DATA, log.debug, DataParticleType.ADCP_COMPASS_CALIBRATION, timeout=10)
+
+

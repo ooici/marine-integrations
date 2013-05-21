@@ -21,13 +21,14 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         """
         #Construct superclass.
         WorkhorseInstrumentDriver.__init__(self, evt_callback)
-        
+
     def _build_protocol(self):
         """
         Construct the driver protocol state machine.
         """
         self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
         log.debug("self._protocol = " + repr(self._protocol))
+
 
 class Protocol(WorkhorseProtocol):
     """
@@ -368,11 +369,6 @@ class Protocol(WorkhorseProtocol):
         except socket.error, msg:
             log.error("WHOOPS! 2")
         sock.send("break 500\r\n")
-        time.sleep(5)
-        sock.send("break 500\r\n")
-        time.sleep(5)
-        log.debug("SENT BREAK")
-        log.debug("self._linebuf = " + str(self._linebuf))
         sock.close()
 
     pass

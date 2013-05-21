@@ -2,20 +2,10 @@
 @package mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.test.test_driver
 @author Roger Unwin
 @brief Test cases for InstrumentDriver
-
-USAGE:
- Make tests verbose and provide stdout
-   * From the IDK
-       $ bin/test_driver
-       $ bin/test_driver -u
-       $ bin/test_driver -i
-       $ bin/test_driver -q
-
 """
 
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
-
 
 import unittest
 from nose.plugins.attrib import attr
@@ -31,9 +21,9 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import Wor
 from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import DataParticleType
 from mi.idk.unit_test import InstrumentDriverTestCase
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import SAMPLE_RAW_DATA 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CALIBRATION_RAW_DATA
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import PS0_RAW_DATA
+from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import RSN_SAMPLE_RAW_DATA 
+from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import RSN_CALIBRATION_RAW_DATA
+from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import RSN_PS0_RAW_DATA
 
 from mi.idk.unit_test import DriverTestMixin
 
@@ -43,7 +33,7 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolEvent
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ScheduledJob
+from mi.instrument.teledyne.driver import ScheduledJob
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Capability
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import InstrumentCmds
 
@@ -67,7 +57,7 @@ InstrumentDriverTestCase.initialize(
     driver_class="InstrumentDriver",
     instrument_agent_resource_id = 'HTWZMW',
     instrument_agent_preload_id = 'IA7',
-    instrument_agent_name = 'teledyne_workhorse_monitor_75_khz',
+    instrument_agent_name = 'teledyne_workhorse_monitor_75_khz_rsn',
     instrument_agent_packet_config = DataParticleType(),
 
     driver_startup_config = {
@@ -308,7 +298,7 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_PD0_PARSED_KEY.FALSE_TARGET_THRESHOLD: {'type': int, 'value': 50 },
         ADCP_PD0_PARSED_KEY.LOW_LATENCY_TRIGGER: {'type': int, 'value': 0 },
         ADCP_PD0_PARSED_KEY.TRANSMIT_LAG_DISTANCE: {'type': int, 'value': 50688 },
-        ADCP_PD0_PARSED_KEY.CPU_BOARD_SERIAL_NUMBER: {'type': int, 'value': 9367487254980977929L },
+        ADCP_PD0_PARSED_KEY.CPU_BOARD_SERIAL_NUMBER: {'type': long, 'value': 9367487254980977929L },
         ADCP_PD0_PARSED_KEY.SYSTEM_BANDWIDTH: {'type': int, 'value': 0 },
         ADCP_PD0_PARSED_KEY.SYSTEM_POWER: {'type': int, 'value': 255 },
         ADCP_PD0_PARSED_KEY.SERIAL_NUMBER: {'type': int, 'value': 206045184 },
@@ -462,7 +452,7 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_PS0DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-        log.error("IN assert_particle_pd0_data")
+        log.debug("IN assert_particle_pd0_data")
 
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_BEAM)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
@@ -473,7 +463,7 @@ class ADCPTMixin(DriverTestMixin):
 #         Unit tests test the method calls and parameters using Mock.         #
 ###############################################################################
 @attr('UNIT', group='mi')
-class UnitFromIDK(WorkhorseDriverUnitTest):
+class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
     def setUp(self):
         WorkhorseDriverUnitTest.setUp(self)
 
@@ -496,9 +486,9 @@ class UnitFromIDK(WorkhorseDriverUnitTest):
 
         # Start validating data particles
 
-        self.assert_particle_published(driver, CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
-        self.assert_particle_published(driver, PS0_RAW_DATA, self.assert_particle_system_configuration, True)
-        self.assert_particle_published(driver, SAMPLE_RAW_DATA, self.assert_particle_pd0_data, True)
+        self.assert_particle_published(driver, RSN_CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
+        self.assert_particle_published(driver, RSN_PS0_RAW_DATA, self.assert_particle_system_configuration, True)
+        self.assert_particle_published(driver, RSN_SAMPLE_RAW_DATA, self.assert_particle_pd0_data, True)
 
     def test_driver_parameters(self):
         """
@@ -575,20 +565,20 @@ class UnitFromIDK(WorkhorseDriverUnitTest):
         """
         chunker = StringChunker(Protocol.sieve_function)
 
-        self.assert_chunker_sample(chunker, SAMPLE_RAW_DATA)
-        self.assert_chunker_sample_with_noise(chunker, SAMPLE_RAW_DATA)
-        self.assert_chunker_fragmented_sample(chunker, SAMPLE_RAW_DATA, 32)
-        self.assert_chunker_combined_sample(chunker, SAMPLE_RAW_DATA)
+        self.assert_chunker_sample(chunker, RSN_SAMPLE_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, RSN_SAMPLE_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, RSN_SAMPLE_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, RSN_SAMPLE_RAW_DATA)
 
-        self.assert_chunker_sample(chunker, PS0_RAW_DATA)
-        self.assert_chunker_sample_with_noise(chunker, PS0_RAW_DATA)
-        self.assert_chunker_fragmented_sample(chunker, PS0_RAW_DATA, 32)
-        self.assert_chunker_combined_sample(chunker, PS0_RAW_DATA)
+        self.assert_chunker_sample(chunker, RSN_PS0_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, RSN_PS0_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, RSN_PS0_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, RSN_PS0_RAW_DATA)
 
-        self.assert_chunker_sample(chunker, CALIBRATION_RAW_DATA)
-        self.assert_chunker_sample_with_noise(chunker, CALIBRATION_RAW_DATA)
-        self.assert_chunker_fragmented_sample(chunker, CALIBRATION_RAW_DATA, 32)
-        self.assert_chunker_combined_sample(chunker, CALIBRATION_RAW_DATA)
+        self.assert_chunker_sample(chunker, RSN_CALIBRATION_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, RSN_CALIBRATION_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, RSN_CALIBRATION_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, RSN_CALIBRATION_RAW_DATA)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -616,7 +606,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class IntFromIDK(WorkhorseDriverIntegrationTest):
+class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
     def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample
@@ -652,7 +642,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest):
         self.assert_set_bulk(params)
 
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-
+        log.error("GOT HERE ROGER 00 = BEAM moe.")
         self.assert_async_particle_generation(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data, timeout=40)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
@@ -664,35 +654,28 @@ class IntFromIDK(WorkhorseDriverIntegrationTest):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class QualFromIDK(WorkhorseDriverQualificationTest):
+class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
     def test_autosample(self):
         """
         Verify autosample works and data particles are created
         """
         self.assert_enter_command_mode()
-        log.error("********************************** 1")
         self.assert_start_autosample()
-        log.error("********************************** 2")
 
         self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data, timeout=50) # ADCP_PD0_PARSED_BEAM
-        log.error("********************************** 3")
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=20)
-        
-        log.error("********************************** 4")
+
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=20)
-        
-        log.error("********************************** 5")
 
         # Stop autosample and do run a couple commands.
         self.assert_stop_autosample()
-        log.error("********************************** 6")
 
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
 
         # Restart autosample and gather a couple samples
         self.assert_sample_autosample(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_BEAM)
-        
+
     def assert_cycle(self):
         self.assert_start_autosample()
 

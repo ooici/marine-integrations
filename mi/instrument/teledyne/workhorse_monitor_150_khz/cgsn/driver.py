@@ -1,359 +1,378 @@
-"""
-@package mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver
-@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_150_khz/cgsn/driver.py
-@author Roger Unwin
-@brief Driver for the cgsn
-Release notes:
-
-.
-"""
-
-__author__ = 'Roger Unwin'
-__license__ = 'Apache 2.0'
-
-import string
-
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseInstrumentDriver
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseProtocol
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import Prompt
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import NEWLINE
 from mi.core.log import get_logger ; log = get_logger()
+import socket
+import time
 
-from mi.core.common import BaseEnum
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
-from mi.core.instrument.instrument_fsm import InstrumentFSM
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.instrument.instrument_driver import DriverParameter
-from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.data_particle import DataParticle
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.data_particle import CommonDataParticleType
-from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ParameterDictType
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import Parameter
 
-
-# newline.
-NEWLINE = '\r\n'
-
-# default timeout.
-TIMEOUT = 10
-
-###
-#    Driver Constant Definitions
-###
-
-class DataParticleType(BaseEnum):
+class InstrumentDriver(WorkhorseInstrumentDriver):
     """
-    Data particle types produced by this driver
-    """
-    RAW = CommonDataParticleType.RAW
-
-class ProtocolState(BaseEnum):
-    """
-    Instrument protocol states
-    """
-    UNKNOWN = DriverProtocolState.UNKNOWN
-    COMMAND = DriverProtocolState.COMMAND
-    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    TEST = DriverProtocolState.TEST
-    CALIBRATE = DriverProtocolState.CALIBRATE
-
-class ProtocolEvent(BaseEnum):
-    """
-    Protocol events
-    """
-    ENTER = DriverEvent.ENTER
-    EXIT = DriverEvent.EXIT
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
-    DISCOVER = DriverEvent.DISCOVER
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
-    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-
-class Capability(BaseEnum):
-    """
-    Protocol events that should be exposed to users (subset of above).
-    """
-    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
-
-class Parameter(DriverParameter):
-    """
-    Device specific parameters.
-    """
-
-class Prompt(BaseEnum):
-    """
-    Device i/o prompts..
-    """
-
-class InstrumentCommand(BaseEnum):
-    """
-    Instrument command strings
-    """
-
-
-###############################################################################
-# Data Particles
-###############################################################################
-
-
-###############################################################################
-# Driver
-###############################################################################
-
-class InstrumentDriver(SingleConnectionInstrumentDriver):
-    """
-    InstrumentDriver subclass
-    Subclasses SingleConnectionInstrumentDriver with connection state
-    machine.
+    Specialization for this version of the workhorse_monitor_75_khz driver
     """
     def __init__(self, evt_callback):
         """
-        Driver constructor.
+        InstrumentDriver constructor.
         @param evt_callback Driver process event callback.
         """
         #Construct superclass.
-        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-
-    ########################################################################
-    # Superclass overrides for resource query.
-    ########################################################################
-
-    def get_resource_params(self):
-        """
-        Return list of device parameters available.
-        """
-        return Parameter.list()
-
-    ########################################################################
-    # Protocol builder.
-    ########################################################################
+        WorkhorseInstrumentDriver.__init__(self, evt_callback)
 
     def _build_protocol(self):
         """
         Construct the driver protocol state machine.
         """
         self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
+        log.debug("self._protocol = " + repr(self._protocol))
 
-
-###########################################################################
-# Protocol
-###########################################################################
-
-class Protocol(CommandResponseInstrumentProtocol):
+class Protocol(WorkhorseProtocol):
     """
-    Instrument protocol class
-    Subclasses CommandResponseInstrumentProtocol
+    Specialization for this version of the workhorse_monitor_75_khz driver
     """
     def __init__(self, prompts, newline, driver_event):
-        """
-        Protocol constructor.
-        @param prompts A BaseEnum class containing instrument prompts.
-        @param newline The newline.
-        @param driver_event Driver process event callback.
-        """
-        # Construct protocol superclass.
-        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
-
-        # Build protocol state machine.
-        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
-                            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
-
-        # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
-
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
-
-        # Construct the parameter dictionary containing device parameters,
-        # current parameter values, and set formatting functions.
-        self._build_param_dict()
-
-        # Add build handlers for device commands.
-
-        # Add response handlers for device commands.
-
-        # Add sample handlers.
-
-        # State state machine in UNKNOWN state.
-        self._protocol_fsm.start(ProtocolState.UNKNOWN)
-
-        # commands sent sent to device to be filtered in responses for telnet DA
-        self._sent_cmds = []
-
-        #
-        self._chunker = StringChunker(Protocol.sieve_function)
-
-
-    @staticmethod
-    def sieve_function(raw_data):
-        """
-        The method that splits samples
-        """
-
-        return_list = []
-
-        return return_list
+        log.debug("IN Protocol.__init__")
+        WorkhorseProtocol.__init__(self, prompts, newline, driver_event)
 
     def _build_param_dict(self):
         """
-        Populate the parameter dictionary with parameters.
+        Populate the parameter dictionary with sbe26plus parameters.
         For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
         """
-        # Add parameter handlers to parameter dict.
 
-    def _got_chunk(self, chunk):
-        """
-        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
-        with the appropriate particle objects and REGEXes.
-        """
+        self._param_dict.add(Parameter.SERIAL_DATA_OUT,
+            r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="serial data out",
+            visibility=ParameterDictVisibility.READ_ONLY)
 
-    def _filter_capabilities(self, events):
-        """
-        Return a list of currently available capabilities.
-        """
-        return [x for x in events if Capability.has(x)]
+        self._param_dict.add(Parameter.SERIAL_FLOW_CONTROL,
+            r'CF = (\d+) \-+ Flow Ctrl ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="serial flow control",
+            startup_param=True,
+            direct_access=False,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value='11110')
 
-    ########################################################################
-    # Unknown handlers.
-    ########################################################################
+        self._param_dict.add(Parameter.BANNER,
+            r'CH = (\d) \-+ Suppress Banner',
+            lambda match:  bool(int(match.group(1), base=10)),
+            self._bool_to_int, # _reverse_bool_to_int
+            type=ParameterDictType.BOOL,
+            display_name="banner",
+            startup_param=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value=0)
 
-    def _handler_unknown_enter(self, *args, **kwargs):
-        """
-        Enter unknown state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        self._param_dict.add(Parameter.INSTRUMENT_ID,
+            r'CI = (\d+) \-+ Instrument ID ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="instrument id",
+            startup_param=True,
+            default_value=0)
 
-    def _handler_unknown_exit(self, *args, **kwargs):
-        """
-        Exit unknown state.
-        """
-        pass
+        self._param_dict.add(Parameter.SLEEP_ENABLE,
+            r'CL = (\d) \-+ Sleep Enable',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="sleep enable",
+            startup_param=True,
+            default_value=False)
 
-    def _handler_unknown_discover(self, *args, **kwargs):
+        self._param_dict.add(Parameter.SAVE_NVRAM_TO_RECORDER,
+            r'CN = (\d) \-+ Save NVRAM to recorder',
+            lambda match: bool(int(match.group(1), base=10)),
+            self._bool_to_int,
+            type=ParameterDictType.BOOL,
+            display_name="save nvram to recorder",
+            startup_param=True,
+            default_value=True,
+            visibility=ParameterDictVisibility.IMMUTABLE)
+
+        self._param_dict.add(Parameter.POLLED_MODE,
+            r'CP = (\d) \-+ PolledMode ',
+            lambda match: bool(int(match.group(1), base=10)),
+            self._bool_to_int,
+            type=ParameterDictType.BOOL,
+            display_name="polled mode",
+            startup_param=True,
+            default_value=False)
+
+        self._param_dict.add(Parameter.XMIT_POWER,
+            r'CQ = (\d+) \-+ Xmt Power ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="xmit power",
+            startup_param=True,
+            default_value=255)
+
+        self._param_dict.add(Parameter.SPEED_OF_SOUND,
+            r'EC = (\d+) \-+ Speed Of Sound',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="speed of sound",
+            startup_param=True,
+            default_value=1485)
+
+        self._param_dict.add(Parameter.PITCH,
+            r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="pitch",
+            startup_param=True,
+            default_value=0)
+
+        self._param_dict.add(Parameter.ROLL,
+            r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="roll",
+            startup_param=True,
+            default_value=0)
+
+        self._param_dict.add(Parameter.SALINITY,
+            r'ES = (\d+) \-+ Salinity ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="salinity",
+            startup_param=True,
+            default_value=35)
+
+        self._param_dict.add(Parameter.COORDINATE_TRANSFORMATION,
+            r'EX = (\d+) \-+ Coord Transform ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="coordinate transformation",
+            startup_param=True,
+            default_value='11111')
+
+        self._param_dict.add(Parameter.SENSOR_SOURCE,
+            r'EZ = (\d+) \-+ Sensor Source ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="sensor source")
+
+        self._param_dict.add(Parameter.TIME_PER_ENSEMBLE,
+            r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="time per ensemble",
+            startup_param=True,
+            default_value='00:00:00.00')
+
+        self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
+            r'TG (..../../..,..:..:..) - Time of First Ping ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="time of first ping")
+            #startup_param=True,
+            #default_value='****/**/**,**:**:**')
+
+        self._param_dict.add(Parameter.TIME_PER_PING,
+            r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="time per ping",
+            startup_param=True,
+            default_value='00:01.00')
+
+        self._param_dict.add(Parameter.TIME,
+            r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
+            lambda match: str(match.group(1) + " UTC"),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="time",
+            expiration=1,
+            visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._param_dict.add(Parameter.FALSE_TARGET_THRESHOLD,
+            r'WA (\d+,\d+) \-+ False Target Threshold ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="false target threshold",
+            startup_param=True,
+            default_value='050,001')
+
+        self._param_dict.add(Parameter.BANDWIDTH_CONTROL,
+            r'WB (\d) \-+ Bandwidth Control ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="bandwidth control",
+            startup_param=True,
+            default_value=0)
+
+        self._param_dict.add(Parameter.CORRELATION_THRESHOLD,
+            r'WC (\d+) \-+ Correlation Threshold',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="correlation threshold",
+            startup_param=True,
+            default_value=64)
+
+        self._param_dict.add(Parameter.SERIAL_OUT_FW_SWITCHES,
+            r'WD ([\d ]+) \-+ Data Out ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="serial out fw switches",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            default_value='111100000')
+
+        self._param_dict.add(Parameter.ERROR_VELOCITY_THRESHOLD,
+            r'WE (\d+) \-+ Error Velocity Threshold',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="error velocity threshold",
+            startup_param=True,
+            default_value=2000)
+
+        self._param_dict.add(Parameter.BLANK_AFTER_TRANSMIT,
+            r'WF (\d+) \-+ Blank After Transmit',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="blank after transmit",
+            startup_param=True,
+            default_value=704)
+
+        self._param_dict.add(Parameter.CLIP_DATA_PAST_BOTTOM,
+            r'WI (\d) \-+ Clip Data Past Bottom',
+            lambda match: bool(int(match.group(1), base=10)),
+            self._bool_to_int,
+            type=ParameterDictType.BOOL,
+            display_name="clip data past bottom",
+            startup_param=True,
+            default_value=False)
+
+        self._param_dict.add(Parameter.RECEIVER_GAIN_SELECT,
+            r'WJ (\d) \-+ Rcvr Gain Select \(0=Low,1=High\)',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="receiver gain select",
+            startup_param=True,
+            default_value=1)
+
+        self._param_dict.add(Parameter.WATER_REFERENCE_LAYER,
+            r'WL (\d+,\d+) \-+ Water Reference Layer:  ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="water reerence layer",
+            startup_param=True,
+            default_value='001,005')
+
+        self._param_dict.add(Parameter.WATER_PROFILING_MODE,
+            r'WM (\d+) \-+ Profiling Mode ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="water profiling mode",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            default_value=1)
+
+        self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
+            r'WN (\d+) \-+ Number of depth cells',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="number of depth cells",
+            startup_param=True,
+            default_value=100)
+
+        self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
+            r'WP (\d+) \-+ Pings per Ensemble ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="pings per ensemble",
+            startup_param=True,
+            default_value=1)
+
+        self._param_dict.add(Parameter.DEPTH_CELL_SIZE,
+            r'WS (\d+) \-+ Depth Cell Size \(cm\)',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="depth cell size",
+            startup_param=True,
+            default_value=800)
+
+        self._param_dict.add(Parameter.TRANSMIT_LENGTH,
+            r'WT (\d+) \-+ Transmit Length ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="transmit length",
+            startup_param=True,
+            default_value=0)
+
+        self._param_dict.add(Parameter.PING_WEIGHT,
+            r'WU (\d) \-+ Ping Weighting ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="ping weight",
+            startup_param=True,
+            default_value=0)
+
+        self._param_dict.add(Parameter.AMBIGUITY_VELOCITY,
+            r'WV (\d+) \-+ Mode 1 Ambiguity Vel ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="ambiguity velocity",
+            startup_param=True,
+            default_value=175)
+
+    def _send_break_cmd(self):
         """
-        Discover current state
-        @retval (next_state, result)
+        Send a BREAK to attempt to wake the device.
         """
-        return (ProtocolState.COMMAND, ResourceAgentState.IDLE)
+        log.debug("IN _send_break_cmd")
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        except socket.error, msg:
+            log.error("WHOOPS! 1")
 
-    ########################################################################
-    # Command handlers.
-    ########################################################################
+        try:
+            sock.connect(('localhost', 2102))
+        except socket.error, msg:
+            log.error("WHOOPS! 2")
+        sock.send("break 500\r\n")
+        time.sleep(5)
+        sock.send("break 500\r\n")
+        time.sleep(5)
+        log.debug("SENT BREAK")
+        log.debug("self._linebuf = " + str(self._linebuf))
+        sock.close()
 
-    def _handler_command_enter(self, *args, **kwargs):
-        """
-        Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
-        """
-        # Command device to update parameters and send a config change event.
-        #self._update_params()
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    def _handler_command_get(self, *args, **kwargs):
-        """
-        Get parameter
-        """
-        next_state = None
-        result = None
-
-
-        return (next_state, result)
-
-    def _handler_command_set(self, *args, **kwargs):
-        """
-        Set parameter
-        """
-        next_state = None
-        result = None
-
-        return (next_state, result)
-
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
-
-    def _handler_command_start_direct(self):
-        """
-        Start direct access
-        """
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-        log.debug("_handler_command_start_direct: entering DA mode")
-        return (next_state, (next_agent_state, result))
-
-    ########################################################################
-    # Direct access handlers.
-    ########################################################################
-
-    def _handler_direct_access_enter(self, *args, **kwargs):
-        """
-        Enter direct access state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        self._sent_cmds = []
-
-    def _handler_direct_access_exit(self, *args, **kwargs):
-        """
-        Exit direct access state.
-        """
-        pass
-
-    def _handler_direct_access_execute_direct(self, data):
-        """
-        """
-        next_state = None
-        result = None
-        next_agent_state = None
-
-        self._do_cmd_direct(data)
-
-        # add sent command to list for 'echo' filtering in callback
-        self._sent_cmds.append(data)
-
-        return (next_state, (next_agent_state, result))
-
-    def _handler_direct_access_stop_direct(self):
-        """
-        @throw InstrumentProtocolException on invalid command
-        """
-        next_state = None
-        result = None
-
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        return (next_state, (next_agent_state, result))
+    pass

@@ -2,9 +2,9 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import WorkhorseInst
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import WorkhorseProtocol
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
-
 from mi.core.log import get_logger ; log = get_logger()
 import socket
+import time
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
@@ -28,8 +28,6 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         """
         self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
         log.debug("self._protocol = " + repr(self._protocol))
-
-    pass
 
 
 class Protocol(WorkhorseProtocol):
