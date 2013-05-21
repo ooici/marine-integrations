@@ -333,6 +333,46 @@ class Protocol(CommandResponseInstrumentProtocol):
 #
 #        return return_list
 
+    def got_raw(self, *args, **kwargs):
+        pass
+
+    def got_data(self, port_agent_packet):
+        """
+        Called by the instrument connection when data is available.
+
+        Also add data to the chunker and when received call got_chunk
+        to publish results.
+        """
+
+        data_length = port_agent_packet.get_data_length()
+        data = port_agent_packet.get_data()
+        timestamp = port_agent_packet.get_timestamp()
+
+        log.debug("Got Data: %s" % data)
+        log.debug("Add Port Agent Timestamp: %s" % timestamp)
+
+        unpickler = Unpickler(StringIO(data))
+        # Disable class unpickling, for security; record should be all
+        # built-in types. Note this only works with cPickle.
+        unpickler.find_global = None
+        pkt = unpickler.load()
+
+        for particle in self._particle_factory(pkt):
+            self._publish_particle(particle)
+
+    def _particle_factory(self, orb_packet):
+        """Generate a sequence of particles from orb_packet"""
+        for chan in orb_packet['channels']:
+            for datum in chan['data']:
+                # make a new particle
+                yield particle
+
+    def _publish_particle(self, particle):
+        """publish parsed particle"""
+        parsed_sample = particle.generate()
+        if self._driver_event:
+            self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
