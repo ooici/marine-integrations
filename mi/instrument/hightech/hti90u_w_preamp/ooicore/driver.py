@@ -6,10 +6,30 @@
 Release notes:
 
 Low Frequency Hydrophone deployed as part of the OBS package. Interface will be through OBS.
+
+Data flow:
+hydrophone -> guralp logger -> seedlink server -> slink2orb -> antelope orb(s)
+-> port agent antelope -> port agent client -> this module
+
+See also:
+https://confluence.oceanobservatories.org/display/instruments/HYDLF+-+A
+https://confluence.oceanobservatories.org/display/instruments/HYDLF-A+Instrument+Operational+Specification
+https://confluence.oceanobservatories.org/display/instruments/OBSBB%2CK
+https://github.com/ooici/port-agent-antelope
+
 """
 
 __author__ = 'Jeff Laughlin'
 __license__ = 'Apache 2.0'
+
+# TODO: Use a safer serialization format than Pickle. Even though we take what
+# precautions we can, it's not impossible that somebody could attack this
+# program via a malicious pickle. -JML
+#
+# DO NOT switch to plain pickle without using a safe-unpickler class.
+# see http://docs.python.org/2/library/pickle.html#subclassing-unpicklers
+from cPickle import Unpickler
+from cStringIO import StringIO
 
 import string
 
@@ -28,6 +48,7 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.driver_dict import DriverDictKey
 
 
 # newline.
@@ -46,6 +67,9 @@ class DataParticleType(BaseEnum):
     """
     RAW = CommonDataParticleType.RAW
 
+    HYDLF_SAMPLE = 'hydlf_sample'
+#    HYDLF_STATUS = 'hydlf_status'
+
 class ProtocolState(BaseEnum):
     """
     Instrument protocol states
@@ -53,9 +77,10 @@ class ProtocolState(BaseEnum):
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    TEST = DriverProtocolState.TEST
-    CALIBRATE = DriverProtocolState.CALIBRATE
+# JML: Not sure but I don't think we can support these
+#    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
+#    TEST = DriverProtocolState.TEST
+#    CALIBRATE = DriverProtocolState.CALIBRATE
 
 class ProtocolEvent(BaseEnum):
     """
@@ -66,29 +91,30 @@ class ProtocolEvent(BaseEnum):
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
+#    START_DIRECT = DriverEvent.START_DIRECT
+#    STOP_DIRECT = DriverEvent.STOP_DIRECT
+#    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
+#    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+#    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+#    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
+#    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
+#    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
+#    ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
 
 class Parameter(DriverParameter):
     """
     Device specific parameters.
     """
+    # JML: select/reject goes here?
 
 class Prompt(BaseEnum):
     """
@@ -105,6 +131,80 @@ class InstrumentCommand(BaseEnum):
 # Data Particles
 ###############################################################################
 
+class HYDLF_SampleDataParticleKey(BaseEnum):
+    # From Packet object
+#    CHANNELS = 'channels'
+#    DB = 'db'
+#    DFILE = 'dfile'
+#    PF = 'pf'
+#    SRCNAME = 'srcname'
+#    STRING = 'string'
+#    TIME = 'time'
+#    TYPE = 'type'
+#    VERSION = 'version'
+
+    # From Channel object
+    CALIB = 'calib'
+    CALPER = 'calper'
+    CHAN = 'chan'
+#    CUSER1 = 'cuser1'
+#    CUSER2 = 'cuser2'
+    DATA = 'data'
+#    DUSER1 = 'duser1'
+#    DUSER2 = 'duser2'
+#    IUSER1 = 'iuser1'
+#    IUSER2 = 'iuser2'
+#    IUSER3 = 'iuser3'
+    LOC = 'loc'
+    NET = 'net'
+    NSAMP = 'nsamp'
+    SAMPRATE = 'samprate'
+    SEGTYPE = 'segtype'
+    STA = 'sta'
+    TIME = 'time'
+
+
+class HYDLF_SampleDataParticle(DataParticle):
+    _data_particle_type = DataParticleType.HYDLF_SAMPLE
+
+    def _build_parsed_values(self):
+
+        record = self.raw_data
+
+        unpickler = Unpickler(StringIO(record))
+        # Disable class unpickling, for security; record should be all
+        # built-in types. Note this only works with cPickle.
+        unpickler.find_global = None
+        pkt = unpickler.load()
+
+        # pkt is an antelope.Pkt.Packet object converted to a dict. Refer to
+        # the documentation for the Antelope Python bindings for compelete
+        # details.
+        pk = HYDLF_SampleDataParticleKey
+        vid = DataParticleKey.VALUE_ID
+        v = DataParticleKey.VALUE
+        chan = pkt['channels'][0]
+        result = []
+        result.append({vid: pk.CALIB, v: chan[pk.CALIB]})
+        result.append({vid: pk.CALPER, v: chan[pk.CALPER]})
+        result.append({vid: pk.CHAN, v: chan[pk.CHAN]})
+        result.append({vid: pk.DATA, v: chan[pk.DATA]})
+        result.append({vid: pk.LOC, v: chan[pk.LOC]})
+        result.append({vid: pk.NET, v: chan[pk.NET]})
+        result.append({vid: pk.NSAMP, v: chan[pk.NSAMP]})
+        result.append({vid: pk.SAMPRATE, v: chan[pk.SAMPRATE]})
+        result.append({vid: pk.SEGTYPE, v: chan[pk.SEGTYPE]})
+        result.append({vid: pk.STA, v: chan[pk.STA]})
+        result.append({vid: pk.TIME, v: chan[pk.TIME]})
+        return result
+
+
+# Status would go here I guess
+# port_agent_antelope happily sends along parameter file (antelope's proprietary
+# JSON-like serialization format) and string packets, if there are any. They
+# could be on a different srcname or different orb or there may not be any at
+# all. If there are status packets I'm guessing we would use a sieve function
+# to split the two streams and then add the appropirate particle classes here.
 
 ###############################################################################
 # Driver
@@ -173,12 +273,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+ 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -187,7 +292,10 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
-        self._build_param_dict()
+        #
+        # JML: Not in OPTAA?
+        #
+        #self._build_param_dict()
 
         # Add build handlers for device commands.
 
@@ -199,21 +307,31 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
         # commands sent sent to device to be filtered in responses for telnet DA
-        self._sent_cmds = []
+        #
+        # JML: Not in OPTAA?
+        #
+        #self._sent_cmds = []
 
         #
-        self._chunker = StringChunker(Protocol.sieve_function)
+        # JML: Billy sez "no chunker, no sieve"
+        #
+        #self._chunker = StringChunker(Protocol.sieve_function)
 
+        # JML: What does this do?
+        self._build_driver_dict()
 
-    @staticmethod
-    def sieve_function(raw_data):
-        """
-        The method that splits samples
-        """
-
-        return_list = []
-
-        return return_list
+    #
+    # JML: Billy sez "no chunker, no sieve"
+    #
+#    @staticmethod
+#    def sieve_function(raw_data):
+#        """
+#        The method that splits samples
+#        """
+#
+#        return_list = []
+#
+#        return return_list
 
     def _build_param_dict(self):
         """
@@ -234,6 +352,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         Return a list of currently available capabilities.
         """
         return [x for x in events if Capability.has(x)]
+
+    # JML: Copied from OPTAA; need this?
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with options
+        """
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
+
 
     ########################################################################
     # Unknown handlers.
@@ -258,7 +384,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         Discover current state
         @retval (next_state, result)
         """
-        return (ProtocolState.COMMAND, ResourceAgentState.IDLE)
+
+        # JML: Copied from OPTAA
+        # force to auto-sample, this instrument has no command mode
+        next_state = ProtocolState.AUTOSAMPLE
+        result = ResourceAgentState.STREAMING
+
+        return (next_state, result)
+
 
     ########################################################################
     # Command handlers.
@@ -312,6 +445,51 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_handler_command_start_direct: entering DA mode")
         return (next_state, (next_agent_state, result))
 
+    # JML: Copied from OPTAA
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        """
+        """
+        result = None
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
+        return (next_state, (next_agent_state, result))
+
+    # JML: Copied wholesale from OPTAA
+    ########################################################################
+    # Autosample handlers.
+    ########################################################################
+
+    def _handler_autosample_enter(self, *args, **kwargs):
+        """
+        Enter command state.
+        @throws InstrumentTimeoutException if the device cannot be woken.
+        @throws InstrumentProtocolException if the update commands and not recognized.
+        """
+        # Command device to update parameters and send a config change event.
+        #self._update_params()
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_autosample_exit(self, *args, **kwargs):
+        """
+        Exit command state.
+        """
+        pass
+
+    def _handler_autosample_stop_autosample(self):
+        """
+        """
+        result = None
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        return (next_state, (next_agent_state, result))
+
+
+
     ########################################################################
     # Direct access handlers.
     ########################################################################
@@ -342,7 +520,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._do_cmd_direct(data)
 
         # add sent command to list for 'echo' filtering in callback
-        self._sent_cmds.append(data)
+        # JML: Not in OPTAA
+        # self._sent_cmds.append(data)
 
         return (next_state, (next_agent_state, result))
 

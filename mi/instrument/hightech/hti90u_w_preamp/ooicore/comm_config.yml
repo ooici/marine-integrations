@@ -5,4 +5,4 @@ comm:
   device_port: 1234
   host: PORT_AGENT_HOST
   method: ethernet
-  sniffer_port: 0
+  sniffer_port: 6003
