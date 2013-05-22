@@ -149,13 +149,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase):
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
 
-    def test_chunker(self):
-        """
-        Test the chunker and verify the particles created.
-        """
-        chunker = StringChunker(Protocol.sieve_function)
-
-
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles

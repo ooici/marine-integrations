@@ -33,6 +33,8 @@ from cStringIO import StringIO
 
 import string
 
+import ntplib
+
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum
@@ -78,7 +80,7 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
 # JML: Not sure but I don't think we can support these
-#    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
+    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 #    TEST = DriverProtocolState.TEST
 #    CALIBRATE = DriverProtocolState.CALIBRATE
 
@@ -91,12 +93,12 @@ class ProtocolEvent(BaseEnum):
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
-#    START_DIRECT = DriverEvent.START_DIRECT
-#    STOP_DIRECT = DriverEvent.STOP_DIRECT
+    START_DIRECT = DriverEvent.START_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
 #    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-#    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-#    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
 #    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
@@ -149,7 +151,7 @@ class HYDLF_SampleDataParticleKey(BaseEnum):
     CHAN = 'chan'
 #    CUSER1 = 'cuser1'
 #    CUSER2 = 'cuser2'
-    DATA = 'data'
+#    DATA = 'data'
 #    DUSER1 = 'duser1'
 #    DUSER2 = 'duser2'
 #    IUSER1 = 'iuser1'
@@ -162,6 +164,8 @@ class HYDLF_SampleDataParticleKey(BaseEnum):
     SEGTYPE = 'segtype'
     STA = 'sta'
     TIME = 'time'
+    SAMPLE = 'sample'
+    SAMPLE_IDX = 'sample_idx'
 
 
 class HYDLF_SampleDataParticle(DataParticle):
@@ -169,33 +173,34 @@ class HYDLF_SampleDataParticle(DataParticle):
 
     def _build_parsed_values(self):
 
-        record = self.raw_data
+        orb_packet, chan, index, sample = self.raw_data
 
-        unpickler = Unpickler(StringIO(record))
-        # Disable class unpickling, for security; record should be all
-        # built-in types. Note this only works with cPickle.
-        unpickler.find_global = None
-        pkt = unpickler.load()
+        # Calculate sample timestamp
+        unix_internal_timestamp = chan['time'] + (1 / chan['samprate'] * index)
+        self.set_internal_timestamp(unix_time=unix_internal_timestamp)
 
-        # pkt is an antelope.Pkt.Packet object converted to a dict. Refer to
-        # the documentation for the Antelope Python bindings for compelete
-        # details.
+        result = []
         pk = HYDLF_SampleDataParticleKey
         vid = DataParticleKey.VALUE_ID
         v = DataParticleKey.VALUE
-        chan = pkt['channels'][0]
-        result = []
+
+        # Copy this stuff verbatim from the Antelope PktChannel object
         result.append({vid: pk.CALIB, v: chan[pk.CALIB]})
         result.append({vid: pk.CALPER, v: chan[pk.CALPER]})
         result.append({vid: pk.CHAN, v: chan[pk.CHAN]})
-        result.append({vid: pk.DATA, v: chan[pk.DATA]})
         result.append({vid: pk.LOC, v: chan[pk.LOC]})
         result.append({vid: pk.NET, v: chan[pk.NET]})
         result.append({vid: pk.NSAMP, v: chan[pk.NSAMP]})
         result.append({vid: pk.SAMPRATE, v: chan[pk.SAMPRATE]})
         result.append({vid: pk.SEGTYPE, v: chan[pk.SEGTYPE]})
         result.append({vid: pk.STA, v: chan[pk.STA]})
+        # this is the timestamp on samples[0]; INTERNAL_TIMESTAMP has the real
+        # timestamp for this sample.
         result.append({vid: pk.TIME, v: chan[pk.TIME]})
+
+        # Extracted from enumerate(PktChannel.data)
+        result.append({vid: pk.SAMPLE_IDX, v: index})
+        result.append({vid: pk.SAMPLE, v: sample})
         return result
 
 
@@ -355,16 +360,32 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Disable class unpickling, for security; record should be all
         # built-in types. Note this only works with cPickle.
         unpickler.find_global = None
+
+        # pkt is an antelope.Pkt.Packet object converted to a dict. Refer to
+        # the documentation for the Antelope Python bindings for compelete
+        # details.
+
         pkt = unpickler.load()
 
-        for particle in self._particle_factory(pkt):
+        for particle in self._particle_factory(pkt, timestamp):
             self._publish_particle(particle)
 
-    def _particle_factory(self, orb_packet):
-        """Generate a sequence of particles from orb_packet"""
+    def _particle_factory(self, orb_packet, port_timestamp):
+        """Generate a sequence of particles from orb_packet
+
+        @returns An iterator which yields a new particle object for each sample
+        for each channel.
+        """
         for chan in orb_packet['channels']:
-            for datum in chan['data']:
-                # make a new particle
+            for index, sample in enumerate(chan['data']):
+                # Yield a new particle
+                # TODO don't hardcode particle class
+                particle = HYDLF_SampleDataParticle(
+                    # TODO: Fix this passing raw_data as tuple hack
+                    raw_data = (orb_packet, chan, index, sample),
+                    port_timestamp = port_timestamp,
+                    preferred_timestamp = DataParticleKey.INTERNAL_TIMESTAMP
+                )
                 yield particle
 
     def _publish_particle(self, particle):
@@ -386,6 +407,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
+        pass
 
     def _filter_capabilities(self, events):
         """
