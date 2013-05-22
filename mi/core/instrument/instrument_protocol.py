@@ -102,7 +102,7 @@ class InstrumentProtocol(object):
         @raise InstrumentParameterExpirationException If we fail to update a parameter
         on the second pass this exception will be raised on expired data
         """
-        log.debug("%%% IN base _handler_command_get")
+        log.debug("%%% IN base _handler_get")
 
         next_state = None
         result = None
@@ -689,6 +689,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             else:
                 prompt_list = expected_prompt
 
+        log.debug('_get_response: timeout=%s, prompt_list=%s, expected_prompt=%s,' %(timeout, prompt_list, expected_prompt))
         while True:
             for item in prompt_list:
                 index = self._promptbuf.find(item)

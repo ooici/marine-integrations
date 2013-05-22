@@ -72,6 +72,7 @@ class ProtocolEvent(BaseEnum):
     GET              = DriverEvent.GET
     SET              = DriverEvent.SET
     ACQUIRE_SAMPLE   = DriverEvent.ACQUIRE_SAMPLE
+    ACQUIRE_STATUS   = DriverEvent.ACQUIRE_STATUS
     CLOCK_SYNC       = DriverEvent.CLOCK_SYNC
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE  = DriverEvent.STOP_AUTOSAMPLE
@@ -81,6 +82,7 @@ class Capability(BaseEnum):
     Protocol events that should be exposed to users (subset of above).
     """
     ACQUIRE_STATUS   = ProtocolEvent.ACQUIRE_STATUS
+    ACQUIRE_SAMPLE   = ProtocolEvent.ACQUIRE_SAMPLE
     CLOCK_SYNC       = ProtocolEvent.CLOCK_SYNC
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE  = ProtocolEvent.STOP_AUTOSAMPLE
@@ -95,7 +97,7 @@ class Prompt(BaseEnum):
     """
     Device i/o prompts.
     """
-    CR_NL = "NEWLINE"
+    CR_NL = NEWLINE
 
 class Command(BaseEnum):
     """
@@ -140,7 +142,7 @@ class METBK_SampleDataParticleKey(BaseEnum):
     A_SIGNAL_COUNTS = 'a_signal_counts'
     
 class METBK_SampleDataParticle(DataParticle):
-    _data_particle_type = DataParticleType.METBK_SAMPLE
+    _data_particle_type = DataParticleType.METBK_PARSED
         
     @staticmethod
     def regex_compiled():
@@ -287,7 +289,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync_clock)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
@@ -310,7 +312,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
         self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.CLOCK_SYNC)
-        self._add_scheduler_event(ScheduledJob.AUTOSAMPLE, ProtocolEvent.)
+        self._add_scheduler_event(ScheduledJob.AUTOSAMPLE, ProtocolEvent.START_AUTOSAMPLE)
 
         # Start state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -380,6 +382,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.COMMAND
         result = ResourceAgentState.IDLE
 
+        log.debug("_handler_unknown_discover: state = %s", next_state)
         return (next_state, result)
 
 
@@ -406,18 +409,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         pass
 
-    def _handler_command_get(self, *args, **kwargs):
-        """
-        does nothing, just implemented to make framework happy
-        """
-
-        next_state = None
-        result = None
-        return (next_state, result)
-
     def _handler_command_set(self, *args, **kwargs):
         """
-        does nothing, just implemented to make framework happy
+        no writable parameters so does nothing, just implemented to make framework happy
         """
 
         next_state = None
@@ -505,6 +499,10 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
 
+    def _wakeup(self, timeout):
+        """There is no wakeup sequence for this instrument"""
+        pass
+    
     def _build_command_dict(self):
         """
         Populate the command dictionary with command.
@@ -536,6 +534,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Update the parameter dictionary. 
         """
         
+        log.debug("_update_params:")
         # Issue clock command and parse results.  
         # This is the only parameter and it is always changing so don't bother with the 'change' event
         self._do_cmd_resp(Command.CLOCK)
@@ -547,10 +546,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.        
         @throws InstrumentProtocolException if clock command misunderstood.
         """
+        log.debug("_parse_clock_response: response=%s, prompt=%s" %(response, prompt))
         if prompt not in [Prompt.CR_NL]: 
             raise InstrumentProtocolException('CLOCK command not recognized: %s.' % response)
 
-        if ! self._param_dict.update(response)
+        if not self._param_dict.update(response):
             raise InstrumentProtocolException('CLOCK command not parsed: %s.' % response)
 
         return
