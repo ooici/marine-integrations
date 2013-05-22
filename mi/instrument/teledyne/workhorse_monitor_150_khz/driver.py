@@ -8,21 +8,45 @@ Release notes:
 
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
-
+from mi.core.instrument.instrument_driver import DriverEvent
 from mi.instrument.teledyne.driver import TeledyneInstrumentDriver
 from mi.instrument.teledyne.driver import TeledyneProtocol
 from mi.instrument.teledyne.driver import Prompt
-from mi.instrument.teledyne.driver import ProtocolEvent
-from mi.instrument.teledyne.driver import InstrumentCmds
-from mi.instrument.teledyne.driver import Parameter
+from mi.instrument.teledyne.driver import ProtocolEvent as TeledyneProtocolEvent
+from mi.instrument.teledyne.driver import InstrumentCmds as TeledyneInstrumentCmds
+from mi.instrument.teledyne.driver import Parameter as TeledyneParameter
 from mi.instrument.teledyne.driver import ProtocolState
-from mi.instrument.teledyne.driver import Capability
+from mi.instrument.teledyne.driver import Capability as TeledyneCapability
 
 from mi.instrument.teledyne.workhorse_monitor_75_khz.particles import *
 
 from mi.core.instrument.chunker import StringChunker
 
 
+class Parameter(TeledyneParameter):
+    """
+    """
+    TIME_PER_BURST = 'TB'
+    ENSEMBLES_PER_BURST = 'TC'
+    BUFFER_OUTPUT_PERIOD = 'TP'
+
+
+class InstrumentCmds(TeledyneInstrumentCmds):
+    """
+    """
+    POWER_DOWN = 'CZ'
+
+
+class ProtocolEvent(TeledyneProtocolEvent):
+    """
+    """
+    POWER_DOWN = "PROTOCOL_EVENT_POWER_DOWN"
+
+
+class Capability(TeledyneCapability):
+    """
+    """
+    ProtocolEvent.POWER_DOWN
 
 ###############################################################################
 # Driver
@@ -110,7 +134,9 @@ class WorkhorseProtocol(TeledyneProtocol):
         log.debug("IN WorkhorseProtocol.__init__")
         # Construct protocol superclass.
         TeledyneProtocol.__init__(self, prompts, newline, driver_event)
-
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
+                                       ProtocolEvent.POWER_DOWN,
+                                       self._handler_command_power_down)
         self._chunker = StringChunker(WorkhorseProtocol.sieve_function)
 
     def _build_command_dict(self):
@@ -175,6 +201,8 @@ class WorkhorseProtocol(TeledyneProtocol):
                            display_name="clear fault log")
         self._cmd_dict.add(Capability.RUN_TEST_200,
                            display_name="run test 200")
+        self._cmd_dict.add(Capability.POWER_DOWN,
+                           display_name="Power Down")
 
     ########################################################################
     # Private helpers.
