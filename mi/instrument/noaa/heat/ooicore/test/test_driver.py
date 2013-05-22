@@ -98,11 +98,14 @@ GO_ACTIVE_TIMEOUT=180
 ###
 #   Driver constant definitions
 ###
-TEST_HEAT_DURATION = "2"   # Heat duration constant for tests
+TEST_HEAT_ON_DURATION_2 = 2   # Heat duration constant for tests
+TEST_HEAT_ON_DURATION_3 = 3   # Heat duration constant for tests
+TEST_HEAT_OFF           = 0   # Heat off
+
 VALID_SAMPLE_01 = "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 VALID_SAMPLE_02 = "HEAT,2013/04/19 22:54:11,001,0001,0025" + NEWLINE
-HEAT_ON_COMMAND_RESPONSE = "HEAT,2013/04/19 22:54:11,*" + TEST_HEAT_DURATION + NEWLINE
-HEAT_OFF_COMMAND_RESPONSE = "HEAT,2013/04/19 22:54:11,*0" + NEWLINE
+HEAT_ON_COMMAND_RESPONSE = "HEAT,2013/04/19 22:54:11,*" + str(TEST_HEAT_ON_DURATION_2) + NEWLINE
+HEAT_OFF_COMMAND_RESPONSE = "HEAT,2013/04/19 22:54:11,*" + str(TEST_HEAT_OFF) + NEWLINE
 BOTPT_FIREHOSE_01  = "IRIS,2013/05/16 17:03:23, -0.1963, -0.9139,28.23,N8642" + NEWLINE
 BOTPT_FIREHOSE_01  += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
 BOTPT_FIREHOSE_01  += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
@@ -333,9 +336,10 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         port_agent_packet.attach_timestamp(ts)
         port_agent_packet.pack_header()
 
-        # Push the data into the driver
+        # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
-        self.assertTrue(driver._protocol._get_response(expected_prompt = TEST_HEAT_DURATION))
+        self.assertTrue(driver._protocol._get_response(expected_prompt = 
+                                                       TEST_HEAT_ON_DURATION_2))
 
 
     def test_heat_on(self):
@@ -345,7 +349,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         def my_send(data):
             log.debug("my_send: %s", data)
             driver._protocol._promptbuf += HEAT_ON_COMMAND_RESPONSE
-            return 5
+            return len(HEAT_ON_COMMAND_RESPONSE)
         mock_port_agent.send.side_effect = my_send
         
         # Put the driver into test mode
@@ -459,30 +463,31 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         self.assert_initialize_driver()
 
-        #reply = self.driver_client.cmd_dvr('set_resource', {Parameter.HEAT_DURATION: 3}, False)
-        #self.assertIsNone(reply, None)
-        
-        #value = self.assert_get(Parameter.HEAT_DURATION)
-        #log.error('!!! ??? DHE value: %r', value)
+        self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
+        value = self.assert_get(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
 
-        self.assert_set(Parameter.HEAT_DURATION, 3)
-        value = self.assert_get(Parameter.HEAT_DURATION, 3)
-
-        self.assert_set(Parameter.HEAT_DURATION, 2)
-        value = self.assert_get(Parameter.HEAT_DURATION, 2)
+        self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_3)
+        value = self.assert_get(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_3)
 
     def test_heat_on(self):
         """
         @brief Test for turning heater on
         """
         self.assert_initialize_driver()
+
+        """
+        Set the heat duration to a known value so that we can test for it later
+        """
+        self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
+        value = self.assert_get(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
         
-        # command the instrument to read the ID.
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.HEAT_ON)
+        self.assertEqual(response, TEST_HEAT_ON_DURATION_2)
         
         log.debug("HEAT_ON returned: %r", response)
 
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.HEAT_OFF)
+        self.assertEqual(response, TEST_HEAT_OFF)
         
         log.debug("HEAT_OFF returned: %r", response)
 

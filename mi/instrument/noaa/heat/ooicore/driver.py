@@ -45,7 +45,7 @@ from mi.core.exceptions import InstrumentTimeoutException
 ###
 
 # newline.
-NEWLINE = '\x0d\x0a'
+NEWLINE = '\x0a'
 
 # default timeout.
 TIMEOUT = 10
@@ -122,6 +122,7 @@ class HEATCommandResponse():
         @param raw_data The raw data used in the particle
         """
         self.raw_data = raw_data
+        self.heat_command_response = None
 
     @staticmethod
     def regex():
@@ -157,13 +158,12 @@ class HEATCommandResponse():
         try:
             heat_time = match.group(1)
             timestamp = time.strptime(heat_time, "%Y/%m/%d %H:%M:%S")
-            #if heat_duration_value == int(match.group(2)):
-            rx_heat_duration_value = match.group(2)
-            if heat_duration_value == rx_heat_duration_value:
+            self.heat_command_response = int(match.group(2))
+            if heat_duration_value == self.heat_command_response:
                 retValue = True
             else:
-                log.error("BOTPT HEAT Responded with: %s; expected %s",
-                          rx_heat_duration_value, heat_duration_value)
+                log.error("BOTPT HEAT Responded with: %d; expected %d",
+                          self.heat_command_response, heat_duration_value)
 
         except ValueError:
             raise SampleException("ValueError while converting data: [%s]" %
@@ -359,7 +359,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCommand.HEAT_OFF, self._build_heat_off_command)
 
         # Add response handlers for device commands.
-        self._add_response_handler(InstrumentCommand.HEAT_ON, self._parse_heat_on_response)
+        self._add_response_handler(InstrumentCommand.HEAT_ON, self._parse_heat_on_off_resp)
+        self._add_response_handler(InstrumentCommand.HEAT_OFF, self._parse_heat_on_off_resp)
 
         # Add sample handlers.
 
@@ -421,43 +422,17 @@ class Protocol(CommandResponseInstrumentProtocol):
             multi_match=False,
             visibility=ParameterDictVisibility.READ_WRITE)
 
-    def _extract_command_response(self, particle_class, regex, line):
-        """
-        Extract sample from a response line if present and publish
-        parsed particle
-
-        @param particle_class The class to instantiate for this specific
-            data particle. Parameterizing this allows for simple, standard
-            behavior from this routine
-        @param regex The regular expression that matches a data sample
-        @param line string to match for sample.
-
-        @retval dict of dicts {'parsed': parsed_sample, 'raw': raw_sample} if
-                the line can be parsed for a sample. Otherwise, None.
-        @todo Figure out how the agent wants the results for a single poll
-            and return them that way from here
-        """
-        parsed_response = None
-        if regex.match(line):
-        
-            particle = particle_class(line)
-            parsed_response = particle.check_heat_on_off_response()
-
-        return parsed_response
-
     def add_to_buffer(self, data):
         '''
         Overridden because most of the data coming to this driver
         isn't meant for it.  I'm only adding to the buffer when
-        a chunk arrives, so this method does nothing.
+        a chunk arrives (see my_add_to_buffer, below), so this 
+        method does nothing.
         
         @param data: bytes to add to the buffer
         '''
-        # Update the line and prompt buffers.
-        #self._linebuf += data
-        #self._promptbuf += data
-        #self._last_data_timestamp = time.time()
-
+        pass
+    
     def _my_add_to_buffer(self, data):
         """
         Replaces add_to_buffer. Most data coming to this driver isn't meant
@@ -486,7 +461,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         add_to_buffer that is called from got_data().  The reason is explained
         in comments in _my_add_to_buffer.
         """
-        
+
+        log.debug("_got_chunk_: %s", chunk)        
         self._my_add_to_buffer(chunk)
         
         """
@@ -510,8 +486,9 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _build_heat_off_command(self, cmd, *args, **kwargs):
         return cmd + NEWLINE
 
-    def _parse_heat_on_response(self, response, prompt):
-        log.debug("_parse_heat_on_response: response: %s; prompt: %s", response, prompt)
+    def _parse_heat_on_off_resp(self, response, prompt):
+        log.debug("_parse_heat_on_off_resp: response: %r; prompt: %s", response, prompt)
+        return response.heat_command_response
         
     def _wakeup(self, timeout, delay=1):
         """
@@ -529,7 +506,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Grab time for timeout and wait for response
 
         starttime = time.time()
-        #self._extract_command_response(HEATCommandResponse, HEATCommandResponse.regex_compiled(), chunk))):
         
         response = None
         regex = HEATCommandResponse.regex_compiled()
@@ -543,9 +519,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                 response = HEATCommandResponse(self._promptbuf)
                 if response.check_heat_on_off_response(expected_prompt):
                     continuing = False
-                else:
-                    raise InstrumentProtocolException("in BOTPT HEAT driver._get_response()")
             else:
+                self._promptbuf = ''
                 time.sleep(.1)
 
             if time.time() > starttime + timeout:
@@ -627,13 +602,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Get parameter
         """
-        # DHE TEMPTEMP
-        log.error(" ------------------------> DHE _handler_command_get!! args: %r, kwargs: %r", args, kwargs)
-        
+
         next_state = None
         result = {}
         result[Parameter.HEAT_DURATION] = self._heat_duration
-
 
         return (next_state, result)
 
@@ -644,9 +616,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        # DHE TEMPTEMP
-        log.error(" ------------------------> DHE _handler_command_set!! args: %r, kwargs: %r", args, kwargs)
-        
         params = args[0]
         new_heat_duration = params[Parameter.HEAT_DURATION]
         if new_heat_duration != self._heat_duration:
@@ -674,17 +643,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        # DHE TEMPTEMP
-        log.error(" ------------------------> DHE _handler_command_heat_on!! args: %r, kwargs: %r", args, kwargs)
-
-        # Issue heat_on command.
-        expected_response = '*' + str(self._heat_duration)
-        
         """ 
         call _do_cmd_resp, passing our heat_duration parameter as the expected_prompt
         """
-        result = self._do_cmd_resp(InstrumentCommand.HEAT_ON, expected_prompt = str(self._heat_duration))
-        #self._connection.send(InstrumentCommand.HEAT_ON)                
+        result = self._do_cmd_resp(InstrumentCommand.HEAT_ON, expected_prompt = self._heat_duration)
+
         return (next_state, result)
 
     def _handler_command_heat_off(self, *args, **kwargs):
@@ -694,13 +657,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        # DHE TEMPTEMP
-        log.error(" ------------------------> DHE _handler_command_heat_off!! args: %r, kwargs: %r", args, kwargs)
-                
         """ 
         call _do_cmd_resp, passing our heat_duration parameter as the expected_prompt
         """
-        result = self._do_cmd_resp(InstrumentCommand.HEAT_OFF, expected_prompt = str(OFF_HEAT_DURATION))
+        result = self._do_cmd_resp(InstrumentCommand.HEAT_OFF, expected_prompt = OFF_HEAT_DURATION)
         return (next_state, result)
 
     def _handler_command_exit(self, *args, **kwargs):
