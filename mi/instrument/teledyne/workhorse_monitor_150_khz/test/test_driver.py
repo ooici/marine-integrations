@@ -248,9 +248,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         # POLLED_MODE:  -- (True/False)
         self.assert_set(Parameter.POLLED_MODE, True)
         self.assert_set_exception(Parameter.POLLED_MODE, "LEROY JENKINS")
-        # @TODO why does 5,-1 get turned to boolean
-        #self.assert_set_exception(Parameter.POLLED_MODE, 5)
-        #self.assert_set_exception(Parameter.POLLED_MODE, -1)
         #
         # Reset to good value.
         #

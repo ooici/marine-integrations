@@ -1,15 +1,6 @@
 """
-@package mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.test.test_driver
+@package mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver
 @author Roger Unwin
-@brief Test cases for rsn driver
-
-USAGE:
- Make tests verbose and provide stdout
-   * From the IDK
-       $ bin/test_driver
-       $ bin/test_driver -u [-t testname]
-       $ bin/test_driver -i [-t testname]
-       $ bin/test_driver -q [-t testname]
 """
 
 __author__ = 'Roger Unwin'
@@ -227,9 +218,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         # POLLED_MODE:  -- (True/False)
         self.assert_set(Parameter.POLLED_MODE, True)
         self.assert_set_exception(Parameter.POLLED_MODE, "LEROY JENKINS")
-        # @TODO why does 5,-1 get turned to boolean
-        #self.assert_set_exception(Parameter.POLLED_MODE, 5)
-        #self.assert_set_exception(Parameter.POLLED_MODE, -1)
         #
         # Reset to good value.
         #
@@ -505,10 +493,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_set(Parameter.CLIP_DATA_PAST_BOTTOM, True)
 
         self.assert_set_exception(Parameter.CLIP_DATA_PAST_BOTTOM, "LEROY JENKINS")
-        # AssertionError: Unexpected exception: WI no value match (True != 5)
-        #self.assert_set_exception(Parameter.CLIP_DATA_PAST_BOTTOM, 5)
-        # AssertionError: Unexpected exception: WI no value match (True != -1)
-        #self.assert_set_exception(Parameter.CLIP_DATA_PAST_BOTTOM, -1)
 
         #
         # Reset to good value.
@@ -827,18 +811,17 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         Verify the clock is set to at least the current date
         """
-        #self.assert_initialize_driver()
         dt = self.assert_get(Parameter.TIME)
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:13].upper() in dt.upper())
-    #+
+    
     def test_scheduled_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
         self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=250)
         self.assert_current_state(ProtocolState.COMMAND)
-    #+
+    
     def test_scheduled_clock_sync_autosample(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected

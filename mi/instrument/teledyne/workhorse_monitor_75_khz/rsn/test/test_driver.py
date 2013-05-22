@@ -137,7 +137,6 @@ class ADCPTMixin(DriverTestMixin):
     ###
     # Parameter and Type Definitions
     ###
-    # Is DEFAULT the DEFAULT STARTUP VALUE?
     _driver_parameters = {
         Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
         Parameter.SERIAL_FLOW_CONTROL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '11110'},
@@ -193,7 +192,6 @@ class ADCPTMixin(DriverTestMixin):
         Capability.RUN_TEST_200: { STATES: [ProtocolState.COMMAND]},
     }
 
-    #name, type done, value pending
     EF_CHAR = '\xef'
     _calibration_data_parameters = {
         ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP: {'type': float, 'value': 1347639932.0 },
@@ -211,7 +209,6 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL: {'type': float, 'value': 33500.0 }
     }
 
-    #name, type done, value pending
     _system_configuration_data_parameters = {
         ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER: {'type': unicode, 'value': "18444" },
         ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY: {'type': int, 'value': 76800 }, 
@@ -243,7 +240,6 @@ class ADCPTMixin(DriverTestMixin):
                                                                                     "DB  00 00 06 F5 CB 5D  09 DSP727-2001-06H" }
     }
 
-    #name, type done, value pending
     _pd0_parameters_base = {
         ADCP_PD0_PARSED_KEY.HEADER_ID: {'type': int, 'value': 127 },
         ADCP_PD0_PARSED_KEY.DATA_SOURCE_ID: {'type': int, 'value': 127 },
@@ -396,6 +392,7 @@ class ADCPTMixin(DriverTestMixin):
 
     _pd0_parameters = dict(_pd0_parameters_base.items() +
                            _coordinate_transformation_beam_parameters.items())
+    
     # Driver Parameter Methods
     ###
     def assert_driver_parameters(self, current_parameters, verify_values = False):
@@ -433,7 +430,6 @@ class ADCPTMixin(DriverTestMixin):
         @param verify_values: bool, should we verify parameter values
         '''
         log.debug("in assert_particle_compass_calibration")
-        log.debug("data_particle = " + repr(data_particle))
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
 
@@ -453,7 +449,6 @@ class ADCPTMixin(DriverTestMixin):
         @param verify_values: bool, should we verify parameter values
         '''
         log.debug("IN assert_particle_pd0_data")
-
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_BEAM)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
 

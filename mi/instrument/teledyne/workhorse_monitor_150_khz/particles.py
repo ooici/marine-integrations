@@ -1,8 +1,8 @@
 """
 @package mi.instrument.teledyne.workhorse_monitor_75_khz.particles
-@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_75_khz/particles.py
+@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_75_khz/driver.py
 @author Roger Unwin
-@brief Driver code for the teledyne 75_khz particles
+@brief Driver particle code for the teledyne 75_khz particles
 Release notes:
 """
 
@@ -20,6 +20,7 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
 
+
 from mi.core.exceptions import SampleException
 
 #
@@ -34,6 +35,7 @@ ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER = re.compile(ADCP_SYSTEM_CONFIGURATION_R
 
 ADCP_COMPASS_CALIBRATION_REGEX = r'(ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM.*?)\>'
 ADCP_COMPASS_CALIBRATION_REGEX_MATCHER = re.compile(ADCP_COMPASS_CALIBRATION_REGEX, re.DOTALL)
+
 
 
 ###############################################################################

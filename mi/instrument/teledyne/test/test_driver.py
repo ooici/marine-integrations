@@ -1,16 +1,9 @@
 """
-@package mi.instrument.seabird.sbe26plus.test.test_driver
-@file marine-integrations/mi/instrument/seabird/sbe26plus/driver.py
+@package mi.instrument.teledyne.test.test_driver
+@file marine-integrations/mi/instrument/teledyne/test/test_driver.py
 @author Roger Unwin
-@brief Test cases for ooicore driver
-
-USAGE:
- Make tests verbose and provide stdout
-   * From the IDK
-       $ bin/test_driver
-       $ bin/test_driver -u
-       $ bin/test_driver -i
-       $ bin/test_driver -q
+@brief Driver for the teledyne family
+Release notes:
 """
 
 __author__ = 'Roger Unwin'

@@ -43,7 +43,7 @@ class Protocol(WorkhorseProtocol):
         For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
         """
-
+"""
         self._param_dict.add(Parameter.SERIAL_DATA_OUT,
             r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out ',
             lambda match: str(match.group(1)),
@@ -51,7 +51,8 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.STRING,
             display_name="serial data out",
             visibility=ParameterDictVisibility.READ_ONLY)
-
+"""
+"""
         self._param_dict.add(Parameter.SERIAL_FLOW_CONTROL,
             r'CF = (\d+) \-+ Flow Ctrl ',
             lambda match: str(match.group(1)),
@@ -62,6 +63,8 @@ class Protocol(WorkhorseProtocol):
             direct_access=False,
             visibility=ParameterDictVisibility.IMMUTABLE,
             default_value='11110')
+"""
+"""
 
         self._param_dict.add(Parameter.BANNER,
             r'CH = (\d) \-+ Suppress Banner',
@@ -72,6 +75,8 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             visibility=ParameterDictVisibility.IMMUTABLE,
             default_value=0)
+"""
+
 
         self._param_dict.add(Parameter.INSTRUMENT_ID,
             r'CI = (\d+) \-+ Instrument ID ',
@@ -82,6 +87,8 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value=0)
 
+"""
+
         self._param_dict.add(Parameter.SLEEP_ENABLE,
             r'CL = (\d) \-+ Sleep Enable',
             lambda match: int(match.group(1), base=10),
@@ -90,6 +97,8 @@ class Protocol(WorkhorseProtocol):
             display_name="sleep enable",
             startup_param=True,
             default_value=False)
+"""
+"""
 
         self._param_dict.add(Parameter.SAVE_NVRAM_TO_RECORDER,
             r'CN = (\d) \-+ Save NVRAM to recorder',
@@ -100,6 +109,8 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value=True,
             visibility=ParameterDictVisibility.IMMUTABLE)
+"""
+"""
 
         self._param_dict.add(Parameter.POLLED_MODE,
             r'CP = (\d) \-+ PolledMode ',
@@ -109,6 +120,7 @@ class Protocol(WorkhorseProtocol):
             display_name="polled mode",
             startup_param=True,
             default_value=False)
+"""
 
         self._param_dict.add(Parameter.XMIT_POWER,
             r'CQ = (\d+) \-+ Xmt Power ',
@@ -126,7 +138,9 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="speed of sound",
             startup_param=True,
-            default_value=1485)
+            default_value=1500)
+
+"""
 
         self._param_dict.add(Parameter.PITCH,
             r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
@@ -136,6 +150,8 @@ class Protocol(WorkhorseProtocol):
             display_name="pitch",
             startup_param=True,
             default_value=0)
+"""
+"""
 
         self._param_dict.add(Parameter.ROLL,
             r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor ',
@@ -145,6 +161,7 @@ class Protocol(WorkhorseProtocol):
             display_name="roll",
             startup_param=True,
             default_value=0)
+"""
 
         self._param_dict.add(Parameter.SALINITY,
             r'ES = (\d+) \-+ Salinity ',
@@ -155,6 +172,8 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value=35)
 
+"""
+
         self._param_dict.add(Parameter.COORDINATE_TRANSFORMATION,
             r'EX = (\d+) \-+ Coord Transform ',
             lambda match: str(match.group(1)),
@@ -163,6 +182,8 @@ class Protocol(WorkhorseProtocol):
             display_name="coordinate transformation",
             startup_param=True,
             default_value='11111')
+"""
+"""
 
         self._param_dict.add(Parameter.SENSOR_SOURCE,
             r'EZ = (\d+) \-+ Sensor Source ',
@@ -170,6 +191,25 @@ class Protocol(WorkhorseProtocol):
             str,
             type=ParameterDictType.STRING,
             display_name="sensor source")
+"""
+
+        self._param_dict.add(Parameter.TIME_PER_BURST,
+            r'TB (\d\d:\d\d:\d\d.\d\d) \-+ Time per Burst ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="time per burst",
+            startup_param=True,
+            default_value='00:00:00.00')
+
+        self._param_dict.add(Parameter.ENSEMBLES_PER_BURST,
+            r'TC (\d+) \-+ Ensembles Per Burst ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Ensembles per burst",
+            startup_param=True,
+            default_value=0)
 
         self._param_dict.add(Parameter.TIME_PER_ENSEMBLE,
             r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble ',
@@ -178,7 +218,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.STRING,
             display_name="time per ensemble",
             startup_param=True,
-            default_value='00:00:00.00')
+            default_value='01:00:00.00')
 
         self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
             r'TG (..../../..,..:..:..) - Time of First Ping ',
@@ -196,7 +236,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.STRING,
             display_name="time per ping",
             startup_param=True,
-            default_value='00:01.00')
+            default_value='01:20.00')
 
         self._param_dict.add(Parameter.TIME,
             r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
@@ -206,6 +246,15 @@ class Protocol(WorkhorseProtocol):
             display_name="time",
             expiration=1,
             visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._param_dict.add(Parameter.BUFFER_OUTPUT_PERIOD,
+            r'TP (\d\d:\d\d:\d\d) \-+ Buffer Output Period',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="Buffer Output Period",
+            startup_param=True,
+            default_value='00:00:00')
 
         self._param_dict.add(Parameter.FALSE_TARGET_THRESHOLD,
             r'WA (\d+,\d+) \-+ False Target Threshold ',
@@ -221,9 +270,10 @@ class Protocol(WorkhorseProtocol):
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="bandwidth control",
+            display_name="Mode 1 Bandwidth Control",
             startup_param=True,
-            default_value=0)
+            default_value=1,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.CORRELATION_THRESHOLD,
             r'WC (\d+) \-+ Correlation Threshold',
@@ -239,7 +289,7 @@ class Protocol(WorkhorseProtocol):
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="serial out fw switches",
+            display_name="Serial Out FW Switches",
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             default_value='111100000')
@@ -260,15 +310,16 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="blank after transmit",
             startup_param=True,
-            default_value=704)
+            default_value=352,
+            visibility=ParameterDictVisibility.IMMUTABLE)
 
         self._param_dict.add(Parameter.CLIP_DATA_PAST_BOTTOM,
             r'WI (\d) \-+ Clip Data Past Bottom',
             lambda match: bool(int(match.group(1), base=10)),
             self._bool_to_int,
             type=ParameterDictType.BOOL,
-            display_name="clip data past bottom",
-            startup_param=True,
+            display_name="Clip Data Past Bottom",
+            startup_param=False,
             default_value=False)
 
         self._param_dict.add(Parameter.RECEIVER_GAIN_SELECT,
@@ -276,18 +327,21 @@ class Protocol(WorkhorseProtocol):
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="receiver gain select",
+            display_name="Receiver Gain Select",
             startup_param=True,
-            default_value=1)
+            default_value=1,
+            visibility=ParameterDictVisibility.IMMUTABLE)
 
         self._param_dict.add(Parameter.WATER_REFERENCE_LAYER,
             r'WL (\d+,\d+) \-+ Water Reference Layer:  ',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="water reerence layer",
+            display_name="water reference layer",
             startup_param=True,
             default_value='001,005')
+
+"""
 
         self._param_dict.add(Parameter.WATER_PROFILING_MODE,
             r'WM (\d+) \-+ Profiling Mode ',
@@ -298,6 +352,8 @@ class Protocol(WorkhorseProtocol):
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             default_value=1)
+"""
+"""
 
         self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
             r'WN (\d+) \-+ Number of depth cells',
@@ -307,6 +363,8 @@ class Protocol(WorkhorseProtocol):
             display_name="number of depth cells",
             startup_param=True,
             default_value=100)
+"""
+"""
 
         self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
             r'WP (\d+) \-+ Pings per Ensemble ',
@@ -316,6 +374,8 @@ class Protocol(WorkhorseProtocol):
             display_name="pings per ensemble",
             startup_param=True,
             default_value=1)
+"""
+"""
 
         self._param_dict.add(Parameter.DEPTH_CELL_SIZE,
             r'WS (\d+) \-+ Depth Cell Size \(cm\)',
@@ -325,6 +385,8 @@ class Protocol(WorkhorseProtocol):
             display_name="depth cell size",
             startup_param=True,
             default_value=800)
+"""
+"""
 
         self._param_dict.add(Parameter.TRANSMIT_LENGTH,
             r'WT (\d+) \-+ Transmit Length ',
@@ -334,6 +396,8 @@ class Protocol(WorkhorseProtocol):
             display_name="transmit length",
             startup_param=True,
             default_value=0)
+"""
+"""
 
         self._param_dict.add(Parameter.PING_WEIGHT,
             r'WU (\d) \-+ Ping Weighting ',
@@ -343,6 +407,8 @@ class Protocol(WorkhorseProtocol):
             display_name="ping weight",
             startup_param=True,
             default_value=0)
+"""
+"""
 
         self._param_dict.add(Parameter.AMBIGUITY_VELOCITY,
             r'WV (\d+) \-+ Mode 1 Ambiguity Vel ',
@@ -352,6 +418,7 @@ class Protocol(WorkhorseProtocol):
             display_name="ambiguity velocity",
             startup_param=True,
             default_value=175)
+"""
 
     def _send_break_cmd(self):
         """

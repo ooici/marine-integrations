@@ -1,6 +1,6 @@
 """
 @package mi.instrument.teledyne.workhorse_monitor_75_khz.driver
-@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_75_khz/driver.py
+@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_150_khz/driver.py
 @author Roger Unwin
 @brief Driver for the 75khz family
 Release notes:
@@ -17,9 +17,11 @@ from mi.instrument.teledyne.driver import InstrumentCmds
 from mi.instrument.teledyne.driver import Parameter
 from mi.instrument.teledyne.driver import ProtocolState
 from mi.instrument.teledyne.driver import Capability
+
 from mi.instrument.teledyne.workhorse_monitor_75_khz.particles import *
 
 from mi.core.instrument.chunker import StringChunker
+
 
 
 ###############################################################################
@@ -112,6 +114,37 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._chunker = StringChunker(WorkhorseProtocol.sieve_function)
 
     def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+                self.cmd_dict.add("cmd1",
+                          timeout=60,
+                          display_name="Command 1",
+                          description="Execute a foo on the instrument",
+                          return_type="bool",
+                          return_units="Success",
+                          return_description="Success (true) or failure (false)",
+                          arguments=[CommandArgument(
+                                     name="coeff",
+                                     required=True,
+                                     display_name="coefficient",
+                                     description="The coefficient to use for calculation",
+                                     type=CommandDictType.FLOAT,
+                                     value_description="Should be between 1.97 and 2.34"
+                                     ),
+                                     CommandArgument(
+                                     name="delay",
+                                     required=False,
+                                     display_name="delay time",
+                                     description="The delay time to wait before executing",
+                                     type=CommandDictType.FLOAT,
+                                     units="seconds",
+                                     value_description="Should be between 1.0 and 3.3 in increments of 0.1"
+                                     )
+                                    ]
+                         )
+
+        """
+
         self._cmd_dict.add(Capability.START_AUTOSAMPLE,
                            timeout=300,
                            display_name="start autosample",

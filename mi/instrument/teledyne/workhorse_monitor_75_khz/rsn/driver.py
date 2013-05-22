@@ -67,7 +67,7 @@ class Protocol(WorkhorseProtocol):
         self._param_dict.add(Parameter.BANNER,
             r'CH = (\d) \-+ Suppress Banner',
             lambda match:  bool(int(match.group(1), base=10)),
-            self._bool_to_int, # _reverse_bool_to_int
+            self._bool_to_int,
             type=ParameterDictType.BOOL,
             display_name="banner",
             startup_param=True,
@@ -286,7 +286,7 @@ class Protocol(WorkhorseProtocol):
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="water reerence layer",
+            display_name="water reference layer",
             startup_param=True,
             default_value='001,005')
 

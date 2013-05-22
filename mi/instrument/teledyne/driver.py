@@ -1,6 +1,6 @@
 """
 @package mi.instrument.teledyne.driver
-@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_75_khz/driver.py
+@file marine-integrations/mi/instrument/teledyne/driver.py
 @author Roger Unwin
 @brief Driver for the teledyne family
 Release notes:
@@ -396,10 +396,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         If we need to set parameters then we might need to transition to
         command first.  Then we will transition back when complete.
 
-        @todo: This feels odd.  It feels like some of this logic should
-               be handled by the state machine.  It's a pattern that we
-               may want to review.  I say this because this command
-               needs to be run from autosample or command mode.
         @throws: InstrumentProtocolException if not in command or streaming
         """
         # Let's give it a try in unknown state
@@ -557,7 +553,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         Send a BREAK to attempt to wake the device.
         """
-        #self._connection.send_break(400)
         log.debug("IN _send_break, clearing buffer.")
         self._promptbuf = ''
         self._linebuf = ''
@@ -998,15 +993,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                 # have all fresh values.
                 log.debug("Fetching parameters for the second time")
                 result = self._get_param_result(param_list, expire_time)
-            '''
-            TODO: Just commented the below out. i think it
-            was accidentally left in. if all works, then it should be perm removed.
-
-            # Take a second pass at getting values, this time is should
-            # have all fresh values.
-            log.debug("Fetching parameters for the second time")
-            result = self._get_param_result(param_list, expire_time)
-            '''
         return (next_state, result)
 
     def _handler_autosample_get_calibration(self, *args, **kwargs):
@@ -1216,11 +1202,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         return (next_state, (next_agent_state, result))
 
     def _handler_command_send_last_sample(self, *args, **kwargs):
-        """
-        @param args:
-        @param kwargs:
-        @return:
-        """
         log.debug("***********IN _handler_command_send_last_sample")
         next_state = None
         next_agent_state = None
@@ -1232,8 +1213,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         return (next_state, (next_agent_state, decoded_last_sample))
 
     def _handler_command_start_direct(self, *args, **kwargs):
-        """
-        """
         next_state = None
         result = None
 
@@ -1261,8 +1240,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         pass
 
     def _handler_direct_access_execute_direct(self, data):
-        """
-        """
         log.debug("IN _handler_direct_access_execute_direct")
         next_state = None
         result = None
@@ -1366,10 +1343,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         self.get_count = 0
         return response
-
-
-
-
 
     ########################################################################
     # response handlers.

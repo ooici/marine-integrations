@@ -286,7 +286,7 @@ class Protocol(WorkhorseProtocol):
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="water reerence layer",
+            display_name="water reference layer",
             startup_param=True,
             default_value='001,005')
 
