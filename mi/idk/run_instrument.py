@@ -195,7 +195,7 @@ class RunInstrument(MiIntTestCase):
             # Create agent config.
             agent_config = {
                 'driver_config' : DVR_CONFIG,
-                'stream_config' : self._stream_config,
+                'stream_config' : self.stream_config,
                 'agent'         : {'resource_id': IA_RESOURCE_ID},
                 'test_mode' : True
             }
@@ -254,13 +254,15 @@ class RunInstrument(MiIntTestCase):
         self._pagent = PortAgentProcess.launch_process(config, timeout = 60, test_mode = True)
         pid = self._pagent.get_pid()
         port = self._pagent.get_data_port()
+        cmd_port = self._pagent.get_command_port()
 
         log.info('Started port agent pid %d listening at port %d', pid, port)
 
         # Configure driver to use port agent port number.
         DVR_CONFIG['comms_config'] = {
             'addr' : 'localhost',
-            'port' : port
+            'port' : port,
+            'cmd_port': cmd_port
         }
 
         return port
@@ -289,7 +291,7 @@ class RunInstrument(MiIntTestCase):
         dataset_management = DatasetManagementServiceClient() 
            
         # Create streams and subscriptions for each stream named in driver.
-        self._stream_config = {}
+        self.stream_config = {}
 
         streams = {
             'parsed' : 'ctd_parsed_param_dict',

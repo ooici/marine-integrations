@@ -945,7 +945,15 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SeaBird16plusMixin):
         self.assert_initialize_driver()
         self.assert_cycle()
         self.assert_cycle()
-
+        
+    def test_metadata(self):
+        metadata = self.driver_client.cmd_dvr('get_config_metadata')
+        self.assertEqual(metadata, None) # must be connected
+        self.assert_initialize_driver()
+        metadata = self.driver_client.cmd_dvr('get_config_metadata')
+        log.debug("Metadata: %s", metadata)
+        self.assertTrue(isinstance(metadata, str))
+        
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #

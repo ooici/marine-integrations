@@ -31,6 +31,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import InstrumentDriverPublicationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
@@ -660,3 +661,20 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
+
+###############################################################################
+#                             PUBLICATION TESTS                               #
+# Device specific pulication tests are for                                    #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('PUB', group='mi')
+class TestPub(InstrumentDriverPublicationTestCase):
+    def test_granule_generation(self):
+        self.assert_initialize_driver()
+
+        # Currently these tests only verify that the data granule is generated, but the values
+        # are not tested.  We will eventually need to replace log.debug with a better callback
+        # function that actually tests the granule.
+        self.assert_sample_async("raw data", log.debug, DataParticleType.RAW, timeout=10)
+
+        self.assert_sample_async(OPTAA_SAMPLE, log.debug, DataParticleType.OPTAA_SAMPLE, timeout=10)
