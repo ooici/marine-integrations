@@ -317,7 +317,9 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
             ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
                                     'DRIVER_EVENT_SET',
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
-                                    'DRIVER_EVENT_START_DIRECT'],
+                                    'DRIVER_EVENT_START_DIRECT',
+                                    'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                    'DRIVER_EVENT_CLOCK_SYNC'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 
                                           'EXECUTE_DIRECT']

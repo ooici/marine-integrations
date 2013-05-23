@@ -57,6 +57,7 @@ class ProtocolState(BaseEnum):
     """
     UNKNOWN       = DriverProtocolState.UNKNOWN
     COMMAND       = DriverProtocolState.COMMAND
+    AUTOSAMPLE    = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 
 class ProtocolEvent(BaseEnum):
@@ -304,6 +305,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync_clock)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -443,6 +447,15 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        """
+        """
+        result = None
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
+        return (next_state, (next_agent_state, result))
+
     def _handler_command_acquire_sample(self, *args, **kwargs):
         """
         Acquire sample from SBE16.
@@ -473,6 +486,19 @@ class Protocol(CommandResponseInstrumentProtocol):
 
 
         #self._sync_clock(Command.SET, Parameter.DATE_TIME, TIMEOUT, time_format="%d %b %Y %H:%M:%S")
+
+        return (next_state, (next_agent_state, result))
+
+    ########################################################################
+    # autosample handlers.
+    ########################################################################
+
+    def _handler_autosample_stop_autosample(self, *args, **kwargs):
+        """
+        """
+        result = None
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.IDLE
 
         return (next_state, (next_agent_state, result))
 
