@@ -123,23 +123,16 @@ class DataParticleType(BaseEnum):
 ###############################################################################
 
 class METBK_SampleDataParticleKey(BaseEnum):
-    RECORD_LENGTH = 'record_length'
-    PACKET_TYPE = 'packet_type'
-    METER_TYPE = 'meter_type'
-    SERIAL_NUMBER = 'serial_number'
-    A_REFERENCE_DARK_COUNTS = 'a_reference_dark_counts'
-    PRESSURE_COUNTS = 'pressure_counts'
-    A_SIGNAL_DARK_COUNTS = 'a_signal_dark_counts'
-    EXTERNAL_TEMP_RAW = 'external_temp_raw'
-    INTERNAL_TEMP_RAW = 'internal_temp_raw'
-    C_REFERENCE_DARK_COUNTS = 'c_reference_dark_counts'
-    C_SIGNAL_DARK_COUNTS = 'c_signal_dark_counts'
-    ELAPSED_RUN_TIME = 'elapsed_run_time'
-    NUM_WAVELENGTHS = 'num_wavelengths'
-    C_REFERENCE_COUNTS = 'c_reference_counts'
-    A_REFERENCE_COUNTS = 'a_reference_counts'
-    C_SIGNAL_COUNTS = 'c_signal_counts'
-    A_SIGNAL_COUNTS = 'a_signal_counts'
+    BAROMETRIC_PRESSURE = 'barometric_pressure'
+    RELATIVE_HUMIDITY = 'relative_humidity'
+    AIR_TEMPERATURE = 'air_temperature'
+    LONGWAVE_IRRADIANCE = 'longwave_irradiance'
+    PRECIPITATION = 'precipitation'
+    SEA_SURFACE_TEMPERATURE = 'sea_surface_temperature'
+    SEA_SURFACE_CONDUCTIVITY = 'sea_surface_conductivity'
+    SHORTWAVE_IRRADIANCE = 'shortwave_irradiance'
+    EASTWARD_WIND_VELOCITY = 'eastward_wind_velocity'
+    NORTHWARD_WIND_VELOCITY = 'northward_wind_velocity'
     
 class METBK_SampleDataParticle(DataParticle):
     _data_particle_type = DataParticleType.METBK_PARSED
@@ -150,18 +143,18 @@ class METBK_SampleDataParticle(DataParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        SAMPLE_DATA_PATTERN = (r'\s+(-*\d+\.\d+)' +     # BPR
-                                '\s+(-*\d+\.\d+)' +     # RH %
-                                '\s+(-*\d+\.\d+)' +     # RH temp
-                                '\s+(-*\d+\.\d+)' +     # LWR
-                                '\s+(-*\d+\.\d+)' +     # PRC
-                                '\s+(-*\d+\.\d+)' +     # ST
-                                '\s+(-*\d+\.\d+)' +     # SC
-                                '\s+(-*\d+\.\d+)' +     # SWR
-                                '\s+(-*\d+\.\d+)' +     # We
-                                '\s+(-*\d+\.\d+)' +     # Wn
-                                '.*?'  + NEWLINE)       # throw away batteries
-        return re.compile(SAMPLE_DATA_PATTERN)
+        SAMPLE_DATA_PATTERN = (r'(-*\d+\.\d+)' +        # BPR
+                                '\s*(-*\d+\.\d+)' +     # RH %
+                                '\s*(-*\d+\.\d+)' +     # RH temp
+                                '\s*(-*\d+\.\d+)' +     # LWR
+                                '\s*(-*\d+\.\d+)' +     # PRC
+                                '\s*(-*\d+\.\d+)' +     # ST
+                                '\s*(-*\d+\.\d+)' +     # SC
+                                '\s*(-*\d+\.\d+)' +     # SWR
+                                '\s*(-*\d+\.\d+)' +     # We
+                                '\s*(-*\d+\.\d+)' +     # Wn
+                                '.*?' + NEWLINE)        # throw away batteries
+        return re.compile(SAMPLE_DATA_PATTERN, re.DOTALL)
 
     def _build_parsed_values(self):
         
@@ -174,9 +167,28 @@ class METBK_SampleDataParticle(DataParticle):
 
         result = []
         
-        result.append({DataParticleKey.VALUE_ID: METBK_SampleDataParticleKey.PACKET_TYPE,
-                       DataParticleKey.VALUE: ord(match.group(2))})
-
+        result = [{DataParticleKey.VALUE_ID: METBK_SampleDataParticleKey.BAROMETRIC_PRESSURE,
+                   DataParticleKey.VALUE: float(match.group(1))},
+                  {DataParticleKey.VALUE_ID: METBK_SampleDataParticleKey.RELATIVE_HUMIDITY,
+                   DataParticleKey.VALUE: float(match.group(2))},
+                  {DataParticleKey.VALUE_ID: METBK_SampleDataParticleKey.AIR_TEMPERATURE,
+                   DataParticleKey.VALUE: float(match.group(3))},
+                  {DataParticleKey.VALUE_ID: METBK_SampleDataParticleKey.LONGWAVE_IRRADIANCE,
+                   DataParticleKey.VALUE: float(match.group(4))},
+                  {DataParticleKey.VALUE_ID: METBK_SampleDataParticleKey.PRECIPITATION,
+                   DataParticleKey.VALUE: float(match.group(5))},
+                  {DataParticleKey.VALUE_ID: METBK_SampleDataParticleKey.SEA_SURFACE_TEMPERATURE,
+                   DataParticleKey.VALUE: float(match.group(6))},
+                  {DataParticleKey.VALUE_ID: METBK_SampleDataParticleKey.SEA_SURFACE_CONDUCTIVITY,
+                   DataParticleKey.VALUE: float(match.group(7))},
+                  {DataParticleKey.VALUE_ID: METBK_SampleDataParticleKey.SHORTWAVE_IRRADIANCE,
+                   DataParticleKey.VALUE: float(match.group(8))},
+                  {DataParticleKey.VALUE_ID: METBK_SampleDataParticleKey.EASTWARD_WIND_VELOCITY,
+                   DataParticleKey.VALUE: float(match.group(9))},
+                  {DataParticleKey.VALUE_ID: METBK_SampleDataParticleKey.NORTHWARD_WIND_VELOCITY,
+                   DataParticleKey.VALUE: float(match.group(10))}]
+        
+        log.debug("METBK_SampleDataParticle._build_parsed_values: result=%s" %result)
         return result
     
     
@@ -196,7 +208,7 @@ class METBK_StatusDataParticle(DataParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        STATUS_DATA_PATTERN = (r'.*?Model: (\w+)\r\n' +     
+        STATUS_DATA_PATTERN = (r'.*Model: (\w+)\r\n' +     
                                 'SerNum: (\w+)\r\n'  +     
                                 'CfgDat: (\w+)\r\n' +
                                 'Firmware: (\w+)\r\n'  +     
@@ -204,7 +216,8 @@ class METBK_StatusDataParticle(DataParticle):
                                 'Logging Interval: (\w+)\r\n'  +     
                                 'R-interval: (\w+)\r\n'  +     
                                 '(\w+)\r\n'  +                     # compact flash info
-                                '.*?Sampling GO\r\n')    
+                                '.*?Sampling GO\r\n') 
+           
         return re.compile(STATUS_DATA_PATTERN, re.DOTALL)
 
     def _build_parsed_values(self):
@@ -332,6 +345,8 @@ class Protocol(CommandResponseInstrumentProtocol):
             for match in matcher.finditer(raw_data):
                 return_list.append((match.start(), match.end()))
                     
+        if return_list != []:
+            log.debug("sieve_function: raw_data=%s, return_list=%s" %(raw_data, return_list))
         return return_list
 
     def _got_chunk(self, chunk, timestamp):
@@ -339,6 +354,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
+        log.debug("_got_chunk: chunk=%s" %chunk)
         self._extract_sample(METBK_SampleDataParticle, METBK_SampleDataParticle.regex_compiled(), chunk, timestamp)
         self._extract_sample(METBK_StatusDataParticle, METBK_StatusDataParticle.regex_compiled(), chunk, timestamp)
 

@@ -73,23 +73,6 @@ from pyon.agent.agent import ResourceAgentState
 
 from struct import pack
 
-
-METBK_STATUS_DATA = "??" + NEWLINE +\
-                    "Model: NEWLGR53" + NEWLINE +\
-                    "SerNum: 17DEC12" + NEWLINE +\
-                    "CfgDat: 17DEC12" + NEWLINE +\
-                    "Firmware: LOGR53 v4.11cf" + NEWLINE +\
-                    "RTClock: 2013/05/21  13:55:51" + NEWLINE +\
-                    "Logging Interval: 60; Current Tick: 6" + NEWLINE +\
-                    "R-interval: 1" + NEWLINE +\
-                    "Compact Flash Card present - Compact Flash OK!" + NEWLINE +\
-                    "Main Battery Voltage:  12.50" + NEWLINE +\
-                    "Failed last attempt to update PTT module" + NEWLINE +\
-                    "46B1BAD3E8E9FF7F9681300017D1F446ADBED76909FE7F9601200017D1F4706A" + NEWLINE +\
-                    "46A9BED82911FE7F9601400017D1F446A5C2D668F1FE7F9581400017D1F4FFA6" + NEWLINE +\
-                    "46A1BED628D9FE7F9581400017D1F4469DC2D7E8C1FE7F9501500017D1F40B4F" + NEWLINE +\
-                    "Sampling GO" + NEWLINE
-
 # Globals
 raw_stream_received = False
 parsed_stream_received = False
@@ -150,6 +133,24 @@ class UtilMixin(DriverTestMixin):
     DEFAULT   = ParameterTestConfigKey.DEFAULT
     STATES    = ParameterTestConfigKey.STATES
 
+    METBK_STATUS_DATA = "??" + NEWLINE +\
+                        "Model: NEWLGR53" + NEWLINE +\
+                        "SerNum: 17DEC12" + NEWLINE +\
+                        "CfgDat: 17DEC12" + NEWLINE +\
+                        "Firmware: LOGR53 v4.11cf" + NEWLINE +\
+                        "RTClock: 2013/05/21  13:55:51" + NEWLINE +\
+                        "Logging Interval: 60; Current Tick: 6" + NEWLINE +\
+                        "R-interval: 1" + NEWLINE +\
+                        "Compact Flash Card present - Compact Flash OK!" + NEWLINE +\
+                        "Main Battery Voltage:  12.50" + NEWLINE +\
+                        "Failed last attempt to update PTT module" + NEWLINE +\
+                        "46B1BAD3E8E9FF7F9681300017D1F446ADBED76909FE7F9601200017D1F4706A" + NEWLINE +\
+                        "46A9BED82911FE7F9601400017D1F446A5C2D668F1FE7F9581400017D1F4FFA6" + NEWLINE +\
+                        "46A1BED628D9FE7F9581400017D1F4469DC2D7E8C1FE7F9501500017D1F40B4F" + NEWLINE +\
+                        "Sampling GO" + NEWLINE
+    
+    METBK_SAMPLE_DATA = "1012.53  44.543  24.090    0.0    1.12  24.240  0.0000 32788.7   -0.03   -0.02  0.0000 12.50" + NEWLINE
+    
     ###
     # Parameter and Type Definitions
     ###
@@ -160,61 +161,22 @@ class UtilMixin(DriverTestMixin):
     ### 
     _sample_parameters = {
         # particle data defined in the OPTAA Driver doc
-        METBK_SampleDataParticleKey.RECORD_LENGTH : {'type': int, 'value': 680 },
-        METBK_SampleDataParticleKey.PACKET_TYPE : {'type': int, 'value': 5 },
-        METBK_SampleDataParticleKey.METER_TYPE : {'type': int, 'value': 83 },
-        METBK_SampleDataParticleKey.SERIAL_NUMBER : {'type': int, 'value': 130},
-        METBK_SampleDataParticleKey.A_REFERENCE_DARK_COUNTS : {'type': int, 'value': 0x1ce },
-        METBK_SampleDataParticleKey.PRESSURE_COUNTS : {'type': int, 'value': 0xffff },
-        METBK_SampleDataParticleKey.A_SIGNAL_DARK_COUNTS : {'type': int, 'value': 0x2b0 },
-        METBK_SampleDataParticleKey.EXTERNAL_TEMP_RAW : {'type': int, 'value': 0x6e47 },
-        METBK_SampleDataParticleKey.INTERNAL_TEMP_RAW : {'type': int, 'value': 0xa84f },
-        METBK_SampleDataParticleKey.C_REFERENCE_DARK_COUNTS : {'type': int, 'value': 0x1d5 },
-        METBK_SampleDataParticleKey.C_SIGNAL_DARK_COUNTS : {'type': int, 'value': 0x2bd },
-        METBK_SampleDataParticleKey.ELAPSED_RUN_TIME : {'type': int, 'value': 0x0000284d },
-        METBK_SampleDataParticleKey.NUM_WAVELENGTHS : {'type': int, 'value': 81 },
-        METBK_SampleDataParticleKey.C_REFERENCE_COUNTS : {'type': list, 'value': [1391, 1632, 1889, 2168, 2473, 2817, 3196, 3611, 4060, 4532, 
-                                                                                  5020, 5530, 6058, 6645, 7292, 7964, 8657, 9387, 10139, 10907, 
-                                                                                  11687, 12495, 13313, 14139, 14990, 15888, 16843, 17865, 18964, 20119, 
-                                                                                  21298, 22437, 23526, 24538, 25494, 26419, 27271, 28060, 28759, 29311, 
-                                                                                  29941, 30478, 30928, 31284, 31536, 31673, 31706, 31630, 31449, 31170, 
-                                                                                  30786, 30326, 29767, 29146, 28508, 27801, 27011, 26145, 25186, 23961, 
-                                                                                  22897, 22027, 21024, 19988, 18945, 17919, 16928, 15976, 15070, 14210, 
-                                                                                  13386, 12602, 11856, 11145, 10493, 9884, 9317, 8785, 8292, 7835, 
-                                                                                  7418]},
-        METBK_SampleDataParticleKey.A_REFERENCE_COUNTS : {'type': list, 'value': [1273, 1499, 1744, 2012, 2304, 2632, 2995, 3395, 3825, 4283, 
-                                                                                  4759, 5262, 5780, 6358, 7001, 7668, 8360, 9089, 9848, 10630, 
-                                                                                  11421, 12252, 13103, 13961, 14849, 15792, 16786, 17853, 19000, 20216, 
-                                                                                  21461, 22682, 23850, 24975, 26048, 27059, 28020, 28925, 29739, 30363, 
-                                                                                  31158, 31855, 32457, 32970, 33385, 33680, 33849, 33911, 33858, 33705, 
-                                                                                  33440, 33074, 32609, 32047, 31455, 30828, 30101, 29283, 28383, 27271, 
-                                                                                  26039, 25148, 24144, 23069, 21974, 20877, 19811, 18773, 17771, 16822, 
-                                                                                  15905, 15025, 14190, 13383, 12622, 11927, 11270, 10655, 10081, 9547,
-                                                                                   9054]},
-        METBK_SampleDataParticleKey.C_SIGNAL_COUNTS : {'type': list, 'value':    [1225, 1471, 1743, 2040, 2369, 2739, 3159, 3616, 4118, 4652, 
-                                                                                  5210, 5797, 6409, 7074, 7834, 8620, 9436, 10292, 11191, 12109, 
-                                                                                  13049, 14020, 15015, 16023, 17058, 18145, 19307, 20544, 21881, 23294, 
-                                                                                  24745, 26163, 27517, 28808, 29991, 31187, 32273, 33304, 34225, 35010, 
-                                                                                  35858, 36596, 37226, 37743, 38136, 38389, 38509, 38499, 38352, 38088, 
-                                                                                  37686, 37197, 36591, 35870, 35148, 34353, 33438, 32425, 31315, 29877, 
-                                                                                  28439, 27497, 26268, 24992, 23712, 22441, 21210, 20025, 18889, 17816, 
-                                                                                  16790, 15808, 14876, 13982, 13165, 12405, 11693, 11025, 10408, 9838, 
-                                                                                  9313]},
-        METBK_SampleDataParticleKey.A_SIGNAL_COUNTS : {'type': list, 'value':    [918, 1159, 1419, 1696, 1994, 2325, 2693, 3100, 3544, 4020, 
-                                                                                  4524, 5059, 5620, 6249, 6953, 7691, 8466, 9294, 10160, 11062, 
-                                                                                  11989, 12968, 13982, 15017, 16095, 17242, 18459, 19770, 21185, 22692, 
-                                                                                  24244, 25782, 27277, 28734, 30144, 31494, 32790, 34031, 35172, 36101, 
-                                                                                  37239, 38270, 39191, 40009, 40707, 41269, 41678, 41953, 42084, 42087, 
-                                                                                  41950, 41680, 41279, 40748, 40160, 39515, 38734, 37824, 36791, 35473, 
-                                                                                  33988, 32910, 31676, 30340, 28963, 27574, 26213, 24882, 23594, 22367, 
-                                                                                  21182, 20041, 18950, 17898, 16905, 15993, 15133, 14323, 13567, 12864, 
-                                                                                  12217]}
+        METBK_SampleDataParticleKey.BAROMETRIC_PRESSURE : {'type': float, 'value': 1012.53},
+        METBK_SampleDataParticleKey.RELATIVE_HUMIDITY : {'type': float, 'value': 44.543},
+        METBK_SampleDataParticleKey.AIR_TEMPERATURE : {'type': float, 'value': 24.09},
+        METBK_SampleDataParticleKey.LONGWAVE_IRRADIANCE : {'type': float, 'value': 0.0},
+        METBK_SampleDataParticleKey.PRECIPITATION : {'type': float, 'value': 1.12},
+        METBK_SampleDataParticleKey.SEA_SURFACE_TEMPERATURE : {'type': float, 'value': 24.24},
+        METBK_SampleDataParticleKey.SEA_SURFACE_CONDUCTIVITY : {'type': float, 'value': 0.0},
+        METBK_SampleDataParticleKey.SHORTWAVE_IRRADIANCE : {'type': float, 'value': 32788.7},
+        METBK_SampleDataParticleKey.EASTWARD_WIND_VELOCITY : {'type': float, 'value': -0.03},
+        METBK_SampleDataParticleKey.NORTHWARD_WIND_VELOCITY : {'type': float, 'value': -0.02}
         }   
                         
     _status_parameters = {
         METBK_StatusDataParticleKey.FIRMWARE_VERSION : {'type': unicode, 'value': '1.10'},
-        METBK_StatusDataParticleKey.FIRMWARE_DATE : {'type': unicode, 'value': 'May 16 2005 09:40:13' },
-        METBK_StatusDataParticleKey.PERSISTOR_CF_SERIAL_NUMBER : {'type': int, 'value': 12154 },
+        METBK_StatusDataParticleKey.FIRMWARE_DATE : {'type': unicode, 'value': 'May 16 2005 09:40:13'},
+        METBK_StatusDataParticleKey.PERSISTOR_CF_SERIAL_NUMBER : {'type': int, 'value': 12154},
         METBK_StatusDataParticleKey.PERSISTOR_CF_BIOS_VERSION : {'type': unicode, 'value': '2.28'},
         METBK_StatusDataParticleKey.PERSISTOR_CF_PICODOS_VERSION : {'type': unicode, 'value': '2.28'},
         }
@@ -232,38 +194,14 @@ class UtilMixin(DriverTestMixin):
     ###
     # Data Particle Parameters Methods
     ### 
-    def assert_sample_data_particle(self, data_particle):
-        '''
-        Verify a particle is a known particle to this driver and verify the particle is
-        correct
-        @param data_particle: Data particle of unknown type produced by the driver
-        '''
-        sample_dict = self.convert_data_particle_to_dict(data_particle)
-        if (sample_dict[DataParticleKey.STREAM_NAME] == DataParticleType.METBK_SAMPLE):
-            self.assert_data_particle_sample(data_particle)
-        elif (sample_dict[DataParticleKey.STREAM_NAME] == DataParticleType.METBK_STATUS):
-            self.assert_data_particle_status(data_particle)
-        else:
-            log.error("Unknown Particle Detected: %s" % data_particle)
-            self.assertFalse(True)
-
     def assert_data_particle_sample(self, data_particle, verify_values = False):
         '''
         Verify an optaa sample data particle
         @param data_particle: OPTAAA_SampleDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-        self.assert_data_particle_header(data_particle, DataParticleType.METBK_SAMPLE)
+        self.assert_data_particle_header(data_particle, DataParticleType.METBK_PARSED)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
-
-    def assert_data_particle_short_sample(self, data_particle, verify_values = False):
-        '''
-        Verify an optaa short sample data particle
-        @param data_particle: OPTAAA_SampleDataParticle data particle
-        @param verify_values: bool, should we verify parameter values
-        '''
-        self.assert_data_particle_header(data_particle, DataParticleType.METBK_SAMPLE)
-        self.assert_data_particle_parameters(data_particle, self._short_sample_parameters, verify_values)
 
     def assert_data_particle_status(self, data_particle, verify_values = False):
         """
@@ -304,7 +242,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         self.assert_enum_has_no_duplicates(ProtocolState())
         self.assert_enum_has_no_duplicates(ProtocolEvent())
         self.assert_enum_has_no_duplicates(Parameter())
-        self.assert_enum_has_no_duplicates(InstrumentCommand())
+        self.assert_enum_has_no_duplicates(Command())
 
         # Test capabilities for duplicates, them verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(Capability())
@@ -317,25 +255,21 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         """
         chunker = StringChunker(Protocol.sieve_function)
 
-        self.assert_chunker_sample(chunker, ShortSample())
-        self.assert_chunker_sample_with_noise(chunker, ShortSample())
-        self.assert_chunker_fragmented_sample(chunker, ShortSample())
-        self.assert_chunker_combined_sample(chunker, ShortSample())
+        self.assert_chunker_sample(chunker, self.METBK_SAMPLE_DATA)
+        self.assert_chunker_sample_with_noise(chunker, self.METBK_SAMPLE_DATA)
+        self.assert_chunker_fragmented_sample(chunker, self.METBK_SAMPLE_DATA)
+        self.assert_chunker_combined_sample(chunker, self.METBK_SAMPLE_DATA)
 
-        self.assert_chunker_sample(chunker, METBK_SAMPLE)
-        self.assert_chunker_sample_with_noise(chunker, METBK_SAMPLE)
-        self.assert_chunker_fragmented_sample(chunker, METBK_SAMPLE)
-        self.assert_chunker_combined_sample(chunker, METBK_SAMPLE)
-
-        self.assert_chunker_sample(chunker, METBK_STATUS_DATA)
-        self.assert_chunker_sample_with_noise(chunker, METBK_STATUS_DATA)
-        self.assert_chunker_fragmented_sample(chunker, METBK_STATUS_DATA)
-        self.assert_chunker_combined_sample(chunker, METBK_STATUS_DATA)
-
+        """
+        self.assert_chunker_sample(chunker, self.METBK_STATUS_DATA)
+        self.assert_chunker_sample_with_noise(chunker, self.METBK_STATUS_DATA)
+        self.assert_chunker_fragmented_sample(chunker, self.METBK_STATUS_DATA)
+        self.assert_chunker_combined_sample(chunker, self.METBK_STATUS_DATA)
+        """
 
     def test_corrupt_data_sample(self):
         # garbage is not okay
-        particle = METBK_SampleDataParticle(METBK_SAMPLE.replace('\x00\x00\x7b', 'foo'),
+        particle = METBK_SampleDataParticle(self.METBK_SAMPLE_DATA.replace('-0.03', 'foo'),
                                             port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
@@ -351,11 +285,8 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         self.assert_raw_particle_published(driver, True)
 
         # validating data particles
-        """
-        self.assert_particle_published(driver, METBK_STATUS_DATA, self.assert_data_particle_status, True)
-        self.assert_particle_published(driver, METBK_SAMPLE, self.assert_data_particle_sample, True)
-        """
-        self.assert_particle_published(driver, ShortSample(), self.assert_data_particle_sample, True)
+        #self.assert_particle_published(driver, self.METBK_STATUS_DATA, self.assert_data_particle_status, True)
+        self.assert_particle_published(driver, self.METBK_SAMPLE_DATA, self.assert_data_particle_sample, True)
 
 
     def test_protocol_filter_capabilities(self):
