@@ -159,12 +159,10 @@ class METBK_SampleDataParticle(DataParticle):
 
     def _build_parsed_values(self):
         
-        record = self.raw_data
-        
-        match = METBK_SampleDataParticle.regex_compiled().match(record)
+        match = METBK_SampleDataParticle.regex_compiled().match(self.raw_data)
         
         if not match:
-            raise SampleException("METBK_SampleDataParticle: No regex match of parsed sample data: [%s]", record)
+            raise SampleException("METBK_SampleDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
 
         result = []
         
@@ -194,11 +192,21 @@ class METBK_SampleDataParticle(DataParticle):
     
     
 class METBK_StatusDataParticleKey(BaseEnum):
-    FIRMWARE_VERSION = 'firmware_version'
-    FIRMWARE_DATE = 'firmware_date'
-    PERSISTOR_CF_SERIAL_NUMBER = 'persistor_cf_serial_number'
-    PERSISTOR_CF_BIOS_VERSION = 'persistor_cf_bios_version'
-    PERSISTOR_CF_PICODOS_VERSION = 'persistor_cf_picodos_version'
+    MODEL = 'model'
+    SERIAL_NUMBER = 'serial_number'
+    CONFIGURATION_DATE = 'configuration_date'
+    FIRMWARE = 'firmware'
+    REAL_TIME_CLOCK = 'real_time_clock'
+    LOGGING_INTERVAL = 'logging_interval'
+    RECENT_RECORD_INTERVAL = 'recent_record_interval'
+    COMPACT_FLASH = 'compact_flash'
+    MAIN_BATTERY = 'main_battery'
+    MODULE_FAILURES = 'module_failures'
+    PTT_ID_1 = 'ptt_id_1'
+    PTT_ID_2 = 'ptt_id_2'
+    PTT_ID_3 = 'ptt_id_3'
+    SAMPLING = 'sampling'
+    
     
 class METBK_StatusDataParticle(DataParticle):
     _data_particle_type = DataParticleType.METBK_STATUS
@@ -209,25 +217,51 @@ class METBK_StatusDataParticle(DataParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        STATUS_DATA_PATTERN = (r'.*Model: (\w+)\r\n' +     
-                                'SerNum: (\w+)\r\n'  +     
-                                'CfgDat: (\w+)\r\n' +
-                                'Firmware: (\w+)\r\n'  +     
-                                'RTClock: (\w+)\r\n'  +     
-                                'Logging Interval: (\w+)\r\n'  +     
-                                'R-interval: (\w+)\r\n'  +     
-                                '(\w+)\r\n'  +                     # compact flash info
-                                '.*?Sampling GO\r\n') 
+        STATUS_DATA_PATTERN = (r'Model: (.+?)\r\n' +     
+                                'SerNum: (.+?)\r\n'  +     
+                                'CfgDat: (.+?)\r\n' +
+                                'Firmware: (.+?)\r\n'  +     
+                                'RTClock: (.+?)\r\n'  +     
+                                'Logging Interval: (.+?)\r\n'  +     
+                                'R-interval: (.+?)\r\n'  +     
+                                '(.+?)\r\n'  +                     # compact flash info
+                                'Main Battery Voltage:\s+(.+?)\r\n' +
+                                '(.+?)'  +                         #     
+                                'Sampling (\w+)\r\n') 
            
         return re.compile(STATUS_DATA_PATTERN, re.DOTALL)
 
-    def _build_parsed_values(self):
-        result = []
-        
-        data_stream = self.raw_data
-        
-        log.debug("METBK_StatusDataParticle: input = %s" %data_stream)
+    def _build_parsed_values(self):        
+        log.debug("METBK_StatusDataParticle: input = %s" %self.raw_data)
             
+        match = METBK_StatusDataParticle.regex_compiled().match(self.raw_data)
+
+        if not match:
+            raise SampleException("METBK_StatusDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
+
+        result = []
+
+        result = [{DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.MODEL,
+                   DataParticleKey.VALUE: match.group(1)},
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.SERIAL_NUMBER,
+                   DataParticleKey.VALUE: match.group(2)},
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.CONFIGURATION_DATE,
+                   DataParticleKey.VALUE: match.group(3)},
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.FIRMWARE,
+                   DataParticleKey.VALUE: match.group(4)},
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.REAL_TIME_CLOCK,
+                   DataParticleKey.VALUE: match.group(5)},
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.LOGGING_INTERVAL,
+                   DataParticleKey.VALUE: match.group(6)},
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.RECENT_RECORD_INTERVAL,
+                   DataParticleKey.VALUE: match.group(7)},
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.COMPACT_FLASH,
+                   DataParticleKey.VALUE: match.group(8)},
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.MAIN_BATTERY,
+                   DataParticleKey.VALUE: match.group(9)},
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.SAMPLING,
+                   DataParticleKey.VALUE: match.group(11)}]
+        
         log.debug("METBK_StatusDataParticle: result = %s" %result)
         return result                      
 
@@ -349,8 +383,10 @@ class Protocol(CommandResponseInstrumentProtocol):
             for match in matcher.finditer(raw_data):
                 return_list.append((match.start(), match.end()))
                     
+        """
         if return_list != []:
             log.debug("sieve_function: raw_data=%s, return_list=%s" %(raw_data, return_list))
+        """
         return return_list
 
     def _got_chunk(self, chunk, timestamp):
