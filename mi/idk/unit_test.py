@@ -1504,6 +1504,26 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, target_state)
 
+    def assert_state_change(self, target_state, timeout):
+        """
+        Verify the driver state changes within a given timeout period.
+        Fail if the state doesn't change to the expected state.
+        @param target_state: State we expect the protocol to be in
+        @param timeout: how long to wait for the driver to change states
+        """
+        end_time = time.time() + timeout
+
+        while(time.time() <= end_time):
+            state = self.driver_client.cmd_dvr('get_resource_state')
+            if(state == target_state):
+                log.debug("Current state match: %s", state)
+                return
+            log.debug("state mismatch %s != %s, sleep for a bit", state, target_state)
+            time.sleep(2)
+
+        log.error("Failed to transition state to %s, current state: %s", target_state, state)
+        self.fail("Failed to transition state to %s, current state: %s" % (target_state, state))
+
     def assert_initialize_driver(self, final_state=DriverProtocolState.COMMAND):
         """
         Walk an uninitialized driver through it's initialize process.  Verify the final
@@ -2576,6 +2596,38 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         if(expected_resource_state != None):
             res_state = self.instrument_agent_client.get_resource_state()
             self.assertEqual(res_state, expected_resource_state)
+
+    def assert_state_change(self, target_agent_state, target_resource_state, timeout):
+        """
+        Verify the agent and resource states change as expected within the timeout
+        Fail if the state doesn't change to the expected state.
+        @param target_agent_state: State we expect the agent to be in
+        @param target_resource_state: State we expect the protocol to be in
+        @param timeout: how long to wait for the driver to change states
+        """
+        end_time = time.time() + timeout
+        agent_state = None
+        resource_state = None
+
+        while(time.time() <= end_time):
+            agent_state = self.instrument_agent_client.get_agent_state()
+            resource_state = self.instrument_agent_client.get_resource_state()
+            log.error("Current agent state: %s", agent_state)
+            log.error("Current resource state: %s", resource_state)
+
+            if(agent_state == target_agent_state and resource_state == target_resource_state):
+                log.debug("Current state match: %s %s", agent_state, resource_state)
+                return
+            log.debug("state mismatch, waiting for state to transition")
+            time.sleep(2)
+
+        if(agent_state != target_agent_state):
+            log.error("Failed to transition agent state to %s, current state: %s", target_agent_state, agent_state)
+
+        if(resource_state != target_resource_state):
+            log.error("Failed to transition resource state to %s, current state: %s", target_resource_state, resource_state)
+
+        self.fail("Failed to transition state")
 
     def assert_discover(self, expected_agent_state, expected_resource_state=None):
         """

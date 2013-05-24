@@ -39,6 +39,7 @@ from mi.core.exceptions import InstrumentParameterExpirationException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import ResourceAgentEvent
 
 from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 from mi.instrument.seabird.driver import SeaBirdProtocol
@@ -795,6 +796,7 @@ class SBE54tpsHardwareDataParticle(DataParticle):
                             SBE54tpsHardwareDataParticleKey.DEVICE_TYPE,
                             SBE54tpsHardwareDataParticleKey.MANUFACTURER,
                             SBE54tpsHardwareDataParticleKey.FIRMWARE_VERSION,
+                            SBE54tpsHardwareDataParticleKey.FIRMWARE_VERSION,
                             SBE54tpsHardwareDataParticleKey.HARDWARE_VERSION,
                             SBE54tpsHardwareDataParticleKey.PCB_SERIAL_NUMBER,
                             SBE54tpsHardwareDataParticleKey.PCB_TYPE,
@@ -1455,8 +1457,10 @@ class Protocol(SeaBirdProtocol):
         """
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
+        result = None
 
-        return (next_state, next_agent_state)
+        self._driver_event(DriverAsyncEvent.AGENT_EVENT, ResourceAgentEvent.CHANGE_STATE, next_agent_state)
+        return (next_state, None)
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
