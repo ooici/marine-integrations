@@ -17,7 +17,6 @@ from mi.idk.nose_test import NoseTest
 from mi.idk.driver_generator import DriverGenerator
 from mi.idk.egg_generator import EggGenerator
 
-
 class PackageManifest(object):
     """
     Object to create and store a package file manifest
@@ -86,6 +85,9 @@ class PackageDriver(object):
     ###
     #   Configuration
     ###
+    def string_file(self):
+        return "strings.yml"
+    
     def log_file(self):
         return "qualification.log"
 
@@ -99,8 +101,7 @@ class PackageDriver(object):
                                                       self.metadata.version)
     def archive_path(self):
         return os.path.join(os.path.expanduser("~"),self.archive_file())
-
-
+    
     ###
     #   Public Methods
     ###
@@ -212,6 +213,10 @@ class PackageDriver(object):
         # Add the qualification test log
         self._add_file(self.log_path(), description = 'qualification tests results')
 
+        # Store parameter/command string description file
+        self._add_file("%s/%s" % (self.generator.resource_dir(), self.string_file()),
+                       'resource', 'driver string file')
+        
         # Store additional resource files
         self._store_resource_files()
 
@@ -224,14 +229,16 @@ class PackageDriver(object):
         @brief Store additional files added by the driver developer.  These
         files live in the driver resource dir.
         """
-        log.debug(" -- Searching for developer added resource files.")
         resource_dir = self.generator.resource_dir()
-
+        log.debug(" -- Searching for developer added resource files in dir: %s",
+                  resource_dir)
+        stringfile = self.string_file()
         if os.path.exists(resource_dir):
             for file in os.listdir(resource_dir):
-                log.debug("    ++ found: " + file)
-                desc = prompt.text('Describe ' + file)
-                self._add_file(resource_dir + "/" + file, 'resource', desc)
+                if file != stringfile:
+                    log.debug("    ++ found: " + file)
+                    desc = prompt.text('Describe ' + file)
+                    self._add_file(resource_dir + "/" + file, 'resource', desc)
         else:
             log.debug(" --- No resource directory found, skipping...")
 
