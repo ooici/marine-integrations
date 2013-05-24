@@ -33,6 +33,7 @@ __license__ = 'Apache 2.0'
 import unittest
 from gevent import monkey; monkey.patch_all()
 import time
+import copy
 from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
@@ -74,6 +75,7 @@ from mi.instrument.seabird.sbe26plus.driver import SBE26plusDeviceStatusDataPart
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentCommandException
 from pyon.agent.agent import ResourceAgentEvent
+from pyon.agent.agent import ResourceAgentState
 
 ###
 #   Driver parameters for the tests
@@ -1306,6 +1308,7 @@ class SeaBird26PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird26PlusMixin):
 
 
 
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -1378,6 +1381,42 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         self.assert_enter_command_mode()
         self.assert_get_parameter(Parameter.TXREALTIME, True)
 
+    def test_direct_access_timeout(self):
+        """
+        Test that we can connect to the instrument via direct access and
+        that the timeout functions properly.  Verify that the resource
+        and agent state change and verify capailities.
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=10)
+        self.assertTrue(self.tcp_client)
+
+        log.debug("Wait for state to automatically transition")
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 700)
+
+    def test_testing_interrupt(self):
+        """
+        There are several test sequences that run continuously
+        until interrupted. While we don't directly support the
+        commands it is possible for the instrument to get in this
+        state via direct access.
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data("\r\n")
+        self.tcp_client.send_data("VR\r\n")
+
+        self.assert_direct_access_stop_telnet()
+
+        # In order for us to get into command mode we need a prompt
+        # this will fail if we don't break out of the test properly
+        self.assert_enter_command_mode()
+
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -1404,7 +1443,6 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
                 ProtocolEvent.ACQUIRE_STATUS,
                 ProtocolEvent.CLOCK_SYNC,
                 ProtocolEvent.ACQUIRE_CONFIGURATION,
-                ProtocolEvent.SETSAMPLING,
                 ProtocolEvent.QUIT_SESSION
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
@@ -1414,11 +1452,33 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         self.assert_capabilities(capabilities)
 
         ##################
+        #  DA Mode
+        ##################
+        da_capabilities = copy.deepcopy(capabilities)
+        da_capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.GO_COMMAND]
+        da_capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+
+        self.assert_direct_access_start_telnet(timeout=10)
+        self.assertTrue(self.tcp_client)
+
+        self.assert_capabilities(da_capabilities)
+        self.tcp_client.disconnect()
+
+        ##################
+        #  Command Mode
+        ##################
+
+        # We should be back in command mode from DA.
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+        self.assert_capabilities(capabilities)
+
+        ##################
         #  Streaming Mode
         ##################
 
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = [ ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+        as_capabilities = copy.deepcopy(capabilities)
+        as_capabilities[AgentCapabilityType.AGENT_COMMAND] = [ ResourceAgentEvent.RESET, ResourceAgentEvent.GO_INACTIVE ]
+        as_capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
             DriverEvent.STOP_AUTOSAMPLE,
             ProtocolEvent.ACQUIRE_STATUS,
             ProtocolEvent.SEND_LAST_SAMPLE,
@@ -1426,8 +1486,15 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         ]
 
         self.assert_start_autosample()
-        self.assert_capabilities(capabilities)
+        self.assert_capabilities(as_capabilities)
         self.assert_stop_autosample()
+
+        ##################
+        #  Command Mode
+        ##################
+
+        # We should be back in command mode from DA.
+        self.assert_capabilities(capabilities)
 
         #######################
         #  Uninitialized Mode
