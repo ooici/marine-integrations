@@ -376,6 +376,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         @returns An iterator which yields a new particle object for each sample
         for each channel.
         """
+        # TODO Might want to verify that the channel name matches a pattern,
+        # e.g. the SEED standard for hydrophones.
         for chan in orb_packet['channels']:
             for index, sample in enumerate(chan['data']):
                 # Yield a new particle
