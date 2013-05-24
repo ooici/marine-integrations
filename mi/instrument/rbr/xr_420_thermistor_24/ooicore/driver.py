@@ -720,6 +720,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         Discover current state; can be COMMAND or AUTOSAMPLE.  
         @retval (next_state, result), (ProtocolStates.COMMAND or ProtocolStates.AUTOSAMPLE, None) if successful.
+        @raise InstrumentProtocolException if we fail to discover our state
         """
         next_state = None
         result = None
@@ -728,7 +729,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
             self._wakeup()
         except InstrumentTimeoutException:
             # didn't get status response, so indicate that there is trouble with the instrument
-            raise InstrumentStateException('Unknown state.')
+            raise InstrumentProtocolException('Failed to discover instrument state. Unable to wake up instrument.')
         
         match = re.search('Logger status (\d{2})', self._promptbuf)
         if match != None:
@@ -752,7 +753,7 @@ class InstrumentProtocol(CommandResponseInstrumentProtocol):
                 next_state = ProtocolStates.COMMAND
                 result = ResourceAgentState.IDLE
         else:
-            raise InstrumentStateException('Unknown state.')
+            raise InstrumentProtocolException('Failed to discover instrument state. prompt mismatch.')
                     
         return (next_state, result)
 
