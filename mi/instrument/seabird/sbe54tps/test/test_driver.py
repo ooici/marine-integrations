@@ -22,7 +22,7 @@ USAGE:
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
-import unittest
+import copy
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -813,6 +813,50 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest, SeaBird54tpsMixin
         self.assert_enter_command_mode()
         self.assert_get_parameter(Parameter.SAMPLE_PERIOD, 5)
 
+    def test_direct_access_telnet_timeout(self):
+        """
+        Verify that DA timesout as expected and transistions back to command mode.
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=30)
+        self.assertTrue(self.tcp_client)
+
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 90)
+
+    def test_direct_access_telnet_disconnect(self):
+        """
+        Verify that a disconnection from the DA server transitions the agent back to
+        command mode.
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.disconnect()
+
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
+
+    def test_direct_access_telnet_autosample(self):
+        """
+        Verify we can handle an instrument state change while in DA
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=600)
+
+        self.tcp_client.send_data("%s%s" % (InstrumentCmds.START_LOGGING,NEWLINE))
+        self.tcp_client.expect("S>")
+
+        self.assert_sample_async(self.assert_particle_real_time, DataParticleType.PREST_REAL_TIME, 15)
+
+        self.tcp_client.disconnect()
+
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 30)
+
     def test_execute_clock_sync(self):
         """
         Verify we can syncronize the instrument internal clock
@@ -903,6 +947,14 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest, SeaBird54tpsMixin
         # Change these values anyway just in case it ran first.
         self.assert_set_parameter(Parameter.SAMPLE_PERIOD, 5)
 
+    def test_autosample_recovery(self):
+        """
+        @brief Verify that when the instrument automatically starts autosample
+        the states are updated correctly
+        """
+        self.assert_enter_command_mode()
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 145)
+
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -934,11 +986,34 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest, SeaBird54tpsMixin
         self.assert_capabilities(capabilities)
 
         ##################
+        #  DA Mode
+        ##################
+
+        da_capabilities = copy.deepcopy(capabilities)
+        da_capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.GO_COMMAND]
+        da_capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+
+        self.assert_direct_access_start_telnet(timeout=10)
+        self.assertTrue(self.tcp_client)
+
+        self.assert_capabilities(da_capabilities)
+        self.tcp_client.disconnect()
+
+        ##################
+        #  Command Mode
+        ##################
+
+        # We should be back in command mode from DA.
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+        self.assert_capabilities(capabilities)
+
+        ##################
         #  Streaming Mode
         ##################
 
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+        st_capabilities = copy.deepcopy(capabilities)
+        st_capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        st_capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
             ProtocolEvent.STOP_AUTOSAMPLE,
             ProtocolEvent.ACQUIRE_STATUS,
             ProtocolEvent.GET_CONFIGURATION_DATA,
@@ -948,19 +1023,34 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest, SeaBird54tpsMixin
         ]
 
         self.assert_start_autosample()
-        self.assert_capabilities(capabilities)
+        self.assert_capabilities(st_capabilities)
         self.assert_stop_autosample()
 
         ##################
-        #  DA Mode
+        #  Command Mode
         ##################
 
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
-
-        self.assert_direct_access_start_telnet()
+        # We should be back in command mode from DA.
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
         self.assert_capabilities(capabilities)
-        self.assert_direct_access_stop_telnet()
+
+        #######################
+        #  Streaming Recovery
+        #######################
+
+        # Command mode times out after 120 seconds.  This test will verify the agent states are correct
+        self.assert_set_parameter(Parameter.SAMPLE_PERIOD, 1)
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 200)
+        self.assert_capabilities(st_capabilities)
+        self.assert_stop_autosample()
+
+        ##################
+        #  Command Mode
+        ##################
+
+        # We should be back in command mode from DA.
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+        self.assert_capabilities(capabilities)
 
         #######################
         #  Uninitialized Mode
