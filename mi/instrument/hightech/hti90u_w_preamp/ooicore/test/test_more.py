@@ -23,6 +23,8 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import os.path
+
 
 import gevent
 import gevent.pool
@@ -116,23 +118,28 @@ class Test_ORB_thru_Protocol(unittest.TestCase):
             p = subprocess.Popen('orbserver -p %s -P "%s/orb" -s 100M orbserver' %
                                         (ORB_PORT, prefix), shell=True)
             try:
+                gevent.sleep(2)
                 yield p
             finally:
                 p.kill()
 
         @contextmanager
-        def port_agent_antelope():
-            cmdproc = port_agent.cmdproc.CmdProcessor()
-            cfg = port_agent.config.Config(None, cmdproc)
-            cmdproc.processCmd('heartbeat_interval 0')
-            cmdproc.processCmd('command_port %s' % COMMAND_PORT)
-            cmdproc.processCmd('data_port %s' % DATA_PORT)
-            cmdproc.processCmd('antelope_orb_name %s' % ORB_NAME)
-            pa = port_agent.port_agent.PortAgent(cfg, cmdproc)
-            pa.start()
+        def port_agent_antelope(path):
+            conffilepath = os.path.join(path, 'paconf')
+            conffile_contents = """heartbeat_interval 0
+pid_dir /tmp
+command_port %s
+data_port %s
+antelope_orb_name %s""" % (COMMAND_PORT, DATA_PORT, ORB_NAME)
+            with open(conffilepath, 'w') as conffile:
+                conffile.write(conffile_contents)
+            pa = subprocess.Popen('port_agent_antelope -s -c "%s"' % conffilepath, shell=True)
             try:
-                yield pa
+                gevent.sleep(5)
+                assert pa.poll() is None
+                yield
             finally:
+                assert pa.poll() is None
                 pa.kill()
 
         _data_particle_received = []
@@ -190,16 +197,9 @@ class Test_ORB_thru_Protocol(unittest.TestCase):
                 gevent.sleep(sleep_period)
 
         with tempdir() as path:
-          log.debug("starting orbserver")
           with orbserver(path):
-            log.debug("orbserver proc started, sleeping to give it time to spin up")
-            gevent.sleep(1)
-            log.debug("connecting to orb")
             with antelope.orb.orbopen(ORB_NAME, permissions='w') as myorb:
-              # NOTE It might be better to run the port agent as an external
-              # process.
-              with port_agent_antelope():
-                gevent.sleep()
+              with port_agent_antelope(path):
                 with port_agent_client():
                     group = gevent.pool.Group()
                     try:
