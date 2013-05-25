@@ -209,8 +209,7 @@ class DataParticle(object):
         result = {}
         result[DataParticleKey.DRIVER_TIMESTAMP] = driver_time
         
-        # NOTE This is a very expensive operation. -JML
-        result = copy.deepcopy(self.contents)
+        result = dict(self.contents)
         # clean out optional fields that were missing
         if not self.contents[DataParticleKey.PORT_TIMESTAMP]:
             del result[DataParticleKey.PORT_TIMESTAMP]
