@@ -143,6 +143,7 @@ class UtilMixin(DriverTestMixin):
                         "Compact Flash Card present - Compact Flash OK!" + NEWLINE +\
                         "Main Battery Voltage:  12.50" + NEWLINE +\
                         "Failed last attempt to update PTT module" + NEWLINE +\
+                        "TMP failed" + NEWLINE +\
                         "46B1BAD3E8E9FF7F9681300017D1F446ADBED76909FE7F9601200017D1F4706A" + NEWLINE +\
                         "46A9BED82911FE7F9601400017D1F446A5C2D668F1FE7F9581400017D1F4FFA6" + NEWLINE +\
                         "46A1BED628D9FE7F9581400017D1F4469DC2D7E8C1FE7F9501500017D1F40B4F" + NEWLINE +\
@@ -173,19 +174,22 @@ class UtilMixin(DriverTestMixin):
         }   
                         
     _status_parameters = {
-        METBK_StatusDataParticleKey.MODEL : {'type': unicode, 'value': 'NEWLGR53'},
+        METBK_StatusDataParticleKey.INSTRUMENT_MODEL : {'type': unicode, 'value': 'NEWLGR53'},
         METBK_StatusDataParticleKey.SERIAL_NUMBER : {'type': unicode, 'value': '17DEC12'},
-        METBK_StatusDataParticleKey.CONFIGURATION_DATE : {'type': unicode, 'value': '17DEC12'},
-        METBK_StatusDataParticleKey.FIRMWARE : {'type': unicode, 'value': 'LOGR53 v4.11cf'},
-        METBK_StatusDataParticleKey.REAL_TIME_CLOCK : {'type': unicode, 'value': '2013/05/21  13:55:51'},
-        METBK_StatusDataParticleKey.LOGGING_INTERVAL : {'type': unicode, 'value': '60; Current Tick: 6'},
-        METBK_StatusDataParticleKey.RECENT_RECORD_INTERVAL : {'type': unicode, 'value': '1'},
-        METBK_StatusDataParticleKey.COMPACT_FLASH : {'type': unicode, 'value': 'Compact Flash Card present - Compact Flash OK!'},
-        METBK_StatusDataParticleKey.MAIN_BATTERY : {'type': unicode, 'value': '12.50'},
-        #METBK_StatusDataParticleKey.PTT_ID_1 : {'type': unicode, 'value': '46B1BAD3E8E9FF7F9681300017D1F446ADBED76909FE7F9601200017D1F4706A'},
-        #METBK_StatusDataParticleKey.PTT_ID_2 : {'type': unicode, 'value': '46A9BED82911FE7F9601400017D1F446A5C2D668F1FE7F9581400017D1F4FFA6'},
-        #METBK_StatusDataParticleKey.PTT_ID_3 : {'type': unicode, 'value': '46A1BED628D9FE7F9581400017D1F4469DC2D7E8C1FE7F9501500017D1F40B4F'},
-        METBK_StatusDataParticleKey.SAMPLING : {'type': unicode, 'value': 'GO'},
+        METBK_StatusDataParticleKey.CALIBRATION_DATE : {'type': unicode, 'value': '17DEC12'},
+        METBK_StatusDataParticleKey.FIRMWARE_VERSION : {'type': unicode, 'value': 'LOGR53 v4.11cf'},
+        METBK_StatusDataParticleKey.DATE_TIME_STRING : {'type': unicode, 'value': '2013/05/21  13:55:51'},
+        METBK_StatusDataParticleKey.LOGGING_INTERVAL : {'type': int, 'value': 60},
+        METBK_StatusDataParticleKey.CURRENT_TICK : {'type': int, 'value': 6},
+        METBK_StatusDataParticleKey.RECENT_RECORD_INTERVAL : {'type': int, 'value': 1},
+        METBK_StatusDataParticleKey.FLASH_CARD_PRESENCE : {'type': unicode, 'value': 'Compact Flash Card present - Compact Flash OK!'},
+        METBK_StatusDataParticleKey.BATTERY_VOLTAGE_MAIN : {'type': float, 'value': 12.50},
+        METBK_StatusDataParticleKey.FAILURE_MESSAGES : {'type': list, 'value': ["Failed last attempt to update PTT module",
+                                                                                "TMP failed"]},
+        METBK_StatusDataParticleKey.PTT_ID1 : {'type': unicode, 'value': '46B1BAD3E8E9FF7F9681300017D1F446ADBED76909FE7F9601200017D1F4706A'},
+        METBK_StatusDataParticleKey.PTT_ID2 : {'type': unicode, 'value': '46A9BED82911FE7F9601400017D1F446A5C2D668F1FE7F9581400017D1F4FFA6'},
+        METBK_StatusDataParticleKey.PTT_ID3 : {'type': unicode, 'value': '46A1BED628D9FE7F9581400017D1F4469DC2D7E8C1FE7F9501500017D1F40B4F'},
+        METBK_StatusDataParticleKey.SAMPLING_STATE : {'type': unicode, 'value': 'GO'},
         }
 
 # Driver Parameter Methods
@@ -266,7 +270,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         self.assert_chunker_sample_with_noise(chunker, self.METBK_SAMPLE_DATA)
         self.assert_chunker_fragmented_sample(chunker, self.METBK_SAMPLE_DATA)
         self.assert_chunker_combined_sample(chunker, self.METBK_SAMPLE_DATA)        
-
+        
         self.assert_chunker_sample(chunker, self.METBK_STATUS_DATA)
         self.assert_chunker_sample_with_noise(chunker, self.METBK_STATUS_DATA)
         self.assert_chunker_fragmented_sample(chunker, self.METBK_STATUS_DATA)

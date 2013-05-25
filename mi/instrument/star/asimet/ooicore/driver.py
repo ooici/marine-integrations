@@ -192,20 +192,21 @@ class METBK_SampleDataParticle(DataParticle):
     
     
 class METBK_StatusDataParticleKey(BaseEnum):
-    MODEL = 'model'
+    INSTRUMENT_MODEL = 'instrument_model'
     SERIAL_NUMBER = 'serial_number'
-    CONFIGURATION_DATE = 'configuration_date'
-    FIRMWARE = 'firmware'
-    REAL_TIME_CLOCK = 'real_time_clock'
+    CALIBRATION_DATE = 'calibration_date'
+    FIRMWARE_VERSION = 'firmware_version'
+    DATE_TIME_STRING = 'date_time_string'
     LOGGING_INTERVAL = 'logging_interval'
+    CURRENT_TICK  = 'current_tick'
     RECENT_RECORD_INTERVAL = 'recent_record_interval'
-    COMPACT_FLASH = 'compact_flash'
-    MAIN_BATTERY = 'main_battery'
-    MODULE_FAILURES = 'module_failures'
-    PTT_ID_1 = 'ptt_id_1'
-    PTT_ID_2 = 'ptt_id_2'
-    PTT_ID_3 = 'ptt_id_3'
-    SAMPLING = 'sampling'
+    FLASH_CARD_PRESENCE = 'flash_card_presence'
+    BATTERY_VOLTAGE_MAIN = 'battery_voltage_main'
+    FAILURE_MESSAGES = 'failure_messages'
+    PTT_ID1 = 'ptt_id1'
+    PTT_ID2 = 'ptt_id2'
+    PTT_ID3 = 'ptt_id3'
+    SAMPLING_STATE = 'sampling_state'
     
     
 class METBK_StatusDataParticle(DataParticle):
@@ -217,17 +218,18 @@ class METBK_StatusDataParticle(DataParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        STATUS_DATA_PATTERN = (r'Model: (.+?)\r\n' +     
-                                'SerNum: (.+?)\r\n'  +     
-                                'CfgDat: (.+?)\r\n' +
-                                'Firmware: (.+?)\r\n'  +     
-                                'RTClock: (.+?)\r\n'  +     
-                                'Logging Interval: (.+?)\r\n'  +     
-                                'R-interval: (.+?)\r\n'  +     
+        STATUS_DATA_PATTERN = (r'Model:\s+(.+?)\r\n' +     
+                                'SerNum:\s+(.+?)\r\n'  +     
+                                'CfgDat:\s+(.+?)\r\n' +
+                                'Firmware:\s+(.+?)\r\n'  +     
+                                'RTClock:\s+(.+?)\r\n'  +     
+                                'Logging Interval:\s+(\d+);\s+'  +     
+                                'Current Tick:\s+(\d+)\r\n'  +     
+                                'R-interval:\s+(.+?)\r\n'  +     
                                 '(.+?)\r\n'  +                     # compact flash info
                                 'Main Battery Voltage:\s+(.+?)\r\n' +
-                                '(.+?)'  +                         #     
-                                'Sampling (\w+)\r\n') 
+                                '(.+?)'  +                         # module failures & PTT messages
+                                '\r\nSampling\s+(\w+)\r\n') 
            
         return re.compile(STATUS_DATA_PATTERN, re.DOTALL)
 
@@ -237,31 +239,54 @@ class METBK_StatusDataParticle(DataParticle):
         match = METBK_StatusDataParticle.regex_compiled().match(self.raw_data)
 
         if not match:
-            raise SampleException("METBK_StatusDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
+            raise SampleException("METBK_StatusDataParticle: No regex match of parsed status data: [%s]", self.raw_data)
 
-        result = []
-
-        result = [{DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.MODEL,
+        result = [{DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.INSTRUMENT_MODEL,
                    DataParticleKey.VALUE: match.group(1)},
                   {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.SERIAL_NUMBER,
                    DataParticleKey.VALUE: match.group(2)},
-                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.CONFIGURATION_DATE,
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.CALIBRATION_DATE,
                    DataParticleKey.VALUE: match.group(3)},
-                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.FIRMWARE,
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.FIRMWARE_VERSION,
                    DataParticleKey.VALUE: match.group(4)},
-                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.REAL_TIME_CLOCK,
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.DATE_TIME_STRING,
                    DataParticleKey.VALUE: match.group(5)},
                   {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.LOGGING_INTERVAL,
-                   DataParticleKey.VALUE: match.group(6)},
+                   DataParticleKey.VALUE: int(match.group(6))},
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.CURRENT_TICK,
+                   DataParticleKey.VALUE: int(match.group(7))},
                   {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.RECENT_RECORD_INTERVAL,
-                   DataParticleKey.VALUE: match.group(7)},
-                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.COMPACT_FLASH,
-                   DataParticleKey.VALUE: match.group(8)},
-                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.MAIN_BATTERY,
+                   DataParticleKey.VALUE: int(match.group(8))},
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.FLASH_CARD_PRESENCE,
                    DataParticleKey.VALUE: match.group(9)},
-                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.SAMPLING,
-                   DataParticleKey.VALUE: match.group(11)}]
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.BATTERY_VOLTAGE_MAIN,
+                   DataParticleKey.VALUE: float(match.group(10))},
+                  {DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.SAMPLING_STATE,
+                   DataParticleKey.VALUE: match.group(12)}]
         
+        lines = match.group(11).split(NEWLINE)
+        length = len(lines)
+        print ("length=%d; lines=%s" %(length, lines))
+        if length < 3:
+            raise SampleException("METBK_StatusDataParticle: Not enough PTT lines in status data: [%s]", self.raw_data)
+
+        # grab PTT lines
+        result.append({DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.PTT_ID1,
+                       DataParticleKey.VALUE: lines[length-3]})
+        result.append({DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.PTT_ID2,
+                       DataParticleKey.VALUE: lines[length-2]})
+        result.append({DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.PTT_ID3,
+                       DataParticleKey.VALUE: lines[length-1]})
+        
+        # grab any module failure lines
+        if length > 3:
+            length -= 3
+            failures = []
+            for index in range(0, length):
+                failures.append(lines[index])
+            result.append({DataParticleKey.VALUE_ID: METBK_StatusDataParticleKey.FAILURE_MESSAGES,
+                           DataParticleKey.VALUE: failures})
+
         log.debug("METBK_StatusDataParticle: result = %s" %result)
         return result                      
 
