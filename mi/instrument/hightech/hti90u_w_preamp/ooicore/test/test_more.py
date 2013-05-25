@@ -24,6 +24,7 @@ import subprocess
 import tempfile
 import unittest
 import os.path
+import time
 
 
 import gevent
@@ -96,14 +97,21 @@ SUM13  LHE""")]
 
 class Test_ORB_thru_Protocol(unittest.TestCase):
     def test_it_all(self):
-        # Start orb
-        # Start port agent
-        # Start port agent client w/driver/protocol
-        # Send packets to orb
         ORB_PORT = 54320
         COMMAND_PORT = 54321
         DATA_PORT = 54322
         ORB_NAME = 'localhost:%s' % ORB_PORT
+
+        PACKETS_TO_SEND = 1000
+        SAMPLES_PER_PACKET = 128
+        SAMPLES_TO_SEND = PACKETS_TO_SEND * SAMPLES_PER_PACKET 
+        BYTES_PER_SAMPLE = 4
+        BYTES_PER_PACKET = SAMPLES_PER_PACKET * BYTES_PER_SAMPLE
+        SAFETY = 1.5
+        ORB_BYTES = int(PACKETS_TO_SEND * BYTES_PER_PACKET * SAFETY)
+        DATA = range(SAMPLES_PER_PACKET)
+
+        samples_rx = [0]
 
         @contextmanager
         def tempdir():
@@ -115,8 +123,8 @@ class Test_ORB_thru_Protocol(unittest.TestCase):
 
         @contextmanager
         def orbserver(prefix):
-            p = subprocess.Popen('orbserver -p %s -P "%s/orb" -s 100M orbserver' %
-                                        (ORB_PORT, prefix), shell=True)
+            p = subprocess.Popen('orbserver -p %s -P "%s/orb" -s %d orbserver' %
+                                        (ORB_PORT, prefix, ORB_BYTES), shell=True)
             try:
                 gevent.sleep(2)
                 yield p
@@ -127,10 +135,10 @@ class Test_ORB_thru_Protocol(unittest.TestCase):
         def port_agent_antelope(path):
             conffilepath = os.path.join(path, 'paconf')
             conffile_contents = """heartbeat_interval 0
-pid_dir /tmp
+pid_dir %s
 command_port %s
 data_port %s
-antelope_orb_name %s""" % (COMMAND_PORT, DATA_PORT, ORB_NAME)
+antelope_orb_name %s""" % (path, COMMAND_PORT, DATA_PORT, ORB_NAME)
             with open(conffilepath, 'w') as conffile:
                 conffile.write(conffile_contents)
             pa = subprocess.Popen('port_agent_antelope -s -c "%s"' % conffilepath, shell=True)
@@ -145,7 +153,7 @@ antelope_orb_name %s""" % (COMMAND_PORT, DATA_PORT, ORB_NAME)
         _data_particle_received = []
 
         def driver_event(event_type, sample_value=None):
-            log.info("got particle")
+            samples_rx[0] += 1
             return # Do nothing FTM
             if event_type == DriverAsyncEvent.SAMPLE:
                 particle_dict = json.loads(sample_value)
@@ -171,11 +179,8 @@ antelope_orb_name %s""" % (COMMAND_PORT, DATA_PORT, ORB_NAME)
             finally:
                 pac.done()
 
-        SAMPLES_PER_PACKET = 128
-        DATA = range(SAMPLES_PER_PACKET)
-
         def packet_maker(orb, samprate, net, sta, chan):
-            n = 0
+            global samples_sent
             sleep_period = 1.0 / samprate * SAMPLES_PER_PACKET
             pkt = antelope.Pkt.Packet()
             srcname = pkt.srcname
@@ -188,30 +193,31 @@ antelope_orb_name %s""" % (COMMAND_PORT, DATA_PORT, ORB_NAME)
             pktchan.data = DATA
             pktchan.chan = chan
             pkt.channels = [pktchan,]
-            while True:
-                pktchan.time = n
-                pkt.time = n
-                type, packet, srcname, pkttime = pkt.stuff()
+            type, packet, srcname, pkttime = pkt.stuff()
+            for n in xrange(PACKETS_TO_SEND):
                 orb.put(srcname, n, packet)
-                n += SAMPLES_PER_PACKET
-                gevent.sleep(sleep_period)
+
+        TEST_TIMEOUT = 60
 
         with tempdir() as path:
           with orbserver(path):
             with antelope.orb.orbopen(ORB_NAME, permissions='w') as myorb:
               with port_agent_antelope(path):
                 with port_agent_client():
-                    group = gevent.pool.Group()
-                    try:
-                        # Guessing at hydrophone bandwidth code.
-                        # You know I don't actually see the hydrophone in the
-                        # antelope config stuff frank sent out.
-                        for (site, chan) in SITECHANS:
-                            group.spawn(packet_maker, myorb, 200, 'TA', site, chan)
-                        gevent.sleep(60)
-                    finally:
-                        group.kill()
+                    start_time = time.time()
+                    packet_maker(myorb, 200, 'TA', 'SUM1', 'HYD')
+                    for n in xrange(TEST_TIMEOUT):
+                        gevent.sleep(1)
+                        if samples_rx[0] >= SAMPLES_TO_SEND:
+                            break
+                    end_time = time.time()
+
         # review published particles
+
+        period = end_time - start_time
+
+        log.critical("Processed %d out of %d samples in %s for a rate of %s sps"
+            % (samples_rx[0], SAMPLES_TO_SEND, period,  float(samples_rx[0]) / period ))
 
 if __name__ == '__main__':
     logging.basicConfig()
