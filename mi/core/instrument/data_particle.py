@@ -15,7 +15,13 @@ import time
 import copy
 import ntplib
 import base64
-import json
+import logging
+from warnings import warn
+try:
+    import simplejson as json
+except ImportError:
+    warn("Failed to import simplejson; particle generation will be slower.")
+    import json
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException, InstrumentParameterException
@@ -174,7 +180,7 @@ class DataParticle(object):
         log.debug("Serialize result: %s" % result)
 
         # JSONify response, sorting is nice for testing
-        json_result = json.dumps(result, sort_keys=True)
+        json_result = json.dumps(result, sort_keys=(log.getEffectiveLevel() <= logging.DEBUG))
         
         # return result
         return json_result
@@ -203,6 +209,7 @@ class DataParticle(object):
         result = {}
         result[DataParticleKey.DRIVER_TIMESTAMP] = driver_time
         
+        # NOTE This is a very expensive operation. -JML
         result = copy.deepcopy(self.contents)
         # clean out optional fields that were missing
         if not self.contents[DataParticleKey.PORT_TIMESTAMP]:
