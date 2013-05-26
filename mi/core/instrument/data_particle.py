@@ -180,7 +180,8 @@ class DataParticle(object):
         log.debug("Serialize result: %s" % result)
 
         # JSONify response, sorting is nice for testing
-        json_result = json.dumps(result, sort_keys=(log.getEffectiveLevel() <= logging.DEBUG))
+        # But sorting is awfully slow
+        json_result = json.dumps(result, sort_keys=False)
         
         # return result
         return json_result
