@@ -35,6 +35,9 @@ import antelope.Pkt
 
 from mock import Mock
 
+#import yappi
+yappi = Mock()
+
 import logging
 log = logging.getLogger()
 
@@ -164,15 +167,19 @@ antelope_orb_name %s""" % (path, COMMAND_PORT, DATA_PORT, ORB_NAME)
 
         # set sample event callback _got_data_event_callback
 
+        def handle_listener_error(exc):
+            raise exc
+
         @contextmanager
         def port_agent_client():
             pac = mi.core.instrument.port_agent_client.PortAgentClient(
                 host = 'localhost',
                 port = DATA_PORT,
-                cmd_port = COMMAND_PORT
+                cmd_port = COMMAND_PORT,
             )
             pac.init_comms(
                 user_callback_data = protocol.got_data,
+                listener_callback_error = handle_listener_error,
             )
             try:
                 yield pac
@@ -204,6 +211,7 @@ antelope_orb_name %s""" % (path, COMMAND_PORT, DATA_PORT, ORB_NAME)
             with antelope.orb.orbopen(ORB_NAME, permissions='w') as myorb:
               with port_agent_antelope(path):
                 with port_agent_client():
+                    yappi.start()
                     start_time = time.time()
                     packet_maker(myorb, 200, 'TA', 'SUM1', 'HYD')
                     for n in xrange(TEST_TIMEOUT):
@@ -211,8 +219,11 @@ antelope_orb_name %s""" % (path, COMMAND_PORT, DATA_PORT, ORB_NAME)
                         if samples_rx[0] >= SAMPLES_TO_SEND:
                             break
                     end_time = time.time()
+                    yappi.stop()
 
         # review published particles
+        with open('yappistats', 'w') as f:
+            yappi.print_stats(out=f)
 
         period = end_time - start_time
 
@@ -222,4 +233,5 @@ antelope_orb_name %s""" % (path, COMMAND_PORT, DATA_PORT, ORB_NAME)
 if __name__ == '__main__':
     logging.basicConfig()
     #logging.basicConfig(level=logging.DEBUG)
-    unittest.main()
+    unittest.main(module=__name__)
+
