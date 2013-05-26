@@ -205,11 +205,6 @@ class DataParticle(object):
         
         @return A fresh copy of a core structure to be exported
         """
-        # set the driver time
-        driver_time = ntplib.system_to_ntp_time(time.time())
-        result = {}
-        result[DataParticleKey.DRIVER_TIMESTAMP] = driver_time
-        
         result = dict(self.contents)
         # clean out optional fields that were missing
         if not self.contents[DataParticleKey.PORT_TIMESTAMP]:
