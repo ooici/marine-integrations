@@ -34,7 +34,9 @@ class WorkhorsePrompt(TeledynePrompt):
 
 class WorkhorseParameter(TeledyneParameter):
     """
+    Device parameters
     """
+
     TIME_PER_BURST = 'TB'
     ENSEMBLES_PER_BURST = 'TC'
     BUFFER_OUTPUT_PERIOD = 'TX'
@@ -152,13 +154,10 @@ class WorkhorseProtocol(TeledyneProtocol):
         # Construct protocol superclass.
         TeledyneProtocol.__init__(self, prompts, newline, driver_event)
 
-        
-        #log.error("FSM1 =>" + repr(self._protocol_fsm.state_handlers ))
         self._protocol_fsm.add_handler(WorkhorseProtocolState.COMMAND,
                                        WorkhorseProtocolEvent.POWER_DOWN,
                                        self._handler_command_power_down)
-        #log.error("FSM2 =>" + repr(self._protocol_fsm.state_handlers ))
-        log.error("ROGER")
+
         self._chunker = StringChunker(WorkhorseProtocol.sieve_function)
 
     def _build_command_dict(self):

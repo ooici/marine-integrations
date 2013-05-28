@@ -49,6 +49,9 @@ from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_COMPASS_CALIBRATION_KEY
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_COMPASS_CALIBRATION_DataParticle
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA1
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA2
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA3
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA4
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import CALIBRATION_RAW_DATA
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import PS0_RAW_DATA
 
@@ -150,34 +153,34 @@ class ADCPTMixin(DriverTestMixin):
     ###
     # Is DEFAULT the DEFAULT STARTUP VALUE?
     _driver_parameters = {
-        Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
-        Parameter.SERIAL_FLOW_CONTROL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '11110'},
-        Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True, VALUE: True},
+        #Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
+        #Parameter.SERIAL_FLOW_CONTROL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '11110'},
+        #Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.TIME: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
         Parameter.SERIAL_OUT_FW_SWITCHES: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '111100000'},
         Parameter.WATER_PROFILING_MODE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
 
-        Parameter.BANNER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
+        #Parameter.BANNER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.INSTRUMENT_ID: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.SLEEP_ENABLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.POLLED_MODE: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
+        #Parameter.SLEEP_ENABLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        #Parameter.POLLED_MODE: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.XMIT_POWER: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 255, VALUE: 255},
-        Parameter.SPEED_OF_SOUND: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1485, VALUE: 1485},
-        Parameter.PITCH: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.ROLL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        Parameter.SPEED_OF_SOUND: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1500, VALUE: 1500},
+        #Parameter.PITCH: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        #Parameter.ROLL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.SALINITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 35, VALUE: 35},
         Parameter.COORDINATE_TRANSFORMATION: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '11111', VALUE: '11111'},
-        Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1010101"}, # "1111101"
+        #Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1010101"}, # "1111101"
         Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
         Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
         Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:01.00'},
         Parameter.FALSE_TARGET_THRESHOLD: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '050,001'},
-        Parameter.BANDWIDTH_CONTROL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
+        Parameter.BANDWIDTH_CONTROL: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.CORRELATION_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 64},
         Parameter.ERROR_VELOCITY_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 2000},
-        Parameter.BLANK_AFTER_TRANSMIT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 704},
+        Parameter.BLANK_AFTER_TRANSMIT: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 704},
         Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
-        Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
+        Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
         Parameter.WATER_REFERENCE_LAYER: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '001,005'},
         Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 100},
         Parameter.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
@@ -185,7 +188,9 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.PING_WEIGHT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 175},
-        Parameter.TIME_PER_BURST: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00:00'}
+        Parameter.TIME_PER_BURST: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
+        Parameter.ENSEMBLES_PER_BURST: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
+        Parameter.BUFFER_OUTPUT_PERIOD: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00'}
     }
 
     _driver_capabilities = {
@@ -203,41 +208,42 @@ class ADCPTMixin(DriverTestMixin):
         Capability.CLEAR_FAULT_LOG: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_INSTRUMENT_TRANSFORM_MATRIX: { STATES: [ProtocolState.COMMAND]},
         Capability.RUN_TEST_200: { STATES: [ProtocolState.COMMAND]},
+        Capability.POWER_DOWN: { STATES: [ProtocolState.COMMAND]},
     }
 
     #name, type done, value pending
     EF_CHAR = '\xef'
     _calibration_data_parameters = {
-        ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP: {'type': float, 'value': 1355526119.0 },
-        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX: {'type': list, 'value': [0.45971, -0.43188, 0.025594, -0.0064585] },
-        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY: {'type': list, 'value': [-0.030328, 0.030124, -0.040265, 0.60791] },
-        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ: {'type': list, 'value': [0.23864, 0.22808, 0.32896, 0.024285]     },
-        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR: {'type': list, 'value': [0.50144, 0.49284, -0.70207, -0.045907] },
-        ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET: {'type': list, 'value': [34143.0, 33943.0, 34059.0, 33528.0] },
-        ADCP_COMPASS_CALIBRATION_KEY.ELECTRICAL_NULL: {'type': float, 'value': 34441.0 },
-        ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP: {'type': float, 'value': 1355525719.0 },
-        ADCP_COMPASS_CALIBRATION_KEY.CALIBRATION_TEMP: {'type': float, 'value': 23.3 },
-        ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN: {'type': list, 'value': [-3.7232e-08, -2.8741e-05, -1.0957e-08, 3.0921e-05] },
-        ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN: {'type': list, 'value': [-2.8553e-05, 1.2566e-07, -3.1241e-05, -4.9307e-08] },
-        ADCP_COMPASS_CALIBRATION_KEY.OFFSET_UP_DOWN: {'type': list, 'value': [33216.0, 33314.0, 33685.0, 32469.0] },
-        ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL: {'type': float, 'value': 33459.0 }
+        ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP: {'type': float, 'value': 1348340012.0 },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX: {'type': list, 'value': [0.41275, 0.42168, -0.020631, -2.844e-05] },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY: {'type': list, 'value': [-0.0049163, 4.7625e-06, -0.0027393, -0.56853] },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ: {'type': list, 'value': [0.21975, -0.20662, -0.3012, 0.0027459] },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR: {'type': list, 'value': [0.48227, -0.44007, 0.65367, -0.0073235] },
+        ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET: {'type': list, 'value': [33914.0, 33331.0, 34030.0, 34328.0] },
+        ADCP_COMPASS_CALIBRATION_KEY.ELECTRICAL_NULL: {'type': float, 'value': 33989.0 },
+        ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP: {'type': float, 'value': 1348339848.0 },
+        ADCP_COMPASS_CALIBRATION_KEY.CALIBRATION_TEMP: {'type': float, 'value': 25.7 },
+        ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN: {'type': list, 'value': [-1.7305e-07, -2.9588e-05, 3.0294e-07, 3.1274e-05] },
+        ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN: {'type': list, 'value': [-2.9052e-05, -5.6057e-07, -3.1059e-05, -5.2326e-07] },
+        ADCP_COMPASS_CALIBRATION_KEY.OFFSET_UP_DOWN: {'type': list, 'value': [32805.0, 32384.0, 33287.0, 31595.0] },
+        ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL: {'type': float, 'value': 33272.0 }
     }
 
     #name, type done, value pending
     _system_configuration_data_parameters = {
-        ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER: {'type': unicode, 'value': "18919" },
-        ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY: {'type': int, 'value': 76800 }, 
+        ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER: {'type': unicode, 'value': "18593" },
+        ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY: {'type': int, 'value': 153600 }, 
         ADCP_SYSTEM_CONFIGURATION_KEY.CONFIGURATION: {'type': unicode, 'value': "4 BEAM, JANUS" },
         ADCP_SYSTEM_CONFIGURATION_KEY.MATCH_LAYER: {'type': unicode, 'value': "10" },
         ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_ANGLE: {'type': int, 'value': 20 },
         ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_PATTERN: {'type': unicode, 'value': "CONVEX" },
         ADCP_SYSTEM_CONFIGURATION_KEY.ORIENTATION: {'type': unicode, 'value': "UP" },
         ADCP_SYSTEM_CONFIGURATION_KEY.SENSORS: {'type': unicode, 'value': "HEADING  TILT 1  TILT 2  DEPTH  TEMPERATURE  PRESSURE" },
-        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c3: {'type': float, 'value': +4.074753E-12 },
-        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c2: {'type': float, 'value': +8.083932E-07 },
-        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c1: {'type': float, 'value': +1.241627E+00 },
-        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_OFFSET: {'type': float, 'value': +3.805579E+00 },
-        ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET: {'type': float, 'value': -0.08 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c3: {'type': float, 'value': 1.629386e-10 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c2: {'type': float, 'value': -1.886023e-06 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c1: {'type': float, 'value': 1.364779 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_OFFSET: {'type': float, 'value': -24.57906 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET: {'type': float, 'value': -0.17 },
         ADCP_SYSTEM_CONFIGURATION_KEY.CPU_FIRMWARE: {'type': unicode, 'value': "50.40 [0]" },
         ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_REQUIRED: {'type': unicode, 'value': "1.16" }, 
         ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_ACTUAL: {'type': unicode, 'value': "1.16" }, 
@@ -246,13 +252,8 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_VERSION: {'type': unicode, 'value': "ad48" },
         ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_TYPE: {'type': unicode, 'value': "1f" }, 
         ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION: {'type': unicode, 'value': "85d3" }, 
-        ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE: {'type': unicode, 'value': "7" }, 
-        ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS: {'type': unicode, 'value': u'B3  00 00 06 FF 2A 00  09 DSP727-2001-06H\n' + \
-                                                                                        '2D  00 00 06 F6 17 D8  09 TUN727-1005-06X\n' + \
-                                                                                        '2E  00 00 06 FF 25 54  09 CPU727-2011-00E\n' + \
-                                                                                        '3C  00 00 06 FF 2E 3C  09 HPA727-3009-00B \n' + \
-                                                                                        'C2  00 00 06 FF 09 46  09 HPI727-3007-00A\n' + \
-                                                                                        'D5  00 00 06 FF 06 E9  09 REC727-1004-06A'}
+        ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE: {'type': unicode, 'value': "6" }, 
+        ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS: {'type': unicode, 'value': u'98  00 00 06 FF 13 A0  09 HPI727-3007-00A\n28  00 00 06 FE D0 FC  09 CPU727-2011-00E\n0C  00 00 06 FF 13 BA  09 HPA727-3009-02B\nE7  00 00 06 B2 C6 7D  09 REC727-1004-05A\n70  00 00 06 F5 AF 73  09 DSP727-2001-05H\nF0  00 00 06 F5 B2 EB  09 TUN727-1005-05A'}
         }
 
     #name, type done, value pending
@@ -380,17 +381,6 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_PD0_PARSED_KEY.CHECKSUM: {'type': int, 'value': 8239 }
     }
 
-    #CG?
-    """
-    SAMPLEDICT: {'quality_flag': 'ok', 'preferred_timestamp': 'port_timestamp', 'stream_name': 'adcp_pd0_earth_parsed', 'port_timestamp': 3577202162.3577204, 'pkt_format_id': 'JSON_Data', 'pkt_version': 1, 'values': [{'value_id': 'checksum', 'value': 16167}, {'value_id': 'header_id', 'value': 127}, {'value_id': 'data_source_id', 'value': 127}, {'value_id': 'num_bytes', 'value': 26632}, {'value_id': 'num_data_types', 'value': 6}, {'value_id': 'offset_data_types', 'value': [18, 77, 142, 944, 1346, 1748, 2150]}, {'value_id': 'fixed_leader_id', 'value': 0}, {'value_id': 'firmware_version', 'value': 50}, {'value_id': 'firmware_revision', 'value': 40}, {'value_id': 'sysconfig_frequency', 'value': 150}, {'value_id': 'sysconfig_beam_pattern', 'value': 0}, {'value_id': 'sysconfig_sensor_config', 'value': 1}, {'value_id': 'sysconfig_head_attached', 'value': 1}, {'value_id': 'sysconfig_vertical_orientation', 'value': 0}, {'value_id': 'data_flag', 'value': 0}, {'value_id': 'lag_length', 'value': 53}, {'value_id': 'num_beams', 'value': 4}, {'value_id': 'num_cells', 'value': 100}, {'value_id': 'pings_per_ensemble', 'value': 256}, {'value_id': 'depth_cell_length', 'value': 8195}, {'value_id': 'blank_after_transmit', 'value': 49154}, {'value_id': 'signal_processing_mode', 'value': 1}, {'value_id': 'low_corr_threshold', 'value': 64}, {'value_id': 'num_code_repetitions', 'value': 5}, {'value_id': 'percent_good_min', 'value': 0}, {'value_id': 'error_vel_threshold', 'value': 53255}, {'value_id': 'time_per_ping_minutes', 'value': 0}, {'value_id': 'time_per_ping_seconds', 'value': 1.0}, {'value_id': 'coord_transform_type', 'value': 3}, {'value_id': 'coord_transform_tilts', 'value': 1}, {'value_id': 'coord_transform_beams', 'value': 0}, {'value_id': 'coord_transform_mapping', 'value': 1}, {'value_id': 'heading_alignment', 'value': 0}, {'value_id': 'heading_bias', 'value': 0}, {'value_id': 'sensor_source_speed', 'value': 1}, {'value_id': 'sensor_source_depth', 'value': 1}, {'value_id': 'sensor_source_heading', 'value': 1}, {'value_id': 'sensor_source_pitch', 'value': 1}, {'value_id': 'sensor_source_roll', 'value': 1}, {'value_id': 'sensor_source_conductivity', 'value': 0}, {'value_id': 'sensor_source_temperature', 'value': 1}, {'value_id': 'sensor_available_depth', 'value': 1}, {'value_id': 'sensor_available_heading', 'value': 1}, {'value_id': 'sensor_available_pitch', 'value': 1}, {'value_id': 'sensor_available_roll', 'value': 1}, {'value_id': 'sensor_available_conductivity', 'value': 0}, {'value_id': 'sensor_available_temperature', 'value': 1}, {'value_id': 'bin_1_distance', 'value': 39942}, {'value_id': 'transmit_pulse_length', 'value': 53763}, {'value_id': 'reference_layer_start', 'value': 1}, {'value_id': 'reference_layer_stop', 'value': 5}, {'value_id': 'false_target_threshold', 'value': 50}, {'value_id': 'low_latency_trigger', 'value': 0}, {'value_id': 'transmit_lag_distance', 'value': 50944}, {'value_id': 'cpu_board_serial_number', 'value': 3314649355795125257L}, {'value_id': 'system_bandwidth', 'value': 0}, {'value_id': 'system_power', 'value': 255}, {'value_id': 'serial_number', 'value': 3880321024}, {'value_id': 'beam_angle', 'value': 20}, {'value_id': 'variable_leader_id', 'value': 128}, {'value_id': 'ensemble_number', 'value': 1}, {'value_id': 'ensemble_number_increment', 'value': 0}, {'value_id': 'bit_result_demod_1', 'value': 0}, {'value_id': 'bit_result_demod_2', 'value': 0}, {'value_id': 'bit_result_timing', 'value': 0}, {'value_id': 'speed_of_sound', 'value': 1529}, {'value_id': 'transducer_depth', 'value': 0}, {'value_id': 'heading', 'value': 29160}, {'value_id': 'pitch', 'value': -4282}, {'value_id': 'roll', 'value': 4361}, {'value_id': 'salinity', 'value': 35}, {'value_id': 'temperature', 'value': 2272}, {'value_id': 'mpt_minutes', 'value': 0}, {'value_id': 'mpt_seconds', 'value': 0.0}, {'value_id': 'heading_stdev', 'value': 0}, {'value_id': 'pitch_stdev', 'value': 0}, {'value_id': 'roll_stdev', 'value': 0}, {'value_id': 'adc_transmit_current', 'value': 255}, {'value_id': 'adc_transmit_voltage', 'value': 0}, {'value_id': 'adc_ambient_temp', 'value': 0}, {'value_id': 'adc_pressure_plus', 'value': 0}, {'value_id': 'adc_pressure_minus', 'value': 0}, {'value_id': 'adc_attitude_temp', 'value': 0}, {'value_id': 'adc_attitiude', 'value': 0}, {'value_id': 'adc_contamination_sensor', 'value': 0}, {'value_id': 'bus_error_exception', 'value': 0}, {'value_id': 'address_error_exception', 'value': 0}, {'value_id': 'illegal_instruction_exception', 'value': 0}, {'value_id': 'zero_divide_instruction', 'value': 0}, {'value_id': 'emulator_exception', 'value': 0}, {'value_id': 'unassigned_exception', 'value': 0}, {'value_id': 'watchdog_restart_occurred', 'value': 0}, {'value_id': 'battery_saver_power', 'value': 0}, {'value_id': 'pinging', 'value': 0}, {'value_id': 'cold_wakeup_occurred', 'value': 0}, {'value_id': 'unknown_wakeup_occurred', 'value': 0}, {'value_id': 'clock_read_error', 'value': 0}, {'value_id': 'unexpected_alarm', 'value': 0}, {'value_id': 'clock_jump_forward', 'value': 0}, {'value_id': 'clock_jump_backward', 'value': 0}, {'value_id': 'power_fail', 'value': 0}, {'value_id': 'spurious_dsp_interrupt', 'value': 0}, {'value_id': 'spurious_uart_interrupt', 'value': 0}, {'value_id': 'spurious_clock_interrupt', 'value': 0}, {'value_id': 'level_7_interrupt', 'value': 0}, {'value_id': 'pressure', 'value': 4294966733}, {'value_id': 'pressure_variance', 'value': 0}, {'value_id': 'internal_timestamp', 'value': 1368238559.59}, {'value_id': 'velocity_data_id', 'value': 1}, {'value_id': 'water_velocity_east', 'value': [128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128]}, {'value_id': 'water_velocity_north', 'value': [128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128]}, {'value_id': 'water_velocity_up', 'value': [128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128]}, {'value_id': 'error_velocity', 'value': [128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128]}, {'value_id': 'beam_1_velocity', 'value': []}, {'value_id': 'beam_2_velocity', 'value': []}, {'value_id': 'beam_3_velocity', 'value': []}, {'value_id': 'beam_4_velocity', 'value': []}, {'value_id': 'correlation_magnitude_id', 'value': 2}, {'value_id': 'correlation_magnitude_beam1', 'value': [33819, 2836, 2830, 3340, 4108, 1546, 3596, 5895, 3589, 1549, 3085, 3590, 5389, 1308, 5392, 2838, 4099, 4868, 2053, 6933, 11, 12, 15, 7, 9, 4, 6, 19, 3, 12, 9, 26, 10, 17, 14, 6, 8, 13, 16, 14, 7, 0, 0, 0, 0, 0, 0, 0, 0]}, {'value_id': 'correlation_magnitude_beam2', 'value': [9267, 775, 4104, 2825, 3598, 4114, 2315, 5390, 4369, 4363, 2819, 3342, 2835, 1543, 4107, 2059, 5904, 3336, 1547, 2827, 17, 11, 11, 16, 13, 11, 16, 9, 9, 10, 10, 22, 4, 11, 15, 9, 1, 15, 9, 11, 12, 0, 0, 0, 0, 0, 0, 0, 0]}, {'value_id': 'correlation_magnitude_beam3', 'value': [2821, 2312, 3364, 3336, 2318, 2827, 2057, 519, 2060, 3083, 1288, 2062, 4105, 3599, 6665, 2061, 2056, 2823, 1810, 3348, 9, 11, 18, 14, 8, 9, 16, 11, 4, 3, 12, 20, 5, 9, 12, 13, 12, 13, 17, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {'value_id': 'correlation_magnitude_beam4', 'value': [2066, 3347, 1284, 3080, 3089, 4880, 2057, 3095, 3595, 2315, 2314, 2057, 3847, 4626, 3088, 4117, 4621, 3076, 3594, 4381, 8, 14, 17, 10, 18, 13, 11, 14, 6, 24, 10, 5, 14, 26, 8, 11, 14, 6, 8, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {'value_id': 'echo_intensity_id', 'value': 3}, {'value_id': 'echo_intesity_beam1', 'value': [6944, 5404, 5148, 5404, 5148, 5404, 5404, 5404, 5404, 5147, 5404, 5147, 5147, 5404, 5404, 5404, 5404, 5404, 5404, 5404, 5404, 5404, 5404, 5403, 5661, 5404, 5404, 5403, 5149, 5403, 5404, 5660, 5404, 5404, 5405, 5148, 5404, 5148, 5404, 5403, 5147, 5148, 5148, 5148, 5147, 5148, 5403, 5404, 5148]}, {'value_id': 'echo_intesity_beam2', 'value': [6431, 5915, 5915, 6170, 6171, 6427, 6170, 5914, 6683, 5914, 6171, 6171, 5659, 6427, 6170, 6426, 5659, 5914, 6171, 5915, 6171, 6171, 6171, 6171, 6171, 6171, 5915, 5915, 6427, 5914, 5914, 5660, 6170, 6171, 5914, 6171, 6170, 6426, 6170, 6171, 6427, 6170, 6170, 6426, 5916, 6170, 6170, 6171, 5915]}, {'value_id': 'echo_intesity_beam3', 'value': [5661, 5403, 5404, 5403, 5659, 5148, 5404, 5403, 5660, 5404, 5404, 5403, 5148, 5404, 5403, 5148, 5404, 5404, 5404, 5147, 5404, 5147, 5404, 5404, 5403, 5148, 5148, 5659, 5403, 5148, 5660, 5403, 5148, 5403, 5404, 5404, 5148, 5404, 5405, 5147, 5404, 5147, 5404, 5148, 5404, 5660, 5404, 5404, 5147]}, {'value_id': 'echo_intesity_beam4', 'value': [6172, 5915, 6171, 5659, 6171, 5916, 5915, 5915, 5915, 5659, 6171, 5914, 6171, 5915, 6427, 5915, 5914, 6170, 5915, 6170, 6171, 5915, 6171, 6427, 6171, 6171, 5914, 5915, 6426, 6171, 6170, 6171, 6427, 6171, 6171, 6426, 6426, 6171, 5915, 6426, 5914, 6171, 5915, 5914, 6170, 5915, 6171, 5658, 5914]}, {'value_id': 'percent_good_id', 'value': 4}, {'value_id': 'percent_good_3beam', 'value': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {'value_id': 'percent_transforms_reject', 'value': [25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600]}, {'value_id': 'percent_bad_beams', 'value': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {'value_id': 'percent_good_4beam', 'value': [25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600]}, {'value_id': 'percent_good_beam1', 'value': []}, {'value_id': 'percent_good_beam2', 'value': []}, {'value_id': 'percent_good_beam3', 'value': []}, {'value_id': 'percent_good_beam4', 'value': []}], 'driver_timestamp': 3577202164.788333}
-    2013-05-10 12:16:05,749 INFO     mi.idk.unit_test Sample Keys: ['ensemble_number', 'num_beams', 'adc_pressure_plus', 'percent_bad_beams', 'sysconfig_head_attached', 'sensor_available_heading', 'pitch', 'header_id', 'time_per_ping_seconds', 'correlation_magnitude_beam1', 'watchdog_restart_occurred', 'percent_good_beam1', 'percent_good_beam3', 'percent_good_beam2', 'percent_good_beam4', 'coord_transform_beams', 'reference_layer_stop', 'clock_jump_backward', 'sensor_available_pitch', 'cpu_board_serial_number', 'depth_cell_length', 'adc_attitude_temp', 'unexpected_alarm', 'percent_transforms_reject', 'sensor_source_speed', 'echo_intesity_beam1', 'spurious_uart_interrupt', 'battery_saver_power', 'sensor_source_roll', 'reference_layer_start', 'bit_result_demod_2', 'echo_intesity_beam3', 'bit_result_demod_1', 'sensor_available_roll', 'echo_intesity_beam4', 'num_bytes', 'coord_transform_type', 'correlation_magnitude_beam4', 'correlation_magnitude_beam2', 'correlation_magnitude_beam3', 'spurious_dsp_interrupt', 'sensor_available_conductivity', 'mpt_minutes', 'heading', 'adc_ambient_temp', 'time_per_ping_minutes', 'transducer_depth', 'beam_2_velocity', 'power_fail', 'address_error_exception', 'error_vel_threshold', 'beam_3_velocity', 'data_flag', 'bus_error_exception', 'sensor_source_heading', 'bit_result_timing', 'pressure_variance', 'lag_length', 'sensor_source_pitch', 'sensor_source_depth', 'illegal_instruction_exception', 'adc_transmit_voltage', 'adc_attitiude', 'emulator_exception', 'transmit_pulse_length', 'heading_alignment', 'adc_pressure_minus', 'pings_per_ensemble', 'adc_transmit_current', 'pressure', 'checksum', 'low_corr_threshold', 'zero_divide_instruction', 'blank_after_transmit', 'system_bandwidth', 'sysconfig_beam_pattern', 'transmit_lag_distance', 'water_velocity_east', 'system_power', 'percent_good_min', 'beam_angle', 'water_velocity_north', 'beam_1_velocity', 'false_target_threshold', 'spurious_clock_interrupt', 'roll_stdev', 'temperature', 'unassigned_exception', 'percent_good_id', 'water_velocity_up', 'internal_timestamp', 'adc_contamination_sensor', 'serial_number', 'echo_intensity_id', 'sysconfig_vertical_orientation', 'correlation_magnitude_id', 'mpt_seconds', 'heading_bias', 'num_cells', 'low_latency_trigger', 'error_velocity', 'clock_read_error', 'sensor_available_temperature', 'echo_intesity_beam2', 'sysconfig_sensor_config', 'firmware_revision', 'percent_good_4beam', 'firmware_version', 'coord_transform_mapping', 'velocity_data_id', 'speed_of_sound', 'percent_good_3beam', 'pitch_stdev', 'offset_data_types', 'level_7_interrupt', 'coord_transform_tilts', 'ensemble_number_increment', 'roll', 'data_source_id', 'sensor_source_temperature', 'beam_4_velocity', 'variable_leader_id', 'sensor_source_conductivity', 'num_code_repetitions', 'num_data_types', 'unknown_wakeup_occurred', 'pinging', 'cold_wakeup_occurred', 'sysconfig_frequency', 'sensor_available_depth', 'salinity', 'clock_jump_forward', 'signal_processing_mode', 'fixed_leader_id', 'heading_stdev', 'bin_1_distance']
-    2013-05-10 12:16:05,749 INFO     mi.idk.unit_test Required Keys: ['ensemble_number', 'num_beams', 'adc_pressure_plus', 'percent_bad_beams', 'percent_transforms_reject', 'sensor_available_heading', 'ensemble_number_increment', 'pitch', 'header_id', 'time_per_ping_seconds', 'correlation_magnitude_beam1', 'watchdog_restart_occurred', 'percent_good_beam1', 'percent_good_beam3', 'percent_good_beam2', 'percent_good_beam4', 'coord_transform_beams', 'reference_layer_stop', 'clock_jump_backward', 'low_latency_trigger', 'cpu_board_serial_number', 'depth_cell_length', 'adc_attitude_temp', 'beam_angle', 'sensor_source_speed', 'echo_intesity_beam1', 'spurious_uart_interrupt', 'battery_saver_power', 'sensor_source_roll', 'sensor_available_roll', 'bit_result_demod_2', 'echo_intesity_beam3', 'bit_result_demod_1', 'reference_layer_start', 'echo_intesity_beam4', 'num_bytes', 'coord_transform_type', 'correlation_magnitude_beam4', 'correlation_magnitude_beam2', 'correlation_magnitude_beam3', 'spurious_dsp_interrupt', 'sensor_available_conductivity', 'mpt_minutes', 'heading', 'adc_ambient_temp', 'time_per_ping_minutes', 'transducer_depth', 'power_fail', 'address_error_exception', 'error_vel_threshold', 'sensor_source_temperature', 'beam_3_velocity', 'data_flag', 'bus_error_exception', 'sensor_source_heading', 'bit_result_timing', 'pressure_variance', 'lag_length', 'sensor_source_pitch', 'sensor_source_depth', 'beam_2_velocity', 'adc_transmit_voltage', 'adc_attitiude', 'emulator_exception', 'transmit_pulse_length', 'heading_alignment', 'adc_pressure_minus', 'pings_per_ensemble', 'adc_transmit_current', 'pressure', 'checksum', 'low_corr_threshold', 'zero_divide_instruction', 'blank_after_transmit', 'sysconfig_beam_pattern', 'sysconfig_sensor_config', 'water_velocity_east', 'system_power', 'percent_good_min', 'unexpected_alarm', 'water_velocity_north', 'beam_1_velocity', 'false_target_threshold', 'spurious_clock_interrupt', 'roll_stdev', 'temperature', 'unassigned_exception', 'percent_good_id', 'water_velocity_up', 'internal_timestamp', 'adc_contamination_sensor', 'serial_number', 'echo_intensity_id', 'sysconfig_vertical_orientation', 'correlation_magnitude_id', 'mpt_seconds', 'heading_bias', 'num_cells', 'sensor_available_pitch', 'error_velocity', 'clock_read_error', 'sensor_available_temperature', 'echo_intesity_beam2', 'transmit_lag_distance', 'firmware_revision', 'sysconfig_frequency', 'percent_good_4beam', 'firmware_version', 'coord_transform_mapping', 'velocity_data_id', 'speed_of_sound', 'percent_good_3beam', 'pitch_stdev', 'offset_data_types', 'level_7_interrupt', 'coord_transform_tilts', 'illegal_instruction_exception', 'roll', 'data_source_id', 'system_bandwidth', 'beam_4_velocity', 'variable_leader_id', 'sensor_source_conductivity', 'num_code_repetitions', 'num_data_types', 'unknown_wakeup_occurred', 'pinging', 'cold_wakeup_occurred', 'sysconfig_head_attached', 'sensor_available_depth', 'salinity', 'clock_jump_forward', 'signal_processing_mode', 'fixed_leader_id', 'heading_stdev', 'bin_1_distance']
-    
-    
-    """
-
-
-
     # red
     _coordinate_transformation_earth_parameters = {
         # Earth Coordinates
@@ -415,7 +405,6 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_PD0_PARSED_KEY.BEAM_2_VELOCITY: {'type': list, 'value': [62719, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128] },
         ADCP_PD0_PARSED_KEY.BEAM_3_VELOCITY: {'type': list, 'value': [45824, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128] },
         ADCP_PD0_PARSED_KEY.BEAM_4_VELOCITY  : {'type': list, 'value': [19712, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128] },
-        
     }
 
     _pd0_parameters = dict(_pd0_parameters_base.items() +
@@ -490,15 +479,13 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
     def setUp(self):
         WorkhorseDriverUnitTest.setUp(self)
 
+    # PASS
     def test_sanity(self):
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         driver = InstrumentDriver(self._got_data_event_callback)
         protocol = Protocol(Prompt, NEWLINE, my_event_callback)
-        #log.error("Capability => " + repr(Capability.dict()))
-        
-        #log.error("FSM =>" + repr(protocol._protocol_fsm.state_handlers ))
-        
 
+    # PASS
     def test_send_break(self):
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         self.protocol = Protocol(Prompt, NEWLINE, my_event_callback)
@@ -524,14 +511,16 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         self.assertTrue(self.protocol._send_break())
 
-
+    # PASS
     def test_driver_schema(self):
         """
         get the driver schema and verify it is configured properly
         """
+        self.maxDiff = None
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
+    # PASS
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
@@ -546,8 +535,13 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         self.assert_particle_published(driver, CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
         self.assert_particle_published(driver, PS0_RAW_DATA, self.assert_particle_system_configuration, True)
-        self.assert_particle_published(driver, SAMPLE_RAW_DATA1, self.assert_particle_pd0_data, True)
 
+        self.assert_particle_published(driver, SAMPLE_RAW_DATA1, self.assert_particle_pd0_data, True)
+        self.assert_particle_published(driver, SAMPLE_RAW_DATA2, self.assert_particle_pd0_data, True)
+        self.assert_particle_published(driver, SAMPLE_RAW_DATA3, self.assert_particle_pd0_data, True)
+        self.assert_particle_published(driver, SAMPLE_RAW_DATA4, self.assert_particle_pd0_data, True)
+
+    # PASS
     def test_driver_parameters(self):
         """
         Verify the set of parameters known by the driver
@@ -566,6 +560,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         # Verify the parameter definitions
         self.assert_driver_parameter_definition(driver, self._driver_parameters)
 
+    # PASS
     def test_capabilities(self):
         """
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
@@ -601,6 +596,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
+    # PASS
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -616,7 +612,8 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
-
+    
+    # PASS
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
@@ -638,6 +635,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_chunker_fragmented_sample(chunker, CALIBRATION_RAW_DATA, 32)
         self.assert_chunker_combined_sample(chunker, CALIBRATION_RAW_DATA)
 
+    # FAIL
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.

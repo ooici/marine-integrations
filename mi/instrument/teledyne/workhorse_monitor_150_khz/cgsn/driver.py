@@ -124,7 +124,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.STRING,
             display_name="coordinate transformation",
             startup_param=True,
-            default_value='00111')
+            default_value='11111')
 
         self._param_dict.add(Parameter.TIME_PER_BURST,
             r'TB (\d\d:\d\d:\d\d.\d\d) \-+ Time per Burst ',
@@ -252,7 +252,7 @@ class Protocol(WorkhorseProtocol):
             self._bool_to_int,
             type=ParameterDictType.BOOL,
             display_name="Clip Data Past Bottom",
-            startup_param=False,
+            startup_param=True,
             default_value=False)
 
         self._param_dict.add(Parameter.RECEIVER_GAIN_SELECT,

@@ -123,6 +123,8 @@ class TeledyneInstrumentCmds(BaseEnum):
     SET = ' '  # leading spaces are OK. set is just PARAM_NAME next to VALUE
     GET = '  '
 
+
+
 class TeledyneProtocolState(BaseEnum):
     """
     Instrument protocol states
@@ -192,6 +194,8 @@ class TeledyneCapability(BaseEnum):
     CLEAR_FAULT_LOG = TeledyneProtocolEvent.CLEAR_FAULT_LOG
     GET_INSTRUMENT_TRANSFORM_MATRIX = TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX
     RUN_TEST_200 = TeledyneProtocolEvent.RUN_TEST_200
+    POWER_DOWN = TeledyneProtocolEvent.POWER_DOWN
+
 
 class TeledyneScheduledJob(BaseEnum):
     """
