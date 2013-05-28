@@ -54,6 +54,7 @@ in the future to make it greater than 1, we need to test the
 error_callback, because it will be able to be re-entered.
 """
 MAX_RECOVERY_ATTEMPTS = 1  # !! MUST BE 1 and ONLY 1 (see above comment) !!
+MIN_RETRY_WINDOW = 2 # 2 seconds
 
 MAX_SEND_ATTEMPTS = 15              # Max number of times we can get EAGAIN
 
@@ -257,7 +258,7 @@ class PortAgentClient(object):
     
     def __init__(self, host, port, cmd_port, delim=None):
         """
-        Logger client constructor.
+        PortAgentClient constructor.
         """
         self.host = host
         self.port = port
@@ -274,8 +275,8 @@ class PortAgentClient(object):
         self.user_callback_raw = None
         self.user_callback_error = None
         self.listener_callback_error = None
+        self.last_retry_time = None
         self.recovery_mutex = threading.Lock()
-        self.recovery_attempts = 0
         
     def _init_comms(self):
         """
@@ -287,9 +288,14 @@ class PortAgentClient(object):
             self._destroy_connection()
             self._create_connection()
 
-            heartbeat_string = str(self.heartbeat)
-            self.send_config_parameter(self.HEARTBEAT_INTERVAL_COMMAND, 
-                                       heartbeat_string)
+            ###
+            # Send the heartbeat command, but only if it's greater
+            # than zero
+            ###
+            if 0 < self.heartbeat:
+                heartbeat_string = str(self.heartbeat)
+                self.send_config_parameter(self.HEARTBEAT_INTERVAL_COMMAND, 
+                                           heartbeat_string)
             
             ###
             # start the listener thread if instructed to
@@ -307,13 +313,25 @@ class PortAgentClient(object):
                 self.listener_thread.start()
 
             ###
-            # Reset recovery_attempts because we were successful; hopefully
-            # the link doesn't oscillate (up and down).  If it does, take this
-            # out.
+            # Reset recovery_attempts because we were successful, but only 
+            # if the we haven't reset it already within a the configured
+            # time window.
             ###
-            self.recovery_attempts = 0
-            log.info('PortAgentClient._init_comms(): connected to port agent at %s:%i.'
-                           % (self.host, self.port))
+            if (self.last_retry_time):
+                current_time = time.time()
+                log.debug(" Thread %s: current_time: %r; last_retry_time: %r", 
+                          str(threading.current_thread().name), current_time,  (self.last_retry_time))
+                if current_time > (self.last_retry_time + MIN_RETRY_WINDOW):
+                    log.debug("Outside min retry window: reseting retry counter")
+                    self.recovery_attempts = 0
+                else:
+                    log.info('PortAgentClient._init_comms(): still within min ' +
+                              'retry window: not resetting retry counter')
+            else:
+                self.last_retry_time = time.time()
+            
+            log.info('PortAgentClient._init_comms(), thread: %s: connected to port agent at %s:%i.',
+                           str(threading.current_thread().name), self.host, self.port)
             return True
                 
         except Exception as e:
@@ -364,7 +382,7 @@ class PortAgentClient(object):
         Stop the listener thread if there is one, and close client comms 
         with the device logger. This is called by the done function.
         """
-        log.info('Logger shutting down comms.')
+        log.info('PortAgentClient shutting down comms.')
         if (self.listener_thread):
             self.listener_thread.done()
             self.listener_thread.join()
@@ -598,6 +616,7 @@ class Listener(threading.Thread):
         self.linebuf = ''
         self.delim = delim
         self.heartbeat_timer = None
+        self.thread_name = None
         if (max_missed_heartbeats == None):
             self.max_missed_heartbeats = self.MAX_MISSED_HEARTBEATS
         else:
@@ -619,6 +638,13 @@ class Listener(threading.Thread):
                 log.error("No callback_raw function has been registered")
 
         def fn_callback_error(exception):
+            """
+            This method is invoked pass exceptions upstream that occur
+            in the context of the listener thread (callback_data or 
+            callback_raw).
+            """ 
+            log.info("fn_callback_error; unknown exception being " +
+                     "passed upstream")
             if default_callback_error:
                 default_callback_error(exception)
             else:
@@ -640,7 +666,7 @@ class Listener(threading.Thread):
             """
             User error callback; 
             """
-            log.error("fn_user_callback_error, Connection error: %s" % (errorString))
+            log.error("fn_user_callback_error (thread: %s), Connection error: %s", str(threading.current_thread().name), errorString)
             
             if user_callback_error:
                 user_callback_error(errorString)
@@ -737,7 +763,8 @@ class Listener(threading.Thread):
             Got a heartbeat; reset the timer and re-init 
             heartbeat_missed_count.
             """
-            if self.heartbeat:
+            log.debug("HEARTBEAT Packet Received")
+            if 0 < self.heartbeat:
                 self.start_heartbeat_timer()
                 
             self.heartbeat_missed_count = self.max_missed_heartbeats
@@ -750,7 +777,9 @@ class Listener(threading.Thread):
         get the length of the whole packet (including header); compute the
         length of the remaining data and read that.  
         """
-        log.info('Logger client listener started.')
+        self.thread_name = str(threading.current_thread().name)
+        log.info('PortAgentClient listener thread: %s started.', self.thread_name)
+        
         if self.heartbeat:
             self.start_heartbeat_timer()
 
@@ -808,7 +837,8 @@ class Listener(threading.Thread):
                     self.handle_packet(paPacket)
 
             except SocketClosed:
-                errorString = 'Zero bytes received from port_agent socket'
+                errorString = 'Listener thread: %s SocketClosed exception from port_agent socket' \
+                    % (self.thread_name) 
                 log.error(errorString)
                 self._invoke_error_callback(self.recovery_attempt, errorString)
                 """
@@ -820,7 +850,8 @@ class Listener(threading.Thread):
                 self._done = True
 
             except socket.error as e:
-                errorString = 'Socket error while receiving from port agent: %r'  % (e)
+                errorString = 'Listener thread: %s Socket error while receiving from port agent: %r' \
+                 % (self.thread_name, e)
                 log.error(errorString)
                 self._invoke_error_callback(self.recovery_attempt, errorString)
 
