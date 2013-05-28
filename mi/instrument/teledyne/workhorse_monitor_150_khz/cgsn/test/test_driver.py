@@ -1,5 +1,5 @@
 """
-@package mi.instrument.teledyne.workhorse_monitor_75_khz.cgsn.test.test_driver
+@package mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.test.test_driver
 @author Roger Unwin
 @brief Test cases for InstrumentDriver
 
@@ -23,50 +23,50 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.log import get_logger; log = get_logger()
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import WorkhorseDriverUnitTest
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import WorkhorseDriverIntegrationTest
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import WorkhorseDriverQualificationTest
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import WorkhorseDriverPublicationTest
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import DataParticleType
+
 from mi.idk.unit_test import InstrumentDriverTestCase
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CG_SAMPLE_RAW_DATA 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CG_CALIBRATION_RAW_DATA
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CG_PS0_RAW_DATA
 
 from mi.idk.unit_test import DriverTestMixin
 
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import DriverStartupConfigKey
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolEvent
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ScheduledJob
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Capability
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import InstrumentCmds
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import NEWLINE
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import Parameter
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import Prompt
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import ProtocolEvent
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import ProtocolState
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import ScheduledJob
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import InstrumentCmds
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import Capability
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import InstrumentDriver
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import Protocol
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_KEY
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_DataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_DataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_KEY
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_PD0_PARSED_KEY
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_PD0_PARSED_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_CONFIGURATION_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_COMPASS_CALIBRATION_KEY
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_COMPASS_CALIBRATION_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA1
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import CALIBRATION_RAW_DATA
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import PS0_RAW_DATA
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import InstrumentDriver
-from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import Protocol
-
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolState
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import WorkhorseDriverUnitTest
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import WorkhorseDriverIntegrationTest
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import WorkhorseDriverQualificationTest
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import WorkhorseDriverPublicationTest
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import DataParticleType
 ###
 #   Driver parameters for tests
 ###
 
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver',
+    driver_module='mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver',
     driver_class="InstrumentDriver",
     instrument_agent_resource_id = 'HTWZMW',
     instrument_agent_preload_id = 'IA7',
-    instrument_agent_name = 'teledyne_workhorse_monitor_75_khz_cgsn',
+    instrument_agent_name = 'teledyne_workhorse_monitor_150_khz_cgsn',
     instrument_agent_packet_config = DataParticleType(),
 
     driver_startup_config = {
@@ -184,7 +184,8 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 800},
         Parameter.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.PING_WEIGHT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
-        Parameter.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 175}
+        Parameter.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 175},
+        Parameter.TIME_PER_BURST: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00:00'}
     }
 
     _driver_capabilities = {
@@ -489,12 +490,21 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
     def setUp(self):
         WorkhorseDriverUnitTest.setUp(self)
 
+    def test_sanity(self):
+        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        driver = InstrumentDriver(self._got_data_event_callback)
+        protocol = Protocol(Prompt, NEWLINE, my_event_callback)
+        #log.error("Capability => " + repr(Capability.dict()))
+        
+        #log.error("FSM =>" + repr(protocol._protocol_fsm.state_handlers ))
+        
+
     def test_send_break(self):
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         self.protocol = Protocol(Prompt, NEWLINE, my_event_callback)
         def fake_send_break1_cmd():
             log.error("IN fake_send_break1_cmd")
-            self.protocol._linebuf =  "[BREAK Wakeup A]\n" + \
+            self.protocol._linebuf = "[BREAK Wakeup A]\n" + \
                                      "  Polled Mode is OFF -- Battery Saver is ONWorkHorse Broadband ADCP Version 50.40\n" + \
                                      "Teledyne RD Instruments (c) 1996-2010\n" + \
                                      "All Rights Reserved."
@@ -505,7 +515,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
                                     "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
                                     "All Rights Reserved."
-                                    
+
         self.protocol._send_break_cmd = fake_send_break1_cmd
 
         self.assertTrue(self.protocol._send_break())
@@ -534,9 +544,9 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         # Start validating data particles
 
-        self.assert_particle_published(driver, CG_CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
-        self.assert_particle_published(driver, CG_PS0_RAW_DATA, self.assert_particle_system_configuration, True)
-        self.assert_particle_published(driver, CG_SAMPLE_RAW_DATA, self.assert_particle_pd0_data, True)
+        self.assert_particle_published(driver, CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
+        self.assert_particle_published(driver, PS0_RAW_DATA, self.assert_particle_system_configuration, True)
+        self.assert_particle_published(driver, SAMPLE_RAW_DATA1, self.assert_particle_pd0_data, True)
 
     def test_driver_parameters(self):
         """
@@ -575,6 +585,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     'PROTOCOL_EVENT_GET_ERROR_STATUS_WORD',
                                     'PROTOCOL_EVENT_GET_FAULT_LOG',
                                     'PROTOCOL_EVENT_GET_INSTRUMENT_TRANSFORM_MATRIX',
+                                    'PROTOCOL_EVENT_POWER_DOWN',
                                     'PROTOCOL_EVENT_RUN_TEST_200',
                                     'PROTOCOL_EVENT_SAVE_SETUP_TO_RAM',
                                     'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
@@ -589,7 +600,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
-
 
     def test_driver_enums(self):
         """
@@ -607,27 +617,26 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
-    # FAILS
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
         """
         chunker = StringChunker(Protocol.sieve_function)
 
-        self.assert_chunker_sample(chunker, CG_SAMPLE_RAW_DATA)
-        self.assert_chunker_sample_with_noise(chunker, CG_SAMPLE_RAW_DATA)
-        self.assert_chunker_fragmented_sample(chunker, CG_SAMPLE_RAW_DATA, 32)
-        self.assert_chunker_combined_sample(chunker, CG_SAMPLE_RAW_DATA)
+        self.assert_chunker_sample(chunker, SAMPLE_RAW_DATA1)
+        self.assert_chunker_sample_with_noise(chunker, SAMPLE_RAW_DATA1)
+        self.assert_chunker_fragmented_sample(chunker, SAMPLE_RAW_DATA1, 32)
+        self.assert_chunker_combined_sample(chunker, SAMPLE_RAW_DATA1)
 
-        self.assert_chunker_sample(chunker, CG_PS0_RAW_DATA)
-        self.assert_chunker_sample_with_noise(chunker, CG_PS0_RAW_DATA)
-        self.assert_chunker_fragmented_sample(chunker, CG_PS0_RAW_DATA, 32)
-        self.assert_chunker_combined_sample(chunker, CG_PS0_RAW_DATA)
+        self.assert_chunker_sample(chunker, PS0_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, PS0_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, PS0_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, PS0_RAW_DATA)
 
-        self.assert_chunker_sample(chunker, CG_CALIBRATION_RAW_DATA)
-        self.assert_chunker_sample_with_noise(chunker, CG_CALIBRATION_RAW_DATA)
-        self.assert_chunker_fragmented_sample(chunker, CG_CALIBRATION_RAW_DATA, 32)
-        self.assert_chunker_combined_sample(chunker, CG_CALIBRATION_RAW_DATA)
+        self.assert_chunker_sample(chunker, CALIBRATION_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, CALIBRATION_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, CALIBRATION_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, CALIBRATION_RAW_DATA)
 
     def test_protocol_filter_capabilities(self):
         """

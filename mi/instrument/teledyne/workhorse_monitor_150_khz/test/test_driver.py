@@ -45,12 +45,12 @@ from mi.instrument.teledyne.test.test_driver import TeledynePublicationTest
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseInstrumentDriver
 
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import DataParticleType
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ProtocolState
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ProtocolEvent
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import Parameter
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseProtocolState
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseProtocolEvent
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseParameter
 
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ScheduledJob
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import Prompt
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseScheduledJob
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorsePrompt
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import NEWLINE
 
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY

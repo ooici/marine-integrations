@@ -1,14 +1,50 @@
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseInstrumentDriver
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseProtocol
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import Prompt
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import NEWLINE
+
 from mi.core.log import get_logger ; log = get_logger()
 import socket
 import time
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import Parameter
+
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorsePrompt
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseParameter
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseInstrumentCmds
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseProtocolEvent
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseProtocolState
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseCapability
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseInstrumentDriver
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseProtocol
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseScheduledJob
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import NEWLINE
+
+
+class Prompt(WorkhorsePrompt):
+    pass
+
+
+class Parameter(WorkhorseParameter):
+    pass
+
+
+class InstrumentCmds(WorkhorseInstrumentCmds):
+    pass
+
+
+class ProtocolEvent(WorkhorseProtocolEvent):
+    pass
+
+
+class ProtocolState(WorkhorseProtocolState):
+    pass
+
+
+class Capability(WorkhorseCapability):
+    pass
+
+
+class ScheduledJob(WorkhorseScheduledJob):
+    pass
+
 
 class InstrumentDriver(WorkhorseInstrumentDriver):
     """
@@ -28,6 +64,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         """
         self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
         log.debug("self._protocol = " + repr(self._protocol))
+
 
 class Protocol(WorkhorseProtocol):
     """
