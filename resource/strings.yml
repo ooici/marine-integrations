@@ -16,6 +16,9 @@ parameters: {
 }
 
 commands: {
+ bad_command: {
+    description: "bad command"
+ },
  cmd1: {
     arguments: {
         coeff: {
