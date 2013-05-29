@@ -917,7 +917,9 @@ class ProtocolParameterDict(InstrumentDict):
         if metadata:
             for (param_name, param_value) in metadata[ParameterDictKey.PARAMETERS].items():
                 for (name, value) in param_value.items():
-                    if name == ParameterDictKey.DESCRIPTION:
+                    if param_name not in self._param_dict:
+                        continue
+                    if (name == ParameterDictKey.DESCRIPTION):
                         self._param_dict[param_name].description.description = value
                     if name == ParameterDictKey.DISPLAY_NAME:
                         self._param_dict[param_name].description.display_name = value

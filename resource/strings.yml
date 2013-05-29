@@ -6,6 +6,12 @@ parameters: {
         units: "QutFileUnits",
         value_description: "QutFileValueDesc",
         type: "QutFileType"
+    },
+    extra_param: {
+        description: "ExtraFileDesc",
+        units: "ExtraFileUnits",
+        value_description: "ExtraFileValueDesc",
+        type: "ExtraFileType"    
     }
 }
 

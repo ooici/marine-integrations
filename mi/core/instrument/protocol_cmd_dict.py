@@ -322,26 +322,23 @@ class ProtocolCommandDict(InstrumentDict):
                     for (arg_name, arg_value) in cmd_value[CommandDictKey.ARGUMENTS].items():
                         if not isinstance(arg_value, dict):
                             continue
+                        if arg_name not in self._cmd_dict[cmd_name].arguments:
+                            continue
                         
-                        if (CommandDictKey.DESCRIPTION in arg_value) and \
-                            (arg_name in self._cmd_dict[cmd_name].arguments):
+                        if (CommandDictKey.DESCRIPTION in arg_value):
                             self._cmd_dict[cmd_name].arguments[arg_name].description = \
                                 arg_value[CommandDictKey.DESCRIPTION]                 
-                        if (CommandDictKey.DISPLAY_NAME in arg_value) and \
-                            (arg_name in self._cmd_dict[cmd_name].arguments):
+                        if (CommandDictKey.DISPLAY_NAME in arg_value):
                             self._cmd_dict[cmd_name].arguments[arg_name].display_name = \
                                 arg_value[CommandDictKey.DISPLAY_NAME]                 
                         if (CommandDictKey.VALUE in arg_value):
-                            if (CommandDictKey.DESCRIPTION in arg_value[CommandDictKey.VALUE]) and \
-                                (arg_name in self._cmd_dict[cmd_name].arguments):
+                            if (CommandDictKey.DESCRIPTION in arg_value[CommandDictKey.VALUE]):
                                 self._cmd_dict[cmd_name].arguments[arg_name].value_description = \
                                     arg_value[CommandDictKey.VALUE][CommandDictKey.DESCRIPTION]
-                            if (CommandDictKey.TYPE in arg_value[CommandDictKey.VALUE]) and \
-                                (arg_name in self._cmd_dict[cmd_name].arguments):
+                            if (CommandDictKey.TYPE in arg_value[CommandDictKey.VALUE]):
                                 self._cmd_dict[cmd_name].arguments[arg_name].type = \
                                     arg_value[CommandDictKey.VALUE][CommandDictKey.TYPE]
-                            if (CommandDictKey.UNITS in arg_value[CommandDictKey.VALUE]) and \
-                                (arg_name in self._cmd_dict[cmd_name].arguments):
+                            if (CommandDictKey.UNITS in arg_value[CommandDictKey.VALUE]):
                                 self._cmd_dict[cmd_name].arguments[arg_name].units = \
                                     arg_value[CommandDictKey.VALUE][CommandDictKey.UNITS]
             return True

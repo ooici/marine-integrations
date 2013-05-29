@@ -650,8 +650,10 @@ bar=200, baz=300
                          "Should be an integer between 2 and 2000")
         self.assertEqual(new_dict["baz"][ParameterDictKey.VALUE][ParameterDictKey.TYPE],
                          ParameterDictType.INT)
-        self.assertEqual(new_dict["baz"][ParameterDictKey.DISPLAY_NAME], "Baz") 
-
+        self.assertEqual(new_dict["baz"][ParameterDictKey.DISPLAY_NAME], "Baz")
+        
+        self.assertTrue('extra_param' not in new_dict)
+'''
     def test_metadata_load(self):
         """
         Test to make sure the metadata can be loaded from the default filename
@@ -695,3 +697,4 @@ bar=200, baz=300
         result = self.param_dict.load_strings()
         self.assertTrue(result)
         self._assert_metadata_change()
+'''
