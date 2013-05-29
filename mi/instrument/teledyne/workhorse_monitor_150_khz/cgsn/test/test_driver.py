@@ -314,7 +314,7 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_PD0_PARSED_KEY.CPU_BOARD_SERIAL_NUMBER: {'type': long, 'value': 9367487254980977929L },
         ADCP_PD0_PARSED_KEY.SYSTEM_BANDWIDTH: {'type': int, 'value': 0 },
         ADCP_PD0_PARSED_KEY.SYSTEM_POWER: {'type': int, 'value': 255 },
-        ADCP_PD0_PARSED_KEY.SERIAL_NUMBER: {'type': int, 'value': 206045184 },
+        ADCP_PD0_PARSED_KEY.SERIAL_NUMBER: {'type': long, 'value': 206045184 },
         ADCP_PD0_PARSED_KEY.BEAM_ANGLE: {'type': int, 'value': 20 },
         ADCP_PD0_PARSED_KEY.VARIABLE_LEADER_ID: {'type': int, 'value': 128 },
         ADCP_PD0_PARSED_KEY.ENSEMBLE_NUMBER: {'type': int, 'value': 5 },
