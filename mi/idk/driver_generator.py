@@ -16,8 +16,7 @@ import re
 from string import Template
 import random
 import string
-
-import yaml
+import shutil
 
 from mi.idk.config import Config
 from mi.idk.metadata import Metadata
@@ -47,6 +46,13 @@ class DriverGenerator:
         @retval driver resource dir name
         """
         return os.path.join(self.driver_dir(), "resource")
+
+    def resource_strings_filename(self):
+        """
+        @brief file to store the driver resource strings
+        @retval driver resource strings file name
+        """
+        return "strings.yml"
 
     def driver_filename(self):
         """
@@ -142,6 +148,13 @@ class DriverGenerator:
         @retval driver test code template path
         """
         return os.path.join(self.template_dir(), "driver_test.tmpl")
+
+    def strings_template(self):
+        """
+        @brief path to the driver strings YML template
+        @retval driver strings YML template path
+        """
+        return os.path.join(self.template_dir(), "strings.tmpl")
 
     def driver_template(self):
         """
@@ -307,6 +320,7 @@ class DriverGenerator:
         print( " -- Generating code --" )
         self.generate_driver_code()
         self.generate_test_code()
+        self.generate_resource_files()
 
 
     def generate_driver_code(self):
@@ -340,7 +354,20 @@ class DriverGenerator:
             ofile.write(code)
             ofile.close()
 
-
+    def generate_resource_files(self):
+        """
+        @brief Generate resource files in resource dir
+        """
+        strings_path = "%s/%s" % (self.resource_dir(),
+                                     self.resource_strings_filename())
+        if(os.path.exists(strings_path) and not self.force):
+            print "Warning: driver resource file exists (" + strings_path + ") not overwriting"
+        else:
+            try:
+                shutil.copyfile(self.strings_template(), strings_path)
+            except IOError as e:
+                print "Encountered problem writing strings template, complete by hand"
+        
     def display_report(self):
         """
         @brief Display a report of the files created to STDOUT
