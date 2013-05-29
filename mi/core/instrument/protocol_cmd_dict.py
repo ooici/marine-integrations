@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.protocol_cmd_dict
-@file ion/services/mi/protocol_cmd_dict.py
+@package mi.core.instrument.protocol_cmd_dict
+@file mi/core/instrument/protocol_cmd_dict.py
 @author Steve Foley
 @brief A dictionary class that manages metadata about the commands supported
 by the driver
@@ -13,6 +13,7 @@ __license__ = 'Apache 2.0'
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.instrument.instrument_dict import InstrumentDict
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -82,9 +83,6 @@ class CommandArgument(object):
         value_dict = {}
         return_dict = {}
         
-        # description array
-        #if self.name != None:
-        #    return_dict[CommandDictKey.NAME] = self.name
         if self.required != None:
             return_dict[CommandDictKey.REQUIRED] = self.required
         if self.display_name != None:
@@ -142,16 +140,16 @@ class Command(object):
         self.return_type = return_type
         self.return_units = return_units
         self.return_description = return_description
+        self.arguments = {}
 
         if not isinstance(arguments, list):
             raise InstrumentParameterException("Invalid argument list format!")
-            
+
         for arg in arguments:
             if not isinstance(arg, CommandArgument):
                 raise InstrumentParameterException("Argument for command %s, argument %s not valid format"
                                                    % (name, arg))
-
-        self.arguments = arguments
+            self.arguments[arg.name] = arg
         
     def generate_dict(self):
         """
@@ -182,7 +180,7 @@ class Command(object):
             retval_dict[CommandDictKey.DESCRIPTION] = self.return_description
         
         # fill in the arguments
-        for arg in self.arguments:
+        for arg in self.arguments.values():
             args_dict[arg.name] = arg.generate_dict()        
         
         return_dict[CommandDictKey.ARGUMENTS] = args_dict
@@ -190,7 +188,7 @@ class Command(object):
         
         return return_dict
     
-class ProtocolCommandDict(object):
+class ProtocolCommandDict(InstrumentDict):
     """
     Protocol parameter dictionary. Manages, matches and formats device
     parameters.
@@ -278,4 +276,71 @@ class ProtocolCommandDict(object):
         
         return return_struct            
         
-        
+    def load_strings(self, filename=None):
+        """
+        Load the metadata for a parameter set. starting by looking at the default
+        path in the egg and filesystem first, overriding what might have been
+        hard coded. If a system filename is given look there. If parameter
+        strings cannot be found, return False and carry on with hard coded values.
+    
+        @param filename The filename of the custom file to load, including as full a path
+        as desired (complete path recommended)
+        @retval True if something could be loaded, False otherwise
+        """
+        try:
+            metadata = self.get_metadata_from_source(filename)
+        except IOError as e:
+            log.warning("Encountered IOError: %s", e)
+            return False
+            
+        # Fill the fields           
+        if metadata:
+            for (cmd_name, cmd_value) in metadata[CommandDictKey.COMMANDS].items():
+                # base info
+                if not isinstance(cmd_value, dict):
+                    log.trace("Skipping value: %s while loading YAML strings", cmd_value)
+                    continue
+                if CommandDictKey.DESCRIPTION in cmd_value:
+                    self._cmd_dict[cmd_name].description = \
+                        cmd_value[CommandDictKey.DESCRIPTION]
+                if CommandDictKey.DISPLAY_NAME in cmd_value:
+                    self._cmd_dict[cmd_name].display_name = \
+                        cmd_value[CommandDictKey.DISPLAY_NAME]
+
+                if CommandDictKey.RETURN in cmd_value:
+                    if CommandDictKey.TYPE in cmd_value[CommandDictKey.RETURN]:
+                        self._cmd_dict[cmd_name].return_type = \
+                            cmd_value[CommandDictKey.RETURN][CommandDictKey.TYPE]                 
+                    if CommandDictKey.UNITS in cmd_value[CommandDictKey.RETURN]:
+                        self._cmd_dict[cmd_name].return_units = \
+                            cmd_value[CommandDictKey.RETURN][CommandDictKey.UNITS]
+                    if CommandDictKey.DESCRIPTION in cmd_value[CommandDictKey.RETURN]:
+                        self._cmd_dict[cmd_name].return_description = \
+                            cmd_value[CommandDictKey.RETURN][CommandDictKey.DESCRIPTION]
+                    
+                if CommandDictKey.ARGUMENTS in cmd_value:
+                    for (arg_name, arg_value) in cmd_value[CommandDictKey.ARGUMENTS].items():
+                        if not isinstance(arg_value, dict):
+                            continue
+                        if arg_name not in self._cmd_dict[cmd_name].arguments:
+                            continue
+                        
+                        if (CommandDictKey.DESCRIPTION in arg_value):
+                            self._cmd_dict[cmd_name].arguments[arg_name].description = \
+                                arg_value[CommandDictKey.DESCRIPTION]                 
+                        if (CommandDictKey.DISPLAY_NAME in arg_value):
+                            self._cmd_dict[cmd_name].arguments[arg_name].display_name = \
+                                arg_value[CommandDictKey.DISPLAY_NAME]                 
+                        if (CommandDictKey.VALUE in arg_value):
+                            if (CommandDictKey.DESCRIPTION in arg_value[CommandDictKey.VALUE]):
+                                self._cmd_dict[cmd_name].arguments[arg_name].value_description = \
+                                    arg_value[CommandDictKey.VALUE][CommandDictKey.DESCRIPTION]
+                            if (CommandDictKey.TYPE in arg_value[CommandDictKey.VALUE]):
+                                self._cmd_dict[cmd_name].arguments[arg_name].type = \
+                                    arg_value[CommandDictKey.VALUE][CommandDictKey.TYPE]
+                            if (CommandDictKey.UNITS in arg_value[CommandDictKey.VALUE]):
+                                self._cmd_dict[cmd_name].arguments[arg_name].units = \
+                                    arg_value[CommandDictKey.VALUE][CommandDictKey.UNITS]
+            return True
+    
+        return False # no metadata!

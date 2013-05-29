@@ -1874,12 +1874,14 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         samples = self.data_subscribers.get_samples(DataParticleType.PARSED, 3, timeout=30)
         self.assertGreaterEqual(len(samples), 3)
 
-        self.assertParsedGranule(samples.pop())
-        self.assertParsedGranule(samples.pop())
-        self.assertParsedGranule(samples.pop())
-        #self.assertSampleDataParticle(samples.pop())
-        #self.assertSampleDataParticle(samples.pop())
-        #self.assertSampleDataParticle(samples.pop())
+        # If we want to verify granules then this needs to be a publication test.  In the
+        # IDK we overload the IA data handler to emit particles.
+        #self.assertParsedGranule(samples.pop())
+        #self.assertParsedGranule(samples.pop())
+        #self.assertParsedGranule(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
 
         # Halt streaming.
         cmd = AgentCommand(command=SBE37ProtocolEvent.STOP_AUTOSAMPLE)
