@@ -42,7 +42,7 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolEvent
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ScheduledJob
+from mi.instrument.teledyne.driver import ScheduledJob
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Capability
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import InstrumentCmds
 
