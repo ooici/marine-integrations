@@ -1031,7 +1031,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         are wrapped in an event and sent up to the agent.
         """
         try:
-            log.error("ASYNC Data Exception Detected: %s%s", exception.__class__.__name__, exception)
+            log.error("ASYNC Data Exception Detected: %s (%s)", exception.__class__.__name__, str(exception))
         finally:
             self._driver_event(DriverAsyncEvent.ERROR, exception)
 

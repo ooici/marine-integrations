@@ -28,6 +28,7 @@ from mock import Mock
 from ion.agents.port.port_agent_process import PortAgentProcess
 from ion.agents.port.port_agent_process import PortAgentProcessType
 
+from mi.core.tcp_client import TcpClient
 from mi.core.unit_test import MiUnitTest
 from mi.core.unit_test import MiIntTestCase
 from mi.core.port_agent_simulator import TCPSimulatorServer
@@ -363,9 +364,6 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
     def setUp(self):
         #InstrumentDriverIntegrationTestCase.setUp(self)
 
-        """
-        DHE: Change this to init my own simulator
-        """
         #self.ipaddr = "69.196.56.192"
         self.ipaddr = "localhost"
         self.cmd_port = 9001
@@ -486,6 +484,7 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
 
             'process_type': PortAgentProcessType.UNIX,
             'log_level': 5,
+            'heartbeat_interval': 3
         }
 
         # Override the instrument connection information.
@@ -494,6 +493,58 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
 
         return config
     
+    def test_paClient_retry(self):
+        """
+        Test that the port agent client will not continually try to recover
+        when the port agent closes the connection gracefully because it has
+        another client connected.
+        """
+        self.resetTestVars()
+        
+        self.init_instrument_simulator()
+        self.startPortAgent()
+        time.sleep(2)
+
+        """
+        Start a TCP client that will connect to the data port; this sets up the 
+        situation where the Port Agent will immediately close the connection 
+        because it already has one
+        """
+        self.tcp_client = TcpClient("localhost", self.data_port)
+        time.sleep(2)
+
+        paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
+        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotListenerError, self.myGotError)
+
+        """
+        Give it some time to retry
+        """
+        time.sleep(4)
+
+        self.assertTrue(self.errorCallbackCalled)
+        
+
+    def test_paClient_rx_heartbeat(self):
+        """
+        Test that the port agent can send heartbeats when the paClient has
+        a heartbeat_interval of 0.  The port_agent_config() method above
+        sets the heartbeat interval.
+        """
+        
+        self.resetTestVars()
+        
+        self.init_instrument_simulator()
+        self.startPortAgent()
+        time.sleep(5)
+
+        paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
+        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotListenerError, self.myGotError)
+
+        time.sleep(10)
+
+        self.assertFalse(self.errorCallbackCalled)
+        
+
     def test_start_paClient_no_port_agent(self):
 
         self.resetTestVars()

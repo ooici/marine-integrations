@@ -17,6 +17,8 @@ __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 import unittest
+import ntplib
+import time
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -30,12 +32,14 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
+from mi.idk.unit_test import AgentCapabilityType
 
 from interface.objects import AgentCommand
 
 from mi.core.instrument.logger_client import LoggerClient
 
 from mi.core.instrument.port_agent_client import PortAgentClient
+from mi.core.instrument.port_agent_client import PortAgentPacket
 
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -58,6 +62,10 @@ from mi.instrument.noaa.heat.ooicore.driver import Protocol
 from mi.instrument.noaa.heat.ooicore.driver import Prompt
 from mi.instrument.noaa.heat.ooicore.driver import NEWLINE
 
+from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import ResourceAgentEvent
+from pyon.core.exception import Conflict
+
 ###
 #   Driver parameters for the tests
 ###
@@ -72,6 +80,7 @@ InstrumentDriverTestCase.initialize(
     driver_startup_config = {}
 )
 
+GO_ACTIVE_TIMEOUT=180
 
 #################################### RULES ####################################
 #                                                                             #
@@ -89,9 +98,18 @@ InstrumentDriverTestCase.initialize(
 ###
 #   Driver constant definitions
 ###
+TEST_HEAT_ON_DURATION_2 = 2   # Heat duration constant for tests
+TEST_HEAT_ON_DURATION_3 = 3   # Heat duration constant for tests
+TEST_HEAT_OFF           = 0   # Heat off
 
 VALID_SAMPLE_01 = "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 VALID_SAMPLE_02 = "HEAT,2013/04/19 22:54:11,001,0001,0025" + NEWLINE
+HEAT_ON_COMMAND_RESPONSE = "HEAT,2013/04/19 22:54:11,*" + str(TEST_HEAT_ON_DURATION_2) + NEWLINE
+HEAT_OFF_COMMAND_RESPONSE = "HEAT,2013/04/19 22:54:11,*" + str(TEST_HEAT_OFF) + NEWLINE
+BOTPT_FIREHOSE_01  = "IRIS,2013/05/16 17:03:23, -0.1963, -0.9139,28.23,N8642" + NEWLINE
+BOTPT_FIREHOSE_01  += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
+BOTPT_FIREHOSE_01  += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
+BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 
 ###############################################################################
 #                           DRIVER TEST MIXIN                                  #
@@ -117,6 +135,11 @@ class HEATTestMixinSub(DriverTestMixin):
     DEFAULT   = ParameterTestConfigKey.DEFAULT
     STATES    = ParameterTestConfigKey.STATES
 
+    _driver_parameters = {
+        # Parameters defined in the IOS
+        Parameter.HEAT_DURATION : {TYPE: int, READONLY: False, DA: False, STARTUP: False},
+    }
+    
     _sample_parameters_01 = {
         HEATDataParticleKey.TIME: {TYPE: float, VALUE: 3575426051.0, REQUIRED: True },
         HEATDataParticleKey.X_TILT: {TYPE: int, VALUE: -1, REQUIRED: True },
@@ -151,6 +174,18 @@ class HEATTestMixinSub(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.HEAT_PARSED, require_instrument_timestamp=True)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_02, verify_values)
 
+    def assert_particle_sample_firehose(self, data_particle, verify_values = False):
+        '''
+        Verify sample particle
+        @param data_particle:  HEATDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(HEATDataParticleKey, self._sample_parameters_01)
+        self.assert_data_particle_header(data_particle, DataParticleType.HEAT_PARSED, require_instrument_timestamp=True)
+        self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
+
+    def assert_heat_on_response(self, response, verify_values = False):
+        pass
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -196,9 +231,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
 
 
     """
-    TEMP just to test the connection to the botpt
+    Test the connection to the BOTPT
     """
-    def test_temp_got_data(self):
+    def test_connect(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
         """
@@ -229,12 +264,14 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
 
         # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
+        # port agent.  Verify that the connection FSM UNKNOWN.
         driver.connect()
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
+    """
+    Verify that the BOTPT HEAT driver publishes its particles correctly
+    """
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
@@ -246,6 +283,142 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
         self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
 
+    """
+    Verify that the BOTPT HEAT driver publishes a particle correctly when the HEAT packet is 
+    embedded in the stream of other BOTPT sensor output.
+    """
+    def test_firehose(self):
+        """
+        Verify sample data passed through the got data method produces the correct data particles
+        """
+        # Create and initialize the instrument driver with a mock port agent
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
+
+    """
+    Veryify that the driver correctly parses the HEAT_ON response
+    """
+    def test_heat_on_response(self):
+        """
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into a known state
+        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        ts = ntplib.system_to_ntp_time(time.time())
+
+        log.debug("HEAT ON command response: %s", HEAT_ON_COMMAND_RESPONSE)
+        # Create and populate the port agent packet.
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data(HEAT_ON_COMMAND_RESPONSE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+
+        # Push the response into the driver
+        driver._protocol.got_data(port_agent_packet)
+        self.assertTrue(driver._protocol._get_response(expected_prompt = 
+                                                       TEST_HEAT_ON_DURATION_2))
+
+
+    def test_heat_on(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        def my_send(data):
+            log.debug("my_send: %s", data)
+            driver._protocol._promptbuf += HEAT_ON_COMMAND_RESPONSE
+            return len(HEAT_ON_COMMAND_RESPONSE)
+        mock_port_agent.send.side_effect = my_send
+        
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into a known state
+        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+
+        result = driver._protocol._handler_command_heat_on()
+        ts = ntplib.system_to_ntp_time(time.time())
+        result = driver._protocol._got_chunk(HEAT_ON_COMMAND_RESPONSE, ts)
+
+    def test_heat_off(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        def my_send(data):
+            log.debug("my_send: %s", data)
+            driver._protocol._promptbuf += HEAT_OFF_COMMAND_RESPONSE
+            return 5
+        mock_port_agent.send.side_effect = my_send
+        
+        #self.assert_initialize_driver(driver)
+
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into a known state
+        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+
+        result = driver._protocol._handler_command_heat_off()
+        ts = ntplib.system_to_ntp_time(time.time())
+        result = driver._protocol._got_chunk(HEAT_OFF_COMMAND_RESPONSE, ts)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -264,7 +437,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         # Verify "BOGUS_CAPABILITY was filtered out
         self.assertEquals(sorted(driver_capabilities),
                           sorted(protocol._filter_capabilities(test_capabilities)))
-
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -291,13 +463,34 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         self.assert_initialize_driver()
 
-        #reply = self.driver_client.cmd_dvr('set_resource', {Parameter.HEAT_DURATION: 3}, False)
-        #self.assertIsNone(reply, None)
-        
-        #value = self.assert_get(Parameter.HEAT_DURATION)
-        #log.error('!!! ??? DHE value: %r', value)
+        self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
+        value = self.assert_get(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
 
-        self.assert_set(Parameter.HEAT_DURATION, 3)
+        self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_3)
+        value = self.assert_get(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_3)
+
+    def test_heat_on(self):
+        """
+        @brief Test for turning heater on
+        """
+        self.assert_initialize_driver()
+
+        """
+        Set the heat duration to a known value so that we can test for it later
+        """
+        self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
+        value = self.assert_get(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
+        
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.HEAT_ON)
+        self.assertEqual(response, TEST_HEAT_ON_DURATION_2)
+        
+        log.debug("HEAT_ON returned: %r", response)
+
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.HEAT_OFF)
+        self.assertEqual(response, TEST_HEAT_OFF)
+        
+        log.debug("HEAT_OFF returned: %r", response)
+
         
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -306,35 +499,29 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class DriverQualificationTest(InstrumentDriverQualificationTestCase):
+class DriverQualificationTest(InstrumentDriverQualificationTestCase, HEATTestMixinSub):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    def test_direct_access_telnet_mode(self):
+    def test_reset(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        Verify the agent can be reset
         """
-        self.assert_direct_access_start_telnet()
-        self.assertTrue(self.tcp_client)
+        self.assert_enter_command_mode()
+        self.assert_reset()
 
-        ###
-        #   Add instrument specific code here.
-        ###
+        self.assert_enter_command_mode()
+        self.assert_start_autosample()
+        self.assert_reset()
 
-        self.assert_direct_access_stop_telnet()
-
-
+    # Overridden because does not apply for this driver
+    def test_discover(self):
+        pass
+            
     def test_poll(self):
         '''
         No polling for a single sample
         '''
-
-
-    def test_autosample(self):
-        '''
-        start and stop autosample and verify data particle
-        '''
-
 
     def test_get_set_parameters(self):
         '''
@@ -349,4 +536,110 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         @brief Walk through all driver protocol states and verify capabilities
         returned by get_current_capabilities
         """
+    def test_get_capabilities(self):
+        """
+        @brief Verify that the correct capabilities are returned from get_capabilities
+        at various driver/agent states.
+        """
         self.assert_enter_command_mode()
+
+        ##################
+        #  Command Mode
+        ##################
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: [
+                ProtocolEvent.GET,
+                ProtocolEvent.SET,
+                ProtocolEvent.START_AUTOSAMPLE,
+                ProtocolEvent.HEAT_ON,
+                ProtocolEvent.HEAT_OFF,
+                ],
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
+        }
+
+        self.assert_capabilities(capabilities)
+
+
+    def test_instrument_agent_common_state_model_lifecycle(self,  timeout=GO_ACTIVE_TIMEOUT):
+        """
+        @brief Test agent state transitions.
+               This test verifies that the instrument agent can
+               properly command the instrument through the following states.
+
+                COMMANDS TESTED
+                *ResourceAgentEvent.INITIALIZE
+                *ResourceAgentEvent.RESET
+                *ResourceAgentEvent.GO_ACTIVE
+                *ResourceAgentEvent.RUN
+                *ResourceAgentEvent.PAUSE
+                *ResourceAgentEvent.RESUME
+                *ResourceAgentEvent.GO_COMMAND
+                *ResourceAgentEvent.GO_INACTIVE
+                *ResourceAgentEvent.PING_RESOURCE
+                *ResourceAgentEvent.CLEAR
+
+                COMMANDS NOT TESTED
+                * ResourceAgentEvent.GO_DIRECT_ACCESS
+                * ResourceAgentEvent.GET_RESOURCE_STATE
+                * ResourceAgentEvent.GET_RESOURCE
+                * ResourceAgentEvent.SET_RESOURCE
+                * ResourceAgentEvent.EXECUTE_RESOURCE
+
+                STATES ACHIEVED:
+                * ResourceAgentState.UNINITIALIZED
+                * ResourceAgentState.INACTIVE
+                * ResourceAgentState.IDLE'
+                * ResourceAgentState.STOPPED
+                * ResourceAgentState.COMMAND
+
+                STATES NOT ACHIEVED:
+                * ResourceAgentState.DIRECT_ACCESS
+                * ResourceAgentState.STREAMING
+                * ResourceAgentState.TEST
+                * ResourceAgentState.CALIBRATE
+                * ResourceAgentState.BUSY
+                -- Not tested because they may not be implemented in the driver
+        """
+        ####
+        # UNINITIALIZED
+        ####
+        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
+
+        # Try to run some commands that aren't available in this state
+        self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
+        self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
+        self.assert_agent_command_exception(ResourceAgentEvent.GO_DIRECT_ACCESS, exception_class=Conflict)
+
+        ####
+        # INACTIVE
+        ####
+        self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
+        self.assert_agent_state(ResourceAgentState.INACTIVE)
+
+        # Try to run some commands that aren't available in this state
+        self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
+
+        ####
+        # IDLE
+        ####
+        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
+
+        # Try to run some commands that aren't available in this state
+        self.assert_agent_command_exception(ResourceAgentEvent.INITIALIZE, exception_class=Conflict)
+        self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
+        self.assert_agent_command_exception(ResourceAgentEvent.RESUME, exception_class=Conflict)
+
+        # Verify we can go inactive
+        self.assert_agent_command(ResourceAgentEvent.GO_INACTIVE)
+        self.assert_agent_state(ResourceAgentState.INACTIVE)
+
+        # Get back to idle
+        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
+
+        # Reset
+        self.assert_agent_command(ResourceAgentEvent.RESET)
+        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
+

@@ -102,6 +102,11 @@ from ooi.logging import log
 # Do not remove this import.  It is for package building.
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
+#AGENT_DISCOVER_TIMEOUT=900
+#GO_ACTIVE_TIMEOUT=900
+#GET_TIMEOUT=900
+#SET_TIMEOUT=900
+#EXECUTE_TIMEOUT=900
 AGENT_DISCOVER_TIMEOUT=180
 GO_ACTIVE_TIMEOUT=400
 GET_TIMEOUT=30
@@ -592,7 +597,7 @@ class DriverTestMixin(MiUnitTest):
                 # Only test the equality if the parameter has a value.  Test for required parameters
                 # happens in assert_parameter_set
                 if(param_value != None):
-                    self.assertEqual(param_value, required_value, msg="%s value not equal: %s != %s" % (param_name, param_value, required_value))
+                    self.assertEqual(param_value, required_value, msg="%s value not equal: %s != %s" % (param_name, repr(param_value), repr(required_value)))
             except KeyError:
                 # Ignore key errors
                 pass
@@ -629,7 +634,10 @@ class DriverTestMixin(MiUnitTest):
                 # It looks like one of the interfaces between services converts unicode to string
                 # and vice versa.  So if the type is string it can be promoted to unicode so it
                 # is still valid.
-                if(param_type == unicode and isinstance(param_value, str)):
+                if (param_type == long and isinstance(param_value, int)):
+                    # we want type Long, but it is a int instance.  All good
+                    pass
+                elif (param_type == unicode and isinstance(param_value, str)):
                     # we want type unicode, but it is a string instance.  All good
                     pass
                 else:
@@ -1648,7 +1656,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             current_value = self.assert_get(param)
             config_change = current_value != value
 
-            log.debug("current value: %s new value: %s, config_change: %s", (current_value, value, config_change))
+            log.debug("current value: %s new value: %s, config_change: %s", current_value, value, config_change)
             self.assert_set(param, value, True)
             self.assert_get(param, value)
 

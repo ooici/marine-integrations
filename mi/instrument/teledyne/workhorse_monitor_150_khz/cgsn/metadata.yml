@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Roger Unwin
+  driver_make: teledyne
+  driver_model: workhorse_monitor_150_khz
+  driver_name: cgsn
+  email: roger.unwin\At/gmail,com
+  release_notes: .
+  version: 0.0.1
