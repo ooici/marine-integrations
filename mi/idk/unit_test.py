@@ -114,6 +114,8 @@ SET_TIMEOUT=90
 EXECUTE_TIMEOUT=30
 SAMPLE_RAW_DATA="Iam Apublished Message"
 
+LOCALHOST='localhost'
+
 class DriverStartupConfigKey(BaseEnum):
     PARAMETERS = 'parameters'
     SCHEDULER = 'scheduler'
@@ -954,6 +956,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
         comm_config = self.get_comm_config()
 
         config = {
+            'port_agent_addr' : comm_config.host,
             'device_addr' : comm_config.device_addr,
 
             'command_port': comm_config.command_port,
@@ -998,7 +1001,10 @@ class InstrumentDriverTestCase(MiIntTestCase):
         port = port_agent.get_data_port()
         pid  = port_agent.get_pid()
 
-        log.info('Started port agent pid %s listening at port %s' % (pid, port))
+        if(self.get_comm_config().host == LOCALHOST):
+            log.info('Started port agent pid %s listening at port %s' % (pid, port))
+        else:
+            log.info("Connecting to port agent on host: %s, port: %s", self.get_comm_config().host, port)
 
         self.addCleanup(self.stop_port_agent)
         self.port_agent = port_agent
@@ -1068,8 +1074,9 @@ class InstrumentDriverTestCase(MiIntTestCase):
     def port_agent_comm_config(self):
         port = self.port_agent.get_data_port()
         cmd_port = self.port_agent.get_command_port()
+
         return {
-            'addr': 'localhost',
+            'addr': self.get_comm_config().host,
             'port': port,
             'cmd_port': cmd_port
         }
@@ -3048,10 +3055,10 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         config = {
             'idk_agent': self.test_config.instrument_agent_preload_id,
             'idk_comms_method': 'ethernet',
-            'idk_server_address': 'localhost',
+            'idk_server_address': LOCALHOST,
             'idk_comms_device_address': pa_config.get('device_addr'),
             'idk_comms_device_port': pa_config.get('device_port'),
-            'idk_comms_server_address': 'localhost',
+            'idk_comms_server_address': LOCALHOST,
             'idk_comms_server_port': pa_config.get('data_port'),
             'idk_comms_server_cmd_port': pa_config.get('command_port'),
         }
@@ -3114,6 +3121,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         comm_config = self.get_comm_config()
 
         config = {
+            'port_agent_addr' : comm_config.host,
             'device_addr' : comm_config.device_addr,
             'device_port' : comm_config.device_port,
 
@@ -3125,7 +3133,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         }
 
         # Override the instrument connection information.
-        config['device_addr'] = 'localhost'
+        config['device_addr'] = LOCALHOST,
         config['device_port'] = self._instrument_simulator.port
 
         return config
