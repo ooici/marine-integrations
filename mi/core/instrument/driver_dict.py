@@ -13,13 +13,14 @@ __license__ = 'Apache 2.0'
 
 from mi.core.common import BaseEnum
 
+from mi.core.instrument.instrument_dict import InstrumentDict
 from mi.core.log import get_logger ; log = get_logger()
 
 class DriverDictKey(BaseEnum):
     DRIVER = "driver"
     VENDOR_SW_COMPATIBLE = "vendor_sw_compatible"
     
-class DriverDict(object):
+class DriverDict(InstrumentDict):
     """
     Driver metadata dictionary. Collects driver information for use later
     in generating a command/parameter/driver JSON object for the UI.

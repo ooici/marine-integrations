@@ -10,11 +10,13 @@
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
+import sys
+import pkg_resources
+
 from shutil import rmtree
 from os.path import basename, dirname
 from os import makedirs, path, remove
 from os.path import exists
-import sys
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -496,15 +498,12 @@ class TestDriverEggGenerator(IDKPackageNose):
     def test_egg_build(self):
         files = [ 'mi/instrument/seabird/sbe37smb/ooicore/driver.py',
                   'mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py',
-                  'res/config/mi-logging.yml']
+                  'res/config/mi-logging.yml',
+                  'resource/strings.yml']
 
         egg_file = self._generator._build_egg(files)
         self.assertTrue(exists(egg_file))
 
-
     def test_sbe37_egg(self):
         egg_file = self._generator.save()
         self.assertTrue(exists(egg_file))
-
-
-
