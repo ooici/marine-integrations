@@ -300,6 +300,9 @@ class ProtocolCommandDict(InstrumentDict):
                 if not isinstance(cmd_value, dict):
                     log.trace("Skipping value: %s while loading YAML strings", cmd_value)
                     continue
+                if cmd_name not in self._cmd_dict:
+                    continue
+                
                 if CommandDictKey.DESCRIPTION in cmd_value:
                     self._cmd_dict[cmd_name].description = \
                         cmd_value[CommandDictKey.DESCRIPTION]

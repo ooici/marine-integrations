@@ -176,6 +176,9 @@ class TestUnitProtocolCommandDict(TestUnitStringsDict):
           }
           
         commands: {
+         bad_command: {
+            description: "bad command"
+         },
          cmd1: {
             arguments: {
                 coeff: {
@@ -226,14 +229,8 @@ class TestUnitProtocolCommandDict(TestUnitStringsDict):
             }, 
          }
         }
-        
-        driver: {
-          dummy: stuff
-          }
         '''
 
-
-        
     def test_sub_schema_generation(self):
         result_dict = self.cmd2_arg1.generate_dict()
         self.assertEqual(json.dumps(result_dict, indent=4, sort_keys=True),
@@ -322,3 +319,4 @@ class TestUnitProtocolCommandDict(TestUnitStringsDict):
         self.assertEqual(new_dict["cmd2"][CommandDictKey.RETURN][CommandDictKey.TYPE], "C2RetType")
         # shouldnt be any extra arguments, either
         self.assertFalse('test' in new_dict["cmd2"][CommandDictKey.ARGUMENTS])
+        self.assertFalse('bad_command' in new_dict)
