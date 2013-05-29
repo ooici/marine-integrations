@@ -82,6 +82,12 @@ from mi.idk.unit_test import GET_TIMEOUT
 from mi.idk.unit_test import SET_TIMEOUT
 from mi.idk.unit_test import EXECUTE_TIMEOUT
 
+from mi.instrument.teledyne.driver import TeledyneParameter as Parameter
+from mi.instrument.teledyne.driver import TeledyneProtocolEvent as ProtocolEvent
+from mi.instrument.teledyne.driver import TeledyneProtocolState as ProtocolState
+from mi.instrument.teledyne.driver import TeledyneScheduledJob as ScheduledJob
+from mi.instrument.teledyne.driver import TeledynePrompt as Prompt
+
 #AGENT_DISCOVER_TIMEOUT=3600
 #GO_ACTIVE_TIMEOUT=3600 # i have a slow instrument
 #GET_TIMEOUT=3000

@@ -479,13 +479,11 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
     def setUp(self):
         WorkhorseDriverUnitTest.setUp(self)
 
-    # PASS
     def test_sanity(self):
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         driver = InstrumentDriver(self._got_data_event_callback)
         protocol = Protocol(Prompt, NEWLINE, my_event_callback)
 
-    # PASS
     def test_send_break(self):
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         self.protocol = Protocol(Prompt, NEWLINE, my_event_callback)
@@ -511,7 +509,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         self.assertTrue(self.protocol._send_break())
 
-    # PASS
     def test_driver_schema(self):
         """
         get the driver schema and verify it is configured properly
@@ -520,7 +517,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
-    # PASS
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
@@ -541,7 +537,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_particle_published(driver, SAMPLE_RAW_DATA3, self.assert_particle_pd0_data, True)
         self.assert_particle_published(driver, SAMPLE_RAW_DATA4, self.assert_particle_pd0_data, True)
 
-    # PASS
     def test_driver_parameters(self):
         """
         Verify the set of parameters known by the driver
@@ -560,7 +555,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         # Verify the parameter definitions
         self.assert_driver_parameter_definition(driver, self._driver_parameters)
 
-    # PASS
     def test_capabilities(self):
         """
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
@@ -596,7 +590,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
-    # PASS
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -612,8 +605,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
-    
-    # PASS
+
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
@@ -635,7 +627,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_chunker_fragmented_sample(chunker, CALIBRATION_RAW_DATA, 32)
         self.assert_chunker_combined_sample(chunker, CALIBRATION_RAW_DATA)
 
-    # FAIL
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.
