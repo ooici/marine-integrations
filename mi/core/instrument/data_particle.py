@@ -15,7 +15,13 @@ import time
 import copy
 import ntplib
 import base64
-import json
+import logging
+from warnings import warn
+try:
+    import simplejson as json
+except ImportError:
+    warn("Failed to import simplejson; particle generation will be slower.")
+    import json
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, ReadOnlyException, NotImplementedException, InstrumentParameterException
@@ -174,7 +180,8 @@ class DataParticle(object):
         log.debug("Serialize result: %s" % result)
 
         # JSONify response, sorting is nice for testing
-        json_result = json.dumps(result, sort_keys=True)
+        # But sorting is awfully slow
+        json_result = json.dumps(result, sort_keys=False)
         
         # return result
         return json_result
@@ -198,12 +205,7 @@ class DataParticle(object):
         
         @return A fresh copy of a core structure to be exported
         """
-        # set the driver time
-        driver_time = ntplib.system_to_ntp_time(time.time())
-        result = {}
-        result[DataParticleKey.DRIVER_TIMESTAMP] = driver_time
-        
-        result = copy.deepcopy(self.contents)
+        result = dict(self.contents)
         # clean out optional fields that were missing
         if not self.contents[DataParticleKey.PORT_TIMESTAMP]:
             del result[DataParticleKey.PORT_TIMESTAMP]
