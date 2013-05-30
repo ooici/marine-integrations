@@ -39,7 +39,9 @@ class WorkhorseParameter(TeledyneParameter):
     TIME_PER_BURST = 'TB'
     ENSEMBLES_PER_BURST = 'TC'
     BUFFER_OUTPUT_PERIOD = 'TX'
-
+    SYNC_INTERVAL = "SI"
+    SLAVE_TIMEOUT = "ST"
+    SYNC_DELAY = "SW"
 
 class WorkhorseInstrumentCmds(TeledyneInstrumentCmds):
     """

@@ -186,9 +186,9 @@ class Protocol(WorkhorseProtocol):
             display_name="Time",
             expiration=1,
             visibility=ParameterDictVisibility.READ_ONLY)
-
+        
         self._param_dict.add(Parameter.BUFFER_OUTPUT_PERIOD,
-            r'TP (\d\d:\d\d:\d\d) \-+ Buffer Output Period',
+            r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,

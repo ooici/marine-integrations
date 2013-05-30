@@ -34,7 +34,6 @@ class Prompt(WorkhorsePrompt):
 class Parameter(WorkhorseParameter):
     pass
 
-
 class InstrumentCmds(WorkhorseInstrumentCmds):
     pass
 
@@ -135,6 +134,42 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value='11111')
 
+        self._param_dict.add(Parameter.SENSOR_SOURCE,
+            r'EZ = (\d+) \-+ Sensor Source ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="Sensor Source",
+            startup_param=True,
+            default_value='1111101')
+
+        self._param_dict.add(Parameter.SYNC_INTERVAL,
+            r'SI = (\d+) \-+ Synch Interval ',
+            lambda match: str(match.group(1)),
+            int,
+            type=ParameterDictType.INT,
+            display_name="Synchronization Interval",
+            startup_param=True,
+            default_value=0)
+
+        self._param_dict.add(Parameter.SLAVE_TIMEOUT,
+            r'ST = (\d+) \-+ Slave Timeout ',
+            lambda match: str(match.group(1)),
+            int,
+            type=ParameterDictType.INT,
+            display_name="Slave Timeout",
+            startup_param=True,
+            default_value=0)
+
+        self._param_dict.add(Parameter.SYNC_DELAY,
+            r'SW = (\d+) \-+ Synch Delay ',
+            lambda match: str(match.group(1)),
+            int,
+            type=ParameterDictType.INT,
+            display_name="Synchronization Delay",
+            startup_param=True,
+            default_value=0)
+
         self._param_dict.add(Parameter.TIME_PER_BURST,
             r'TB (\d\d:\d\d:\d\d.\d\d) \-+ Time per Burst ',
             lambda match: str(match.group(1)),
@@ -190,7 +225,7 @@ class Protocol(WorkhorseProtocol):
             visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.BUFFER_OUTPUT_PERIOD,
-            r'TP (\d\d:\d\d:\d\d) \-+ Buffer Output Period',
+            r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
@@ -309,7 +344,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="Pings per Ensemble",
             startup_param=True,
-            default_value=45)
+            default_value=1)
 
         self._param_dict.add(Parameter.DEPTH_CELL_SIZE,
             r'WS (\d+) \-+ Depth Cell Size \(cm\)',
