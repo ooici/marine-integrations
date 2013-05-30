@@ -1,6 +1,6 @@
 """
-@package mi.instrument.hightech.hti90u_w_preamp.ooicore.test.test_driver
-@file marine-integrations/mi/instrument/hightech/hti90u_w_preamp/ooicore/driver.py
+@package mi.instrument.hightech.hti90u_pa.ooicore.test.test_driver
+@file marine-integrations/mi/instrument/hightech/hti90u_pa/ooicore/driver.py
 @author Jeff Laughlin
 @brief Test cases for ooicore driver
 
@@ -47,26 +47,26 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import InstrumentDriver
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import DataParticleType
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import InstrumentCommand
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import ProtocolState
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import ProtocolEvent
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import Capability
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import Parameter
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import Protocol
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import Prompt
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import NEWLINE
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import InstrumentDriver
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import DataParticleType
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import InstrumentCommand
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import ProtocolState
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import ProtocolEvent
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import Capability
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import Parameter
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import Protocol
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import Prompt
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import NEWLINE
 
 ###
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.hightech.hti90u_w_preamp.ooicore.driver',
+    driver_module='mi.instrument.hightech.hti90u_pa.ooicore.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id = 'FGQV9I',
-    instrument_agent_name = 'hightech_hti90u_w_preamp_ooicore',
+    instrument_agent_name = 'hightech_hti90u_pa_ooicore',
     instrument_agent_packet_config = DataParticleType(),
 
     driver_startup_config = {}

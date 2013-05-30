@@ -1,8 +1,8 @@
 comm:
-  command_port: 6002
-  data_port: 6001
-  device_addr: 1.2.3.4
-  device_port: 1234
-  host: PORT_AGENT_HOST
+  command_port: 54321
+  data_port: 54322
+  device_addr: localhost
+  device_port: 54320
+  host: localhost
   method: ethernet
-  sniffer_port: 6003
+  sniffer_port: 0

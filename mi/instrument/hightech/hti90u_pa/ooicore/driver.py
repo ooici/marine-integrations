@@ -1,6 +1,6 @@
 """
-@package mi.instrument.hightech.hti90u_w_preamp.ooicore.driver
-@file marine-integrations/mi/instrument/hightech/hti90u_w_preamp/ooicore/driver.py
+@package mi.instrument.hightech.hti90u_pa.ooicore.driver
+@file marine-integrations/mi/instrument/hightech/hti90u_pa/ooicore/driver.py
 @author Jeff Laughlin
 @brief Driver for the ooicore
 Release notes:

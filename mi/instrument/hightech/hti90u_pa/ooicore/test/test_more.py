@@ -1,6 +1,6 @@
 """
-@package mi.instrument.hightech.hti90u_w_preamp.ooicore.test.test_driver
-@file marine-integrations/mi/instrument/hightech/hti90u_w_preamp/ooicore/driver.py
+@package mi.instrument.hightech.hti90u_pa.ooicore.test.test_driver
+@file marine-integrations/mi/instrument/hightech/hti90u_pa/ooicore/driver.py
 @author Jeff Laughlin
 @brief Test cases for ooicore driver
 
@@ -57,16 +57,16 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import InstrumentDriver
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import DataParticleType
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import InstrumentCommand
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import ProtocolState
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import ProtocolEvent
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import Capability
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import Parameter
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import Protocol
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import Prompt
-from mi.instrument.hightech.hti90u_w_preamp.ooicore.driver import NEWLINE
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import InstrumentDriver
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import DataParticleType
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import InstrumentCommand
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import ProtocolState
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import ProtocolEvent
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import Capability
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import Parameter
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import Protocol
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import Prompt
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import NEWLINE
 
 
 SITECHANS = [line.split() for line in StringIO("""SUM1   HHZ
