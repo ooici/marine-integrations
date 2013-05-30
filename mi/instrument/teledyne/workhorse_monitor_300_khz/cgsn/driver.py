@@ -1,9 +1,11 @@
 """
-@package mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver
-@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_150_khz/cgsn/driver.py
+@package mi.instrument.teledyne.workhorse_monitor_300_khz.cgsn.driver
+@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_300_khz/cgsn/driver.py
 @author Roger Unwin
-@brief Driver for the 150khz family
+@brief Driver for the 300khz family
 Release notes:
+
+ADCPT-B
 """
 
 from mi.core.log import get_logger ; log = get_logger()
@@ -13,16 +15,16 @@ import time
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorsePrompt
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseParameter
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseInstrumentCmds
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseProtocolEvent
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseProtocolState
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseCapability
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseInstrumentDriver
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseProtocol
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseScheduledJob
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import NEWLINE
+from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorsePrompt
+from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseParameter
+from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseInstrumentCmds
+from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseProtocolEvent
+from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseProtocolState
+from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseCapability
+from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseInstrumentDriver
+from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseProtocol
+from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseScheduledJob
+from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import NEWLINE
 
 
 class Prompt(WorkhorsePrompt):
@@ -349,6 +351,8 @@ class Protocol(WorkhorseProtocol):
     def _send_break_cmd(self):
         """
         Send a BREAK to attempt to wake the device.
+        
+        self.send_break()
         """
         log.debug("IN _send_break_cmd")
         try:
@@ -367,5 +371,7 @@ class Protocol(WorkhorseProtocol):
         log.debug("SENT BREAK")
         log.debug("self._linebuf = " + str(self._linebuf))
         sock.close()
+        
+        
 
     pass

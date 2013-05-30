@@ -1,16 +1,13 @@
 """
-@package mi.instrument.teledyne.workhorse_monitor_150_khz.driver
-@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_150_khz/driver.py
+@package mi.instrument.teledyne.workhorse_monitor_300_khz.driver
+@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_300_khz/driver.py
 @author Roger Unwin
-@brief Driver for the 150khz family
+@brief Driver for the 300khz family
 Release notes:
-
-ADCPT-F
 """
 
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
-
 
 
 from mi.core.instrument.instrument_fsm import InstrumentFSM
