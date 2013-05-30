@@ -149,13 +149,14 @@ class DataParticle(object):
 
         return self._data_particle_type
 
-    def generate(self):
+    def generate(self, sorted=False):
         """
         Generates a JSON_parsed packet from a sample dictionary of sensor data and
         associates a timestamp with it
         
         @param portagent_time The timestamp from the instrument in NTP binary format 
         @param data The actual data being sent in raw byte[] format
+        @param sorted Returned sorted json dict, useful for testing
         @return A JSON_raw string, properly structured with port agent time stamp
            and driver timestamp
         @throws InstrumentDriverException If there is a problem with the inputs
@@ -181,7 +182,7 @@ class DataParticle(object):
 
         # JSONify response, sorting is nice for testing
         # But sorting is awfully slow
-        json_result = json.dumps(result, sort_keys=False)
+        json_result = json.dumps(result, sort_keys=sorted)
         
         # return result
         return json_result
