@@ -80,6 +80,22 @@ class TestScheduler(MiUnitTest):
         if(not expected_arrival == None):
             self.assert_datetime_close(arrival_time, expected_arrival, poll_time)
 
+    def assert_event_not_triggered(self, poll_time = 0.5, timeout = 10):
+        """
+        Verify a timer was not triggered within the timeout
+        @param poll_time time to sleep between arrival queue checks, also sets the precision of
+                         expected_arrival
+        @param timeout seconds to wait for an event
+        """
+        endtime = datetime.datetime.now() + datetime.timedelta(0,timeout)
+
+        while(len(self._triggered) == 0 and datetime.datetime.now() < endtime):
+            log.trace("Wait for event.")
+            time.sleep(poll_time)
+
+        log.debug("Out of test loop")
+        self.assertEqual(len(self._triggered), 0)
+
     def test_absolute_time(self):
         """
         Test with absolute time.  Not an exhaustive test because it's implemented in the library
@@ -101,6 +117,13 @@ class TestScheduler(MiUnitTest):
         self.assert_event_triggered(now + interval)
         self.assert_event_triggered(now + interval + interval)
         self.assert_event_triggered(now + interval + interval + interval)
+
+        self._scheduler.shutdown()
+
+        # Now destroy the scheduler and verify no more triggered events are firing.
+        job = None
+        self._triggered = []
+        self.assert_event_not_triggered()
 
     def test_cron_syntax(self):
         """
