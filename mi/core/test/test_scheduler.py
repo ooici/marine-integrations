@@ -118,10 +118,8 @@ class TestScheduler(MiUnitTest):
         self.assert_event_triggered(now + interval + interval)
         self.assert_event_triggered(now + interval + interval + interval)
 
+        # Now shutdown the scheduler and verify we aren't firing events
         self._scheduler.shutdown()
-
-        # Now destroy the scheduler and verify no more triggered events are firing.
-        job = None
         self._triggered = []
         self.assert_event_not_triggered()
 
