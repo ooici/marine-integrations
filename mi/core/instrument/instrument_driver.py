@@ -590,10 +590,17 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @see https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Driver-Agent+parameter+and+command+metadata+exchange
         """
         log.debug("Getting metadata from driver...")
-        if self._protocol:
-            log.debug("Getting metadata from protocol...")            
-            return json.dumps(self._protocol.get_config_metadata_dict(),
-                              sort_keys=True)
+        protocol = self._protocol
+
+        # Because the config requires information from the protocol param dict
+        # we temporarily instantiate a protocol object to get at the static
+        # information.
+        if not protocol:
+            self._build_protocol()
+
+        log.debug("Getting metadata from protocol...")
+        return json.dumps(self._protocol.get_config_metadata_dict(),
+                          sort_keys=True)
             
     def restore_direct_access_params(self, config):
         """
