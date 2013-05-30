@@ -220,7 +220,8 @@ class TestUnitProtocolParameterDict(TestUnitStringsDict):
             description: "QutFileDesc",
             units: "QutFileUnits",
             value_description: "QutFileValueDesc",
-            type: "QutFileType"
+            type: "QutFileType",
+            display_name: "QutDisplay"
             },
             extra_param: {
             description: "ExtraFileDesc",
@@ -636,6 +637,7 @@ bar=200, baz=300
         new_dict = self.param_dict.generate_dict()
         log.debug("Generated dictionary: %s", new_dict)
         self.assertEqual(new_dict["qut"][ParameterDictKey.DESCRIPTION], "QutFileDesc")
+        self.assertEqual(new_dict["qut"][ParameterDictKey.DISPLAY_NAME], "QutDisplay")
         self.assertEqual(new_dict["qut"][ParameterDictKey.VALUE][ParameterDictKey.UNITS], "QutFileUnits")
         self.assertEqual(new_dict["qut"][ParameterDictKey.VALUE][ParameterDictKey.DESCRIPTION], "QutFileValueDesc")
         self.assertEqual(new_dict["qut"][ParameterDictKey.VALUE][ParameterDictKey.TYPE], "QutFileType")
