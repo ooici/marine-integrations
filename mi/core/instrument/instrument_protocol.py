@@ -245,6 +245,21 @@ class InstrumentProtocol(object):
     ########################################################################
     # Scheduler interface.
     ########################################################################
+    def _remove_scheduler(self, name):
+        """
+        remove a scheduler in a driver.
+        @param name the name of the job
+        @raise KeyError if we try to remove a non-existent job 
+        """
+        if(not self._scheduler_callback.get(name)):
+            raise KeyError("scheduler does not exist for '%s'" % name)
+
+        log.debug("removing scheduler: %s" % name)
+        callback = self._scheduler_callback.get(name) 
+        self._scheduler.remove_job(callback)
+        self._scheduler_callback.pop(name)
+        self._scheduler_config.pop(name, None)
+    
     def _add_scheduler(self, name, callback):
         """
         Stage a scheduler in a driver.  The job will actually be configured
