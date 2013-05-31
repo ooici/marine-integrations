@@ -39,6 +39,7 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import SampleException
 
 ###
 #    Driver Constant Definitions
