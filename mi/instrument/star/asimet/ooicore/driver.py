@@ -20,18 +20,26 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, \
                                InstrumentProtocolException
+                               
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
-from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_fsm import ThreadSafeFSM
+from mi.core.instrument.chunker import StringChunker
+
+from mi.core.driver_scheduler import DriverSchedulerConfigKey
+from mi.core.driver_scheduler import TriggerType
+
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.instrument_driver import DriverConfigKey
+
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
-from mi.core.instrument.chunker import StringChunker
+
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict, \
                                                    ParameterDictType, \
                                                    ParameterDictVisibility
@@ -349,8 +357,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
-        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
-                            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+        self._protocol_fsm = ThreadSafeFSM(ProtocolState, ProtocolEvent, ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
@@ -359,7 +366,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync_clock)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_get)
@@ -367,6 +374,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_acquire_sample)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -375,6 +383,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add build handlers for device commands.
         self._add_build_handler(Command.CLOCK, self._build_simple_command)
+        self._add_build_handler(Command.D, self._build_simple_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(Command.CLOCK, self._parse_clock_response)
@@ -386,9 +395,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._chunker = StringChunker(Protocol.sieve_function)
 
-        self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
-        self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.CLOCK_SYNC)
-        self._add_scheduler_event(ScheduledJob.AUTOSAMPLE, ProtocolEvent.START_AUTOSAMPLE)
+        #self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
+        #self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.CLOCK_SYNC)
 
         # Start state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -515,21 +523,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
-        return (next_state, (next_agent_state, result))
-
-    def _handler_command_acquire_sample(self, *args, **kwargs):
-        """
-        Acquire sample from SBE16.
-        @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
-        @throws SampleException if a sample could not be extracted from result.
-        """
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        result = self._do_cmd_resp(Command.D, *args, **kwargs)
+        self._ensure_autosample_config()
+        self._add_scheduler_event(ScheduledJob.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE)
 
         return (next_state, (next_agent_state, result))
 
@@ -561,6 +556,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.IDLE
 
+        self._remove_scheduler(ScheduledJob.AUTOSAMPLE)
+        
         return (next_state, (next_agent_state, result))
 
     ########################################################################
@@ -599,9 +596,43 @@ class Protocol(CommandResponseInstrumentProtocol):
         return (next_state, (next_agent_state, result))
 
     ########################################################################
+    # general handlers.
+    ########################################################################
+
+    def _handler_acquire_sample(self, *args, **kwargs):
+        """
+        Acquire sample from instrument.
+        @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        result = self._do_cmd_resp(Command.D, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+    ########################################################################
     # Private helpers.
     ########################################################################
 
+    def _ensure_autosample_config(self):    
+        scheduler_config = self._get_scheduler_config()
+        if (scheduler_config == None):
+            log.debug("_ensure_autosample_config: adding scheduler element to _startup_config")
+            self._startup_config[DriverConfigKey.SCHEDULER] = {}
+            scheduler_config = self._get_scheduler_config()
+        if not scheduler_config.get(ScheduledJob.AUTOSAMPLE):
+            log.debug("_ensure_autosample_config: adding autosample config to _startup_config")
+            config = {DriverSchedulerConfigKey.TRIGGER: {
+                         DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                         DriverSchedulerConfigKey.SECONDS: 1}}
+            self._startup_config[DriverConfigKey.SCHEDULER][ScheduledJob.AUTOSAMPLE] = config
+        if(not self._scheduler):
+            self.initialize_scheduler()
+        
     def _wakeup(self, timeout):
         """There is no wakeup sequence for this instrument"""
         pass

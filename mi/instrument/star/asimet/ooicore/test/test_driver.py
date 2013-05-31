@@ -357,8 +357,9 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
 
-        print("waiting 30 seconds for instrument data")
-        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_sample_data_particle, timeout=30)
+        print("waiting 5 seconds for instrument data")
+        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample, timeout=5)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
     def test_parameters(self):
         """
