@@ -1379,7 +1379,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                              r'temperature: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
                              self._date_to_string,
-                             type=ParameterDictType.STRING)
+                             type=ParameterDictType.LIST)
         self._param_dict.add(SBE37Parameter.TA0,
                              r' +TA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
@@ -1404,7 +1404,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                              r'conductivity: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
                              self._date_to_string,
-                             type=ParameterDictType.STRING)
+                             type=ParameterDictType.LIST)
         self._param_dict.add(SBE37Parameter.CG,
                              r' +G = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
@@ -1444,7 +1444,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                              r'pressure .+ ((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
                              self._date_to_string,
-                             type=ParameterDictType.STRING)
+                             type=ParameterDictType.LIST)
         self._param_dict.add(SBE37Parameter.PA0,
                              r' +PA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
@@ -1499,7 +1499,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                              r'rtc: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
                              self._date_to_string,
-                             type=ParameterDictType.FLOAT)
+                             type=ParameterDictType.LIST)
         self._param_dict.add(SBE37Parameter.RTCA0,
                              r' +RTCA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
