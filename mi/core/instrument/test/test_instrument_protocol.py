@@ -337,7 +337,6 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         try:
             self.protocol._remove_scheduler(job_name)
         except Exception as e:
-            print("test_scheduler: job removal correctly raised exception %s" %e)
             return
         self.fail("a non-existent job was erroneous removed")
 
