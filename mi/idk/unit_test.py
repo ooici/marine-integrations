@@ -102,12 +102,19 @@ from ooi.logging import log
 # Do not remove this import.  It is for package building.
 from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 
+#AGENT_DISCOVER_TIMEOUT=900
+#GO_ACTIVE_TIMEOUT=900
+#GET_TIMEOUT=900
+#SET_TIMEOUT=900
+#EXECUTE_TIMEOUT=900
 AGENT_DISCOVER_TIMEOUT=180
 GO_ACTIVE_TIMEOUT=400
 GET_TIMEOUT=30
 SET_TIMEOUT=90
 EXECUTE_TIMEOUT=30
 SAMPLE_RAW_DATA="Iam Apublished Message"
+
+LOCALHOST='localhost'
 
 class DriverStartupConfigKey(BaseEnum):
     PARAMETERS = 'parameters'
@@ -283,7 +290,7 @@ class DriverTestMixin(MiUnitTest):
         @return: dictionary representation of a data particle
         """
         if (isinstance(data_particle, DataParticle)):
-            sample_dict = json.loads(data_particle.generate())
+            sample_dict = json.loads(data_particle.generate(sorted=True))
         elif (isinstance(data_particle, str)):
             sample_dict = json.loads(data_particle)
         elif (isinstance(data_particle, dict)):
@@ -592,7 +599,7 @@ class DriverTestMixin(MiUnitTest):
                 # Only test the equality if the parameter has a value.  Test for required parameters
                 # happens in assert_parameter_set
                 if(param_value != None):
-                    self.assertEqual(param_value, required_value, msg="%s value not equal: %s != %s" % (param_name, param_value, required_value))
+                    self.assertEqual(param_value, required_value, msg="%s value not equal: %s != %s" % (param_name, repr(param_value), repr(required_value)))
             except KeyError:
                 # Ignore key errors
                 pass
@@ -629,7 +636,10 @@ class DriverTestMixin(MiUnitTest):
                 # It looks like one of the interfaces between services converts unicode to string
                 # and vice versa.  So if the type is string it can be promoted to unicode so it
                 # is still valid.
-                if(param_type == unicode and isinstance(param_value, str)):
+                if (param_type == long and isinstance(param_value, int)):
+                    # we want type Long, but it is a int instance.  All good
+                    pass
+                elif (param_type == unicode and isinstance(param_value, str)):
                     # we want type unicode, but it is a string instance.  All good
                     pass
                 else:
@@ -646,7 +656,6 @@ class DriverTestMixin(MiUnitTest):
         """
         # This has to come from the protocol so None is returned until we
         # initialize
-        self.assertIsNone(driver.get_config_metadata())
         self.assert_initialize_driver(driver)
         config_json = driver.get_config_metadata()
         self.assertIsNotNone(config_json)
@@ -946,6 +955,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
         comm_config = self.get_comm_config()
 
         config = {
+            'port_agent_addr' : comm_config.host,
             'device_addr' : comm_config.device_addr,
 
             'command_port': comm_config.command_port,
@@ -990,7 +1000,10 @@ class InstrumentDriverTestCase(MiIntTestCase):
         port = port_agent.get_data_port()
         pid  = port_agent.get_pid()
 
-        log.info('Started port agent pid %s listening at port %s' % (pid, port))
+        if(self.get_comm_config().host == LOCALHOST):
+            log.info('Started port agent pid %s listening at port %s' % (pid, port))
+        else:
+            log.info("Connecting to port agent on host: %s, port: %s", self.get_comm_config().host, port)
 
         self.addCleanup(self.stop_port_agent)
         self.port_agent = port_agent
@@ -1060,8 +1073,9 @@ class InstrumentDriverTestCase(MiIntTestCase):
     def port_agent_comm_config(self):
         port = self.port_agent.get_data_port()
         cmd_port = self.port_agent.get_command_port()
+
         return {
-            'addr': 'localhost',
+            'addr': self.get_comm_config().host,
             'port': port,
             'cmd_port': cmd_port
         }
@@ -1252,7 +1266,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         else:
             test_particle = particle_type(raw_input, port_timestamp=port_timestamp)
             
-        parsed_result = test_particle.generate()
+        parsed_result = test_particle.generate(sorted=True)
         decoded_parsed = json.loads(parsed_result)
         
         driver_time = decoded_parsed[DataParticleKey.DRIVER_TIMESTAMP]
@@ -1504,6 +1518,26 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, target_state)
 
+    def assert_state_change(self, target_state, timeout):
+        """
+        Verify the driver state changes within a given timeout period.
+        Fail if the state doesn't change to the expected state.
+        @param target_state: State we expect the protocol to be in
+        @param timeout: how long to wait for the driver to change states
+        """
+        end_time = time.time() + timeout
+
+        while(time.time() <= end_time):
+            state = self.driver_client.cmd_dvr('get_resource_state')
+            if(state == target_state):
+                log.debug("Current state match: %s", state)
+                return
+            log.debug("state mismatch %s != %s, sleep for a bit", state, target_state)
+            time.sleep(2)
+
+        log.error("Failed to transition state to %s, current state: %s", target_state, state)
+        self.fail("Failed to transition state to %s, current state: %s" % (target_state, state))
+
     def assert_initialize_driver(self, final_state=DriverProtocolState.COMMAND):
         """
         Walk an uninitialized driver through it's initialize process.  Verify the final
@@ -1628,7 +1662,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             current_value = self.assert_get(param)
             config_change = current_value != value
 
-            log.debug("current value: %s new value: %s, config_change: %s", (current_value, value, config_change))
+            log.debug("current value: %s new value: %s, config_change: %s", current_value, value, config_change)
             self.assert_set(param, value, True)
             self.assert_get(param, value)
 
@@ -2577,6 +2611,38 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             res_state = self.instrument_agent_client.get_resource_state()
             self.assertEqual(res_state, expected_resource_state)
 
+    def assert_state_change(self, target_agent_state, target_resource_state, timeout):
+        """
+        Verify the agent and resource states change as expected within the timeout
+        Fail if the state doesn't change to the expected state.
+        @param target_agent_state: State we expect the agent to be in
+        @param target_resource_state: State we expect the protocol to be in
+        @param timeout: how long to wait for the driver to change states
+        """
+        end_time = time.time() + timeout
+        agent_state = None
+        resource_state = None
+
+        while(time.time() <= end_time):
+            agent_state = self.instrument_agent_client.get_agent_state()
+            resource_state = self.instrument_agent_client.get_resource_state()
+            log.error("Current agent state: %s", agent_state)
+            log.error("Current resource state: %s", resource_state)
+
+            if(agent_state == target_agent_state and resource_state == target_resource_state):
+                log.debug("Current state match: %s %s", agent_state, resource_state)
+                return
+            log.debug("state mismatch, waiting for state to transition")
+            time.sleep(2)
+
+        if(agent_state != target_agent_state):
+            log.error("Failed to transition agent state to %s, current state: %s", target_agent_state, agent_state)
+
+        if(resource_state != target_resource_state):
+            log.error("Failed to transition resource state to %s, current state: %s", target_resource_state, resource_state)
+
+        self.fail("Failed to transition state")
+
     def assert_discover(self, expected_agent_state, expected_resource_state=None):
         """
         Walk an agent through go active and verify the resource state.
@@ -2988,10 +3054,10 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         config = {
             'idk_agent': self.test_config.instrument_agent_preload_id,
             'idk_comms_method': 'ethernet',
-            'idk_server_address': 'localhost',
+            'idk_server_address': LOCALHOST,
             'idk_comms_device_address': pa_config.get('device_addr'),
             'idk_comms_device_port': pa_config.get('device_port'),
-            'idk_comms_server_address': 'localhost',
+            'idk_comms_server_address': LOCALHOST,
             'idk_comms_server_port': pa_config.get('data_port'),
             'idk_comms_server_cmd_port': pa_config.get('command_port'),
         }
@@ -3054,6 +3120,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         comm_config = self.get_comm_config()
 
         config = {
+            'port_agent_addr' : comm_config.host,
             'device_addr' : comm_config.device_addr,
             'device_port' : comm_config.device_port,
 
@@ -3065,7 +3132,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         }
 
         # Override the instrument connection information.
-        config['device_addr'] = 'localhost'
+        config['device_addr'] = LOCALHOST,
         config['device_port'] = self._instrument_simulator.port
 
         return config

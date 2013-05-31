@@ -13,10 +13,11 @@ __license__ = 'Apache 2.0'
 import json
 
 from nose.plugins.attrib import attr
-from mi.core.unit_test import MiUnitTestCase
+from mi.core.instrument.test.test_strings import TestUnitStringsDict 
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.protocol_cmd_dict import CommandDictType
+from mi.core.instrument.protocol_cmd_dict import CommandDictKey
 from mi.core.instrument.protocol_cmd_dict import Command
 from mi.core.instrument.protocol_cmd_dict import CommandArgument
 
@@ -24,14 +25,17 @@ from mi.core.log import get_logger ; log = get_logger()
 
 
 @attr('UNIT', group='mi')
-class TestUnitProtocolCommandDict(MiUnitTestCase):
-
+class TestUnitProtocolCommandDict(TestUnitStringsDict):
     """
     Test cases for instrument driver class. Functions in this class provide
     instrument driver unit tests and provide a tutorial on use of
     the driver interface.
-    """ 
+    """
+    
+    __test__ = True
+    
     def setUp(self):
+        #self.param_dict = None
         self.cmd_dict = ProtocolCommandDict()
                 
         self.cmd_dict.add("cmd1",
@@ -77,6 +81,7 @@ class TestUnitProtocolCommandDict(MiUnitTestCase):
                             return_description="The number of items encountered during the run.",
                             arguments=[self.cmd2_arg1])
         self.cmd_dict.add_command(self.cmd2)
+        self.param_dict = self.cmd_dict # link for ease of parent class operation
         
         self.target_arg_schema = """{
     "description": "The trigger value to use for calculation", 
@@ -164,7 +169,68 @@ class TestUnitProtocolCommandDict(MiUnitTestCase):
         "timeout": 10
     }
 }"""
-        
+
+        self.test_yaml = '''
+        parameters: {
+          dummy: stuff
+          }
+          
+        commands: {
+         bad_command: {
+            description: "bad command"
+         },
+         cmd1: {
+            arguments: {
+                coeff: {
+                    description: "Cmd1Coeff", 
+                    display_name: "C1co", 
+                    value: {
+                        description: "C1coDesc",
+                        units: "counts",
+                        type: "float"
+                    }
+                },
+            },
+            description: "C1Desc", 
+            display_name: "C1", 
+            return: {
+                description: "C1Ret", 
+                type: "C1RetType", 
+                units: "C1RetUnit"
+            }, 
+         },
+         cmd2: {
+            arguments: {
+                trigger: {
+                    description: "C2TriggerDesc", 
+                    display_name: "C2TriggerDisp",  
+                    value: {
+                        description: "C2TriggerValueDesc", 
+                        type: "C2TriggerType",
+                        units: "C2Units"
+                    }
+                },
+                test: {
+                    description: "C2TestDesc",
+                    display_name: "C2TestDisp",  
+                    value: {
+                        description: "C2TestValueDesc", 
+                        type: "C2TestType",
+                        units: "C2TestUnits"
+                    }
+                },                    
+            }, 
+            description: "C2Desc", 
+            display_name: "C2Disp", 
+            return: {
+                description: "C2RetDesc", 
+                type: "C2RetType", 
+                units: "C2RetUnits"
+            }, 
+         }
+        }
+        '''
+
     def test_sub_schema_generation(self):
         result_dict = self.cmd2_arg1.generate_dict()
         self.assertEqual(json.dumps(result_dict, indent=4, sort_keys=True),
@@ -217,3 +283,40 @@ class TestUnitProtocolCommandDict(MiUnitTestCase):
         
         self.assertEqual(self.cmd_dict.get_command(None), None)
         self.assertEqual(self.cmd_dict.get_command("bad"), None)
+
+    def _assert_metadata_change(self):
+        new_dict = self.param_dict.generate_dict()
+        log.debug("Generated dictionary: %s", new_dict)
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.DESCRIPTION], "C1Desc")
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.DISPLAY_NAME], "C1")        
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.ARGUMENTS]['coeff'][CommandDictKey.DESCRIPTION], "Cmd1Coeff")
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.ARGUMENTS]['coeff'][CommandDictKey.DISPLAY_NAME], "C1co")
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.ARGUMENTS]['coeff'][CommandDictKey.VALUE][CommandDictKey.UNITS], "counts")
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.ARGUMENTS]['coeff'][CommandDictKey.VALUE][CommandDictKey.DESCRIPTION], "C1coDesc")
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.ARGUMENTS]['coeff'][CommandDictKey.VALUE][CommandDictKey.TYPE], "float")
+        # Should come from hard code
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.ARGUMENTS]['delay'][CommandDictKey.DESCRIPTION], "The delay time to wait before executing")
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.ARGUMENTS]['delay'][CommandDictKey.DISPLAY_NAME], "delay time")
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.ARGUMENTS]['delay'][CommandDictKey.VALUE][CommandDictKey.UNITS], "seconds")
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.ARGUMENTS]['delay'][CommandDictKey.VALUE][CommandDictKey.DESCRIPTION], "Should be between 1.0 and 3.3 in increments of 0.1")
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.ARGUMENTS]['delay'][CommandDictKey.VALUE][CommandDictKey.TYPE], "float")
+        # Command 1 return values
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.RETURN][CommandDictKey.DESCRIPTION], "C1Ret")
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.RETURN][CommandDictKey.UNITS], "C1RetUnit")
+        self.assertEqual(new_dict["cmd1"][CommandDictKey.RETURN][CommandDictKey.TYPE], "C1RetType")
+
+        self.assertEqual(new_dict["cmd2"][CommandDictKey.DESCRIPTION], "C2Desc")
+        self.assertEqual(new_dict["cmd2"][CommandDictKey.DISPLAY_NAME], "C2Disp")        
+        self.assertEqual(new_dict["cmd2"][CommandDictKey.ARGUMENTS]['trigger'][CommandDictKey.DESCRIPTION], "C2TriggerDesc")
+        self.assertEqual(new_dict["cmd2"][CommandDictKey.ARGUMENTS]['trigger'][CommandDictKey.DISPLAY_NAME], "C2TriggerDisp")
+        self.assertEqual(new_dict["cmd2"][CommandDictKey.ARGUMENTS]['trigger'][CommandDictKey.VALUE][CommandDictKey.DESCRIPTION], "C2TriggerValueDesc")
+        self.assertEqual(new_dict["cmd2"][CommandDictKey.ARGUMENTS]['trigger'][CommandDictKey.VALUE][CommandDictKey.TYPE], "C2TriggerType")
+        self.assertEqual(new_dict["cmd2"][CommandDictKey.ARGUMENTS]['trigger'][CommandDictKey.VALUE][CommandDictKey.UNITS], "C2Units")
+        # Should come from hard code
+        # Command 2 return values
+        self.assertEqual(new_dict["cmd2"][CommandDictKey.RETURN][CommandDictKey.DESCRIPTION], "C2RetDesc")
+        self.assertEqual(new_dict["cmd2"][CommandDictKey.RETURN][CommandDictKey.UNITS], "C2RetUnits")
+        self.assertEqual(new_dict["cmd2"][CommandDictKey.RETURN][CommandDictKey.TYPE], "C2RetType")
+        # shouldnt be any extra arguments, either
+        self.assertFalse('test' in new_dict["cmd2"][CommandDictKey.ARGUMENTS])
+        self.assertFalse('bad_command' in new_dict)

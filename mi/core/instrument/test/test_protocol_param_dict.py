@@ -13,25 +13,30 @@ __license__ = 'Apache 2.0'
 import json
 import time
 import re
+import os
 
 from ooi.logging import log
 from nose.plugins.attrib import attr
 from mi.core.unit_test import MiUnitTestCase
+from mi.core.instrument.test.test_strings import TestUnitStringsDict
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentParameterExpirationException
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
+from mi.core.instrument.protocol_param_dict import ParameterDictKey
 from mi.core.instrument.protocol_param_dict import Parameter, FunctionParameter, RegexParameter
 from mi.core.util import dict_equal
 
 @attr('UNIT', group='mi')
-class TestUnitProtocolParameterDict(MiUnitTestCase):
+class TestUnitProtocolParameterDict(TestUnitStringsDict):
     """
     Test cases for instrument driver class. Functions in this class provide
     instrument driver unit tests and provide a tutorial on use of
     the driver interface.
     """
+
+    __test__ = True
 
     @staticmethod
     def pick_byte2(input):
@@ -155,59 +160,81 @@ class TestUnitProtocolParameterDict(MiUnitTestCase):
                 },
                 "visibility": "DIRECT_ACCESS"
             },
-        "dil": {
-            "direct_access": False,
-            "get_timeout": 10,
-            "set_timeout": 10,
-            "startup": False,
-            "value": {},
-            "visibility": "IMMUTABLE"
-        },
-        "foo": {
-            "direct_access": True,
-            "get_timeout": 10,
-            "set_timeout": 10,
-            "startup": True,
-            "value": {
-                "default": 10
+            "dil": {
+                "direct_access": False,
+                "get_timeout": 10,
+                "set_timeout": 10,
+                "startup": False,
+                "value": {},
+                "visibility": "IMMUTABLE"
             },
-            "visibility": "READ_WRITE"
-        },
-        "pho": {
-            "direct_access": False,
-            "get_timeout": 10,
-            "set_timeout": 10,
-            "startup": False,
-            "value": {},
-            "visibility": "IMMUTABLE"
-        },
-        "qut": {
-            "description": "The qut list parameter",
-            "direct_access": True,
-            "display_name": "Qut",
-            "get_timeout": 10,
-            "set_timeout": 20,
-            "startup": False,
-            "value": {
-                "default": [
-                    10,
-                    100
-                ],
-                "description": "Should be a 2-10 element list of integers between 2 and 2000",
-                "type": "list",
-                "units": "nano-qutters"
+            "foo": {
+                "direct_access": True,
+                "get_timeout": 10,
+                "set_timeout": 10,
+                "startup": True,
+                "value": {
+                    "default": 10
+                },
+                "visibility": "READ_WRITE"
             },
-            "visibility": "DIRECT_ACCESS"
-        },
-        "qux": {
-            "direct_access": False,
-            "get_timeout": 10,
-            "set_timeout": 10,
-            "startup": False,
-            "value": {},
-            "visibility": "READ_ONLY"
+            "pho": {
+                "direct_access": False,
+                "get_timeout": 10,
+                "set_timeout": 10,
+                "startup": False,
+                "value": {},
+                "visibility": "IMMUTABLE"
+            },
+            "qut": {
+                "description": "The qut list parameter",
+                "direct_access": True,
+                "display_name": "Qut",
+                "get_timeout": 10,
+                "set_timeout": 20,
+                "startup": False,
+                "value": {
+                    "default": [
+                        10,
+                        100
+                    ],
+                    "description": "Should be a 2-10 element list of integers between 2 and 2000",
+                    "type": "list",
+                    "units": "nano-qutters"
+                },
+                "visibility": "DIRECT_ACCESS"
+            },
+            "qux": {
+                "direct_access": False,
+                "get_timeout": 10,
+                "set_timeout": 10,
+                "startup": False,
+                "value": {},
+                "visibility": "READ_ONLY"
+            }
         }
-    }
+
+        self.test_yaml = '''
+        parameters: {
+            qut: {
+            description: "QutFileDesc",
+            units: "QutFileUnits",
+            value_description: "QutFileValueDesc",
+            type: "QutFileType",
+            display_name: "QutDisplay"
+            },
+            extra_param: {
+            description: "ExtraFileDesc",
+            units: "ExtraFileUnits",
+            value_description: "ExtraFileValueDesc",
+            type: "ExtraFileType"    
+            }
+          }
+          
+        commands: {
+          dummy: stuff
+          }
+        '''
 
     def test_get_direct_access_list(self):
         """
@@ -605,3 +632,28 @@ bar=200, baz=300
         self.assertEqual(self.param_dict.format("test_format"), 15)
         self.assertRaises(KeyError,
                           self.param_dict.format, "bad_name")
+
+    def _assert_metadata_change(self):
+        new_dict = self.param_dict.generate_dict()
+        log.debug("Generated dictionary: %s", new_dict)
+        self.assertEqual(new_dict["qut"][ParameterDictKey.DESCRIPTION], "QutFileDesc")
+        self.assertEqual(new_dict["qut"][ParameterDictKey.DISPLAY_NAME], "QutDisplay")
+        self.assertEqual(new_dict["qut"][ParameterDictKey.VALUE][ParameterDictKey.UNITS], "QutFileUnits")
+        self.assertEqual(new_dict["qut"][ParameterDictKey.VALUE][ParameterDictKey.DESCRIPTION], "QutFileValueDesc")
+        self.assertEqual(new_dict["qut"][ParameterDictKey.VALUE][ParameterDictKey.TYPE], "QutFileType")
+        # Should come from hard code
+        #self.assertEqual(new_dict["qut"][ParameterDictKey.DISPLAY_NAME], "QutFileName") 
+
+        # from base hard code
+        new_dict = self.param_dict.generate_dict()
+        self.assertEqual(new_dict["baz"][ParameterDictKey.DESCRIPTION],
+                         "The baz parameter")
+        self.assertEqual(new_dict["baz"][ParameterDictKey.VALUE][ParameterDictKey.UNITS],
+                         "nano-bazers")
+        self.assertEqual(new_dict["baz"][ParameterDictKey.VALUE][ParameterDictKey.DESCRIPTION],
+                         "Should be an integer between 2 and 2000")
+        self.assertEqual(new_dict["baz"][ParameterDictKey.VALUE][ParameterDictKey.TYPE],
+                         ParameterDictType.INT)
+        self.assertEqual(new_dict["baz"][ParameterDictKey.DISPLAY_NAME], "Baz")
+        
+        self.assertTrue('extra_param' not in new_dict)

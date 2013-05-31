@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package ion.services.mi.protocol_param_dict
-@file ion/services/mi/protocol_param_dict.py
+@package mi.core.instrument.protocol_param_dict
+@file mi/core/instrument/protocol_param_dict.py
 @author Edward Hunter
 @author Steve Foley
 @brief A dictionary class that manages, matches and formats device parameters.
@@ -14,11 +14,18 @@ __license__ = 'Apache 2.0'
 import re
 import ntplib
 import time
+import yaml
+import pkg_resources
+
 from mi.core.common import BaseEnum
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentParameterExpirationException
+from mi.core.instrument.instrument_dict import InstrumentDict
 
 from mi.core.log import get_logger ; log = get_logger()
+
+EGG_PATH = "resource"
+DEFAULT_FILENAME = "strings.yml"
 
 class ParameterDictType(BaseEnum):
     BOOL = "bool"
@@ -36,6 +43,10 @@ class ParameterDictVisibility(BaseEnum):
     DIRECT_ACCESS = "DIRECT_ACCESS"
     
 class ParameterDictKey(BaseEnum):
+    """
+    These are the output strings when generating a metadata block. They also
+    line up with incoming YAML strings where appropriate.
+    """
     GET_TIMEOUT = "get_timeout"
     SET_TIMEOUT = "set_timeout"
     VISIBILITY = "visibility"
@@ -48,6 +59,7 @@ class ParameterDictKey(BaseEnum):
     DEFAULT = "default"
     UNITS = "units"
     PARAMETERS = "parameters"
+    VALUE_DESCRIPTION = "value_description"
     
 class ParameterDescription(object):
     """
@@ -372,7 +384,7 @@ class FunctionParameter(Parameter):
         else:
             return False
 
-class ProtocolParameterDict(object):
+class ProtocolParameterDict(InstrumentDict):
     """
     Protocol parameter dictionary. Manages, matches and formats device
     parameters.
@@ -883,3 +895,41 @@ class ProtocolParameterDict(object):
             return_struct[param_key] = param_struct
         
         return return_struct
+    
+    def load_strings(self, filename=None):
+        """
+        Load the metadata for a parameter set. starting by looking at the default
+        path in the egg and filesystem first, overriding what might have been
+        hard coded. If a system filename is given look there. If parameter
+        strings cannot be found, return False and carry on with hard coded values.
+    
+        @param filename The filename of the custom file to load, including as full a path
+        as desired (complete path recommended)
+        @retval True if something could be loaded, False otherwise
+        """
+        # if the file is in the default spot of the working path or egg, get that one
+        try:
+            metadata = self.get_metadata_from_source(filename)
+        except IOError as e:
+            log.warning("Encountered IOError: %s", e)
+            return False        # Fill the fields           
+
+        if metadata:
+            for (param_name, param_value) in metadata[ParameterDictKey.PARAMETERS].items():
+                for (name, value) in param_value.items():
+                    if param_name not in self._param_dict:
+                        continue
+                    if (name == ParameterDictKey.DESCRIPTION):
+                        self._param_dict[param_name].description.description = value
+                    if name == ParameterDictKey.DISPLAY_NAME:
+                        self._param_dict[param_name].description.display_name = value
+                    if name == ParameterDictKey.UNITS:
+                        self._param_dict[param_name].description.units = value
+                    if name == ParameterDictKey.TYPE:
+                        self._param_dict[param_name].description.type = value
+                    if name == ParameterDictKey.VALUE_DESCRIPTION:
+                        self._param_dict[param_name].description.value_description = value
+            return True
+    
+        return False # no metadata!
+        

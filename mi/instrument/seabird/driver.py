@@ -35,6 +35,7 @@ from mi.core.exceptions import SampleException
 from mi.core.time import get_timestamp_delayed
 
 NEWLINE = '\r\n'
+ESCAPE = "\x1b"
 
 SBE_EPOCH = 946713600 # Unix time for SBE epoch 2000-01-01 00:00:00
 
@@ -539,3 +540,11 @@ class SeaBirdProtocol(CommandResponseInstrumentProtocol):
 
         log.debug("Clean instrument config")
         return False
+
+    def _send_wakeup(self):
+        """
+        Send a newline to attempt to wake the sbe26plus device.
+        """
+        self._connection.send(ESCAPE)
+        self._connection.send(NEWLINE)
+

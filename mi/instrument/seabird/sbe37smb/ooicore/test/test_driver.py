@@ -21,6 +21,7 @@ import gevent
 import re
 import json
 import copy
+from pprint import PrettyPrinter
 
 # Standard lib imports
 import time
@@ -456,6 +457,19 @@ class SBEUnitTestCase(SeaBirdUnitTest, SBEMixin):
         self.assert_particle_published(driver, SAMPLE, self.assert_particle_sample, True)
         self.assert_particle_published(driver, SAMPLE_DC, self.assert_particle_device_calibration, True)
         self.assert_particle_published(driver, SAMPLE_DS, self.assert_particle_device_status, True)
+
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = SBE37Driver(self._got_data_event_callback)
+
+        config_json = driver.get_config_metadata()
+        self.assertIsNotNone(config_json)
+        config = json.loads(config_json)
+
+        pp = PrettyPrinter()
+        log.debug("Config: %s", pp.pformat(config))
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -1874,12 +1888,14 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         samples = self.data_subscribers.get_samples(DataParticleType.PARSED, 3, timeout=30)
         self.assertGreaterEqual(len(samples), 3)
 
-        self.assertParsedGranule(samples.pop())
-        self.assertParsedGranule(samples.pop())
-        self.assertParsedGranule(samples.pop())
-        #self.assertSampleDataParticle(samples.pop())
-        #self.assertSampleDataParticle(samples.pop())
-        #self.assertSampleDataParticle(samples.pop())
+        # If we want to verify granules then this needs to be a publication test.  In the
+        # IDK we overload the IA data handler to emit particles.
+        #self.assertParsedGranule(samples.pop())
+        #self.assertParsedGranule(samples.pop())
+        #self.assertParsedGranule(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
 
         # Halt streaming.
         cmd = AgentCommand(command=SBE37ProtocolEvent.STOP_AUTOSAMPLE)

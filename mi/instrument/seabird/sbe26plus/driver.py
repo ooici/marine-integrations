@@ -19,6 +19,8 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 from mi.instrument.seabird.driver import SeaBirdProtocol
+from mi.instrument.seabird.driver import NEWLINE
+from mi.instrument.seabird.driver import ESCAPE
 
 from mi.core.util import dict_equal
 from mi.core.common import BaseEnum
@@ -38,8 +40,6 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 from pyon.agent.agent import ResourceAgentState
-
-NEWLINE = '\r\n'
 
 # default timeout.
 TIMEOUT = 60 # setsampling takes longer than 10 on bad internet days.
@@ -143,7 +143,7 @@ class Capability(BaseEnum):
     ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
+    ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
     ACQUIRE_CONFIGURATION = ProtocolEvent.ACQUIRE_CONFIGURATION
     SEND_LAST_SAMPLE = ProtocolEvent.SEND_LAST_SAMPLE
     QUIT_SESSION = ProtocolEvent.QUIT_SESSION
@@ -1845,7 +1845,6 @@ class Protocol(SeaBirdProtocol):
         @throw InstrumentProtocolException on invalid command
         """
 
-        next_state = None
         result = None
 
         next_state = ProtocolState.COMMAND
@@ -2003,12 +2002,6 @@ class Protocol(SeaBirdProtocol):
             raise InstrumentProtocolException("failed to stop logging")
 
         return True
-
-    def _send_wakeup(self):
-        """
-        Send a newline to attempt to wake the sbe26plus device.
-        """
-        self._connection.send(NEWLINE)
 
     def _build_simple_command(self, cmd):
         """

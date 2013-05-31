@@ -43,7 +43,7 @@ class TestTime(MiUnitTest):
         """
         stamp = get_timestamp_delayed("%H:%M:%S")
         now = datetime.datetime.utcnow()
-        self.assertLess(now.microsecond, 100);
+        self.assertLess(now.microsecond, 200);
 
         # test for an empty format string
         raised = False
