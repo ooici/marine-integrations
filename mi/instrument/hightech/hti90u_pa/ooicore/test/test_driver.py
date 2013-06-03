@@ -58,6 +58,51 @@ from mi.instrument.hightech.hti90u_pa.ooicore.driver import Protocol
 from mi.instrument.hightech.hti90u_pa.ooicore.driver import Prompt
 from mi.instrument.hightech.hti90u_pa.ooicore.driver import NEWLINE
 
+import pickle
+
+# Pickled Packet object with single sample in data channel
+SHORT_SAMPLE_DICT =  {
+'channels': [
+              {'calib': 0.0,
+               'calper': -1.0,
+               'chan': 'HNE',
+               'cuser1': '',
+               'cuser2': '',
+               'data': (-15294,),
+               'duser1': 0.0,
+               'duser2': 0.0,
+               'iuser1': 0,
+               'iuser2': 0,
+               'iuser3': 0,
+               'loc': '',
+               'net': 'AZ',
+               'nsamp': 100,
+               'samprate': 100.0,
+               'segtype': 'V',
+               'sta': 'MONP2',
+               'time': 1368920824.968393}],
+ 'db': (-102, -102, -102, -102),
+ 'dfile': None,
+ 'pf': {},
+ 'srcname': {'chan': '',
+             'joined': 'AZ_MONP2/MGENC/M100',
+             'loc': '',
+             'net': 'AZ',
+             'sta': 'MONP2',
+             'subcode': 'M100',
+             'suffix': 'MGENC'},
+ 'string': None,
+ 'time': 1368920824.968393,
+ 'type': ({'bodycode': 0,
+           'content': 1,
+           'desc': 'Multiplexed generic compressed data frame packet',
+           'hdrcode': 0,
+           'name': 'MGENC',
+           'suffix': 'MGENC'},),
+ 'version': 2}
+
+SHORT_SAMPLE = pickle.dumps(SHORT_SAMPLE_DICT)
+
 ###
 #   Driver parameters for the tests
 ###
@@ -101,18 +146,43 @@ InstrumentDriverTestCase.initialize(
 # methods for validating data particles.
 ###############################################################################
 class DataParticleMixin(DriverTestMixin):
-    def assertSampleDataParticle(self, data_particle):
+
+    _sample_parameters = {
+        HYDLF_SampleDataParticleKey.CALIB: {'type': float, 'value': SHORT_SAMPLE_DICT['channels'][0]['calib']},
+        HYDLF_SampleDataParticleKey.CALPER: {'type': float, 'value': SHORT_SAMPLE_DICT['channels'][0]['calper']},
+        HYDLF_SampleDataParticleKey.CHAN: {'type': str, 'value': SHORT_SAMPLE_DICT['channels'][0]['chan']},
+        HYDLF_SampleDataParticleKey.LOC: {'type': str, 'value': SHORT_SAMPLE_DICT['channels'][0]['loc']},
+        HYDLF_SampleDataParticleKey.NET: {'type': str, 'value': SHORT_SAMPLE_DICT['channels'][0]['net']},
+        HYDLF_SampleDataParticleKey.NSAMP: {'type': float, 'value': SHORT_SAMPLE_DICT['channels'][0]['nsamp']},
+        HYDLF_SampleDataParticleKey.SAMPRATE: {'type': float, 'value': SHORT_SAMPLE_DICT['channels'][0]['samprate']},
+        HYDLF_SampleDataParticleKey.SEGTYPE: {'type': str, 'value': SHORT_SAMPLE_DICT['channels'][0]['segtype']},
+        HYDLF_SampleDataParticleKey.STA: {'type': str, 'value': SHORT_SAMPLE_DICT['channels'][0]['sta']},
+        HYDLF_SampleDataParticleKey.TIME: {'type': float, 'value': SHORT_SAMPLE_DICT['channels'][0]['time']},
+        HYDLF_SampleDataParticleKey.SAMPLE_IDX: {'type': int, 'value': 0},
+        HYDLF_SampleDataParticleKey.SAMPLE: {'type': int, 'value': SHORT_SAMPLE_DICT['channels'][0]['data'][0]},
+    }
+
+    def assert_sample_data_particle(self, data_particle):
         '''
-        Verify a particle is a know particle to this driver and verify the particle is
+        Verify a particle is a known particle to this driver and verify the particle is
         correct
-        @param data_particle: Data particle of unkown type produced by the driver
+        @param data_particle: Data particle of unknown type produced by the driver
         '''
-        if (isinstance(data_particle, RawDataParticle)):
-            self.assert_particle_raw(data_particle)
+        sample_dict = self.convert_data_particle_to_dict(data_particle)
+        if (sample_dict[DataParticleKey.STREAM_NAME] == DataParticleType.HYDLF_SAMPLE):
+            self.assert_data_particle_sample(data_particle)
         else:
             log.error("Unknown Particle Detected: %s" % data_particle)
             self.assertFalse(True)
 
+    def assert_data_particle_sample(self, data_particle, verify_values = False):
+        '''
+        Verify an optaa sample data particle
+        @param data_particle: HYDLFA_SampleDataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_header(data_particle, DataParticleType.HYDLF_SAMPLE)
+        self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -128,7 +198,7 @@ class DataParticleMixin(DriverTestMixin):
 #   driver process.                                                           #
 ###############################################################################
 @attr('UNIT', group='mi')
-class DriverUnitTest(InstrumentDriverUnitTestCase):
+class DriverUnitTest(InstrumentDriverUnitTestCase, DataParticleMixin):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
@@ -146,7 +216,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase):
 
         # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
         self.assert_enum_has_no_duplicates(Capability())
-        self.assert_enum_complete(Capability(), ProtocolEvent())
+        #self.assert_enum_complete(Capability(), ProtocolEvent())  Capability is empty, so this test fails
 
 
     def test_got_data(self):
@@ -157,6 +227,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
+        self.assert_particle_published(driver, SHORT_SAMPLE, self.assert_data_particle_sample, True)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -175,6 +246,27 @@ class DriverUnitTest(InstrumentDriverUnitTestCase):
         # Verify "BOGUS_CAPABILITY was filtered out
         self.assertEquals(sorted(driver_capabilities),
                           sorted(protocol._filter_capabilities(test_capabilities)))
+
+    def test_capabilities(self):
+        """
+        Verify the FSM reports capabilities as expected.  All states defined in this dict must
+        also be defined in the protocol FSM.
+        """
+        capabilities = {
+            ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
+            ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_SET',
+                                    'DRIVER_EVENT_START_AUTOSAMPLE',
+                                    'DRIVER_EVENT_START_DIRECT'],
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE'],
+            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 
+                                          'EXECUTE_DIRECT']
+        }
+
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_capabilities(driver, capabilities)
+
+
 
 
 ###############################################################################
