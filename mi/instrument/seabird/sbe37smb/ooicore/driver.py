@@ -23,6 +23,7 @@ import json
 from mi.core.common import BaseEnum
 from mi.core.instrument.port_agent_client import PortAgentPacket
 from mi.core.instrument.protocol_param_dict import ParameterDictType
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM, ThreadSafeFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -45,7 +46,7 @@ log = get_logger()
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    PARSED = 'ctd_parsed_param_dict'
+    PARSED = 'parsed'
     DEVICE_CALIBRATION = 'device_calibration_parsed' # supported in preload even?
     DEVICE_STATUS = 'device_status_parsed' # supported in preload even?
     
@@ -1379,7 +1380,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                              r'temperature: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
                              self._date_to_string,
-                             type=ParameterDictType.LIST)
+                             type=ParameterDictType.LIST,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(SBE37Parameter.TA0,
                              r' +TA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
@@ -1404,7 +1406,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                              r'conductivity: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
                              self._date_to_string,
-                             type=ParameterDictType.LIST)
+                             type=ParameterDictType.LIST,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(SBE37Parameter.CG,
                              r' +G = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
@@ -1444,7 +1447,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                              r'pressure .+ ((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
                              self._date_to_string,
-                             type=ParameterDictType.LIST)
+                             type=ParameterDictType.LIST,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(SBE37Parameter.PA0,
                              r' +PA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
