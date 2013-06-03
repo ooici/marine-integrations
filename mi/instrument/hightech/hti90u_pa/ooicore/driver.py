@@ -176,7 +176,7 @@ class HYDLF_SampleDataParticle(DataParticle):
         orb_packet, chan, index, sample = self.raw_data
 
         # Calculate sample timestamp
-        unix_internal_timestamp = chan['time'] + (1 / chan['samprate'] * index)
+        unix_internal_timestamp = chan['time'] + (float(index) / float(chan['samprate']))
         self.set_internal_timestamp(unix_time=unix_internal_timestamp)
 
         result = []
