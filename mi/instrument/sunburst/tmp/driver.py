@@ -24,7 +24,8 @@ import sys      # Exceptions
 import copy
 from threading import RLock
 
-from mi.core.log import get_logger; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.time import get_timestamp
@@ -49,7 +50,7 @@ from mi.core.instrument.chunker import StringChunker
 
 ###############################################################################
 # Program Constants
-###############################################################################   
+###############################################################################
 NEWLINE = '\r'  # CJC Note: Do Not Use '\r\n'
 NSECONDS_1904_TO_1970 = 2082844800
 TIMEOUT = 10        # Default Timeout.
@@ -62,8 +63,8 @@ REGULAR_STATUS_REGEX_MATCHER = re.compile(REGULAR_STATUS_REGEX)
 RECORD_REGEX = r'[*](\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f])'
 RECORD_REGEX_MATCHER = re.compile(RECORD_REGEX)
 
-DATA_RECORD_REGEX    = r'[*](\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[4-5]{1})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{57})'
-CONTROL_RECORD_REGEX = r'[*](\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})([^4-5]{1})(\w[0-9A-Fa-f]{32})' # This works.
+DATA_RECORD_REGEX = r'[*](\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[4-5]{1})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{57})'
+CONTROL_RECORD_REGEX = r'[*](\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})([^4-5]{1})(\w[0-9A-Fa-f]{32})'  # This works.
 DATA_RECORD_REGEX_MATCHER = re.compile(DATA_RECORD_REGEX)
 CONTROL_RECORD_REGEX_MATCHER = re.compile(CONTROL_RECORD_REGEX)
 
@@ -73,13 +74,13 @@ CONFIG_REGEX_MATCHER = re.compile(CONFIG_REGEX)
 
 ERROR_REGEX = r'[?](\w[0-9A-Fa-f]{1})' # (\w[0-9A-Fa-f])'
 ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
-    
+
 IMMEDIATE_STATUS_REGEX = r'(\w[0-9A-Fa-f]{1})'
 IMMEDIATE_STATUS_REGEX_MATCHER = re.compile(IMMEDIATE_STATUS_REGEX)
 
 ###############################################################################
 # Program Declarations
-###############################################################################   
+###############################################################################
 
 # Define a default Sami Configuration string used to R/W updates.
 # This is the string from the PC02W_Low_Level_SAMI_Use_1.pdf document.
@@ -105,13 +106,14 @@ def convert_timestamp_to_sec(time_str):
         hr = match.group(4)
         mn = match.group(5)
         ss = match.group(6)
-        
+
         # month_mapping: a mapping for 3 letter months to integers
         d1 = datetime.datetime(int(yy), int(mm), int(dd), int(hr), int(mn), int(ss))
         d1_tuple = d1.timetuple()
         secondsF = calendar.timegm(d1_tuple)
         sec = int(secondsF)
     return(sec)
+
 
 def get_timestamp_delayed_sec():
     """
@@ -122,6 +124,7 @@ def get_timestamp_delayed_sec():
     tsec = convert_timestamp_to_sec(s)
     return(tsec)
 
+
 def get_timestamp_sec():
     """
     Modify the time accessor to get Epoc (Unix time)
@@ -131,6 +134,7 @@ def get_timestamp_sec():
     tsec = convert_timestamp_to_sec(s)       
 #    print("Today: ", time.asctime( time.gmtime(tsec) ))
     return(tsec)
+
 
 def replace_string_chars(s1, pos, s2):
     """
@@ -146,6 +150,7 @@ def replace_string_chars(s1, pos, s2):
             s1 = s1[0:pos] + s2 + s1[pos+len2:]
     return(s1)
 
+
 ###############################################################################
 # General Class Definitions
 ###############################################################################   
@@ -156,7 +161,7 @@ class SamiConfiguration():
     Sami Fields are fixed in position.    """
     _SAMI_DRIVER_PARAM_INDEX = 78  # String index of SAMI-CO2 Driver 4/5 Parameters.   
     _MIN_CONFIG_STR_LENGTH = 132
-    
+
     # Record types are Control or Data.
     # Data Records: 0x0 - 0x7F
     _DATA_RECORD_RANGE_MIN = 0x00
@@ -169,13 +174,13 @@ class SamiConfiguration():
     # Control Records: 0x80 - 0xFE 
     _CTRL_RECORD_RANGE_MIN = 0x80
     _CTRL_RECORD_RANGE_MAX = 0xFF
-    
+
     _CTRL_RECORD_TYPE_LAUNCH = 0x80  # Launch - The program started executing, possibly waiting for measurement
     _CTRL_RECORD_TYPE_START = 0x81  # Start - The measurement sequence has started.
-    _CTRL_RECORD_TYPE_SHUTDOWN = 0x83 # Good Shutdown.
+    _CTRL_RECORD_TYPE_SHUTDOWN = 0x83  # Good Shutdown.
     _CTRL_RECORD_TYPE_RTS_ENABLE = 0x85  # RTS Handshake is on.
-    _CTRL_RECORD_TYPE_GENERIC_EXTERNAL = 0xFF    # Generic External
-       
+    _CTRL_RECORD_TYPE_GENERIC_EXTERNAL = 0xFF  # Generic External
+
     # A lock should eliminate concerns about multi-threaded access.
     _lock = None
 
@@ -183,35 +188,36 @@ class SamiConfiguration():
     # It is used to identify configuration parameters.
     _config_str = None
     _config_valid = False
-    
-    # The Unix epoch is the time 00:00:00 UTC on 1 January 1970 (or 1970-01-01T00:00:00Z ISO 8601). 
+
+    # The Unix epoch is the time 00:00:00 UTC on 1 January 1970 (or
+    # 1970-01-01T00:00:00Z ISO 8601). 
     _min_time_sec_1970 = 0x0
     _min_time_sec_1904 = 0x0
     _max_time_sec_1970 = 0x0
     _max_time_sec_1904 = 0x0
-  
+
     def __init__(self):
         self._lock = RLock()
         self._config_str = None
         self._config_valid = False
 
-        # Design Note: This is the max/min time range when setting the instrument time.
-        # The time/date should be around "todays" date.
-        
+        # Design Note: This is the max/min time range when setting the
+        # instrument time. The time/date should be around "todays" date.
+
         # Set a time range of allow Confuguration time update.
         # Default earliest time to PDF text book Oct 6, 2011 18:05:56
         t = datetime.datetime(2011, 10, 6, 0, 0)
         tsecF = calendar.timegm(t.timetuple())
         self._min_time_sec_1970 = int(tsecF)
         self._min_time_sec_1904 = self._min_time_sec_1970 + NSECONDS_1904_TO_1970
-        
+
         # Set a maximum time as current time + 30 days.
         sec_per_day = 3600 * 24
         sec_per_year = 365 * sec_per_day  # good approximation.
         tnow_secF = time.time()   # Current seconds since Epoch
         self._max_time_sec_1970 = int(tnow_secF) + (5 * sec_per_year)
         self._max_time_sec_1904 = self._max_time_sec_1970 + NSECONDS_1904_TO_1970
-        
+
     def clear(self):
         """
         Clear the configuration string
@@ -236,7 +242,7 @@ class SamiConfiguration():
                 else:
                     r = False
         return(r)
-    
+
     def get_config_str(self):
         """
         Get the current configuration string (should have been updated from instrument).
@@ -260,23 +266,23 @@ class SamiConfiguration():
         log.debug("get_start_time...................")
         launch_time_txt = self._config_str[0:8]
         start_offset_txt = self._config_str[8:16]
-        
+
         launch_time = int(launch_time_txt,16)
         start_offset = int(start_offset_txt,16)
-        
+
         start_time = launch_time + start_offset
         log.debug("start_time = " + str(hex(start_time)))
         if(unix_fmt is True):
             start_time -= NSECONDS_1904_TO_1970
         return(start_time)
-        
+
     def is_valid(self):
         """
         Determine if a valid configuration string has been created/read
         @return: True if configuration valid.
         """
         return(self._config_valid)
-            
+
     def set_config_str(self, s):
         """
         Set a new configuration string.
@@ -290,7 +296,7 @@ class SamiConfiguration():
                 self._config_valid = True
                 r = True
         return(r)
-    
+
     def set_config_time(self, time_sec_1970):
         """
         Update the Time/Date field in the configuration string.
@@ -299,32 +305,32 @@ class SamiConfiguration():
         """
         r = False
         # Verify that the time is within the correct range.
-        if( time_sec_1970 < self._min_time_sec_1970 ):
-            log.debug("Time too early %d/%d" %(time_sec_1970, self._min_time_sec_1970) )
-        elif( time_sec_1970 >= self._max_time_sec_1970 ):
+        if(time_sec_1970 < self._min_time_sec_1970):
+            log.debug("Time too early %d/%d" % (time_sec_1970, self._min_time_sec_1970))
+        elif(time_sec_1970 >= self._max_time_sec_1970):
             log.debug("max_time = " + str(self._max_time_sec_1970))
-            log.debug("Time too late %d/%d" %(time_sec_1970, self._max_time_sec_1970) )           
+            log.debug("Time too late %d/%d" % (time_sec_1970, self._max_time_sec_1970)
         else:
             sami_time_txt = SamiConfiguration.make_sami_time_string(time_sec_1970)
             self._config_str = sami_time_txt + self._config_str[8:232]
             r = True
         return(r)
-    
+
     def _verify_config(self, s):
         # Verify length.
         s_len = len(s)
         if( s_len < self._MIN_CONFIG_STR_LENGTH ):
             log.debug("Invalid configuration string length %d/%d [%s]" %(s_len, self._MIN_CONFIG_STR_LENGTH, s))
             return(False)
-            
+
         # Check for all F's return which indicates configuration is hosed.
         if( s[0:2] == "FF" ):
             log.debug("Error - Configuration File Hosed 0xFF ?")
             return(False)
-        
+
         # Check time stamp (cheat and use the first two characters).
         # Note as of 2013 CD is the launch time.
-        min_launch_time = int("CA",16)        
+        min_launch_time = int("CA",16)
         tcheck = int(s[0:2],16)
         if( tcheck < min_launch_time):
             log.debug("Error - Launch time is before present: CB vs " + str(hex(tcheck)))
@@ -337,12 +343,12 @@ class SamiConfiguration():
             tsec = int(txt,16)
         except Exception, e:
             raise SampleException("Sami Config time invalid %s: [%s]" % (txt,str(e)))
-              
+
         if( tsec <= self._min_time_sec_1904 ):
             log.debug("Sami Config time invalid " + txt + " " + str(hex(self._min_time_sec_1904)))
             return(False)
-        
-        # Sami says these values are always this.    
+
+        # Sami says these values are always this.
         txt = SamiConfiguration.vb_mid(s,33,2)
         dev_id = int(txt,16)
         txt = SamiConfiguration.vb_mid(s,35,2)
@@ -350,9 +356,9 @@ class SamiConfiguration():
         if( (dev_id > 16) | (param_ptr > 100) ):
             log.debug("Configuration is corrupted or erased! " + str(hex(dev_id)) + " " + str(hex(param_ptr)) )
             return( False )
-        
+
         return( True )
-    
+
     @staticmethod
     def calc_crc(s, num_points):
         """
@@ -367,7 +373,7 @@ class SamiConfiguration():
             value = int(s[k:k+2],16)  # 2-chars per data point
             cs = cs + value
             k = k + 2
-        cs = cs & 0xFF        
+        cs = cs & 0xFF
         return(cs)
 
     @staticmethod
@@ -376,7 +382,7 @@ class SamiConfiguration():
         Convert the Sami Error Code into an error string.
         @param error_no: Error Number.
         @return String representation of error number.
-        """  
+        """
         # Error Look Up Table
         # ASCII Hex errors returned from Insturment.
         ERROR_TABLE_SIZE = 18
@@ -399,12 +405,12 @@ class SamiConfiguration():
             "Unimplemented Extension Index in Configuration",
             "Flash Data not erased",
             "Invalid Arguments"]   # 0x11
-    
+
         error_str = None
         if((error_no >= 0x0) & (error_no < ERROR_TABLE_SIZE)):
             error_str = sami_error_table[error_no]
         return(error_str)
-    
+
     @staticmethod
     def vb_mid(s, start, length):
         """
@@ -434,7 +440,7 @@ class SamiConfiguration():
         sami_time_sec = time_sec_1970 + NSECONDS_1904_TO_1970
         sami_time_str = '{:08X}'.format(sami_time_sec)
         return(sami_time_str)
-    
+
     @staticmethod
     def make_date_str(time_sec):
         """
@@ -445,11 +451,11 @@ class SamiConfiguration():
             time_sec -= NSECONDS_1904_TO_1970
         txt = time.asctime( time.gmtime(time_sec) )
         return(txt)
-    
+
 class ScheduledJob(BaseEnum):
     ACQUIRE_STATUS = 'acquire_status'
     CLOCK_SYNC = 'clock_sync'
-    
+
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
     REGULAR_STATUS_PARSED = 'device_status_parsed'
@@ -511,7 +517,7 @@ class Capability(BaseEnum):
     Protocol events that should be exposed to users (subset of above).
     """
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE    
+    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
     ACQUIRE_CONFIGURATION = ProtocolEvent.ACQUIRE_CONFIGURATION
@@ -520,7 +526,7 @@ class Capability(BaseEnum):
 class Parameter(DriverParameter):
     """
     Device specific parameters.
-    """   
+    """
     # Configuration Parameter Information.
     PUMP_PULSE = 'PUMP_PULSE',
     PUMP_ON_TO_MEASURE = 'PUMP_ON_TO_MEASURE',
@@ -532,14 +538,14 @@ class Parameter(DriverParameter):
     STARTUP_BLANK_FLUSH_ENABLE = 'STARTUP_BLANK_FLUSH_ENABLE',
     PUMP_PULSE_POST_MEASURE_ENABLE = 'PUMP_PULSE_POST_MEASURE_ENABLE' # bool
     NUM_EXTRA_PUMP_PULSE_CYCLES = 'num_extra_pump_pulse_cycles'
-    
+
 # Device prompts = There are no prompts.
 class Prompt(BaseEnum):
    """
    Device i/o prompts..
    """
    COMMAND = None
-    
+
 ###############################################################################
 # Data Particles
 ###############################################################################   
@@ -565,22 +571,22 @@ class SamiControlRecordParticle(DataParticle):
 
     def _build_parsed_values(self):
         # Restore the first character we removed for recognition.
-        regex1 = CONTROL_RECORD_REGEX_MATCHER        
+        regex1 = CONTROL_RECORD_REGEX_MATCHER
         match = regex1.match(self.raw_data)
         if not match:
             raise SampleException("No regex match of parsed Record Type4 data: [%s]" % self.raw_data)
 
         result = self._build_particle(match)
         return(result)
-    
+
     def _build_particle(self, match):
         result = {}
-        
+
         # This is the first index of data (after header information)
         DATA_START_INDEX = 15
-        
+
         unique_id = None
-        record_length = None        
+        record_length = None
         record_time = None
         record_type = None
         pt_light_measurements = []
@@ -593,7 +599,7 @@ class SamiControlRecordParticle(DataParticle):
         if( num_match < 4 ):
             log.debug("Control Record - No Match count " + str(num_match))
             return result
-        
+
         # Quick verification of record_type
         # Avoid issue with match by directly accessing string index.  txt = match.group(3)
         txt = self.raw_data[5:7]
@@ -607,27 +613,27 @@ class SamiControlRecordParticle(DataParticle):
 
         #
         # Preliminary debug information on record type
-        #               
+        #
         if( record_type == SamiConfiguration._CTRL_RECORD_TYPE_LAUNCH):
             log.debug("start: " + str(record_type))
-            
+
         elif( record_type == SamiConfiguration._CTRL_RECORD_TYPE_START ):
             log.debug("Control Record Start")
-            
+
         elif( record_type == SamiConfiguration._CTRL_RECORD_TYPE_SHUTDOWN ):
             log.debug("Good Shutdown")
-            
+
         elif( record_type == SamiConfiguration._CTRL_RECORD_TYPE_RTS_ENABLE ):
             log.debug("Handshake Turned on (RTS high)")
 
         # Start: Common record information.
-        # Decode Time Stamp since Launch       
+        # Decode Time Stamp since Launch
         txt = match.group(1)
         try:
             unique_id = int(txt, 16)
         except Exception, e:
             raise SampleException("Sami Record ValueError decoding unique_id %s: [%s]" % (txt,str(e)))
-        
+
         txt = match.group(2)
         try:
             record_length = int(txt,16)
@@ -639,18 +645,18 @@ class SamiControlRecordParticle(DataParticle):
             record_time = int(txt,16)
         except Exception, e:
             raise SampleException("Sami Record ValueError decoding record_time %s: [%s]" % (txt,str(e)))
-       
+
         # Compute the checksum for the entire record & compare with data.
         num_bytes = (record_length - 1)  # Do not count last crc-byte.
         num_char = 2 * num_bytes
-        
+
         # Decode checksum (checksum of data is last record byte).
         txt = self.raw_data[3+num_char:5+num_char]
         try:
             checksum = int(txt, 16)
         except Exception, e:
             raise SampleException("Sami Record ValueError decoding checksum %s: [%s]" % (txt,str(e)))
-            
+
         # Compute the checksum now that we have the record length.
         # Skip over the ID character and the 1st byte (+3)
         # Compute the checksum for the entire record & compare with data.
@@ -671,26 +677,26 @@ class SamiControlRecordParticle(DataParticle):
         data_length -= 1 # record_type byte
         data_length -= 4 # time.
         data_length -= 1 # checksum byte.
-        
+
         # nab data.
         k = DATA_START_INDEX
         for i in range(data_length):
             log.debug(self.raw_data[k:k+2])
             k += 2
-			
+
         result = [{DataParticleKey.VALUE_ID: SamiControlRecordParticleKey.UNIQUE_ID,
                    DataParticleKey.VALUE: unique_id},
                   {DataParticleKey.VALUE_ID: SamiControlRecordParticleKey.RECORD_LENGTH,
-                   DataParticleKey.VALUE: record_length},                  
+                   DataParticleKey.VALUE: record_length},
                   {DataParticleKey.VALUE_ID: SamiControlRecordParticleKey.RECORD_TYPE,
                    DataParticleKey.VALUE: record_type},
                   {DataParticleKey.VALUE_ID: SamiControlRecordParticleKey.RECORD_TIME,
                    DataParticleKey.VALUE: record_time},
                   {DataParticleKey.VALUE_ID: SamiControlRecordParticleKey.CHECKSUM,
                    DataParticleKey.VALUE: checksum}]
-        
+
         return result
-    
+
 class SamiDataRecordParticleKey(BaseEnum):
     """
     Data Record Data Partical.
@@ -716,19 +722,19 @@ class SamiDataRecordParticle(DataParticle):
 
     def _build_parsed_values(self):
         # Restore the first character we removed for recognition.
-        regex1 = DATA_RECORD_REGEX_MATCHER        
+        regex1 = DATA_RECORD_REGEX_MATCHER
         match = regex1.match(self.raw_data)
         if not match:
             raise SampleException("No regex match of parsed Record Type4 data: [%s]" % self.raw_data)
 
         result = self._build_particle(match, len(self.raw_data))
         return(result)
-    
+
     def _build_particle(self, match,len_raw_data):
         result = {}
-        
+
         unique_id = None
-        record_length = None        
+        record_length = None
         record_time = None
         record_type = None
         pt_light_measurements = []
@@ -753,23 +759,23 @@ class SamiDataRecordParticle(DataParticle):
         if( (record_type != SamiConfiguration._DATA_RECORD_TYPE_CO2) & (record_type != SamiConfiguration._DATA_RECORD_TYPE_BLANK) ):
             raise SampleException("SamiDataRecordParticle abort on [%d] not [%d,%d]" %(record_type, SamiConfiguration._DATA_RECORD_TYPE_CO2, SamiConfiguration._DATA_RECORD_TYPE_BLANK))
             return( result )
-        
+
         elif( (record_type >= SamiConfiguration._CTRL_RECORD_RANGE_MIN) & (record_type <= SamiConfiguration._CTRL_RECORD_RANGE_MAX) ):
             raise SampleException("SamiDataRecordParticle trying to process Control Record [%d]" %(record_type))
             return( result )
-        
+
         elif( record_type == SamiConfiguration._DATA_RECORD_TYPE_PH ):
             raise SampleException("SamiDataRecordParticle trying to process Ph Data Record [%d]" %(record_type))
             return( result )
-                        
+
         # Start: Common record information.
-        # Decode Time Stamp since Launch       
+        # Decode Time Stamp since Launch
         txt = match.group(1)
         try:
             unique_id = int(txt, 16)
         except Exception, e:
             raise SampleException("Sami Record ValueError decoding unique_id %s: [%s]" % (txt,str(e)))
-        
+
         txt = match.group(2)
         try:
             record_length = int(txt,16)
@@ -788,24 +794,24 @@ class SamiDataRecordParticle(DataParticle):
         log.debug("record time = " + str(record_time) + " " + txt + " " + SamiConfiguration.make_date_str(record_time))
         '''
         # End: Common Record Information.
-                
+
         # Verify length information.
         # The record length is the number of "2-char" bytes.
         if((2*record_length) > len_raw_data):
             log.debug("Sami Record String too small %d/%d" %(len_raw_data, (2*record_length)))
             return(result)
-        
+
         # Record Type #4,#5 have a length of 39 bytes, time & trailing checksum.
         if( (record_type == SamiConfiguration._DATA_RECORD_TYPE_CO2) |
             (record_type == SamiConfiguration._DATA_RECORD_TYPE_BLANK) ):
-                
+
             # Compute now many 8-bit data bytes we have.
             data_length = record_length
             data_length = data_length - 6  # Adjust for type, 4-bytes of time.
             data_length = data_length - 5  # Adjust for battery, thermister, cs
             num_measurements = data_length / 2  # 2-bytes per record.
             # log.debug("num_measurments = " + str(num_measurements))
-        
+
             # Start extracting measurements from this string position
             idx = 15
             for i in range(0,num_measurements):
@@ -814,31 +820,31 @@ class SamiDataRecordParticle(DataParticle):
                     val = int(txt, 16)
                 except Exception, e:
                     raise SampleException("Sami Record ValueError decoding value %d,%s: [%s]" % (i,txt,str(e)))
-                log.debug("light_measurement = " + txt)                
+                log.debug("light_measurement = " + txt)
                 pt_light_measurements.append(val)
                 idx = idx + 4
-                
+
             txt = self.raw_data[idx:idx+3]
             try:
                 voltage_battery = int(txt, 16)
             except Exception, e:
                 raise SampleException("Sami Record ValueError decoding voltage_battery %s: [%s]" % (txt,str(e)))
             idx = idx + 4
-            
+
             txt = self.raw_data[idx:idx+3]
             try:
                 thermister_raw = int(txt, 16) 
             except Exception, e:
                 raise SampleException("Sami Record ValueError decoding thermister_raw %s: [%s]" % (txt,str(e)))
             idx = idx + 4
-            
-            # Decode checksum    
+
+            # Decode checksum
             txt = self.raw_data[idx:idx+2]
             try:
                 checksum = int(txt, 16)
             except Exception, e:
                 raise SampleException("Sami Record ValueError decoding checksum %s: [%s]" % (txt,str(e)))
-            
+
             # Compute the checksum now that we have the record length.
             # Skip over the ID character and the 1st byte (+3)
             # Compute the checksum for the entire record & compare with data.
@@ -855,7 +861,7 @@ class SamiDataRecordParticle(DataParticle):
             result = [{DataParticleKey.VALUE_ID: SamiDataRecordParticleKey.UNIQUE_ID,
                        DataParticleKey.VALUE: unique_id},
                       {DataParticleKey.VALUE_ID: SamiDataRecordParticleKey.RECORD_LENGTH,
-                       DataParticleKey.VALUE: record_length},                  
+                       DataParticleKey.VALUE: record_length},
                       {DataParticleKey.VALUE_ID: SamiDataRecordParticleKey.RECORD_TYPE,
                        DataParticleKey.VALUE: record_type},
                       {DataParticleKey.VALUE_ID: SamiDataRecordParticleKey.RECORD_TIME,
@@ -868,11 +874,11 @@ class SamiDataRecordParticle(DataParticle):
                        DataParticleKey.VALUE: checksum},
                       {DataParticleKey.VALUE_ID: SamiDataRecordParticleKey.LIGHT_MEASUREMENT,
                        DataParticleKey.VALUE: pt_light_measurements}]
-        
+
         log.debug("Data Record Decoder End...........")
 
         return result
-    
+
 class SamiConfigDataParticleKey(BaseEnum):
     """
     Configuration String Data Partical.
@@ -922,11 +928,11 @@ class SamiConfigDataParticleKey(BaseEnum):
     BLANK_FLUSH_ON_START_ENABLE = "blank_flush_on_start_enable"
     PUMP_PULSE_POST_MEASURE = "pump_pulse_post_measure"
     NUM_EXTRA_PUMP_PULSE_CYCLES = "num_extra_pump_pulse_cycles"
-    
+
     # Not in specification.
     # CHECKSUM = "checksum"
     # SERIAL_SETTINGS = 'serial_settings'
-        
+
 class SamiConfigDataParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
@@ -935,10 +941,10 @@ class SamiConfigDataParticle(DataParticle):
     _data_particle_type = DataParticleType.CONFIG_PARSED
     # The CRC is returned from the Sami Instrument when a new configuration is written (L5A)
     _config_crc = None  # Last downloaded configuration CRC value.
-    
+
     def _build_parsed_values(self):
         result = {}
-            
+
         log.debug(">>>>>>>>>>>>>>>>>>>> SamiConfigDataParticle Build Parsed Config Values ")
         # Restore the first character we removed for recognition.
         # TODO: Improve logic to not rely on 1st character of "C"
@@ -949,15 +955,15 @@ class SamiConfigDataParticle(DataParticle):
         MODE_SLOT1_FOLLOWS_SAMI_SAMPLE  = 0x04    # External Device-1
         MODE_SLOT1_INDEPENDENT_SCHEDULE = 0x08
         MODE_SLOT2_FOLLOWS_SAMI_SAMPLE  = 0x10    # External Device-2
-        MODE_SLOT2_INDEPENDENT_SCHEDULE = 0x20    
+        MODE_SLOT2_INDEPENDENT_SCHEDULE = 0x20
         MODE_SLOT3_FOLLOWS_SAMI_SAMPLE  = 0x40     # External Device-3
         MODE_SLOT3_INDEPENDENT_SCHEDULE = 0x80
-        
-        # Global Configuration Data Bits Definitions.  
+
+        # Global Configuration Data Bits Definitions.
         CFG_GLOBAL_BAUD_RATE_57600 = 0x1
         CFG_GLOBAL_SEND_RECORD_TYPE_EARLY = 0x2
         CFG_GLOBAL_SEND_LIVE_RECORDS = 0x4
-        
+
         # Restore the first character that was used as an indentifier.
         # CJC: This id is not very unique!
         raw_data = self.raw_data
@@ -987,7 +993,7 @@ class SamiConfigDataParticle(DataParticle):
         slot2_independent_schedule = None
         slot3_follows_sami_sample  = None
         slot3_independent_schedule = None
-                
+
         # Global Configuration Register
         use_baud_rate_9600 = None  # 57600 / 9600
         send_record_type_early = None
@@ -998,41 +1004,41 @@ class SamiConfigDataParticle(DataParticle):
         pump_on_to_measure = None
         samples_per_measure = None
         cycles_between_blanks = None
-        num_reagent_cycles = None    
+        num_reagent_cycles = None
         num_blank_cycles = None
         flush_pump_interval = None
         bit_switch = None
         blank_flush_on_start_enable = None
         pump_pulse_post_measure = None
         num_extra_pump_pulse_cycles = None
-        
+
         # Not used and hard-coded right now.
         serial_settings = None
 
         timer_interval_list = []
         driver_id_list = []
         param_ptr_list = []
-        
-        # Decode Time Stamp since Launch       
+
+        # Decode Time Stamp since Launch
         txt = match.group(1)
         txt = "C" + txt   # Add back in Match character.
         try:
             program_date_time = int(txt,16)
         except Exception, e:
             raise SampleException("ValueError decoding Config DateTime: [%s] [%s]" % (txt,str(e)))
-        
+
         txt = match.group(2)
         try:
             start_time_offset = int(txt,16)
         except Exeption, e:
             raise SampleException("ValueError decoding Config StartTime: [%s] [%s]" % (txt,str(e)))
- 
+
         txt = match.group(3)
         try:
             recording_time = int(txt,16)
         except Exeption, e:
             raise SampleException("ValueError decoding Config RecordingTime: [%s] [%s]" % (txt,str(e)))
-        
+
         '''
         log.debug("program_date_time = " + str(hex(program_date_time)))
         log.debug("start_time_offset = " + str(hex(start_time_offset)))
@@ -1053,7 +1059,7 @@ class SamiConfigDataParticle(DataParticle):
         slot2_independent_schedule = bool(mode & MODE_SLOT2_INDEPENDENT_SCHEDULE)
         slot3_follows_sami_sample  = bool(mode & MODE_SLOT3_FOLLOWS_SAMI_SAMPLE)
         slot3_independent_schedule = bool(mode & MODE_SLOT3_INDEPENDENT_SCHEDULE)
-        
+
         # Debug
         '''
         log.debug("pmi_sample_schedule = " + str(pmi_sample_schedule))
@@ -1070,7 +1076,7 @@ class SamiConfigDataParticle(DataParticle):
         timer_interval = None
         driver_id = None
         param_ptr = None
-        
+
         idx = 5
         device_group = []
         for i in range(5):
@@ -1081,7 +1087,7 @@ class SamiConfigDataParticle(DataParticle):
                 timer_interval = int(txt,16)
             except Exception, e:
                 raise SampleException("ValueError decoding Config Timer %d: [%s] [%s]" % (i,txt,str(e)))
-                
+
             timer_interval_list.append( timer_interval )
             #
             # Decode Driver ID
@@ -1090,9 +1096,9 @@ class SamiConfigDataParticle(DataParticle):
                 driver_id = int(txt,16)
             except Exception, e:
                 raise SampleException("ValueError decoding Config DriverID %d: [%s] [%s]" % (i,txt,str(e)))
-                
+
             driver_id_list.append( driver_id )
-            
+
             #
             # Decode Parameter Pointer
             txt = match.group(idx+2)
@@ -1102,13 +1108,13 @@ class SamiConfigDataParticle(DataParticle):
                 raise SampleException("ValueError decoding Config ParamPtr %d: [%s] [%s]" % (i,txt,str(e)))
             param_ptr_list.append( param_ptr )
             idx = idx + 3
-            
+
             '''
             log.debug(" timer_interval = " + str(timer_interval))
             log.debug(" driver_id = " + str(driver_id))
             log.debug(" param_ptr = " + str(param_ptr))
             '''
-    
+
             # Put Timer,Device,Pointer Triples into their categories
             if( i == 0):
                 self.contents[SamiConfigDataParticleKey.TIMER_INTERVAL_SAMI] = timer_interval;
@@ -1131,7 +1137,7 @@ class SamiConfigDataParticle(DataParticle):
                 self.contents[SamiConfigDataParticleKey.DRIVER_ID_PRESTART] = driver_id;
                 self.contents[SamiConfigDataParticleKey.PARAM_PTR_PRESTART] = param_ptr;                
         # end for
-    
+
         # The next byte is the Global Configuration Switches.
         txt = match.group(idx)
         idx = idx + 1
@@ -1139,12 +1145,12 @@ class SamiConfigDataParticle(DataParticle):
             cfg_reg = int(txt,16)
         except Exception, e:
             raise SampleException("Sami Config-Global_Register (%s) Fatal: %s" % (txt,str(e)))   
-        
+
         # A Bit "set" indicates 57600 Baud rate, else 9600 so we have to invert logic
         use_baud_rate_9600 = bool(cfg_reg & CFG_GLOBAL_BAUD_RATE_57600) == False
         send_record_type_early = bool(cfg_reg & CFG_GLOBAL_SEND_RECORD_TYPE_EARLY)
         send_live_records = bool(cfg_reg & CFG_GLOBAL_SEND_LIVE_RECORDS)
-        
+
         self.contents[SamiConfigDataParticleKey.USE_BAUD_RATE_9600]     = use_baud_rate_9600
         self.contents[SamiConfigDataParticleKey.SEND_RECORD_TYPE_EARLY] = send_record_type_early
         self.contents[SamiConfigDataParticleKey.SEND_LIVE_RECORDS]      = send_live_records
@@ -1185,14 +1191,14 @@ class SamiConfigDataParticle(DataParticle):
             bit_switch = int(txt,16)
         except Exception, e:
             raise SampleException("Sami Config Bit-Switch (%s) Fatal: %s" % (txt,str(e)))   
-        
+
         blank_flush_on_start_enable = (bool(bit_switch & 0x1) == False)  # Logic Inverted.
         pump_pulse_post_measure = bool(bit_switch & 0x2)
 
         txt = match.group(idx)
         idx = idx + 1
         num_extra_pump_pulse_cycles = int(txt,16)
-            
+
         # PCO2 Pump Data Parameter Updates.
         self.contents[SamiConfigDataParticleKey.PUMP_PULSE] = pump_pulse
         self.contents[SamiConfigDataParticleKey.PUMP_ON_TO_MEAURSURE] = pump_on_to_measure
@@ -1204,7 +1210,7 @@ class SamiConfigDataParticle(DataParticle):
         self.contents[SamiConfigDataParticleKey.BLANK_FLUSH_ON_START_ENABLE] = blank_flush_on_start_enable
         self.contents[SamiConfigDataParticleKey.PUMP_PULSE_POST_MEASURE] = pump_pulse_post_measure
         self.contents[SamiConfigDataParticleKey.NUM_EXTRA_PUMP_PULSE_CYCLES] = num_extra_pump_pulse_cycles
-        
+
         '''
         log.debug("Decoding string: " + raw_data[SamiConfiguration._SAMI_DRIVER_PARAM_INDEX:SamiConfiguration._SAMI_DRIVER_PARAM_INDEX+18])
         log.debug("pump_pulse = " + str(hex(pump_pulse)))
@@ -1219,19 +1225,19 @@ class SamiConfigDataParticle(DataParticle):
         log.debug("pump_pulse_post_measure = " + str(pump_pulse_post_measure))
         log.debug("num_extra_pump_pulse_cycles = " + str(hex(num_extra_pump_pulse_cycles)))
         '''
-    
-        # Serial settings is next match.        
+
+        # Serial settings is next match.
         txt = match.group(idx)
         idx = idx + 1
         serial_settings = txt
-        
+
         # These parameters are not currently used.
         duration_1_txt = match.group(idx)
         idx = idx + 1
         duration_2_txt = match.group(idx)
         idx = idx + 1
         unused_txt = match.group(idx)
-        idx = idx + 1    
+        idx = idx + 1
 
         log.debug("  ** index = " + str(idx))
 
@@ -1241,21 +1247,20 @@ class SamiConfigDataParticle(DataParticle):
         log.debug("duration2: " + duration_2_txt )
         log.debug("Meaningless parameter: " + unused_txt )
         '''
-    
+
         # Every driver that has a parser that parses a particle timestamp will need to be updated.
         # Store the timestamp using a unix time.
         tsec_unix = program_date_time - NSECONDS_1904_TO_1970
         self.set_internal_timestamp(tsec_unix)
-        
+
         # Store the timestamp using an ntp timestamp.
         # Return the results as a list.
         result = [{DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.LAUNCH_TIME,
                    DataParticleKey.VALUE: program_date_time},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.START_TIME_OFFSET,
-                   DataParticleKey.VALUE: start_time_offset},                  
+                   DataParticleKey.VALUE: start_time_offset},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.RECORDING_TIME,
-                   DataParticleKey.VALUE: recording_time},                   
-                  
+                   DataParticleKey.VALUE: recording_time},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.PMI_SAMPLE_SCHEDULE,
                    DataParticleKey.VALUE: pmi_sample_schedule},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.SAMI_SAMPLE_SCHEDULE,
@@ -1272,7 +1277,6 @@ class SamiConfigDataParticle(DataParticle):
                    DataParticleKey.VALUE: slot3_follows_sami_sample},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE,
                    DataParticleKey.VALUE: slot3_independent_schedule},
-                  
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.TIMER_INTERVAL_SAMI,
                    DataParticleKey.VALUE: timer_interval_list[0]},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.DRIVER_ID_SAMI,
@@ -1284,13 +1288,13 @@ class SamiConfigDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.DRIVER_ID_1,
                    DataParticleKey.VALUE: driver_id_list[1]},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.PARAM_PTR_1,
-                   DataParticleKey.VALUE: param_ptr_list[1]},     
+                   DataParticleKey.VALUE: param_ptr_list[1]},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.TIMER_INTERVAL_2,
                    DataParticleKey.VALUE: timer_interval_list[2]},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.DRIVER_ID_2,
                    DataParticleKey.VALUE: driver_id_list[2]},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.PARAM_PTR_2,
-                   DataParticleKey.VALUE: param_ptr_list[2]},              
+                   DataParticleKey.VALUE: param_ptr_list[2]},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.TIMER_INTERVAL_3,
                    DataParticleKey.VALUE: timer_interval_list[3]},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.DRIVER_ID_3,
@@ -1303,14 +1307,12 @@ class SamiConfigDataParticle(DataParticle):
                    DataParticleKey.VALUE: driver_id_list[4]},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.PARAM_PTR_PRESTART,
                    DataParticleKey.VALUE: param_ptr_list[4]},
-                  
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.USE_BAUD_RATE_9600,
                    DataParticleKey.VALUE: use_baud_rate_9600},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.SEND_RECORD_TYPE_EARLY,
                    DataParticleKey.VALUE: send_record_type_early},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.SEND_LIVE_RECORDS,
                    DataParticleKey.VALUE: send_live_records},
-                  
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.PUMP_PULSE,
                    DataParticleKey.VALUE: pump_pulse},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.PUMP_ON_TO_MEAURSURE,
@@ -1328,7 +1330,7 @@ class SamiConfigDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.BLANK_FLUSH_ON_START_ENABLE,
                    DataParticleKey.VALUE: blank_flush_on_start_enable},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.PUMP_PULSE_POST_MEASURE,
-                   DataParticleKey.VALUE: pump_pulse_post_measure},                  
+                   DataParticleKey.VALUE: pump_pulse_post_measure},
                   {DataParticleKey.VALUE_ID: SamiConfigDataParticleKey.NUM_EXTRA_PUMP_PULSE_CYCLES,
                    DataParticleKey.VALUE: num_extra_pump_pulse_cycles}]
         return result
@@ -1339,7 +1341,7 @@ class SamiImmediateStatusDataParticleKey(BaseEnum):
     EXTERNAL_POWER_ON = "external_power_on",
     DEBUG_LED = "debug_led_on",
     DEBUG_ECHO = "debug_echo_on"
-    
+
 class SamiImmediateStatusDataParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
@@ -1357,20 +1359,20 @@ class SamiImmediateStatusDataParticle(DataParticle):
         match = regex1.match(self.raw_data)
         if not match:
             raise SampleException("No regex match of parsed status data: [%s]" % self.raw_data)
-        
+
         pump_on = None
         valve_on = None
         external_power_on = None
         debug_led_on = None
         debug_echo_on = None
-        
+
         txt = match.group(1)
         status_word = int(txt,16)
-        
+
         pump_on  = bool(status_word & 0x01)
         valve_on = bool(status_word & 0x02)
         external_power_on = bool(status_word & 0x04)
-        debug_led  = bool(status_word & 0x10)     
+        debug_led  = bool(status_word & 0x10)
         debug_echo = bool(status_word & 0x20)
         '''
         log.debug("status_word = " + str(hex(status_word)))
@@ -1390,9 +1392,9 @@ class SamiImmediateStatusDataParticle(DataParticle):
                    DataParticleKey.VALUE: debug_led},
                   {DataParticleKey.VALUE_ID: SamiImmediateStatusDataParticleKey.DEBUG_ECHO,
                    DataParticleKey.VALUE: debug_echo} ]
-       
+
         return result
-        
+
 class SamiRegularStatusDataParticleKey(BaseEnum):
     ELAPSED_TIME_CONFIG = "elapsed_time_config "
     CLOCK_ACTIVE = "clock_active"
@@ -1423,7 +1425,7 @@ class SamiRegularStatusDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
         result = {}
-        
+
         regex1 = REGULAR_STATUS_REGEX_MATCHER
         match = regex1.match(self.raw_data)
         if not match:
@@ -1437,7 +1439,7 @@ class SamiRegularStatusDataParticle(DataParticle):
 
         # initialize
         elapsed_time_config  = None
-        clock_active         = None   
+        clock_active         = None
         recording_active     = None
         record_end_on_time   = None
         record_memory_full   = None
@@ -1448,7 +1450,7 @@ class SamiRegularStatusDataParticle(DataParticle):
         battery_low_measurement = None
         battery_low_bank     = None
         battery_low_external = None
-        external_device_fault = None     
+        external_device_fault = None
         flash_erased     = None
         power_on_invalid = None
 
@@ -1464,20 +1466,20 @@ class SamiRegularStatusDataParticle(DataParticle):
         if( time_offset == 0xFFFFFFFF ):
             log.debug("Invalid Time Offset Found! " + str(hex(time_offset)))
             return(result)
-            
-        # Decode the device status word.            
+
+        # Decode the device status word.
         try:
             # Decode Bit-fields.
             txt = match.group(2)
             status_word = int(txt,16)
-            
+
         except IndexError:
             #These are optional. Quietly ignore if they dont occur.
             pass
 
         else:
             # Decode the status word.
-            clock_active         = bool(status_word & 0x001)      
+            clock_active         = bool(status_word & 0x001)
             recording_active     = bool(status_word & 0x002)
             record_end_on_time   = bool(status_word & 0x004)
             record_memory_full   = bool(status_word & 0x008)
@@ -1488,7 +1490,7 @@ class SamiRegularStatusDataParticle(DataParticle):
             battery_low_measurement = bool(status_word & 0x100)
             battery_low_bank     = bool(status_word & 0x200)
             battery_low_external = bool(status_word & 0x400)
-            
+
             '''
             # Debug Output
             m, s = divmod(time_offset, 60)
@@ -1496,7 +1498,6 @@ class SamiRegularStatusDataParticle(DataParticle):
             d, h = divmod(h, 24)
             log.debug("elapsed_time_config " + str(time_offset))
             log.debug("elapsed_time_config = %d %d:%02d:%02d" % (d, h, m, s) )
-            
             log.debug("status word = " + str(hex(status_word)))
             log.debug("clock_active " + str(clock_active))
             log.debug("recording_active " + str(recording_active))
@@ -1507,7 +1508,7 @@ class SamiRegularStatusDataParticle(DataParticle):
             log.debug("flash_memory_open " + str(flash_memory_open))
             log.debug("battery_fatal_error " + str(battery_fatal_error))
             log.debug("battery_low_measurement " + str(battery_low_measurement))
-            '''			
+            '''
             # Or bits together for External fault information (Bit-0 = Dev-1, Bit-1 = Dev-2)
             external_device_fault = 0x0
             if( bool(status_word & 0x0800) is True ):
@@ -1516,10 +1517,10 @@ class SamiRegularStatusDataParticle(DataParticle):
                 external_device_fault = external_device_fault | 0x2
             if( bool(status_word & 0x2000) is True ):
                 external_device_fault = external_device_fault | 0x4
-        
+
             flash_erased     = bool(status_word & 0x4000)
             power_on_invalid = bool(status_word & 0x8000)
-            
+
             result = [{DataParticleKey.VALUE_ID: SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG,
                        DataParticleKey.VALUE: time_offset },
                       {DataParticleKey.VALUE_ID: SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
@@ -1549,7 +1550,7 @@ class SamiRegularStatusDataParticle(DataParticle):
                       {DataParticleKey.VALUE_ID: SamiRegularStatusDataParticleKey.FLASH_ERASED,
                        DataParticleKey.VALUE: flash_erased},
                       {DataParticleKey.VALUE_ID: SamiRegularStatusDataParticleKey.POWER_ON_INVALID,
-                       DataParticleKey.VALUE: power_on_invalid} ]                
+                       DataParticleKey.VALUE: power_on_invalid}]
         return result
 
 ###############################################################################
@@ -1597,7 +1598,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     '''
     _sami_config = None
     _sami_new_config_str = None
-      
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -1689,7 +1690,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             except Exception, e:
                 raise SampleException("Sami decode_record 1 (%s) Fatal: %s" % (txt,str(e)))
             log.debug("record_length = " + str(rec_len))
-            
+
             # Decode the record type.
             txt = s[5:7]
             try:
@@ -1698,7 +1699,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 raise SampleException("Sami decode_record 2 (%s) Fatal: %s" % (txt,str(e)))
             log.debug("record_type = " + str(hex(rec_type)))
         return(rec_type,rec_len)
-    
+
     @staticmethod
     def sieve_function(raw_data):
         """
@@ -1728,10 +1729,10 @@ class Protocol(CommandResponseInstrumentProtocol):
             if((rec_type >= 0x80) & (rec_type <= 0xFF)):
                 n = 3 + (2 * rec_len)
                 return_list.append((i, i+n))
-                
+
         sieve_matchers = [REGULAR_STATUS_REGEX_MATCHER,  # Reguar Status
                           CONFIG_REGEX_MATCHER]          # PCO2W Configuration
-                                   
+
         for matcher in sieve_matchers:
             for match in matcher.finditer(raw_data):
                 # log.debug("match start " + str(match.start()) + " end = " + str(match.end()))
@@ -1743,7 +1744,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Private helpers.
     ########################################################################
-    
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
@@ -1758,7 +1758,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Here we will index to the values in the "fixed string".
         # Pointer to the 1st SAMI Driver 4/5 Parameter String.
         param_index = SamiConfiguration._SAMI_DRIVER_PARAM_INDEX
-        
+
         # Add parameter handlers to parameter dict.
         self._param_dict.add(Parameter.PUMP_PULSE,
             r'^(.{%s})(.{2}).*' % str(param_index),   # Fixed offset.
@@ -1777,7 +1777,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             direct_access = False,
             default_value = 32,
             visibility=ParameterDictVisibility.READ_ONLY)
-      
+
         self._param_dict.add(Parameter.NUM_SAMPLES_PER_MEASURE,
             r'^(.{%s})(.{2}).*' % str(param_index+4),   # Fixed offset.
             lambda match: self._string_to_int(match.group(2)),
@@ -1786,7 +1786,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             direct_access = False,
             default_value = 255,
             visibility=ParameterDictVisibility.READ_ONLY)
-        
+
         self._param_dict.add(Parameter.NUM_CYCLES_BETWEEN_BLANKS,
             r'^(.{%s})(.{2}).*' % str(param_index+6),   # Fixed offset.
             lambda match: self._string_to_int(match.group(2)),
@@ -1795,7 +1795,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             direct_access = True,
             default_value = 168,
             visibility=ParameterDictVisibility.READ_WRITE)
-                   
+
         self._param_dict.add(Parameter.NUM_REAGENT_CYCLES,
             r'^(.{%s})(.{2}).*' % str(param_index+8),   # Fixed offset.
             lambda match: self._string_to_int(match.group(2)),
@@ -1804,7 +1804,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             direct_access = False,
             default_value = 24,
             visibility=ParameterDictVisibility.READ_ONLY)
-                   
+
         self._param_dict.add(Parameter.NUM_BLANK_CYCLES,
             r'^(.{%s})(.{2}).*' % str(param_index+10),   # Fixed offset.
             lambda match: self._string_to_int(match.group(2)),
@@ -1817,13 +1817,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(Parameter.FLUSH_PUMP_INTERVAL_SEC,
             r'^(.{%s})(.{2}).*' % str(param_index+12),   # Fixed offset.
             lambda match: self._string_to_int(match.group(2)),
-            lambda x: self._update_configuration_byte(value=x,pos=param_index+12),                          # Output, note needs to be 7
+            lambda x: self._update_configuration_byte(value=x,pos=param_index+12),  # Output, note needs to be 7
             startup_param = False,
             direct_access = False,
             default_value = 1,
             visibility=ParameterDictVisibility.READ_ONLY)
-        
-        # Special method to populate individual bit-fields              
+
+        # Special method to populate individual bit-fields
         self._param_dict.add_parameter( 
             FunctionParameter( Parameter.STARTUP_BLANK_FLUSH_ENABLE,
                                   lambda s: self._decode_switch_bit_invert(input=s,bit_offset=0,pos=param_index+14),
@@ -1833,7 +1833,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                                   default_value = False,
                                   visibility=ParameterDictVisibility.READ_WRITE)
                                          )
-       
+
         # Special method to populate individual bit-fields
         # Note bit values is inverted for this selection
         self._param_dict.add_parameter(
@@ -1845,7 +1845,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                                   default_value = False,
                                   visibility=ParameterDictVisibility.READ_ONLY)
                                          )
-        
+
         self._param_dict.add(Parameter.NUM_EXTRA_PUMP_PULSE_CYCLES,
             r'^(.{%s})(.{2}).*' % str(param_index+16),   # Fixed offset.
             lambda match: self._string_to_int(match.group(2)),
@@ -1854,26 +1854,26 @@ class Protocol(CommandResponseInstrumentProtocol):
                                   startup_param = True,
                                   default_value = 56,
                                   visibility=ParameterDictVisibility.READ_ONLY)
-       
+
         # Debugging information.
         #pd = self._param_dict.get_config()
         #print(pd)
     # End _build_param_dict()
-    
+
     def _got_chunk(self, chunk, timestamp):
         """
-        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
-        with the appropriate parcle objects and REGEXes.        
-        @param: chunk - byte sequence that we want to create a particle from 
-        @param: timestamp - port agent timestamp to include in the chunk 
+        The base class got_data has gotten a chunk from the chunker. Pass it to
+        extract_sample with the appropriate parcle objects and REGEXes.
+        @param: chunk - byte sequence that we want to create a particle from
+        @param: timestamp - port agent timestamp to include in the chunk
         """
         log.debug(" got_chunk ************** " + chunk)
         if(self._extract_sample(SamiDataRecordParticle, DATA_RECORD_REGEX_MATCHER, chunk, timestamp)):
             log.debug("_got_chunk of Data Record = Passed good")
-        
+
         elif(self._extract_sample(SamiControlRecordParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)):
             log.debug("_got_chunk of Control Record = Passed good")
-        
+
         elif(self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)):
             log.debug("_got_chunk of Regular Status = Passed good")
             self._parse_S_response(chunk, None)
@@ -1881,10 +1881,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         elif(self._extract_sample(SamiConfigDataParticle, CONFIG_REGEX_MATCHER, chunk, timestamp)):
             log.debug("_got_chunk of Config = Passed good")
             self._parse_config_response(chunk, None)
-            
+
         elif(self._extract_sample(SamiErrorDataParticle, ERROR_REGEX_MATCHER, chunk, timestamp)):
             log.debug("_got_chunk of Error = Passed good")
-        
+
         else:
             log.debug("_got_chunk = Failed")
 
@@ -1906,10 +1906,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         log.debug("Testing _handler_unknown_enter")
-                                
+
         # Initialize the Sami Configuration String for the first time.
         self._sami_config.clear()
-        
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -1932,24 +1932,24 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("Testing _handler_unknown_discover")
         next_state = None
         next_agent_state = None
-        
+
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.IDLE
-        
+
         # Since we are just starting clear out any configuration information being built.
         self._sami_new_config_str = None
-        
+
         # Make sure automatic-status update is off
         # This will stop the broadcast of information while we are trying to get data.
         cmd = self._build_simple_command(InstrumentCmds.AUTO_STATUS_OFF, NEWLINE)
         self._do_cmd_direct(cmd)
-        
+
         # We can actually put Sami in a Poll state by setting the start time way in the future.
         # Acquire one sample and return the result.
         log.debug(">>>>>>>>>>>>>>>> GET_CONFIGURATION")
         cmd = self._build_simple_command(InstrumentCmds.GET_CONFIGURATION, NEWLINE)
         self._do_cmd_direct(cmd)
-        
+
         return( next_state, next_agent_state )
 
     ########################################################################
@@ -1965,7 +1965,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         next_agent_state = None
         return( next_state, next_agent_state)
-        
+
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Stop autosample and switch back to command mode.
@@ -1983,7 +1983,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Update configuration parameters and send.
         self._do_cmd_resp(InstrumentCmds.IMMEDIATE_STATUS,
                           *args, **kwargs)
-        
+
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
@@ -2001,7 +2001,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         # Command device to update parameters and send a config change event.
         log.debug("*** IN _handler_command_enter(), updating params")
-        
+
         # Command device to update parameters and send a config change event.
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -2023,7 +2023,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         kwargs['timeout'] = 30 # samples can take a long time
-        
+
         # cmd = self._build_simple_command(InstrumentCmds.TAKE_SAMPLE,NEWLINE)
         # self._do_cmd_direct(cmd)
         # Acquire one sample and return the result.
@@ -2048,12 +2048,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         kwargs['timeout'] = 30 # samples can take a long time
 
         # Acquire one sample and return the result.
-        # result = self._do_cmd_no_resp(InstrumentCmds.DEVICE_STATUS, *args, **kwargs)        
+        # result = self._do_cmd_no_resp(InstrumentCmds.DEVICE_STATUS, *args, **kwargs)
         cmd = self._build_simple_command(InstrumentCmds.DEVICE_STATUS,NEWLINE)
         self._do_cmd_direct(cmd)
 
         return (next_state, (next_agent_state, result))
-    
+
     def _handler_command_acquire_configuration(self, *args, **kwargs):
         """
         Acquire sample from device.
@@ -2108,9 +2108,9 @@ class Protocol(CommandResponseInstrumentProtocol):
             result_vals = {}
             # result = self._param_dict.get_config()
             log.debug("DriverParameter.ALL 22222222222222222222222222222222222222222222 ")
-               
+
             result = self._param_dict.get_config()
-                
+
             log.debug("DriverParameter.ALL 33333333333333333333333333333333333333333333 ")
 
         else:
@@ -2119,7 +2119,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             # Retireve each key in the list, raise if any are invalid.
             if not isinstance(params, (list, tuple)):
                 raise InstrumentParameterException('Get argument not a list or tuple.')
-            
+
             result = {}
             for key in params:
                 val = self._param_dict.get(key)
@@ -2144,19 +2144,19 @@ class Protocol(CommandResponseInstrumentProtocol):
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
-        # Get the current configuration parameters to see if we need to change.                
+        # Get the current configuration parameters to see if we need to change.
         if ((params is None) or (not isinstance(params, dict))):
             raise InstrumentParameterException("Not a valid set parameter")
-        
-        # These are the parameters we are going to set...       
+
+        # These are the parameters we are going to set...
         for (key, val) in params.iteritems():
             log.debug("KEY = %s VALUE = %s", key, val)
-            
+
         for key in params.keys():
             if not Parameter.has(key):
                 raise InstrumentParameterException()
             try:
-                str_val = self._param_dict.format(key, params[key])                       
+                str_val = self._param_dict.format(key, params[key])
                 log.debug("str_value ========= " + str_val)
                 self._param_dict.update(self._sami_new_config_str)
                 # Do a get function to make sure it got updated.
@@ -2165,11 +2165,11 @@ class Protocol(CommandResponseInstrumentProtocol):
                 log.debug("param from reality 1 = " + str(hex(val)))
             except KeyError:
                 raise InstrumentParameterException()
-            
+
         result = result_vals
-        
+
         return (next_state, result_vals)
-       
+
     def _handler_command_start_autosample(self):
         """
         Start autosample
@@ -2182,9 +2182,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         # self._do_cmd_no_response(Command.GoGo)
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
-        
+
         return (next_state, (next_agent_state, result))
-        
+
     def _handler_command_clock_sync(self, *args, **kwargs):
         """
         execute a clock_sync by checking the current time.
@@ -2202,7 +2202,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._do_cmd_resp(InstrumentCmds.SET_REAL_TIME_CLOCK, byte_time, **kwargs)
 
         return (next_state, (next_agent_state, result))
-    
+
     ########################################################################
     # Direct access handlers.
     ########################################################################
@@ -2248,7 +2248,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = ResourceAgentState.COMMAND
 
         return (next_state, (next_agent_state, result))
-    
+
     ########################################################################
     # Autosample handlers.
     ########################################################################
@@ -2341,7 +2341,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _set_params(self, config):
         log.debug("_set_params()...")
         print(config)
-        
+
     def _apply_params(self):
         """
         apply startup parameters to the instrument.
@@ -2374,7 +2374,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         log.debug("Clean instrument config")
         return False
-    
+
     ########################################################################
     # Private helpers.
     ########################################################################
@@ -2391,7 +2391,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         pd = self._param_dict.get_config()
         log.debug("Logging? %s" % pd.get(SamiRegularStatusDataParticleKey.RECORDING_ACTIVE))
         return pd.get(SamiRegularStatusDataParticleKey.RECORDING_ACTIVE)
-    
+
     def _convert_sami_time_to_sec(self, s):
         """
         Test: CAB39E84 = Time of programming (GMT) Oct 6, 2011 18:05:56 (total seconds from 1/1/1904)
@@ -2404,7 +2404,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         return(timestamp)
 
     def _decode_device_status_word(self, status):
-        clock_active         = bool(status & 0x001)      
+        clock_active         = bool(status & 0x001)
         recording_active     = bool(status & 0x002)
         record_end_on_time   = bool(status & 0x004)
         record_memory_full   = bool(status & 0x008)
@@ -2415,7 +2415,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         battery_low_measurement = bool(status & 0x100)
         battery_low_bank     = bool(status & 0x200)
         battery_low_external = bool(status & 0x400)
-        
+
         external_device_fault = 0x0
         if( (status & 0x0800) == 0x0800 ):
             external_device_fault = external_device_fault | 0x1
@@ -2423,11 +2423,11 @@ class Protocol(CommandResponseInstrumentProtocol):
             external_device_fault = external_device_fault | 0x2
         if( (status & 0x2000) == 0x2000 ):
             external_device_fault = external_device_fault | 0x4
-            
+
         flash_erased     = bool(status & 0x4000)
         power_on_invalid = bool(status & 0x8000)
-    
-        log.debug("status_flags = " + str(hex(status)) )
+
+        log.debug("status_flags = " + str(hex(status)))
         log.debug("clk_active = " + str(clock_active))
         log.debug("recording_active = " + str(recording_active))
         log.debug("record_end_on_time = " + str(record_end_on_time))
@@ -2443,15 +2443,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("flash_erased = " + str(flash_erased))
         log.debug("power_on_invalid = " + str(power_on_invalid))
 
-#        # Jump in and update the parameter dictionary here!        
+#        # Jump in and update the parameter dictionary here!
 #        param = Parameter.PUMP_ON_TO_MEASURE;
 #        param['value'] = pump_on;
-         
+
     def set_from_value(self, name, val):
         pd= self._param_dict.get_config()
         log.debug("  ** old pd = " + str(pd[name]));
         self._param_dict.set(name, val)
-           
+
     ###################################################################
     # Builders
     ###################################################################
@@ -2460,7 +2460,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Build a command that is ready to send out to the instrument. Checks for
         valid parameter name, only handles one value at a time.
-        
+
         @param cmd The command...in this case, Command.SET
         @param param The name of the parameter to set. From Parameter enum
         @param value The value to set for that parameter
@@ -2488,23 +2488,23 @@ class Protocol(CommandResponseInstrumentProtocol):
             try:
                 error_no = int(txt,16)
             except Exception, e:
-                raise SampleException("Sami _find_error(%s) Fatal: %s" % (txt,str(e)))                
+                raise SampleException("Sami _find_error(%s) Fatal: %s" % (txt,str(e)))
         return(error_no)
-    
+
     def _parse_config_response(self, response, prompt):
         """
         Response handler for configuration "L" command
         """
         log.debug("CCCCCCCCCCCCCCCCCCCCCCCCCCCCC response = " + response)
         result = None
-        
+
         # Check for error response
         error_no = self._find_error(response)
         if error_no:
             error_no_str = SamiConfiguration.get_error_str(error_no)
             log.error("Sami Config command error; type='%s' msg='%s'", error[0], error_no_str)
             raise InstrumentParameterException('Sami Command failure: type="%d" msg="%s"' % (error_no, error_no_str))
-        
+
         else:
             # This is how we are populating the Parameter Dictionary.
             self._update_sami_config(response)
@@ -2512,13 +2512,13 @@ class Protocol(CommandResponseInstrumentProtocol):
             # self._param_dict.update(response)
             self._param_dict.update_many(response)
             log.debug("done update with result ")
-            
+
             # Determine if we are currently sampling.
-            start_time = self._sami_config.get_start_time(unix_fmt=True)            
+            start_time = self._sami_config.get_start_time(unix_fmt=True)
             is_recording = self._determine_state(start_time)
 
         return result
-    
+
     def _parse_I_response(self, response, prompt):
         """
         Response handler for Device Status command
@@ -2561,7 +2561,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             error_no_str = SamiConfiguration.get_error_str(error_no)
             log.error("Sami Config command error; type='%s' msg='%s'", error[0], error_no_str)
             raise InstrumentParameterException('Sami Command failure: type="%d" msg="%s"' % (error_no, error_no_str))
-           
+
         return result
 
     def _parse_R_response(self, response, prompt):
@@ -2575,7 +2575,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         result = None
         log.debug("RRRRRRRRRRRRRRRRRRRRRRRRRRRRR response = " + response)
-        
+
         lr = len(response)
         if(not lr):
             log.debug("No response found! ")
@@ -2596,17 +2596,17 @@ class Protocol(CommandResponseInstrumentProtocol):
                     log.debug("     *** Status match found " + result)
                 else:
                     log.debug("No Match Found " + response)
-                                
+
         # Process message
         return result
-    
+
     ########################################################################
     # Helpers.
-    ########################################################################    
+    ########################################################################
     def _wakeup(self, timeout):
         """There is no wakeup sequence for this instrument"""
         pass
-           
+
     def _determine_state(self, rec_time_sec):
         """
         Determine what state we are in by the instrument time settings.
@@ -2614,11 +2614,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         is_recording = None
         # Compute the current time in seconds.
-        time_now_sec = time.time()   # Current seconds since Epoch       
-            
+        time_now_sec = time.time()   # Current seconds since Epoch
+
         log.debug("time_now = " + time.asctime( time.gmtime(time_now_sec) ))
         log.debug("rec _now = " + time.asctime( time.gmtime(rec_time_sec) ))
-        
+
         if( rec_time_sec <= time_now_sec):
             is_recording = True
         else:
@@ -2643,7 +2643,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.debug("New Config: " + self._sami_new_config_str)
         else:
             log.debug("BADDDDD Config String")
-            
+
         log.debug("UUUUUUUUUUUUUUUUUU Update _update_sami_config() Done **********")
 
     def _update_params(self, *args, **kwargs):
@@ -2655,7 +2655,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException
         """
         log.debug("_update_params() - Updating parameter dict")
-        
+
         # Get all the key values.
         chk = self._sami_config.compare(self._sami_new_config_str)  # False is Different.
         if(chk is None):
@@ -2663,11 +2663,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         elif(chk is False):
             #??            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
             log.debug("UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU Update Configuration Command")
-#            self._do_cmd_resp(InstrumentCmds.SET_CONFIGURATION, timeout=timeout)            
+#            self._do_cmd_resp(InstrumentCmds.SET_CONFIGURATION, timeout=timeout)
         elif(chk is True):
             log.debug("No configuration change")
     # End _update_params()
-       
+
     ########################################################################
     # Static helpers to format set commands.
     ########################################################################
@@ -2703,12 +2703,12 @@ class Protocol(CommandResponseInstrumentProtocol):
                     iBitValue = (1 << bit_offset)
                     r = bool(val & iBitValue)
         return( r)
-    
+
     @staticmethod
     def _decode_switch_bit_invert(input, bit_offset, pos):
         return( Protocol._decode_switch_bit(input, bit_offset, pos) == False)
 
-    # Tools for configuration.   
+    # Tools for configuration.
     @staticmethod
     def _update_configuration_bit(value, bit_offset, pos):
         """

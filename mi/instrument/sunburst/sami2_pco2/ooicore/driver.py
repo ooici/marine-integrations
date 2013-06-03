@@ -6,16 +6,28 @@
 Release notes:
 
 Sunburst Sensors SAMI2-PCO2 pCO2 underwater sensor
+    Initial code developed by Chris Center
 """
 
 __author__ = 'Christopher Wingard'
 __license__ = 'Apache 2.0'
 
+import re
 import string
+import time
+import datetime
+import calendar
+import sys      # Exceptions
+import copy
+from threading import RLock
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger;
+log = get_logger()
 
 from mi.core.common import BaseEnum
+from mi.core.exceptions import SampleException
+from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentParameterException
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -24,14 +36,17 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
-from mi.core.instrument.chunker import StringChunker
-
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import FunctionParameter
+from mi.core.time import get_timestamp
+from mi.core.time import get_timestamp_delayed
 
 # newline.
-NEWLINE = '\r\n'
+NEWLINE = '\r'
 
 # default timeout.
 TIMEOUT = 10
@@ -39,6 +54,29 @@ TIMEOUT = 10
 ###
 #    Driver Constant Definitions
 ###
+# This will decode n+1 chars for {n}
+REGULAR_STATUS_REGEX = r'[:](\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{3})(\w[0-9A-Fa-f])(\w[0-9A-Fa-f])'
+REGULAR_STATUS_REGEX_MATCHER = re.compile(REGULAR_STATUS_REGEX)
+
+# Record Type4 or 5 are 39 bytes (78char)
+RECORD_REGEX = r'[*](\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f])'
+RECORD_REGEX_MATCHER = re.compile(RECORD_REGEX)
+
+DATA_RECORD_REGEX = r'[*](\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[4-5]{1})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{57})'
+CONTROL_RECORD_REGEX = r'[*](\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})([^4-5]{1})(\w[0-9A-Fa-f]{32})'  # This works.
+DATA_RECORD_REGEX_MATCHER = re.compile(DATA_RECORD_REGEX)
+CONTROL_RECORD_REGEX_MATCHER = re.compile(CONTROL_RECORD_REGEX)
+
+# Note: First string character "C" is valid for current time.
+CONFIG_REGEX = r'[C](\w[0-9A-Fa-f]{6})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{5})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{5})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{5})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{5})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{5})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{25})(\w[0-9A-Fa-f]{5})(\w[0-9A-Fa-f]{3})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{99})'
+CONFIG_REGEX_MATCHER = re.compile(CONFIG_REGEX)
+
+ERROR_REGEX = r'[?](\w[0-9A-Fa-f]{1})' # (\w[0-9A-Fa-f])'
+ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
+
+IMMEDIATE_STATUS_REGEX = r'(\w[0-9A-Fa-f]{1})'
+IMMEDIATE_STATUS_REGEX_MATCHER = re.compile(IMMEDIATE_STATUS_REGEX)
+
 
 class DataParticleType(BaseEnum):
     """
