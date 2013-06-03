@@ -149,7 +149,8 @@ class UtilMixin(DriverTestMixin):
                         "46A1BED628D9FE7F9581400017D1F4469DC2D7E8C1FE7F9501500017D1F40B4F" + NEWLINE +\
                         "Sampling GO" + NEWLINE
     
-    METBK_SAMPLE_DATA = "1012.53  44.543  24.090    0.0    1.12  24.240  0.0000 32788.7   -0.03   -0.02  0.0000 12.50" + NEWLINE
+    METBK_SAMPLE_DATA1 = "1012.53  44.543  24.090    0.0    1.12  24.240  0.0000 32788.7   -0.03   -0.02  0.0000 12.50" + NEWLINE
+    METBK_SAMPLE_DATA2 = "1013.53  44.543  24.090    0.0    1.12  24.240  0.0000 32788.7   -0.03   -0.02  0.0000 12.50" + NEWLINE
     
     ###
     # Parameter and Type Definitions
@@ -266,10 +267,10 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         """
         chunker = StringChunker(Protocol.sieve_function)
 
-        self.assert_chunker_sample(chunker, self.METBK_SAMPLE_DATA)
-        self.assert_chunker_sample_with_noise(chunker, self.METBK_SAMPLE_DATA)
-        self.assert_chunker_fragmented_sample(chunker, self.METBK_SAMPLE_DATA)
-        self.assert_chunker_combined_sample(chunker, self.METBK_SAMPLE_DATA)        
+        self.assert_chunker_sample(chunker, self.METBK_SAMPLE_DATA1)
+        self.assert_chunker_sample_with_noise(chunker, self.METBK_SAMPLE_DATA1)
+        self.assert_chunker_fragmented_sample(chunker, self.METBK_SAMPLE_DATA1)
+        self.assert_chunker_combined_sample(chunker, self.METBK_SAMPLE_DATA1)        
         
         self.assert_chunker_sample(chunker, self.METBK_STATUS_DATA)
         self.assert_chunker_sample_with_noise(chunker, self.METBK_STATUS_DATA)
@@ -278,7 +279,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 
     def test_corrupt_data_sample(self):
         # garbage is not okay
-        particle = METBK_SampleDataParticle(self.METBK_SAMPLE_DATA.replace('-0.03', 'foo'),
+        particle = METBK_SampleDataParticle(self.METBK_SAMPLE_DATA1.replace('-0.03', 'foo'),
                                             port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
@@ -295,14 +296,19 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 
         # validating data particles are published
         self.assert_particle_published(driver, self.METBK_STATUS_DATA, self.assert_data_particle_status, True)
-        self.assert_particle_published(driver, self.METBK_SAMPLE_DATA, self.assert_data_particle_sample, True)
+        self.assert_particle_published(driver, self.METBK_SAMPLE_DATA1, self.assert_data_particle_sample, True)
         
         # validate that a duplicate sample is not published
         try:
-            self.assert_particle_published(driver, self.METBK_SAMPLE_DATA, self.assert_data_particle_sample, True)
+            self.assert_particle_published(driver, self.METBK_SAMPLE_DATA1, self.assert_data_particle_sample, True)
         except AssertionError as e:
             if str(e) == "0 != 1":
                 pass
+            else:
+                raise e
+        
+        # validate that a new sample is published
+        self.assert_particle_published(driver, self.METBK_SAMPLE_DATA2, self.assert_data_particle_sample, False)
 
 
     def test_protocol_filter_capabilities(self):
@@ -365,8 +371,8 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
 
-        print("waiting 5 seconds for instrument data")
-        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample, timeout=5)
+        print("waiting 60 seconds for instrument data")
+        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample, timeout=60)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
     def test_parameters(self):
