@@ -31,6 +31,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import ResourceAgentEvent
 
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
@@ -102,7 +103,7 @@ class InstrumentProtocol(object):
         @raise InstrumentParameterExpirationException If we fail to update a parameter
         on the second pass this exception will be raised on expired data
         """
-        log.debug("%%% IN base _handler_command_get")
+        log.debug("%%% IN base _handler_get")
 
         next_state = None
         result = None
@@ -242,9 +243,38 @@ class InstrumentProtocol(object):
         """
         return events
 
+    def _async_agent_state_change(self, agent_state):
+        """
+        Used when we need to change the agent state from an asych
+        process.
+
+        @param agent_state: New agent state
+        """
+        val = {
+            'event' : ResourceAgentEvent.CHANGE_STATE_ASYNC,
+            'args' : [agent_state]
+        }
+
+        self._driver_event(DriverAsyncEvent.AGENT_EVENT, val)
+
     ########################################################################
     # Scheduler interface.
     ########################################################################
+    def _remove_scheduler(self, name):
+        """
+        remove a scheduler in a driver.
+        @param name the name of the job
+        @raise KeyError if we try to remove a non-existent job 
+        """
+        if(not self._scheduler_callback.get(name)):
+            raise KeyError("scheduler does not exist for '%s'" % name)
+
+        log.debug("removing scheduler: %s" % name)
+        callback = self._scheduler_callback.get(name) 
+        self._scheduler.remove_job(callback)
+        self._scheduler_callback.pop(name)
+        self._scheduler_config.pop(name, None)
+    
     def _add_scheduler(self, name, callback):
         """
         Stage a scheduler in a driver.  The job will actually be configured
@@ -689,6 +719,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             else:
                 prompt_list = expected_prompt
 
+        log.debug('_get_response: timeout=%s, prompt_list=%s, expected_prompt=%s,' %(timeout, prompt_list, expected_prompt))
         while True:
             for item in prompt_list:
                 index = self._promptbuf.find(item)
