@@ -22,6 +22,8 @@ import json
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.port_agent_client import PortAgentPacket
+from mi.core.instrument.protocol_param_dict import ParameterDictType
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM, ThreadSafeFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -44,7 +46,7 @@ log = get_logger()
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    PARSED = 'ctd_parsed_param_dict'
+    PARSED = 'parsed'
     DEVICE_CALIBRATION = 'device_calibration_parsed' # supported in preload even?
     DEVICE_STATUS = 'device_status_parsed' # supported in preload even?
     
@@ -1329,154 +1331,194 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._param_dict.add(SBE37Parameter.OUTPUTSAL,
                              r'(do not )?output salinity with each sample',
                              lambda match : False if match.group(1) else True,
-                             self._true_false_to_string)
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL)
         self._param_dict.add(SBE37Parameter.OUTPUTSV,
                              r'(do not )?output sound velocity with each sample',
                              lambda match : False if match.group(1) else True,
-                             self._true_false_to_string)
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL)
         self._param_dict.add(SBE37Parameter.NAVG,
                              r'number of samples to average = (\d+)',
                              lambda match : int(match.group(1)),
                              self._int_to_string,
-                             direct_access=True)
+                             direct_access=True,
+                             type=ParameterDictType.INT)
         self._param_dict.add(SBE37Parameter.SAMPLENUM,
                              r'samplenumber = (\d+), free = \d+',
                              lambda match : int(match.group(1)),
-                             self._int_to_string)
+                             self._int_to_string,
+                             type=ParameterDictType.INT)
         self._param_dict.add(SBE37Parameter.INTERVAL,
                              r'sample interval = (\d+) seconds',
                              lambda match : int(match.group(1)),
                              self._int_to_string,
                              default_value=1,
-                             startup_param=True)
+                             startup_param=True,
+                             type=ParameterDictType.INT)
         self._param_dict.add(SBE37Parameter.STORETIME,
                              r'(do not )?store time with each sample',
                              lambda match : False if match.group(1) else True,
-                             self._true_false_to_string)
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL)
         self._param_dict.add(SBE37Parameter.TXREALTIME,
                              r'(do not )?transmit real-time data',
                              lambda match : False if match.group(1) else True,
-                             self._true_false_to_string)
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL)
         self._param_dict.add(SBE37Parameter.SYNCMODE,
                              r'serial sync mode (enabled|disabled)',
                              lambda match : False if (match.group(1)=='disabled') else True,
-                             self._true_false_to_string)
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL)
         self._param_dict.add(SBE37Parameter.SYNCWAIT,
                              r'wait time after serial sync sampling = (\d+) seconds',
                              lambda match : int(match.group(1)),
-                             self._int_to_string)
+                             self._int_to_string,
+                             type=ParameterDictType.INT)
         self._param_dict.add(SBE37Parameter.TCALDATE,
                              r'temperature: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
-                             self._date_to_string)
+                             self._date_to_string,
+                             type=ParameterDictType.LIST,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(SBE37Parameter.TA0,
                              r' +TA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.TA1,
                              r' +TA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.TA2,
                              r' +TA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.TA3,
                              r' +TA3 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.CCALDATE,
                              r'conductivity: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
-                             self._date_to_string)
+                             self._date_to_string,
+                             type=ParameterDictType.LIST,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(SBE37Parameter.CG,
                              r' +G = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.CH,
                              r' +H = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.CI,
                              r' +I = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.CJ,
                              r' +J = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.WBOTC,
                              r' +WBOTC = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.CTCOR,
                              r' +CTCOR = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.CPCOR,
                              r' +CPCOR = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.PCALDATE,
                              r'pressure .+ ((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
-                             self._date_to_string)
+                             self._date_to_string,
+                             type=ParameterDictType.LIST,
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(SBE37Parameter.PA0,
                              r' +PA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.PA1,
                              r' +PA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.PA2,
                              r' +PA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.PTCA0,
                              r' +PTCA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.PTCA1,
                              r' +PTCA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.PTCA2,
                              r' +PTCA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.PTCB0,
                              r' +PTCSB0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.PTCB1,
                              r' +PTCSB1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.PTCB2,
                              r' +PTCSB2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.POFFSET,
                              r' +POFFSET = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.RCALDATE,
                              r'rtc: +((\d+)-([a-zA-Z]+)-(\d+))',
                              lambda match : self._string_to_date(match.group(1), '%d-%b-%y'),
-                             self._date_to_string)
+                             self._date_to_string,
+                             type=ParameterDictType.LIST)
         self._param_dict.add(SBE37Parameter.RTCA0,
                              r' +RTCA0 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.RTCA1,
                              r' +RTCA1 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
         self._param_dict.add(SBE37Parameter.RTCA2,
                              r' +RTCA2 = (-?\d.\d\d\d\d\d\de[-+]\d\d)',
                              lambda match : float(match.group(1)),
-                             self._float_to_string)
+                             self._float_to_string,
+                             type=ParameterDictType.FLOAT)
 
 
     ########################################################################

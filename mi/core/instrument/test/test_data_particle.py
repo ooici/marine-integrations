@@ -15,6 +15,7 @@ import json
 import base64
 import time
 import ntplib
+
 from nose.plugins.attrib import attr
 from mi.core.unit_test import MiUnitTestCase
 
@@ -131,7 +132,7 @@ class TestUnitDataParticle(MiUnitTestCase):
         # compare to JSON-ified output
         #   Be sure to check timestamp format as BASE64 and de-encode it.
         #   Sanity check it as well.
-        parsed_result = self.parsed_test_particle.generate()
+        parsed_result = self.parsed_test_particle.generate(sorted=True)
         decoded_parsed = json.loads(parsed_result)
 
         driver_time = decoded_parsed["driver_timestamp"]
@@ -150,7 +151,7 @@ class TestUnitDataParticle(MiUnitTestCase):
         # compare to JSON-ified output
         #   Be sure to check timestamp format as BASE64 and de-encode it.
         #   Sanity check it as well.
-        raw_result = self.raw_test_particle.generate()
+        raw_result = self.raw_test_particle.generate(sorted=True)
         decoded_raw = json.loads(raw_result)
 
         # get values that change from instance to instance to maintain them the same across instances

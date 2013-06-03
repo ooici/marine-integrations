@@ -5,7 +5,8 @@ parameters: {
         description: "QutFileDesc",
         units: "QutFileUnits",
         value_description: "QutFileValueDesc",
-        type: "QutFileType"
+        type: "QutFileType",
+        display_name: "QutDisplay"
     },
     extra_param: {
         description: "ExtraFileDesc",
@@ -16,6 +17,9 @@ parameters: {
 }
 
 commands: {
+ bad_command: {
+    description: "bad command"
+ },
  cmd1: {
     arguments: {
         coeff: {
@@ -65,8 +69,4 @@ commands: {
         units: "C2RetUnits"
     }, 
  }
-}
-    
-driver: {
-  vendor_software_compatible: True
 }
