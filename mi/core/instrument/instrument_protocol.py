@@ -31,6 +31,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import ResourceAgentEvent
 
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
@@ -241,6 +242,20 @@ class InstrumentProtocol(object):
         """
         """
         return events
+
+    def _async_agent_state_change(self, agent_state):
+        """
+        Used when we need to change the agent state from an asych
+        process.
+
+        @param agent_state: New agent state
+        """
+        val = {
+            'event' : ResourceAgentEvent.CHANGE_STATE_ASYNC,
+            'args' : [agent_state]
+        }
+
+        self._driver_event(DriverAsyncEvent.AGENT_EVENT, val)
 
     ########################################################################
     # Scheduler interface.
