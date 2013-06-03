@@ -84,9 +84,13 @@ class ResourceAgentEvent(BaseEnum):
     EXECUTE_RESOURCE = 'RESOURCE_AGENT_EVENT_EXECUTE_RESOURCE'
     GET_RESOURCE_STATE = 'RESOURCE_AGENT_EVENT_GET_RESOURCE_STATE'
     GET_RESOURCE_CAPABILITIES = 'RESOURCE_AGENT_EVENT_GET_RESOURCE_CAPABILITIES'
-    DONE = 'RESOURCE_AGENT_EVENT_DONE'    
+    DONE = 'RESOURCE_AGENT_EVENT_DONE'
+    PING_RESOURCE = 'RESOURCE_AGENT_PING_RESOURCE'
     LOST_CONNECTION = 'RESOURCE_AGENT_EVENT_LOST_CONNECTION'
-    
+    AUTORECONNECT = 'RESOURCE_AGENT_EVENT_AUTORECONNECT'
+    GET_RESOURCE_SCHEMA = 'RESOURCE_AGENT_EVENT_GET_RESOURCE_SCHEMA'
+    CHANGE_STATE_ASYNC = 'RESOURCE_AGENT_EVENT_CHANGE_STATE_ASYNC'
+
 class DriverState(BaseEnum):
     """Common driver state enum"""
 
@@ -590,10 +594,17 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @see https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Driver-Agent+parameter+and+command+metadata+exchange
         """
         log.debug("Getting metadata from driver...")
-        if self._protocol:
-            log.debug("Getting metadata from protocol...")            
-            return json.dumps(self._protocol.get_config_metadata_dict(),
-                              sort_keys=True)
+        protocol = self._protocol
+
+        # Because the config requires information from the protocol param dict
+        # we temporarily instantiate a protocol object to get at the static
+        # information.
+        if not protocol:
+            self._build_protocol()
+
+        log.debug("Getting metadata from protocol...")
+        return json.dumps(self._protocol.get_config_metadata_dict(),
+                          sort_keys=True)
             
     def restore_direct_access_params(self, config):
         """

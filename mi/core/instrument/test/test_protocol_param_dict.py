@@ -220,15 +220,18 @@ class TestUnitProtocolParameterDict(TestUnitStringsDict):
             description: "QutFileDesc",
             units: "QutFileUnits",
             value_description: "QutFileValueDesc",
-            type: "QutFileType"
+            type: "QutFileType",
+            display_name: "QutDisplay"
+            },
+            extra_param: {
+            description: "ExtraFileDesc",
+            units: "ExtraFileUnits",
+            value_description: "ExtraFileValueDesc",
+            type: "ExtraFileType"    
             }
           }
           
         commands: {
-          dummy: stuff
-          }
-          
-        driver: {
           dummy: stuff
           }
         '''
@@ -634,6 +637,7 @@ bar=200, baz=300
         new_dict = self.param_dict.generate_dict()
         log.debug("Generated dictionary: %s", new_dict)
         self.assertEqual(new_dict["qut"][ParameterDictKey.DESCRIPTION], "QutFileDesc")
+        self.assertEqual(new_dict["qut"][ParameterDictKey.DISPLAY_NAME], "QutDisplay")
         self.assertEqual(new_dict["qut"][ParameterDictKey.VALUE][ParameterDictKey.UNITS], "QutFileUnits")
         self.assertEqual(new_dict["qut"][ParameterDictKey.VALUE][ParameterDictKey.DESCRIPTION], "QutFileValueDesc")
         self.assertEqual(new_dict["qut"][ParameterDictKey.VALUE][ParameterDictKey.TYPE], "QutFileType")
@@ -653,48 +657,3 @@ bar=200, baz=300
         self.assertEqual(new_dict["baz"][ParameterDictKey.DISPLAY_NAME], "Baz")
         
         self.assertTrue('extra_param' not in new_dict)
-'''
-    def test_metadata_load(self):
-        """
-        Test to make sure the metadata can be loaded from the default filename
-        to both override current values and add new ones. Expects a
-        driver_metadata.yml to look like:
-        
-        parameters: {
-          qut: {
-            description: "QutFileDesc",
-            units: "QutFileUnits",
-            value_description: "QutFileValueDesc",
-            type: "QutFileType"
-            }
-          }
-          
-        commands: {
-          dummy: stuff
-          }
-          
-        driver: {
-          dummy: stuff
-          }
-        """
-        # test bad file name        
-        result = self.param_dict.load_strings(filename="bad_filename.yml")
-        self.assertFalse(result) # defaulted to hardcoded strings
-
-        # Write the yml out to a file for testing, then load it
-        wfile = open("/tmp/test.yml", "w+")
-        if wfile:
-            log.debug("Printing dumping YAML string to file: %s", wfile)
-            print  >>wfile, self.test_yaml
-            wfile.close()
-                
-        # test good filename
-        result = self.param_dict.load_strings(filename="/tmp/test.yml")
-        self.assertTrue(result)
-        self._assert_metadata_change()        
-        
-    def test_metadata_load_default(self):
-        result = self.param_dict.load_strings()
-        self.assertTrue(result)
-        self._assert_metadata_change()
-'''
