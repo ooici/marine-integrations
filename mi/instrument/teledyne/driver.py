@@ -107,15 +107,17 @@ class TeledyneInstrumentCmds(BaseEnum):
     must be sent to the instrument to execute the command.
     """
 
-    BREAK = 'break 500'
+    OUTPUT_CALIBRATION_DATA = 'AC'
+    BREAK = 'BREAK'
     SEND_LAST_SAMPLE = 'CE'
     SAVE_SETUP_TO_RAM = 'CK'
     START_DEPLOYMENT = 'CS'
-    OUTPUT_CALIBRATION_DATA = 'AC'
     CLEAR_ERROR_STATUS_WORD = 'CY0'         # May combine with next
     DISPLAY_ERROR_STATUS_WORD = 'CY1'       # May combine with prior
+    POWER_DOWN = 'CZ'
     CLEAR_FAULT_LOG = 'FC'
     GET_FAULT_LOG = 'FD'
+
     GET_SYSTEM_CONFIGURATION = 'PS0'
     GET_INSTRUMENT_TRANSFORM_MATRIX = 'PS3'
     RUN_TEST_200 = 'PT200'

@@ -383,13 +383,14 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value=175)
 
-    def _send_break_cmd(self):
+    def _send_break_cmd(self, duration=500):
         """
         Send a BREAK to attempt to wake the device.
-        
-        self.send_break()
+
+
         """
-        log.debug("IN _send_break_cmd")
+
+        log.error("IN _send_break_cmd")
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         except socket.error, msg:
@@ -399,14 +400,12 @@ class Protocol(WorkhorseProtocol):
             sock.connect(('localhost', 2102))
         except socket.error, msg:
             log.error("WHOOPS! 2")
-        sock.send("break 500\r\n")
+        sock.send(InstrumentCmds.BREAK + str(duration) + "\r\n")
         time.sleep(5)
-        sock.send("break 500\r\n")
+        sock.send(InstrumentCmds.BREAK + str(duration) + "\r\n")
         time.sleep(5)
         log.debug("SENT BREAK")
         log.debug("self._linebuf = " + str(self._linebuf))
         sock.close()
-        
-        
 
     pass

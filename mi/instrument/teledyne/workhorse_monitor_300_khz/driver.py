@@ -223,7 +223,7 @@ class WorkhorseProtocol(TeledyneProtocol):
                            display_name="clear fault log")
         self._cmd_dict.add(WorkhorseCapability.RUN_TEST_200,
                            display_name="run test 200")
-        self._cmd_dict.add(WorkhorseProtocolEvent.POWER_DOWN,   # <------the problem.
+        self._cmd_dict.add(WorkhorseProtocolEvent.POWER_DOWN,   # <------ TODO bubble this up to base class.
                            display_name="Power Down")
 
     ########################################################################

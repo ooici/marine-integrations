@@ -12,6 +12,8 @@ import time
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
+from mi.core.instrument.port_agent_client.PortAgentClient import send_break # <- send a VSP break
+
 
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorsePrompt
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseParameter
@@ -349,6 +351,9 @@ class Protocol(WorkhorseProtocol):
     def _send_break_cmd(self):
         """
         Send a BREAK to attempt to wake the device.
+        
+        ./mi/core/instrument/port_agent_client.py
+        self.send_break() < to send a real break with the serial driver?
         """
         log.debug("IN _send_break_cmd")
         try:
