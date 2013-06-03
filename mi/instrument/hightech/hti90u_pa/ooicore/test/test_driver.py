@@ -57,6 +57,7 @@ from mi.instrument.hightech.hti90u_pa.ooicore.driver import Parameter
 from mi.instrument.hightech.hti90u_pa.ooicore.driver import Protocol
 from mi.instrument.hightech.hti90u_pa.ooicore.driver import Prompt
 from mi.instrument.hightech.hti90u_pa.ooicore.driver import NEWLINE
+from mi.instrument.hightech.hti90u_pa.ooicore.driver import HYDLF_SampleDataParticleKey
 
 import pickle
 
@@ -150,13 +151,13 @@ class DataParticleMixin(DriverTestMixin):
     _sample_parameters = {
         HYDLF_SampleDataParticleKey.CALIB: {'type': float, 'value': SHORT_SAMPLE_DICT['channels'][0]['calib']},
         HYDLF_SampleDataParticleKey.CALPER: {'type': float, 'value': SHORT_SAMPLE_DICT['channels'][0]['calper']},
-        HYDLF_SampleDataParticleKey.CHAN: {'type': str, 'value': SHORT_SAMPLE_DICT['channels'][0]['chan']},
-        HYDLF_SampleDataParticleKey.LOC: {'type': str, 'value': SHORT_SAMPLE_DICT['channels'][0]['loc']},
-        HYDLF_SampleDataParticleKey.NET: {'type': str, 'value': SHORT_SAMPLE_DICT['channels'][0]['net']},
-        HYDLF_SampleDataParticleKey.NSAMP: {'type': float, 'value': SHORT_SAMPLE_DICT['channels'][0]['nsamp']},
+        HYDLF_SampleDataParticleKey.CHAN: {'type': unicode, 'value': SHORT_SAMPLE_DICT['channels'][0]['chan']},
+        HYDLF_SampleDataParticleKey.LOC: {'type': unicode, 'value': SHORT_SAMPLE_DICT['channels'][0]['loc']},
+        HYDLF_SampleDataParticleKey.NET: {'type': unicode, 'value': SHORT_SAMPLE_DICT['channels'][0]['net']},
+        HYDLF_SampleDataParticleKey.NSAMP: {'type': int, 'value': SHORT_SAMPLE_DICT['channels'][0]['nsamp']},
         HYDLF_SampleDataParticleKey.SAMPRATE: {'type': float, 'value': SHORT_SAMPLE_DICT['channels'][0]['samprate']},
-        HYDLF_SampleDataParticleKey.SEGTYPE: {'type': str, 'value': SHORT_SAMPLE_DICT['channels'][0]['segtype']},
-        HYDLF_SampleDataParticleKey.STA: {'type': str, 'value': SHORT_SAMPLE_DICT['channels'][0]['sta']},
+        HYDLF_SampleDataParticleKey.SEGTYPE: {'type': unicode, 'value': SHORT_SAMPLE_DICT['channels'][0]['segtype']},
+        HYDLF_SampleDataParticleKey.STA: {'type': unicode, 'value': SHORT_SAMPLE_DICT['channels'][0]['sta']},
         HYDLF_SampleDataParticleKey.TIME: {'type': float, 'value': SHORT_SAMPLE_DICT['channels'][0]['time']},
         HYDLF_SampleDataParticleKey.SAMPLE_IDX: {'type': int, 'value': 0},
         HYDLF_SampleDataParticleKey.SAMPLE: {'type': int, 'value': SHORT_SAMPLE_DICT['channels'][0]['data'][0]},
