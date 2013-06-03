@@ -103,7 +103,7 @@ class InstrumentProtocol(object):
         @raise InstrumentParameterExpirationException If we fail to update a parameter
         on the second pass this exception will be raised on expired data
         """
-        log.debug("%%% IN base _handler_command_get")
+        log.debug("%%% IN base _handler_get")
 
         next_state = None
         result = None
@@ -260,6 +260,21 @@ class InstrumentProtocol(object):
     ########################################################################
     # Scheduler interface.
     ########################################################################
+    def _remove_scheduler(self, name):
+        """
+        remove a scheduler in a driver.
+        @param name the name of the job
+        @raise KeyError if we try to remove a non-existent job 
+        """
+        if(not self._scheduler_callback.get(name)):
+            raise KeyError("scheduler does not exist for '%s'" % name)
+
+        log.debug("removing scheduler: %s" % name)
+        callback = self._scheduler_callback.get(name) 
+        self._scheduler.remove_job(callback)
+        self._scheduler_callback.pop(name)
+        self._scheduler_config.pop(name, None)
+    
     def _add_scheduler(self, name, callback):
         """
         Stage a scheduler in a driver.  The job will actually be configured
@@ -704,6 +719,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             else:
                 prompt_list = expected_prompt
 
+        log.debug('_get_response: timeout=%s, prompt_list=%s, expected_prompt=%s,' %(timeout, prompt_list, expected_prompt))
         while True:
             for item in prompt_list:
                 index = self._promptbuf.find(item)

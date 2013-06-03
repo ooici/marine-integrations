@@ -78,6 +78,44 @@ class TestDriverScheduler(MiUnitTest):
             self.assert_datetime_close(arrival_time, expected_arrival, poll_time)
 
     ###
+    #   Testing for job removal
+    ###
+    def test_job_removal(self):
+        """
+        Test the removal of a job scheduler using an interval job
+        """
+        
+        # first setup a interval job and check that it's triggering
+        config = {
+            'interval_job': {
+                DriverSchedulerConfigKey.TRIGGER: {
+                    DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                    DriverSchedulerConfigKey.SECONDS: 2
+                },
+                DriverSchedulerConfigKey.CALLBACK: self._callback
+            }
+        }
+        self._scheduler.add_config(config)
+        self.assert_event_triggered()
+        
+        # now remove scheduler job
+        self._scheduler.remove_job(self._callback)
+        
+        # check that it's not triggering anymore
+        self._triggered = []
+        time.sleep(4)
+        self.assertEqual(len(self._triggered), 0)
+        log.debug("test_job_removal: job correctly not triggering after removal")
+
+        # check that it raises exception if the removal is re-attempted
+        try:
+            self._scheduler.remove_job(self._callback)
+        except Exception as e:
+            log.debug("test_job_removal: job removal correctly raised exception %s" %e)
+            return
+        self.fail("a non-existent job was erroneous removed")
+        
+    ###
     #   Positive Testing For All Job Types
     ###
     def test_absolute_job(self):
@@ -115,7 +153,7 @@ class TestDriverScheduler(MiUnitTest):
 
     def test_interval_job(self):
         """
-        Test a job scheduler using an absolute job
+        Test a job scheduler using an interval job
         """
         config = {
             'interval_job': {

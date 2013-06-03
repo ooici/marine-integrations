@@ -230,6 +230,9 @@ class DriverScheduler(object):
         if(not self._scheduler.running):
             self._scheduler.start()
 
+    def remove_job(self, callback):
+        self._scheduler.unschedule_func(callback)
+    
     def _add_job(self, name, config):
         """
         Add a new job to the scheduler based on the trigger configuration
