@@ -293,9 +293,16 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 
         self.assert_raw_particle_published(driver, True)
 
-        # validating data particles
+        # validating data particles are published
         self.assert_particle_published(driver, self.METBK_STATUS_DATA, self.assert_data_particle_status, True)
         self.assert_particle_published(driver, self.METBK_SAMPLE_DATA, self.assert_data_particle_sample, True)
+        
+        # validate that a duplicate sample is not published
+        try:
+            self.assert_particle_published(driver, self.METBK_SAMPLE_DATA, self.assert_data_particle_sample, True)
+        except AssertionError as e:
+            if str(e) == "0 != 1":
+                pass
 
 
     def test_protocol_filter_capabilities(self):
@@ -329,7 +336,8 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
                                     'DRIVER_EVENT_START_DIRECT',
                                     'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                     'DRIVER_EVENT_CLOCK_SYNC'],
-            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE'],
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                       'DRIVER_EVENT_ACQUIRE_SAMPLE'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 
                                           'EXECUTE_DIRECT']
         }

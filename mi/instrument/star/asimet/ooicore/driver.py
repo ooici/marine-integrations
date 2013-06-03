@@ -171,7 +171,14 @@ class METBK_SampleDataParticle(DataParticle):
         
         if not match:
             raise SampleException("METBK_SampleDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
+        
+        # check to see if there is a delta from last sample, and don't parse this sample if there isn't
+        if match.group(0) == Protocol.last_sample():
+            raise SampleException("METBK_SampleDataParticle: No delta from last parsed sample data: [%s]", self.raw_data)
 
+        # save this sample as last_sample for next check        
+        Protocol.last_sample(match.group(0))
+            
         result = []
         
         result = [{DataParticleKey.VALUE_ID: METBK_SampleDataParticleKey.BAROMETRIC_PRESSURE,
@@ -346,6 +353,8 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+    last_sample_str = ''
+    
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -402,6 +411,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
     @staticmethod
+    def last_sample(new_value=None):
+        """
+        static method for accessing encapsulated last_sample_str attribute defined in Protocol class from METBK_SampleDataParticle class
+        """
+        old_value = Protocol.last_sample_str
+        if new_value:
+            Protocol.last_sample_str = new_value
+        return old_value
+    
+    @staticmethod
     def sieve_function(raw_data):
         """
         The method that splits samples and status
@@ -428,7 +447,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         with the appropriate particle objects and REGEXes.
         """
         log.debug("_got_chunk: chunk=%s" %chunk)
-        self._extract_sample(METBK_SampleDataParticle, METBK_SampleDataParticle.regex_compiled(), chunk, timestamp)
+        # wrap call to sample extractor to catch exception generated when there is no delta from last sample
+        try:
+            self._extract_sample(METBK_SampleDataParticle, METBK_SampleDataParticle.regex_compiled(), chunk, timestamp)
+        except Exception as e:
+            log.debug("_got_chunk: exception raised extracting sample <%s>" %e)
         self._extract_sample(METBK_StatusDataParticle, METBK_StatusDataParticle.regex_compiled(), chunk, timestamp)
 
 
@@ -628,7 +651,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.debug("_ensure_autosample_config: adding autosample config to _startup_config")
             config = {DriverSchedulerConfigKey.TRIGGER: {
                          DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
-                         DriverSchedulerConfigKey.SECONDS: 1}}
+                         DriverSchedulerConfigKey.SECONDS: 30}}
             self._startup_config[DriverConfigKey.SCHEDULER][ScheduledJob.AUTOSAMPLE] = config
         if(not self._scheduler):
             self.initialize_scheduler()
