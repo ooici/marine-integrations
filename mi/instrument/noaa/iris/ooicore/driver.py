@@ -124,7 +124,7 @@ class IRISCommandResponse():
         @param raw_data The raw data used in the particle
         """
         self.raw_data = raw_data
-        self.iris_command_resp = None
+        self.iris_command_response = None
 
     @staticmethod
     def regex():
@@ -133,8 +133,9 @@ class IRISCommandResponse():
         @return: regex string
         """
         pattern = r'IRIS,' # pattern starts with IRIS '
+        #pattern += r'.*' # TEMPTEMPTEMP
         pattern += r'(.*),' # 1 time
-        pattern += r'\*([0-9])' # echoed command
+        pattern += r'\*9900XY.*' # echoed command
         pattern += NEWLINE
         return pattern
 
@@ -154,13 +155,21 @@ class IRISCommandResponse():
         match = IRISCommandResponse.regex_compiled().match(self.raw_data)
 
         if not match:
+            self.iris_command_response = False
             raise SampleException("No regex match of command response: [%s]" %
                                   self.raw_data)
+        else:
+            retValue = True
+            """
+            For now iris_command_response is boolean; could be something else
+            if I figure out something useful.
+            """
+            self.iris_command_response = True
             
         try:
-            resp_time = match.group(1)
-            timestamp = time.strptime(resp_time, "%Y/%m/%d %H:%M:%S")
-            self.iris_command_response = int(match.group(2))
+            #resp_time = match.group(1)
+            #timestamp = time.strptime(resp_time, "%Y/%m/%d %H:%M:%S")
+            pass
 
         except ValueError:
             raise SampleException("ValueError while converting data: [%s]" %
@@ -245,9 +254,9 @@ class IRISDataParticle(DataParticle):
             timestamp = time.strptime(iris_time, "%Y/%m/%d %H:%M:%S")
             self.set_internal_timestamp(unix_time=time.mktime(timestamp))
             ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
-            x_tilt = int(match.group(2))
-            y_tilt = int(match.group(3))
-            temperature = int(match.group(4))
+            x_tilt = float(match.group(2))
+            y_tilt = float(match.group(3))
+            temperature = float(match.group(4))
             sn = str(match.group(5))
 
         except ValueError:
@@ -504,7 +513,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         while continuing:
             if regex.match(self._promptbuf):
                 response = IRISCommandResponse(self._promptbuf)
-                if response.check_iris_on_off_response(expected_prompt):
+                if response.check_data_on_off_response():
                     continuing = False
             else:
                 self._promptbuf = ''
@@ -646,7 +655,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """ 
         call _do_cmd_resp
         """
-        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF, expected_prompt = OFF_IRIS_DURATION)
+        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF)
         return (next_state, result)
 
     def _handler_command_exit(self, *args, **kwargs):

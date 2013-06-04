@@ -61,10 +61,11 @@ from mi.instrument.noaa.iris.ooicore.driver import Parameter
 from mi.instrument.noaa.iris.ooicore.driver import Protocol
 from mi.instrument.noaa.iris.ooicore.driver import Prompt
 from mi.instrument.noaa.iris.ooicore.driver import NEWLINE
-#from mi.instrument.noaa.iris.ooicore.driver import IRIS_DATA_ON
-#from mi.instrument.noaa.iris.ooicore.driver import IRIS_DATA_OFF
-#from mi.instrument.noaa.iris.ooicore.driver import IRIS_DATA_DUMP1
-#from mi.instrument.noaa.iris.ooicore.driver import IRIS_DATA_DUMP2
+from mi.instrument.noaa.iris.ooicore.driver import IRIS_COMMAND_STRING
+from mi.instrument.noaa.iris.ooicore.driver import IRIS_DATA_ON
+from mi.instrument.noaa.iris.ooicore.driver import IRIS_DATA_OFF
+from mi.instrument.noaa.iris.ooicore.driver import IRIS_DUMP1
+from mi.instrument.noaa.iris.ooicore.driver import IRIS_DUMP2
 
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
@@ -106,12 +107,15 @@ GO_ACTIVE_TIMEOUT=180
 VALID_SAMPLE_01 = "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
 VALID_SAMPLE_02 = "IRIS,2013/05/29 00:25:36, -0.0885, -0.7517,28.49,N8642" + NEWLINE
 
-DATA_ON_COMMAND_RESPONSE = InstrumentCommand.DATA_ON
-DATA_OFF_COMMAND_RESPONSE = InstrumentCommand.DATA_OFF
-DUMP01_COMMAND_RESPONSE = InstrumentCommand.DUMP_SETTINGS_01
-DUMP02_COMMAND_RESPONSE = InstrumentCommand.DUMP_SETTINGS_02
+DATA_ON_COMMAND_RESPONSE = "IRIS,2013/05/29 00:23:34," + IRIS_COMMAND_STRING + IRIS_DATA_ON + NEWLINE
+DATA_OFF_COMMAND_RESPONSE = "IRIS,2013/05/29 00:23:34," + IRIS_COMMAND_STRING + IRIS_DATA_OFF + NEWLINE
+DUMP01_COMMAND_RESPONSE = "IRIS,2013/05/29 00:22:57,*" + InstrumentCommand.DUMP_SETTINGS_01 + NEWLINE
+DUMP02_COMMAND_RESPONSE = "IRIS,2013/05/29 00:23:34,*" + InstrumentCommand.DUMP_SETTINGS_02 + NEWLINE
 
-BOTPT_FIREHOSE_01  = "IRIS,2013/05/16 17:03:23, -0.1963, -0.9139,28.23,N8642" + NEWLINE
+BOTPT_FIREHOSE_01  = "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
+BOTPT_FIREHOSE_01  += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
+BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
+BOTPT_FIREHOSE_01  += "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
 BOTPT_FIREHOSE_01  += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
 BOTPT_FIREHOSE_01  += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
 BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
@@ -141,18 +145,19 @@ class IRISTestMixinSub(DriverTestMixin):
     STATES    = ParameterTestConfigKey.STATES
 
     _sample_parameters_01 = {
-        IRISDataParticleKey.TIME: {TYPE: float, VALUE: 3575426051.0, REQUIRED: True },
-        IRISDataParticleKey.X_TILT: {TYPE: int, VALUE: -1, REQUIRED: True },
-        IRISDataParticleKey.Y_TILT: {TYPE: int, VALUE: 1, REQUIRED: True },
-        IRISDataParticleKey.TEMP: {TYPE: int, VALUE: 25, REQUIRED: True },
-        IRISDataParticleKey.SN: {TYPE: str, VALUE: 'N8642', REQUIRED: True }
+        IRISDataParticleKey.TIME: {TYPE: float, VALUE: 3578801134.0, REQUIRED: True },
+        IRISDataParticleKey.X_TILT: {TYPE: float, VALUE: -0.0882, REQUIRED: True },
+        IRISDataParticleKey.Y_TILT: {TYPE: float, VALUE: -0.7524, REQUIRED: True },
+        IRISDataParticleKey.TEMP: {TYPE: float, VALUE: 28.45, REQUIRED: True },
+        IRISDataParticleKey.SN: {TYPE: unicode, VALUE: 'N8642', REQUIRED: True }
     }
 
     _sample_parameters_02 = {
-        IRISDataParticleKey.TIME: {TYPE: float, VALUE: 3575426051.0, REQUIRED: True },
-        IRISDataParticleKey.X_TILT: {TYPE: int, VALUE: 1, REQUIRED: True },
-        IRISDataParticleKey.Y_TILT: {TYPE: int, VALUE: 1, REQUIRED: True },
-        IRISDataParticleKey.TEMP: {TYPE: int, VALUE: 25, REQUIRED: True }
+        IRISDataParticleKey.TIME: {TYPE: float, VALUE: 3578801136.0, REQUIRED: True },
+        IRISDataParticleKey.X_TILT: {TYPE: float, VALUE: -0.0885, REQUIRED: True },
+        IRISDataParticleKey.Y_TILT: {TYPE: float, VALUE: -0.7517, REQUIRED: True },
+        IRISDataParticleKey.TEMP: {TYPE: float, VALUE: 28.49, REQUIRED: True },
+        IRISDataParticleKey.SN: {TYPE: unicode, VALUE: 'N8642', REQUIRED: True }
     }
 
     def assert_particle_sample_01(self, data_particle, verify_values = False):
@@ -299,7 +304,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
 
     """
-    Veryify that the driver correctly parses the DATA_ON response
+    Verify that the driver correctly parses the DATA_ON response
     """
     def test_data_on_response(self):
         """
@@ -343,13 +348,59 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         #                                               TEST_HEAT_ON_DURATION_2))
 
 
+    """
+    Verify that the driver correctly parses the DATA_OFF response
+    """
+    def test_data_off_response(self):
+        """
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into a known state
+        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        ts = ntplib.system_to_ntp_time(time.time())
+
+        log.debug("DATA OFF command response: %s", DATA_OFF_COMMAND_RESPONSE)
+        # Create and populate the port agent packet.
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data(DATA_OFF_COMMAND_RESPONSE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+
+        # Push the response into the driver
+        driver._protocol.got_data(port_agent_packet)
+        #self.assertTrue(driver._protocol._get_response(expected_prompt = 
+        #                                               TEST_HEAT_ON_DURATION_2))
+
+
     def test_data_on(self):
         mock_port_agent = Mock(spec=PortAgentClient)
         driver = InstrumentDriver(self._got_data_event_callback)
 
         def my_send(data):
-            log.debug("my_send: %s", data)
-            driver._protocol._promptbuf += DATA_ON_COMMAND_RESPONSE
+            my_response = DATA_ON_COMMAND_RESPONSE
+            log.debug("my_send: data: %s, my_response: %s", data, my_response)
+            driver._protocol._promptbuf += my_response
             return len(DATA_ON_COMMAND_RESPONSE)
         mock_port_agent.send.side_effect = my_send
         
@@ -386,9 +437,10 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
 
         def my_send(data):
-            log.debug("my_send: %s", data)
-            driver._protocol._promptbuf += DATA_OFF_COMMAND_RESPONSE
-            return 5
+            my_response = DATA_OFF_COMMAND_RESPONSE
+            log.debug("my_send: data: %s, my_response: %s", data, my_response)
+            driver._protocol._promptbuf += my_response
+            return len(DATA_OFF_COMMAND_RESPONSE)
         mock_port_agent.send.side_effect = my_send
         
         #self.assert_initialize_driver(driver)
