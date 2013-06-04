@@ -13,17 +13,19 @@ USAGE:
        $ bin/test_driver -q
 
 """
-
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 import unittest
 from nose.plugins.attrib import attr
+
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEUnitTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEIntTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEQualTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEPubTestCase
+
 from mi.instrument.seabird.sbe16plus_v2.driver import DataParticleType
+
 from mi.idk.unit_test import InstrumentDriverTestCase
 
 InstrumentDriverTestCase.initialize(
@@ -35,6 +37,13 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name = 'Agent007',
     instrument_agent_packet_config = DataParticleType()
 )
+
+###############################################################################
+#                   Driver Version Specific Structures                        #
+###############################################################################
+###
+# Test Inputs
+###
 
 ###############################################################################
 #                                UNIT TESTS                                   #
