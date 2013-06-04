@@ -424,6 +424,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
+    @unittest.skip('not tested yet')
     def test_discover(self):
         """
         over-ridden because instrument doesn't actually have a command mode and therefore
@@ -441,6 +442,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         self.assert_discover(ResourceAgentState.STREAMING)
 
 
+    @unittest.skip('not tested yet')
     def test_get_capabilities(self):
         """
         @brief Walk through all driver protocol states and verify capabilities
