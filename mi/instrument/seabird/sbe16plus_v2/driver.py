@@ -75,8 +75,6 @@ class Command(BaseEnum):
         TT = 'tt'
         TP = 'tp'
         SET = 'set'
-        GETCD = 'getcd'
-        GETSD = 'getsd'
         QS = 'qs'
         RESET_EC = 'ResetEC'
 
@@ -785,7 +783,6 @@ class SBE16Protocol(SeaBirdProtocol):
         self._add_build_handler(Command.TT, self._build_simple_command)
         self._add_build_handler(Command.TP, self._build_simple_command)
         self._add_build_handler(Command.SET, self._build_set_command)
-        self._add_build_handler(Command.GETSD, self._build_simple_command)
         self._add_build_handler(Command.QS, self._build_simple_command)
         self._add_build_handler(Command.RESET_EC, self._build_simple_command)
 
@@ -796,7 +793,6 @@ class SBE16Protocol(SeaBirdProtocol):
         self._add_response_handler(Command.TC, self._parse_test_response)
         self._add_response_handler(Command.TT, self._parse_test_response)
         self._add_response_handler(Command.TP, self._parse_test_response)
-        self._add_response_handler(Command.GETSD, self._parse_simple_response)
 
         # State state machine in UNKNOWN state. 
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
