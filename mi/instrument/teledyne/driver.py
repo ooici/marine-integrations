@@ -593,30 +593,32 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._connection.send(NEWLINE)
         log.debug("SENT A NEWLINE")
 
-    def _wakeup(self, timeout, delay=1):
+    def _wakeup(self, timeout=20, delay=1):
         """
         Clear buffers and send a wakeup command to the instrument
         @param timeout The timeout to wake the device.
         @param delay The time to wait between consecutive wakeups.
         @throw InstrumentTimeoutException if the device could not be woken.
         """
+
         # Clear the prompt buffer.
         self._promptbuf = ''
 
         # Grab time for timeout.
         starttime = time.time()
+        endtime = starttime + float(timeout)
 
         # Send a line return and wait a sec.
         log.trace('Sending wakeup. timeout=%s' % timeout)
         self._send_wakeup()
-        time.sleep(delay)
 
-        for item in self._get_prompts():
-            index = self._promptbuf.find(item)
-            if index >= 0:
-                log.trace('wakeup got prompt: %s' % repr(item))
-                return item
-
+        while time.time() < endtime:
+            time.sleep(0.05)
+            for item in self._get_prompts():
+                index = self._promptbuf.find(item)
+                if index >= 0:
+                    log.trace('wakeup got prompt: %s' % repr(item))
+                    return item
         return None
 
     def _instrument_config_dirty(self):
