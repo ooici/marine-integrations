@@ -30,9 +30,6 @@ import time
 import gevent
 import gevent.pool
 
-import antelope.orb
-import antelope.Pkt
-
 from mock import Mock
 
 #import yappi
@@ -42,9 +39,6 @@ import logging
 log = logging.getLogger()
 
 import mi.core.instrument.port_agent_client
-import port_agent.cmdproc
-import port_agent.config
-import port_agent.port_agent
 
 # MI imports.
 # Does not exist
@@ -99,7 +93,16 @@ SUM13  LHE""")]
 
 
 class Test_ORB_thru_Protocol(unittest.TestCase):
+    @unittest.skip("Requires BRTT Antelope")
     def test_it_all(self):
+
+        import antelope.orb
+        import antelope.Pkt
+
+        import port_agent.cmdproc
+        import port_agent.config
+        import port_agent.port_agent
+
         ORB_PORT = 54320
         COMMAND_PORT = 54321
         DATA_PORT = 54322
