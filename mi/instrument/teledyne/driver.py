@@ -968,7 +968,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                 log.debug("I am logging")
                 try:
                     # Switch to command mode,
-                    self._stop_logging(*args, **kwargs)
+                    self._stop_logging()
 
                     self._update_params()
                     # Take a second pass at getting values, this time is should
