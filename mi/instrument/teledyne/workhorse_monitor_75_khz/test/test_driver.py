@@ -646,7 +646,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
 
         self.assert_driver_command(ProtocolEvent.GET_CALIBRATION)
         self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION)
-
         self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
         self.assert_driver_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
         self.assert_driver_command(ProtocolEvent.SEND_LAST_SAMPLE, regex='^\x7f\x7fh.*')
@@ -768,7 +767,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         Verify the device configuration command can be triggered and run in command
         """
-        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=250)
+        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=45)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_compass_calibration_autosample(self):
@@ -776,11 +775,9 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         Verify the device configuration command can be triggered and run in autosample
         """
 
-        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=250, # 250, 
+        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=45,
             autosample_command=ProtocolEvent.START_AUTOSAMPLE)
-        log.debug("AM I IN AUTOSAMPLE MODE?")
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
-        log.debug("I AM IN AUTOSAMPLE MODE!!!!")
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
     def assert_acquire_status(self):
@@ -794,7 +791,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         Verify the device status command can be triggered and run in command
         """
-        self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=300)
+        self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=45)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_device_configuration_autosample(self):
@@ -802,7 +799,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         Verify the device status command can be triggered and run in autosample
         """
         self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_acquire_status,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=300)
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=45)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         time.sleep(5)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
@@ -814,23 +811,29 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         dt = self.assert_get(Parameter.TIME)
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:13].upper() in dt.upper())
-    
+
+    # one of these is breaking it...
     def test_scheduled_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=250)
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=45)
         self.assert_current_state(ProtocolState.COMMAND)
-    
+
+    # one of these is breaking it...
     def test_scheduled_clock_sync_autosample(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, 
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=350)
-        self.assert_current_state(ProtocolState.AUTOSAMPLE)
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
+        log.error("1")
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync,
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=90)
+        log.error("2")
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+        log.error("3")
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+        log.error("4")
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -919,7 +922,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
 
         # Now verify that at least the date matches
-        check_new_params = self.instrument_agent_client.get_resource([Parameter.TIME], timeout=300)
+        check_new_params = self.instrument_agent_client.get_resource([Parameter.TIME], timeout=45)
 
         instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.TIME).lower(), "%Y/%m/%d,%H:%M:%S %Z"))
 
