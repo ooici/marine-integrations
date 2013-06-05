@@ -20,6 +20,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, \
                                InstrumentProtocolException
+from mi.core.time import get_timestamp_delayed
                                
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
@@ -106,18 +107,21 @@ class Prompt(BaseEnum):
     """
     Device i/o prompts.
     """
-    CR_NL = NEWLINE
+    CR_NL   = NEWLINE
+    STOPPED = "Sampling STOPPED" + NEWLINE
+    GO      = "Sampling GO - synchronizing..." + NEWLINE
 
 class Command(BaseEnum):
     """
     Instrument command strings
     """
-    CLOCK = "#CLOCK"
-    D     = "#D"
-    FS    = "#FS"
-    STAT  = "#STAT"
-    GO    = "#GO"
-    STOP  = "#STOP"
+    GET_CLOCK = "#CLOCK"
+    SET_CLOCK = "#CLOCK="
+    D          = "#D"
+    FS         = "#FS"
+    STAT       = "#STAT"
+    GO         = "#GO"
+    STOP       = "#STOP"
 
 class DataParticleType(BaseEnum):
     """
@@ -391,11 +395,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
 
         # Add build handlers for device commands.
-        self._add_build_handler(Command.CLOCK, self._build_simple_command)
+        self._add_build_handler(Command.GET_CLOCK, self._build_simple_command)
+        self._add_build_handler(Command.SET_CLOCK, self._build_set_clock_command)
         self._add_build_handler(Command.D, self._build_simple_command)
+        self._add_build_handler(Command.GO, self._build_simple_command)
+        self._add_build_handler(Command.STOP, self._build_simple_command)
+        self._add_build_handler(Command.FS, self._build_simple_command)
+        self._add_build_handler(Command.STAT, self._build_simple_command)
 
         # Add response handlers for device commands.
-        self._add_response_handler(Command.CLOCK, self._parse_clock_response)
+        self._add_response_handler(Command.GET_CLOCK, self._parse_clock_response)
+        self._add_response_handler(Command.SET_CLOCK, self._parse_clock_response)
  
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -563,8 +573,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-
-        #self._sync_clock(Command.SET, Parameter.DATE_TIME, TIMEOUT, time_format="%d %b %Y %H:%M:%S")
+        time_format = "%Y %m %d %H:%M:%S"
+        str_val = get_timestamp_delayed(time_format)
+        log.debug("Setting instrument clock to '%s'", str_val)
+        self._do_cmd_resp(Command.STOP, expected_prompt=Prompt.STOPPED)
+        self._do_cmd_resp(Command.SET_CLOCK, str_val)
+        self._do_cmd_resp(Command.GO, expected_prompt=Prompt.GO)
 
         return (next_state, (next_agent_state, result))
 
@@ -684,6 +698,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              lambda string : str(string),
                              type=ParameterDictType.STRING,
                              display_name="clock",
+                             expiration=0,
                              visibility=ParameterDictVisibility.READ_ONLY)
 
     def _update_params(self, *args, **kwargs):
@@ -694,7 +709,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_update_params:")
         # Issue clock command and parse results.  
         # This is the only parameter and it is always changing so don't bother with the 'change' event
-        self._do_cmd_resp(Command.CLOCK)
+        self._do_cmd_resp(Command.GET_CLOCK)
+
+    def _build_set_clock_command(self, cmd, val):
+        """
+        Build handler for set clock command (cmd=val followed by newline).
+        @param cmd the string for setting the clock (#CLOCK).
+        @param val the parameter value to set.
+        @ retval The set command to be sent to the device.
+        """
+        cmd = '%s=%s' %(cmd, val) + NEWLINE
+
+        return cmd
 
     def _parse_clock_response(self, response, prompt):
         """
