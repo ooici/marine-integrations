@@ -133,9 +133,9 @@ class IRISCommandResponse():
         @return: regex string
         """
         pattern = r'IRIS,' # pattern starts with IRIS '
-        #pattern += r'.*' # TEMPTEMPTEMP
-        pattern += r'(.*),' # 1 time
-        pattern += r'\*9900XY.*' # echoed command
+        pattern += r'(.*),' # group 1: time
+        pattern += r'\*9900XY' # generic part of IRIS command
+        pattern += r'(.*)' # group 2: echoed command
         pattern += NEWLINE
         return pattern
 
@@ -147,32 +147,30 @@ class IRISCommandResponse():
         """
         return re.compile(IRISCommandResponse.regex())
 
-    def check_data_on_off_response(self):
+    def check_data_on_off_response(self, expected_response):
         """
+        Generic command response method; the expected response
+        is passed in as a parameter; that is used to check 
+        whether the response from the sensor is valid (positive)
+        or not.
         """
         retValue = False
-        
+
         match = IRISCommandResponse.regex_compiled().match(self.raw_data)
 
         if not match:
-            self.iris_command_response = False
             raise SampleException("No regex match of command response: [%s]" %
                                   self.raw_data)
-        else:
-            retValue = True
-            """
-            For now iris_command_response is boolean; could be something else
-            if I figure out something useful.
-            """
-            self.iris_command_response = True
-            
         try:
-            #resp_time = match.group(1)
-            #timestamp = time.strptime(resp_time, "%Y/%m/%d %H:%M:%S")
-            pass
+            resp_time = match.group(1)
+            timestamp = time.strptime(resp_time, "%Y/%m/%d %H:%M:%S")
+            self.iris_command_response = match.group(2)
+            if self.iris_command_response == expected_response:
+                retValue = True  
 
         except ValueError:
-            raise SampleException("ValueError while converting data: [%s]" %
+            raise SampleException("check_data_on_off_response: ValueError" +
+                                  " while converting data: [%s]" %
                                   self.raw_data)
         
         return retValue
@@ -352,7 +350,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_command_data_off)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_data_off)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
@@ -463,7 +461,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         
         """
         Invoke _extract_sample here.  However, don't raise an exception if 
-        if _extract_sample does not fine one, because this this driver only 
+        if _extract_sample does not find one, because this driver only 
         deals in chunks; that is, all data that is pertinent to this driver
         has been defined as a particle.  (We can get chunks that won't apply
         to _extract_sample.)
@@ -513,7 +511,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         while continuing:
             if regex.match(self._promptbuf):
                 response = IRISCommandResponse(self._promptbuf)
-                if response.check_data_on_off_response():
+                if response.check_data_on_off_response(expected_prompt):
                     continuing = False
             else:
                 self._promptbuf = ''
@@ -574,7 +572,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF, expected_prompt = OFF_IRIS_DURATION)
+        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF, 
+                                   expected_prompt = IRIS_DATA_OFF)
         
         return (next_state, (next_agent_state, result))
 
@@ -638,25 +637,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         """ 
         call _do_cmd_resp, passing our iris_duration parameter as the expected_prompt
         """
-        result = self._do_cmd_resp(InstrumentCommand.DATA_ON)
+        result = self._do_cmd_resp(InstrumentCommand.DATA_ON, 
+                                   expected_prompt = IRIS_DATA_ON)
 
         return (next_state, (next_agent_state, result))
-
-    """
-    DHE TODO: make this be for the iris data off command
-    """
-    def _handler_command_data_off(self, *args, **kwargs):
-        """
-        Turn the iris off
-        """
-        next_state = None
-        result = None
-
-        """ 
-        call _do_cmd_resp
-        """
-        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF)
-        return (next_state, result)
 
     def _handler_command_exit(self, *args, **kwargs):
         """

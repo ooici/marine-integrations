@@ -53,6 +53,7 @@ from mi.instrument.noaa.iris.ooicore.driver import InstrumentDriver
 from mi.instrument.noaa.iris.ooicore.driver import DataParticleType
 from mi.instrument.noaa.iris.ooicore.driver import IRISDataParticleKey
 from mi.instrument.noaa.iris.ooicore.driver import IRISDataParticle
+from mi.instrument.noaa.iris.ooicore.driver import IRISCommandResponse
 from mi.instrument.noaa.iris.ooicore.driver import InstrumentCommand
 from mi.instrument.noaa.iris.ooicore.driver import ProtocolState
 from mi.instrument.noaa.iris.ooicore.driver import ProtocolEvent
@@ -67,6 +68,7 @@ from mi.instrument.noaa.iris.ooicore.driver import IRIS_DATA_OFF
 from mi.instrument.noaa.iris.ooicore.driver import IRIS_DUMP1
 from mi.instrument.noaa.iris.ooicore.driver import IRIS_DUMP2
 
+from mi.core.exceptions import SampleException
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 from pyon.core.exception import Conflict
@@ -104,6 +106,7 @@ GO_ACTIVE_TIMEOUT=180
 #   Driver constant definitions
 ###
 
+INVALID_SAMPLE  = "This is an invalid sample; it had better cause an exception." + NEWLINE
 VALID_SAMPLE_01 = "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
 VALID_SAMPLE_02 = "IRIS,2013/05/29 00:25:36, -0.0885, -0.7517,28.49,N8642" + NEWLINE
 
@@ -276,6 +279,70 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
     """
+    Verify that the BOTPT IRIS driver build_parsed_values method
+    raises SampleException when an invalid sample is encountered
+    and that it returns a result when a valid sample is encountered
+    """
+    def test_build_parsed_values(self):
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        sampleException = False
+        try:        
+            #driver._protocol._raw_data = "test that SampleException works"
+            raw_data = INVALID_SAMPLE
+            test_particle = IRISDataParticle(raw_data)
+            test_particle._build_parsed_values()
+            
+        except SampleException as e:
+            log.debug('SampleException caught: %s.', e)
+            sampleException = True
+            
+        finally:
+            self.assertTrue(sampleException)
+
+        sampleException = False
+        result = None
+        try:
+            raw_data = VALID_SAMPLE_01
+            test_particle = IRISDataParticle(raw_data)
+            result = test_particle._build_parsed_values()
+
+        except SampleException:
+            log.error('SampleException caught: %s.', e)
+            sampleException = True
+            
+        finally:
+            """
+            Assert that the sampleException was not called.  Also assert that
+            the result is a list.  Not getting into the details of the result
+            here; that's done elsewhere.
+            """
+            self.assertFalse(sampleException)
+            self.assertTrue(isinstance(result, list))
+
+
+    """
+    Verify that check_data_on_off_response returns False given an invalid
+    response, and that it returns True given a valid response
+    """
+    def test_check_data_on_off_response(self):
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        sampleException = False
+        try:
+            response = IRISCommandResponse(INVALID_SAMPLE)
+            retValue = response.check_data_on_off_response(IRIS_DATA_ON)
+        
+        except SampleException as e:
+            log.debug('SampleException caught: %s.', e)
+            sampleException = True
+            
+        finally:
+            self.assertTrue(sampleException)
+
+    """
     Verify that the BOTPT IRIS driver publishes its particles correctly
     """
     def test_got_data(self):
@@ -344,8 +411,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
-        #self.assertTrue(driver._protocol._get_response(expected_prompt = 
-        #                                               TEST_HEAT_ON_DURATION_2))
+        self.assertTrue(driver._protocol._get_response(expected_prompt = 
+                                                       IRIS_DATA_ON))
 
 
     """
@@ -467,9 +534,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
         # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        self.assert_force_state(driver, DriverProtocolState.AUTOSAMPLE)
 
-        result = driver._protocol._handler_command_data_off()
+        result = driver._protocol._handler_autosample_data_off()
         ts = ntplib.system_to_ntp_time(time.time())
         result = driver._protocol._got_chunk(DATA_OFF_COMMAND_RESPONSE, ts)
 
