@@ -110,15 +110,17 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         value.  This test confirms that parameters are being read/converted properly and that
         the startup has been applied.
         """
+        log.error("test_parameters")
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        log.debug("REPLY = " + str(reply))
         self.assert_driver_parameters(reply, True)
-
+ 
+    @unittest.skip("LONG runner")
     def test_set(self):
         """
         Test all set commands. Verify all exception cases.
         """
+        log.error("test_set")
         self.assert_initialize_driver()
 
         params = {
@@ -636,6 +638,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         Run instrument commands from both command and streaming mode.
         """
+        log.error("test_commands")
         self.assert_initialize_driver()
         ####
         # First test in command mode
@@ -688,6 +691,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
 
         since nose orders the tests by ascii value this should run first.
         """
+        log.error("test_startup_params")
         self.assert_initialize_driver()
 
         get_values = {
@@ -761,21 +765,23 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         Verify a calibration particle was generated
         """
         self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=700)
+        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=120)
 
     def test_scheduled_compass_calibration_command(self):
         """
         Verify the device configuration command can be triggered and run in command
         """
-        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=45)
+        log.error("test_scheduled_compass_calibration_command")
+        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_compass_calibration_autosample(self):
         """
         Verify the device configuration command can be triggered and run in autosample
         """
+        log.error("test_scheduled_compass_calibration_autosample")
 
-        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=45,
+        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100,
             autosample_command=ProtocolEvent.START_AUTOSAMPLE)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
@@ -785,21 +791,23 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         Verify a status particle was generated
         """
         self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=300)
+        self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=120)
 
     def test_scheduled_device_configuration_command(self):
         """
         Verify the device status command can be triggered and run in command
         """
-        self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=45)
+        log.error("test_scheduled_device_configuration_command")
+        self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=100)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_device_configuration_autosample(self):
         """
         Verify the device status command can be triggered and run in autosample
         """
+        log.error("test_scheduled_device_configuration_autosample")
         self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_acquire_status,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=45)
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=100)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
         time.sleep(5)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
@@ -812,28 +820,24 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:13].upper() in dt.upper())
 
-    # one of these is breaking it...
     def test_scheduled_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=45)
+        log.error("test_scheduled_clock_sync_command")
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=90)
         self.assert_current_state(ProtocolState.COMMAND)
 
-    # one of these is breaking it...
     def test_scheduled_clock_sync_autosample(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
+        log.error("test_scheduled_clock_sync_autosample")
 
-        log.error("1")
         self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=90)
-        log.error("2")
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=200)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
-        log.error("3")
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
-        log.error("4")
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

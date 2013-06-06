@@ -1102,8 +1102,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             raise error
      
         result = self._sanitize(base64.b64decode(output))
-
-        return (next_state, (next_agent_state, {'result': result}))
+        return (next_state, (next_agent_state, result))
+        #return (next_state, (next_agent_state, {'result': result}))
 
     def _handler_autosample_get_configuration(self, *args, **kwargs):
         """
@@ -1144,7 +1144,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
 
         result = self._sanitize(base64.b64decode(output))
-        return (next_state, (next_agent_state, {'result': result}))
+        return (next_state, (next_agent_state, result))
+        #return (next_state, (next_agent_state, {'result': result}))
 
     def _handler_autosample_clock_sync(self, *args, **kwargs):
         """
@@ -1245,7 +1246,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         output = self._do_cmd_resp(InstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
         result = self._sanitize(base64.b64decode(output))
-        return (next_state, (next_agent_state, {'result': result}))
+        return (next_state, (next_agent_state, result))
+        #return (next_state, (next_agent_state, {'result': result}))
 
     def _handler_command_get_configuration(self, *args, **kwargs):
         """
