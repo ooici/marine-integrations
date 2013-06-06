@@ -18,10 +18,10 @@ __license__ = 'Apache 2.0'
 
 import unittest
 import gevent
+import time
 
 from nose.plugins.attrib import attr
 from mock import Mock
-from mi.core.common import BaseEnum
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger ; log = get_logger()
@@ -385,6 +385,51 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         self.assert_driver_parameters(reply)
 
+    def test_execute_clock_sync_command_mode(self):
+        """
+        Verify we can synchronize the instrument internal clock in command mode
+        """
+        self.assert_initialize_driver()
+
+        # command the instrument to sync clock.
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
+
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.CLOCK)
+        
+        # convert driver's time from formatted date/time string to seconds integer
+        instrument_time = time.mktime(time.strptime(reply.get(Parameter.CLOCK).lower(), "%Y/%m/%d %H:%M:%S"))
+
+        # need to convert local machine's time to date/time string and back to seconds to 'drop' the DST attribute so test passes
+        # get time from local machine
+        lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+        # convert local time from formatted date/time string to seconds integer to drop DST
+        local_time = time.mktime(time.strptime(lt, "%d %b %Y %H:%M:%S"))
+
+        # Now verify that the time matches to within 5 seconds
+        self.assertLessEqual(abs(instrument_time - local_time), 5)
+
+    def test_execute_clock_sync_autossample_mode(self):
+        """
+        Verify we can synchronize the instrument internal clock in autosample mode
+        """
+        self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
+
+        # command the instrument to sync clock.
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
+
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.CLOCK)
+        
+        # convert driver's time from formatted date/time string to seconds integer
+        instrument_time = time.mktime(time.strptime(reply.get(Parameter.CLOCK).lower(), "%Y/%m/%d %H:%M:%S"))
+
+        # need to convert local machine's time to date/time string and back to seconds to 'drop' the DST attribute so test passes
+        # get time from local machine
+        lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+        # convert local time from formatted date/time string to seconds integer to drop DST
+        local_time = time.mktime(time.strptime(lt, "%d %b %Y %H:%M:%S"))
+
+        # Now verify that the time matches to within 5 seconds
+        self.assertLessEqual(abs(instrument_time - local_time), 5)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -501,3 +546,25 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
+
+    def test_execute_clock_sync(self):
+        """
+        Verify we can synchronize the instrument internal clock
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
+
+        # get the time from the driver
+        check_new_params = self.instrument_agent_client.get_resource([Parameter.CLOCK])
+        # convert driver's time from formatted date/time string to seconds integer
+        instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.CLOCK).lower(), "%Y %m %d %H:%M:%S"))
+
+        # need to convert local machine's time to date/time string and back to seconds to 'drop' the DST attribute so test passes
+        # get time from local machine
+        lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+        # convert local time from formatted date/time string to seconds integer to drop DST
+        local_time = time.mktime(time.strptime(lt, "%d %b %Y %H:%M:%S"))
+
+        # Now verify that the time matches to within 5 seconds
+        self.assertLessEqual(abs(instrument_time - local_time), 5)

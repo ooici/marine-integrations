@@ -381,13 +381,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync_clock)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_sync_clock)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.CLOCK_SYNC, self._handler_sync_clock)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_get)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -561,27 +563,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_clock_sync_clock(self, *args, **kwargs):
-        """
-        sync clock close to a second edge 
-        @retval (next_state, result) tuple, (None, None) if successful.
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
-        """
-
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        time_format = "%Y %m %d %H:%M:%S"
-        str_val = get_timestamp_delayed(time_format)
-        log.debug("Setting instrument clock to '%s'", str_val)
-        self._do_cmd_resp(Command.STOP, expected_prompt=Prompt.STOPPED)
-        self._do_cmd_resp(Command.SET_CLOCK, str_val)
-        self._do_cmd_resp(Command.GO, expected_prompt=Prompt.GO)
-
-        return (next_state, (next_agent_state, result))
-
     ########################################################################
     # autosample handlers.
     ########################################################################
@@ -651,6 +632,30 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+    def _handler_sync_clock(self, *args, **kwargs):
+        """
+        sync clock close to a second edge 
+        @retval (next_state, (next_agent_state, result)) tuple, (None (None, None)) if successful.
+        @throws InstrumentTimeoutException if device respond correctly.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        time_format = "%Y/%m/%d %H:%M:%S"
+        str_val = get_timestamp_delayed(time_format)
+        log.debug("Setting instrument clock to '%s'", str_val)
+        self._do_cmd_resp(Command.STOP, expected_prompt=Prompt.STOPPED)
+        try:
+            self._do_cmd_resp(Command.SET_CLOCK, str_val, expected_prompt=Prompt.CR_NL)
+        finally:
+            # ensure that we try to start the instrument sampling again
+            self._do_cmd_resp(Command.GO, expected_prompt=Prompt.GO)
+
+        return (next_state, (next_agent_state, result))
+
     ########################################################################
     # Private helpers.
     ########################################################################
@@ -714,12 +719,11 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _build_set_clock_command(self, cmd, val):
         """
         Build handler for set clock command (cmd=val followed by newline).
-        @param cmd the string for setting the clock (#CLOCK).
+        @param cmd the string for setting the clock (this should equal #CLOCK=).
         @param val the parameter value to set.
         @ retval The set command to be sent to the device.
         """
-        cmd = '%s=%s' %(cmd, val) + NEWLINE
-
+        cmd = '%s%s' %(cmd, val) + NEWLINE
         return cmd
 
     def _parse_clock_response(self, response, prompt):
