@@ -416,6 +416,62 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
 
     """
+    Verify that the driver correctly parses the DATA_ON response works
+    when a data packet is right in front of it
+    """
+    def test_data_on_response_with_data(self):
+        """
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into a known state
+        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        ts = ntplib.system_to_ntp_time(time.time())
+
+        # Create a data packet and push to the driver herehere
+        log.debug("VALID SAMPLE : %s", VALID_SAMPLE_01)
+        # Create and populate the port agent packet.
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data(VALID_SAMPLE_01)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+
+        # Push the response into the driver
+        driver._protocol.got_data(port_agent_packet)
+        
+        log.debug("DATA ON command response: %s", DATA_ON_COMMAND_RESPONSE)
+        # Create and populate the port agent packet.
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data(DATA_ON_COMMAND_RESPONSE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+
+        # Push the response into the driver
+        driver._protocol.got_data(port_agent_packet)
+        self.assertTrue(driver._protocol._get_response(expected_prompt = 
+                                                       IRIS_DATA_ON))
+
+    """
     Verify that the driver correctly parses the DATA_OFF response
     """
     def test_data_off_response(self):
@@ -597,12 +653,12 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         Set continuous data on 
         """
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DATA_ON)
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
         #self.assertEqual(response, TEST_HEAT_ON_DURATION_2)
         
         log.debug("DATA_ON returned: %r", response)
 
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DATA_OFF)
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
         #self.assertEqual(response, TEST_DATA_OFF)
         
         log.debug("DATA_OFF returned: %r", response)

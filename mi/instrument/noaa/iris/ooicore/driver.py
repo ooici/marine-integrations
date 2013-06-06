@@ -456,17 +456,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         in comments in _my_add_to_buffer.
         """
 
-        log.debug("_got_chunk_: %s", chunk)        
-        self._my_add_to_buffer(chunk)
+        log.debug("_got_chunk_: %s", chunk)
         
-        """
-        Invoke _extract_sample here.  However, don't raise an exception if 
-        if _extract_sample does not find one, because this driver only 
-        deals in chunks; that is, all data that is pertinent to this driver
-        has been defined as a particle.  (We can get chunks that won't apply
-        to _extract_sample.)
-        """
-        self._extract_sample(IRISDataParticle, IRISDataParticle.regex_compiled(), chunk, timestamp)
+        regex = IRISCommandResponse.regex_compiled()
+        if regex.match(chunk):
+            self._my_add_to_buffer(chunk)
+        else:
+            if not self._extract_sample(IRISDataParticle, 
+                                        IRISDataParticle.regex_compiled(), 
+                                        chunk, timestamp):
+                raise InstrumentProtocolException("Unhandled chunk")
+
 
     def _filter_capabilities(self, events):
         """
