@@ -104,6 +104,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
     ###
     #    Add instrument specific integration tests
     ###
+    @unittest.skip("DEBUGGING DISABLE FOR SPEED")
     def test_parameters(self):
         """
         Test driver parameters and verify their type.  Startup parameters also verify the parameter
@@ -633,7 +634,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_set_exception(Parameter.SERIAL_OUT_FW_SWITCHES, '110100100')
         self.assert_set_exception(Parameter.WATER_PROFILING_MODE, 0)
         self.assert_set_exception(Parameter.BANNER, True)
-
+    @unittest.skip("DEBUGGING DISABLE FOR SPEED")
     def test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
@@ -683,7 +684,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         # Test a bad command
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
-
+    
     def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -766,7 +767,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         self.clear_events()
         self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=120)
-
+    @unittest.skip("DEBUGGING DISABLE FOR SPEED")
     def test_scheduled_compass_calibration_command(self):
         """
         Verify the device configuration command can be triggered and run in command
@@ -774,7 +775,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         log.error("test_scheduled_compass_calibration_command")
         self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100)
         self.assert_current_state(ProtocolState.COMMAND)
-
+    @unittest.skip("DEBUGGING DISABLE FOR SPEED")
     def test_scheduled_compass_calibration_autosample(self):
         """
         Verify the device configuration command can be triggered and run in autosample
@@ -819,7 +820,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         dt = self.assert_get(Parameter.TIME)
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:13].upper() in dt.upper())
-
+    @unittest.skip("DEBUGGING DISABLE FOR SPEED")
     def test_scheduled_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
@@ -827,7 +828,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         log.error("test_scheduled_clock_sync_command")
         self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=90)
         self.assert_current_state(ProtocolState.COMMAND)
-
+    @unittest.skip("DEBUGGING DISABLE FOR SPEED")
     def test_scheduled_clock_sync_autosample(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
@@ -869,7 +870,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_data_particle_keys(ADCP_COMPASS_CALIBRATION_KEY, self._calibration_data_parameters)
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
-
+    @unittest.skip("DEBUGGING DISABLE FOR SPEED")
     def test_cycle(self):
         """
         Verify we can bounce between command and streaming.  We try it a few times to see if we can find a timeout.
@@ -894,7 +895,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         if(verify):
             result = self.instrument_agent_client.get_resource(getParams, timeout=300)
             self.assertEqual(result[name], value)
-
+    @unittest.skip("DEBUGGING DISABLE FOR SPEED")
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -916,7 +917,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_enter_command_mode()
 
         self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1488)
-
+    @unittest.skip("DEBUGGING DISABLE FOR SPEED")
     def test_execute_clock_sync(self):
         """
         Verify we can syncronize the instrument internal clock
@@ -931,7 +932,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.TIME).lower(), "%Y/%m/%d,%H:%M:%S %Z"))
 
         self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 30)
-
+    @unittest.skip("DEBUGGING DISABLE FOR SPEED")
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -1001,7 +1002,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
-
+    @unittest.skip("DEBUGGING DISABLE FOR SPEED")
     def test_startup_params_first_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -1068,7 +1069,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_set_parameter(Parameter.TRANSMIT_LENGTH, 1)
         self.assert_set_parameter(Parameter.PING_WEIGHT, 1)
         self.assert_set_parameter(Parameter.AMBIGUITY_VELOCITY, 176)
-
+    @unittest.skip("DEBUGGING DISABLE FOR SPEED")
     def test_startup_params_second_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
