@@ -86,6 +86,7 @@ class ProtocolEvent(BaseEnum):
     CLOCK_SYNC       = DriverEvent.CLOCK_SYNC
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE  = DriverEvent.STOP_AUTOSAMPLE
+    FLASH_STATUS     = 'DRIVER_EVENT_FLASH_STATUS'
 
 class Capability(BaseEnum):
     """
@@ -96,6 +97,7 @@ class Capability(BaseEnum):
     CLOCK_SYNC       = ProtocolEvent.CLOCK_SYNC
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE  = ProtocolEvent.STOP_AUTOSAMPLE
+    FLASH_STATUS     = ProtocolEvent.FLASH_STATUS
  
 class Parameter(DriverParameter):
     """
@@ -110,6 +112,7 @@ class Prompt(BaseEnum):
     CR_NL   = NEWLINE
     STOPPED = "Sampling STOPPED" + NEWLINE
     GO      = "Sampling GO - synchronizing..." + NEWLINE
+    FS      = "bytes free\r" + NEWLINE
 
 class Command(BaseEnum):
     """
@@ -385,11 +388,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.FLASH_STATUS, self._handler_flash_status)
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.CLOCK_SYNC, self._handler_sync_clock)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.FLASH_STATUS, self._handler_flash_status)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -408,6 +413,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Add response handlers for device commands.
         self._add_response_handler(Command.GET_CLOCK, self._parse_clock_response)
         self._add_response_handler(Command.SET_CLOCK, self._parse_clock_response)
+        self._add_response_handler(Command.FS, self._parse_fs_response)
  
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -617,10 +623,25 @@ class Protocol(CommandResponseInstrumentProtocol):
     # general handlers.
     ########################################################################
 
+    def _handler_flash_status(self, *args, **kwargs):
+        """
+        Acquire flash status from instrument.
+        @retval (next_state, (next_agent_state, result)) tuple, (None, (None, None)).
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        result = self._do_cmd_resp(Command.FS, expected_prompt=Prompt.FS)
+
+        return (next_state, (next_agent_state, result))
+
     def _handler_acquire_sample(self, *args, **kwargs):
         """
         Acquire sample from instrument.
-        @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
+        @retval (next_state, (next_agent_state, result)) tuple, (None, (None, None)).
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
@@ -635,7 +656,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_sync_clock(self, *args, **kwargs):
         """
         sync clock close to a second edge 
-        @retval (next_state, (next_agent_state, result)) tuple, (None (None, None)) if successful.
+        @retval (next_state, (next_agent_state, result)) tuple, (None, (None, None)).
         @throws InstrumentTimeoutException if device respond correctly.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
@@ -687,6 +708,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
         self._cmd_dict.add(Capability.CLOCK_SYNC, display_name="synchronize clock")
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
+        self._cmd_dict.add(Capability.FLASH_STATUS, display_name="flash status")
 
     def _build_param_dict(self):
         """
@@ -741,3 +763,16 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException('CLOCK command not parsed: %s.' % response)
 
         return
+
+    def _parse_fs_response(self, response, prompt):
+        """
+        Parse handler for FS command.
+        @param response command response string.
+        @param prompt prompt following command response.        
+        @throws InstrumentProtocolException if FS command misunderstood.
+        """
+        log.debug("_parse_fs_response: response=%s, prompt=%s" %(response, prompt))
+        if prompt not in [Prompt.FS]: 
+            raise InstrumentProtocolException('FS command not recognized: %s.' % response)
+
+        return response

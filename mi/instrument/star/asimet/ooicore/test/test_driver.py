@@ -19,6 +19,7 @@ __license__ = 'Apache 2.0'
 import unittest
 import gevent
 import time
+import re
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -341,9 +342,13 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
                                     'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                    'DRIVER_EVENT_CLOCK_SYNC'],
+                                    'DRIVER_EVENT_CLOCK_SYNC',
+                                    'DRIVER_EVENT_FLASH_STATUS'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                       'DRIVER_EVENT_ACQUIRE_SAMPLE'],
+                                       'DRIVER_EVENT_GET',
+                                       'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                       'DRIVER_EVENT_CLOCK_SYNC',
+                                       'DRIVER_EVENT_FLASH_STATUS'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 
                                           'EXECUTE_DIRECT']
         }
@@ -384,6 +389,28 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         self.assert_driver_parameters(reply)
+
+    def test_flash_status_command_mode(self):
+        """
+        Test flash status in command mode.
+        """
+        self.assert_initialize_driver()
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.FLASH_STATUS)
+        regex = re.compile('Compact Flash Card present - Compact Flash OK!\r\n\r\r\nVolume in drive is .+ bytes free\r\r\n', re.DOTALL)
+        match = regex.match(reply[1])
+
+        self.assertNotEqual(match, None, "TestINT.test_flash_status: status response not correct")
+
+    def test_flash_status_autosample_mode(self):
+        """
+        Test flash status in autosample mode.
+        """
+        self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.FLASH_STATUS)
+        regex = re.compile('Compact Flash Card present - Compact Flash OK!\r\n\r\r\nVolume in drive is .+ bytes free\r\r\n', re.DOTALL)
+        match = regex.match(reply[1])
+
+        self.assertNotEqual(match, None, "TestINT.test_flash_status: status response not correct")
 
     def test_execute_clock_sync_command_mode(self):
         """
