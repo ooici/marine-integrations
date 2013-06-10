@@ -95,6 +95,7 @@ class Capability(BaseEnum):
     GET = ProtocolEvent.GET
     SET = ProtocolEvent.SET
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     
 class Parameter(DriverParameter):
     """
@@ -400,6 +401,13 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return return_list
 
+    def _filter_capabilities(self, events):
+        """
+        Return a list of currently available capabilities.
+        """
+        events_out = [x for x in events if Capability.has(x)]
+        return events_out
+
     def _build_cmd_dict(self):
         """
         Populate the command dictionary with NOAA IRIS Driver metadata information. 
@@ -467,12 +475,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                                         chunk, timestamp):
                 raise InstrumentProtocolException("Unhandled chunk")
 
-
-    def _filter_capabilities(self, events):
-        """
-        Return a list of currently available capabilities.
-        """
-        return [x for x in events if Capability.has(x)]
 
     def _build_data_on_command(self, cmd, *args, **kwargs):
         return cmd + NEWLINE

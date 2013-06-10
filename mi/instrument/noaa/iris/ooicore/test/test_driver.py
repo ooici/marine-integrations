@@ -69,6 +69,7 @@ from mi.instrument.noaa.iris.ooicore.driver import IRIS_DUMP1
 from mi.instrument.noaa.iris.ooicore.driver import IRIS_DUMP2
 
 from mi.core.exceptions import SampleException
+from mi.core.exceptions import InstrumentStateException
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 from pyon.core.exception import Conflict
@@ -147,6 +148,10 @@ class IRISTestMixinSub(DriverTestMixin):
     DEFAULT   = ParameterTestConfigKey.DEFAULT
     STATES    = ParameterTestConfigKey.STATES
 
+    _driver_parameters = {
+        # Parameters defined in the IOS
+    }
+    
     _sample_parameters_01 = {
         IRISDataParticleKey.TIME: {TYPE: float, VALUE: 3578801134.0, REQUIRED: True },
         IRISDataParticleKey.X_TILT: {TYPE: float, VALUE: -0.0882, REQUIRED: True },
@@ -308,7 +313,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
             test_particle = IRISDataParticle(raw_data)
             result = test_particle._build_parsed_values()
 
-        except SampleException:
+        except SampleException as e:
             log.error('SampleException caught: %s.', e)
             sampleException = True
             
@@ -555,6 +560,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         ts = ntplib.system_to_ntp_time(time.time())
         result = driver._protocol._got_chunk(DATA_ON_COMMAND_RESPONSE, ts)
 
+
     def test_data_off(self):
         mock_port_agent = Mock(spec=PortAgentClient)
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -663,7 +669,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         
         log.debug("DATA_OFF returned: %r", response)
 
-        
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #
@@ -725,14 +731,27 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
                 ProtocolEvent.GET,
                 ProtocolEvent.SET,
                 ProtocolEvent.START_AUTOSAMPLE,
-                ProtocolEvent.DATA_ON,
-                ProtocolEvent.DATA_OFF,
                 ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }
 
         self.assert_capabilities(capabilities)
+
+        ##################
+        #  Streaming Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+            ProtocolEvent.STOP_AUTOSAMPLE,
+            #ProtocolEvent.ACQUIRE_STATUS,
+            ]
+
+        self.assert_start_autosample()
+        self.assert_capabilities(capabilities)
+        self.assert_stop_autosample()
+
 
 
     def test_instrument_agent_common_state_model_lifecycle(self,  timeout=GO_ACTIVE_TIMEOUT):
