@@ -34,6 +34,8 @@ INSTALL prequisite software for COI-services
        . /usr/local/share/python/virtualenvwrapper.sh
 - setup a virtual environment to work in.
     mkvirtualenv --no-site-packages --python=python2.7 ooi
+    workon ooi
+    pip install numpy==1.6.2
 
 INSTALL
 =======
