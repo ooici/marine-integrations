@@ -41,6 +41,8 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
 
+from mi.core.instrument.driver_dict import DriverDictKey
+
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict, \
                                                    ParameterDictType, \
                                                    ParameterDictVisibility
@@ -389,12 +391,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.FLASH_STATUS, self._handler_flash_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status)
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.CLOCK_SYNC, self._handler_sync_clock)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.FLASH_STATUS, self._handler_flash_status)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -419,7 +423,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         # current parameter values, and set formatting functions.
         self._build_param_dict()
         self._build_command_dict()
-
+        self._build_driver_dict()
+        
         self._chunker = StringChunker(Protocol.sieve_function)
 
         #self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
@@ -677,6 +682,21 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+    def _handler_acquire_status(self, *args, **kwargs):
+        """
+        Acquire status from instrument.
+        @retval (next_state, (next_agent_state, result)) tuple, (None, (None, None)).
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        result = self._do_cmd_resp(Command.STAT, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
     ########################################################################
     # Private helpers.
     ########################################################################
@@ -700,6 +720,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         """There is no wakeup sequence for this instrument"""
         pass
     
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with options
+        """
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, False)
+
     def _build_command_dict(self):
         """
         Populate the command dictionary with command.
@@ -708,6 +734,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
         self._cmd_dict.add(Capability.CLOCK_SYNC, display_name="synchronize clock")
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
+        self._cmd_dict.add(Capability.ACQUIRE_SAMPLE, display_name="acquire sample")
         self._cmd_dict.add(Capability.FLASH_STATUS, display_name="flash status")
 
     def _build_param_dict(self):
@@ -734,7 +761,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         
         log.debug("_update_params:")
-        # Issue clock command and parse results.  
+         # Issue clock command and parse results.  
         # This is the only parameter and it is always changing so don't bother with the 'change' event
         self._do_cmd_resp(Command.GET_CLOCK)
 

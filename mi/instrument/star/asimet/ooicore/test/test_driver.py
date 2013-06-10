@@ -21,6 +21,9 @@ import gevent
 import time
 import re
 
+from interface.objects import AgentCapability
+from interface.objects import CapabilityType
+
 from nose.plugins.attrib import attr
 from mock import Mock
 from nose.plugins.attrib import attr
@@ -35,6 +38,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
+from mi.idk.unit_test import DriverStartupConfigKey
 
 from interface.objects import AgentCommand
 
@@ -153,10 +157,20 @@ class UtilMixin(DriverTestMixin):
     METBK_SAMPLE_DATA1 = "1012.53  44.543  24.090    0.0    1.12  24.240  0.0000 32788.7   -0.03   -0.02  0.0000 12.50" + NEWLINE
     METBK_SAMPLE_DATA2 = "1013.53  44.543  24.090    0.0    1.12  24.240  0.0000 32788.7   -0.03   -0.02  0.0000 12.50" + NEWLINE
     
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        Capability.START_AUTOSAMPLE : {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_AUTOSAMPLE : {STATES: [ProtocolState.AUTOSAMPLE]},
+        Capability.CLOCK_SYNC : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.ACQUIRE_SAMPLE : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.ACQUIRE_STATUS : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.FLASH_STATUS : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+    }
+
     ###
     # Parameter and Type Definitions
     ###
-    _driver_parameters = {Parameter.CLOCK: {TYPE: unicode, VALUE: "2013/05/21  15:46:30", REQUIRED: True}}
+    _driver_parameters = {Parameter.CLOCK: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: "2013/05/21  15:46:30", REQUIRED: True}}
 
     ###
     # Data Particle Parameters
@@ -259,7 +273,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 
         # Test capabilities for duplicates, them verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(Capability())
-        #self.assert_enum_complete(Capability(), ProtocolEvent())  Capability is empty, so this test fails
+        self.assert_enum_complete(Capability(), ProtocolEvent())  
 
 
     def test_chunker(self):
@@ -342,11 +356,13 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
                                     'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                    'DRIVER_EVENT_ACQUIRE_STATUS',
                                     'DRIVER_EVENT_CLOCK_SYNC',
                                     'DRIVER_EVENT_FLASH_STATUS'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
                                        'DRIVER_EVENT_GET',
                                        'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                       'DRIVER_EVENT_ACQUIRE_STATUS',
                                        'DRIVER_EVENT_CLOCK_SYNC',
                                        'DRIVER_EVENT_FLASH_STATUS'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 
@@ -355,6 +371,13 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
+
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
 
 ###############################################################################
@@ -469,8 +492,83 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
+    @staticmethod
+    def sort_capabilities(caps_list):
+        '''
+        sort a return value into capability buckets.
+        @retval agt_cmds, agt_pars, res_cmds, res_iface, res_pars
+        '''
+        agt_cmds = []
+        agt_pars = []
+        res_cmds = []
+        res_iface = []
+        res_pars = []
+
+        if len(caps_list)>0 and isinstance(caps_list[0], AgentCapability):
+            agt_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_CMD]
+            agt_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_PAR]
+            res_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_CMD]
+            #res_iface = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_IFACE]
+            res_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_PAR]
+
+        elif len(caps_list)>0 and isinstance(caps_list[0], dict):
+            agt_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_CMD]
+            agt_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_PAR]
+            res_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_CMD]
+            #res_iface = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_IFACE]
+            res_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_PAR]
+
+        agt_cmds.sort()
+        agt_pars.sort()
+        res_cmds.sort()
+        res_iface.sort()
+        res_pars.sort()
+        
+        return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
+    
+    def ia_capabilities(self):
+        state = self.instrument_agent_client.get_agent_state()
+        log.critical("ia_capabilities: IA state=%s" %state)
+        retval = self.instrument_agent_client.get_capabilities()
+        agt_cmds, agt_pars, res_cmds, res_iface, res_pars = TestQUAL.sort_capabilities(retval)
+        log.critical("ia_capabilities: IA commands:\n%s" %agt_cmds)
+        log.critical("ia_capabilities: resource commands:\n%s" %res_cmds)
+    
+    def command_ia(self, cmd):
+        log.critical("command_ia: executing %s." %cmd)
+        try:
+            self.instrument_agent_client.execute_agent(cmd) 
+            self.ia_capabilities()
+        except Exception as e:
+            log.critical("command_ia: exception raised - %s" %e)
+    
     @unittest.skip('Only enabled and used for manual testing of vendor SW')
     def test_direct_access_telnet_mode(self):
+        """
+        @brief This test automatically tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+        self.assert_enter_command_mode()
+        self.ia_capabilities()
+
+        # go into direct access
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.ia_capabilities()
+        self.tcp_client.send_data("#D\r\n")
+        self.tcp_client.expect("\r\n")
+        
+        self.tcp_client.disconnect()
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
+        self.command_ia(cmd)
+        gevent.sleep(10)
+        self.ia_capabilities()
+
+        #self.assert_direct_access_stop_telnet()
+
+        # verify the setting got restored.
+        #self.assert_enter_command_mode()
+
+    @unittest.skip('Only enabled and used for manual testing of vendor SW')
+    def test_direct_access_telnet_mode_manual(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (virtual serial port mode)
         """
