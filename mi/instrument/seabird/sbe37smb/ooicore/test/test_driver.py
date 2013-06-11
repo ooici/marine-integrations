@@ -52,6 +52,7 @@ from mi.instrument.seabird.sbe37smb.ooicore.test.sample_data import *
 from mi.instrument.seabird.sbe37smb.ooicore.driver import DataParticleType
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Prompt
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolEvent
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Capability
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticle
@@ -1301,59 +1302,126 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         # If this assert fails, then two of tte enumerations have an identical value...
         return match == outer_match
 
-    @unittest.skip("da currently broken for this instrument")
-    def test_direct_access_telnet_mode(self):
+    def test_direct_access_telnet_mode_command(self):
         """
         @brief This test verifies that the Instrument Driver
                properly supports direct access to the physical
                instrument. (telnet mode)
         """
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
+        ###
+        # First test direct access and exit with a go command
+        # call.  Also add a parameter change to verify DA
+        # parameters are restored on DA exit.
+        ###
+        self.assert_enter_command_mode()
+        self.assert_set_parameter(SBE37Parameter.INTERVAL, 10)
 
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet()
+        self.tcp_client.send_data("%sinterval=97%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.expect("sample interval = 97")
 
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.assert_direct_access_stop_telnet()
 
-        # go direct access
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-                           kwargs={'session_type': DirectAccessTypes.telnet,
-                                   #kwargs={'session_type':DirectAccessTypes.vsp,
-                                   'session_timeout':600,
-                                   'inactivity_timeout':600})
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.warn("go_direct_access retval=" + str(retval.result))
+        # verify the setting got restored.
+        self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 10)
+        self.assert_get_parameter(SBE37Parameter.INTERVAL, 10)
 
-        s = TcpClient(retval.result['ip_address'], retval.result['port'])
-        s.telnet_handshake()
-        
-        s.send_data("ts\r\n", "1")
-        log.debug("SENT THE TS COMMAND")
+        ###
+        # Test direct access inactivity timeout
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
+        self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 60)
 
-        pattern = re.compile("^([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9a-z]+),([ 0-9:]+)")
+        ###
+        # Test session timeout without activity
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=120, session_timeout=30)
+        self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 60)
 
-        matches = 0
-        n = 0
-        while n < 100:
-            n = n + 1
-            gevent.sleep(1)
-            data = s.get_data()
-            log.debug("READ ==>" + str(repr(data)))
-            m = pattern.search(data)
-            if m != None:
-                matches = m.lastindex
-                if matches == 7:
-                    break
+        ###
+        # Test direct access session timeout with activity
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=60)
+        # Send some activity every 30 seconds to keep DA alive.
+        for i in range(1, 2, 3):
+            self.tcp_client.send_data(NEWLINE)
+            log.debug("Sending a little keep alive communication, sleeping for 15 seconds")
+            gevent.sleep(15)
 
-        self.assertTrue(matches == 7) # need to have found 7 conformant fields.
+        self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 45)
+
+        ###
+        # Test direct access disconnect
+        ###
+        self.assert_direct_access_start_telnet()
+        self.tcp_client.disconnect()
+        self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 30)
+
+
+    @unittest.skip("in progress")
+    def test_direct_access_telnet_mode_autosample(self):
+        """
+        @brief Same as the previous DA test except in this test
+               we force the instrument into streaming when in
+               DA.  Then we need to verify the transition back
+               to the driver works as expected.
+        """
+        ###
+        # First test direct access and exit with a go command
+        # call.  Also add a parameter change to verify DA
+        # parameters are restored on DA exit.
+        ###
+        self.assert_enter_command_mode()
+        #self.assert_set_parameter(SBE37Parameter.INTERVAL, 10)
+
+        # go into direct access, and muck up a setting.
+        #self.assert_direct_access_start_telnet(timeout=600)
+        #self.tcp_client.send_data(NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+        #self.tcp_client.send_data("interval=97%s" % NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+        #self.tcp_client.send_data("startnow%s" % NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+
+        #self.assert_direct_access_stop_telnet()
+
+        # verify the setting got restored.
+        #self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 10)
+        #self.assert_get_parameter(SBE37Parameter.INTERVAL, 10)
+
+        ###
+        # Test direct access timeout
+        ###
+        #self.assert_direct_access_start_telnet(timeout=10)
+        #self.tcp_client.send_data(NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+        #self.tcp_client.send_data("startnow%s" % NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+        #self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 30)
+
+        ###
+        # Test direct access disconnect
+        ###
+        #self.assert_direct_access_start_telnet(timeout=600)
+        #self.tcp_client.send_data(NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+        #self.tcp_client.send_data("startnow%s" % NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+        #self.tcp_client.disconnect()
+        #self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 30)
+
+        ###
+        # Run all the same DA termination tests, but this time make sure the
+        # instrument is left in autosample mode on exit.
+        ###
+        self.assert_direct_access_start_telnet()
+        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
+        gevent.sleep(5)
+        self.tcp_client.send_data("%sds%s" %  (NEWLINE, NEWLINE))
+        self.tcp_client.disconnect()
+        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 30)
+
 
     @unittest.skip("Do not include until a good method is devised")
     def test_direct_access_virtual_serial_port_mode(self):
