@@ -254,7 +254,6 @@ class UtilMixin(DriverTestMixin):
             self.assert_particle_published(driver, sample_data, particle_assert_method, verify_values)
         except AssertionError as e:
             if str(e) == "0 != 1":
-                print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ got the != exception")
                 return
             else:
                 raise e
