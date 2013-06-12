@@ -7,6 +7,7 @@
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
+import time
 import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -161,7 +162,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.COORDINATE_TRANSFORMATION: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '11111', VALUE: '11111'},
         Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1111101"}, 
         Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
-        Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
+        #NEVER IMPLEMENT THIS#Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
         Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:01.00'},
         Parameter.FALSE_TARGET_THRESHOLD: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '050,001'},
         Parameter.BANDWIDTH_CONTROL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
@@ -452,7 +453,6 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_PS0DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-        log.debug("IN assert_particle_pd0_data")
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_EARTH)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
 
@@ -636,7 +636,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         Test that we can generate particles when in autosample
         """
         self.assert_initialize_driver()
-
+        
         params = {
             Parameter.INSTRUMENT_ID: 0,
             Parameter.SLEEP_ENABLE: 0,
@@ -682,19 +682,30 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
     def test_autosample(self):
         """
         Verify autosample works and data particles are created
+        
+        NOTE: If TG is set autosample behaves odd...
+        
         """
         self.assert_enter_command_mode()
+        """
+        self.assert_set_parameter(Parameter.COORDINATE_TRANSFORMATION, '00111')
         self.assert_start_autosample()
-
-        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=50) # ADCP_PD0_PARSED_BEAM
-        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=50)
-        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=50)
-
-        # Stop autosample and do run a couple commands.
-        self.assert_stop_autosample()
+        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data, timeout=140)
 
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
+        self.assert_stop_autosample()
+        """
+        #self.assert_set_parameter(Parameter.COORDINATE_TRANSFORMATION, '11111')
+        self.assert_start_autosample()
+
+        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=140)
+
+        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=70)
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=70)
+
+        # Stop autosample and do run a couple commands.
+        self.assert_stop_autosample()
 
         # Restart autosample and gather a couple samples
         self.assert_sample_autosample(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_EARTH)
@@ -717,6 +728,7 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
 # Device specific publication tests are for                                   #
 # testing device specific capabilities                                        #
 ###############################################################################
+
 @attr('PUB', group='mi')
 class PubFromIDK(WorkhorseDriverPublicationTest):
     def setUp(self):
