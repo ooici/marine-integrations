@@ -51,8 +51,8 @@ IRIS_STRING = 'IRIS,'
 IRIS_COMMAND_STRING = '*9900XY'
 IRIS_DATA_ON = 'C2' # turns on continuous data
 IRIS_DATA_OFF = 'C-OFF' # turns off continuous data
-IRIS_DUMP1 = '-DUMP_SETTINGS' # outputs current settings
-IRIS_DUMP2 = '-DUMP2' # outputs current extended settings
+IRIS_DUMP_01 = '-DUMP-SETTINGS' # outputs current settings
+IRIS_DUMP_02 = '-DUMP2' # outputs current extended settings
 
 # default timeout.
 TIMEOUT = 10
@@ -87,6 +87,7 @@ class ProtocolEvent(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     DISCOVER = DriverEvent.DISCOVER
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 class Capability(BaseEnum):
     """
@@ -96,6 +97,7 @@ class Capability(BaseEnum):
     SET = ProtocolEvent.SET
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
+    ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
     
 class Parameter(DriverParameter):
     """
@@ -113,8 +115,8 @@ class InstrumentCommand(BaseEnum):
     """
     DATA_ON  = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DATA_ON + NEWLINE # turns on continuous data 
     DATA_OFF = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DATA_OFF + NEWLINE  # turns off continuous data 
-    DUMP_SETTINGS_01  = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DUMP1 + NEWLINE   # outputs current settings 
-    DUMP_SETTINGS_02  = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DUMP2 + NEWLINE    # outputs current extended settings 
+    DUMP_SETTINGS_01  = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DUMP_01 + NEWLINE   # outputs current settings 
+    DUMP_SETTINGS_02  = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DUMP_02 + NEWLINE    # outputs current extended settings 
 
 class IRISCommandResponse():
 
@@ -166,7 +168,10 @@ class IRISCommandResponse():
             resp_time = match.group(1)
             timestamp = time.strptime(resp_time, "%Y/%m/%d %H:%M:%S")
             self.iris_command_response = match.group(2)
-            if self.iris_command_response == expected_response:
+            if expected_response is not None:
+                if self.iris_command_response == expected_response:
+                    retValue = True
+            else:
                 retValue = True  
 
         except ValueError:
@@ -351,25 +356,31 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_data_off)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_data_on)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
 
         # Add build handlers for device commands.
-        self._add_build_handler(InstrumentCommand.DATA_ON, self._build_data_on_command)
-        self._add_build_handler(InstrumentCommand.DATA_OFF, self._build_data_off_command)
+        self._add_build_handler(InstrumentCommand.DATA_ON, self._build_command)
+        self._add_build_handler(InstrumentCommand.DATA_OFF, self._build_command)
+        self._add_build_handler(InstrumentCommand.DUMP_SETTINGS_01, self._build_command)
+        self._add_build_handler(InstrumentCommand.DUMP_SETTINGS_02, self._build_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCommand.DATA_ON, self._parse_data_on_off_resp)
         self._add_response_handler(InstrumentCommand.DATA_OFF, self._parse_data_on_off_resp)
+        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_01, self._parse_data_on_off_resp)
+        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_02, self._parse_data_on_off_resp)
 
         # Add sample handlers.
 
@@ -476,11 +487,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                 raise InstrumentProtocolException("Unhandled chunk")
 
 
-    def _build_data_on_command(self, cmd, *args, **kwargs):
-        return cmd + NEWLINE
-
-    def _build_data_off_command(self, cmd, *args, **kwargs):
-        return cmd + NEWLINE
+    def _build_command(self, cmd, *args, **kwargs):
+        command = cmd + NEWLINE
+        log.debug("_build_command: command is: %s", command)
+        return command
 
     def _parse_data_on_off_resp(self, response, prompt):
         log.debug("_parse_data_on_off_resp: response: %r; prompt: %s", response, prompt)
@@ -568,7 +578,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         pass
 
-    def _handler_autosample_data_off(self):
+    def _handler_autosample_stop_autosample(self):
         """
         """
         next_state = ProtocolState.COMMAND
@@ -619,25 +629,13 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
-        """
-        result = None
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-
-        return (next_state, (next_agent_state, result))
-
-    """
-    DHE TODO: make this be for the iris data on command
-    """
-    def _handler_command_data_on(self, *args, **kwargs):
-        """
         Turn the iris on
         """
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
         """ 
-        call _do_cmd_resp, passing our iris_duration parameter as the expected_prompt
+        call _do_cmd_resp, passing our IRIS_DATA_ON as the expected_prompt
         """
         result = self._do_cmd_resp(InstrumentCommand.DATA_ON, 
                                    expected_prompt = IRIS_DATA_ON)
@@ -650,58 +648,27 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         pass
 
-    def _handler_command_start_direct(self):
-        """
-        Start direct access
-        """
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-        log.debug("_handler_command_start_direct: entering DA mode")
-        return (next_state, (next_agent_state, result))
-
     ########################################################################
-    # Direct access handlers.
+    # Handlers common to Command and Autosample States.
     ########################################################################
 
-    def _handler_direct_access_enter(self, *args, **kwargs):
+    def _handler_command_autosample_acquire_status(self, *args, **kwargs):
         """
-        Enter direct access state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        self._sent_cmds = []
-
-    def _handler_direct_access_exit(self, *args, **kwargs):
-        """
-        Exit direct access state.
-        """
-        pass
-
-    def _handler_direct_access_execute_direct(self, data):
-        """
+        Get device status
         """
         next_state = None
-        result = None
         next_agent_state = None
-
-        self._do_cmd_direct(data)
-
-        # add sent command to list for 'echo' filtering in callback
-        self._sent_cmds.append(data)
-
-        return (next_state, (next_agent_state, result))
-
-    def _handler_direct_access_stop_direct(self):
-        """
-        @throw InstrumentProtocolException on invalid command
-        """
-        next_state = None
         result = None
+        log.debug("_handler_command_autosample_acquire_status")
 
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_01)
+
+        log.debug("DUMP_SETTINGS_01 response: %s", result)
+
+        result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_02)
+
+        log.debug("DUMP_SETTINGS_02 response: %s", result)
 
         return (next_state, (next_agent_state, result))
+
+
