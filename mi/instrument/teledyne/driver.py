@@ -50,6 +50,7 @@ NEWLINE = '\r\n'
 DEFAULT_CMD_TIMEOUT=20
 DEFAULT_WRITE_DELAY=0
 
+
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
@@ -83,7 +84,7 @@ class Parameter(DriverParameter):
     SENSOR_SOURCE = 'EZ'                # Sensor Source (C;D;H;P;R;S;T)
 
     TIME_PER_ENSEMBLE = 'TE'            # 01:00:00.00 (hrs:min:sec.sec/100)
-    TIME_OF_FIRST_PING = 'TG'           # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+    #NEVER IMPLEMENT# TIME_OF_FIRST_PING = 'TG'           # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
     TIME_PER_PING = 'TP'                # 00:00.20  (min:sec.sec/100)
     TIME = 'TT'                         # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
 
@@ -404,7 +405,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws: InstrumentProtocolException if not in command or streaming
         """
         # Let's give it a try in unknown state
-        log.debug("in apply_startup_params")
+        log.trace("in apply_startup_params")
         if (self.get_current_state() != ProtocolState.COMMAND and
             self.get_current_state() != ProtocolState.AUTOSAMPLE):
             raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
@@ -448,7 +449,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         apply startup parameters to the instrument.
         @throws: InstrumentProtocolException if in wrong mode.
         """
-        log.debug("IN _apply_params")
+        log.trace("IN _apply_params")
         config = self.get_startup_config()
         # Pass true to _set_params so we know these are startup values
         self._set_params(config, True)
@@ -518,6 +519,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         Update the parameter dictionary. 
         """
+        log.trace("in _update_params")
         error = None
         logging = self._is_logging()
 
@@ -541,13 +543,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                         result = self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
                         results += result + NEWLINE
 
-            result = self._do_cmd_resp(InstrumentCmds.GET, key, **kwargs)
             new_config = self._param_dict.get_config()
 
             if not dict_equal(new_config, old_config):
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-
-            # UPDATE CODE HERE
 
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
@@ -559,7 +558,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             # Switch back to streaming
             if logging:
                 my_state = self._protocol_fsm.get_current_state()
-                log.debug("current_state = %s", my_state)
+                log.trace("current_state = %s calling start_logging", my_state)
                 self._start_logging()
 
         if(error):
@@ -571,6 +570,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         Issue commands to the instrument to set various parameters
         """
+        log.trace("in _set_params")
         # Retrieve required parameter.
         # Raise if no parameter provided, or not a dict.
         result = None
@@ -585,11 +585,12 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         except IndexError:
             pass
 
-        log.debug("calling _verify_not_readonly ARGS = " + repr(args))
+        log.trace("_set_params calling _verify_not_readonly ARGS = " + repr(args))
         self._verify_not_readonly(*args, **kwargs)
 
         for (key, val) in params.iteritems():
             result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
+        log.trace("_set_params calling _update_params")
         self._update_params()
         return result
 
@@ -695,21 +696,22 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @return: True if the startup config doesn't match the instrument
         @throws: InstrumentParameterException
         """
+        log.trace("in _instrument_config_dirty")
         # Refresh the param dict cache
-        self._update_params()
+        #self._update_params()
 
         startup_params = self._param_dict.get_startup_list()
-        log.debug("Startup Parameters: %s" % startup_params)
+        log.trace("Startup Parameters: %s" % startup_params)
 
         for param in startup_params:
             if not Parameter.has(param):
                 raise InstrumentParameterException()
 
             if (self._param_dict.get(param) != self._param_dict.get_config_value(param)):
-                log.debug("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_config_value(param)))
+                log.trace("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_config_value(param)))
                 return True
 
-        log.debug("Clean instrument config")
+        log.trace("Clean instrument config")
         return False
 
     def _is_logging(self, timeout=TIMEOUT):
@@ -728,10 +730,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.debug("********** GOT PROMPT" + repr(prompt))
         if Prompt.COMMAND == prompt:
             logging = False
-            log.debug("COMMAND MODE!")
+            log.trace("COMMAND MODE!")
         else:
             logging = True
-            log.debug("AUTOSAMPLE MODE!")
+            log.trace("AUTOSAMPLE MODE!")
 
         return logging
 
@@ -742,7 +744,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @return: True if successful
         @throws: InstrumentProtocolException if failed to start logging
         """
-        log.debug("in _start_logging - Start Logging!")
+        log.trace("in _start_logging - are we logging? " + str(self._is_logging()))
         if(self._is_logging()):
             return True
         self._do_cmd_no_resp(InstrumentCmds.START_DEPLOYMENT, timeout=timeout)
@@ -875,8 +877,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         # Command device to update parameters and send a config change event.
 
-        log.debug("*** IN _handler_command_enter(), updating params")
-        self._update_params()
+        log.trace("in _handler_command_enter()")
+        #self._update_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -941,6 +943,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         Enter autosample state.
         """
+        log.trace("IN _handler_autosample_enter")
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
 
@@ -1011,7 +1014,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
         @throws InstrumentParameterException if missing or invalid parameter.
         """
-
+        log.trace("in _handler_command_get")
         next_state = None
         result = None
         error = None
@@ -1019,7 +1022,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # Grab a baseline time for calculating expiration time.  It is assumed
         # that all data if valid if acquired after this time.
         expire_time = self._param_dict.get_current_timestamp()
-
+        log.trace("expire_time = " + str(expire_time))
         # build a list of parameters we need to get
         param_list = self._get_param_list(*args, **kwargs)
 
@@ -1032,10 +1035,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             # that _update_params does everything required to refresh all
             # parameters or at least those that would expire.
 
-            log.debug("in _handler_command_get Parameter expired, refreshing, %s", e)
+            log.trace("in _handler_command_get Parameter expired, refreshing, %s", e)
 
             if self._is_logging():
-                log.debug("I am logging")
+                log.trace("I am logging")
                 try:
                     # Switch to command mode,
                     self._stop_logging()
@@ -1043,7 +1046,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                     self._update_params()
                     # Take a second pass at getting values, this time is should
                     # have all fresh values.
-                    log.debug("Fetching parameters for the second time")
+                    log.trace("Fetching parameters for the second time")
                     result = self._get_param_result(param_list, expire_time)
                 # Catch all error so we can put ourself back into
                 # streaming.  Then rethrow the error
@@ -1057,11 +1060,11 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                 if(error):
                     raise error
             else:
-                log.debug("I am not logging")
+                log.trace("I am not logging")
                 self._update_params()
                 # Take a second pass at getting values, this time is should
                 # have all fresh values.
-                log.debug("Fetching parameters for the second time")
+                log.trace("Fetching parameters for the second time")
                 result = self._get_param_result(param_list, expire_time)
         return (next_state, result)
 
