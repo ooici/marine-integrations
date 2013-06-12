@@ -408,16 +408,41 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
+    def assert_async_particle_not_generated(self, particle_type, timeout=10):
+        end_time = time.time() + timeout
+
+        while end_time > time.time():
+            if len(self.get_sample_events(particle_type)) > 0:
+                self.fail("assert_async_particle_not_generated: a particle of type %s was published" %particle_type)
+            time.sleep(.3)
+    
     def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample.
         To test status particle instrument must be off and powered on will test is waiting
         """
+        # put driver into autosample mode
         self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
 
-        print("waiting 60 seconds for instrument data")
+        # test that sample particle is generated
+        log.debug("test_autosample_particle_generation: waiting 60 seconds for instrument data")
         self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample, timeout=60)
+        
+        # take driver out of autosample mode
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+        
+        # test that sample particle is not generated
+        log.debug("test_autosample_particle_generation: waiting 60 seconds for no instrument data")
+        self.clear_events()
+        self.assert_async_particle_not_generated(DataParticleType.METBK_PARSED, timeout=60)
+        
+        # put driver back in autosample mode
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        
+        # test that sample particle is generated
+        log.debug("test_autosample_particle_generation: waiting 60 seconds for instrument data")
+        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample, timeout=60)
+        
 
     def test_parameters(self):
         """
