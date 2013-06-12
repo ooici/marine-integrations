@@ -439,8 +439,9 @@ class SeaBird16plusMixin(DriverTestMixin):
 #         Unit tests test the method calls and parameters using Mock.         #
 ###############################################################################
 
-class Sbe16PlusV2UnitTestBase(object):
-    
+class SBEUnitTestCase(SeaBirdUnitTest):
+    """Unit Test Driver"""
+
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
@@ -627,10 +628,6 @@ class Sbe16PlusV2UnitTestBase(object):
         with self.assertRaises(InstrumentParameterException):
             driver._protocol._parse_set_response(response, Prompt.EXECUTED)    
 
-@attr('UNIT', group='mi')
-class SBEUnitTestCase(SeaBirdUnitTest):
-    """Unit Test Driver"""
-    pass
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #

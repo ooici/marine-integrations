@@ -24,7 +24,6 @@ from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEIntTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEQualTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEPubTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SeaBird16plusMixin
-from mi.instrument.seabird.sbe16plus_v2.test.test_driver import Sbe16PlusV2UnitTestBase
 
 from mi.instrument.seabird.sbe16plus_v2.driver import DataParticleType
 

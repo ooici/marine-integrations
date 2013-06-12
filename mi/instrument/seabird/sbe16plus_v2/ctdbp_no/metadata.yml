@@ -2,7 +2,7 @@ driver_metadata:
   author: Bill Bollenbacher
   driver_make: seabird
   driver_model: sbe16plus_v2
-  driver_name: ooicore
+  driver_name: ctdbp_no
   email: wbollenbacher@ucsd.edu
   release_notes: SBE Driver
   version: 0.0.5
