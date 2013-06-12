@@ -1,0 +1,18 @@
+# Test file in a test location to mimic an egg resource directory
+# Used in test_protocol_param_dict.py
+parameters: {
+    dummy: {
+        description: "dummy",
+        units: "dummy",
+        value_description: "dummy",
+        type: "dummy"
+    },
+
+    commands: {
+      dummy: stuff
+    },     
+    
+    driver: {
+      dummy: stuff
+    }
+}

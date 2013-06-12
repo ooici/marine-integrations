@@ -1280,6 +1280,9 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         
         # run it through json so unicode and everything lines up
         standard = json.dumps(happy_structure, sort_keys=True)
+        
+        log.debug("Parsed Result:\n%s", json.dumps(json.loads(parsed_result), sort_keys = True, indent = 2))
+        log.debug("Standard:\n%s", json.dumps(json.loads(standard), sort_keys = True, indent = 2))
 
         self.assertEqual(parsed_result, standard)
 

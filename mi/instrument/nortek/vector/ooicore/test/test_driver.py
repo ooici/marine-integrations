@@ -42,6 +42,10 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import AgentCapabilityType
 
+from mi.instrument.nortek.test.test_driver import hw_config_particle, hw_config_sample
+from mi.instrument.nortek.test.test_driver import head_config_particle, head_config_sample
+from mi.instrument.nortek.test.test_driver import user_config_particle, user_config_sample
+
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -55,22 +59,34 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
+from mi.instrument.nortek.driver import NortekHardwareConfigDataParticleKey
+from mi.instrument.nortek.driver import NortekHeadConfigDataParticleKey
+from mi.instrument.nortek.driver import NortekUserConfigDataParticleKey
+
+
+from mi.instrument.nortek.driver import InstrumentPrompts
+from mi.instrument.nortek.driver import InstrumentCmds
+from mi.instrument.nortek.driver import Capability
+from mi.instrument.nortek.driver import ProtocolState
+from mi.instrument.nortek.driver import ProtocolEvent
+from mi.instrument.nortek.driver import Parameter
 from mi.instrument.nortek.vector.ooicore.driver import DataParticleType
-from mi.instrument.nortek.vector.ooicore.driver import InstrumentPrompts
-from mi.instrument.nortek.vector.ooicore.driver import InstrumentCmds
-from mi.instrument.nortek.vector.ooicore.driver import Capability
 from mi.instrument.nortek.vector.ooicore.driver import Protocol
-from mi.instrument.nortek.vector.ooicore.driver import ProtocolState
-from mi.instrument.nortek.vector.ooicore.driver import ProtocolEvent
-from mi.instrument.nortek.vector.ooicore.driver import Parameter
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataParticleKey
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticleKey
 from mi.instrument.nortek.vector.ooicore.driver import VectorSystemDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import VectorSystemDataParticleKey
-from mi.instrument.nortek.vector.ooicore.driver import VectorProbeCheckDataParticle
-from mi.instrument.nortek.vector.ooicore.driver import VectorProbeCheckDataParticleKey
+from mi.instrument.nortek.vector.ooicore.driver import VectorHardwareConfigDataParticle
+from mi.instrument.nortek.vector.ooicore.driver import VectorHeadConfigDataParticle
+from mi.instrument.nortek.vector.ooicore.driver import VectorUserConfigDataParticle
+from mi.instrument.nortek.vector.ooicore.driver import VectorEngClockDataParticleKey
+from mi.instrument.nortek.vector.ooicore.driver import VectorEngClockDataParticle
+from mi.instrument.nortek.vector.ooicore.driver import VectorEngBatteryDataParticleKey
+from mi.instrument.nortek.vector.ooicore.driver import VectorEngBatteryDataParticle
+from mi.instrument.nortek.vector.ooicore.driver import VectorEngIdDataParticleKey
+from mi.instrument.nortek.vector.ooicore.driver import VectorEngIdDataParticle
 
 from interface.objects import AgentCommand
 from interface.objects import CapabilityType
@@ -218,135 +234,50 @@ def user_config2():
         user_config += chr(value)
     return user_config
         
-# probe check data particle & sample 
-def probe_check_sample():
-    sample_as_hex = ("a507c7012c010000d3cec0afabbbb5a9a8a29a8e"
-                     "827e78716a6e7173706d6a6664655f54568d7e67"
-                     "50403b3734373735323137373432333431303031"
-                     "3131313133313131313232323131303030323032"
-                     "3331302f2f302f2f30313131302f2f3030302f30"
-                     "30303031302f2f2f30302f2f3130302f30302f2f"
-                     "2f2f2f2e2e2f2f2f2f2f2f302f2f302f2f2f2f30"
-                     "302f2e2e2f3030302f2f3030302f2f2f3030302f"
-                     "302f2f2f302f30302f2f2f303030302f2f2f2e2e"
-                     "2f2f30302f2f302f2f2f2f2f302f2f302e2f2f2f"
-                     "2f2f302f2f3130302f2f302f2f2f2e2f2f2f2f2f"
-                     "2f2f2f2f2f2f2f2f2f2f2f2e2f2f2f2e2e2e2f2f"
-                     "2f2f2f2f2f2f2f302f302f2f2f2f2e2e2f2f2f2f"
-                     "30302e2f2e2f303030302f2f2f2f2f302f2f2f2f"
-                     "2f2f2f2f2f2e2f2f2f2f2f2f2f2f2f2f302f2f30"
-                     "302f2f2f2f2f2f2ed3cec0afabbbb5a9a8a29a8e"
-                     "827e7871696e7173706d6a6664655f55568e785f"
-                     "4b3c393535383b36353435383333353231323434"
-                     "3331303031303230303232313130313132313032"
-                     "32323134313131302f2f302f3031303030303030"
-                     "302f2f31303030302f30312f2f303030302f302f"
-                     "2f2f2f2f2e2f2f2f2f30302f2f2f2f2f30302f2f"
-                     "30302f302f2f2f302f2f302f30302f2f2f2f2e2f"
-                     "2f2f2f2f2f2f2f2e2f30302f2f2e2f2f2f2e2f2f"
-                     "2f2f2f302f2f2f2f2f2f2f302f2f2f2f2e2f2f2f"
-                     "2f2f2f2f2f2f2e2f2f2f2f2f2f2f2f2e2f2e2f2f"
-                     "2e2f2e2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f"
-                     "2f2f2e2f2e2e2f2e30302f302f2f2f2f2f2f2f2f"
-                     "2f2f2f2f2f2f2f2f2f2f2f2f2f2f2e2f2f2f2f2f"
-                     "2f2f2f2e2f2f2f2f2f2f2f2f2f2e2e2e2f2f2e2e"
-                     "2f2f2f2e2f2e2f2fd3cec0afaabbb5a9a8a19a8e"
-                     "827e7871696e7173706d6a6664655f5556877860"
-                     "4a3c363233363637363637363334373833343435"
-                     "32302f303334383534313034353834313231302f"
-                     "3030312f32313031303232323734323133343532"
-                     "3132323032313030313135353234313131323131"
-                     "2f303131303131333030302f30302f2f30313232"
-                     "31302f2f3030302f2f2f2f2f302f2e2e2f2e2e2f"
-                     "2f302f2f2f2e2e2f2f2f302f2f2f2f302f2f2f2f"
-                     "2f2f2e2f2f2f302f2f2e2f2f2e2e2f30302e2e2e"
-                     "2f2f2e2e2f2f2f2f2f2f2f2f2e2e2f2f2e2e2f2f"
-                     "2f302f2e2e2f2f2f2f2f2e2f2f302f2f2e2e2f2e"
-                     "2f2f2e2f2f2f2f2f2f2e2e2e2e302f2f2f2f2e2f"
-                     "2e2e2e2f2e2e2e2f2e2e2e2f2e2e2e2f2f2f2f2f"
-                     "2e2e2e2e2f2e2e2f2f2e2f2f2f2f2e2e2f2f2f2f"
-                     "2e2f2f2f2f2f2f2ffd74")
-    return sample_as_hex.decode('hex')
-
-# these values checkout against the sample above
-probe_check_particle = [{DataParticleKey.VALUE_ID: 'number_of_samples_per_beam',
-                         DataParticleKey.VALUE: 300},
-                        {DataParticleKey.VALUE_ID: 'first_sample_number',
-                         DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID: 'beam_1_amplitudes',
-                         DataParticleKey.VALUE: [211, 206, 192, 175, 171, 187, 181, 169, 168, 162, 154, 142, 130, 126, 120, 113, 106, 110, 113, 115, 
-                                                 112, 109, 106, 102, 100, 101, 95, 84, 86, 141, 126, 103, 80, 64, 59, 55, 52, 55, 55, 53, 50, 49, 
-                                                 55, 55, 52, 50, 51, 52, 49, 48, 48, 49, 49, 49, 49, 49, 51, 49, 49, 49, 49, 50, 50, 50, 49, 49, 48, 
-                                                 48, 48, 50, 48, 50, 51, 49, 48, 47, 47, 48, 47, 47, 48, 49, 49, 49, 48, 47, 47, 48, 48, 48, 47, 48, 
-                                                 48, 48, 48, 49, 48, 47, 47, 47, 48, 48, 47, 47, 49, 48, 48, 47, 48, 48, 47, 47, 47, 47, 47, 46, 46, 
-                                                 47, 47, 47, 47, 47, 47, 48, 47, 47, 48, 47, 47, 47, 47, 48, 48, 47, 46, 46, 47, 48, 48, 48, 47, 47, 
-                                                 48, 48, 48, 47, 47, 47, 48, 48, 48, 47, 48, 47, 47, 47, 48, 47, 48, 48, 47, 47, 47, 48, 48, 48, 48, 
-                                                 47, 47, 47, 46, 46, 47, 47, 48, 48, 47, 47, 48, 47, 47, 47, 47, 47, 48, 47, 47, 48, 46, 47, 47, 47, 
-                                                 47, 47, 48, 47, 47, 49, 48, 48, 47, 47, 48, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 
-                                                 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 46, 46, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 48, 47, 48, 
-                                                 47, 47, 47, 47, 46, 46, 47, 47, 47, 47, 48, 48, 46, 47, 46, 47, 48, 48, 48, 48, 47, 47, 47, 47, 47, 
-                                                 48, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 48, 47, 47, 48, 
-                                                 48, 47, 47, 47, 47, 47, 47, 46]},
-                        {DataParticleKey.VALUE_ID: 'beam_2_amplitudes',
-                         DataParticleKey.VALUE: [211, 206, 192, 175, 171, 187, 181, 169, 168, 162, 154, 142, 130, 126, 120, 113, 105, 110, 113, 115, 
-                                                 112, 109, 106, 102, 100, 101, 95, 85, 86, 142, 120, 95, 75, 60, 57, 53, 53, 56, 59, 54, 53, 52, 53, 
-                                                 56, 51, 51, 53, 50, 49, 50, 52, 52, 51, 49, 48, 48, 49, 48, 50, 48, 48, 50, 50, 49, 49, 48, 49, 49, 
-                                                 50, 49, 48, 50, 50, 50, 49, 52, 49, 49, 49, 48, 47, 47, 48, 47, 48, 49, 48, 48, 48, 48, 48, 48, 48, 
-                                                 47, 47, 49, 48, 48, 48, 48, 47, 48, 49, 47, 47, 48, 48, 48, 48, 47, 48, 47, 47, 47, 47, 47, 46, 47, 
-                                                 47, 47, 47, 48, 48, 47, 47, 47, 47, 47, 48, 48, 47, 47, 48, 48, 47, 48, 47, 47, 47, 48, 47, 47, 48, 
-                                                 47, 48, 48, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 48, 48, 47, 47, 46, 47, 47, 
-                                                 47, 46, 47, 47, 47, 47, 47, 48, 47, 47, 47, 47, 47, 47, 47, 48, 47, 47, 47, 47, 46, 47, 47, 47, 47, 
-                                                 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 46, 47, 47, 46, 47, 46, 47, 47, 47, 
-                                                 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 46, 46, 47, 46, 48, 48, 47, 
-                                                 48, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 47, 
-                                                 47, 47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 47, 47, 47, 47, 47, 47, 46, 46, 46, 47, 47, 46, 46, 47, 
-                                                 47, 47, 46, 47, 46, 47, 47]},
-                       {DataParticleKey.VALUE_ID: 'beam_3_amplitudes',
-                        DataParticleKey.VALUE: [211, 206, 192, 175, 170, 187, 181, 169, 168, 161, 154, 142, 130, 126, 120, 113, 105, 110, 113, 115, 
-                                                112, 109, 106, 102, 100, 101, 95, 85, 86, 135, 120, 96, 74, 60, 54, 50, 51, 54, 54, 55, 54, 54, 55, 
-                                                54, 51, 52, 55, 56, 51, 52, 52, 53, 50, 48, 47, 48, 51, 52, 56, 53, 52, 49, 48, 52, 53, 56, 52, 49, 
-                                                50, 49, 48, 47, 48, 48, 49, 47, 50, 49, 48, 49, 48, 50, 50, 50, 55, 52, 50, 49, 51, 52, 53, 50, 49, 
-                                                50, 50, 48, 50, 49, 48, 48, 49, 49, 53, 53, 50, 52, 49, 49, 49, 50, 49, 49, 47, 48, 49, 49, 48, 49, 
-                                                49, 51, 48, 48, 48, 47, 48, 48, 47, 47, 48, 49, 50, 50, 49, 48, 47, 47, 48, 48, 48, 47, 47, 47, 47, 
-                                                47, 48, 47, 46, 46, 47, 46, 46, 47, 47, 48, 47, 47, 47, 46, 46, 47, 47, 47, 48, 47, 47, 47, 47, 48, 
-                                                47, 47, 47, 47, 47, 47, 46, 47, 47, 47, 48, 47, 47, 46, 47, 47, 46, 46, 47, 48, 48, 46, 46, 46, 47, 
-                                                47, 46, 46, 47, 47, 47, 47, 47, 47, 47, 47, 46, 46, 47, 47, 46, 46, 47, 47, 47, 48, 47, 46, 46, 47, 
-                                                47, 47, 47, 47, 46, 47, 47, 48, 47, 47, 46, 46, 47, 46, 47, 47, 46, 47, 47, 47, 47, 47, 47, 46, 46, 
-                                                46, 46, 48, 47, 47, 47, 47, 46, 47, 46, 46, 46, 47, 46, 46, 46, 47, 46, 46, 46, 47, 46, 46, 46, 47, 
-                                                47, 47, 47, 47, 46, 46, 46, 46, 47, 46, 46, 47, 47, 46, 47, 47, 47, 47, 46, 46, 47, 47, 47, 47, 46, 
-                                                47, 47, 47, 47, 47, 47, 47]},
-                        ]
 # velocity data particle & sample 
 def velocity_sample():
     sample_as_hex = "a51000db00008f10000049f041f72303303132120918d8f7"
     return sample_as_hex.decode('hex')
 
 # these values checkout against the sample above
-velocity_particle = [{DataParticleKey.VALUE_ID: 'analog_input2',
+velocity_particle = [{DataParticleKey.VALUE_ID: \
+                       VectorVelocityDataParticleKey.ANALOG_INPUT2,
                       DataParticleKey.VALUE: 0}, 
-                     {DataParticleKey.VALUE_ID: 'count',
+                     {DataParticleKey.VALUE_ID: \
+                       VectorVelocityDataParticleKey.COUNT,
                       DataParticleKey.VALUE: 219}, 
-                     {DataParticleKey.VALUE_ID: 'pressure',
+                     {DataParticleKey.VALUE_ID: \
+                       VectorVelocityDataParticleKey.PRESSURE,
                       DataParticleKey.VALUE: 4239}, 
-                     {DataParticleKey.VALUE_ID: 'analog_input1',
+                     {DataParticleKey.VALUE_ID: \
+                       VectorVelocityDataParticleKey.ANALOG_INPUT1,
                       DataParticleKey.VALUE: 0}, 
-                     {DataParticleKey.VALUE_ID: 'velocity_beam1',
+                     {DataParticleKey.VALUE_ID: \
+                       VectorVelocityDataParticleKey.VELOCITY_BEAM1,
                       DataParticleKey.VALUE: 61513}, 
-                     {DataParticleKey.VALUE_ID: 'velocity_beam2',
+                     {DataParticleKey.VALUE_ID: \
+                       VectorVelocityDataParticleKey.VELOCITY_BEAM2,
                       DataParticleKey.VALUE: 63297}, 
-                     {DataParticleKey.VALUE_ID: 'velocity_beam3',
+                     {DataParticleKey.VALUE_ID:  \
+                       VectorVelocityDataParticleKey.VELOCITY_BEAM3,
                       DataParticleKey.VALUE: 803}, 
-                     {DataParticleKey.VALUE_ID: 'amplitude_beam1',
+                     {DataParticleKey.VALUE_ID: \
+                       VectorVelocityDataParticleKey.AMPLITUDE_BEAM1,
                       DataParticleKey.VALUE: 48}, 
-                     {DataParticleKey.VALUE_ID: 'amplitude_beam2',
+                     {DataParticleKey.VALUE_ID: \
+                       VectorVelocityDataParticleKey.AMPLITUDE_BEAM2,
                       DataParticleKey.VALUE: 49}, 
-                     {DataParticleKey.VALUE_ID: 'amplitude_beam3',
+                     {DataParticleKey.VALUE_ID: \
+                       VectorVelocityDataParticleKey.AMPLITUDE_BEAM3,
                       DataParticleKey.VALUE: 50}, 
-                     {DataParticleKey.VALUE_ID: 'correlation_beam1',
+                     {DataParticleKey.VALUE_ID:  \
+                       VectorVelocityDataParticleKey.CORRELATION_BEAM1,
                       DataParticleKey.VALUE: 18}, 
-                     {DataParticleKey.VALUE_ID: 'correlation_beam2',
+                     {DataParticleKey.VALUE_ID:  \
+                       VectorVelocityDataParticleKey.CORRELATION_BEAM2,
                       DataParticleKey.VALUE: 9}, 
-                     {DataParticleKey.VALUE_ID: 'correlation_beam3',
+                     {DataParticleKey.VALUE_ID: \
+                       VectorVelocityDataParticleKey.CORRELATION_BEAM3,
                       DataParticleKey.VALUE: 24}]
 
 # velocity header data particle & sample 
@@ -355,21 +286,29 @@ def velocity_header_sample():
     return sample_as_hex.decode('hex')
 
 # these values checkout against the sample above
-velocity_header_particle = [{DataParticleKey.VALUE_ID: 'timestamp',
+velocity_header_particle = [{DataParticleKey.VALUE_ID: \
+                              VectorVelocityHeaderDataParticleKey.TIMESTAMP,
                              DataParticleKey.VALUE: '17/12/2012 11:12:49'}, 
-                            {DataParticleKey.VALUE_ID: 'number_of_records',
+                            {DataParticleKey.VALUE_ID: \
+                              VectorVelocityHeaderDataParticleKey.NUMBER_OF_RECORDS,
                              DataParticleKey.VALUE: 880}, 
-                            {DataParticleKey.VALUE_ID: 'noise1',
+                            {DataParticleKey.VALUE_ID: \
+                              VectorVelocityHeaderDataParticleKey.NOISE1,
                              DataParticleKey.VALUE: 47}, 
-                            {DataParticleKey.VALUE_ID: 'noise2',
+                            {DataParticleKey.VALUE_ID: \
+                              VectorVelocityHeaderDataParticleKey.NOISE2,
                              DataParticleKey.VALUE: 47}, 
-                            {DataParticleKey.VALUE_ID: 'noise3',
+                            {DataParticleKey.VALUE_ID: \
+                              VectorVelocityHeaderDataParticleKey.NOISE3,
                              DataParticleKey.VALUE: 46}, 
-                            {DataParticleKey.VALUE_ID: 'correlation1',
+                            {DataParticleKey.VALUE_ID: \
+                              VectorVelocityHeaderDataParticleKey.CORRELATION1,
                              DataParticleKey.VALUE: 2}, 
-                            {DataParticleKey.VALUE_ID: 'correlation2',
+                            {DataParticleKey.VALUE_ID: \
+                              VectorVelocityHeaderDataParticleKey.CORRELATION2,
                              DataParticleKey.VALUE: 9}, 
-                            {DataParticleKey.VALUE_ID: 'correlation3',
+                            {DataParticleKey.VALUE_ID: \
+                              VectorVelocityHeaderDataParticleKey.CORRELATION3,
                              DataParticleKey.VALUE: 13}]
 
 # system data particle & sample 
@@ -378,28 +317,52 @@ def system_sample():
     return sample_as_hex.decode('hex')
 
 # these values checkout against the sample above
-system_particle = [{DataParticleKey.VALUE_ID: 'timestamp',
+system_particle = [{DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TIMESTAMP,
                     DataParticleKey.VALUE: '13/12/2012 17:03:26'}, 
-                   {DataParticleKey.VALUE_ID: 'battery',
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.BATTERY,
                     DataParticleKey.VALUE: 148}, 
-                   {DataParticleKey.VALUE_ID: 'sound_speed',
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.SOUND_SPEED,
                     DataParticleKey.VALUE: 15228}, 
-                   {DataParticleKey.VALUE_ID: 'heading',
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.HEADING,
                     DataParticleKey.VALUE: 1155}, 
-                   {DataParticleKey.VALUE_ID: 'pitch',
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.PITCH,
                     DataParticleKey.VALUE: 275}, 
-                   {DataParticleKey.VALUE_ID: 'roll',
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ROLL,
                     DataParticleKey.VALUE: 65229}, 
-                   {DataParticleKey.VALUE_ID: 'temperature',
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TEMPERATURE,
                     DataParticleKey.VALUE: 2058}, 
-                   {DataParticleKey.VALUE_ID: 'error',
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ERROR,
                     DataParticleKey.VALUE: 0}, 
-                   {DataParticleKey.VALUE_ID: 'status',
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.STATUS,
                     DataParticleKey.VALUE: 123}, 
-                   {DataParticleKey.VALUE_ID: 'analog_input',
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ANALOG_INPUT,
                     DataParticleKey.VALUE: 0}]
 
+def eng_clock_sample():
+    sample_as_hex = "0907021110120606"
+    return sample_as_hex.decode('hex')
 
+eng_clock_particle = [{DataParticleKey.VALUE_ID:
+                        VectorEngClockDataParticleKey.DATE_TIME_ARRAY,
+                       DataParticleKey.VALUE: [9, 7, 2, 11, 10, 12]}
+                      ]
+
+def eng_battery_sample():
+    sample_as_hex = "a71f0606"
+    return sample_as_hex.decode('hex')
+
+eng_battery_particle = [{DataParticleKey.VALUE_ID:
+                          VectorEngBatteryDataParticleKey.BATTERY_VOLTAGE,
+                         DataParticleKey.VALUE: 8103}]
+
+def eng_id_sample():
+    sample_as_hex = "41514420313231352020202020200606"
+    return sample_as_hex.decode('hex')
+
+eng_id_particle = [{DataParticleKey.VALUE_ID:
+                     VectorEngIdDataParticleKey.ID,
+                    DataParticleKey.VALUE: "AQD 1215      "}]
+                      
 #################################### RULES ####################################
 #                                                                             #
 # Common capabilities in the base class                                       #
@@ -532,7 +495,6 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
                                           velocity_header_sample(),
                                           expected_particle)
 
-    @unittest.skip("failed unit test.")
     def test_velocity_sample_format(self):
         """
         Test to make sure we can get velocity sample data out in a reasonable format.
@@ -586,12 +548,12 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
                                           system_sample(),
                                           expected_particle)
 
-    def test_probe_check_sample_format(self):
+    def test_hw_config_sample_format(self):
         """
-        Test to make sure we can get probe check sample data out in a reasonable format.
-        Parsed is all we care about...raw is tested in the base DataParticle tests
+        Test to make sure we can get hardware config sample data out in a
+        reasonable format. Parsed is all we care about...raw is tested in the
+        base DataParticle tests.
         """
-        
         port_timestamp = 3555423720.711772
         driver_timestamp = 3555423722.711772
 
@@ -599,18 +561,143 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: DataParticleType.PROBE_CHECK,
+            DataParticleKey.STREAM_NAME: DataParticleType.HARDWARE_CONFIG,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: probe_check_particle
+            DataParticleKey.VALUES: hw_config_particle
             }
         
-        self.compare_parsed_data_particle(VectorProbeCheckDataParticle,
-                                          probe_check_sample(),
+        self.compare_parsed_data_particle(VectorHardwareConfigDataParticle,
+                                          hw_config_sample(),
                                           expected_particle)
 
+    def test_head_config_sample_format(self):
+        """
+        Test to make sure we can get hardware config sample data out in a
+        reasonable format. Parsed is all we care about...raw is tested in the
+        base DataParticle tests.
+        """
+        port_timestamp = 3555423720.711772
+        driver_timestamp = 3555423722.711772
+
+        # construct the expected particle
+        expected_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleType.HEAD_CONFIG,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
+            DataParticleKey.VALUES: head_config_particle
+            }
+        
+        self.compare_parsed_data_particle(VectorHeadConfigDataParticle,
+                                          head_config_sample(),
+                                          expected_particle)
+        
+    def test_user_config_sample_format(self):
+        """
+        Test to make sure we can get user config sample data out in a
+        reasonable format. Parsed is all we care about...raw is tested in the
+        base DataParticle tests.
+        """
+        port_timestamp = 3555423720.711772
+        driver_timestamp = 3555423722.711772
+
+        # construct the expected particle
+        expected_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleType.USER_CONFIG,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
+            DataParticleKey.VALUES: user_config_particle
+            }
+        
+        self.compare_parsed_data_particle(VectorUserConfigDataParticle,
+                                          user_config_sample(),
+                                          expected_particle)
+        
+    def test_eng_clock_sample_format(self):
+        """
+        Test to make sure we can get clock sample engineering data out in a
+        reasonable format. Parsed is all we care about...raw is tested in the
+        base DataParticle tests.
+        """
+        port_timestamp = 3555423720.711772
+        driver_timestamp = 3555423722.711772
+
+        # construct the expected particle
+        expected_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleType.CLOCK,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
+            DataParticleKey.VALUES: eng_clock_particle
+            }
+        
+        self.compare_parsed_data_particle(VectorEngClockDataParticle,
+                                          eng_clock_sample(),
+                                          expected_particle)
+
+    def test_eng_battery_sample_format(self):
+        """
+        Test to make sure we can get battery sample engineering data out in a
+        reasonable format. Parsed is all we care about...raw is tested in the
+        base DataParticle tests.
+        """
+        port_timestamp = 3555423720.711772
+        driver_timestamp = 3555423722.711772
+
+        # construct the expected particle
+        expected_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleType.BATTERY,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
+            DataParticleKey.VALUES: eng_battery_particle
+            }
+        
+        self.compare_parsed_data_particle(VectorEngBatteryDataParticle,
+                                          eng_battery_sample(),
+                                          expected_particle)
+
+    def test_eng_id_sample_format(self):
+        """
+        Test to make sure we can get id sample engineering data out in a
+        reasonable format. Parsed is all we care about...raw is tested in the
+        base DataParticle tests.
+        """
+        port_timestamp = 3555423720.711772
+        driver_timestamp = 3555423722.711772
+
+        # construct the expected particle
+        expected_particle = {
+            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
+            DataParticleKey.PKT_VERSION: 1,
+            DataParticleKey.STREAM_NAME: DataParticleType.ID_STRING,
+            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
+            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
+            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
+            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
+            DataParticleKey.VALUES: eng_id_particle
+            }
+        
+        self.compare_parsed_data_particle(VectorEngIdDataParticle,
+                                          eng_id_sample(),
+                                          expected_particle)
+        
     def test_chunker(self):
         """
         Tests the chunker
@@ -621,7 +708,12 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         self.assert_chunker_sample(chunker, velocity_sample())
         self.assert_chunker_sample(chunker, system_sample())
         self.assert_chunker_sample(chunker, velocity_header_sample())
-        self.assert_chunker_sample(chunker, probe_check_sample())
+        self.assert_chunker_sample(chunker, hw_config_sample())
+        self.assert_chunker_sample(chunker, head_config_sample())
+        self.assert_chunker_sample(chunker, user_config_sample())
+        #self.assert_chunker_sample(chunker, eng_clock_sample())
+        #self.assert_chunker_sample(chunker, eng_battery_sample())
+        #self.assert_chunker_sample(chunker, eng_id_sample())
 
         # test fragmented data structures
         sample = velocity_sample()
@@ -636,43 +728,68 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         fragments = [sample[0:3], sample[3:11], sample[11:12], sample[12:]]
         self.assert_chunker_fragmented_sample(chunker, fragments, sample)
 
-        sample = probe_check_sample()
-        fragments = [sample[0:30], sample[30:110], sample[110:220], sample[220:500], sample[500:800], sample[800:]]
+        sample = hw_config_sample()
+        fragments = [sample[0:4], sample[4:10], sample[10:14], sample[14:]]
+        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
+
+        sample = head_config_sample()
+        fragments = [sample[0:4], sample[4:10], sample[10:14], sample[14:]]
+        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
+
+        sample = user_config_sample()
+        fragments = [sample[0:4], sample[4:10], sample[10:14], sample[14:]]
         self.assert_chunker_fragmented_sample(chunker, fragments, sample)
 
         # test combined data structures
         self.assert_chunker_combined_sample(chunker, velocity_sample(), system_sample(), velocity_header_sample())
         self.assert_chunker_combined_sample(chunker, velocity_header_sample(), velocity_sample(), system_sample())
-        self.assert_chunker_combined_sample(chunker, velocity_header_sample(), probe_check_sample(), system_sample())
+        self.assert_chunker_combined_sample(chunker, velocity_header_sample(), head_config_sample(), system_sample())
+        self.assert_chunker_combined_sample(chunker, hw_config_sample(), head_config_sample(), user_config_sample())
+        #self.assert_chunker_combined_sample(chunker, eng_battery_sample(), eng_id_sample(), eng_clock_sample())
 
         # test data structures with noise
         self.assert_chunker_sample_with_noise(chunker, velocity_sample())
         self.assert_chunker_sample_with_noise(chunker, system_sample())
         self.assert_chunker_sample_with_noise(chunker, velocity_header_sample())
-        self.assert_chunker_sample_with_noise(chunker, probe_check_sample())
+        self.assert_chunker_sample_with_noise(chunker, hw_config_sample())
+        self.assert_chunker_sample_with_noise(chunker, head_config_sample())
+        self.assert_chunker_sample_with_noise(chunker, user_config_sample())
+        #self.assert_chunker_sample_with_noise(chunker, eng_clock_sample())
+        #self.assert_chunker_sample_with_noise(chunker, eng_battery_sample())
+        #self.assert_chunker_sample_with_noise(chunker, eng_id_sample())
+        
 
     def test_corrupt_data_structures(self):
         # garbage is not okay
         particle = VectorVelocityHeaderDataParticle(velocity_header_sample().replace(chr(0), chr(1), 1),
-                                                          port_timestamp = 3558720820.531179)
+                                                    port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
          
         particle = VectorSystemDataParticle(system_sample().replace(chr(0), chr(1), 1),
-                                                          port_timestamp = 3558720820.531179)
+                                            port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
          
         particle = VectorVelocityDataParticle(velocity_sample().replace(chr(16), chr(17), 1),
-                                                          port_timestamp = 3558720820.531179)
+                                              port_timestamp = 3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
-         
-        particle = VectorProbeCheckDataParticle(velocity_sample().replace(chr(16), chr(17), 1),
-                                                          port_timestamp = 3558720820.531179)
+
+        particle = VectorHardwareConfigDataParticle(hw_config_sample().replace(chr(0), chr(1), 1),
+                                                port_timestamp = 3558720820.531179)         
         with self.assertRaises(SampleException):
             particle.generate()
-         
+
+        particle = VectorHeadConfigDataParticle(head_config_sample().replace(chr(0), chr(1), 1),
+                                            port_timestamp = 3558720820.531179)         
+        with self.assertRaises(SampleException):
+            particle.generate()
+
+        particle = VectorUserConfigDataParticle(user_config_sample().replace(chr(0), chr(1), 1),
+                                            port_timestamp = 3558720820.531179)         
+        with self.assertRaises(SampleException):
+            particle.generate()         
  
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -1484,18 +1601,64 @@ class QualFromIDK(InstrumentDriverQualificationTestCase):
                     self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
                 else:
                     self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-        elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.PROBE_CHECK:
-            log.debug('assertSampleDataParticle: VectorProbeCheckDataParticleKey detected')
-            self.assertEqual(sorted(value_ids), sorted(VectorProbeCheckDataParticleKey.list()))
+        elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.HARDWARE_CONFIG:
+            log.debug('assertSampleDataParticle: NortekHardwareConfigDataParticleKey detected')
+            self.assertEqual(sorted(value_ids), sorted(NortekHardwareConfigDataParticleKey.list()))
             for value in values:
-                if value[DataParticleKey.VALUE_ID] in (VectorProbeCheckDataParticleKey.BEAM_1_AMPLITUDES,
-                                         VectorProbeCheckDataParticleKey.BEAM_2_AMPLITUDES,
-                                         VectorProbeCheckDataParticleKey.BEAM_3_AMPLITUDES):
-                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], list))
-                    for item in value[DataParticleKey.VALUE]:
-                        self.assertTrue(item, int)
+                if value[DataParticleKey.VALUE_ID] in (NortekHardwareConfigDataParticleKey.SERIAL_NUM,
+                                                       NortekHardwareConfigDataParticleKey.RECORDER_INSTALLED,
+                                                       NortekHardwareConfigDataParticleKey.COMPASS_INSTALLED,
+                                                       NortekHardwareConfigDataParticleKey.FW_VERSION):
+                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
+        
                 else:
                     self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
+        elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.HEAD_CONFIG:
+            log.debug('assertSampleDataParticle: NortekHeadConfigDataParticleKey detected')
+            self.assertEqual(sorted(value_ids), sorted(NortekHeadConfigDataParticleKey.list()))
+            for value in values:
+                if value[DataParticleKey.VALUE_ID] in (NortekHeadConfigDataParticleKey.PRESSURE_SENSOR,
+                                                       NortekHeadConfigDataParticleKey.MAG_SENSOR,
+                                                       NortekHeadConfigDataParticleKey.TILT_SENSOR,
+                                                       NortekHeadConfigDataParticleKey.HEAD_TYPE,
+                                                       NortekHeadConfigDataParticleKey.HEAD_SERIAL,
+                                                       NortekHeadConfigDataParticleKey.SYSTEM_DATA):
+                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
+        
+                else:
+                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
+        elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.USER_CONFIG:
+            log.debug('assertSampleDataParticle: NortekUserConfigDataParticleKey detected')
+            self.assertEqual(sorted(value_ids), sorted(NortekUserConfigDataParticleKey.list()))
+            for value in values:
+                if value[DataParticleKey.VALUE_ID] in (NortekUserConfigDataParticleKey.USE_SPEC_SOUND_SPEED,
+                                                       NortekUserConfigDataParticleKey.DIAG_MODE_ON,
+                                                       NortekUserConfigDataParticleKey.ANALOG_OUTPUT_ON,
+                                                       NortekUserConfigDataParticleKey.OUTPUT_FORMAT,
+                                                       NortekUserConfigDataParticleKey.SCALING,
+                                                       NortekUserConfigDataParticleKey.SERIAL_OUT_ON,
+                                                       NortekUserConfigDataParticleKey.STAGE_ON,
+                                                       NortekUserConfigDataParticleKey.ANALOG_POWER_OUTPUT,
+                                                       NortekUserConfigDataParticleKey.USE_DSP_FILTER):
+                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
+        
+                else:
+                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
+        elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.CLOCK:
+            log.debug('assertSampleDataParticle: VectorEngClockDataParticleKey detected')
+            self.assertEqual(sorted(value_ids), sorted(VectorEngClockDataParticleKey.list()))
+            for value in values:
+                self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
+        elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.BATTERY:
+            log.debug('assertSampleDataParticle: VectorEngBatteryDataParticleKey detected')
+            self.assertEqual(sorted(value_ids), sorted(VectorEngBatteryDataParticleKey.list()))
+            for value in values:
+                self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
+        elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.ID_STRING:
+            log.debug('assertSampleDataParticle: VectorEngIdDataParticleKey detected')
+            self.assertEqual(sorted(value_ids), sorted(VectorEngIdDataParticleKey.list()))
+            for value in values:
+                self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
         else:
             self.fail('Unknown data particle')
 
