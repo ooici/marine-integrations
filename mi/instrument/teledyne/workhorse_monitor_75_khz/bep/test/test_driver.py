@@ -9,6 +9,7 @@ __license__ = 'Apache 2.0'
 
 import time
 import unittest
+import datetime as dt
 from nose.plugins.attrib import attr
 from mock import Mock
 from mi.core.instrument.chunker import StringChunker
@@ -162,7 +163,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.COORDINATE_TRANSFORMATION: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '11111', VALUE: '11111'},
         Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1111101"}, 
         Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
-        #NEVER IMPLEMENT THIS#Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
+        Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False}, 
         Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:01.00'},
         Parameter.FALSE_TARGET_THRESHOLD: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '050,001'},
         Parameter.BANDWIDTH_CONTROL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
@@ -679,12 +680,35 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
+
+    def test_recover_from_TG(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+
+        self.assert_enter_command_mode()
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=600)
+        today_plus_1month = (dt.datetime.utcnow() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
+
+        self.tcp_client.send_data("%sTG%s%s" % (NEWLINE, today_plus_1month, NEWLINE))
+        #self.tcp_client.send_data("%sTG?%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.expect(Prompt.COMMAND)
+
+        self.assert_direct_access_stop_telnet()
+
+        # verify the setting got restored.
+        self.assert_enter_command_mode()
+
+        self.assert_get_parameter(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
+
     def test_autosample(self):
         """
         Verify autosample works and data particles are created
-        
+
         NOTE: If TG is set autosample behaves odd...
-        
+
         """
         self.assert_enter_command_mode()
         """

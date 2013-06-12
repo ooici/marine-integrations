@@ -84,7 +84,7 @@ class Parameter(DriverParameter):
     SENSOR_SOURCE = 'EZ'                # Sensor Source (C;D;H;P;R;S;T)
 
     TIME_PER_ENSEMBLE = 'TE'            # 01:00:00.00 (hrs:min:sec.sec/100)
-    #NEVER IMPLEMENT# TIME_OF_FIRST_PING = 'TG'           # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+    TIME_OF_FIRST_PING = 'TG'           # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
     TIME_PER_PING = 'TP'                # 00:00.20  (min:sec.sec/100)
     TIME = 'TT'                         # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
 
@@ -1325,8 +1325,15 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         Exit direct access state.
         """
-        log.debug("%%% IN _handler_direct_access_exit")
-        pass
+        log.debug("%%% IN NEW _handler_direct_access_exit")
+
+        result = self._do_cmd_resp(InstrumentCmds.GET, Parameter.TIME_OF_FIRST_PING)
+        if "****/**/**,**:**:**" not in result:
+            log.error("TG not allowed to be set. sending a break to clear it.")
+
+            self._send_break()
+
+
 
     def _handler_direct_access_execute_direct(self, data):
         log.debug("IN _handler_direct_access_execute_direct")
