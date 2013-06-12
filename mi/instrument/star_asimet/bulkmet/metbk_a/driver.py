@@ -54,6 +54,8 @@ NEWLINE = '\r\n'
 
 # default timeout.
 TIMEOUT = 10
+
+AUTO_SAMPLE_SCHEDULED_JOB = 'auto_sample'
         
 ####
 #    Driver Constant Definitions
@@ -617,7 +619,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = ResourceAgentState.STREAMING
 
         self._ensure_autosample_config()
-        self._add_scheduler_event(ScheduledJob.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE)
+        self._add_scheduler_event(AUTO_SAMPLE_SCHEDULED_JOB, ProtocolEvent.ACQUIRE_SAMPLE)
 
         return (next_state, (next_agent_state, result))
 
@@ -632,7 +634,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.IDLE
 
-        self._remove_scheduler(ScheduledJob.AUTOSAMPLE)
+        self._remove_scheduler(AUTO_SAMPLE_SCHEDULED_JOB)
         
         return (next_state, (next_agent_state, result))
 
@@ -754,12 +756,11 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.debug("_ensure_autosample_config: adding scheduler element to _startup_config")
             self._startup_config[DriverConfigKey.SCHEDULER] = {}
             scheduler_config = self._get_scheduler_config()
-        if not scheduler_config.get(ScheduledJob.AUTOSAMPLE):
-            log.debug("_ensure_autosample_config: adding autosample config to _startup_config")
-            config = {DriverSchedulerConfigKey.TRIGGER: {
-                         DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
-                         DriverSchedulerConfigKey.SECONDS: 30}}
-            self._startup_config[DriverConfigKey.SCHEDULER][ScheduledJob.AUTOSAMPLE] = config
+        log.debug("_ensure_autosample_config: adding autosample config to _startup_config")
+        config = {DriverSchedulerConfigKey.TRIGGER: {
+                     DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                     DriverSchedulerConfigKey.SECONDS: self._param_dict.get(Parameter.SAMPLE_INTERVAL)}}
+        self._startup_config[DriverConfigKey.SCHEDULER][AUTO_SAMPLE_SCHEDULED_JOB] = config
         if(not self._scheduler):
             self.initialize_scheduler()
         
