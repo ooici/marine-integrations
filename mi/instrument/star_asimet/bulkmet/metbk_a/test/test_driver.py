@@ -1,8 +1,8 @@
 """
-@package mi.instrument.star.asimet.ooicore.test.test_driver
-@file marine-integrations/mi/instrument/star/aismet/ooicore/driver.py
+@package mi.instrument.star_asimet.bulkmet.metbk_a.test.test_driver
+@file marine-integrations/mi/instrument/star_aismet/bulkmet/metbk_a/test/test_driver.py
 @author Bill Bollenbacher
-@brief Test cases for ooicore driver
+@brief Test cases for metbk_a driver
 
 USAGE:
  Make tests verbose and provide stdout
@@ -53,20 +53,20 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 
-from mi.instrument.star.asimet.ooicore.driver import InstrumentDriver
-from mi.instrument.star.asimet.ooicore.driver import DataParticleType
-from mi.instrument.star.asimet.ooicore.driver import Command
-from mi.instrument.star.asimet.ooicore.driver import ProtocolState
-from mi.instrument.star.asimet.ooicore.driver import ProtocolEvent
-from mi.instrument.star.asimet.ooicore.driver import Capability
-from mi.instrument.star.asimet.ooicore.driver import Parameter
-from mi.instrument.star.asimet.ooicore.driver import Protocol
-from mi.instrument.star.asimet.ooicore.driver import Prompt
-from mi.instrument.star.asimet.ooicore.driver import NEWLINE
-from mi.instrument.star.asimet.ooicore.driver import METBK_SampleDataParticleKey
-from mi.instrument.star.asimet.ooicore.driver import METBK_SampleDataParticle
-from mi.instrument.star.asimet.ooicore.driver import METBK_StatusDataParticleKey
-from mi.instrument.star.asimet.ooicore.driver import METBK_StatusDataParticle
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import InstrumentDriver
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import DataParticleType
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import Command
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import ProtocolState
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import ProtocolEvent
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import Capability
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import Parameter
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import Protocol
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import Prompt
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import NEWLINE
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import METBK_SampleDataParticleKey
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import METBK_SampleDataParticle
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import METBK_StatusDataParticleKey
+from mi.instrument.star_asimet.bulkmet.metbk_a.driver import METBK_StatusDataParticle
 
 from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
 from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException, Conflict
@@ -75,6 +75,7 @@ from interface.objects import AgentCommand
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 from pyon.agent.agent import ResourceAgentEvent
 from pyon.agent.agent import ResourceAgentState
+from mi.idk.exceptions import IDKException
 
 from struct import pack
 
@@ -86,14 +87,17 @@ parsed_stream_received = False
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.star.asimet.ooicore.driver',
+    driver_module='mi.instrument.star_asimet.bulkmet.metbk_a.driver',
     driver_class="InstrumentDriver",
     instrument_agent_resource_id = 'DQPJJX',
     instrument_agent_name = 'star_aismet_ooicore',
     instrument_agent_packet_config = DataParticleType(),
-    driver_startup_config = {}
+    driver_startup_config = {
+        DriverStartupConfigKey.PARAMETERS: {
+            Parameter.SAMPLE_INTERVAL: 20,
+        },
+    }
 )
-
 
 
  #################################### RULES ####################################
@@ -170,7 +174,8 @@ class UtilMixin(DriverTestMixin):
     ###
     # Parameter and Type Definitions
     ###
-    _driver_parameters = {Parameter.CLOCK: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: "2013/05/21  15:46:30", REQUIRED: True}}
+    _driver_parameters = {Parameter.CLOCK: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: "2013/05/21  15:46:30", REQUIRED: True},
+                          Parameter.SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 30, REQUIRED: True}}
 
     ###
     # Data Particle Parameters
@@ -210,13 +215,18 @@ class UtilMixin(DriverTestMixin):
 
 # Driver Parameter Methods
     ###
-    def assert_driver_parameters(self, current_parameters, verify_values = False):
+    def assert_driver_parameters(self, current_parameters, verify_values = False, verify_sample_interval=False):
         """
         Verify that all driver parameters are correct and potentially verify values.
         @param current_parameters: driver parameters read from the driver instance
         @param verify_values: should we verify values against definition?
         """
         self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
+        if verify_sample_interval:
+            self.assertEqual(current_parameters[Parameter.SAMPLE_INTERVAL], 
+                             self._driver_parameters[Parameter.SAMPLE_INTERVAL][self.VALUE], 
+                             "sample_interval %d != expected value %d" %(current_parameters[Parameter.SAMPLE_INTERVAL],
+                                                          self._driver_parameters[Parameter.SAMPLE_INTERVAL][self.VALUE]))
 
     ###
     # Data Particle Parameters Methods
@@ -238,6 +248,18 @@ class UtilMixin(DriverTestMixin):
         """
         self.assert_data_particle_header(data_particle, DataParticleType.METBK_STATUS)
         self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
+        
+    def assert_particle_not_published(self, driver, sample_data, particle_assert_method, verify_values = False):
+        try:
+            self.assert_particle_published(driver, sample_data, particle_assert_method, verify_values)
+        except AssertionError as e:
+            if str(e) == "0 != 1":
+                print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ got the != exception")
+                return
+            else:
+                raise e
+        else:
+            raise IDKException("assert_particle_not_published: particle was published")
         
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -314,13 +336,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         self.assert_particle_published(driver, self.METBK_SAMPLE_DATA1, self.assert_data_particle_sample, True)
         
         # validate that a duplicate sample is not published
-        try:
-            self.assert_particle_published(driver, self.METBK_SAMPLE_DATA1, self.assert_data_particle_sample, True)
-        except AssertionError as e:
-            if str(e) == "0 != 1":
-                pass
-            else:
-                raise e
+        self.assert_particle_not_published(driver, self.METBK_SAMPLE_DATA1, self.assert_data_particle_sample, True)
         
         # validate that a new sample is published
         self.assert_particle_published(driver, self.METBK_SAMPLE_DATA2, self.assert_data_particle_sample, False)
@@ -389,6 +405,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 ###############################################################################
 @attr('INT', group='mi')
 class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
+    
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
@@ -411,7 +428,7 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assert_driver_parameters(reply)
+        self.assert_driver_parameters(reply, verify_sample_interval=True)
 
     def test_flash_status_command_mode(self):
         """

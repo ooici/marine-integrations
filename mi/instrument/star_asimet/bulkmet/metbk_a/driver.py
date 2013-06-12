@@ -1,8 +1,8 @@
 """
-@package mi.instrument.star.asimet.ooicore.driver
-@file marine-integrations/mi/instrument/star/asimet/ooicore/driver.py
+@package mi.instrument.star_asimet.bulkmet.metbk_a.driver
+@file marine-integrations/mi/instrument/star_aismet/bulkmet/metbk_a/driver.py
 @author Bill Bollenbacher
-@brief Driver for the ooicore
+@brief Driver for the metbk_a
 Release notes:
 
 initial version
@@ -14,6 +14,7 @@ __license__ = 'Apache 2.0'
 import re
 import time
 import string
+import json
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -25,6 +26,7 @@ from mi.core.time import get_timestamp_delayed
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.instrument_driver import DriverConnectionState
 
 from mi.core.driver_scheduler import DriverSchedulerConfigKey
 from mi.core.driver_scheduler import TriggerType
@@ -60,7 +62,6 @@ TIMEOUT = 10
 class ScheduledJob(BaseEnum):
     ACQUIRE_STATUS = 'acquire_status'
     CLOCK_SYNC = 'clock_sync'
-    AUTOSAMPLE = 'autosample'
 
 class ProtocolState(BaseEnum):
     """
@@ -106,6 +107,7 @@ class Parameter(DriverParameter):
     Device specific parameters.
     """
     CLOCK = 'clock'
+    SAMPLE_INTERVAL = 'sample_interval'
 
 class Prompt(BaseEnum):
     """
@@ -180,15 +182,6 @@ class METBK_SampleDataParticle(DataParticle):
         
         if not match:
             raise SampleException("METBK_SampleDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
-        
-        # check to see if there is a delta from last sample, and don't parse this sample if there isn't
-        if match.group(0) == Protocol.last_sample():
-            raise SampleException("METBK_SampleDataParticle: No delta from last parsed sample data: [%s]", self.raw_data)
-
-        # save this sample as last_sample for next check        
-        Protocol.last_sample(match.group(0))
-            
-        result = []
         
         result = [{DataParticleKey.VALUE_ID: METBK_SampleDataParticleKey.BAROMETRIC_PRESSURE,
                    DataParticleKey.VALUE: float(match.group(1))},
@@ -331,6 +324,18 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+        # replace the driver's discover handler with one that applies the startup values after discovery
+        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, 
+                                         DriverEvent.DISCOVER, 
+                                         self._handler_connected_discover)
+    
+    def _handler_connected_discover(self, event, *args, **kwargs):
+        # Redefine discover handler so that we can apply startup params after we discover. 
+        # For this instrument the driver puts the instrument into command mode during discover.
+        result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
+        self.apply_startup_params()
+        return result
+
 
     ########################################################################
     # Superclass overrides for resource query.
@@ -362,7 +367,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
-    last_sample_str = ''
+    last_sample = ''
     
     def __init__(self, prompts, newline, driver_event):
         """
@@ -427,22 +432,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         
         self._chunker = StringChunker(Protocol.sieve_function)
 
-        #self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
-        #self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.CLOCK_SYNC)
+        self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
+        self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.CLOCK_SYNC)
 
         # Start state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
-    @staticmethod
-    def last_sample(new_value=None):
-        """
-        static method for accessing encapsulated last_sample_str attribute defined in Protocol class from METBK_SampleDataParticle class
-        """
-        old_value = Protocol.last_sample_str
-        if new_value:
-            Protocol.last_sample_str = new_value
-        return old_value
-    
     @staticmethod
     def sieve_function(raw_data):
         """
@@ -470,11 +465,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         with the appropriate particle objects and REGEXes.
         """
         log.debug("_got_chunk: chunk=%s" %chunk)
-        # wrap call to sample extractor to catch exception generated when there is no delta from last sample
-        try:
-            self._extract_sample(METBK_SampleDataParticle, METBK_SampleDataParticle.regex_compiled(), chunk, timestamp)
-        except Exception as e:
-            log.debug("_got_chunk: exception raised extracting sample <%s>" %e)
+        self._extract_sample(METBK_SampleDataParticle, METBK_SampleDataParticle.regex_compiled(), chunk, timestamp)
         self._extract_sample(METBK_StatusDataParticle, METBK_StatusDataParticle.regex_compiled(), chunk, timestamp)
 
 
@@ -484,6 +475,66 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         return [x for x in events if Capability.has(x)]
 
+    ########################################################################
+    # override methods from base class.
+    ########################################################################
+
+    def _extract_sample(self, particle_class, regex, line, timestamp, publish=True):
+        """
+        Overridden to add duplicate sample checking.  This duplicate checking should only be performed
+        on sample chunks and not other chunk types, therefore the regex is performed before the string checking.
+        Extract sample from a response line if present and publish  parsed particle
+
+        @param particle_class The class to instantiate for this specific
+            data particle. Parameterizing this allows for simple, standard
+            behavior from this routine
+        @param regex The regular expression that matches a data sample
+        @param line string to match for sample.
+        @param timestamp port agent timestamp to include with the particle
+        @param publish boolean to publish samples (default True). If True,
+               two different events are published: one to notify raw data and
+               the other to notify parsed data.
+
+        @retval dict of dicts {'parsed': parsed_sample, 'raw': raw_sample} if
+                the line can be parsed for a sample. Otherwise, None.
+        @todo Figure out how the agent wants the results for a single poll
+            and return them that way from here
+        """
+        sample = None
+        match = regex.match(line)
+        if match:
+            if particle_class == METBK_SampleDataParticle:
+                # check to see if there is a delta from last sample, and don't parse this sample if there isn't
+                if match.group(0) == self.last_sample:
+                    return
+        
+                # save this sample as last_sample for next check        
+                self.last_sample = match.group(0)
+            
+            particle = particle_class(line, port_timestamp=timestamp)
+            parsed_sample = particle.generate()
+
+            if publish and self._driver_event:
+                self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
+    
+            sample = json.loads(parsed_sample)
+            return sample
+        return sample
+
+    ########################################################################
+    # implement virtual methods from base class.
+    ########################################################################
+
+    def apply_startup_params(self):
+        """
+        Apply sample_interval startup parameter.  
+        """
+
+        config = self.get_startup_config()
+        log.debug("apply_startup_params: startup config = %s" %config)
+        if config.has_key(Parameter.SAMPLE_INTERVAL):
+            log.debug("apply_startup_params: setting sample_interval to %d" %config[Parameter.SAMPLE_INTERVAL])
+            self._param_dict.set_value(Parameter.SAMPLE_INTERVAL, config[Parameter.SAMPLE_INTERVAL])
 
     ########################################################################
     # Unknown handlers.
@@ -505,12 +556,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
-        Discover current state; can only be AUTOSAMPLE (instrument has no actual command mode).
-        @retval (next_state, result), (ProtocolState.COMMAND or
-        State.AUTOSAMPLE, None) if successful.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentStateException if the device response does not correspond to
-        an expected state.
+        Discover current state; can only be COMMAND (instrument has no actual AUTOSAMPLE mode).
+        @retval (next_state, result), (ProtocolState.COMMAND, None) if successful.
         """
 
         # force to command mode, this instrument has no autosample mode
@@ -754,6 +801,17 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="clock",
                              expiration=0,
                              visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._param_dict.add(Parameter.SAMPLE_INTERVAL,
+                             r'Not used. This parameter is not parsed from instrument response',
+                             None,
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             default_value=30,
+                             value=30,
+                             startup_param=True,
+                             display_name="sample_interval",
+                             visibility=ParameterDictVisibility.IMMUTABLE)
 
     def _update_params(self, *args, **kwargs):
         """
