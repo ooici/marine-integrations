@@ -175,7 +175,7 @@ class UtilMixin(DriverTestMixin):
     # Parameter and Type Definitions
     ###
     _driver_parameters = {Parameter.CLOCK: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: "2013/05/21  15:46:30", REQUIRED: True},
-                          Parameter.SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 30, REQUIRED: True}}
+                          Parameter.SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 20, REQUIRED: True}}
 
     ###
     # Data Particle Parameters
@@ -227,6 +227,18 @@ class UtilMixin(DriverTestMixin):
                              self._driver_parameters[Parameter.SAMPLE_INTERVAL][self.VALUE], 
                              "sample_interval %d != expected value %d" %(current_parameters[Parameter.SAMPLE_INTERVAL],
                                                           self._driver_parameters[Parameter.SAMPLE_INTERVAL][self.VALUE]))
+
+    def assert_sample_interval_parameter(self, current_parameters, verify_values = False):
+        """
+        Verify that sample_interval parameter is correct and potentially verify value.
+        @param current_parameters: driver parameters read from the driver instance
+        @param verify_values: should we verify values against definition?
+        """
+        self.assert_parameters(current_parameters, self._driver_parameters, False)
+        self.assertEqual(current_parameters[Parameter.SAMPLE_INTERVAL], 
+                         self._driver_parameters[Parameter.SAMPLE_INTERVAL][self.VALUE], 
+                         "sample_interval %d != expected value %d" %(current_parameters[Parameter.SAMPLE_INTERVAL],
+                                                      self._driver_parameters[Parameter.SAMPLE_INTERVAL][self.VALUE]))
 
     ###
     # Data Particle Parameters Methods
@@ -521,6 +533,13 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
 
         # Now verify that the time matches to within 5 seconds
         self.assertLessEqual(abs(instrument_time - local_time), 5)
+
+    def test_acquire_sample(self):
+        """
+        Test that we can generate sample particle with command
+        """
+        self.assert_initialize_driver()
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.METBK_PARSED, self.assert_data_particle_sample)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
