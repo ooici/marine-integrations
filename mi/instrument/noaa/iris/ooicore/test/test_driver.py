@@ -124,6 +124,55 @@ BOTPT_FIREHOSE_01  += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + 
 BOTPT_FIREHOSE_01  += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
 BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 
+SIGNON_STATUS = \
+        "IRIS,2013/06/12 18:03:44,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N8642 ID01" + NEWLINE
+
+DUMP_01_STATUS = \
+        "IRIS,2013/06/12 18:03:44,*01: Vbias= 0.0000 0.0000 0.0000 0.0000" + NEWLINE + \
+        "IRIS,2013/06/12 18:03:44,*01: Vgain= 0.0000 0.0000 0.0000 0.0000" + NEWLINE + \
+        "IRIS,2013/06/12 18:03:44,*01: Vmin:  -2.50  -2.50   2.50   2.50" + NEWLINE + \
+        "IRIS,2013/06/12 18:03:44,*01: Vmax:   2.50   2.50   2.50   2.50" + NEWLINE + \
+        "IRIS,2013/06/12 18:03:44,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
+        "IRIS,2013/06/12 18:03:44,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
+        "IRIS,2013/06/12 18:03:44,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
+        "IRIS,2013/06/12 18:03:44,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
+        "IRIS,2013/06/12 18:03:44,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
+        "IRIS,2013/06/12 18:03:44,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
+        "IRIS,2013/06/12 18:03:44,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00" + NEWLINE + \
+        "IRIS,2013/06/12 18:03:44,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-" + NEWLINE
+
+DUMP_02_STATUS = \
+        "IRIS,2013/06/12 23:55:09,*01: TBias: 8.85" + NEWLINE + \
+        "IRIS,2013/06/12 23:55:09,*Above 0.00(KZMinTemp): kz[0]=           0, kz[1]=           0" + NEWLINE + \
+        "IRIS,2013/06/12 23:55:09,*Below 0.00(KZMinTemp): kz[2]=           0, kz[3]=           0" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: ADCDelay:  310" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: PCA Model: 90009-01" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: Firmware Version: 5.2 Rev N" + NEWLINE + \
+        "LILY,2013/06/12 18:04:01,-330.000,-247.647,290.73, 24.50,11.88,N9656" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: X Ch Gain= 1.0000, Y Ch Gain= 1.0000, Temperature Gain= 1.0000" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: Output Mode: Degrees" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: Calibration performed in Degrees" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: Control: Off" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: Using RS232" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: Real Time Clock: Not Installed" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: Use RTC for Timing: No" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: External Flash Capacity: 0 Bytes(Not Installed)" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: Relay Thresholds:" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01:   Xpositive= 1.0000   Xnegative=-1.0000" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01:   Ypositive= 1.0000   Ynegative=-1.0000" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: Relay Hysteresis:" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01:   Hysteresis= 0.0000" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: Calibration method: Dynamic" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:01,*01: Positive Limit=26.25   Negative Limit=-26.25" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:02,*01: Calibration Points:025  X: Disabled  Y: Disabled" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:02,*01: Biaxial Sensor Type (0)" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:02,*01: ADC: 12-bit (internal)" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:02,*01: DAC Output Scale Factor: 0.10 Volts/Degree" + NEWLINE + \
+        "HEAT,2013/06/12 18:04:02,-001,0001,0024" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:02,*01: Total Sample Storage Capacity: 372" + NEWLINE + \
+        "IRIS,2013/06/12 18:04:02,*01: BAE Scale Factor:  2.88388 (arcseconds/bit)" + NEWLINE
+        
+
 ###############################################################################
 #                           DRIVER TEST MIXIN                                  #
 #     Defines a set of constants and assert methods used for data particle    #
@@ -198,7 +247,7 @@ class IRISTestMixinSub(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.IRIS_PARSED, require_instrument_timestamp=True)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
 
-    def assert_iris_on_response(self, response, verify_values = False):
+    def assert_particle_status(self, status_particle, verify_values = False):
         pass
 
 ###############################################################################
@@ -242,6 +291,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         chunker = StringChunker(Protocol.sieve_function)
 
         self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
+        self.assert_chunker_sample(chunker, SIGNON_STATUS)
+        self.assert_chunker_sample(chunker, DUMP_01_STATUS)
+        self.assert_chunker_sample(chunker, DUMP_02_STATUS)
+        self.assert_chunker_sample(chunker, DUMP_01_COMMAND_RESPONSE)
+        self.assert_chunker_sample(chunker, DUMP_02_COMMAND_RESPONSE)
 
 
     """
@@ -288,7 +342,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     raises SampleException when an invalid sample is encountered
     and that it returns a result when a valid sample is encountered
     """
-    def test_build_parsed_values(self):
+    def test_data_build_parsed_values(self):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
@@ -520,7 +574,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         self.assert_force_state(driver, DriverProtocolState.COMMAND)
         ts = ntplib.system_to_ntp_time(time.time())
 
-        # Create a data packet and push to the driver herehere
+        # Create a data packet and push to the driver
         log.debug("VALID SAMPLE : %s", VALID_SAMPLE_01)
         # Create and populate the port agent packet.
         port_agent_packet = PortAgentPacket()
@@ -767,9 +821,17 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         result = driver._protocol._handler_command_autosample_acquire_status()
         ts = ntplib.system_to_ntp_time(time.time())
+        # DHE: need to return the status as a string; so, right now we check
+        # the command response to the dump commands (which is totally bogus 
+        # because it just echos exactly what we send, even if it's wrong)
+        # but we really want to return the status as a string.  Might have to
+        # expose the two commands to run separately instead of one combined
+        # acquire_status
+        #result = driver._protocol._got_chunk(SIGNON_STATUS, ts)
+        #result = driver._protocol._got_chunk(DUMP_01_STATUS, ts)
+        #result = driver._protocol._got_chunk(DUMP_02_STATUS, ts)
         result = driver._protocol._got_chunk(DUMP_01_COMMAND_RESPONSE, ts)
         result = driver._protocol._got_chunk(DUMP_02_COMMAND_RESPONSE, ts)
-
         #
         # Need to veryify that an engineering particle is published, 
         # but not defined yet.

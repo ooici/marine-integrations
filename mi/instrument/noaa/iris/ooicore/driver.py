@@ -37,6 +37,9 @@ from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 
+# DHE: Might need this if we use multiline regex
+#from mi.instrument.noaa.driver import BOTPTParticle
+
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import SampleException
@@ -108,6 +111,11 @@ class Prompt(BaseEnum):
     """
     Device i/o prompts..
     """
+
+###############################################################################
+# Command Response (not a particle but uses regex and chunker to parse command
+# responses rather than the normal get_response() method)
+###############################################################################
 
 class InstrumentCommand(BaseEnum):
     """
@@ -181,8 +189,13 @@ class IRISCommandResponse():
         
         return retValue
 
+###############################################################################
+# Data Particles
+###############################################################################
+
 class DataParticleType(BaseEnum):
     IRIS_PARSED = 'botpt_iris_sample'
+    IRIS_STATUS = 'botpt_iris_status'
 
 class IRISDataParticleKey(BaseEnum):
     TIME = "iris_time"
@@ -283,9 +296,151 @@ class IRISDataParticle(DataParticle):
         return result
 
 ###############################################################################
-# Data Particles
+# Status Particles
 ###############################################################################
+class IRISStatusSignOnParticleKey(BaseEnum):
+    MODEL = "model"
+    SN = "serial_number"
+    FIRMWARE_VERSION = "firmware_version"
+    IDENTITY = "identity"
 
+class IRISStatusSignOnParticle(DataParticle):
+    _data_particle_type = DataParticleType.IRIS_STATUS
+
+    @staticmethod
+    def regex():
+        """
+        Example of output from display signon command (Note: we don't issue this command,
+        but the output is prepended to the DUMP-SETTINGS command):
+        
+        IRIS,2013/06/12 18:03:44,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N8642 ID01
+        """
+
+        pattern = r'IRIS,' # pattern starts with IRIS '
+        pattern += r'(.*?),' # group 1: time
+        pattern += r'\*APPLIED GEOMECHANICS'
+        pattern += r'.*?' # non-greedy match of all the junk between
+        pattern += NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        return re.compile(IRISStatusSignOnParticle.regex())
+
+    def _build_parsed_values(self):
+        """        
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = IRISStatusSignOnParticle.regex_compiled().match(self.raw_data)
+        
+        try:
+            iris_time = match.group(1)
+            timestamp = time.strptime(iris_time, "%Y/%m/%d %H:%M:%S")
+            self.set_internal_timestamp(unix_time=time.mktime(timestamp))
+            ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
+
+        except ValueError:
+            raise SampleException("ValueError while converting data: [%s]" %
+                                  self.raw_data)
+        
+        result = [
+                  {DataParticleKey.VALUE_ID: IRISSignOnParticleKey.TIME,
+                   DataParticleKey.VALUE: ntp_timestamp},
+                  # Add firmware version"
+                  #{DataParticleKey.VALUE_ID: IRISSignOnParticleKey.SN,
+                  # DataParticleKey.VALUE: sn}
+                  ]
+        
+        return result
+
+class IRISStatus_01_Particle(DataParticle):
+    _data_particle_type = DataParticleType.IRIS_STATUS
+
+    @staticmethod
+    def regex():
+        """
+        Example of output from DUMP-SETTINGS command:
+        
+        IRIS,2013/06/12 18:03:44,*01: Vbias= 0.0000 0.0000 0.0000 0.0000
+        IRIS,2013/06/12 18:03:44,*01: Vgain= 0.0000 0.0000 0.0000 0.0000
+        IRIS,2013/06/12 18:03:44,*01: Vmin:  -2.50  -2.50   2.50   2.50
+        IRIS,2013/06/12 18:03:44,*01: Vmax:   2.50   2.50   2.50   2.50
+        IRIS,2013/06/12 18:03:44,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        IRIS,2013/06/12 18:03:44,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        IRIS,2013/06/12 18:03:44,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        IRIS,2013/06/12 18:03:44,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        IRIS,2013/06/12 18:03:44,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0
+        IRIS,2013/06/12 18:03:44,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0
+        IRIS,2013/06/12 18:03:44,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00
+        IRIS,2013/06/12 18:03:44,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-   
+        """
+        pattern = r'IRIS,' # pattern starts with IRIS '
+        pattern += r'(.*?),' # group 1: time
+        pattern += r'\*01: Vbias=' # unique identifier for status
+        pattern += r'.*?' # non-greedy match of all the junk between
+        pattern += r'baud FV-' + NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        return re.compile(IRISStatus_01_Particle.regex(), re.DOTALL)
+
+    def _build_parsed_values(self):
+        pass
+
+class IRISStatus_02_Particle(DataParticle):
+    _data_particle_type = DataParticleType.IRIS_STATUS
+
+    @staticmethod
+    def regex():
+        """
+        Example of output from DUMP2 command:
+        IRIS,2013/06/12 23:55:09,*01: TBias: 8.85 
+        IRIS,2013/06/12 23:55:09,*Above 0.00(KZMinTemp): kz[0]=           0, kz[1]=           0
+        IRIS,2013/06/12 18:04:01,*Below 0.00(KZMinTemp): kz[2]=           0, kz[3]=           0
+        IRIS,2013/06/12 18:04:01,*01: ADCDelay:  310 
+        IRIS,2013/06/12 18:04:01,*01: PCA Model: 90009-01
+        IRIS,2013/06/12 18:04:01,*01: Firmware Version: 5.2 Rev N
+        LILY,2013/06/12 18:04:01,-330.000,-247.647,290.73, 24.50,11.88,N9656
+        IRIS,2013/06/12 18:04:01,*01: X Ch Gain= 1.0000, Y Ch Gain= 1.0000, Temperature Gain= 1.0000
+        IRIS,2013/06/12 18:04:01,*01: Output Mode: Degrees
+        IRIS,2013/06/12 18:04:01,*01: Calibration performed in Degrees
+        IRIS,2013/06/12 18:04:01,*01: Control: Off
+        IRIS,2013/06/12 18:04:01,*01: Using RS232
+        IRIS,2013/06/12 18:04:01,*01: Real Time Clock: Not Installed
+        IRIS,2013/06/12 18:04:01,*01: Use RTC for Timing: No
+        IRIS,2013/06/12 18:04:01,*01: External Flash Capacity: 0 Bytes(Not Installed)
+        IRIS,2013/06/12 18:04:01,*01: Relay Thresholds:
+        IRIS,2013/06/12 18:04:01,*01:   Xpositive= 1.0000   Xnegative=-1.0000
+        IRIS,2013/06/12 18:04:01,*01:   Ypositive= 1.0000   Ynegative=-1.0000
+        IRIS,2013/06/12 18:04:01,*01: Relay Hysteresis:
+        IRIS,2013/06/12 18:04:01,*01:   Hysteresis= 0.0000
+        IRIS,2013/06/12 18:04:01,*01: Calibration method: Dynamic 
+        IRIS,2013/06/12 18:04:01,*01: Positive Limit=26.25   Negative Limit=-26.25 
+        IRIS,2013/06/12 18:04:02,*01: Calibration Points:025  X: Disabled  Y: Disabled
+        IRIS,2013/06/12 18:04:02,*01: Biaxial Sensor Type (0)
+        IRIS,2013/06/12 18:04:02,*01: ADC: 12-bit (internal)
+        IRIS,2013/06/12 18:04:02,*01: DAC Output Scale Factor: 0.10 Volts/Degree
+        HEAT,2013/06/12 18:04:02,-001,0001,0024
+        IRIS,2013/06/12 18:04:02,*01: Total Sample Storage Capacity: 372
+        IRIS,2013/06/12 18:04:02,*01: BAE Scale Factor:  2.88388 (arcseconds/bit)
+        """
+        pattern = r'IRIS,' # pattern starts with IRIS '
+        pattern += r'(.*?),' # group 1: time
+        pattern += r'\*01: TBias:' # unique identifier for status
+        pattern += r'.*?' # non-greedy match of all the junk between
+        pattern += r'BAE Scale Factor: (.*)' + NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        return re.compile(IRISStatus_02_Particle.regex(), re.DOTALL)
+
+    def encoders(self):
+        return {}
+
+    def _build_parsed_values(self):
+        pass
 
 ###############################################################################
 # Driver
@@ -404,6 +559,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         return_list = []
 
         matchers.append(IRISDataParticle.regex_compiled())
+        matchers.append(IRISStatusSignOnParticle.regex_compiled())
+        matchers.append(IRISStatus_01_Particle.regex_compiled())
+        matchers.append(IRISStatus_02_Particle.regex_compiled())
         matchers.append(IRISCommandResponse.regex_compiled())
 
         for matcher in matchers:
