@@ -552,6 +552,60 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
+    def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout = 10):
+        """
+        Test observatory polling function.
+
+        Verifies the acquire_status command.
+        """
+        # Set up all data subscriptions.  Stream names are defined
+        # in the driver PACKET_CONFIG dictionary
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        self.assert_enter_command_mode()
+
+        ###
+        # Poll for a sample
+        ###
+
+        # make sure there aren't any junk samples in the parsed
+        # data queue.
+        log.debug("Acquire Sample")
+        self.data_subscribers.clear_sample_queue(sampleQueue)
+
+        cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
+        self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
+
+        # Watch the parsed data queue and return once a sample
+        # has been read or the default timeout has been reached.
+        samples = self.data_subscribers.get_samples(sampleQueue, 1, timeout = timeout)
+        self.assertGreaterEqual(len(samples), 1)
+        log.error("SAMPLE: %s" % samples)
+
+        # Verify
+        for sample in samples:
+            sampleDataAssert(sample)
+
+        self.assert_reset()
+        self.doCleanups()
+        
+    def test_poll(self):
+        '''
+        poll for a single sample
+        '''
+        self.assert_sample_polled(self.assert_data_particle_sample, 
+                                  DataParticleType.METBK_PARSED)
+
+    def test_autosample(self):
+        '''
+        start and stop autosample and verify data particle
+        '''
+        self.assert_sample_autosample(self.assert_data_particle_sample,
+                                      DataParticleType.METBK_PARSED,
+                                      sample_count=1,
+                                      timeout = 60)
+
     def test_direct_access_telnet_mode(self):
         """
         @brief This test automatically tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -699,3 +753,12 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         # Now verify that the time matches to within 5 seconds
         self.assertLessEqual(abs(instrument_time - local_time), 5)
+        
+    def test_get_parameters(self):
+        '''
+        verify that parameters can be get properly
+        '''
+        self.assert_enter_command_mode()
+        
+        value_before_set = self.get_parameter(Parameter.ALL)
+        
