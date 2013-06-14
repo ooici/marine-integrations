@@ -552,80 +552,19 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    @staticmethod
-    def sort_capabilities(caps_list):
-        '''
-        sort a return value into capability buckets.
-        @retval agt_cmds, agt_pars, res_cmds, res_iface, res_pars
-        '''
-        agt_cmds = []
-        agt_pars = []
-        res_cmds = []
-        res_iface = []
-        res_pars = []
-
-        if len(caps_list)>0 and isinstance(caps_list[0], AgentCapability):
-            agt_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_CMD]
-            agt_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_PAR]
-            res_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_CMD]
-            #res_iface = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_IFACE]
-            res_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_PAR]
-
-        elif len(caps_list)>0 and isinstance(caps_list[0], dict):
-            agt_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_CMD]
-            agt_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_PAR]
-            res_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_CMD]
-            #res_iface = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_IFACE]
-            res_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_PAR]
-
-        agt_cmds.sort()
-        agt_pars.sort()
-        res_cmds.sort()
-        res_iface.sort()
-        res_pars.sort()
-        
-        return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
-    
-    def ia_capabilities(self):
-        state = self.instrument_agent_client.get_agent_state()
-        log.critical("ia_capabilities: IA state=%s" %state)
-        retval = self.instrument_agent_client.get_capabilities()
-        agt_cmds, agt_pars, res_cmds, res_iface, res_pars = TestQUAL.sort_capabilities(retval)
-        log.critical("ia_capabilities: IA commands:\n%s" %agt_cmds)
-        log.critical("ia_capabilities: resource commands:\n%s" %res_cmds)
-    
-    def command_ia(self, cmd):
-        log.critical("command_ia: executing %s." %cmd)
-        try:
-            self.instrument_agent_client.execute_agent(cmd) 
-            self.ia_capabilities()
-        except Exception as e:
-            log.critical("command_ia: exception raised - %s" %e)
-    
-    @unittest.skip('Only enabled and used for manual testing of vendor SW')
     def test_direct_access_telnet_mode(self):
         """
         @brief This test automatically tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
         self.assert_enter_command_mode()
-        self.ia_capabilities()
 
         # go into direct access
         self.assert_direct_access_start_telnet(timeout=600)
-        self.ia_capabilities()
         self.tcp_client.send_data("#D\r\n")
-        self.tcp_client.expect("\r\n")
+        if  not self.tcp_client.expect("\r\n"):
+            self.fail("test_direct_access_telnet_mode: did not get expected response")
         
-        self.tcp_client.disconnect()
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        self.command_ia(cmd)
-        gevent.sleep(10)
-        self.ia_capabilities()
-
-        #self.assert_direct_access_stop_telnet()
-
-        # verify the setting got restored.
-        #self.assert_enter_command_mode()
+        self.assert_direct_access_stop_telnet()
 
     @unittest.skip('Only enabled and used for manual testing of vendor SW')
     def test_direct_access_telnet_mode_manual(self):
