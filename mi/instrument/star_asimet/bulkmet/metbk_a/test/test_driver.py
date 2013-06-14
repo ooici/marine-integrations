@@ -750,7 +750,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         # get the time from the driver
         check_new_params = self.instrument_agent_client.get_resource([Parameter.CLOCK])
         # convert driver's time from formatted date/time string to seconds integer
-        instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.CLOCK).lower(), "%Y %m %d %H:%M:%S"))
+        instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.CLOCK).lower(), "%Y/%m/%d  %H:%M:%S"))
 
         # need to convert local machine's time to date/time string and back to seconds to 'drop' the DST attribute so test passes
         # get time from local machine
