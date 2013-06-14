@@ -2,11 +2,11 @@
 @package mi.instrument.sunburst.sami2_pco2.ooicore.driver
 @file marine-integrations/mi/instrument/sunburst/sami2_pco2/ooicore/driver.py
 @author Christopher Wingard
-@brief Driver for the ooicore
+@brief Driver for the Sunburst Sensors, SAMI2-PCO2 (PCO2W)
 Release notes:
 
 Sunburst Sensors SAMI2-PCO2 pCO2 underwater sensor
-    Initial code developed by Chris Center
+    Derived from initial code developed by Chris Center
 """
 
 __author__ = 'Christopher Wingard'
@@ -21,13 +21,17 @@ import sys      # Exceptions
 import copy
 from threading import RLock
 
-from mi.core.log import get_logger;
+from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.data_particle import DataParticle
+from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -36,10 +40,6 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.data_particle import DataParticle
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import FunctionParameter
 from mi.core.time import get_timestamp
