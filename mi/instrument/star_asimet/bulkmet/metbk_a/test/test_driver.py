@@ -654,25 +654,22 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
-    @unittest.skip('not tested yet')
     def test_discover(self):
         """
-        over-ridden because instrument doesn't actually have a command mode and therefore
-        driver will always go to autosample mode during the discover process after a reset.
-        verify we can discover our instrument state from streaming and autosample.  This
-        method assumes that the instrument has a command and streaming mode. If not you will
-        need to explicitly overload this test in your driver tests.
+        over-ridden because instrument doesn't actually have an autosample mode and therefore
+        driver will always go to command mode during the discover process after a reset.
         """
         # Verify the agent is in command mode
         self.assert_enter_command_mode()
+        
+        self.assert_start_autosample()
 
         # Now reset and try to discover.  This will stop the driver and cause it to re-discover which
-        # will always go back to autosample for this instrument
+        # will always go back to command for this instrument
         self.assert_reset()
-        self.assert_discover(ResourceAgentState.STREAMING)
+        self.assert_discover(ResourceAgentState.COMMAND)
 
 
-    @unittest.skip('not tested yet')
     def test_get_capabilities(self):
         """
         @brief Walk through all driver protocol states and verify capabilities
@@ -688,7 +685,12 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
             AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [
-                DriverEvent.START_AUTOSAMPLE
+                ProtocolEvent.GET, 
+                ProtocolEvent.CLOCK_SYNC,
+                ProtocolEvent.START_AUTOSAMPLE,
+                ProtocolEvent.ACQUIRE_SAMPLE,
+                ProtocolEvent.FLASH_STATUS,
+                ProtocolEvent.ACQUIRE_STATUS,
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -702,7 +704,12 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
-            DriverEvent.STOP_AUTOSAMPLE,
+            ProtocolEvent.GET, 
+            ProtocolEvent.CLOCK_SYNC,
+            ProtocolEvent.ACQUIRE_STATUS,
+            ProtocolEvent.ACQUIRE_SAMPLE,
+            ProtocolEvent.FLASH_STATUS,
+            ProtocolEvent.STOP_AUTOSAMPLE,
         ]
 
         self.assert_start_autosample()

@@ -97,6 +97,7 @@ class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
+    GET              = ProtocolEvent.GET
     ACQUIRE_STATUS   = ProtocolEvent.ACQUIRE_STATUS
     ACQUIRE_SAMPLE   = ProtocolEvent.ACQUIRE_SAMPLE
     CLOCK_SYNC       = ProtocolEvent.CLOCK_SYNC
@@ -632,7 +633,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         result = None
         next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.IDLE
+        next_agent_state = ResourceAgentState.COMMAND
 
         self._remove_scheduler(AUTO_SAMPLE_SCHEDULED_JOB)
         
