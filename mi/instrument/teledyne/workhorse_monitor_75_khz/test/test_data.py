@@ -605,9 +605,6 @@ get_params_output = \
             ">TF?" + NEWLINE +\
             "TF **/**/**,**:**:** --- Time of First Ping (yr/mon/day,hour:min:sec)" + NEWLINE +\
             ">" + NEWLINE +\
-            ">TG?" + NEWLINE +\
-            "TG ****/**/**,**:**:** - Time of First Ping (CCYY/MM/DD,hh:mm:ss)" + NEWLINE +\
-            ">" + NEWLINE +\
             ">TP?" + NEWLINE +\
             "TP 01:20.00 ------------ Time per Ping (min:sec.sec/100)" + NEWLINE +\
             ">" + NEWLINE +\

@@ -993,11 +993,18 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest, SeaBird54tpsMixin
         da_capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.GO_COMMAND]
         da_capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
 
+        # Test direct access disconnect
         self.assert_direct_access_start_telnet(timeout=10)
         self.assertTrue(self.tcp_client)
 
         self.assert_capabilities(da_capabilities)
         self.tcp_client.disconnect()
+
+        # Now do it again, but use the event to stop DA
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+        self.assert_direct_access_start_telnet(timeout=10)
+        self.assert_capabilities(da_capabilities)
+        self.assert_direct_access_stop_telnet()
 
         ##################
         #  Command Mode

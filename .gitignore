@@ -49,3 +49,4 @@ couchdb.stdout
 erl_crash.dump
 
 mavs4_menu_hex.txt
+*.txt
