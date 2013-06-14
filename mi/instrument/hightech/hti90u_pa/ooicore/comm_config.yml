@@ -1,0 +1,8 @@
+comm:
+  command_port: 54321
+  data_port: 54322
+  device_addr: localhost
+  device_port: 54320
+  host: localhost
+  method: ethernet
+  sniffer_port: 0
