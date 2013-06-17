@@ -56,6 +56,7 @@ from interface.objects import CapabilityType
 
 from ion.agents.instrument.driver_process import DriverProcess, DriverProcessType
 
+from interface.objects import AgentCommandResult
 from interface.objects import AgentCommand
 
 from mi.idk.util import convert_enum_to_dict
@@ -2156,6 +2157,14 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, target_state)
 
+    def assert_resource_state(self, target_state):
+        """
+        Verify the current resource state
+        @param target_state: What we expect the resource state to be
+        """
+        state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(state, target_state)
+
     def assert_agent_command(self, command, args=None, timeout=None):
         """
         Verify an agent command throws an exception
@@ -2172,7 +2181,49 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         @param args: kwargs to pass to the agent command object
         """
         cmd = AgentCommand(command=command, kwargs=args)
-        retval = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
+        return self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
+
+    def assert_resource_command(self, command, args=None, expected=None, regex=None, value_function=None, agent_state=None, resource_state=None, delay=0):
+        """
+        Verify that we can run a command and that the reply matches if we have
+        passed on in.  If we couldn't execute a command we assume an exception
+        will be thrown.
+        @param command: driver command to execute
+        @param expected: expected reply from the command
+        @param regex: regex to match reply
+        """
+        # Execute the command
+        reply = self.assert_execute_resource(command, args)
+        value = None
+
+        if(delay):
+            log.debug("sleeping for a bit: %d", delay)
+            time.sleep(delay)
+
+        # Get the value to check in the reply
+        if(reply != None):
+            if(value_function == None):
+                self.assertIsInstance(reply, AgentCommandResult)
+                log.debug("AAResult: %s", reply)
+                value = reply['result']
+            else:
+                value = value_function(reply)
+
+        if(expected != None):
+            log.debug("command reply: %s", value)
+            self.assertIsNotNone(value)
+            self.assertEqual(value, expected)
+
+        if(regex != None):
+            log.debug("command reply: %s", value)
+            self.assertIsNotNone(value)
+            self.assertRegexpMatches(value, regex)
+
+        if(agent_state != None):
+            self.assert_agent_state(agent_state)
+
+        if(resource_state != None):
+            self.assert_resource_state(resource_state)
 
     def assert_agent_command_exception(self, command, error_regex=None, exception_class=InstrumentStateException, timeout=None):
         """
