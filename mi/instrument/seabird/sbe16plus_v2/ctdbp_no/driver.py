@@ -1,6 +1,6 @@
 """
-@package mi.instrument.seabird.sbe16plus_v2.ooicore.driver
-@file mi/instrument/seabird/sbe16plus_v2/ooicore/driver.py
+@package mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver
+@file mi/instrument/seabird/sbe16plus_v2/ctdbp_no/driver.py
 @author David Everett 
 @brief Driver class for sbe16plus V2 CTD instrument.
 """
