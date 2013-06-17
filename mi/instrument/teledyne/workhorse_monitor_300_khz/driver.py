@@ -9,6 +9,7 @@ Release notes:
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
+from mi.core.util import dict_equal
 
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -22,10 +23,14 @@ from mi.instrument.teledyne.driver import TeledyneCapability
 from mi.instrument.teledyne.driver import TeledyneInstrumentDriver
 from mi.instrument.teledyne.driver import TeledyneScheduledJob
 
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+
 from mi.instrument.teledyne.particles import *
 
 from mi.core.instrument.chunker import StringChunker
 
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ParameterDictType
 
 class WorkhorsePrompt(TeledynePrompt):
     pass
@@ -42,6 +47,13 @@ class WorkhorseParameter(TeledyneParameter):
     SYNC_INTERVAL = "SI"
     SLAVE_TIMEOUT = "ST"
     SYNC_DELAY = "SW"
+    #BANNER = 'CH'                       # Suppress Banner 0=Show, 1=Suppress
+    #SERIAL_FLOW_CONTROL = 'CF'          # 11110  Flow Ctrl (EnsCyc;PngCyc;Binry;Ser;Rec)
+    #SLEEP_ENABLE = 'CL'                 # 0/1
+    #SAVE_NVRAM_TO_RECORDER = 'CN'       # Save NVRAM to recorder (0 = ON, 1 = OFF)
+    #POLLED_MODE = 'CP'                  # 1=ON, 0=OFF;
+    #PITCH = 'EP'                        # Tilt 1 Sensor (1/100 deg) -6000 to 6000 (-60.00 to +60.00 degrees)
+    #ROLL = 'ER'                         # Tilt 2 Sensor (1/100 deg) -6000 to 6000 (-60.00 to +60.00 degrees)
 
 class WorkhorseInstrumentCmds(TeledyneInstrumentCmds):
     """
@@ -151,7 +163,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
-        log.debug("IN WorkhorseProtocol.__init__")
+        log.trace("IN WorkhorseProtocol.__init__")
         # Construct protocol superclass.
         TeledyneProtocol.__init__(self, prompts, newline, driver_event)
 
@@ -161,6 +173,78 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         self._chunker = StringChunker(WorkhorseProtocol.sieve_function)
 
+    def _build_param_dict(self):
+        TeledyneProtocol._build_param_dict(self)
+        """
+        params this driver lacks.
+        self._param_dict.add(WorkhorseParameter.SERIAL_FLOW_CONTROL,
+            r'CF = (\d+) \-+ Flow Ctrl ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="serial flow control",
+            startup_param=True,
+            direct_access=False,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value='11110')
+        
+        self._param_dict.add(WorkhorseParameter.BANNER,
+            r'CH = (\d) \-+ Suppress Banner',
+            lambda match:  bool(int(match.group(1), base=10)),
+            self._bool_to_int, # _reverse_bool_to_int
+            type=ParameterDictType.BOOL,
+            display_name="banner",
+            startup_param=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value=0)
+                
+        self._param_dict.add(WorkhorseParameter.SLEEP_ENABLE,
+            r'CL = (\d) \-+ Sleep Enable',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="sleep enable",
+            startup_param=True,
+            default_value=False)
+        
+        self._param_dict.add(WorkhorseParameter.SAVE_NVRAM_TO_RECORDER,
+            r'CN = (\d) \-+ Save NVRAM to recorder',
+            lambda match: bool(int(match.group(1), base=10)),
+            self._bool_to_int,
+            type=ParameterDictType.BOOL,
+            display_name="save nvram to recorder",
+            startup_param=True,
+            default_value=True,
+            visibility=ParameterDictVisibility.IMMUTABLE)
+        
+        self._param_dict.add(WorkhorseParameter.POLLED_MODE,
+            r'CP = (\d) \-+ PolledMode ',
+            lambda match: bool(int(match.group(1), base=10)),
+            self._bool_to_int,
+            type=ParameterDictType.BOOL,
+            display_name="polled mode",
+            startup_param=True,
+            default_value=False)
+        
+        self._param_dict.add(WorkhorseParameter.PITCH,
+            r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="pitch",
+            startup_param=True,
+            default_value=0)
+        
+        self._param_dict.add(WorkhorseParameter.ROLL,
+            r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="roll",
+            startup_param=True,
+            default_value=0)
+        """
+                
     def _build_command_dict(self):
         """
         Populate the command dictionary with command.
@@ -229,6 +313,15 @@ class WorkhorseProtocol(TeledyneProtocol):
     ########################################################################
     # Private helpers.
     ########################################################################
+
+    def _get_params(self):
+        return dir(WorkhorseParameter)
+
+    def _getattr_key(self, attr):
+        return getattr(WorkhorseParameter, attr)
+
+    def _has_parameter(self, param):
+        return WorkhorseParameter.has(param)
 
     def _got_chunk(self, chunk, timestamp):
         """

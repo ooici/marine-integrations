@@ -45,7 +45,6 @@ from mi.instrument.teledyne.test.test_driver import TeledynePublicationTest
 from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseInstrumentDriver
 
 from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import DataParticleType
-from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseProtocolState
 from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseProtocolEvent
 from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseParameter
 
@@ -132,9 +131,58 @@ class WorkhorseDriverUnitTest(TeledyneUnitTest):
 ###############################################################################
 @attr('INT', group='mi')
 class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
+    # test if this can pre-set, and be overridden by mixin
+    # TODO: does this work
+    #
+
+    _tested = {}
+
+    _driver_parameter_defaults = {
+        #Parameter.SERIAL_DATA_OUT: None,
+        Parameter.INSTRUMENT_ID: 0,
+        Parameter.XMIT_POWER: 255,
+        Parameter.SPEED_OF_SOUND: 1500,
+        Parameter.SALINITY: 35,
+        Parameter.COORDINATE_TRANSFORMATION: '11111',
+        Parameter.SENSOR_SOURCE: "1111101",
+        Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
+        Parameter.TIME_OF_FIRST_PING: None,
+        Parameter.TIME_PER_PING: '00:01.00',
+        #Parameter.TIME: False,
+        Parameter.FALSE_TARGET_THRESHOLD: '050,001',
+        Parameter.BANDWIDTH_CONTROL: 0,
+        Parameter.CORRELATION_THRESHOLD: 64,
+        Parameter.SERIAL_OUT_FW_SWITCHES: '111100000',
+        Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
+        Parameter.BLANK_AFTER_TRANSMIT: 704,
+        Parameter.CLIP_DATA_PAST_BOTTOM: 0,
+        Parameter.RECEIVER_GAIN_SELECT: 1,
+        Parameter.WATER_REFERENCE_LAYER: '001,005',
+        Parameter.WATER_PROFILING_MODE: 1,
+        Parameter.NUMBER_OF_DEPTH_CELLS: 100,
+        Parameter.PINGS_PER_ENSEMBLE: 1,
+        Parameter.DEPTH_CELL_SIZE: 800,
+        Parameter.TRANSMIT_LENGTH: 0,
+        Parameter.PING_WEIGHT: 0,
+        Parameter.AMBIGUITY_VELOCITY: 175,
+    }
+
     def setUp(self):
         TeledyneIntegrationTest.setUp(self)
 
+    def assert_compass_calibration(self):
+        """
+        Verify a calibration particle was generated
+        """
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=700)
+
+    def assert_acquire_status(self):
+        """
+        Verify a status particle was generated
+        """
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=300)
 
     ###
     #    Add instrument specific integration tests
@@ -147,96 +195,31 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        log.debug("REPLY = " + str(reply))
         self.assert_driver_parameters(reply, True)
 
-    @unittest.skip('Passes, takes a long time enable for final test.')
-    def test_set(self):
-        """
-        Test all set commands. Verify all exception cases.
-        """
-        self.assert_initialize_driver()
-
-        params = {
-            Parameter.INSTRUMENT_ID: 0,
-            Parameter.SLEEP_ENABLE: 0,
-            Parameter.POLLED_MODE: False,
-            Parameter.XMIT_POWER: 255,
-            Parameter.SPEED_OF_SOUND: 1485,
-            Parameter.PITCH: 0,
-            Parameter.ROLL: 0,
-            Parameter.SALINITY: 35,
-            Parameter.SENSOR_SOURCE: "1111101",
-            Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
-            Parameter.TIME_PER_PING: '00:01.00',
-            Parameter.FALSE_TARGET_THRESHOLD: '050,001',
-            Parameter.BANDWIDTH_CONTROL: 0,
-            Parameter.CORRELATION_THRESHOLD: 64,
-            Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
-            Parameter.BLANK_AFTER_TRANSMIT: 704,
-            Parameter.CLIP_DATA_PAST_BOTTOM: False,
-            Parameter.RECEIVER_GAIN_SELECT: 1,
-            Parameter.WATER_REFERENCE_LAYER: '001,005',
-            Parameter.NUMBER_OF_DEPTH_CELLS: 100,
-            Parameter.PINGS_PER_ENSEMBLE: 1,
-            Parameter.DEPTH_CELL_SIZE: 800,
-            Parameter.TRANSMIT_LENGTH: 0,
-            Parameter.PING_WEIGHT: 0,
-            Parameter.AMBIGUITY_VELOCITY: 175,
-        }
-
-        # Set all parameters to a known ground state
-        self.assert_set_bulk(params)
-
+    def _test_set_instrument_id(self):
         ###
-        #   Instrument Parameteres
+        #   test get set of a variety of parameter ranges
         ###
-
-        self.assert_set_readonly(Parameter.SERIAL_DATA_OUT)
-        self.assert_set_readonly(Parameter.SERIAL_FLOW_CONTROL)
-        self.assert_set_readonly(Parameter.SAVE_NVRAM_TO_RECORDER)
-        self.assert_set_readonly(Parameter.WATER_PROFILING_MODE)
-        self.assert_set_readonly(Parameter.SERIAL_OUT_FW_SWITCHES)
-        self.assert_set_readonly(Parameter.BANNER)
-
-        self.assert_set(Parameter.CORRELATION_THRESHOLD, 64)
-        self.assert_set(Parameter.TIME_PER_ENSEMBLE, '00:00:00.00')
-        self.assert_set(Parameter.INSTRUMENT_ID, 0)
-        self.assert_set(Parameter.SLEEP_ENABLE, 0)
-        self.assert_set(Parameter.POLLED_MODE, False)
-        self.assert_set(Parameter.XMIT_POWER, 255)
-        self.assert_set(Parameter.SPEED_OF_SOUND, 1485)
-        self.assert_set(Parameter.PITCH, 0)
-        self.assert_set(Parameter.ROLL, 0) 
-        self.assert_set(Parameter.SALINITY, 35)
-        self.assert_set(Parameter.SENSOR_SOURCE, "1111101")
-        self.assert_set(Parameter.TIME_PER_PING, '00:01.00')
-        self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, '050,001')
-        self.assert_set(Parameter.BANDWIDTH_CONTROL, 0)
-        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 2000) 
-        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 704) 
-        self.assert_set(Parameter.CLIP_DATA_PAST_BOTTOM, False)
-        self.assert_set(Parameter.RECEIVER_GAIN_SELECT, 1)
-        self.assert_set(Parameter.WATER_REFERENCE_LAYER, '001,005')
-        self.assert_set(Parameter.NUMBER_OF_DEPTH_CELLS, 100)
-        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 1)
-        self.assert_set(Parameter.DEPTH_CELL_SIZE, 800)
-        self.assert_set(Parameter.TRANSMIT_LENGTH, 0)
-        self.assert_set(Parameter.PING_WEIGHT, 0)
-        self.assert_set(Parameter.AMBIGUITY_VELOCITY, 175)
-
-        """
-        test a variety of paramater ranges.
-        """
+        log.debug("====== Testing ranges for INSTRUMENT_ID ======")
 
         # INSTRUMENT_ID -- Int 0-255
+        self.assert_set(Parameter.INSTRUMENT_ID, 255)
+        self.assert_set(Parameter.INSTRUMENT_ID, 1)
+        self.assert_set_exception(Parameter.INSTRUMENT_ID, 256)
         self.assert_set_exception(Parameter.INSTRUMENT_ID, "LEROY JENKINS")
         self.assert_set_exception(Parameter.INSTRUMENT_ID, -1)
-
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.INSTRUMENT_ID, 0)
+        self.assert_set(Parameter.INSTRUMENT_ID, self._driver_parameter_defaults[Parameter.INSTRUMENT_ID])
+        self._tested[Parameter.INSTRUMENT_ID] = True
+
+    def _test_set_sleep_enable(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SLEEP_ENABLE ======")
 
         # SLEEP_ENABLE:  -- (0,1,2)
         self.assert_set(Parameter.SLEEP_ENABLE, 1)
@@ -249,15 +232,29 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.SLEEP_ENABLE, 0)
+        self.assert_set(Parameter.SLEEP_ENABLE, self._driver_parameter_defaults[Parameter.SLEEP_ENABLE])
+        self._tested[Parameter.SLEEP_ENABLE] = True
 
+    def _test_set_polled_mode(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for POLLED_MODE ======")
+ 
         # POLLED_MODE:  -- (True/False)
         self.assert_set(Parameter.POLLED_MODE, True)
         self.assert_set_exception(Parameter.POLLED_MODE, "LEROY JENKINS")
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.POLLED_MODE, False)
+        self.assert_set(Parameter.POLLED_MODE, self._driver_parameter_defaults[Parameter.POLLED_MODE])
+        self._tested[Parameter.POLLED_MODE] = True
+
+    def _test_set_xmit_power(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for XMIT_POWER ======")
 
         # XMIT_POWER:  -- Int 0-255
         self.assert_set(Parameter.XMIT_POWER, 0)
@@ -271,7 +268,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.XMIT_POWER, 255)
+        self.assert_set(Parameter.XMIT_POWER, self._driver_parameter_defaults[Parameter.XMIT_POWER])
+        self._tested[Parameter.XMIT_POWER] = True
+
+    def _test_set_speed_of_sound(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SPEED_OF_SOUND ======")
 
         # SPEED_OF_SOUND:  -- Int 1485 (1400 - 1600)
         self.assert_set(Parameter.SPEED_OF_SOUND, 1400)
@@ -292,7 +296,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.SPEED_OF_SOUND, 1485)
+        self.assert_set(Parameter.SPEED_OF_SOUND, self._driver_parameter_defaults[Parameter.SPEED_OF_SOUND])
+        self._tested[Parameter.SPEED_OF_SOUND] = True
+
+    def _test_set_pitch(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for PITCH ======")
 
         # PITCH:  -- Int -6000 to 6000
         self.assert_set(Parameter.PITCH, -6000)
@@ -313,7 +324,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.PITCH, 0)
+        self.assert_set(Parameter.PITCH, self._driver_parameter_defaults[Parameter.PITCH])
+        self._tested[Parameter.PITCH] = True
+
+    def _test_set_roll(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for ROLL ======")
 
         # ROLL:  -- Int -6000 to 6000
         self.assert_set(Parameter.ROLL, -6000)
@@ -333,7 +351,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.ROLL, 0)
+        self.assert_set(Parameter.ROLL, self._driver_parameter_defaults[Parameter.ROLL])
+        self._tested[Parameter.ROLL] = True
+
+    def _test_set_salinity(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SALINITY ======")
 
         # SALINITY:  -- Int (0 - 40)
         self.assert_set(Parameter.SALINITY, 0)
@@ -355,7 +380,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.SALINITY, 35)
+        self.assert_set(Parameter.SALINITY, self._driver_parameter_defaults[Parameter.SALINITY])
+        self._tested[Parameter.SALINITY] = True
+
+    def _test_set_sensor_source(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SENSOR_SOURCE ======")
 
         # SENSOR_SOURCE:  -- (0/1) for 7 positions.
         # note it lacks capability to have a 1 in the #6 position
@@ -364,6 +396,11 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_set(Parameter.SENSOR_SOURCE, "1010101")
         self.assert_set(Parameter.SENSOR_SOURCE, "0101000")
         self.assert_set(Parameter.SENSOR_SOURCE, "1100100")
+
+        #
+        # Reset to good value.
+        #
+        self.assert_set(Parameter.SENSOR_SOURCE, "1111101")
 
         self.assert_set_exception(Parameter.SENSOR_SOURCE, "LEROY JENKINS")
         self.assert_set_exception(Parameter.SENSOR_SOURCE, 2)
@@ -375,7 +412,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.SENSOR_SOURCE, "1111101")
+        self.assert_set(Parameter.SENSOR_SOURCE, self._driver_parameter_defaults[Parameter.SENSOR_SOURCE])
+        self._tested[Parameter.SENSOR_SOURCE] = True
+
+    def _test_set_time_per_ensemble(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for TIME_PER_ENSEMBLE ======")
 
         # TIME_PER_ENSEMBLE:  -- String 01:00:00.00 (hrs:min:sec.sec/100)
         self.assert_set(Parameter.TIME_PER_ENSEMBLE, "00:00:00.00")
@@ -390,14 +434,20 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_set_exception(Parameter.TIME_PER_ENSEMBLE, '99:99:99.99')
         self.assert_set_exception(Parameter.TIME_PER_ENSEMBLE, '-1:-1:-1.+1')
         self.assert_set_exception(Parameter.TIME_PER_ENSEMBLE, 3.1415926)
+
         #
         # Reset to good value.
         #
+        self.assert_set(Parameter.TIME_PER_ENSEMBLE, self._driver_parameter_defaults[Parameter.TIME_PER_ENSEMBLE])
+        self._tested[Parameter.TIME_PER_ENSEMBLE] = True
 
-        self.assert_set(Parameter.TIME_PER_ENSEMBLE, "00:00:00.00")
+    def _test_set_time_of_first_ping(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for TIME_OF_FIRST_PING ======")
 
         # TIME_OF_FIRST_PING:  -- str ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
-
         now_1_hour = (dt.datetime.utcnow() + dt.timedelta(hours=1)).strftime("%Y/%m/%d,%H:%m:%S")
         today_plus_10 = (dt.datetime.utcnow() + dt.timedelta(days=10)).strftime("%Y/%m/%d,%H:%m:%S")
         today_plus_1month = (dt.datetime.utcnow() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
@@ -416,6 +466,17 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_set_exception(Parameter.TIME_OF_FIRST_PING, '99:99.99')
         self.assert_set_exception(Parameter.TIME_OF_FIRST_PING, '-1:-1.+1')
         self.assert_set_exception(Parameter.TIME_OF_FIRST_PING, 3.1415926)
+        #
+        # Reset to good value.
+        #
+        # Ideally send a break to reset it...
+        self._tested[Parameter.TIME_OF_FIRST_PING] = True
+
+    def _test_set_time_per_ping(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for TIME_PER_PING ======")
 
         # TIME_PER_PING: '00:01.00'
         self.assert_set(Parameter.TIME_PER_PING, '01:00.00')
@@ -432,7 +493,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.TIME_PER_PING, '00:01.00')
+        self.assert_set(Parameter.TIME_PER_PING, self._driver_parameter_defaults[Parameter.TIME_PER_PING])
+        self._tested[Parameter.TIME_PER_PING] = True
+
+    def _test_set_false_target_threshold(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for FALSE_TARGET_THRESHOLD ======")
 
         # FALSE_TARGET_THRESHOLD: string of 0-255,0-255
         self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, "000,000")
@@ -451,7 +519,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, "050,001")
+        self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, self._driver_parameter_defaults[Parameter.FALSE_TARGET_THRESHOLD])
+        self._tested[Parameter.FALSE_TARGET_THRESHOLD] = True
+
+    def _test_set_bandwidth_control(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for BANDWIDTH_CONTROL ======")
 
         # BANDWIDTH_CONTROL: 0/1,
         self.assert_set(Parameter.BANDWIDTH_CONTROL, 1)
@@ -464,7 +539,24 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.BANDWIDTH_CONTROL, 0)
+        self.assert_set(Parameter.BANDWIDTH_CONTROL, self._driver_parameter_defaults[Parameter.BANDWIDTH_CONTROL])
+        self._tested[Parameter.BANDWIDTH_CONTROL] = True
+
+    def _test_set_bandwidth_control_readonly(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for BANDWIDTH_CONTROL ====== READONLY")
+
+        # Test read only raise exceptions on set.
+        self.assert_set_exception(Parameter.BANDWIDTH_CONTROL, 0)
+        self._tested[Parameter.BANDWIDTH_CONTROL] = True
+
+    def _test_set_correlation_threshold(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for CORRELATION_THRESHOLD ======")
 
         # CORRELATION_THRESHOLD: int 064, 0 - 255
         self.assert_set(Parameter.CORRELATION_THRESHOLD, 50)
@@ -481,7 +573,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.CORRELATION_THRESHOLD, 64)
+        self.assert_set(Parameter.CORRELATION_THRESHOLD, self._driver_parameter_defaults[Parameter.CORRELATION_THRESHOLD])
+        self._tested[Parameter.CORRELATION_THRESHOLD] = True
+
+    def _test_set_error_velocity_threshold(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for ERROR_VELOCITY_THRESHOLD ======")
 
         # ERROR_VELOCITY_THRESHOLD: int (0-5000 mm/s) NOTE it enforces 0-9999
         # decimals are truncated to ints
@@ -500,7 +599,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 2000)
+        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, self._driver_parameter_defaults[Parameter.ERROR_VELOCITY_THRESHOLD])
+        self._tested[Parameter.ERROR_VELOCITY_THRESHOLD] = True
+
+    def _test_set_blank_after_transmit(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for BLANK_AFTER_TRANSMIT ======")
 
         # BLANK_AFTER_TRANSMIT: int 704, (0 - 9999)
         self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 0)
@@ -523,21 +629,40 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 704)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, self._driver_parameter_defaults[Parameter.BLANK_AFTER_TRANSMIT])
+        self._tested[Parameter.BLANK_AFTER_TRANSMIT] = True
+
+    def _test_set_blank_after_transmit_readonly(self):
+            ###
+            #   test get set of a variety of parameter ranges
+            ###
+            log.debug("====== Testing ranges for BLANK_AFTER_TRANSMIT ====== READONLY")
+
+            # Test read only raise exceptions on set.
+            self.assert_set_exception(Parameter.BLANK_AFTER_TRANSMIT, 0)
+            self._tested[Parameter.BLANK_AFTER_TRANSMIT] = True
+
+    def _test_set_clip_data_past_bottom(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for CLIP_DATA_PAST_BOTTOM ======")
 
         # CLIP_DATA_PAST_BOTTOM: True/False,
         self.assert_set(Parameter.CLIP_DATA_PAST_BOTTOM, True)
-
         self.assert_set_exception(Parameter.CLIP_DATA_PAST_BOTTOM, "LEROY JENKINS")
-        # AssertionError: Unexpected exception: WI no value match (True != 5)
-        #self.assert_set_exception(Parameter.CLIP_DATA_PAST_BOTTOM, 5)
-        # AssertionError: Unexpected exception: WI no value match (True != -1)
-        #self.assert_set_exception(Parameter.CLIP_DATA_PAST_BOTTOM, -1)
 
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.CLIP_DATA_PAST_BOTTOM, False)
+        self.assert_set(Parameter.CLIP_DATA_PAST_BOTTOM, self._driver_parameter_defaults[Parameter.CLIP_DATA_PAST_BOTTOM])
+        self._tested[Parameter.CLIP_DATA_PAST_BOTTOM] = True
+
+    def _test_set_receiver_gain_select(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for RECEIVER_GAIN_SELECT ======")
 
         # RECEIVER_GAIN_SELECT: (0/1),
         self.assert_set(Parameter.RECEIVER_GAIN_SELECT, 0)
@@ -551,7 +676,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.RECEIVER_GAIN_SELECT, 1)
+        self.assert_set(Parameter.RECEIVER_GAIN_SELECT, self._driver_parameter_defaults[Parameter.RECEIVER_GAIN_SELECT])
+        self._tested[Parameter.RECEIVER_GAIN_SELECT] = True
+
+    def _test_set_water_reference_layer(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for WATER_REFERENCE_LAYER ======")
 
         # WATER_REFERENCE_LAYER:  -- int Begin Cell (0=OFF), End Cell  (0-100)
         self.assert_set(Parameter.WATER_REFERENCE_LAYER, "000,001")
@@ -572,7 +704,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.WATER_REFERENCE_LAYER, "001,005")
+        self.assert_set(Parameter.WATER_REFERENCE_LAYER, self._driver_parameter_defaults[Parameter.WATER_REFERENCE_LAYER])
+        self._tested[Parameter.WATER_REFERENCE_LAYER] = True
+
+    def _test_set_number_of_depth_cells(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for NUMBER_OF_DEPTH_CELLS ======")
 
         # NUMBER_OF_DEPTH_CELLS:  -- int (1-255) 100,
         self.assert_set(Parameter.NUMBER_OF_DEPTH_CELLS, 1)
@@ -588,7 +727,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.NUMBER_OF_DEPTH_CELLS, 100)
+        self.assert_set(Parameter.NUMBER_OF_DEPTH_CELLS, self._driver_parameter_defaults[Parameter.NUMBER_OF_DEPTH_CELLS])
+        self._tested[Parameter.NUMBER_OF_DEPTH_CELLS] = True
+
+    def _test_set_pings_per_ensemble(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for PINGS_PER_ENSEMBLE ======")
 
         # PINGS_PER_ENSEMBLE: -- int  (0-16384) 1,
         self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 0)
@@ -602,21 +748,35 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 1)
+        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, self._driver_parameter_defaults[Parameter.PINGS_PER_ENSEMBLE])
+        self._tested[Parameter.PINGS_PER_ENSEMBLE] = True
+
+    def _test_set_depth_cell_size(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for DEPTH_CELL_SIZE ======")
 
         # DEPTH_CELL_SIZE: int 80 - 3200
         self.assert_set(Parameter.DEPTH_CELL_SIZE, 80)
-        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 3200)
+        self.assert_set(Parameter.DEPTH_CELL_SIZE, 3200)
 
-        self.assert_set_exception(Parameter.PING_WEIGHT, 3201)
-        self.assert_set_exception(Parameter.PING_WEIGHT, -1)
-        self.assert_set_exception(Parameter.PING_WEIGHT, 2)
-        self.assert_set_exception(Parameter.PING_WEIGHT, 3.1415926)
-        self.assert_set_exception(Parameter.PING_WEIGHT, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, 3201)
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, -1)
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, 2)
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, 3.1415926)
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, "LEROY JENKINS")
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 0)
+        self.assert_set(Parameter.DEPTH_CELL_SIZE, self._driver_parameter_defaults[Parameter.DEPTH_CELL_SIZE])
+        self._tested[Parameter.DEPTH_CELL_SIZE] = True
+
+    def _test_set_transmit_length(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for TRANSMIT_LENGTH ======")
 
         # TRANSMIT_LENGTH: int 0 to 3200
         self.assert_set(Parameter.TRANSMIT_LENGTH, 80)
@@ -629,7 +789,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.TRANSMIT_LENGTH, 0)
+        self.assert_set(Parameter.TRANSMIT_LENGTH, self._driver_parameter_defaults[Parameter.TRANSMIT_LENGTH])
+        self._tested[Parameter.TRANSMIT_LENGTH] = True
+
+    def _test_set_ping_weight(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for PING_WEIGHT ======")
 
         # PING_WEIGHT: (0/1),
         self.assert_set(Parameter.PING_WEIGHT, 0)
@@ -642,7 +809,14 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.PING_WEIGHT, 0)
+        self.assert_set(Parameter.PING_WEIGHT, self._driver_parameter_defaults[Parameter.PING_WEIGHT])
+        self._tested[Parameter.PING_WEIGHT] = True
+
+    def _test_set_ambiguity_velocity(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for AMBIGUITY_VELOCITY ======")
 
         # AMBIGUITY_VELOCITY: int 2 - 700
         self.assert_set(Parameter.AMBIGUITY_VELOCITY, 2)
@@ -659,18 +833,73 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_set_exception(Parameter.AMBIGUITY_VELOCITY, -1)
         self.assert_set_exception(Parameter.AMBIGUITY_VELOCITY, 3.1415926)
         self.assert_set_exception(Parameter.AMBIGUITY_VELOCITY, "LEROY JENKINS")
+
         #
         # Reset to good value.
         #
-        self.assert_set(Parameter.AMBIGUITY_VELOCITY, 175)
+        self.assert_set(Parameter.AMBIGUITY_VELOCITY, self._driver_parameter_defaults[Parameter.AMBIGUITY_VELOCITY])
+        self._tested[Parameter.AMBIGUITY_VELOCITY] = True
+
+    def _test_set_serial_data_out_readonly(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SERIAL_DATA_OUT ======")
 
         # Test read only raise exceptions on set.
         self.assert_set_exception(Parameter.SERIAL_DATA_OUT, '000 000 111')
+        self._tested[Parameter.SERIAL_DATA_OUT] = True
+
+    def _test_set_serial_flow_control_readonly(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SERIAL_FLOW_CONTROL ======")
+
+        # Test read only raise exceptions on set.
         self.assert_set_exception(Parameter.SERIAL_FLOW_CONTROL, '10110')
+        self._tested[Parameter.SERIAL_FLOW_CONTROL] = True
+
+    def _test_set_save_nvram_to_recorder_readonly(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SAVE_NVRAM_TO_RECORDER ======")
+
+        # Test read only raise exceptions on set.
         self.assert_set_exception(Parameter.SAVE_NVRAM_TO_RECORDER, False)
+        self._tested[Parameter.SAVE_NVRAM_TO_RECORDER] = True
+
+    def _test_set_serial_out_fw_switches_readonly(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SERIAL_OUT_FW_SWITCHES ======")
+
+        # Test read only raise exceptions on set.
         self.assert_set_exception(Parameter.SERIAL_OUT_FW_SWITCHES, '110100100')
+        self._tested[Parameter.SERIAL_OUT_FW_SWITCHES] = True
+
+    def _test_set_water_profiling_mode_readonly(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for WATER_PROFILING_MODE ======")
+
+        # Test read only raise exceptions on set.
+
         self.assert_set_exception(Parameter.WATER_PROFILING_MODE, 0)
+        self._tested[Parameter.WATER_PROFILING_MODE] = True
+
+    def _test_set_banner_readonly(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for BANNER ======")
+
+        # Test read only raise exceptions on set.
         self.assert_set_exception(Parameter.BANNER, True)
+        self._tested[Parameter.BANNER] = True
 
     def test_commands(self):
         """
@@ -722,6 +951,9 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
+
+    # This needs reworking...
+
     def test_startup_params(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -729,28 +961,31 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
 
         since nose orders the tests by ascii value this should run first.
         """
+        log.error("BEFORE INITIALZIE")
         self.assert_initialize_driver()
+        log.error("AFTER INITIALZIE")
 
+        """
         get_values = {
-            Parameter.SERIAL_FLOW_CONTROL: '11110',
-            Parameter.BANNER: False,
+            #Parameter.SERIAL_FLOW_CONTROL: '11110',
+            #Parameter.BANNER: False,
             Parameter.INSTRUMENT_ID: 0,
-            Parameter.SLEEP_ENABLE: 0,
-            Parameter.SAVE_NVRAM_TO_RECORDER: True,
-            Parameter.POLLED_MODE: False,
+            #Parameter.SLEEP_ENABLE: 0,
+            #Parameter.SAVE_NVRAM_TO_RECORDER: True,
+            #Parameter.POLLED_MODE: False,
             Parameter.XMIT_POWER: 255,
-            Parameter.SPEED_OF_SOUND: 1485,
-            Parameter.PITCH: 0,
-            Parameter.ROLL: 0,
+            Parameter.SPEED_OF_SOUND: 1500,
+            #Parameter.PITCH: 0,
+            #Parameter.ROLL: 0,
             Parameter.SALINITY: 35,
             Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
             Parameter.TIME_PER_PING: '00:01.00',
             Parameter.FALSE_TARGET_THRESHOLD: '050,001',
-            Parameter.BANDWIDTH_CONTROL: 0,
+            #Parameter.BANDWIDTH_CONTROL: 0,
             Parameter.CORRELATION_THRESHOLD: 64,
             Parameter.SERIAL_OUT_FW_SWITCHES: '111100000',
             Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
-            Parameter.BLANK_AFTER_TRANSMIT: 704,
+            #Parameter.BLANK_AFTER_TRANSMIT: 704,
             Parameter.CLIP_DATA_PAST_BOTTOM: 0,
             Parameter.RECEIVER_GAIN_SELECT: 1,
             Parameter.WATER_REFERENCE_LAYER: '001,005',
@@ -762,25 +997,54 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
             Parameter.PING_WEIGHT: 0,
             Parameter.AMBIGUITY_VELOCITY: 175,
         }
+        Should be able to use the _driver_parameter_defaults instead of aboev
+        """
+        get_values = self._driver_parameter_defaults
 
         # Change the values of these parameters to something before the
         # driver is reinitalized.  They should be blown away on reinit.
         new_values = {
             Parameter.INSTRUMENT_ID: 1,
-            Parameter.SLEEP_ENABLE: 1,
-            Parameter.POLLED_MODE: True,
             Parameter.XMIT_POWER: 250,
             Parameter.SPEED_OF_SOUND: 1400,
-            Parameter.PITCH: 1,
-            Parameter.ROLL: 1,
+            Parameter.SALINITY: 37,
+            Parameter.COORDINATE_TRANSFORMATION: '11111',
+            Parameter.SENSOR_SOURCE: "1111101",
+            Parameter.TIME_PER_ENSEMBLE: '00:01:00.00',
+            Parameter.TIME_PER_PING: '00:02.00',
+            Parameter.FALSE_TARGET_THRESHOLD: '051,002',
+            #RO#Parameter.BANDWIDTH_CONTROL: 1,
+            Parameter.CORRELATION_THRESHOLD: 60,
+            #RO#Parameter.SERIAL_OUT_FW_SWITCHES: '101010101',
+            Parameter.ERROR_VELOCITY_THRESHOLD: 1900,
+            #RO#Parameter.BLANK_AFTER_TRANSMIT: 710,
+            Parameter.CLIP_DATA_PAST_BOTTOM: 1,
+            Parameter.RECEIVER_GAIN_SELECT: 0,
+            Parameter.WATER_REFERENCE_LAYER: '002,006',
+            #RO#Parameter.WATER_PROFILING_MODE: 0,
+            Parameter.NUMBER_OF_DEPTH_CELLS: 80,
+            Parameter.PINGS_PER_ENSEMBLE: 2,
+            Parameter.DEPTH_CELL_SIZE: 600,
+            Parameter.TRANSMIT_LENGTH: 1,
+            Parameter.PING_WEIGHT: 1,
+            Parameter.AMBIGUITY_VELOCITY: 100,
+        }
+        """
+            Parameter.INSTRUMENT_ID: 1,
+            #Parameter.SLEEP_ENABLE: 1,
+            #Parameter.POLLED_MODE: True,
+            Parameter.XMIT_POWER: 250,
+            Parameter.SPEED_OF_SOUND: 1400,
+            #Parameter.PITCH: 1,
+            #Parameter.ROLL: 1,
             Parameter.SALINITY: 37,
             Parameter.TIME_PER_ENSEMBLE: '00:01:00.00',
             Parameter.TIME_PER_PING: '00:02.00',
             Parameter.FALSE_TARGET_THRESHOLD: '051,001',
-            Parameter.BANDWIDTH_CONTROL: 1,
+            #Parameter.BANDWIDTH_CONTROL: 1,
             Parameter.CORRELATION_THRESHOLD: 60,
             Parameter.ERROR_VELOCITY_THRESHOLD: 1900,
-            Parameter.BLANK_AFTER_TRANSMIT: 710,
+            #Parameter.BLANK_AFTER_TRANSMIT: 710,
             Parameter.CLIP_DATA_PAST_BOTTOM: 1,
             Parameter.RECEIVER_GAIN_SELECT: 0,
             Parameter.WATER_REFERENCE_LAYER: '002,006',
@@ -790,87 +1054,11 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
             Parameter.TRANSMIT_LENGTH: 1,
             Parameter.PING_WEIGHT: 1,
             Parameter.AMBIGUITY_VELOCITY: 100,
-        }
-
+        """
+        
+        
         self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
-    ###
-    #   Test scheduled events
-    ###
-    def assert_compass_calibration(self):
-        """
-        Verify a calibration particle was generated
-        """
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=700)
-
-    def test_scheduled_compass_calibration_command(self):
-        """
-        Verify the device configuration command can be triggered and run in command
-        """
-        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=250)
-        self.assert_current_state(ProtocolState.COMMAND)
-
-    def test_scheduled_compass_calibration_autosample(self):
-        """
-        Verify the device configuration command can be triggered and run in autosample
-        """
-
-        self.assert_scheduled_event(ScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=250, # 250, 
-            autosample_command=ProtocolEvent.START_AUTOSAMPLE)
-        log.debug("AM I IN AUTOSAMPLE MODE?")
-        self.assert_current_state(ProtocolState.AUTOSAMPLE)
-        log.debug("I AM IN AUTOSAMPLE MODE!!!!")
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
-
-    def assert_acquire_status(self):
-        """
-        Verify a status particle was generated
-        """
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=300)
-    #+
-    def test_scheduled_device_configuration_command(self):
-        """
-        Verify the device status command can be triggered and run in command
-        """
-        self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=300)
-        self.assert_current_state(ProtocolState.COMMAND)
-    #+
-    def test_scheduled_device_configuration_autosample(self):
-        """
-        Verify the device status command can be triggered and run in autosample
-        """
-        self.assert_scheduled_event(ScheduledJob.GET_CONFIGURATION, self.assert_acquire_status,
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=300)
-        self.assert_current_state(ProtocolState.AUTOSAMPLE)
-        time.sleep(5)
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
-
-    def assert_clock_sync(self):
-        """
-        Verify the clock is set to at least the current date
-        """
-        #self.assert_initialize_driver()
-        dt = self.assert_get(Parameter.TIME)
-        lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
-        self.assertTrue(lt[:13].upper() in dt.upper())
-    #+
-    def test_scheduled_clock_sync_command(self):
-        """
-        Verify the scheduled clock sync is triggered and functions as expected
-        """
-        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=250)
-        self.assert_current_state(ProtocolState.COMMAND)
-    #+
-    def test_scheduled_clock_sync_autosample(self):
-        """
-        Verify the scheduled clock sync is triggered and functions as expected
-        """
-        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, self.assert_clock_sync, 
-                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=350)
-        self.assert_current_state(ProtocolState.AUTOSAMPLE)
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
 
 ###############################################################################
@@ -966,10 +1154,13 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 15)
 
+    # this will probably need to move up to the leaf level.
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
         at various driver/agent states.
+
+        TODO: seems this should derive from _driver_capabilities in mixin
         """
         self.assert_enter_command_mode()
 
@@ -1054,7 +1245,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_get_parameter(Parameter.SAVE_NVRAM_TO_RECORDER, True) # Immutable
         self.assert_get_parameter(Parameter.POLLED_MODE, False)
         self.assert_get_parameter(Parameter.XMIT_POWER, 255)
-        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1485)
+        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1500)
         self.assert_get_parameter(Parameter.PITCH, 0)
         self.assert_get_parameter(Parameter.ROLL, 0)
         self.assert_get_parameter(Parameter.SALINITY, 35)
@@ -1121,7 +1312,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_get_parameter(Parameter.SAVE_NVRAM_TO_RECORDER, True) # Immutable
         self.assert_get_parameter(Parameter.POLLED_MODE, False)
         self.assert_get_parameter(Parameter.XMIT_POWER, 255)
-        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1485)
+        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1500)
         self.assert_get_parameter(Parameter.PITCH, 0)
         self.assert_get_parameter(Parameter.ROLL, 0)
         self.assert_get_parameter(Parameter.SALINITY, 35)

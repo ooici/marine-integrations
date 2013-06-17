@@ -71,7 +71,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         Construct the driver protocol state machine.
         """
         self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
-        log.debug("self._protocol = " + repr(self._protocol))
+        log.trace("self._protocol = " + repr(self._protocol))
 
 
 class Protocol(WorkhorseProtocol):
@@ -79,7 +79,7 @@ class Protocol(WorkhorseProtocol):
     Specialization for this version of the workhorse_monitor_75_khz driver
     """
     def __init__(self, prompts, newline, driver_event):
-        log.debug("IN Protocol.__init__")
+        log.trace("IN Protocol.__init__")
         WorkhorseProtocol.__init__(self, prompts, newline, driver_event)
 
     def _build_param_dict(self):
@@ -88,6 +88,7 @@ class Protocol(WorkhorseProtocol):
         For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
         """
+        WorkhorseProtocol._build_param_dict(self)
 
         self._param_dict.add(Parameter.INSTRUMENT_ID,
             r'CI = (\d+) \-+ Instrument ID ',
@@ -145,7 +146,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SYNC_INTERVAL,
             r'SI = (\d+) \-+ Synch Interval ',
-            lambda match: str(match.group(1)),
+            lambda match: int(match.group(1)),
             int,
             type=ParameterDictType.INT,
             display_name="Synchronization Interval",
@@ -154,7 +155,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SLAVE_TIMEOUT,
             r'ST = (\d+) \-+ Slave Timeout ',
-            lambda match: str(match.group(1)),
+            lambda match: int(match.group(1)),
             int,
             type=ParameterDictType.INT,
             display_name="Slave Timeout",
@@ -163,7 +164,7 @@ class Protocol(WorkhorseProtocol):
 
         self._param_dict.add(Parameter.SYNC_DELAY,
             r'SW = (\d+) \-+ Synch Delay ',
-            lambda match: str(match.group(1)),
+            lambda match: int(match.group(1)),
             int,
             type=ParameterDictType.INT,
             display_name="Synchronization Delay",
@@ -202,9 +203,9 @@ class Protocol(WorkhorseProtocol):
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="Time of First Ping")
-            #startup_param=True,
-            #default_value='****/**/**,**:**:**')
+            display_name="Time of First Ping",
+            startup_param=False,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.TIME_PER_PING,
             r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping',
@@ -306,8 +307,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="Receiver Gain Select",
             startup_param=True,
-            default_value=1,
-            visibility=ParameterDictVisibility.IMMUTABLE)
+            default_value=1,) #             visibility=ParameterDictVisibility.IMMUTABLE
 
         self._param_dict.add(Parameter.WATER_REFERENCE_LAYER,
             r'WL (\d+,\d+) \-+ Water Reference Layer:  ',
@@ -386,26 +386,20 @@ class Protocol(WorkhorseProtocol):
     def _send_break_cmd(self, duration=500):
         """
         Send a BREAK to attempt to wake the device.
-
-
         """
 
-        log.error("IN _send_break_cmd")
+        log.trace("IN _send_break_cmd")
+       
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         except socket.error, msg:
-            log.error("WHOOPS! 1")
+            log.error("EXCEPTION 1 in _send_break_cmd")
 
         try:
             sock.connect(('localhost', 2102))
         except socket.error, msg:
-            log.error("WHOOPS! 2")
-        sock.send(InstrumentCmds.BREAK + str(duration) + "\r\n")
-        time.sleep(5)
-        sock.send(InstrumentCmds.BREAK + str(duration) + "\r\n")
-        time.sleep(5)
-        log.debug("SENT BREAK")
-        log.debug("self._linebuf = " + str(self._linebuf))
+            log.error("EXCEPTION 2 in _send_break_cmd")
+        sock.send(InstrumentCmds.BREAK + " " + str(duration) + "\r\n")
         sock.close()
 
     pass
