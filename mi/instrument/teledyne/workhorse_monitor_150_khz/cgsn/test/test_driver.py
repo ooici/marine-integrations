@@ -60,6 +60,27 @@ from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import Wo
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import WorkhorseDriverQualificationTest
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import WorkhorseDriverPublicationTest
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import DataParticleType
+"""
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolEvent
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
+from mi.instrument.teledyne.driver import ScheduledJob
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Capability
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import InstrumentCmds
+
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_KEY
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_KEY
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_DataParticle
+
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import InstrumentDriver
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import Protocol
+
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolState
+"""
 ###
 #   Driver parameters for tests
 ###

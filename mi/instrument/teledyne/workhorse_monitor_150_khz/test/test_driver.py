@@ -49,8 +49,10 @@ from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorsePro
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseProtocolEvent
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseParameter
 
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseScheduledJob
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorsePrompt
+#from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseScheduledJob
+#from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorsePrompt
+from mi.instrument.teledyne.driver import ScheduledJob
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import Prompt
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import NEWLINE
 
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY
@@ -61,9 +63,9 @@ from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_COMPASS
 #from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import SAMPLE_RAW_DATA 
 #from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CALIBRATION_RAW_DATA
 #from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import PS0_RAW_DATA
-from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import PS3_RAW_DATA
-from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import FD_RAW_DATA
-from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import PT200_RAW_DATA
+#from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import PS3_RAW_DATA
+#from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import FD_RAW_DATA
+#from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import PT200_RAW_DATA
 
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
