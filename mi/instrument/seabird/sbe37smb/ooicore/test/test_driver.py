@@ -1318,8 +1318,12 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
 
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet()
+
+        log.debug("DA Server Started.  Adjust DA Parameter.")
         self.tcp_client.send_data("%sinterval=97%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.send_data("%sds%s" % (NEWLINE, NEWLINE))
         self.tcp_client.expect("sample interval = 97")
+        log.debug("DA Parameter Sample Interval Updated")
 
         self.assert_direct_access_stop_telnet()
 
@@ -1359,7 +1363,6 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 30)
 
 
-    @unittest.skip("in progress")
     def test_direct_access_telnet_mode_autosample(self):
         """
         @brief Same as the previous DA test except in this test
@@ -1373,10 +1376,23 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         # parameters are restored on DA exit.
         ###
         self.assert_enter_command_mode()
-        #self.assert_set_parameter(SBE37Parameter.INTERVAL, 10)
+        self.assert_set_parameter(SBE37Parameter.INTERVAL, 10)
 
         # go into direct access, and muck up a setting.
-        #self.assert_direct_access_start_telnet(timeout=600)
+        self.assert_direct_access_start_telnet()
+
+        log.debug("DA Server Started.  Adjust DA Parameter.")
+        self.tcp_client.send_data("%sinterval=97%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.send_data("%sds%s" % (NEWLINE, NEWLINE))
+        self.assertTrue(self.tcp_client.expect("sample interval = 97"))
+        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.send_data("%sds%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.send_data("%s%s" % (NEWLINE, NEWLINE))
+        #self.assertTrue(self.tcp_client.expect("#"))
+        log.debug("DA Parameter Sample Interval Updated")
+
+        self.assert_direct_access_stop_telnet(timeout=30)
+
         #self.tcp_client.send_data(NEWLINE)
         #self.tcp_client.expect(SBE37Prompt.COMMAND)
         #self.tcp_client.send_data("interval=97%s" % NEWLINE)
@@ -1415,12 +1431,12 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         # Run all the same DA termination tests, but this time make sure the
         # instrument is left in autosample mode on exit.
         ###
-        self.assert_direct_access_start_telnet()
-        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
-        gevent.sleep(5)
-        self.tcp_client.send_data("%sds%s" %  (NEWLINE, NEWLINE))
-        self.tcp_client.disconnect()
-        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 30)
+        #self.assert_direct_access_start_telnet()
+        #self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
+        #gevent.sleep(5)
+        #self.tcp_client.send_data("%sds%s" %  (NEWLINE, NEWLINE))
+        #self.tcp_client.disconnect()
+        #self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 30)
 
 
     @unittest.skip("Do not include until a good method is devised")

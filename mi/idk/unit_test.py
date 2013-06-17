@@ -2532,7 +2532,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)
 
-    def assert_direct_access_start_telnet(self, session_timeout=None, inactivity_timeout=None, timeout=GO_ACTIVE_TIMEOUT):
+    def assert_direct_access_start_telnet(self, session_timeout=60, inactivity_timeout=60, timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
@@ -2569,13 +2569,16 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         Exit out of direct access mode.  We do this by simply changing
         state to command mode.
         @return:
-        '''       
+        '''
+        log.debug("Stopping Direct Access")
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
 
+        log.debug("Stopping Direct Access: Send Go Command")
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
         retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout) # ~9s to run
 
+        log.debug("Stopping Direct Access: Checking for command state")
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
