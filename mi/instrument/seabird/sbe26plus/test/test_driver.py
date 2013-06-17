@@ -1567,6 +1567,35 @@ class SeaBird26PlusQualificationTest(SeaBirdQualificationTest, SeaBird26PlusMixi
         self.assetert_set_parameter(Parameter.TXREALTIME, False)
         self.assetert_set_parameter(Parameter.TXWAVEBURST, True)
 
+    def test_commands(self):
+        """
+        Run instrument commands from both command and streaming mode.
+        """
+        self.assert_enter_command_mode()
+
+        ####
+        # First test in command mode
+        ####
+        self.assert_resource_command(ProtocolEvent.START_AUTOSAMPLE, agent_state=ResourceAgentState.STREAMING, delay=1)
+        self.assert_resource_command(ProtocolEvent.STOP_AUTOSAMPLE, agent_state=ResourceAgentState.COMMAND, delay=1)
+        self.assert_resource_command(ProtocolEvent.ACQUIRE_SAMPLE, regex=r' +([\-\d.]+) +([\-\d.]+) +([\-\d.]+)')
+        self.assert_resource_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'SBE 26plus')
+        self.assert_resource_command(ProtocolEvent.CLOCK_SYNC)
+        self.assert_resource_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        self.assert_resource_command(ProtocolEvent.ACQUIRE_CONFIGURATION, regex=r'Pressure coefficients')
+        self.assert_resource_command(ProtocolEvent.QUIT_SESSION)
+
+        ####
+        # Test in streaming mode
+        ####
+        # Put us in streaming
+        self.assert_resource_command(ProtocolEvent.START_AUTOSAMPLE, agent_state=ResourceAgentState.STREAMING, delay=1)
+
+        self.assert_resource_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        self.assert_resource_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'SBE 26plus')
+        self.assert_resource_command(ProtocolEvent.ACQUIRE_CONFIGURATION, regex=r'Pressure coefficients')
+        self.assert_resource_command(ProtocolEvent.SEND_LAST_SAMPLE, regex=r'p = +([\-\d.]+), t = +([\-\d.]+)')
+
 ###############################################################################
 #                             PUBLICATION TESTS                               #
 # Device specific pulication tests are for                                    #

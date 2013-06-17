@@ -1,5 +1,5 @@
 """
-@package mi.instrument.seabird.sbe16plus_v2.ooicore.test.test_driver
+@package mi.instrument.seabird.sbe16plus_v2.ctdbp_no.test.test_driver
 @file ion/services/mi/drivers/sbe16_plus_v2/test_sbe16_driver.py
 @author David Everett 
 @brief Test cases for InstrumentDriver
@@ -30,9 +30,8 @@ from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEIntTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEQualTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEPubTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SeaBird16plusMixin
-from mi.instrument.seabird.sbe16plus_v2.test.test_driver import Sbe16PlusV2UnitTestBase
 
-from mi.instrument.seabird.sbe16plus_v2.bep.driver import SBE16HardwareDataParticleKey, \
+from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import SBE16HardwareDataParticleKey, \
                                                           SBE16CalibrationDataParticleKey, \
                                                           SBE16NoDataParticleKey, \
                                                           SBE16StatusDataParticleKey, \
@@ -55,7 +54,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase, \
 from mi.core.instrument.chunker import StringChunker
 
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.seabird.sbe16plus_v2.bep.driver',
+    driver_module='mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_preload_id = 'IA5',
@@ -77,7 +76,7 @@ InstrumentDriverTestCase.initialize(
 # Test Inputs
 ###
 
-class SeaBird16plusMixinNo(SeaBird16plusMixin):
+class SeaBird16plusNOMixin(SeaBird16plusMixin):
     InstrumentDriver = InstrumentDriver
     
     VALID_SAMPLE = "#03DC380A738581732F87B10012000C2B950819119C9A" + NEWLINE
@@ -400,218 +399,13 @@ class SeaBird16plusMixinNo(SeaBird16plusMixin):
         }
     
 
-def assert_particle_hardware(self, data_particle, verify_values = False):
-    '''
-    Verify hardware particle
-    @param data_particle:  SBE16HardwareDataParticle data particle
-    @param verify_values:  bool, should we verify parameter values
-    '''
-    self.assert_data_particle_keys(SBE16HardwareDataParticleKey, self._hardware_parameters)
-    self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_HARDWARE)
-    self.assert_data_particle_parameters(data_particle, self._hardware_parameters, verify_values)
-
-def assert_particle_sample(self, data_particle, verify_values = False):
-    '''
-    Verify sample particle
-    @param data_particle:  SBE16DataParticle data particle
-    @param verify_values:  bool, should we verify parameter values
-    '''
-    self.assert_data_particle_keys(SBE16NoDataParticleKey, self._sample_parameters)
-    self.assert_data_particle_header(data_particle, DataParticleType.CTD_PARSED, require_instrument_timestamp=True)
-    self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
-
-def assert_particle_calibration(self, data_particle, verify_values = False):
-    '''
-    Verify sample particle
-    @param data_particle:  SBE16CalibrationDataParticle calibration particle
-    @param verify_values:  bool, should we verify parameter values
-    '''
-    self.assert_data_particle_keys(SBE16CalibrationDataParticleKey, self._calibration_parameters)
-    self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CALIBRATION)
-    self.assert_data_particle_parameters(data_particle, self._calibration_parameters, verify_values)
-
-def assert_particle_status(self, data_particle, verify_values = False):
-    '''
-    Verify status particle
-    @param data_particle:  SBE16StatusDataParticle status particle
-    @param verify_values:  bool, should we verify parameter values
-    '''
-    self.assert_data_particle_keys(SBE16StatusDataParticleKey, self._status_parameters)
-    self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_STATUS)
-    self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
-
-def assert_particle_configuration(self, data_particle, verify_values = False):
-    '''
-    Verify configuration particle
-    @param data_particle:  SBE16ConfigurationDataParticle configuration particle
-    @param verify_values:  bool, should we verify parameter values
-    '''
-    self.assert_data_particle_keys(SBE16ConfigurationDataParticleKey, self._configuration_parameters)
-    self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CONFIGURATION)
-    self.assert_data_particle_parameters(data_particle, self._configuration_parameters, verify_values)
-
-def assert_driver_parameters(self, current_parameters, verify_values = False):
-    """
-    Verify that all driver parameters are correct and potentially verify values.
-    @param current_parameters: driver parameters read from the driver instance
-    @param verify_values: should we verify values against definition?
-    """
-    self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
-
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
 ###############################################################################
 @attr('UNIT', group='mi')
-class UnitFromIDK(SBEUnitTestCase, SeaBird16plusMixinNo, Sbe16PlusV2UnitTestBase):
-    
-    def setUp(self):
-        SBEUnitTestCase.setUp(self)
-        if log.getEffectiveLevel() == logging.DEBUG:
-            # output a newline if logging level is set to debug so the stupid output from startTest() in
-            # /Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/unittest/runtest.py
-            # doesn't mess up the logging output alignment
-            print("")
-            
-        # save the original SeaBird16plusMixin class _driver_parameters attribute to restore in tearDown() so that
-        # the ooicore version of the tests work when they are run after these tests if running both flavors at the 
-        # same time from a single command line (i.e. bin/nosetests -s -v -a UNIT mi/instrument/seabird/sbe16plus_v2)
-        # This is because they are run alphabetically and the ooicore tests all run after all of the bep tests
-        self.save_driver_parameters = copy.deepcopy(self._driver_parameters)
-        log.debug("setUp: save_driver_parameter_keys=%s" %self.save_driver_parameters.keys())
-        
-        # initialize the _driver_parameters for this flavor of the driver
-        self._driver_parameters[Parameter.PAROS_INTEGRATION] = {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: 1.0, SeaBird16plusMixin.VALUE: 1.0}
-        self._driver_parameters[Parameter.PTYPE] = {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: 3, SeaBird16plusMixin.VALUE: 3}
-        self._driver_parameters[Parameter.VOLT2] = {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: False, SeaBird16plusMixin.VALUE: False}
-        self._driver_parameters[Parameter.VOLT3] = {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: False, SeaBird16plusMixin.VALUE: False}
-        self._driver_parameters[Parameter.VOLT4] = {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: False, SeaBird16plusMixin.VALUE: False}
-        self._driver_parameters[Parameter.VOLT5] = {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: False, SeaBird16plusMixin.VALUE: False}
-        self._driver_parameters[Parameter.NCYCLES] = {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.READONLY: False, SeaBird16plusMixin.DA: False, SeaBird16plusMixin.STARTUP: True}
-        self._driver_parameters[Parameter.OPTODE] = {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: True, SeaBird16plusMixin.VALUE: True}
-        
-        # initialize the assert methods for this flavor of the driver if not done already
-        if getattr(SeaBird16plusMixinNo, 'assert_particle_hardware', None):
-            return
-        setattr(SeaBird16plusMixinNo, 'assert_particle_hardware', assert_particle_hardware)
-        setattr(SeaBird16plusMixinNo, 'assert_particle_sample', assert_particle_sample)
-        setattr(SeaBird16plusMixinNo, 'assert_particle_calibration', assert_particle_calibration)
-        setattr(SeaBird16plusMixinNo, 'assert_particle_status', assert_particle_status)
-        setattr(SeaBird16plusMixinNo, 'assert_particle_configuration', assert_particle_configuration)
-        setattr(SeaBird16plusMixinNo, 'assert_driver_parameters', assert_driver_parameters)
-    
-    def tearDown(self):
-        # recover the _driver_parameters attribute of the SeaBird16plusMixin class so the ooicore flavor tests pass (see note in setUp())
-        SeaBird16plusMixin._driver_parameters = copy.deepcopy(self.save_driver_parameters)
-        log.debug("tearDown: driver_parameter_keys=%s" %SeaBird16plusMixin._driver_parameters.keys())
-                     
-    def test_chunker(self):
-        """
-        Test the chunker for NO version and verify the particles created.
-        """
-        chunker = StringChunker(SBE16_NO_Protocol.sieve_function)
-
-        self.assert_chunker_sample(chunker, self.VALID_SAMPLE)
-        self.assert_chunker_sample_with_noise(chunker, self.VALID_SAMPLE)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_SAMPLE)
-        self.assert_chunker_combined_sample(chunker, self.VALID_SAMPLE)
-
-        self.assert_chunker_sample(chunker, self.VALID_GETHD_RESPONSE)
-        self.assert_chunker_sample_with_noise(chunker, self.VALID_GETHD_RESPONSE)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_GETHD_RESPONSE)
-        self.assert_chunker_combined_sample(chunker, self.VALID_GETHD_RESPONSE)
-
-        self.assert_chunker_sample(chunker, self.VALID_GETCC_RESPONSE)
-        self.assert_chunker_sample_with_noise(chunker, self.VALID_GETCC_RESPONSE)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_GETCC_RESPONSE)
-        self.assert_chunker_combined_sample(chunker, self.VALID_GETCC_RESPONSE)
-
-        self.assert_chunker_sample(chunker, self.VALID_GETSD_RESPONSE)
-        self.assert_chunker_sample_with_noise(chunker, self.VALID_GETSD_RESPONSE)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_GETSD_RESPONSE)
-        self.assert_chunker_combined_sample(chunker, self.VALID_GETSD_RESPONSE)
-
-        self.assert_chunker_sample(chunker, self.VALID_GETCD_RESPONSE)
-        self.assert_chunker_sample_with_noise(chunker, self.VALID_GETCD_RESPONSE)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_GETCD_RESPONSE)
-        self.assert_chunker_combined_sample(chunker, self.VALID_GETCD_RESPONSE)
-
-    def test_got_data(self):
-        """
-        Verify sample data passed through the got data method produces the correct data particles for NO version 
-        """
-        # Create and initialize the instrument driver with a mock port agent
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
-        
-        # Start validating data particles
-        self.assert_particle_published(driver, self.VALID_GETHD_RESPONSE, self.assert_particle_hardware, True)
-        self.assert_particle_published(driver, self.VALID_SAMPLE, self.assert_particle_sample, True)
-        self.assert_particle_published(driver, self.VALID_GETCC_RESPONSE, self.assert_particle_calibration, True)
-        self.assert_particle_published(driver, self.VALID_GETSD_RESPONSE, self.assert_particle_status, True)
-        self.assert_particle_published(driver, self.VALID_GETCD_RESPONSE, self.assert_particle_configuration, True)
-        
-    def test_parse_ds(self):
-        """
-        Create a mock port agent
-        """
-        driver = self.InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
-        source = self.VALID_DS_RESPONSE
-
-        baseline = driver._protocol._param_dict.get_current_timestamp()
-
-        # First verify that parse ds sets all know parameters.
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_all(baseline)
-        log.debug("Param Dict Values: %s" % pd)
-        log.debug("Param Sample: %s" % source)
-        self.assert_driver_parameters(pd, True)
-
-        # Now change some things and make sure they are parsed properly
-        # Note:  Only checking parameters that can change.
-
-        # Logging
-        source = source.replace("= not logging", "= logging")
-        log.debug("Param Sample: %s" % source)
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_all(baseline)
-        self.assertTrue(pd.get(Parameter.LOGGING))
-
-        # Sync Mode
-        source = source.replace("serial sync mode disabled", "serial sync mode enabled")
-        log.debug("Param Sample: %s" % source)
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_all(baseline)
-        self.assertTrue(pd.get(Parameter.SYNCMODE))
-
-        # Pump Mode 0
-        source = source.replace("run pump during sample", "no pump")
-        log.debug("Param Sample: %s" % source)
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_all(baseline)
-        self.assertEqual(pd.get(Parameter.PUMP_MODE), 0)
-
-        # Pump Mode 1
-        source = source.replace("no pump", "run pump for 0.5 sec")
-        log.debug("Param Sample: %s" % source)
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_all(baseline)
-        self.assertEqual(pd.get(Parameter.PUMP_MODE), 1)
-
-        # Pressure Sensor type 2
-        source = source.replace("quartz with temp comp", "quartz without temp comp")
-        log.debug("Param Sample: %s" % source)
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_all(baseline)
-        self.assertEqual(pd.get(Parameter.PTYPE), 2)
-
-        # Pressure Sensor type 3
-        source = source.replace("quartz without temp comp", "strain gauge")
-        log.debug("Param Sample: %s" % source)
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_all(baseline)
-        self.assertEqual(pd.get(Parameter.PTYPE), 1)
+class UnitFromIDK(SBEUnitTestCase, SeaBird16plusNOMixin):
+    pass
 
 
 ###############################################################################
