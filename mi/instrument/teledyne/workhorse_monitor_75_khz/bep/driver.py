@@ -1,15 +1,70 @@
+
+from mi.instrument.teledyne.driver import TeledyneScheduledJob
+from mi.instrument.teledyne.driver import TeledyneCapability
+from mi.instrument.teledyne.driver import TeledyneInstrumentCmds
+from mi.instrument.teledyne.driver import TeledyneProtocolState
+from mi.instrument.teledyne.driver import TeledynePrompt
+
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import WorkhorseInstrumentDriver
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import WorkhorseProtocol
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
-from mi.instrument.teledyne.driver import InstrumentCmds
+from mi.instrument.teledyne.driver import TeledyneInstrumentCmds
 from mi.core.log import get_logger ; log = get_logger()
 import socket
 import time
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import TeledyneParameter
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import TeledyneProtocolEvent
+
+
+class Prompt(TeledynePrompt):
+    """
+    Device i/o prompts..
+    """
+
+class Parameter(TeledyneParameter):
+    """
+    Device parameters
+    """
+    #
+    # set-able parameters
+    #
+    SERIAL_FLOW_CONTROL = 'CF'
+    BANNER = 'CH'
+    SLEEP_ENABLE = 'CL'
+    SAVE_NVRAM_TO_RECORDER = 'CN'
+    POLLED_MODE = 'CP'
+    PITCH = 'EP'
+    ROLL = 'ER'
+
+
+class ProtocolEvent(TeledyneProtocolEvent):
+    """
+    Protocol events
+    """
+
+
+class Capability(TeledyneCapability):
+    """
+    Protocol events that should be exposed to users (subset of above).
+    """
+    
+    
+class ScheduledJob(TeledyneScheduledJob):
+    """
+    Complete this last.
+    """
+
+
+class InstrumentCmds(TeledyneInstrumentCmds):
+    """
+    Device specific commands
+    Represents the commands the driver implements and the string that
+    must be sent to the instrument to execute the command.
+    """
+
 
 class InstrumentDriver(WorkhorseInstrumentDriver):
     """
@@ -30,6 +85,11 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
         log.debug("self._protocol = " + repr(self._protocol))
 
+
+class ProtocolState(TeledyneProtocolState):
+    """
+    Instrument protocol states
+    """
 
 class Protocol(WorkhorseProtocol):
     """
@@ -357,7 +417,7 @@ class Protocol(WorkhorseProtocol):
             default_value=175)
 
 
-    def _send_break_cmd(self):
+    def _send_break_cmd(self, delay):
         """
         Send a BREAK to attempt to wake the device.
         """
@@ -371,7 +431,7 @@ class Protocol(WorkhorseProtocol):
             sock.connect(('localhost', 2102))
         except socket.error, msg:
             log.trace("WHOOPS! 2")
-        sock.send("break 500\r\n")
+        sock.send("break " + str(delay) + "\r\n")
         sock.close()
 
     pass

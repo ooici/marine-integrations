@@ -11,12 +11,12 @@ __license__ = 'Apache 2.0'
 
 from mi.instrument.teledyne.driver import TeledyneInstrumentDriver
 from mi.instrument.teledyne.driver import TeledyneProtocol
-from mi.instrument.teledyne.driver import Prompt
-from mi.instrument.teledyne.driver import ProtocolEvent
-from mi.instrument.teledyne.driver import InstrumentCmds
-from mi.instrument.teledyne.driver import Parameter
-from mi.instrument.teledyne.driver import ProtocolState
-from mi.instrument.teledyne.driver import Capability
+from mi.instrument.teledyne.driver import TeledynePrompt
+from mi.instrument.teledyne.driver import TeledyneProtocolEvent
+from mi.instrument.teledyne.driver import TeledyneInstrumentCmds
+from mi.instrument.teledyne.driver import TeledyneParameter
+from mi.instrument.teledyne.driver import TeledyneProtocolState
+from mi.instrument.teledyne.driver import TeledyneCapability
 from mi.instrument.teledyne.workhorse_monitor_75_khz.particles import *
 
 from mi.core.instrument.chunker import StringChunker
@@ -50,7 +50,7 @@ class WorkhorseInstrumentDriver(TeledyneInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = WorkhorseProtocol(Prompt, NEWLINE, self._driver_event)
+        self._protocol = WorkhorseProtocol(TeledynePrompt, NEWLINE, self._driver_event)
 
 ###########################################################################
 # Protocol
@@ -114,35 +114,35 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._chunker = StringChunker(WorkhorseProtocol.sieve_function)
 
     def _build_command_dict(self):
-        self._cmd_dict.add(Capability.START_AUTOSAMPLE,
+        self._cmd_dict.add(TeledyneCapability.START_AUTOSAMPLE,
                            timeout=300,
                            display_name="start autosample",
                            description="Place the instrument into autosample mode")
-        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE,
+        self._cmd_dict.add(TeledyneCapability.STOP_AUTOSAMPLE,
                            display_name="stop autosample",
                            description="Exit autosample mode and return to command mode")
-        self._cmd_dict.add(Capability.CLOCK_SYNC,
+        self._cmd_dict.add(TeledyneCapability.CLOCK_SYNC,
                            display_name="sync clock")
-        self._cmd_dict.add(Capability.GET_CALIBRATION,
+        self._cmd_dict.add(TeledyneCapability.GET_CALIBRATION,
                            display_name="get calibration")
-        self._cmd_dict.add(Capability.GET_CONFIGURATION,
+        self._cmd_dict.add(TeledyneCapability.GET_CONFIGURATION,
                            timeout=300,
                            display_name="get configuration")
-        self._cmd_dict.add(Capability.GET_INSTRUMENT_TRANSFORM_MATRIX,
+        self._cmd_dict.add(TeledyneCapability.GET_INSTRUMENT_TRANSFORM_MATRIX,
                            display_name="get instrument transform matrix")
-        self._cmd_dict.add(Capability.SAVE_SETUP_TO_RAM,
+        self._cmd_dict.add(TeledyneCapability.SAVE_SETUP_TO_RAM,
                            display_name="save setup to ram")
-        self._cmd_dict.add(Capability.SEND_LAST_SAMPLE,
+        self._cmd_dict.add(TeledyneCapability.SEND_LAST_SAMPLE,
                            display_name="send last sample")
-        self._cmd_dict.add(Capability.GET_ERROR_STATUS_WORD,
+        self._cmd_dict.add(TeledyneCapability.GET_ERROR_STATUS_WORD,
                            display_name="get error status word")
-        self._cmd_dict.add(Capability.CLEAR_ERROR_STATUS_WORD,
+        self._cmd_dict.add(TeledyneCapability.CLEAR_ERROR_STATUS_WORD,
                            display_name="clear error status word")
-        self._cmd_dict.add(Capability.GET_FAULT_LOG,
+        self._cmd_dict.add(TeledyneCapability.GET_FAULT_LOG,
                            display_name="get fault log")
-        self._cmd_dict.add(Capability.CLEAR_FAULT_LOG,
+        self._cmd_dict.add(TeledyneCapability.CLEAR_FAULT_LOG,
                            display_name="clear fault log")
-        self._cmd_dict.add(Capability.RUN_TEST_200,
+        self._cmd_dict.add(TeledyneCapability.RUN_TEST_200,
                            display_name="run test 200")
 
     ########################################################################

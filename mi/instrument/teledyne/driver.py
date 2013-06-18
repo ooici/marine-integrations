@@ -50,7 +50,7 @@ NEWLINE = '\r\n'
 DEFAULT_CMD_TIMEOUT=20
 DEFAULT_WRITE_DELAY=0
 
-class Prompt(BaseEnum):
+class TeledynePrompt(BaseEnum):
     """
     Device i/o prompts..
     """
@@ -407,8 +407,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         # Let's give it a try in unknown state
         log.trace("in apply_startup_params")
-        if (self.get_current_state() != ProtocolState.COMMAND and
-            self.get_current_state() != ProtocolState.AUTOSAMPLE):
+        if (self.get_current_state() != TeledyneProtocolState.COMMAND and
+            self.get_current_state() != TeledyneProtocolState.AUTOSAMPLE):
             raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
 
         logging = self._is_logging()
@@ -600,7 +600,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._verify_not_readonly(*args, **kwargs)
 
         for (key, val) in params.iteritems():
-            result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
+            result = self._do_cmd_resp(TeledyneInstrumentCmds.SET, key, val, **kwargs)
         log.trace("_set_params calling _update_params")
         self._update_params()
         return result
@@ -1104,7 +1104,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             self._stop_logging(*args, **kwargs)
 
             kwargs['timeout'] = 120
-            output = self._do_cmd_resp(InstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
+            output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
 
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
@@ -1145,7 +1145,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
             # Sync the clock
             timeout = kwargs.get('timeout', TIMEOUT)
-            output = self._do_cmd_resp(InstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
+            output = self._do_cmd_resp(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
 
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
@@ -1261,7 +1261,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         kwargs['timeout'] = 120
 
-        output = self._do_cmd_resp(InstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
+        output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
         result = self._sanitize(base64.b64decode(output))
         return (next_state, (next_agent_state, result))
 
@@ -1277,7 +1277,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         kwargs['timeout'] = 120  # long time to get params.
 
-        output = self._do_cmd_resp(InstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
+        output = self._do_cmd_resp(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
         result = self._sanitize(base64.b64decode(output))
         return (next_state, (next_agent_state, {'result': result}))
 
@@ -1309,7 +1309,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         kwargs['expected_prompt'] = '>\r\n>' # special one off prompt.
 
         prompt = self._wakeup(timeout=TIMEOUT)
-        (result, last_sample) = self._do_cmd_resp(InstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
+        (result, last_sample) = self._do_cmd_resp(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
 
         decoded_last_sample = base64.b64decode(last_sample)
         return (next_state, (next_agent_state, decoded_last_sample))
@@ -1340,7 +1340,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug("%%% IN NEW _handler_direct_access_exit")
 
-        result = self._do_cmd_resp(InstrumentCmds.GET, Parameter.TIME_OF_FIRST_PING)
+        result = self._do_cmd_resp(TeledyneInstrumentCmds.GET, TeledyneParameter.TIME_OF_FIRST_PING)
         if "****/**/**,**:**:**" not in result:
             log.error("TG not allowed to be set. sending a break to clear it.")
 

@@ -32,13 +32,13 @@ from mi.idk.unit_test import DriverTestMixin
 
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import DriverStartupConfigKey
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolEvent
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import Parameter
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import Prompt
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import ProtocolEvent
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
-from mi.instrument.teledyne.driver import ScheduledJob
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Capability
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import InstrumentCmds
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import ScheduledJob
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import Capability
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import InstrumentCmds
 
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_KEY
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_DataParticle
@@ -50,7 +50,7 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_
 from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import InstrumentDriver
 from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import Protocol
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolState
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import ProtocolState
 ###
 #   Driver parameters for tests
 ###
@@ -471,14 +471,14 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         self.protocol = Protocol(Prompt, NEWLINE, my_event_callback)
 
-        def fake_send_break1_cmd():
+        def fake_send_break1_cmd(delay):
             log.debug("IN fake_send_break1_cmd")
             self.protocol._linebuf =  "[BREAK Wakeup A]\n" + \
                                      "  Polled Mode is OFF -- Battery Saver is ONWorkHorse Broadband ADCP Version 50.40\n" + \
                                      "Teledyne RD Instruments (c) 1996-2010\n" + \
                                      "All Rights Reserved."
 
-        def fake_send_break2_cmd():
+        def fake_send_break2_cmd(delay):
             log.debug("IN fake_send_break2_cmd")
             self.protocol._linebuf = "[BREAK Wakeup A]" + NEWLINE + \
                                     "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
@@ -487,11 +487,11 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         self.protocol._send_break_cmd = fake_send_break1_cmd
 
-        self.assertTrue(self.protocol._send_break())
+        self.assertTrue(self.protocol._send_break(500))
 
         self.protocol._send_break_cmd = fake_send_break2_cmd
 
-        self.assertTrue(self.protocol._send_break())
+        self.assertTrue(self.protocol._send_break(500))
 
     def test_driver_schema(self):
         """
