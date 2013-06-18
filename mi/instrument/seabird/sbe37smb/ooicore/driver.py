@@ -1355,6 +1355,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                              self._int_to_string,
                              default_value=1,
                              startup_param=True,
+                             direct_access = True,
                              type=ParameterDictType.INT)
         self._param_dict.add(SBE37Parameter.STORETIME,
                              r'(do not )?store time with each sample',

@@ -1723,10 +1723,10 @@ class Protocol(SeaBirdProtocol):
         """
 
         next_state = None
-        result = None
+        next_agent_state = None
 
         result = self._do_cmd_no_resp(InstrumentCmds.QUIT_SESSION, *args, **kwargs)
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Autosample handlers.
