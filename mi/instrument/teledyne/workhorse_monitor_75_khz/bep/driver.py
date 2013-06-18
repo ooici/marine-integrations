@@ -2,6 +2,7 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import WorkhorseInst
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import WorkhorseProtocol
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
+from mi.instrument.teledyne.driver import InstrumentCmds
 from mi.core.log import get_logger ; log = get_logger()
 import socket
 import time
@@ -181,14 +182,15 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value='00:00:00.00')
 
+        # NEVER USE THIS COMMAND.
         self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
             r'TG (..../../..,..:..:..) - Time of First Ping ',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="time of first ping")
-            #startup_param=True,
-            #default_value='****/**/**,**:**:**')
+            display_name="time of first ping",
+            startup_param=False,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.TIME_PER_PING,
             r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping',
@@ -205,7 +207,7 @@ class Protocol(WorkhorseProtocol):
             str,
             type=ParameterDictType.STRING,
             display_name="time",
-            expiration=1,
+            expiration=86400, # expire once per day 60 * 60 * 24
             visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.FALSE_TARGET_THRESHOLD,
@@ -354,20 +356,21 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value=175)
 
+
     def _send_break_cmd(self):
         """
         Send a BREAK to attempt to wake the device.
         """
-        log.debug("IN _send_break_cmd")
+        log.trace("IN _send_break_cmd")
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         except socket.error, msg:
-            log.error("WHOOPS! 1")
+            log.trace("WHOOPS! 1")
 
         try:
             sock.connect(('localhost', 2102))
         except socket.error, msg:
-            log.error("WHOOPS! 2")
+            log.trace("WHOOPS! 2")
         sock.send("break 500\r\n")
         sock.close()
 
