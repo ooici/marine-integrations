@@ -628,43 +628,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
         
-    def test_startup_configure(self):
-        """
-        Test to see if the configuration is set properly upon startup.
-        """
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        startup_config = {DriverConfigKey.PARAMETERS:{SBE37Parameter.SAMPLENUM:13}}
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect', startup_config)
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
-        
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE37ProtocolState.COMMAND)
-        
-        result = self.driver_client.cmd_dvr('get_resource',
-                                            [SBE37Parameter.SAMPLENUM])
-        self.assertNotEquals(result[SBE37Parameter.SAMPLENUM], 13)
-        result = self.driver_client.cmd_dvr('apply_startup_params')
-        result = self.driver_client.cmd_dvr('get_resource',
-                                            [SBE37Parameter.SAMPLENUM])
-        self.assertEquals(result[SBE37Parameter.SAMPLENUM], 13)
-        
     def test_get_set(self):
         """
         Test device parameter access.
@@ -1159,51 +1122,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         # Test the driver is in state unconfigured.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-    def test_startup_config(self):
-        """
-        Verify that the configuration of the instrument gets set upon launch
-        """
-        # Startup params are SAMPLENUM, INTERVAL, SYNCWAIT
-        # INTERVAL has a default value of 1
-        startup_config = {DriverConfigKey.PARAMETERS:{SBE37Parameter.SAMPLENUM:2,
-                                                      SBE37Parameter.NAVG:2}}
-
-        # SBE37 doesnt have a startup routine, so we wont test default params
-        # as part of the configure routine, mainly testing some InstrumentDriver
-        # base logic
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-        reply = self.driver_client.cmd_dvr('connect')
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        self.driver_client.cmd_dvr("set_init_params", startup_config)
-        self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.SYNCWAIT:3})     
-        self.driver_client.cmd_dvr("apply_startup_params") # result now matches instrument
-        result = self.driver_client.cmd_dvr("get_resource", DriverParameter.ALL)
-        self.assertEquals(result[SBE37Parameter.SAMPLENUM], 2) # init param
-        self.assertEquals(result[SBE37Parameter.INTERVAL], 1) # default param
-        self.assertEquals(result[SBE37Parameter.SYNCWAIT], 3) # manual param
-    
-        # all setup now, driver stuff could happen here in the real world
-        # get to command mode?
-        
-        # manual changes
-        self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.NAVG:10}) 
-        self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.SAMPLENUM:10})
-        self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.INTERVAL:10}) 
-        self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.SYNCWAIT:10})
-        result = self.driver_client.cmd_dvr("get_resource", DriverParameter.ALL)
-        self.assertEquals(result[SBE37Parameter.NAVG], 10) # not a startup param
-        self.assertEquals(result[SBE37Parameter.SAMPLENUM], 10) # init param
-        self.assertEquals(result[SBE37Parameter.INTERVAL], 10) # default param
-        self.assertEquals(result[SBE37Parameter.SYNCWAIT], 10) # manual param
-
-        # confirm re-apply
-        self.driver_client.cmd_dvr("apply_startup_params")
-        result = self.driver_client.cmd_dvr("get_resource", DriverParameter.ALL)
-        self.assertEquals(result[SBE37Parameter.SAMPLENUM], 2) # init param
-        self.assertEquals(result[SBE37Parameter.INTERVAL], 1) # default param
-        self.assertEquals(result[SBE37Parameter.SYNCWAIT], 10) # manual param
 
     def test_polled_particle_generation(self):
         """
@@ -2358,3 +2276,19 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         it was in streaming mode when we disconnect.
         '''
         pass
+
+    def test_startup_params(self):
+        """
+        Verify that startup parameters are applied correctly when the driver is started.
+        """
+        # Startup the driver, verify the startup value and then change it.
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(SBE37Parameter.INTERVAL, 5)
+        self.assert_set_parameter(SBE37Parameter.INTERVAL, 10)
+
+        # Reset the agent which brings the driver down
+        self.assert_reset()
+
+        # Now restart the driver and verify the value has reverted back to the startup value
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(SBE37Parameter.INTERVAL, 5)
