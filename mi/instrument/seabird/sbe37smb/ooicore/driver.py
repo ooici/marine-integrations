@@ -21,11 +21,11 @@ import ntplib
 import json
 
 from mi.core.common import BaseEnum
-from mi.core.instrument.port_agent_client import PortAgentPacket
+from mi.core.instrument.instrument_protocol import InitializationType
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
-from mi.core.instrument.instrument_fsm import InstrumentFSM, ThreadSafeFSM
+from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -690,8 +690,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         
         
-        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_acquire_status)
-        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.ACQUIRE_CONFIGURATION,  self._handler_command_acquire_configuration)
+        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.ACQUIRE_CONFIGURATION, self._handler_command_acquire_configuration)
         
         
         self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.ENTER, self._handler_autosample_enter)
@@ -769,6 +769,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         events_out = [x for x in events if SBE37Capability.has(x)]
         return events_out
 
+
     ########################################################################
     # Unknown handlers.
     ########################################################################
@@ -838,8 +839,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
-        # Command device to update parameters and send a config change event.
-        self._update_params()
+        # Command device to initialize parameters and send a config change event.
+        self._init_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -957,6 +958,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         """
         Enter autosample state.
         """
+        self._init_params()
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -1165,6 +1168,29 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         Send a newline to attempt to wake the SBE37 device.
         """
         self._connection.send(NEWLINE)
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        startup = False
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        self._verify_not_readonly(*args, **kwargs)
+
+        for (key, val) in params.iteritems():
+            log.debug("KEY = " + str(key) + " VALUE = " + str(val))
+            result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
+
+        self._update_params()
 
     def _update_params(self, *args, **kwargs):
         """

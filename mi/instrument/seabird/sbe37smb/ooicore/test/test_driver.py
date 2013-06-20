@@ -114,6 +114,7 @@ from pyon.core.exception import ResourceError
 
 from interface.objects import CapabilityType
 from interface.objects import AgentCapability
+from mi.idk.unit_test import DriverStartupConfigKey
 
 ###
 #   Driver parameters for the tests
@@ -149,7 +150,12 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id = '123xyz',
     instrument_agent_preload_id = 'IA2',
     instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = DataParticleType()
+    instrument_agent_packet_config = DataParticleType(),
+    driver_startup_config = {
+        DriverStartupConfigKey.PARAMETERS: {
+            SBE37Parameter.INTERVAL: 5,
+        },
+    }
 )
 #
 
@@ -1260,7 +1266,16 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
                 break
             else:
                 gevent.sleep(1)
-                
+
+    def test_automatic_startup_params(self):
+        """
+        Verify that startup params are applied automatically when the driver is started.
+        """
+        self.assert_initialize_driver()
+
+        self.assert_get(SBE37Parameter.INTERVAL, 5)
+
+
 #self._dvr_proc = self.driver_process
 #self._pagent = self.port_agent
 #self._dvr_client = self.driver_client
