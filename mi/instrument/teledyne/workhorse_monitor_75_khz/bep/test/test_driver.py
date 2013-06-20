@@ -461,14 +461,14 @@ class ADCPTMixin(DriverTestMixin):
 
     def setUp(self):
         DriverTestMixin.setUp(self)
-
+        """
         self._driver_parameter_defaults = {}
         for label in self._driver_parameters.keys():
             if self.VALUE in self._driver_parameters[label]:
                 self._driver_parameter_defaults[label] = self._driver_parameters[label][self.VALUE]
             else:
                 self._driver_parameter_defaults[label] = None
-
+        """
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
@@ -712,7 +712,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 
         for k in self._tested.keys():
             if k not in self._driver_parameters.keys():
-                log.error("*WARNING* " + k + " was tested but is not in _driver_parameter_defaults")
+                log.error("*WARNING* " + k + " was tested but is not in _driver_parameters")
                 #fail = True
 
         for k in self._driver_parameters.keys():

@@ -804,6 +804,19 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set_exception(TeledyneParameter.WATER_PROFILING_MODE, 0)
         self._tested[TeledyneParameter.WATER_PROFILING_MODE] = True
 
+    def _test_set_water_profiling_mode(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for WATER_PROFILING_MODE ======")
+
+
+        self._tested[TeledyneParameter.WATER_PROFILING_MODE] = False
+        self._tested[TeledyneParameter.WATER_PROFILING_MODE] = True
+        # Test read only raise exceptions on set.
+
+        self.assert_set(TeledyneParameter.WATER_PROFILING_MODE, 0)
+        self._tested[TeledyneParameter.WATER_PROFILING_MODE] = True
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

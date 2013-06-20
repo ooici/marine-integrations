@@ -116,45 +116,6 @@ class WorkhorseDriverUnitTest(TeledyneUnitTest):
 @attr('INT', group='mi')
 class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
 
-    """
-    # CAN I GET THESE FROM  _driver_parameters? are they the same?
-    _driver_parameter_defaults = {
-        WorkhorseParameter.SERIAL_DATA_OUT: None,
-        WorkhorseParameter.SERIAL_FLOW_CONTROL: '11110',
-        WorkhorseParameter.SAVE_NVRAM_TO_RECORDER: True,
-        WorkhorseParameter.TIME: None,
-        WorkhorseParameter.SERIAL_OUT_FW_SWITCHES: '111100000',
-        WorkhorseParameter.WATER_PROFILING_MODE: 1,
-        WorkhorseParameter.BANNER: False,
-        WorkhorseParameter.INSTRUMENT_ID: 0,
-        WorkhorseParameter.SLEEP_ENABLE: 0,
-        WorkhorseParameter.POLLED_MODE: False,
-        WorkhorseParameter.XMIT_POWER: 255,
-        WorkhorseParameter.SPEED_OF_SOUND: 1485,
-        WorkhorseParameter.PITCH: 0,
-        WorkhorseParameter.ROLL: 0,
-        WorkhorseParameter.SALINITY: 35,
-        WorkhorseParameter.COORDINATE_TRANSFORMATION: '11111',
-        WorkhorseParameter.SENSOR_SOURCE: "1111101", 
-        WorkhorseParameter.TIME_PER_ENSEMBLE: '00:00:00.00',
-        WorkhorseParameter.TIME_OF_FIRST_PING: None, 
-        WorkhorseParameter.TIME_PER_PING: '00:01.00',
-        WorkhorseParameter.FALSE_TARGET_THRESHOLD: '050,001',
-        WorkhorseParameter.BANDWIDTH_CONTROL: 0,
-        WorkhorseParameter.CORRELATION_THRESHOLD: 64,
-        WorkhorseParameter.ERROR_VELOCITY_THRESHOLD: 2000,
-        WorkhorseParameter.BLANK_AFTER_TRANSMIT: 704,
-        WorkhorseParameter.CLIP_DATA_PAST_BOTTOM: 0,
-        WorkhorseParameter.RECEIVER_GAIN_SELECT: 1,
-        WorkhorseParameter.WATER_REFERENCE_LAYER: '001,005',
-        WorkhorseParameter.NUMBER_OF_DEPTH_CELLS: 100,
-        WorkhorseParameter.PINGS_PER_ENSEMBLE: 1,
-        WorkhorseParameter.DEPTH_CELL_SIZE: 800,
-        WorkhorseParameter.TRANSMIT_LENGTH: 0,
-        WorkhorseParameter.PING_WEIGHT: 0,
-        WorkhorseParameter.AMBIGUITY_VELOCITY: 175,
-    }
-    """
     def setUp(self):
         TeledyneIntegrationTest.setUp(self)
         """
@@ -271,36 +232,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         # Change the values of these parameters to something before the
         # driver is reinitalized.  They should be blown away on reinit.
         new_values = {}
-        """
-        new_values = {
-            WorkhorseParameter.INSTRUMENT_ID: 1,
-            WorkhorseParameter.SLEEP_ENABLE: 1,
-            WorkhorseParameter.POLLED_MODE: True,
-            WorkhorseParameter.XMIT_POWER: 250,
-            #WorkhorseParameter.BANNER: True,
-            WorkhorseParameter.SPEED_OF_SOUND: 1400,
-            WorkhorseParameter.PITCH: 1,
-            WorkhorseParameter.ROLL: 1,
-            WorkhorseParameter.SALINITY: 37,
-            WorkhorseParameter.TIME_PER_ENSEMBLE: '00:01:00.00',
-            WorkhorseParameter.TIME_PER_PING: '00:02.00',
-            WorkhorseParameter.FALSE_TARGET_THRESHOLD: '051,001',
-            WorkhorseParameter.BANDWIDTH_CONTROL: 1,
-            WorkhorseParameter.CORRELATION_THRESHOLD: 60,
-            WorkhorseParameter.ERROR_VELOCITY_THRESHOLD: 1900,
-            WorkhorseParameter.BLANK_AFTER_TRANSMIT: 710,
-            WorkhorseParameter.CLIP_DATA_PAST_BOTTOM: 1,
-            WorkhorseParameter.RECEIVER_GAIN_SELECT: 0,
-            WorkhorseParameter.WATER_REFERENCE_LAYER: '002,006',
-            WorkhorseParameter.NUMBER_OF_DEPTH_CELLS: 80,
-            WorkhorseParameter.PINGS_PER_ENSEMBLE: 2,
-            WorkhorseParameter.DEPTH_CELL_SIZE: 600,
-            WorkhorseParameter.TRANSMIT_LENGTH: 1,
-            WorkhorseParameter.PING_WEIGHT: 1,
-            WorkhorseParameter.AMBIGUITY_VELOCITY: 100,
-        }
-        """
-
+      
         p = WorkhorseParameter.dict()
         for k, v in WorkhorseParameterAltValue.dict().items():
             if k not in ('BANNER', 'SERIAL_FLOW_CONTROL', 'SAVE_NVRAM_TO_RECORDER'):

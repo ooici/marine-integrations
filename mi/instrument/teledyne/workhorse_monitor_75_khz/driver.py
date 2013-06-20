@@ -196,3 +196,5 @@ class WorkhorseProtocol(TeledyneProtocol):
 
     def _has_parameter(self, param):
         return WorkhorseParameter.has(param)
+    
+    
