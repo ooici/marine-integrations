@@ -25,6 +25,20 @@ from mi.core.instrument.chunker import StringChunker
 ###############################################################################
 # Driver
 ###############################################################################
+class WorkhorseParameter(TeledyneParameter):
+    """
+    Device parameters
+    """
+    #
+    # set-able parameters
+    #
+    SERIAL_FLOW_CONTROL = 'CF'
+    BANNER = 'CH'
+    SLEEP_ENABLE = 'CL'
+    SAVE_NVRAM_TO_RECORDER = 'CN'
+    POLLED_MODE = 'CP'
+    PITCH = 'EP'
+    ROLL = 'ER'
 
 
 
@@ -174,4 +188,11 @@ class WorkhorseProtocol(TeledyneProtocol):
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
 
+    def _get_params(self):
+        return dir(WorkhorseParameter)
 
+    def _getattr_key(self, attr):
+        return getattr(WorkhorseParameter, attr)
+
+    def _has_parameter(self, param):
+        return WorkhorseParameter.has(param)

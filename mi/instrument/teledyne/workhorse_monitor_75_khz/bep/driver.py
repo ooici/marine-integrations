@@ -15,7 +15,7 @@ import time
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import TeledyneParameter
+from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import WorkhorseParameter
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import TeledyneProtocolEvent
 
 
@@ -24,20 +24,14 @@ class Prompt(TeledynePrompt):
     Device i/o prompts..
     """
 
-class Parameter(TeledyneParameter):
+
+class Parameter(WorkhorseParameter):
     """
     Device parameters
     """
     #
     # set-able parameters
     #
-    SERIAL_FLOW_CONTROL = 'CF'
-    BANNER = 'CH'
-    SLEEP_ENABLE = 'CL'
-    SAVE_NVRAM_TO_RECORDER = 'CN'
-    POLLED_MODE = 'CP'
-    PITCH = 'EP'
-    ROLL = 'ER'
 
 
 class ProtocolEvent(TeledyneProtocolEvent):
@@ -50,8 +44,8 @@ class Capability(TeledyneCapability):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    
-    
+
+
 class ScheduledJob(TeledyneScheduledJob):
     """
     Complete this last.
@@ -83,7 +77,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         Construct the driver protocol state machine.
         """
         self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
-        log.debug("self._protocol = " + repr(self._protocol))
+
 
 
 class ProtocolState(TeledyneProtocolState):
@@ -434,4 +428,11 @@ class Protocol(WorkhorseProtocol):
         sock.send("break " + str(delay) + "\r\n")
         sock.close()
 
-    pass
+    def _get_params(self):
+        return dir(Parameter)
+
+    def _getattr_key(self, attr):
+        return getattr(Parameter, attr)
+
+    def _has_parameter(self, param):
+        return Parameter.has(param)

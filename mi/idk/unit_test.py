@@ -1681,8 +1681,8 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             self.clear_events()
             self.assert_set(param, value, True)
             time.sleep(1)
-            log.debug("pass #2 got config change events: %d", len(events))
             events = self.get_events(DriverAsyncEvent.CONFIG_CHANGE)
+            log.debug("pass #2 got config change events: %d", len(events))
             self.assertEqual(len(events), 0)
 
             self.assert_get(param, value)
@@ -2333,7 +2333,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         expected_res_param.sort()
         expected_res_int = capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE)
         expected_res_int.sort()
-        
+
         # go get the active capabilities
         retval = self.instrument_agent_client.get_capabilities()
         agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
@@ -2348,7 +2348,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         log.debug("Compared to: %s", expected_res_int)
         log.debug("Resource Parameter: %s ", str(res_pars))
         log.debug("Compared to: %s", expected_res_param)
-        
+
         # Compare to what we are supposed to have
         self.assertEqual(expected_agent_cmd, agt_cmds)
         self.assertEqual(expected_agent_param, agt_pars)

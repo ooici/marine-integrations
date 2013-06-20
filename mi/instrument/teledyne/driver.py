@@ -505,8 +505,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._promptbuf = ''
 
         # Send command.
-        log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s' %
-                        (repr(cmd_line), timeout, write_delay))
+        log.debug('_do_cmd_resp: %s' % repr(cmd_line))
 
         if (write_delay == 0):
             self._connection.send(cmd_line)
@@ -530,7 +529,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         Update the parameter dictionary. 
         """
-        log.trace("in _update_params")
+        log.debug("in _update_params")
         error = None
         logging = self._is_logging()
 
