@@ -154,13 +154,16 @@ class InstrumentProtocol(object):
                                             is unknown
         """
         if(self._init_type == InitializationType.STARTUP):
+            log.debug("_init_params: Apply Startup Config")
             self.apply_startup_params()
             self._init_type = InitializationType.NONE
         elif(self._init_type == InitializationType.DIRECTACCESS):
+            log.debug("_init_params: Apply DA Config")
             #self.apply_direct_access_params()
             self._init_type = InitializationType.NONE
             pass
         elif(self._init_type == InitializationType.NONE):
+            log.debug("_init_params: No initialization required")
             pass
         elif(self._init_type == None):
             raise InstrumentProtocolException("initialization type not set")

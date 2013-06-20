@@ -153,7 +153,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config = DataParticleType(),
     driver_startup_config = {
         DriverStartupConfigKey.PARAMETERS: {
-            SBE37Parameter.INTERVAL: 5,
+            SBE37Parameter.INTERVAL: 1,
         },
     }
 )
@@ -1190,8 +1190,7 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         Verify that startup params are applied automatically when the driver is started.
         """
         self.assert_initialize_driver()
-
-        self.assert_get(SBE37Parameter.INTERVAL, 5)
+        self.assert_get(SBE37Parameter.INTERVAL, 1)
 
 
 #self._dvr_proc = self.driver_process
@@ -2283,7 +2282,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         """
         # Startup the driver, verify the startup value and then change it.
         self.assert_enter_command_mode()
-        self.assert_get_parameter(SBE37Parameter.INTERVAL, 5)
+        self.assert_get_parameter(SBE37Parameter.INTERVAL, 1)
         self.assert_set_parameter(SBE37Parameter.INTERVAL, 10)
 
         # Reset the agent which brings the driver down
@@ -2291,4 +2290,4 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
 
         # Now restart the driver and verify the value has reverted back to the startup value
         self.assert_enter_command_mode()
-        self.assert_get_parameter(SBE37Parameter.INTERVAL, 5)
+        self.assert_get_parameter(SBE37Parameter.INTERVAL, 1)
