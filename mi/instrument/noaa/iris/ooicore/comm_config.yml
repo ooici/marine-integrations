@@ -1,7 +1,7 @@
 comm:
   command_port: 6002
   data_port: 6001
-  device_addr: 127.0.10.2
+  device_addr: 10.180.80.163 
   device_rx_port: 9338
   device_tx_port: 9337
   host: localhost

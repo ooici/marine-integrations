@@ -75,9 +75,8 @@ class ProtocolState(BaseEnum):
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
 
 class ExportedInstrumentCommand(BaseEnum):
-    """
-    Currently none
-    """
+    DUMP_01 = "EXPORTED_INSTRUMENT_DUMP_SETTINGS"
+    DUMP_02 = "EXPORTED_INSTRUMENT_DUMP_EXTENDED_SETTINGS"
 
 class ProtocolEvent(BaseEnum):
     """
@@ -90,7 +89,8 @@ class ProtocolEvent(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     DISCOVER = DriverEvent.DISCOVER
-    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    DUMP_01 = ExportedInstrumentCommand.DUMP_01
+    DUMP_02 = ExportedInstrumentCommand.DUMP_02
 
 class Capability(BaseEnum):
     """
@@ -100,7 +100,8 @@ class Capability(BaseEnum):
     SET = ProtocolEvent.SET
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
+    DUMP_01 = ProtocolEvent.DUMP_01
+    DUMP_02 = ProtocolEvent.DUMP_02
     
 class Parameter(DriverParameter):
     """
@@ -158,7 +159,7 @@ class IRISCommandResponse():
         """
         return re.compile(IRISCommandResponse.regex())
 
-    def check_data_on_off_response(self, expected_response):
+    def check_command_response(self, expected_response):
         """
         Generic command response method; the expected response
         is passed in as a parameter; that is used to check 
@@ -183,7 +184,7 @@ class IRISCommandResponse():
                 retValue = True  
 
         except ValueError:
-            raise SampleException("check_data_on_off_response: ValueError" +
+            raise SampleException("check_command_response: ValueError" +
                                   " while converting data: [%s]" %
                                   self.raw_data)
         
@@ -355,30 +356,36 @@ class IRISStatusSignOnParticle(DataParticle):
 
 class IRISStatus_01_Particle(DataParticle):
     _data_particle_type = DataParticleType.IRIS_STATUS
+    iris_status_response = "No response found."
 
     @staticmethod
     def regex():
         """
         Example of output from DUMP-SETTINGS command:
         
-        IRIS,2013/06/12 18:03:44,*01: Vbias= 0.0000 0.0000 0.0000 0.0000
-        IRIS,2013/06/12 18:03:44,*01: Vgain= 0.0000 0.0000 0.0000 0.0000
-        IRIS,2013/06/12 18:03:44,*01: Vmin:  -2.50  -2.50   2.50   2.50
-        IRIS,2013/06/12 18:03:44,*01: Vmax:   2.50   2.50   2.50   2.50
-        IRIS,2013/06/12 18:03:44,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
-        IRIS,2013/06/12 18:03:44,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
-        IRIS,2013/06/12 18:03:44,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
-        IRIS,2013/06/12 18:03:44,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
-        IRIS,2013/06/12 18:03:44,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0
-        IRIS,2013/06/12 18:03:44,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0
-        IRIS,2013/06/12 18:03:44,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00
-        IRIS,2013/06/12 18:03:44,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-   
+        IRIS,2013/06/19 21:26:20,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N3616 ID01
+        IRIS,2013/06/19 21:26:20,*01: Vbias= 0.0000 0.0000 0.0000 0.0000
+        IRIS,2013/06/19 21:26:20,*01: Vgain= 0.0000 0.0000 0.0000 0.0000
+        IRIS,2013/06/19 21:26:21,*01: Vmin:  -2.50  -2.50   2.50   2.50
+        IRIS,2013/06/19 21:26:21,*01: Vmax:   2.50   2.50   2.50   2.50
+        IRIS,2013/06/19 21:26:21,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        IRIS,2013/06/19 21:26:21,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        LILY,2013/06/19 21:26:21, -49.297,  31.254,193.84, 25.98,11.96,N9655
+        IRIS,2013/06/19 21:26:21,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        IRIS,2013/06/19 21:26:21,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
+        IRIS,2013/06/19 21:26:21,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0
+        NANO,V,2013/06/19 21:26:21.000,13.987252,24.991366335
+        IRIS,2013/06/19 21:26:21,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0
+        IRIS,2013/06/19 21:26:21,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00
+        IRIS,2013/06/19 21:26:21,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-   
         """
+        
+        
         pattern = r'IRIS,' # pattern starts with IRIS '
         pattern += r'(.*?),' # group 1: time
-        pattern += r'\*01: Vbias=' # unique identifier for status
+        pattern += r'\*APPLIED GEOMECHANICS'
         pattern += r'.*?' # non-greedy match of all the junk between
-        pattern += r'baud FV-' + NEWLINE
+        pattern += r'baud FV-.*?' + NEWLINE
         return pattern
 
     @staticmethod
@@ -388,8 +395,23 @@ class IRISStatus_01_Particle(DataParticle):
     def _build_parsed_values(self):
         pass
 
+    def build_response(self):
+        """
+        build the response to the command that initiated this status.  In this 
+        case just assign the string to the iris_status_response.  In the   
+        future, we might want to cook the string, as in remove some
+        of the other sensor's chunks.
+        
+        The iris_status_response is pulled out later when do_cmd_resp calls
+        the response handler.  The response handler gets passed the particle
+        object, and it then uses that to access the objects attribute that
+        contains the response string.
+        """
+        self.iris_status_response = self.raw_data
+    
 class IRISStatus_02_Particle(DataParticle):
     _data_particle_type = DataParticleType.IRIS_STATUS
+    iris_status_response = "No response found."
 
     @staticmethod
     def regex():
@@ -441,6 +463,21 @@ class IRISStatus_02_Particle(DataParticle):
 
     def _build_parsed_values(self):
         pass
+
+    def build_response(self):
+        """
+        build the response to the command that initiated this status.  In this 
+        case just assign the string to the iris_status_response.  In the   
+        future, we might want to cook the string, as in remove some
+        of the other sensor's chunks.
+        
+        The iris_status_response is pulled out later when do_cmd_resp calls
+        the response handler.  The response handler gets passed the particle
+        object, and it then uses that to access the objects attribute that
+        contains the response string.
+        """
+        self.iris_status_response = self.raw_data
+    
 
 ###############################################################################
 # Driver
@@ -512,14 +549,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.DUMP_01, self._handler_command_autosample_dump01)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.DUMP_02, self._handler_command_autosample_dump02)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.DUMP_01, self._handler_command_autosample_dump01)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.DUMP_02, self._handler_command_autosample_dump02)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -534,8 +573,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCommand.DATA_ON, self._parse_data_on_off_resp)
         self._add_response_handler(InstrumentCommand.DATA_OFF, self._parse_data_on_off_resp)
-        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_01, self._parse_data_on_off_resp)
-        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_02, self._parse_data_on_off_resp)
+        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_01, self._parse_status_01_resp)
+        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_02, self._parse_status_02_resp)
 
         # Add sample handlers.
 
@@ -548,6 +587,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         #
         self._chunker = StringChunker(Protocol.sieve_function)
 
+        # set up the regexes now so we don't have to do it repeatedly
+        self.data_regex = IRISDataParticle.regex_compiled()
+        self.cmd_rsp_regex = IRISCommandResponse.regex_compiled()
+        self.signon_regex = IRISStatusSignOnParticle.regex_compiled()
+        self.status_01_regex = IRISStatus_01_Particle.regex_compiled()
+        self.status_02_regex = IRISStatus_02_Particle.regex_compiled()
+
 
     @staticmethod
     def sieve_function(raw_data):
@@ -558,8 +604,22 @@ class Protocol(CommandResponseInstrumentProtocol):
         matchers = []
         return_list = []
 
+        """
+        would be nice to be able to do this.
+        matchers.append(self.data_regex)
+        matchers.append(self.signon_regex)
+        matchers.append(self.status_01_regex)
+        matchers.append(self.status_02_regex)
+        matchers.append(self.cmd_rsp_regex)
+        """
+        
+        """
+        Not a good idea to be compiling these for every invocation of this
+        method; they don't change.
+        """
+ 
         matchers.append(IRISDataParticle.regex_compiled())
-        matchers.append(IRISStatusSignOnParticle.regex_compiled())
+        #matchers.append(IRISStatusSignOnParticle.regex_compiled())
         matchers.append(IRISStatus_01_Particle.regex_compiled())
         matchers.append(IRISStatus_02_Particle.regex_compiled())
         matchers.append(IRISCommandResponse.regex_compiled())
@@ -626,7 +686,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.  Invoke
-        this driver's _my_add_to_buffer, and then pass it to extract_sample
+        this driver's _my_add_to_buffer, or pass it to extract_sample
         with the appropriate particle objects and REGEXes.  We need to invoke
         _my_add_to_buffer, because we've overridden the base class
         add_to_buffer that is called from got_data().  The reason is explained
@@ -635,12 +695,14 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         log.debug("_got_chunk_: %s", chunk)
         
-        regex = IRISCommandResponse.regex_compiled()
-        if regex.match(chunk):
+        if (self.cmd_rsp_regex.match(chunk) \
+        #or self.signon_regex.match(chunk) \ # currently not using the signon chunk
+        or self.status_01_regex.match(chunk) \
+        or self.status_02_regex.match(chunk)):
             self._my_add_to_buffer(chunk)
         else:
-            if not self._extract_sample(IRISDataParticle, 
-                                        IRISDataParticle.regex_compiled(), 
+            if not self._extract_sample(IRISDataParticle,
+                                        self.data_regex, 
                                         chunk, timestamp):
                 raise InstrumentProtocolException("Unhandled chunk")
 
@@ -654,6 +716,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_parse_data_on_off_resp: response: %r; prompt: %s", response, prompt)
         return response.iris_command_response
         
+    def _parse_status_01_resp(self, response, prompt):
+        log.debug("_parse_status_01_resp: response: %r; prompt: %s", response, prompt)
+        return response.iris_status_response
+        
+    def _parse_status_02_resp(self, response, prompt):
+        log.debug("_parse_status_02_resp: response: %r; prompt: %s", response, prompt)
+        return response.iris_status_response
+        
     def _wakeup(self, timeout, delay=1):
         """
         Overriding _wakeup; does not apply to this instrument
@@ -662,6 +732,12 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _get_response(self, timeout=10, expected_prompt=None):
         """
+        Overriding _get_response: this one uses regex on chunks
+        that have already been filtered by the chunker.  An improvement
+        to the chunker could be metadata labeling the chunk so that we
+        don't have to do another match, although I don't think it is that
+        expensive once the chunk has been pulled out to match again
+        
         @param timeout The timeout in seconds
         @param expected_prompt Only consider the specific expected prompt as
         presented by this string
@@ -672,22 +748,39 @@ class Protocol(CommandResponseInstrumentProtocol):
         starttime = time.time()
         
         response = None
-        regex = IRISCommandResponse.regex_compiled()
         
         """
         Spin around for <timeout> looking for the response to arrive
         """
         continuing = True
+        response = "no response"
         while continuing:
-            if regex.match(self._promptbuf):
+            if self.cmd_rsp_regex.match(self._promptbuf):
                 response = IRISCommandResponse(self._promptbuf)
-                if response.check_data_on_off_response(expected_prompt):
-                    continuing = False
+                log.debug("_get_response() matched CommandResponse")
+                response.check_command_response(expected_prompt)
+                continuing = False
+            #elif self.signon_regex.match(self._promptbuf):
+                #response = IRISStatusSignOnParticle(self._promptbuf)
+                #log.debug("~~~~~~~~~ SignonResponse")
+                """
+                Currently not using the signon particle.
+                """
+            elif self.status_01_regex.match(self._promptbuf):
+                response = IRISStatus_01_Particle(self._promptbuf)
+                log.debug("_get_response() matched Status_01_Response")
+                response.build_response()
+                continuing = False
+            elif self.status_02_regex.match(self._promptbuf):
+                response = IRISStatus_02_Particle(self._promptbuf)
+                log.debug("_get_response() matched Status_02_Response")
+                response.build_response()
+                continuing = False
             else:
                 self._promptbuf = ''
                 time.sleep(.1)
 
-            if time.time() > starttime + timeout:
+            if timeout and time.time() > starttime + timeout:
                 raise InstrumentTimeoutException("in BOTPT IRIS driver._get_response()")
 
         return ('IRIS_RESPONSE', response)
@@ -738,6 +831,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_autosample_stop_autosample(self):
         """
+        Turn the iris data off
         """
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
@@ -787,7 +881,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
-        Turn the iris on
+        Turn the iris data on
         """
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -829,4 +923,40 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+
+    def _handler_command_autosample_dump01(self, *args, **kwargs):
+        """
+        Get device status
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+        log.debug("_handler_command_autosample_dump01")
+
+        timeout = kwargs.get('timeout')
+
+        if timeout is not None:
+            result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_01, timeout = timeout)
+        else:
+            result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_01)
+
+        log.debug("DUMP_SETTINGS_01 response: %s", result)
+
+        return (next_state, (next_agent_state, result))
+
+
+    def _handler_command_autosample_dump02(self, *args, **kwargs):
+        """
+        Get device status
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+        log.debug("_handler_command_autosample_dump02")
+
+        result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_02)
+
+        log.debug("DUMP_SETTINGS_02 response: %s", result)
+
+        return (next_state, (next_agent_state, result))
 

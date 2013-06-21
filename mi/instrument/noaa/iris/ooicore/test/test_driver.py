@@ -54,6 +54,8 @@ from mi.instrument.noaa.iris.ooicore.driver import DataParticleType
 from mi.instrument.noaa.iris.ooicore.driver import IRISDataParticleKey
 from mi.instrument.noaa.iris.ooicore.driver import IRISDataParticle
 from mi.instrument.noaa.iris.ooicore.driver import IRISCommandResponse
+from mi.instrument.noaa.iris.ooicore.driver import IRISStatus_01_Particle
+from mi.instrument.noaa.iris.ooicore.driver import IRISStatus_02_Particle
 from mi.instrument.noaa.iris.ooicore.driver import InstrumentCommand
 from mi.instrument.noaa.iris.ooicore.driver import ProtocolState
 from mi.instrument.noaa.iris.ooicore.driver import ProtocolEvent
@@ -128,6 +130,7 @@ SIGNON_STATUS = \
         "IRIS,2013/06/12 18:03:44,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N8642 ID01" + NEWLINE
 
 DUMP_01_STATUS = \
+        "IRIS,2013/06/19 21:13:00,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N3616 ID01" + NEWLINE + \
         "IRIS,2013/06/12 18:03:44,*01: Vbias= 0.0000 0.0000 0.0000 0.0000" + NEWLINE + \
         "IRIS,2013/06/12 18:03:44,*01: Vgain= 0.0000 0.0000 0.0000 0.0000" + NEWLINE + \
         "IRIS,2013/06/12 18:03:44,*01: Vmin:  -2.50  -2.50   2.50   2.50" + NEWLINE + \
@@ -171,7 +174,7 @@ DUMP_02_STATUS = \
         "HEAT,2013/06/12 18:04:02,-001,0001,0024" + NEWLINE + \
         "IRIS,2013/06/12 18:04:02,*01: Total Sample Storage Capacity: 372" + NEWLINE + \
         "IRIS,2013/06/12 18:04:02,*01: BAE Scale Factor:  2.88388 (arcseconds/bit)" + NEWLINE
-        
+
 
 ###############################################################################
 #                           DRIVER TEST MIXIN                                  #
@@ -291,7 +294,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         chunker = StringChunker(Protocol.sieve_function)
 
         self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
-        self.assert_chunker_sample(chunker, SIGNON_STATUS)
+        #self.assert_chunker_sample(chunker, SIGNON_STATUS)
+        self.assert_chunker_sample(chunker, SIGNON_STATUS + DUMP_01_STATUS)
         self.assert_chunker_sample(chunker, DUMP_01_STATUS)
         self.assert_chunker_sample(chunker, DUMP_02_STATUS)
         self.assert_chunker_sample(chunker, DUMP_01_COMMAND_RESPONSE)
@@ -384,14 +388,14 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     Verify that check_data_on_off_response raises a SampleException given an
     invalid response, and that it returns True given a valid response
     """
-    def test_check_data_on_off_response(self):
+    def test_check_command_response(self):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
         sampleException = False
         try:
             response = IRISCommandResponse(INVALID_SAMPLE)
-            retValue = response.check_data_on_off_response(IRIS_DATA_ON)
+            retValue = response.check_command_response(IRIS_DATA_ON)
         
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
@@ -403,7 +407,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         sampleException = False
         try:
             response = IRISCommandResponse(DATA_ON_COMMAND_RESPONSE)
-            retValue = response.check_data_on_off_response(IRIS_DATA_ON)
+            retValue = response.check_command_response(IRIS_DATA_ON)
         
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
@@ -416,7 +420,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         sampleException = False
         try:
             response = IRISCommandResponse(DATA_OFF_COMMAND_RESPONSE)
-            retValue = response.check_data_on_off_response(IRIS_DATA_OFF)
+            retValue = response.check_command_response(IRIS_DATA_OFF)
         
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
@@ -429,7 +433,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         sampleException = False
         try:
             response = IRISCommandResponse(DUMP_01_COMMAND_RESPONSE)
-            retValue = response.check_data_on_off_response(IRIS_DUMP_01)
+            retValue = response.check_command_response(IRIS_DUMP_01)
         
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
@@ -442,7 +446,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         sampleException = False
         try:
             response = IRISCommandResponse(DUMP_02_COMMAND_RESPONSE)
-            retValue = response.check_data_on_off_response(IRIS_DUMP_02)
+            retValue = response.check_command_response(IRIS_DUMP_02)
         
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
@@ -458,7 +462,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         sampleException = False
         try:
             response = IRISCommandResponse(DUMP_02_COMMAND_RESPONSE)
-            retValue = response.check_data_on_off_response(None)
+            retValue = response.check_command_response(None)
         
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
@@ -600,6 +604,185 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     """
     Verify that the driver correctly parses the DATA_OFF response
     """
+    def test_status_01(self):
+        """
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into a known state
+        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        ts = ntplib.system_to_ntp_time(time.time())
+
+        log.debug("DUMP_01_STATUS: %s", DUMP_01_STATUS)
+        # Create and populate the port agent packet.
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data(DUMP_01_STATUS)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("HEAT,2013/06/19 23:04:37,-001,0000,0026" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("LILY,2013/06/19 23:04:38, -49.455,  34.009,193.91, 26.02,11.96,N9655" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("NANO,V,2013/06/19 23:04:38.000,13.987223,25.126694121" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("LILY,2013/06/19 23:04:39, -49.483,  33.959,193.85, 26.03,11.96,N9655" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("NANO,V,2013/06/19 23:04:39.000,13.987191,25.126709409" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("LILY,2013/06/19 23:04:40, -49.355,  33.956,193.79, 26.02,11.96,N9655" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("NANO,V,2013/06/19 23:04:40.000,13.987253,25.126725854" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("HEAT,2013/06/19 23:04:40,-001,0000,0026" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N3616 ID01" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("NANO,V,2013/06/19 21:46:54.000,13.990480,25.027793612" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        #driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*01: Vbias= 0.0000 0.0000 0.0000 0.0000" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*01: Vgain= 0.0000 0.0000 0.0000 0.0000" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*01: Vmin:  -2.50  -2.50   2.50   2.50" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*01: Vmax:   2.50   2.50   2.50   2.50" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:55,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:55,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:55,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00" + NEWLINE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:55,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-   " + NEWLINE)   
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data("IRIS,2013/06/19 22:04:55,*9900XY-DUMP-SETTINGS" + NEWLINE)   
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
+
+
+    """
+    Verify that the driver correctly parses the DATA_OFF response
+    """
     def test_data_off_response(self):
         """
         """
@@ -683,8 +866,10 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
-        self.assertTrue(driver._protocol._get_response(expected_prompt = 
-                                                       IRIS_DUMP_01))
+        response = driver._protocol._get_response(expected_prompt = 
+                                                       IRIS_DUMP_01)
+        
+        self.assertTrue(isinstance(response[1], IRISCommandResponse))
 
         log.debug("DUMP_SETTINGS_02 command response: %s", DUMP_02_COMMAND_RESPONSE)
         # Create and populate the port agent packet.
@@ -699,8 +884,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
-        self.assertTrue(driver._protocol._get_response(expected_prompt = 
-                                                       IRIS_DUMP_02))
+        response = driver._protocol._get_response(expected_prompt = 
+                                                       IRIS_DUMP_02)
+        self.assertTrue(isinstance(response[1], IRISCommandResponse))
 
 
     def test_start_autosample(self):
@@ -738,7 +924,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         # Force the instrument into a known state
         self.assert_force_state(driver, DriverProtocolState.COMMAND)
 
-        result = driver._protocol._handler_command_start_autosample()
+        result = driver._protocol._handler_command_start_autosample(timeout = 0)
         ts = ntplib.system_to_ntp_time(time.time())
         result = driver._protocol._got_chunk(DATA_ON_COMMAND_RESPONSE, ts)
 
@@ -784,17 +970,93 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         ts = ntplib.system_to_ntp_time(time.time())
         result = driver._protocol._got_chunk(DATA_OFF_COMMAND_RESPONSE, ts)
 
-    def test_acquire_status(self):
+
+    def test_status_01_handler(self):
         mock_port_agent = Mock(spec=PortAgentClient)
         driver = InstrumentDriver(self._got_data_event_callback)
 
         def my_send(data):
-            my_response = DUMP_01_COMMAND_RESPONSE
+            my_response = DUMP_01_STATUS
             log.debug("my_send: data: %s, my_response: %s", data, my_response)
             driver._protocol._promptbuf += my_response
-            return len(DUMP_01_COMMAND_RESPONSE)
+            return len(DUMP_01_STATUS)
         mock_port_agent.send.side_effect = my_send
         
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into a known state
+        self.assert_force_state(driver, DriverProtocolState.AUTOSAMPLE)
+
+        result = driver._protocol._handler_command_autosample_dump01(timeout = 0)
+        tuple1 = result[1]
+        status_string = tuple1[1]
+        log.debug("STATUS_01 response: %r", status_string)
+        self.assertTrue(status_string == DUMP_01_STATUS)
+
+    def test_status_02_handler(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        def my_send(data):
+            my_response = DUMP_02_STATUS
+            log.debug("my_send: data: %s, my_response: %s", data, my_response)
+            driver._protocol._promptbuf += my_response
+            return len(DUMP_02_STATUS)
+        mock_port_agent.send.side_effect = my_send
+        
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into a known state
+        self.assert_force_state(driver, DriverProtocolState.AUTOSAMPLE)
+
+        result = driver._protocol._handler_command_autosample_dump02(timeout = 0)
+        tuple1 = result[1]
+        status_string = tuple1[1]
+        log.debug("STATUS_02 response: %r", result)
+        self.assertTrue(status_string == DUMP_02_STATUS)
+
+    def test_dump_01(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
         # Put the driver into test mode
         driver.set_test_mode(True)
 
@@ -819,24 +1081,64 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         # Force the instrument into command mode
         self.assert_force_state(driver, DriverProtocolState.COMMAND)
 
-        result = driver._protocol._handler_command_autosample_acquire_status()
         ts = ntplib.system_to_ntp_time(time.time())
+
         # DHE: need to return the status as a string; so, right now we check
         # the command response to the dump commands (which is totally bogus 
         # because it just echos exactly what we send, even if it's wrong)
         # but we really want to return the status as a string.  Might have to
         # expose the two commands to run separately instead of one combined
         # acquire_status
-        #result = driver._protocol._got_chunk(SIGNON_STATUS, ts)
-        #result = driver._protocol._got_chunk(DUMP_01_STATUS, ts)
-        #result = driver._protocol._got_chunk(DUMP_02_STATUS, ts)
-        result = driver._protocol._got_chunk(DUMP_01_COMMAND_RESPONSE, ts)
-        result = driver._protocol._got_chunk(DUMP_02_COMMAND_RESPONSE, ts)
-        #
-        # Need to veryify that an engineering particle is published, 
-        # but not defined yet.
-        #
+        driver._protocol._got_chunk(DUMP_01_STATUS, ts)
+        driver._protocol._got_chunk(DUMP_01_COMMAND_RESPONSE, ts)
 
+        response = driver._protocol._get_response(timeout = 0)
+        self.assertTrue(isinstance(response[1], IRISStatus_01_Particle))
+
+        
+    def test_dump_02(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into command mode
+        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+
+        ts = ntplib.system_to_ntp_time(time.time())
+
+        # DHE: need to return the status as a string; so, right now we check
+        # the command response to the dump commands (which is totally bogus 
+        # because it just echos exactly what we send, even if it's wrong)
+        # but we really want to return the status as a string.  Might have to
+        # expose the two commands to run separately instead of one combined
+        # acquire_status
+        result = driver._protocol._got_chunk(DUMP_02_STATUS, ts)
+        result = driver._protocol._got_chunk(DUMP_02_COMMAND_RESPONSE, ts)
+
+        response = driver._protocol._get_response(timeout = 0)
+        self.assertTrue(isinstance(response[1], IRISStatus_02_Particle))
+
+        
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.
@@ -904,7 +1206,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         
         log.debug("DATA_OFF returned: %r", response)
 
-    def test_acquire_status(self):
+    def test_dump_01(self):
         """
         @brief Test for acquiring status
         """
@@ -913,7 +1215,20 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         Issues acquire status command 
         """
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_STATUS)
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DUMP_01)
+        log.debug("DUMP_01 returned: %r", response)
+        
+    def test_dump_02(self):
+        """
+        @brief Test for acquiring status
+        """
+        self.assert_initialize_driver()
+
+        """
+        Issues acquire status command 
+        """
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DUMP_02)
+        log.debug("DUMP_02 returned: %r", response)
         
 
 ###############################################################################
@@ -977,7 +1292,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
                 ProtocolEvent.GET,
                 ProtocolEvent.SET,
                 ProtocolEvent.START_AUTOSAMPLE,
-                ProtocolEvent.ACQUIRE_STATUS,
+                ProtocolEvent.DUMP_01,
+                ProtocolEvent.DUMP_02,
                 ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -992,7 +1308,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
             ProtocolEvent.STOP_AUTOSAMPLE,
-            ProtocolEvent.ACQUIRE_STATUS,
+                ProtocolEvent.DUMP_01,
+                ProtocolEvent.DUMP_02,
             ]
 
         self.assert_start_autosample()
