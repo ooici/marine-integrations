@@ -465,6 +465,7 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         with self.assertRaises(InstrumentParameterException):
             self.protocol._verify_not_readonly({'rw': 1, 'ro': 2}, startup=True)
 
+
 @attr('UNIT', group='mi')
 class TestUnitMenuInstrumentProtocol(MiUnitTestCase):
     """

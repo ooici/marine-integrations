@@ -439,8 +439,33 @@ class SeaBird16plusMixin(DriverTestMixin):
 #         Unit tests test the method calls and parameters using Mock.         #
 ###############################################################################
 
-class SBEUnitTestCase(SeaBirdUnitTest):
+@attr('UNIT', group='mi')
+class SBEUnitTestCase(SeaBirdUnitTest, SeaBird16plusMixin):
     """Unit Test Driver"""
+    def test_driver_enums(self):
+        """
+        Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
+        do a little extra validation for the Capabilites
+        """
+        self.assert_enum_has_no_duplicates(Command())
+        self.assert_enum_has_no_duplicates(ScheduledJob())
+        self.assert_enum_has_no_duplicates(DataParticleType())
+        self.assert_enum_has_no_duplicates(ProtocolState())
+        self.assert_enum_has_no_duplicates(ProtocolEvent())
+
+        self.assert_enum_has_no_duplicates(Parameter())
+        self.assert_enum_complete(ConfirmedParameter(), Parameter())
+
+        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
+        self.assert_enum_has_no_duplicates(Capability())
+        self.assert_enum_complete(Capability(), ProtocolEvent())
+
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = self.InstrumentDriver(self._got_data_event_callback)
+        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
     def test_chunker(self):
         """
@@ -489,6 +514,39 @@ class SBEUnitTestCase(SeaBirdUnitTest):
         self.assert_particle_published(driver, self.VALID_DS_RESPONSE, self.assert_particle_status, True)
         self.assert_particle_published(driver, self.VALID_DCAL_QUARTZ, self.assert_particle_calibration_quartz, True)
         self.assert_particle_published(driver, self.VALID_DCAL_STRAIN, self.assert_particle_calibration_strain, True)
+
+    def test_capabilities(self):
+        """
+        Verify the FSM reports capabilities as expected.  All states defined in this dict must
+        also be defined in the protocol FSM.
+        """
+        capabilities = {
+            ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
+            ProtocolState.TEST: ['DRIVER_EVENT_GET',
+                                 'DRIVER_EVENT_RUN_TEST'],
+            ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                    'DRIVER_EVENT_ACQUIRE_STATUS',
+                                    'DRIVER_EVENT_CLOCK_SYNC',
+                                    'DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_SET',
+                                    'DRIVER_EVENT_TEST',
+                                    'DRIVER_EVENT_START_AUTOSAMPLE',
+                                    'DRIVER_EVENT_START_DIRECT',
+                                    'PROTOCOL_EVENT_GET_CONFIGURATION',
+                                    'PROTOCOL_EVENT_RESET_EC',
+                                    'PROTOCOL_EVENT_QUIT_SESSION',
+                                    'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC'],
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
+                                       'PROTOCOL_EVENT_QUIT_SESSION',
+                                       'DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                       'PROTOCOL_EVENT_GET_CONFIGURATION',
+                                       'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC',
+                                       'DRIVER_EVENT_ACQUIRE_STATUS'],
+            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
+        }
+
+        driver = self.InstrumentDriver(self._got_data_event_callback)
+        self.assert_capabilities(driver, capabilities)
 
     def test_parse_ds(self):
         """
@@ -552,64 +610,6 @@ class SBEUnitTestCase(SeaBirdUnitTest):
         pd = driver._protocol._param_dict.get_all(baseline)
         self.assertEqual(pd.get(Parameter.PTYPE), 3)
 
-    def test_driver_enums(self):
-        """
-        Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilites
-        """
-        self.assert_enum_has_no_duplicates(Command())
-        self.assert_enum_has_no_duplicates(ScheduledJob())
-        self.assert_enum_has_no_duplicates(DataParticleType())
-        self.assert_enum_has_no_duplicates(ProtocolState())
-        self.assert_enum_has_no_duplicates(ProtocolEvent())
-
-        self.assert_enum_has_no_duplicates(Parameter())
-        self.assert_enum_complete(ConfirmedParameter(), Parameter())
-
-        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
-        self.assert_enum_has_no_duplicates(Capability())
-        self.assert_enum_complete(Capability(), ProtocolEvent())
-
-    def test_driver_schema(self):
-        """
-        get the driver schema and verify it is configured properly
-        """
-        driver = self.InstrumentDriver(self._got_data_event_callback)
-        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
-
-    def test_capabilities(self):
-        """
-        Verify the FSM reports capabilities as expected.  All states defined in this dict must
-        also be defined in the protocol FSM.
-        """
-        capabilities = {
-            ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
-            ProtocolState.TEST: ['DRIVER_EVENT_GET',
-                                 'DRIVER_EVENT_RUN_TEST'],
-            ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                    'DRIVER_EVENT_ACQUIRE_STATUS',
-                                    'DRIVER_EVENT_CLOCK_SYNC',
-                                    'DRIVER_EVENT_GET',
-                                    'DRIVER_EVENT_SET',
-                                    'DRIVER_EVENT_TEST',
-                                    'DRIVER_EVENT_START_AUTOSAMPLE',
-                                    'DRIVER_EVENT_START_DIRECT',
-                                    'PROTOCOL_EVENT_GET_CONFIGURATION',
-                                    'PROTOCOL_EVENT_RESET_EC',
-                                    'PROTOCOL_EVENT_QUIT_SESSION',
-                                    'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC'],
-            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
-                                       'PROTOCOL_EVENT_QUIT_SESSION',
-                                       'DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                       'PROTOCOL_EVENT_GET_CONFIGURATION',
-                                       'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC',
-                                       'DRIVER_EVENT_ACQUIRE_STATUS'],
-            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
-        }
-
-        driver = self.InstrumentDriver(self._got_data_event_callback)
-        self.assert_capabilities(driver, capabilities)
-
     def test_parse_set_response(self):
         """
         Test response from set commands.
@@ -626,7 +626,7 @@ class SBEUnitTestCase(SeaBirdUnitTest):
 
         response = "<ERROR type='INVALID ARGUMENT' msg='out of range'/>"
         with self.assertRaises(InstrumentParameterException):
-            driver._protocol._parse_set_response(response, Prompt.EXECUTED)    
+            driver._protocol._parse_set_response(response, Prompt.EXECUTED)
 
 
 ###############################################################################
