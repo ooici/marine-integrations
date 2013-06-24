@@ -808,6 +808,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         Discover current state
         @retval (next_state, result)
         """
+        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF, 
+                                   expected_prompt = IRIS_DATA_OFF)
+        
         return (ProtocolState.COMMAND, ResourceAgentState.IDLE)
 
     ########################################################################
