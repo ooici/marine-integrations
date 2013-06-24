@@ -51,38 +51,21 @@ NEWLINE = '\r'
 # default timeout.
 TIMEOUT = 10
 
+# Conversion from SAMI time (seconds since 1904-01-01) to POSIX or Unix
+# timestamps (seconds since 1970-01-01). Add this value to convert POSIX
+# timestamps to SAMI, and subtract for the reverse.
+SAMI_EPOCH = 2082844800
+
+
 ###
 #    Driver Constant Definitions
 ###
-# This will decode n+1 chars for {n}
-REGULAR_STATUS_REGEX = r'[:](\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{3})(\w[0-9A-Fa-f])(\w[0-9A-Fa-f])'
-REGULAR_STATUS_REGEX_MATCHER = re.compile(REGULAR_STATUS_REGEX)
-
-# Record Type4 or 5 are 39 bytes (78char)
-RECORD_REGEX = r'[*](\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f])'
-RECORD_REGEX_MATCHER = re.compile(RECORD_REGEX)
-
-DATA_RECORD_REGEX = r'[*](\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[4-5]{1})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{57})'
-CONTROL_RECORD_REGEX = r'[*](\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})([^4-5]{1})(\w[0-9A-Fa-f]{32})'  # This works.
-DATA_RECORD_REGEX_MATCHER = re.compile(DATA_RECORD_REGEX)
-CONTROL_RECORD_REGEX_MATCHER = re.compile(CONTROL_RECORD_REGEX)
-
-# Note: First string character "C" is valid for current time.
-CONFIG_REGEX = r'[C](\w[0-9A-Fa-f]{6})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{7})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{5})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{5})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{5})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{5})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{5})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{25})(\w[0-9A-Fa-f]{5})(\w[0-9A-Fa-f]{3})(\w[0-9A-Fa-f]{1})(\w[0-9A-Fa-f]{99})'
-CONFIG_REGEX_MATCHER = re.compile(CONFIG_REGEX)
-
-ERROR_REGEX = r'[?](\w[0-9A-Fa-f]{1})' # (\w[0-9A-Fa-f])'
-ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
-
-IMMEDIATE_STATUS_REGEX = r'(\w[0-9A-Fa-f]{1})'
-IMMEDIATE_STATUS_REGEX_MATCHER = re.compile(IMMEDIATE_STATUS_REGEX)
-
-
 class DataParticleType(BaseEnum):
     """
     Data particle types produced by this driver
     """
     RAW = CommonDataParticleType.RAW
+
 
 class ProtocolState(BaseEnum):
     """
@@ -94,6 +77,7 @@ class ProtocolState(BaseEnum):
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
     TEST = DriverProtocolState.TEST
     CALIBRATE = DriverProtocolState.CALIBRATE
+
 
 class ProtocolEvent(BaseEnum):
     """
@@ -113,6 +97,7 @@ class ProtocolEvent(BaseEnum):
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
+
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
@@ -123,15 +108,48 @@ class Capability(BaseEnum):
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
     ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
 
+
 class Parameter(DriverParameter):
     """
     Device specific parameters.
     """
+    LAUNCH_TIME = 'launch_time'
+    START_TIME_FROM_LAUNCH = 'start_time_from_launch'
+    STOP_TIME_FROM_START = 'stop_time_from_start'
+    MODE_BITS = 'mode_bits'
+    SAMI_SAMPLE_INTERVAL = 'sami_sample_interval'
+    SAMI_DRIVER_VERSION = 'sami_driver_version'
+    SAMI_PARAMS_POINTER = 'sami_params_pointer'
+    DEVICE1_SAMPLE_INTERVAL = 'device1_sample_interval'
+    DEVICE1_DRIVER_VERSION = 'device1_driver_version'
+    DEVICE1_PARAMS_POINTER = 'device1_params_pointer'
+    DEVICE2_SAMPLE_INTERVAL = 'device2_sample_interval'
+    DEVICE2_DRIVER_VERSION = 'device2_driver_version'
+    DEVICE2_PARAMS_POINTER = 'device2_params_pointer'
+    DEVICE3_SAMPLE_INTERVAL = 'device3_sample_interval'
+    DEVICE3_DRIVER_VERSION = 'device3_driver_version'
+    DEVICE3_PARAMS_POINTER = 'device3_params_pointer'
+    PRESTART_SAMPLE_INTERVAL = 'prestart_sample_interval'
+    PRESTART_DRIVER_VERSION = 'prestart_driver_version'
+    PRESTART_PARAMS_POINTER = 'prestart_params_pointer'
+    GLOBAL_CONFIGURATION = 'global_configuration'
+    PUMP_PULSE = 'pump_pulse'
+    PUMP_DURATION = 'pump_duration'
+    SAMPLES_PER_MEASUREMENT = 'samples_per_measurement'
+    CYCLES_BETWEEN_BLANKS = 'cycles_between_blanks'
+    NUMBER_REAGENT_CYCLES = 'number_reagent_cycles'
+    NUMBER_BLANK_CYCLES = 'number_blank_cycles'
+    FLUSH_PUMP_INTERVAL = 'flush_pump_interval'
+    BIT_SWITCHES = 'bit_switches'
+    NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
+    EXTERNAL_PUMP_SETTINGS = 'external_pump_settings'
+
 
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
     """
+
 
 class InstrumentCommand(BaseEnum):
     """
@@ -142,7 +160,112 @@ class InstrumentCommand(BaseEnum):
 ###############################################################################
 # Data Particles
 ###############################################################################
+# Regular Status Strings (produced every 1 Hz or in response to S0 command)
+REGULAR_STATUS_REGEX = r'[:]([0-9A-Fa-f]{8})([0-9A-Fa-f]{4})([0-9A-Fa-f]{6})' + \
+                       '([0-9A-Fa-f]{6})([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})'
+REGULAR_STATUS_REGEX_MATCHER = re.compile(REGULAR_STATUS_REGEX)
 
+# Control Records (Types 0x80 - 0xFF)
+CONTROL_RECORD_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([8-9A-Fa-f][0-9A-Fa-f])' + \
+                       '([0-9A-Fa-f]{8})([0-9A-Fa-f]{4})([0-9A-Fa-f]{6})' + \
+                       '([0-9A-Fa-f]{6})([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})'
+CONTROL_RECORD_REGEX_MATCHER = re.compile(CONTROL_RECORD_REGEX)
+
+# SAMI Sample Records (Types 0x04 or 0x05)
+SAMI_SAMPLE_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(04|05)' + \
+                    '([0-9A-Fa-f]{2})([0-9A-Fa-f]{56})([0-9A-Fa-f]{4})' + \
+                    '([0-9A-Fa-f]{4})([0-9A-Fa-f]{2})'
+SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
+
+# Device 1 Sample Records (Type 0x11)
+DEV1_SAMPLE_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(11)([0-9A-Fa-f]{8}'
+DEV1_SAMPLE_REGEX_MATCHER = re.compile(DEV1_SAMPLE_REGEX)
+
+# Configuration Records
+CONFIGURATION_REGEX = r'([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})' + \
+                      '([0-9A-Fa-f]{2})' + \
+                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+                      '([0-9A-Fa-f]{2})' + \
+                      '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+                      '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+                      '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+                      '([0-9A-Fa-f]{2})' + \
+                      '([0-9A-Fa-f]+)'
+CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
+
+# Error records
+ERROR_REGEX = r'[?]([0-9A-Fa-f]{2})'
+ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
+
+
+class Pco2aAirSampleDataParticleKey(BaseEnum):
+    """
+    Data particle key for air sample
+    """
+    DATE_TIME_STRING = "date_time_string"
+    BEGIN_MEASUREMENT = "begin_measurement"
+    ZERO_A2D = "zero_a2d"
+    CURRENT_A2D = "current_a2d"
+    MEASURED_AIR_CO2 = "measured_air_co2"
+    AVG_IRG_TEMPERATURE = "avg_irga_temperature"
+    HUMIDITY = "humidity"
+    HUMIDITY_TEMPERATURE = "humidity_temperature"
+    GAS_STREAM_PRESSURE = "gas_stream_pressure"
+    IRGA_DETECTOR_TEMPERATURE = "irga_detector_temperature"
+    IRGA_SOURCE_TEMPERATURE = "irga_source_temperature"
+
+
+class Pco2aAirSampleDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into an air sample data particle structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+    _data_particle_type = DataParticleType.AIR_SAMPLE
+
+    def _build_parsed_values(self):
+        """
+        Parse air sample values from raw data into a dictionary
+        """
+
+        matched = AIR_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        particle_keys = [Pco2aAirSampleDataParticleKey.DATE_TIME_STRING,
+                         Pco2aAirSampleDataParticleKey.BEGIN_MEASUREMENT,
+                         Pco2aAirSampleDataParticleKey.ZERO_A2D,
+                         Pco2aAirSampleDataParticleKey.CURRENT_A2D,
+                         Pco2aAirSampleDataParticleKey.MEASURED_AIR_CO2,
+                         Pco2aAirSampleDataParticleKey.AVG_IRG_TEMPERATURE,
+                         Pco2aAirSampleDataParticleKey.HUMIDITY,
+                         Pco2aAirSampleDataParticleKey.HUMIDITY_TEMPERATURE,
+                         Pco2aAirSampleDataParticleKey.GAS_STREAM_PRESSURE,
+                         Pco2aAirSampleDataParticleKey.IRGA_DETECTOR_TEMPERATURE,
+                         Pco2aAirSampleDataParticleKey.IRGA_SOURCE_TEMPERATURE]
+
+        result = []
+        index = 1
+        for key in particle_keys:
+            if key in [Pco2aAirSampleDataParticleKey.DATE_TIME_STRING,
+                       Pco2aAirSampleDataParticleKey.BEGIN_MEASUREMENT]:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: matched.group(index)})
+            elif key in [Pco2aAirSampleDataParticleKey.ZERO_A2D,
+                         Pco2aAirSampleDataParticleKey.CURRENT_A2D,
+                         Pco2aAirSampleDataParticleKey.GAS_STREAM_PRESSURE]:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: int(matched.group(index))})
+            else:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: float(matched.group(index))})
+            index += 1
+
+        return result
 
 ###############################################################################
 # Driver

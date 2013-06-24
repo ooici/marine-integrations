@@ -21,7 +21,8 @@ import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -29,6 +30,7 @@ from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
+from mi.idk.unit_test import ParameterTestConfigKey
 
 from interface.objects import AgentCommand
 
@@ -52,6 +54,7 @@ from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Parameter
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Protocol
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Prompt
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import NEWLINE
+from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SAMI_EPOCH
 
 ###
 #   Driver parameters for the tests
@@ -67,42 +70,6 @@ InstrumentDriverTestCase.initialize(
     driver_startup_config={}
 )
 
-###
-# Sample data strings for testing
-###
-# Configuration string received from the instrument via the L command (clock
-# set to 2014-01-01 00:00:00) with sampling set to start 540 days (~18 months)
-# later and stop 365 days after that. SAMI and Device1 (external SBE pump) are
-# set to run every 60 minutes, but will be polled on a regular schedule rather
-# than autosampled. Device1 is not configured to run after the SAMI and will
-# run for 10 seconds. To configure the instrument using this string, add a null
-# byte (00) to the end of the string.
-VALID_CONFIG_STRING = 'CEE90B0002C7EA0001E133800A000E100402000E10010B' + \
-                      '000000000D000000000D000000000D07' + \
-                      '1020FF54181C01003814' + \
-                      '000000000000000000000000000000000000000000000000000' + \
-                      '000000000000000000000000000000000000000000000000000' + \
-                      '0000000000000000000000000000' + \
-                      'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-                      'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-                      'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-                      'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-                      'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-                      'FFFFFFFFFFFFFFFFFFFFFFFFFFF'
-
-# Regular Status Message (response to S0 command)
-VALID_STATUS_MESSAGE = ':CEE90B1B004100000100000000021254' + NEWLINE
-
-# Data records -- SAMI and Device1 (external pump) (responses to R0 and R1
-# commands, respectively)
-VALID_R0_BLANK_SAMPLE = '^05' + NEWLINE + '*542705CEE91CC80040001909620680' + \
-                        '0730074C2CE04274003B0018096106800732074E0D82066124' + NEWLINE
-VALID_R0_DATA_SAMPLE = '^04' + NEWLINE + '*542704CEE91DD2003B0019096201550' + \
-                       '73003E908A1232D0043001A09620154072F03EA0D92065F46' + NEWLINE
-VALID_R1_SAMPLE = '^11' + NEWLINE + '*540711CEE91DE2CE' + NEWLINE
-
-# Control record
-VALID_CONTROL_RECORD = '*541280CEE90B170041000001000000000200AF' + NEWLINE
 
 #################################### RULES ####################################
 #                                                                             #
@@ -120,11 +87,6 @@ VALID_CONTROL_RECORD = '*541280CEE90B170041000001000000000200AF' + NEWLINE
 ###
 # Driver constant definitions
 ###
-# Conversion from SAMI time (seconds since 1904-01-01) to POSIX or Unix
-# timestamps (seconds since 1970-01-01). Add this value to convert POSIX
-# timestamps to SAMI, and subtract for the reverse.
-POSIX_TIME_TO_SAMI = 2082844800
-
 
 ###############################################################################
 #                           DRIVER TEST MIXIN                                 #
@@ -154,136 +116,140 @@ class DriverTestMixinSub(DriverTestMixin):
     STATES = ParameterTestConfigKey.STATES
 
     ###
+    #  Instrument output (driver input) Definitions
+    ###
+    # Configuration string received from the instrument via the L command (clock
+    # set to 2014-01-01 00:00:00) with sampling set to start 540 days (~18 months)
+    # later and stop 365 days after that. SAMI and Device1 (external SBE pump) are
+    # set to run every 60 minutes, but will be polled on a regular schedule rather
+    # than autosampled. Device1 is not configured to run after the SAMI and will
+    # run for 10 seconds. To configure the instrument using this string, add a null
+    # byte (00) to the end of the string.
+    VALID_CONFIG_STRING = 'CEE90B0002C7EA0001E133800A000E100402000E10010B' + \
+                          '000000000D000000000D000000000D07' + \
+                          '1020FF54181C01003814' + \
+                          '000000000000000000000000000000000000000000000000000' + \
+                          '000000000000000000000000000000000000000000000000000' + \
+                          '0000000000000000000000000000' + \
+                          'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+                          'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+                          'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+                          'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+                          'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+                          'FFFFFFFFFFFFFFFFFFFFFFFFFFF'
+
+    # Regular Status Message (response to S0 command)
+    VALID_STATUS_MESSAGE = ':CEE90B1B004100000100000000021254' + NEWLINE
+
+    # Data records -- SAMI and Device1 (external pump) (responses to R0 and R1
+    # commands, respectively)
+    VALID_R0_BLANK_SAMPLE = '^05' + NEWLINE + '*542705CEE91CC80040001909620680' + \
+                            '0730074C2CE04274003B0018096106800732074E0D82066124' + NEWLINE
+    VALID_R0_DATA_SAMPLE = '^04' + NEWLINE + '*542704CEE91DD2003B0019096201550' + \
+                           '73003E908A1232D0043001A09620154072F03EA0D92065F46' + NEWLINE
+    VALID_R1_SAMPLE = '^11' + NEWLINE + '*540711CEE91DE2CE' + NEWLINE
+
+    # Control record
+    VALID_CONTROL_RECORD = '*541280CEE90B170041000001000000000200AF' + NEWLINE
+
+    ###
     #  Parameter and Type Definitions
     ###
-    # [TODO] Update IOS to use Device 1 settings
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.LAUNCH_TIME:              {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.LAUNCH_TIME:              {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x00000000, VALUE: 0xCEE90B00},
-        Parameter.START_TIME_FROM_LAUNCH:   {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.START_TIME_FROM_LAUNCH:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x02C7EA00, VALUE: 0x02C7EA00},
-        Parameter.STOP_TIME_FROM_START:     {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.STOP_TIME_FROM_START:     {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x01E13380, VALUE: 0x01E13380},
-        Parameter.MODE_BITS:                {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.MODE_BITS:                {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x0A, VALUE: 0x0A},
-        Parameter.SAMI_SAMPLE_INTERVAL:     {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.SAMI_SAMPLE_INTERVAL:     {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x000E10, VALUE: 0x000E10},
-        Parameter.SAMI_DRIVER_VERSION:      {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.SAMI_DRIVER_VERSION:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x04, VALUE: 0x04},
-        Parameter.SAMI_PARAMS_POINTER:      {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.SAMI_PARAMS_POINTER:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x02, VALUE: 0x02},
-        Parameter.DEVICE1_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.DEVICE1_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x000E10, VALUE: 0x000E10},
-        Parameter.DEVICE1_DRIVER_VERSION:   {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.DEVICE1_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x01, VALUE: 0x01},
-        Parameter.DEVICE1_PARAMS_POINTER:   {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.DEVICE1_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x0B, VALUE: 0x0B},
-        Parameter.DEVICE2_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.DEVICE2_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x000000, VALUE: 0x000000},
-        Parameter.DEVICE2_DRIVER_VERSION:   {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.DEVICE2_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00},
-        Parameter.DEVICE2_PARAMS_POINTER:   {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.DEVICE2_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x0D, VALUE: 0x0D},
-        Parameter.DEVICE3_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.DEVICE3_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x000000, VALUE: 0x000000},
-        Parameter.DEVICE3_DRIVER_VERSION:   {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.DEVICE3_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00},
-        Parameter.DEVICE3_PARAMS_POINTER:   {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.DEVICE3_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x0D, VALUE: 0x0D},
-        Parameter.PRESTART_SAMPLE_INTERVAL: {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.PRESTART_SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x000000, VALUE: 0x000000},
-        Parameter.PRESTART_DRIVER_VERSION:  {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.PRESTART_DRIVER_VERSION:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00},
-        Parameter.PRESTART_PARAMS_POINTER:  {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.PRESTART_PARAMS_POINTER:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x0D, VALUE: 0x0D},
-        Parameter.GLOBAL_CONFIGURATION:     {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.GLOBAL_CONFIGURATION:     {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x07, VALUE: 0x07},
-        Parameter.PUMP_PULSE:               {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.PUMP_PULSE:               {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x10, VALUE: 0x10},
-        Parameter.PUMP_DURATION:            {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.PUMP_DURATION:            {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x20, VALUE: 0x20},
-        Parameter.SAMPLES_PER_MEASUREMENT:  {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.SAMPLES_PER_MEASUREMENT:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0xFF, VALUE: 0xFF},
-        Parameter.CYCLES_BETWEEN_BLANKS:    {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.CYCLES_BETWEEN_BLANKS:    {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x54, VALUE: 0x54},
-        Parameter.NUMBER_REAGENT_CYCLES:    {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.NUMBER_REAGENT_CYCLES:    {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x18, VALUE: 0x18},
-        Parameter.NUMBER_BLANK_CYCLES:      {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.NUMBER_BLANK_CYCLES:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x1C, VALUE: 0x1C},
-        Parameter.FLUSH_PUMP_INTERVAL:      {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.FLUSH_PUMP_INTERVAL:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x01, VALUE: 0x01},
-        Parameter.BIT_SWITCHES:             {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.BIT_SWITCHES:             {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00},
-        Parameter.NUMBER_EXTRA_PUMP_CYCLES: {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.NUMBER_EXTRA_PUMP_CYCLES: {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x38, VALUE: 0x38},
-        Parameter.EXTERNAL_PUMP_SETTINGS:   {TYPE: int, READONLY: True,
-                                             DA: False, STARTUP: False,
+        Parameter.EXTERNAL_PUMP_SETTINGS:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x14, VALUE: 0x14}
     }
 
     # [TODO] Consider moving to base class as these apply to both PCO2 and pH
     _driver_capabilities = {
         # capabilities defined in the IOS
-        Capability.START_DIRECT_ACCESS: {STATES: [ProtocolState.COMMAND,
-                                                  ProtocolState.DIRECT_ACCESS]}
-        Capability.STOP_DIRECT_ACCESS:  {STATES: [ProtocolState.DIRECT_ACCESS,
-                                                  ProtocolState.COMMAND]}
         Capability.ACQUIRE_STATUS:      {STATES: [ProtocolState.COMMAND]},
         Capability.ACQUIRE_SAMPLE:      {STATES: [ProtocolState.COMMAND]}
     }
 
-    _sami_sample_parameters = {
-        # SAMI Type 4/5 sample (in this case it is a Type 4)
-        Pco2wSamiSampleDataParticleKey.UNIQUE_ID:           {TYPE: int, VALUE: 0x54, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.RECORD_LENGTH:       {TYPE: int, VALUE: 0x27, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.RECORD_TYPE:         {TYPE: int, VALUE: 0x04, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.RECORD_TIME:         {TYPE: int, VALUE: 0xCEE91DD2, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENT:   {TYPE: list, VALUE: [0x003B, 0x0019, 0x0962, 0x0155,
-                                                                                 0x0730, 0x03E9, 0x08A1, 0x232D,
-                                                                                 0x0043, 0x001A, 0x0962, 0x0154,
-                                                                                 0x072F, 0x03EA], REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTERY:     {TYPE: int, VALUE: 0x0D92, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.THERMISTER_RAW:      {TYPE: int, VALUE: 0x065F, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.CHECKSUM:            {TYPE: int, VALUE: 0x46, REQUIRED: True}
-    }
-
-    _dev1_sample_parameters = {
-        # Device 1 (external pump) Type 17 sample
-        Pco2wDev1SampleDataParticleKey.UNIQUE_ID:        {TYPE: int, VALUE: 0x54, REQUIRED: True},
-        Pco2wDev1SampleDataParticleKey.RECORD_LENGTH:    {TYPE: int, VALUE: 0x07, REQUIRED: True},
-        Pco2wDev1SampleDataParticleKey.RECORD_TYPE:      {TYPE: int, VALUE: 0x11,  REQUIRED: True},
-        Pco2wDev1SampleDataParticleKey.RECORD_TIME:      {TYPE: int, VALUE: 0xCEE91DE2, REQUIRED: True},
-        Pco2wDev1SampleDataParticleKey.CHECKSUM:         {TYPE: int, VALUE: 0xCE, REQUIRED: True}
+    # [TODO] Consider moving to base class as these apply to both PCO2 and pH
+    _regular_status_parameters = {
+        # SAMI Regular Status Messages (S0)
+        SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG:       {TYPE: int, VALUE: 0xCEE90B1B, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.CLOCK_ACTIVE:              {TYPE: bool, VALUE: True, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.RECORDING_ACTIVE:          {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME:        {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.RECORD_MEMORY_FULL:        {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.RECORD_END_ON_ERROR:       {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.DATA_DOWNLOAD_OK:          {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.FLASH_MEMORY_OPEN:         {TYPE: bool, VALUE: True, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.BATTERY_LOW_PRESTART:      {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.BATTERY_LOW_MEASUREMENT:   {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.BATTERY_LOW_BANK:          {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.BATTERY_LOW_EXTERNAL:      {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE1_FAULT:    {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE2_FAULT:    {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT:    {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.FLASH_ERASED:              {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.POWER_ON_INVALID:          {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS:          {TYPE: int, VALUE: 0x000001, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS:         {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.NUM_BYTES_STORED:          {TYPE: int, VALUE: 0x000212, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.CHECKSUM:                  {TYPE: int, VALUE: 0x54, REQUIRED: True}
     }
 
     # [TODO] Consider moving to base class as these apply to both PCO2 and pH
@@ -314,30 +280,28 @@ class DriverTestMixinSub(DriverTestMixin):
         Pco2wControlRecordDataParticleKey.CHECKSUM:                 {TYPE: int, VALUE: 0xAF, REQUIRED: True},
     }
 
-    # [TODO] Consider moving to base class as these apply to both PCO2 and pH
-    _regular_status_parameters = {
-        # SAMI Regular Status Messages (S0)
-        SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG:       {TYPE: int, VALUE: 0xCEE90B1B, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.CLOCK_ACTIVE:              {TYPE: bool, VALUE: True, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.RECORDING_ACTIVE:          {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME:        {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.RECORD_MEMORY_FULL:        {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.RECORD_END_ON_ERROR:       {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.DATA_DOWNLOAD_OK:          {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.FLASH_MEMORY_OPEN:         {TYPE: bool, VALUE: True, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.BATTERY_LOW_PRESTART:      {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.BATTERY_LOW_MEASUREMENT:   {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.BATTERY_LOW_BANK:          {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.BATTERY_LOW_EXTERNAL:      {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE1_FAULT:    {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE2_FAULT:    {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT:    {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.FLASH_ERASED:              {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.POWER_ON_INVALID:          {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS:          {TYPE: int, VALUE: 0x000001, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS:         {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.NUM_BYTES_STORED:          {TYPE: int, VALUE: 0x000212, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.CHECKSUM:                  {TYPE: int, VALUE: 0x54, REQUIRED: True}
+    _sami_sample_parameters = {
+        # SAMI Type 4/5 sample (in this case it is a Type 4)
+        Pco2wSamiSampleDataParticleKey.UNIQUE_ID:           {TYPE: int, VALUE: 0x54, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.RECORD_LENGTH:       {TYPE: int, VALUE: 0x27, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.RECORD_TYPE:         {TYPE: int, VALUE: 0x04, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.RECORD_TIME:         {TYPE: int, VALUE: 0xCEE91DD2, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS:  {TYPE: list, VALUE: [0x003B, 0x0019, 0x0962, 0x0155,
+                                                                                 0x0730, 0x03E9, 0x08A1, 0x232D,
+                                                                                 0x0043, 0x001A, 0x0962, 0x0154,
+                                                                                 0x072F, 0x03EA], REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTERY:     {TYPE: int, VALUE: 0x0D92, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.THERMISTER_RAW:      {TYPE: int, VALUE: 0x065F, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.CHECKSUM:            {TYPE: int, VALUE: 0x46, REQUIRED: True}
+    }
+
+    _dev1_sample_parameters = {
+        # Device 1 (external pump) Type 17 sample
+        Pco2wDev1SampleDataParticleKey.UNIQUE_ID:        {TYPE: int, VALUE: 0x54, REQUIRED: True},
+        Pco2wDev1SampleDataParticleKey.RECORD_LENGTH:    {TYPE: int, VALUE: 0x07, REQUIRED: True},
+        Pco2wDev1SampleDataParticleKey.RECORD_TYPE:      {TYPE: int, VALUE: 0x11,  REQUIRED: True},
+        Pco2wDev1SampleDataParticleKey.RECORD_TIME:      {TYPE: int, VALUE: 0xCEE91DE2, REQUIRED: True},
+        Pco2wDev1SampleDataParticleKey.CHECKSUM:         {TYPE: int, VALUE: 0xCE, REQUIRED: True}
     }
 
     _configuration_parameters = {
@@ -355,19 +319,19 @@ class DriverTestMixinSub(DriverTestMixin):
         Pco2wConfigurationDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE:   {TYPE: bool, VALUE: False, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_SAMI:          {TYPE: int, VALUE: 0x000E10, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.DRIVER_ID_SAMI:               {TYPE: int, VALUE: 0x04,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PARAM_PTR_SAMI:               {TYPE: int, VALUE: 0x02,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_1:             {TYPE: int, VALUE: 0x000E10, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.DRIVER_ID_1:                  {TYPE: int, VALUE: 0x01,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PARAM_PTR_1:                  {TYPE: int, VALUE: 0x0B, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_2:             {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.DRIVER_ID_2:                  {TYPE: int, VALUE: 0x00,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PARAM_PTR_2:                  {TYPE: int, VALUE: 0x0D, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_3:             {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.DRIVER_ID_3:                  {TYPE: int, VALUE: 0x00,  REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PARAM_PTR_3:                  {TYPE: int, VALUE: 0x0D, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_SAMI:       {TYPE: int, VALUE: 0x02,  REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE1:       {TYPE: int, VALUE: 0x000E10, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.DRIVER_ID_DEVICE1:            {TYPE: int, VALUE: 0x01,  REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE1:    {TYPE: int, VALUE: 0x0B, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE2:       {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.DRIVER_ID_DEVICE2:            {TYPE: int, VALUE: 0x00,  REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE2:    {TYPE: int, VALUE: 0x0D, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE3:       {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.DRIVER_ID_DEVICE3:            {TYPE: int, VALUE: 0x00,  REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE3:    {TYPE: int, VALUE: 0x0D, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_PRESTART:      {TYPE: int, VALUE: 0x000000, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.DRIVER_ID_PRESTART:           {TYPE: int, VALUE: 0x00, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PARAM_PTR_PRESTART:           {TYPE: int, VALUE: 0x0D, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_PRESTART:   {TYPE: int, VALUE: 0x0D, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.USE_BAUD_RATE_57600:          {TYPE: bool, VALUE: True, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.SEND_RECORD_TYPE:             {TYPE: bool, VALUE: True, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.SEND_LIVE_RECORDS:            {TYPE: bool, VALUE: True, REQUIRED: True},
@@ -381,13 +345,12 @@ class DriverTestMixinSub(DriverTestMixin):
         Pco2wConfigurationDataParticleKey.FLUSH_PUMP_INTERVAL:          {TYPE: int, VALUE: 0x01,  REQUIRED: True},
         Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH:    {TYPE: bool, VALUE: False, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE:     {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.NUM_EXTRA_PUMP_PULSE_CYCLES:  {TYPE: int,  VALUE: 0x38, REQUIRED: True},
-        # Device 1 settings [TODO: Name this parameter]
-        Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_RUN_TIME:       {TYPE: int,  VALUE: 0x14, REQUIRED: True}
+        Pco2wConfigurationDataParticleKey.CYCLE_RATE:                   {TYPE: int,  VALUE: 0x38, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTING:        {TYPE: int,  VALUE: 0x14, REQUIRED: True}
     }
 
     ###
-    #  Instrument output (driver input) Definitions
+    #   Driver Parameter Methods
     ###
     def assertSampleDataParticle(self, data_particle):
         '''
@@ -401,6 +364,87 @@ class DriverTestMixinSub(DriverTestMixin):
             log.error("Unknown Particle Detected: %s" % data_particle)
             self.assertFalse(True)
 
+    def assert_driver_parameters(self, current_parameters,
+                                 verify_values=False):
+        """
+        Verify that all driver parameters are correct and potentially verify
+        values.
+        @param current_parameters: driver parameters read from the driver
+        instance
+        @param verify_values: should we verify values against definition?
+        """
+        self.assert_parameters(current_parameters, self._driver_parameters,
+                               verify_values)
+
+    def assert_particle_regular_status(self, data_particle, verify_values=False):
+        '''
+        Verify regular_status particle
+        @param data_particle: SamiRegularStatusDataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(SamiRegularStatusDataParticleKey,
+                                       self._regular_status_parameters)
+        self.assert_data_particle_header(data_particle,
+                                         DataParticleType.REGULAR_STATUS)
+        self.assert_data_particle_parameters(data_particle,
+                                             self._regular_status_parameters,
+                                             verify_values)
+
+    def assert_particle_control_record(self, data_particle, verify_values=False):
+        '''
+        Verify control_record particle
+        @param data_particle: SamiControlRecordDataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(SamiControlRecordDataParticleKey,
+                                       self._control_record_parameters)
+        self.assert_data_particle_header(data_particle,
+                                         DataParticleType.CONTROL_RECORD)
+        self.assert_data_particle_parameters(data_particle,
+                                             self._control_record_parameters,
+                                             verify_values)
+
+    def assert_particle_sami_sample(self, data_particle, verify_values=False):
+        '''
+        Verify sami_sample particle
+        @param data_particle: Pco2wSamiSampleDataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(Pco2wSamiSampleDataParticleKey,
+                                       self._sami_sample_parameters)
+        self.assert_data_particle_header(data_particle,
+                                         DataParticleType.SAMI_SAMPLE)
+        self.assert_data_particle_parameters(data_particle,
+                                             self._sami_sample_parameters,
+                                             verify_values)
+
+    def assert_particle_dev1_sample(self, data_particle, verify_values=False):
+        '''
+        Verify dev1_sample particle
+        @param data_particle: Pco2wDev1SampleDataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(Pco2wDev1SampleDataParticleKey,
+                                       self._dev1_sample_parameters)
+        self.assert_data_particle_header(data_particle,
+                                         DataParticleType.DEV1_SAMPLE)
+        self.assert_data_particle_parameters(data_particle,
+                                             self._dev1_sample_parameters,
+                                             verify_values)
+
+    def assert_particle_configuration(self, data_particle, verify_values=False):
+        '''
+        Verify configuration particle
+        @param data_particle: Pco2wConfigurationDataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(Pco2wConfigurationDataParticleKey,
+                                       self._configuration_parameters)
+        self.assert_data_particle_header(data_particle,
+                                         DataParticleType.CONFIGURATION)
+        self.assert_data_particle_parameters(data_particle,
+                                             self._configuration_parameters,
+                                             verify_values)
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -431,7 +475,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(InstrumentCommand())
 
-        # Test capabilites for duplicates, them verify that capabilities is a
+        # Test capabilites for duplicates, then verify that capabilities is a
         # subset of proto events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
