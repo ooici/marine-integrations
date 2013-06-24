@@ -385,7 +385,7 @@ class IRISStatus_01_Particle(DataParticle):
         pattern += r'(.*?),' # group 1: time
         pattern += r'\*APPLIED GEOMECHANICS'
         pattern += r'.*?' # non-greedy match of all the junk between
-        pattern += r'baud FV-.*?' + NEWLINE
+        pattern += r'baud FV- *?' + NEWLINE
         return pattern
 
     @staticmethod
@@ -451,7 +451,7 @@ class IRISStatus_02_Particle(DataParticle):
         pattern += r'(.*?),' # group 1: time
         pattern += r'\*01: TBias:' # unique identifier for status
         pattern += r'.*?' # non-greedy match of all the junk between
-        pattern += r'BAE Scale Factor: (.*)' + NEWLINE
+        pattern += r'BAE Scale Factor: (.*)\(arcseconds/bit\)' + NEWLINE
         return pattern
 
     @staticmethod

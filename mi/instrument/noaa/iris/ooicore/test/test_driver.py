@@ -602,7 +602,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
                                                        IRIS_DATA_ON))
 
     """
-    Verify that the driver correctly parses the DATA_OFF response
+    Verify that the driver correctly parses the DUMP-SETTINGS response
     """
     def test_status_01(self):
         """
@@ -779,6 +779,46 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         port_agent_packet.pack_header()
         driver._protocol.got_data(port_agent_packet)
 
+
+    """
+    Verify that the driver correctly parses the DUMP2 response
+    """
+    def test_status_02(self):
+        """
+        """
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into a known state
+        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        ts = ntplib.system_to_ntp_time(time.time())
+
+        log.debug("DUMP_02_STATUS: %s", DUMP_02_STATUS)
+        # Create and populate the port agent packet.
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data(DUMP_02_STATUS + DUMP_02_COMMAND_RESPONSE)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        driver._protocol.got_data(port_agent_packet)
 
     """
     Verify that the driver correctly parses the DATA_OFF response
