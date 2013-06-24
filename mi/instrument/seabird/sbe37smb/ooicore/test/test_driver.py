@@ -21,6 +21,7 @@ import gevent
 import re
 import json
 import copy
+from pprint import PrettyPrinter
 
 # Standard lib imports
 import time
@@ -51,6 +52,7 @@ from mi.instrument.seabird.sbe37smb.ooicore.test.sample_data import *
 from mi.instrument.seabird.sbe37smb.ooicore.driver import DataParticleType
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolState
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Parameter
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Prompt
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37ProtocolEvent
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Capability
 from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37DataParticle
@@ -112,6 +114,7 @@ from pyon.core.exception import ResourceError
 
 from interface.objects import CapabilityType
 from interface.objects import AgentCapability
+from mi.idk.unit_test import DriverStartupConfigKey
 
 ###
 #   Driver parameters for the tests
@@ -147,7 +150,12 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id = '123xyz',
     instrument_agent_preload_id = 'IA2',
     instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = DataParticleType()
+    instrument_agent_packet_config = DataParticleType(),
+    driver_startup_config = {
+        DriverStartupConfigKey.PARAMETERS: {
+            SBE37Parameter.INTERVAL: 1,
+        },
+    }
 )
 #
 
@@ -457,6 +465,19 @@ class SBEUnitTestCase(SeaBirdUnitTest, SBEMixin):
         self.assert_particle_published(driver, SAMPLE_DC, self.assert_particle_device_calibration, True)
         self.assert_particle_published(driver, SAMPLE_DS, self.assert_particle_device_status, True)
 
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = SBE37Driver(self._got_data_event_callback)
+
+        config_json = driver.get_config_metadata()
+        self.assertIsNotNone(config_json)
+        config = json.loads(config_json)
+
+        pp = PrettyPrinter()
+        log.debug("Config: %s", pp.pformat(config))
+
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 #     Integration test test the direct driver / instrument interaction        #
@@ -606,43 +627,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         # Test the driver is in state unconfigured.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-        
-    def test_startup_configure(self):
-        """
-        Test to see if the configuration is set properly upon startup.
-        """
-        # Test the driver is in state unconfigured.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverConnectionState.DISCONNECTED)
-
-        startup_config = {DriverConfigKey.PARAMETERS:{SBE37Parameter.SAMPLENUM:13}}
-        # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect', startup_config)
-
-        # Test the driver is in unknown state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE37ProtocolState.UNKNOWN)
-        
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        # Test the driver is in command mode.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, SBE37ProtocolState.COMMAND)
-        
-        result = self.driver_client.cmd_dvr('get_resource',
-                                            [SBE37Parameter.SAMPLENUM])
-        self.assertNotEquals(result[SBE37Parameter.SAMPLENUM], 13)
-        result = self.driver_client.cmd_dvr('apply_startup_params')
-        result = self.driver_client.cmd_dvr('get_resource',
-                                            [SBE37Parameter.SAMPLENUM])
-        self.assertEquals(result[SBE37Parameter.SAMPLENUM], 13)
         
     def test_get_set(self):
         """
@@ -1139,51 +1123,6 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
 
-    def test_startup_config(self):
-        """
-        Verify that the configuration of the instrument gets set upon launch
-        """
-        # Startup params are SAMPLENUM, INTERVAL, SYNCWAIT
-        # INTERVAL has a default value of 1
-        startup_config = {DriverConfigKey.PARAMETERS:{SBE37Parameter.SAMPLENUM:2,
-                                                      SBE37Parameter.NAVG:2}}
-
-        # SBE37 doesnt have a startup routine, so we wont test default params
-        # as part of the configure routine, mainly testing some InstrumentDriver
-        # base logic
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-        reply = self.driver_client.cmd_dvr('connect')
-        reply = self.driver_client.cmd_dvr('discover_state')
-
-        self.driver_client.cmd_dvr("set_init_params", startup_config)
-        self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.SYNCWAIT:3})     
-        self.driver_client.cmd_dvr("apply_startup_params") # result now matches instrument
-        result = self.driver_client.cmd_dvr("get_resource", DriverParameter.ALL)
-        self.assertEquals(result[SBE37Parameter.SAMPLENUM], 2) # init param
-        self.assertEquals(result[SBE37Parameter.INTERVAL], 1) # default param
-        self.assertEquals(result[SBE37Parameter.SYNCWAIT], 3) # manual param
-    
-        # all setup now, driver stuff could happen here in the real world
-        # get to command mode?
-        
-        # manual changes
-        self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.NAVG:10}) 
-        self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.SAMPLENUM:10})
-        self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.INTERVAL:10}) 
-        self.driver_client.cmd_dvr("set_resource", {SBE37Parameter.SYNCWAIT:10})
-        result = self.driver_client.cmd_dvr("get_resource", DriverParameter.ALL)
-        self.assertEquals(result[SBE37Parameter.NAVG], 10) # not a startup param
-        self.assertEquals(result[SBE37Parameter.SAMPLENUM], 10) # init param
-        self.assertEquals(result[SBE37Parameter.INTERVAL], 10) # default param
-        self.assertEquals(result[SBE37Parameter.SYNCWAIT], 10) # manual param
-
-        # confirm re-apply
-        self.driver_client.cmd_dvr("apply_startup_params")
-        result = self.driver_client.cmd_dvr("get_resource", DriverParameter.ALL)
-        self.assertEquals(result[SBE37Parameter.SAMPLENUM], 2) # init param
-        self.assertEquals(result[SBE37Parameter.INTERVAL], 1) # default param
-        self.assertEquals(result[SBE37Parameter.SYNCWAIT], 10) # manual param
-
     def test_polled_particle_generation(self):
         """
         Test that we can generate particles with commands
@@ -1245,7 +1184,15 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
                 break
             else:
                 gevent.sleep(1)
-                
+
+    def test_automatic_startup_params(self):
+        """
+        Verify that startup params are applied automatically when the driver is started.
+        """
+        self.assert_initialize_driver()
+        self.assert_get(SBE37Parameter.INTERVAL, 1)
+
+
 #self._dvr_proc = self.driver_process
 #self._pagent = self.port_agent
 #self._dvr_client = self.driver_client
@@ -1287,59 +1234,142 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         # If this assert fails, then two of tte enumerations have an identical value...
         return match == outer_match
 
-    @unittest.skip("da currently broken for this instrument")
-    def test_direct_access_telnet_mode(self):
+    def test_direct_access_telnet_mode_command(self):
         """
         @brief This test verifies that the Instrument Driver
                properly supports direct access to the physical
                instrument. (telnet mode)
         """
-        cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.INACTIVE)
+        ###
+        # First test direct access and exit with a go command
+        # call.  Also add a parameter change to verify DA
+        # parameters are restored on DA exit.
+        ###
+        self.assert_enter_command_mode()
+        self.assert_set_parameter(SBE37Parameter.INTERVAL, 10)
 
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.IDLE)
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet()
 
-        cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        log.debug("DA Server Started.  Adjust DA Parameter.")
+        self.tcp_client.send_data("%sinterval=97%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.send_data("%sds%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.expect("sample interval = 97")
+        log.debug("DA Parameter Sample Interval Updated")
 
-        # go direct access
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-                           kwargs={'session_type': DirectAccessTypes.telnet,
-                                   #kwargs={'session_type':DirectAccessTypes.vsp,
-                                   'session_timeout':600,
-                                   'inactivity_timeout':600})
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.warn("go_direct_access retval=" + str(retval.result))
+        self.assert_direct_access_stop_telnet()
 
-        s = TcpClient(retval.result['ip_address'], retval.result['port'])
-        s.telnet_handshake()
-        
-        s.send_data("ts\r\n", "1")
-        log.debug("SENT THE TS COMMAND")
+        # verify the setting got restored.
+        self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 10)
+        self.assert_get_parameter(SBE37Parameter.INTERVAL, 10)
 
-        pattern = re.compile("^([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9\-\.]+),([ 0-9a-z]+),([ 0-9:]+)")
+        ###
+        # Test direct access inactivity timeout
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
+        self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 60)
 
-        matches = 0
-        n = 0
-        while n < 100:
-            n = n + 1
-            gevent.sleep(1)
-            data = s.get_data()
-            log.debug("READ ==>" + str(repr(data)))
-            m = pattern.search(data)
-            if m != None:
-                matches = m.lastindex
-                if matches == 7:
-                    break
+        ###
+        # Test session timeout without activity
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=120, session_timeout=30)
+        self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 60)
 
-        self.assertTrue(matches == 7) # need to have found 7 conformant fields.
+        ###
+        # Test direct access session timeout with activity
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=60)
+        # Send some activity every 30 seconds to keep DA alive.
+        for i in range(1, 2, 3):
+            self.tcp_client.send_data(NEWLINE)
+            log.debug("Sending a little keep alive communication, sleeping for 15 seconds")
+            gevent.sleep(15)
+
+        self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 45)
+
+        ###
+        # Test direct access disconnect
+        ###
+        self.assert_direct_access_start_telnet()
+        self.tcp_client.disconnect()
+        self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 30)
+
+
+    def test_direct_access_telnet_mode_autosample(self):
+        """
+        @brief Same as the previous DA test except in this test
+               we force the instrument into streaming when in
+               DA.  Then we need to verify the transition back
+               to the driver works as expected.
+        """
+        ###
+        # First test direct access and exit with a go command
+        # call.  Also add a parameter change to verify DA
+        # parameters are restored on DA exit.
+        ###
+        self.assert_enter_command_mode()
+        self.assert_set_parameter(SBE37Parameter.INTERVAL, 10)
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet()
+
+        log.debug("DA Server Started.  Adjust DA Parameter.")
+        self.tcp_client.send_data("%sinterval=97%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.send_data("%sds%s" % (NEWLINE, NEWLINE))
+        self.assertTrue(self.tcp_client.expect("sample interval = 97"))
+        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.send_data("%sds%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.send_data("%s%s" % (NEWLINE, NEWLINE))
+        #self.assertTrue(self.tcp_client.expect("#"))
+        log.debug("DA Parameter Sample Interval Updated")
+
+        self.assert_direct_access_stop_telnet(timeout=30)
+
+        #self.tcp_client.send_data(NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+        #self.tcp_client.send_data("interval=97%s" % NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+        #self.tcp_client.send_data("startnow%s" % NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+
+        #self.assert_direct_access_stop_telnet()
+
+        # verify the setting got restored.
+        #self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 10)
+        #self.assert_get_parameter(SBE37Parameter.INTERVAL, 10)
+
+        ###
+        # Test direct access timeout
+        ###
+        #self.assert_direct_access_start_telnet(timeout=10)
+        #self.tcp_client.send_data(NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+        #self.tcp_client.send_data("startnow%s" % NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+        #self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 30)
+
+        ###
+        # Test direct access disconnect
+        ###
+        #self.assert_direct_access_start_telnet(timeout=600)
+        #self.tcp_client.send_data(NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+        #self.tcp_client.send_data("startnow%s" % NEWLINE)
+        #self.tcp_client.expect(SBE37Prompt.COMMAND)
+        #self.tcp_client.disconnect()
+        #self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 30)
+
+        ###
+        # Run all the same DA termination tests, but this time make sure the
+        # instrument is left in autosample mode on exit.
+        ###
+        #self.assert_direct_access_start_telnet()
+        #self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
+        #gevent.sleep(5)
+        #self.tcp_client.send_data("%sds%s" %  (NEWLINE, NEWLINE))
+        #self.tcp_client.disconnect()
+        #self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 30)
+
 
     @unittest.skip("Do not include until a good method is devised")
     def test_direct_access_virtual_serial_port_mode(self):
@@ -1874,12 +1904,14 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         samples = self.data_subscribers.get_samples(DataParticleType.PARSED, 3, timeout=30)
         self.assertGreaterEqual(len(samples), 3)
 
-        self.assertParsedGranule(samples.pop())
-        self.assertParsedGranule(samples.pop())
-        self.assertParsedGranule(samples.pop())
-        #self.assertSampleDataParticle(samples.pop())
-        #self.assertSampleDataParticle(samples.pop())
-        #self.assertSampleDataParticle(samples.pop())
+        # If we want to verify granules then this needs to be a publication test.  In the
+        # IDK we overload the IA data handler to emit particles.
+        #self.assertParsedGranule(samples.pop())
+        #self.assertParsedGranule(samples.pop())
+        #self.assertParsedGranule(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
+        self.assertSampleDataParticle(samples.pop())
 
         # Halt streaming.
         cmd = AgentCommand(command=SBE37ProtocolEvent.STOP_AUTOSAMPLE)
@@ -2243,3 +2275,19 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         it was in streaming mode when we disconnect.
         '''
         pass
+
+    def test_startup_params(self):
+        """
+        Verify that startup parameters are applied correctly when the driver is started.
+        """
+        # Startup the driver, verify the startup value and then change it.
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(SBE37Parameter.INTERVAL, 1)
+        self.assert_set_parameter(SBE37Parameter.INTERVAL, 10)
+
+        # Reset the agent which brings the driver down
+        self.assert_reset()
+
+        # Now restart the driver and verify the value has reverted back to the startup value
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(SBE37Parameter.INTERVAL, 1)

@@ -1,0 +1,72 @@
+# Test file in a test location to mimic an egg resource directory
+# Used in test_protocol_param_dict.py
+parameters: {
+    qut: {
+        description: "QutFileDesc",
+        units: "QutFileUnits",
+        value_description: "QutFileValueDesc",
+        type: "QutFileType",
+        display_name: "QutDisplay"
+    },
+    extra_param: {
+        description: "ExtraFileDesc",
+        units: "ExtraFileUnits",
+        value_description: "ExtraFileValueDesc",
+        type: "ExtraFileType"    
+    }
+}
+
+commands: {
+ bad_command: {
+    description: "bad command"
+ },
+ cmd1: {
+    arguments: {
+        coeff: {
+            description: "Cmd1Coeff", 
+            display_name: "C1co", 
+            value: {
+                description: "C1coDesc",
+                units: "counts",
+                type: "float"
+            }
+        },
+    },
+    description: "C1Desc", 
+    display_name: "C1", 
+    return: {
+        description: "C1Ret", 
+        type: "C1RetType", 
+        units: "C1RetUnit"
+    }, 
+ },
+ cmd2: {
+    arguments: {
+        trigger: {
+            description: "C2TriggerDesc", 
+            display_name: "C2TriggerDisp",  
+            value: {
+                description: "C2TriggerValueDesc", 
+                type: "C2TriggerType",
+                units: "C2Units"
+            }
+        },
+        test: {
+            description: "C2TestDesc",
+            display_name: "C2TestDisp",  
+            value: {
+                description: "C2TestValueDesc", 
+                type: "C2TestType",
+                units: "C2TestUnits"
+            }
+        },                    
+    }, 
+    description: "C2Desc", 
+    display_name: "C2Disp", 
+    return: {
+        description: "C2RetDesc", 
+        type: "C2RetType", 
+        units: "C2RetUnits"
+    }, 
+ }
+}

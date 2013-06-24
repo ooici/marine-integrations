@@ -26,6 +26,8 @@ from mi.core.instrument.chunker import StringChunker
 # Driver
 ###############################################################################
 
+
+
 class WorkhorseInstrumentDriver(TeledyneInstrumentDriver):
     """
     InstrumentDriver subclass for Workhorse 75khz driver.

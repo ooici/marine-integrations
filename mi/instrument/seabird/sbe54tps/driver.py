@@ -27,6 +27,7 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.driver_dict import DriverDictKey
@@ -38,7 +39,6 @@ from mi.core.exceptions import InstrumentParameterExpirationException
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
-from pyon.agent.agent import ResourceAgentState
 
 from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 from mi.instrument.seabird.driver import SeaBirdProtocol
@@ -795,6 +795,7 @@ class SBE54tpsHardwareDataParticle(DataParticle):
                             SBE54tpsHardwareDataParticleKey.DEVICE_TYPE,
                             SBE54tpsHardwareDataParticleKey.MANUFACTURER,
                             SBE54tpsHardwareDataParticleKey.FIRMWARE_VERSION,
+                            SBE54tpsHardwareDataParticleKey.FIRMWARE_VERSION,
                             SBE54tpsHardwareDataParticleKey.HARDWARE_VERSION,
                             SBE54tpsHardwareDataParticleKey.PCB_SERIAL_NUMBER,
                             SBE54tpsHardwareDataParticleKey.PCB_TYPE,
@@ -1455,6 +1456,9 @@ class Protocol(SeaBirdProtocol):
         """
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
+        result = None
+
+        self._async_agent_state_change(ResourceAgentState.STREAMING)
 
         return (next_state, next_agent_state)
 

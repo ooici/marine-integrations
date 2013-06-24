@@ -30,6 +30,8 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import NotImplementedException
+from mi.core.exceptions import SampleException
+
 from mi.core.time import get_timestamp_delayed
 
 NEWLINE = '\r\n'
@@ -156,6 +158,44 @@ class SeaBirdParticle(DataParticle):
 
         return encoder
 
+    def _map_param_to_xml_tag(self, parameter_name):
+        '''
+        @return: a string containing the xml tag name for a parameter
+        '''
+        NotImplementedException()
+
+    def _extract_xml_elements(self, node, tag, raise_exception_if_none_found=True):
+        """
+        extract elements with tag from an XML node
+        @param: node - XML node to look in
+        @param: tag - tag of elements to look for
+        @param: raise_exception_if_none_found - raise an exception if no element is found
+        @return: return list of elements found; empty list if none found
+        """
+        elements = node.getElementsByTagName(tag)
+        if raise_exception_if_none_found and len(elements) == 0:
+            raise SampleException("_extract_xml_elements: No %s in input data: [%s]" % (tag, self.raw_data))
+        return elements
+
+    def _extract_xml_element_value(self, node, tag, raise_exception_if_none_found=True):
+        """
+        extract element value that has tag from an XML node
+        @param: node - XML node to look in
+        @param: tag - tag of elements to look for
+        @param: raise_exception_if_none_found - raise an exception if no value is found
+        @return: return value of element
+        """
+        elements = self._extract_xml_elements(node, tag, raise_exception_if_none_found)
+        children = elements[0].childNodes
+        if raise_exception_if_none_found and len(children) == 0:
+            raise SampleException("_extract_xml_element_value: No value for %s in input data: [%s]" % (tag, self.raw_data))
+        return children[0].nodeValue
+    
+    def _get_xml_parameter(self, xml_element, parameter_name, type=float):
+        return {DataParticleKey.VALUE_ID: parameter_name,
+                DataParticleKey.VALUE: type(self._extract_xml_element_value(xml_element, 
+                                                                            self._map_param_to_xml_tag(parameter_name)))}
+        
     ########################################################################
     # Static helpers.
     ########################################################################
@@ -188,7 +228,7 @@ class SeaBirdParticle(DataParticle):
         @param value: string to convert
         @return: bool
         """
-        if not isinstance(value, str):
+        if not (isinstance(value, str) or isinstance(value, unicode)):
             raise InstrumentParameterException("value not a string")
 
         if(value.lower() == 'no'):

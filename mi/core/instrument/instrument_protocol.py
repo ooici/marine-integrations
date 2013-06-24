@@ -31,6 +31,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import ResourceAgentEvent
 
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
@@ -48,6 +49,11 @@ class InterfaceType(BaseEnum):
     """The methods of connecting to a device"""
     ETHERNET = 'ethernet'
     SERIAL = 'serial'
+
+class InitializationType(BaseEnum):
+    NONE = 0,
+    STARTUP = 1,
+    DIRECTACCESS = 2
 
 class InstrumentProtocol(object):
     """
@@ -86,6 +92,10 @@ class InstrumentProtocol(object):
         self._scheduler_callback = {}
         self._scheduler_config = {}
 
+        # Set the initialization type to startup so that startup parameters
+        # are applied at the first opertunity.
+        self._init_type = InitializationType.STARTUP
+
     ########################################################################
     # Common handlers
     ########################################################################
@@ -102,7 +112,7 @@ class InstrumentProtocol(object):
         @raise InstrumentParameterExpirationException If we fail to update a parameter
         on the second pass this exception will be raised on expired data
         """
-        log.debug("%%% IN base _handler_command_get")
+        log.debug("%%% IN base _handler_get")
 
         next_state = None
         result = None
@@ -135,6 +145,31 @@ class InstrumentProtocol(object):
     ########################################################################
     # Helper methods
     ########################################################################
+    def _init_params(self):
+        """
+        Initialize parameters based on initialization type.  If we actually
+        do some initialization (either startup or DA) after we are done
+        set the init type to None so we don't initialize again.
+        @raises InstrumentProtocolException if the init_type isn't set or it
+                                            is unknown
+        """
+        if(self._init_type == InitializationType.STARTUP):
+            log.debug("_init_params: Apply Startup Config")
+            self.apply_startup_params()
+            self._init_type = InitializationType.NONE
+        elif(self._init_type == InitializationType.DIRECTACCESS):
+            log.debug("_init_params: Apply DA Config")
+            #self.apply_direct_access_params()
+            self._init_type = InitializationType.NONE
+            pass
+        elif(self._init_type == InitializationType.NONE):
+            log.debug("_init_params: No initialization required")
+            pass
+        elif(self._init_type == None):
+            raise InstrumentProtocolException("initialization type not set")
+        else:
+            raise InstrumentProtocolException("Unknown initialization type: %s" % self._init_type)
+
     def got_data(self, port_agent_packet):
         """
         Called by the instrument connection when data is available.
@@ -242,9 +277,38 @@ class InstrumentProtocol(object):
         """
         return events
 
+    def _async_agent_state_change(self, agent_state):
+        """
+        Used when we need to change the agent state from an asych
+        process.
+
+        @param agent_state: New agent state
+        """
+        val = {
+            'event' : ResourceAgentEvent.CHANGE_STATE_ASYNC,
+            'args' : [agent_state]
+        }
+
+        self._driver_event(DriverAsyncEvent.AGENT_EVENT, val)
+
     ########################################################################
     # Scheduler interface.
     ########################################################################
+    def _remove_scheduler(self, name):
+        """
+        remove a scheduler in a driver.
+        @param name the name of the job
+        @raise KeyError if we try to remove a non-existent job 
+        """
+        if(not self._scheduler_callback.get(name)):
+            raise KeyError("scheduler does not exist for '%s'" % name)
+
+        log.debug("removing scheduler: %s" % name)
+        callback = self._scheduler_callback.get(name) 
+        self._scheduler.remove_job(callback)
+        self._scheduler_callback.pop(name)
+        self._scheduler_config.pop(name, None)
+    
     def _add_scheduler(self, name, callback):
         """
         Stage a scheduler in a driver.  The job will actually be configured
@@ -363,13 +427,39 @@ class InstrumentProtocol(object):
         
         This default method assumes a dict of parameter name and value for
         the configuration.
-        
-        This is the base stub for applying startup parameters at the protocol layer.
-        
+
         @raise InstrumentParameterException If the config cannot be applied
-        @raise NotImplementedException In the base class it isnt implemented
         """
-        raise NotImplementedException("Base class does not implement apply_startup_params()")
+        # Let's give it a try in unknown state
+        log.debug("apply_startup_params start")
+
+        config = self.get_startup_config()
+        log.debug("apply_startup_params: startup config: %s", config)
+
+        readonly = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
+        log.debug("apply_startup_params: Read only keys: %s", readonly)
+
+        for (key, val) in config.iteritems():
+            if key in readonly:
+                raise InstrumentParameterException("Attempt to set read only parameter (%s)" % key)
+
+        self._set_params(config, True)
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters.  If
+        startup is set to true that means we are setting startup values
+        and immutable parameters can be set.  Otherwise only READ_WRITE
+        parameters can be set.
+
+        must be overloaded in derived classes
+
+        @param params dictionary containing parameter name and value
+        @param startup bool try is we are initializing, false otherwise
+        @raise NotImplementedException
+        """
+        raise NotImplementedException("_set_params must be overloaded")
+
         
     def set_init_params(self, config):
         """
@@ -689,6 +779,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             else:
                 prompt_list = expected_prompt
 
+        log.debug('_get_response: timeout=%s, prompt_list=%s, expected_prompt=%s,' %(timeout, prompt_list, expected_prompt))
         while True:
             for item in prompt_list:
                 index = self._promptbuf.find(item)

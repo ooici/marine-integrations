@@ -292,16 +292,16 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         Test to see that the scheduler can add and remove jobs properly
         Jobs are just queued for adding unit we call initialize_scheduler
         then the jobs are actually created.
+        use an interval job to allow for testing for removal
         """
-        dt = datetime.datetime.now() + datetime.timedelta(0,1)
         job_name = 'test_job'
         startup_config = {
             DriverConfigKey.SCHEDULER: {
                 job_name: {
                     DriverSchedulerConfigKey.TRIGGER: {
-                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.ABSOLUTE,
-                        DriverSchedulerConfigKey.DATE: dt
-                    }
+                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                        DriverSchedulerConfigKey.SECONDS: 2
+                    },
                 }
             }
         }
@@ -325,7 +325,20 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
         # job will be started right away
         self.protocol._add_scheduler(job_name, self._scheduler_callback)
         self.assertEqual(0, self._trigger_count)
-        self.assert_scheduled_event_triggered()
+        self.assert_scheduled_event_triggered(event_count=3)
+        
+        # now remove the job and see that no events are triggered
+        self.protocol._remove_scheduler(job_name)
+        self._trigger_count = 0
+        time.sleep(4)
+        self.assertEqual(self._trigger_count, 0)
+        
+        # now check that it raises exception if the removal is re-attempted
+        try:
+            self.protocol._remove_scheduler(job_name)
+        except Exception as e:
+            return
+        self.fail("a non-existent job was erroneous removed")
 
     def test_scheduler_event(self):
         """
@@ -451,6 +464,7 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
 
         with self.assertRaises(InstrumentParameterException):
             self.protocol._verify_not_readonly({'rw': 1, 'ro': 2}, startup=True)
+
 
 @attr('UNIT', group='mi')
 class TestUnitMenuInstrumentProtocol(MiUnitTestCase):

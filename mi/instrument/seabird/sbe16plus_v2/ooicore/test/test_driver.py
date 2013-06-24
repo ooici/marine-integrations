@@ -13,17 +13,20 @@ USAGE:
        $ bin/test_driver -q
 
 """
-
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 import unittest
 from nose.plugins.attrib import attr
+
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEUnitTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEIntTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEQualTestCase
 from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEPubTestCase
+from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SeaBird16plusMixin
+
 from mi.instrument.seabird.sbe16plus_v2.driver import DataParticleType
+
 from mi.idk.unit_test import InstrumentDriverTestCase
 
 InstrumentDriverTestCase.initialize(
@@ -37,11 +40,18 @@ InstrumentDriverTestCase.initialize(
 )
 
 ###############################################################################
+#                   Driver Version Specific Structures                        #
+###############################################################################
+###
+# Test Inputs
+###
+
+###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
 ###############################################################################
 @attr('UNIT', group='mi')
-class UnitFromIDK(SBEUnitTestCase):
+class UnitFromIDK(SBEUnitTestCase, SeaBird16plusMixin, Sbe16PlusV2UnitTestBase):
     pass
 
 ###############################################################################

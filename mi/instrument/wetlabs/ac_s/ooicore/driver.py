@@ -68,7 +68,7 @@ SAMPLE_RECORD_HEADER = (r'^%s' %PACKET_REGISTRATION_PATTERN +
                         '\x01' +    # reserved
                         '(.{1})')   # group 13 - number of output wavelengths
 
-SAMPLE_RECORD_HEADER_REGEX = re.compile(SAMPLE_RECORD_HEADER)
+SAMPLE_RECORD_HEADER_REGEX = re.compile(SAMPLE_RECORD_HEADER, re.DOTALL)
 
 STATUS_PATTERN = r'AC-Spectra .+? quit\.'
 STATUS_REGEX = re.compile(STATUS_PATTERN, re.DOTALL)

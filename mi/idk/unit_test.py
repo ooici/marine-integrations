@@ -56,6 +56,7 @@ from interface.objects import CapabilityType
 
 from ion.agents.instrument.driver_process import DriverProcess, DriverProcessType
 
+from interface.objects import AgentCommandResult
 from interface.objects import AgentCommand
 
 from mi.idk.util import convert_enum_to_dict
@@ -113,6 +114,8 @@ GET_TIMEOUT=30
 SET_TIMEOUT=90
 EXECUTE_TIMEOUT=30
 SAMPLE_RAW_DATA="Iam Apublished Message"
+
+LOCALHOST='localhost'
 
 class DriverStartupConfigKey(BaseEnum):
     PARAMETERS = 'parameters'
@@ -288,7 +291,7 @@ class DriverTestMixin(MiUnitTest):
         @return: dictionary representation of a data particle
         """
         if (isinstance(data_particle, DataParticle)):
-            sample_dict = json.loads(data_particle.generate())
+            sample_dict = json.loads(data_particle.generate(sorted=True))
         elif (isinstance(data_particle, str)):
             sample_dict = json.loads(data_particle)
         elif (isinstance(data_particle, dict)):
@@ -654,7 +657,6 @@ class DriverTestMixin(MiUnitTest):
         """
         # This has to come from the protocol so None is returned until we
         # initialize
-        self.assertIsNone(driver.get_config_metadata())
         self.assert_initialize_driver(driver)
         config_json = driver.get_config_metadata()
         self.assertIsNotNone(config_json)
@@ -954,6 +956,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
         comm_config = self.get_comm_config()
 
         config = {
+            'port_agent_addr' : comm_config.host,
             'device_addr' : comm_config.device_addr,
 
             'command_port': comm_config.command_port,
@@ -998,7 +1001,10 @@ class InstrumentDriverTestCase(MiIntTestCase):
         port = port_agent.get_data_port()
         pid  = port_agent.get_pid()
 
-        log.info('Started port agent pid %s listening at port %s' % (pid, port))
+        if(self.get_comm_config().host == LOCALHOST):
+            log.info('Started port agent pid %s listening at port %s' % (pid, port))
+        else:
+            log.info("Connecting to port agent on host: %s, port: %s", self.get_comm_config().host, port)
 
         self.addCleanup(self.stop_port_agent)
         self.port_agent = port_agent
@@ -1068,8 +1074,9 @@ class InstrumentDriverTestCase(MiIntTestCase):
     def port_agent_comm_config(self):
         port = self.port_agent.get_data_port()
         cmd_port = self.port_agent.get_command_port()
+
         return {
-            'addr': 'localhost',
+            'addr': self.get_comm_config().host,
             'port': port,
             'cmd_port': cmd_port
         }
@@ -1260,7 +1267,7 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         else:
             test_particle = particle_type(raw_input, port_timestamp=port_timestamp)
             
-        parsed_result = test_particle.generate()
+        parsed_result = test_particle.generate(sorted=True)
         decoded_parsed = json.loads(parsed_result)
         
         driver_time = decoded_parsed[DataParticleKey.DRIVER_TIMESTAMP]
@@ -1511,6 +1518,26 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         """
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, target_state)
+
+    def assert_state_change(self, target_state, timeout):
+        """
+        Verify the driver state changes within a given timeout period.
+        Fail if the state doesn't change to the expected state.
+        @param target_state: State we expect the protocol to be in
+        @param timeout: how long to wait for the driver to change states
+        """
+        end_time = time.time() + timeout
+
+        while(time.time() <= end_time):
+            state = self.driver_client.cmd_dvr('get_resource_state')
+            if(state == target_state):
+                log.debug("Current state match: %s", state)
+                return
+            log.debug("state mismatch %s != %s, sleep for a bit", state, target_state)
+            time.sleep(2)
+
+        log.error("Failed to transition state to %s, current state: %s", target_state, state)
+        self.fail("Failed to transition state to %s, current state: %s" % (target_state, state))
 
     def assert_initialize_driver(self, final_state=DriverProtocolState.COMMAND):
         """
@@ -2130,6 +2157,14 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, target_state)
 
+    def assert_resource_state(self, target_state):
+        """
+        Verify the current resource state
+        @param target_state: What we expect the resource state to be
+        """
+        state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(state, target_state)
+
     def assert_agent_command(self, command, args=None, timeout=None):
         """
         Verify an agent command throws an exception
@@ -2146,7 +2181,49 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         @param args: kwargs to pass to the agent command object
         """
         cmd = AgentCommand(command=command, kwargs=args)
-        retval = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
+        return self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
+
+    def assert_resource_command(self, command, args=None, expected=None, regex=None, value_function=None, agent_state=None, resource_state=None, delay=0):
+        """
+        Verify that we can run a command and that the reply matches if we have
+        passed on in.  If we couldn't execute a command we assume an exception
+        will be thrown.
+        @param command: driver command to execute
+        @param expected: expected reply from the command
+        @param regex: regex to match reply
+        """
+        # Execute the command
+        reply = self.assert_execute_resource(command, args)
+        value = None
+
+        if(delay):
+            log.debug("sleeping for a bit: %d", delay)
+            time.sleep(delay)
+
+        # Get the value to check in the reply
+        if(reply != None):
+            if(value_function == None):
+                self.assertIsInstance(reply, AgentCommandResult)
+                log.debug("AAResult: %s", reply)
+                value = reply['result']
+            else:
+                value = value_function(reply)
+
+        if(expected != None):
+            log.debug("command reply: %s", value)
+            self.assertIsNotNone(value)
+            self.assertEqual(value, expected)
+
+        if(regex != None):
+            log.debug("command reply: %s", value)
+            self.assertIsNotNone(value)
+            self.assertRegexpMatches(value, regex)
+
+        if(agent_state != None):
+            self.assert_agent_state(agent_state)
+
+        if(resource_state != None):
+            self.assert_resource_state(resource_state)
 
     def assert_agent_command_exception(self, command, error_regex=None, exception_class=InstrumentStateException, timeout=None):
         """
@@ -2506,17 +2583,20 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         res_state = self.instrument_agent_client.get_resource_state()
         self.assertEqual(res_state, DriverProtocolState.COMMAND)
 
-    def assert_direct_access_start_telnet(self, timeout=600):
+    def assert_direct_access_start_telnet(self, session_timeout=60, inactivity_timeout=60, timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
         self.assert_enter_command_mode()
 
-        # go direct access
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-            kwargs={'session_type': DirectAccessTypes.telnet,
-                    'session_timeout':timeout,
-                    'inactivity_timeout':timeout})
+        # Direct access configurations
+        args={'session_type':DirectAccessTypes.telnet}
+        if inactivity_timeout != None: args['inactivity_timeout'] = inactivity_timeout
+        if session_timeout != None: args['session_timeout'] = session_timeout
+
+        log.debug("DA startup parameters: %s", args)
+
+        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS, kwargs=args)
         retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
         log.warn("go_direct_access retval=" + str(retval.result))
 
@@ -2540,13 +2620,16 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         Exit out of direct access mode.  We do this by simply changing
         state to command mode.
         @return:
-        '''       
+        '''
+        log.debug("Stopping Direct Access")
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
 
+        log.debug("Stopping Direct Access: Send Go Command")
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
         retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout) # ~9s to run
 
+        log.debug("Stopping Direct Access: Checking for command state")
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
@@ -2584,6 +2667,38 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         if(expected_resource_state != None):
             res_state = self.instrument_agent_client.get_resource_state()
             self.assertEqual(res_state, expected_resource_state)
+
+    def assert_state_change(self, target_agent_state, target_resource_state, timeout):
+        """
+        Verify the agent and resource states change as expected within the timeout
+        Fail if the state doesn't change to the expected state.
+        @param target_agent_state: State we expect the agent to be in
+        @param target_resource_state: State we expect the protocol to be in
+        @param timeout: how long to wait for the driver to change states
+        """
+        end_time = time.time() + timeout
+        agent_state = None
+        resource_state = None
+
+        while(time.time() <= end_time):
+            agent_state = self.instrument_agent_client.get_agent_state()
+            resource_state = self.instrument_agent_client.get_resource_state()
+            log.error("Current agent state: %s", agent_state)
+            log.error("Current resource state: %s", resource_state)
+
+            if(agent_state == target_agent_state and resource_state == target_resource_state):
+                log.debug("Current state match: %s %s", agent_state, resource_state)
+                return
+            log.debug("state mismatch, waiting for state to transition")
+            time.sleep(2)
+
+        if(agent_state != target_agent_state):
+            log.error("Failed to transition agent state to %s, current state: %s", target_agent_state, agent_state)
+
+        if(resource_state != target_resource_state):
+            log.error("Failed to transition resource state to %s, current state: %s", target_resource_state, resource_state)
+
+        self.fail("Failed to transition state")
 
     def assert_discover(self, expected_agent_state, expected_resource_state=None):
         """
@@ -2996,10 +3111,10 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         config = {
             'idk_agent': self.test_config.instrument_agent_preload_id,
             'idk_comms_method': 'ethernet',
-            'idk_server_address': 'localhost',
+            'idk_server_address': LOCALHOST,
             'idk_comms_device_address': pa_config.get('device_addr'),
             'idk_comms_device_port': pa_config.get('device_port'),
-            'idk_comms_server_address': 'localhost',
+            'idk_comms_server_address': LOCALHOST,
             'idk_comms_server_port': pa_config.get('data_port'),
             'idk_comms_server_cmd_port': pa_config.get('command_port'),
         }
@@ -3062,6 +3177,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         comm_config = self.get_comm_config()
 
         config = {
+            'port_agent_addr' : comm_config.host,
             'device_addr' : comm_config.device_addr,
             'device_port' : comm_config.device_port,
 
@@ -3073,7 +3189,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         }
 
         # Override the instrument connection information.
-        config['device_addr'] = 'localhost'
+        config['device_addr'] = LOCALHOST,
         config['device_port'] = self._instrument_simulator.port
 
         return config
