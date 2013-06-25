@@ -100,7 +100,7 @@ class Parameter(DriverParameter):
     Device specific parameters.
     """
     BATTERY = 'battery'
-    SAMPLE_INTERVAL = 'sample_interval'
+    SAMPLE_NUMBER = 'sample_number'
 
 class Prompt(BaseEnum):
     """
