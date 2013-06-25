@@ -478,6 +478,19 @@ class SBEUnitTestCase(SeaBirdUnitTest, SBEMixin):
         pp = PrettyPrinter()
         log.debug("Config: %s", pp.pformat(config))
 
+    def test_is_logging(self):
+        """
+        Test the is logging method.
+        """
+        driver = SBE37Driver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        self.assertIsNotNone(driver._protocol._is_logging(SAMPLE_DS))
+        self.assertFalse(driver._protocol._is_logging(SAMPLE_DS))
+        self.assertTrue(driver._protocol._is_logging("Something\nlogging data\nsomething else"))
+        self.assertIsNone(driver._protocol._is_logging("bad data"))
+
+
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 #     Integration test test the direct driver / instrument interaction        #
@@ -1318,57 +1331,59 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         self.tcp_client.send_data("%sds%s" % (NEWLINE, NEWLINE))
         self.assertTrue(self.tcp_client.expect("sample interval = 97"))
         self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
-        self.tcp_client.send_data("%sds%s" % (NEWLINE, NEWLINE))
-        self.tcp_client.send_data("%s%s" % (NEWLINE, NEWLINE))
-        #self.assertTrue(self.tcp_client.expect("#"))
+        gevent.sleep(3)
         log.debug("DA Parameter Sample Interval Updated")
 
         self.assert_direct_access_stop_telnet(timeout=30)
 
-        #self.tcp_client.send_data(NEWLINE)
-        #self.tcp_client.expect(SBE37Prompt.COMMAND)
-        #self.tcp_client.send_data("interval=97%s" % NEWLINE)
-        #self.tcp_client.expect(SBE37Prompt.COMMAND)
-        #self.tcp_client.send_data("startnow%s" % NEWLINE)
-        #self.tcp_client.expect(SBE37Prompt.COMMAND)
-
-        #self.assert_direct_access_stop_telnet()
-
         # verify the setting got restored.
-        #self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 10)
-        #self.assert_get_parameter(SBE37Parameter.INTERVAL, 10)
+        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 10)
+        self.assert_get_parameter(SBE37Parameter.INTERVAL, 10)
 
         ###
-        # Test direct access timeout
+        # Test direct access inactivity timeout
+        #
+        # We have to call start now after the assert because the assert
+        # puts the instrument in command mode first.  you can not start DA from
+        # autosample.
         ###
-        #self.assert_direct_access_start_telnet(timeout=10)
-        #self.tcp_client.send_data(NEWLINE)
-        #self.tcp_client.expect(SBE37Prompt.COMMAND)
-        #self.tcp_client.send_data("startnow%s" % NEWLINE)
-        #self.tcp_client.expect(SBE37Prompt.COMMAND)
-        #self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 30)
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
+        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
+        gevent.sleep(3)
+        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 60)
+
+        ###
+        # Test session timeout without activity
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=120, session_timeout=30)
+        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
+        gevent.sleep(3)
+        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 60)
+
+        ###
+        # Test direct access session timeout with activity
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=60)
+        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
+        # Send some activity every 30 seconds to keep DA alive.
+        for i in range(1, 2, 3):
+            self.tcp_client.send_data(NEWLINE)
+            log.debug("Sending a little keep alive communication, sleeping for 15 seconds")
+            gevent.sleep(15)
+
+        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 45)
 
         ###
         # Test direct access disconnect
         ###
-        #self.assert_direct_access_start_telnet(timeout=600)
-        #self.tcp_client.send_data(NEWLINE)
-        #self.tcp_client.expect(SBE37Prompt.COMMAND)
-        #self.tcp_client.send_data("startnow%s" % NEWLINE)
-        #self.tcp_client.expect(SBE37Prompt.COMMAND)
-        #self.tcp_client.disconnect()
-        #self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 30)
-
-        ###
-        # Run all the same DA termination tests, but this time make sure the
-        # instrument is left in autosample mode on exit.
-        ###
-        #self.assert_direct_access_start_telnet()
-        #self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
-        #gevent.sleep(5)
-        #self.tcp_client.send_data("%sds%s" %  (NEWLINE, NEWLINE))
-        #self.tcp_client.disconnect()
-        #self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 30)
+        self.assert_direct_access_start_telnet(inactivity_timeout=600, session_timeout=600)
+        log.debug("DA server started and connected")
+        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
+        gevent.sleep(3)
+        log.debug("DA server autosample started")
+        self.tcp_client.disconnect()
+        log.debug("DA server tcp client disconnected")
+        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 60)
 
 
     @unittest.skip("Do not include until a good method is devised")
@@ -2205,6 +2220,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         '''
         pass
 
+    @unittest.skip("Needs to be fixed")
     def test_direct_access_config(self):
         """
         Verify that the configurations work when we go into direct access mode

@@ -159,7 +159,7 @@ class InstrumentProtocol(object):
             self._init_type = InitializationType.NONE
         elif(self._init_type == InitializationType.DIRECTACCESS):
             log.debug("_init_params: Apply DA Config")
-            #self.apply_direct_access_params()
+            self.apply_direct_access_params()
             self._init_type = InitializationType.NONE
             pass
         elif(self._init_type == InitializationType.NONE):
@@ -445,6 +445,20 @@ class InstrumentProtocol(object):
 
         self._set_params(config, True)
 
+    def apply_direct_access_params(self):
+        """
+        Apply the da params values previously stored in the protocol to
+        the running config of the live instrument.
+        @raise InstrumentParameterException If the config cannot be applied
+        """
+        # Let's give it a try in unknown state
+        log.debug("apply_direct_access_params start")
+
+        config = self.get_direct_access_config()
+        log.debug("apply_direct_access_params: direct_access config: %s", config)
+
+        self._set_params(config, True)
+
     def _set_params(self, *args, **kwargs):
         """
         Issue commands to the instrument to set various parameters.  If
@@ -479,7 +493,31 @@ class InstrumentProtocol(object):
             for name in param_config.keys():
                 log.debug("Setting init value for %s to %s", name, param_config[name])
                 self._param_dict.set_init_value(name, param_config[name])
-    
+
+    def enable_da_initialization(self):
+        """
+        Tell the protocol to initialize parameters using the stored direct access
+        config when in a state that can set parameters
+        """
+        self._init_type = InitializationType.DIRECTACCESS
+
+    def store_direct_access_config(self, config):
+        """
+        Save the direct access configuration in the object.  This is generally
+        called from the driver because it is responsible for reading the config.
+        @param config DA configuration to store.
+        """
+        self._pre_direct_access_config = config
+
+    def get_direct_access_config(self):
+        """
+        Gets the direct access stored configuration for the instrument.
+        @retval The dict of parameter_name/values (override this method if it
+            is more involved for a specific instrument) that should be set at
+            a higher level.
+        """
+        return self._pre_direct_access_config
+
     def get_startup_config(self):
         """
         Gets the startup configuration for the instrument. The parameters
