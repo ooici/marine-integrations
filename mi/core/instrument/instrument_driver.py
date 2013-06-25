@@ -60,6 +60,7 @@ class ResourceAgentState(BaseEnum):
     DIRECT_ACCESS = 'RESOUCE_AGENT_STATE_DIRECT_ACCESS'
     BUSY = 'RESOURCE_AGENT_STATE_BUSY'
     LOST_CONNECTION = 'RESOURCE_AGENT_STATE_LOST_CONNECTION'
+    ACTIVE_UNKNOWN = 'RESOURCE_AGENT_STATE_ACTIVE_UNKNOWN'
     
 class ResourceAgentEvent(BaseEnum):
     """
@@ -161,6 +162,7 @@ class DriverEvent(BaseEnum):
     CLOCK_SYNC = 'DRIVER_EVENT_CLOCK_SYNC'
     SCHEDULED_CLOCK_SYNC = 'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC'
     ACQUIRE_STATUS = 'DRIVER_EVENT_ACQUIRE_STATUS'
+    INIT_PARAMS = 'DRIVER_EVENT_INIT_PARAMS'
 
 class DriverAsyncEvent(BaseEnum):
     """
@@ -980,7 +982,12 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         @retval (next_state, result) tuple, (None, protocol result).
         """
         next_state = None
-        self._pre_da_config = self.get_resource(DriverParameter.ALL)
+
+        # Get the value for all direct access parameters and store them in the protocol
+        self._pre_da_config = self.get_resource(self._protocol.get_direct_access_params())
+        self._protocol.store_direct_access_config(self._pre_da_config)
+        self._protocol.enable_da_initialization()
+        log.debug("starting DA.  Storing DA parameters for restore: %s", self._pre_da_config)
 
         result = self._protocol._protocol_fsm.on_event(event, *args, **kwargs)
         return (next_state, result)
@@ -995,7 +1002,11 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         """
         next_state = None
         result = self._protocol._protocol_fsm.on_event(event, *args, **kwargs)
-        self.restore_direct_access_params(self._pre_da_config)
+
+        # Moving the responsibility for applying DA parameters to the
+        # protocol.
+        #self.restore_direct_access_params(self._pre_da_config)
+
         return (next_state, result)
 
     ########################################################################

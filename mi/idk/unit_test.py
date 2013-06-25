@@ -2629,9 +2629,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
         retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout) # ~9s to run
 
-        log.debug("Stopping Direct Access: Checking for command state")
+        log.debug("Stopping Direct Access: Checking agent state")
         state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
+        self.assertNotEqual(state, ResourceAgentState.DIRECT_ACCESS)
 
     def assert_switch_driver_state(self, command, result_state):
         '''
@@ -2690,7 +2690,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
                 log.debug("Current state match: %s %s", agent_state, resource_state)
                 return
             log.debug("state mismatch, waiting for state to transition")
-            time.sleep(2)
+            gevent.sleep(2)
 
         if(agent_state != target_agent_state):
             log.error("Failed to transition agent state to %s, current state: %s", target_agent_state, agent_state)
