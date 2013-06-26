@@ -105,7 +105,7 @@ class InstrumentFSM(object):
             if handler:
                 (next_state, result) = handler(*args, **kwargs)
             else:
-                raise InstrumentStateException('Command not handled in current state (%s).' % self.current_state)
+                raise InstrumentStateException('Command (%s) not handled in current state (%s).' % (event, self.current_state))
         else:
             raise InstrumentStateException(str(event) + " was not handled by InstrumentFSM.on_event()")
 
