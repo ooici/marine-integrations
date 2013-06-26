@@ -254,30 +254,30 @@ class DriverTestMixinSub(DriverTestMixin):
 
     # [TODO] Consider moving to base class as these apply to both PCO2 and pH
     _control_record_parameters = {
-        Pco2wControlRecordDataParticleKey.UNIQUE_ID:                {TYPE: int, VALUE: 0x54, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.RECORD_LENGTH:            {TYPE: int, VALUE: 0x12, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.RECORD_TYPE:              {TYPE: int, VALUE: 0x80,  REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.RECORD_TIME:              {TYPE: int, VALUE: 0xCEE90B17, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.CLOCK_ACTIVE:             {TYPE: bool, VALUE: True, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.RECORDING_ACTIVE:         {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.RECORD_END_ON_TIME:       {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.RECORD_MEMORY_FULL:       {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.RECORD_END_ON_ERROR:      {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.DATA_DOWNLOAD_OK:         {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.FLASH_MEMORY_OPEN:        {TYPE: bool, VALUE: True, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.BATTERY_LOW_PRESTART:     {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT:  {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.BATTERY_LOW_BANK:         {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL:     {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT:   {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT:   {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT:   {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.FLASH_ERASED:             {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.POWER_ON_INVALID:         {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.NUM_DATA_RECORDS:         {TYPE: int, VALUE: 0x000001, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.NUM_ERROR_RECORDS:        {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.NUM_BYTES_STORED:         {TYPE: int, VALUE: 0x000200, REQUIRED: True},
-        Pco2wControlRecordDataParticleKey.CHECKSUM:                 {TYPE: int, VALUE: 0xAF, REQUIRED: True},
+        SamiControlRecordDataParticleKey.UNIQUE_ID:                {TYPE: int, VALUE: 0x54, REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORD_LENGTH:            {TYPE: int, VALUE: 0x12, REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORD_TYPE:              {TYPE: int, VALUE: 0x80,  REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORD_TIME:              {TYPE: int, VALUE: 0xCEE90B17, REQUIRED: True},
+        SamiControlRecordDataParticleKey.CLOCK_ACTIVE:             {TYPE: bool, VALUE: True, REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORDING_ACTIVE:         {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORD_END_ON_TIME:       {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL:       {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR:      {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK:         {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN:        {TYPE: bool, VALUE: True, REQUIRED: True},
+        SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART:     {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT:  {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.BATTERY_LOW_BANK:         {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL:     {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT:   {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT:   {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT:   {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.FLASH_ERASED:             {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.POWER_ON_INVALID:         {TYPE: bool, VALUE: False, REQUIRED: True},
+        SamiControlRecordDataParticleKey.NUM_DATA_RECORDS:         {TYPE: int, VALUE: 0x000001, REQUIRED: True},
+        SamiControlRecordDataParticleKey.NUM_ERROR_RECORDS:        {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        SamiControlRecordDataParticleKey.NUM_BYTES_STORED:         {TYPE: int, VALUE: 0x000200, REQUIRED: True},
+        SamiControlRecordDataParticleKey.CHECKSUM:                 {TYPE: int, VALUE: 0xAF, REQUIRED: True},
     }
 
     _sami_sample_parameters = {
@@ -304,6 +304,7 @@ class DriverTestMixinSub(DriverTestMixin):
         Pco2wDev1SampleDataParticleKey.CHECKSUM:         {TYPE: int, VALUE: 0xCE, REQUIRED: True}
     }
 
+    # [TODO] Several of these particles could come from a share base class.
     _configuration_parameters = {
         # Configuration settings
         Pco2wConfigurationDataParticleKey.LAUNCH_TIME:                  {TYPE: int, VALUE: 0xCEE90B00, REQUIRED: True},

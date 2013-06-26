@@ -173,7 +173,7 @@ CONTROL_RECORD_REGEX_MATCHER = re.compile(CONTROL_RECORD_REGEX)
 
 # SAMI Sample Records (Types 0x04 or 0x05)
 SAMI_SAMPLE_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(04|05)' + \
-                    '([0-9A-Fa-f]{2})([0-9A-Fa-f]{56})([0-9A-Fa-f]{4})' + \
+                    '([0-9A-Fa-f]{8})([0-9A-Fa-f]{56})([0-9A-Fa-f]{4})' + \
                     '([0-9A-Fa-f]{4})([0-9A-Fa-f]{2})'
 SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
 
@@ -201,71 +201,327 @@ CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 ERROR_REGEX = r'[?]([0-9A-Fa-f]{2})'
 ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
 
-
-class Pco2aAirSampleDataParticleKey(BaseEnum):
+# [TODO: This needs to be moved to the baseclass]
+class SamiRegularStatusDataParticleKey(BaseEnum):
     """
-    Data particle key for air sample
+    Data particle key for the regular (1 Hz or polled) status messages.
     """
-    DATE_TIME_STRING = "date_time_string"
-    BEGIN_MEASUREMENT = "begin_measurement"
-    ZERO_A2D = "zero_a2d"
-    CURRENT_A2D = "current_a2d"
-    MEASURED_AIR_CO2 = "measured_air_co2"
-    AVG_IRG_TEMPERATURE = "avg_irga_temperature"
-    HUMIDITY = "humidity"
-    HUMIDITY_TEMPERATURE = "humidity_temperature"
-    GAS_STREAM_PRESSURE = "gas_stream_pressure"
-    IRGA_DETECTOR_TEMPERATURE = "irga_detector_temperature"
-    IRGA_SOURCE_TEMPERATURE = "irga_source_temperature"
+    ELAPSED_TIME_CONFIG = 'elapsed_time_config'
+    CLOCK_ACTIVE = 'clock_active'
+    RECORDING_ACTIVE = 'recording_active'
+    RECORD_END_ON_TIME = 'record_end_on_time'
+    RECORD_MEMORY_FULL = 'record_memory_full'
+    RECORD_END_ON_ERROR = 'record_end_on_error'
+    DATA_DOWNLOAD_OK = 'data_download_ok'
+    FLASH_MEMORY_OPEN = 'flash_memory_open'
+    BATTERY_LOW_PRESTART = 'battery_low_prestart'
+    BATTERY_LOW_MEASUREMENT = 'battery_low_measurement'
+    BATTERY_LOW_BANK = 'battery_low_bank'
+    BATTERY_LOW_EXTERNAL = 'battery_low_external'
+    EXTERNAL_DEVICE1_FAULT = 'external_device1_fault'
+    EXTERNAL_DEVICE2_FAULT = 'external_device2_fault'
+    EXTERNAL_DEVICE3_FAULT = 'external_device3_fault'
+    FLASH_ERASED = 'FLASH_ERASED'
+    POWER_ON_INVALID = 'power_on_invalid'
+    NUM_DATA_RECORDS = 'num_data_records'
+    NUM_ERROR_RECORDS = 'num_error_records'
+    NUM_BYTES_STORED = 'num_bytes_stored'
+    CHECKSUM = 'checksum'
 
 
-class Pco2aAirSampleDataParticle(DataParticle):
+# [TODO: This needs to be moved to the baseclass]
+class SamiRegularStatusDataParticleKey(DataParticle):
     """
-    Routines for parsing raw data into an air sample data particle structure.
+    Routines for parsing raw data into an regular status data particle
+    structure.
     @throw SampleException If there is a problem with sample creation
     """
-    _data_particle_type = DataParticleType.AIR_SAMPLE
+    _data_particle_type = DataParticleType.REGULAR_STATUS
 
     def _build_parsed_values(self):
         """
         Parse air sample values from raw data into a dictionary
         """
 
-        matched = AIR_REGEX_MATCHER.match(self.raw_data)
+        matched = REGULAR_STATUS_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.decoded_raw)
 
-        particle_keys = [Pco2aAirSampleDataParticleKey.DATE_TIME_STRING,
-                         Pco2aAirSampleDataParticleKey.BEGIN_MEASUREMENT,
-                         Pco2aAirSampleDataParticleKey.ZERO_A2D,
-                         Pco2aAirSampleDataParticleKey.CURRENT_A2D,
-                         Pco2aAirSampleDataParticleKey.MEASURED_AIR_CO2,
-                         Pco2aAirSampleDataParticleKey.AVG_IRG_TEMPERATURE,
-                         Pco2aAirSampleDataParticleKey.HUMIDITY,
-                         Pco2aAirSampleDataParticleKey.HUMIDITY_TEMPERATURE,
-                         Pco2aAirSampleDataParticleKey.GAS_STREAM_PRESSURE,
-                         Pco2aAirSampleDataParticleKey.IRGA_DETECTOR_TEMPERATURE,
-                         Pco2aAirSampleDataParticleKey.IRGA_SOURCE_TEMPERATURE]
+        particle_keys = [SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG,
+                         SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
+                         SamiRegularStatusDataParticleKey.RECORDING_ACTIVE,
+                         SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME,
+                         SamiRegularStatusDataParticleKey.RECORD_MEMORY_FULL,
+                         SamiRegularStatusDataParticleKey.RECORD_END_ON_ERROR,
+                         SamiRegularStatusDataParticleKey.DATA_DOWNLOAD_OK,
+                         SamiRegularStatusDataParticleKey.FLASH_MEMORY_OPEN,
+                         SamiRegularStatusDataParticleKey.BATTERY_LOW_PRESTART,
+                         SamiRegularStatusDataParticleKey.BATTERY_LOW_MEASUREMENT,
+                         SamiRegularStatusDataParticleKey.BATTERY_LOW_BANK,
+                         SamiRegularStatusDataParticleKey.BATTERY_LOW_EXTERNAL,
+                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE1_FAULT,
+                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE2_FAULT,
+                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT,
+                         SamiRegularStatusDataParticleKey.FLASH_ERASED,
+                         SamiRegularStatusDataParticleKey.POWER_ON_INVALID,
+                         SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS,
+                         SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS,
+                         SamiRegularStatusDataParticleKey.NUM_BYTES_STORED,
+                         SamiRegularStatusDataParticleKey.CHECKSUM
+                        ]
 
         result = []
-        index = 1
+        bit_index = 0
+
         for key in particle_keys:
-            if key in [Pco2aAirSampleDataParticleKey.DATE_TIME_STRING,
-                       Pco2aAirSampleDataParticleKey.BEGIN_MEASUREMENT]:
+            if key in [SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG]:
                 result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: matched.group(index)})
-            elif key in [Pco2aAirSampleDataParticleKey.ZERO_A2D,
-                         Pco2aAirSampleDataParticleKey.CURRENT_A2D,
-                         Pco2aAirSampleDataParticleKey.GAS_STREAM_PRESSURE]:
+                               DataParticleKey.VALUE: int(matched.group(1))})
+            elif key in [SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
+                         SamiRegularStatusDataParticleKey.RECORDING_ACTIVE,
+                         SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME,
+                         SamiRegularStatusDataParticleKey.RECORD_MEMORY_FULL,
+                         SamiRegularStatusDataParticleKey.RECORD_END_ON_ERROR,
+                         SamiRegularStatusDataParticleKey.DATA_DOWNLOAD_OK,
+                         SamiRegularStatusDataParticleKey.FLASH_MEMORY_OPEN,
+                         SamiRegularStatusDataParticleKey.BATTERY_LOW_PRESTART,
+                         SamiRegularStatusDataParticleKey.BATTERY_LOW_MEASUREMENT,
+                         SamiRegularStatusDataParticleKey.BATTERY_LOW_BANK,
+                         SamiRegularStatusDataParticleKey.BATTERY_LOW_EXTERNAL,
+                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE1_FAULT,
+                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE2_FAULT,
+                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT,
+                         SamiRegularStatusDataParticleKey.FLASH_ERASED,
+                         SamiRegularStatusDataParticleKey.POWER_ON_INVALID]:
                 result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: int(matched.group(index))})
+                               DataParticleKey.VALUE: bool(int(matched.group(2), 16) & (1 << bit_index))})
+                bit_index += 1
             else:
                 result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: float(matched.group(index))})
-            index += 1
+                               DataParticleKey.VALUE: int(matched.group(3))})
 
         return result
+
+
+# [TODO: This needs to be moved to the baseclass]
+class SamiControlRecordDataParticleKey(BaseEnum):
+    """
+    Data particle key for peridoically produced control records.
+    """
+    UNIQUE_ID = 'unique_id'
+    RECORD_LENGTH = 'record_length'
+    RECORD_TYPE = 'record_type'
+    RECORD_TIME = 'record_time'
+    CLOCK_ACTIVE = 'clock_active'
+    RECORDING_ACTIVE = 'recording_active'
+    RECORD_END_ON_TIME = 'record_end_on_time'
+    RECORD_MEMORY_FULL = 'record_memory_full'
+    RECORD_END_ON_ERROR = 'record_end_on_error'
+    DATA_DOWNLOAD_OK = 'data_download_ok'
+    FLASH_MEMORY_OPEN = 'flash_memory_open'
+    BATTERY_LOW_PRESTART = 'battery_low_prestart'
+    BATTERY_LOW_MEASUREMENT = 'battery_low_measurement'
+    BATTERY_LOW_BANK = 'battery_low_bank'
+    BATTERY_LOW_EXTERNAL = 'battery_low_external'
+    EXTERNAL_DEVICE1_FAULT = 'external_device1_fault'
+    EXTERNAL_DEVICE2_FAULT = 'external_device2_fault'
+    EXTERNAL_DEVICE3_FAULT = 'external_device3_fault'
+    FLASH_ERASED = 'FLASH_ERASED'
+    POWER_ON_INVALID = 'power_on_invalid'
+    NUM_DATA_RECORDS = 'num_data_records'
+    NUM_ERROR_RECORDS = 'num_error_records'
+    NUM_BYTES_STORED = 'num_bytes_stored'
+    CHECKSUM = 'checksum'
+
+
+# [TODO: This needs to be moved to the baseclass]
+class SamiControlRecordDataParticleKey(DataParticle):
+    """
+    Routines for parsing raw data into a control record data particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+    _data_particle_type = DataParticleType.CONTROL_RECORD
+
+    def _build_parsed_values(self):
+        """
+        Parse control record values from raw data into a dictionary
+        """
+
+        matched = CONTROL_RECORD_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        particle_keys = [SamiControlRecordDataParticleKey.UNIQUE_ID,
+                         SamiControlRecordDataParticleKey.RECORD_LENGTH,
+                         SamiControlRecordDataParticleKey.RECORD_TYPE,
+                         SamiControlRecordDataParticleKey.RECORD_TIME,
+                         SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
+                         SamiControlRecordDataParticleKey.RECORDING_ACTIVE,
+                         SamiControlRecordDataParticleKey.RECORD_END_ON_TIME,
+                         SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL,
+                         SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR,
+                         SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK,
+                         SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN,
+                         SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART,
+                         SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT,
+                         SamiControlRecordDataParticleKey.BATTERY_LOW_BANK,
+                         SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL,
+                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT,
+                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT,
+                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT,
+                         SamiControlRecordDataParticleKey.FLASH_ERASED,
+                         SamiControlRecordDataParticleKey.POWER_ON_INVALID,
+                         SamiControlRecordDataParticleKey.NUM_DATA_RECORDS,
+                         SamiControlRecordDataParticleKey.NUM_ERROR_RECORDS,
+                         SamiControlRecordDataParticleKey.NUM_BYTES_STORED,
+                         SamiControlRecordDataParticleKey.CHECKSUM
+                        ]
+
+        result = []
+        key_index = 1
+        bit_index = 0
+
+        for key in particle_keys:
+            if key in [SamiControlRecordDataParticleKey.UNIQUE_ID,
+                       SamiControlRecordDataParticleKey.RECORD_LENGTH,
+                       SamiControlRecordDataParticleKey.RECORD_TYPE,
+                       SamiControlRecordDataParticleKey.RECORD_TIME]:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: int(matched.group(key_index))})
+            elif key in [SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
+                         SamiControlRecordDataParticleKey.RECORDING_ACTIVE,
+                         SamiControlRecordDataParticleKey.RECORD_END_ON_TIME,
+                         SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL,
+                         SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR,
+                         SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK,
+                         SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN,
+                         SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART,
+                         SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT,
+                         SamiControlRecordDataParticleKey.BATTERY_LOW_BANK,
+                         SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL,
+                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT,
+                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT,
+                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT,
+                         SamiControlRecordDataParticleKey.FLASH_ERASED,
+                         SamiControlRecordDataParticleKey.POWER_ON_INVALID]:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: bool(int(matched.group(5), 16) & (1 << bit_index))})
+                bit_index += 1
+            else:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: int(matched.group(key_index))})
+
+            key_index += 1
+
+        return result
+
+
+class Pco2wSamiSampleDataParticleKey(BaseEnum):
+    """
+    Data particle key for the SAMI2-PCO2 records. These particles
+    capture when a sample was processed.
+    """
+    UNIQUE_ID = 'unique_id'
+    RECORD_LENGTH = 'record_length'
+    RECORD_TYPE = 'record_type'
+    RECORD_TIME = 'record_time'
+    LIGHT_MEASUREMENTS = 'light_measurements'
+    VOLTAGE_BATTERY = 'voltage_battery'
+    THERMISTER_RAW = 'thermistor_raw'
+    CHECKSUM = 'checksum'
+
+
+class Pco2wSamiSampleDataParticleKey(DataParticle):
+    """
+    Routines for parsing raw data into a SAMI2-PCO2 sample data particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+    _data_particle_type = DataParticleType.SAMI_SAMPLE
+
+    def _build_parsed_values(self):
+        """
+        Parse SAMI2-PCO2 values from raw data into a dictionary
+        """
+
+        matched = SAMI_SAMPLE_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        particle_keys = [Pco2wSamiSampleDataParticleKey.UNIQUE_ID,
+                         Pco2wSamiSampleDataParticleKey.RECORD_LENGTH,
+                         Pco2wSamiSampleDataParticleKey.RECORD_TYPE,
+                         Pco2wSamiSampleDataParticleKey.RECORD_TIME,
+                         Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS,
+                         Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTER,
+                         Pco2wSamiSampleDataParticleKey.THERMISTER_RAW,
+                         Pco2wSamiSampleDataParticleKey.CHECKSUM
+                        ]
+
+        result = []
+        for key in particle_keys:
+            if key in [Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS]:
+                # parse group 5 into 14, 2 byte (4 character) values stored in
+                # an array.
+                light = matched.group(key+1)
+                light = [int(light[i:i+4], 16) for i in range(0, len(light), 4)]
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: light})
+            else:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: int(matched.group(key_index))})
+
+        return result
+
+
+class Pco2wDev1SampleDataParticleKey(BaseEnum):
+    """
+    Data particle key for the device 1 (external pump) records. These particles
+    capture when a sample was collected.
+    """
+    UNIQUE_ID = 'unique_id'
+    RECORD_LENGTH = 'record_length'
+    RECORD_TYPE = 'record_type'
+    RECORD_TIME = 'record_time'
+    CHECKSUM = 'checksum'
+
+
+class Pco2wDev1SampleDataParticleKey(DataParticle):
+    """
+    Routines for parsing raw data into a device 1 sample data particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+    _data_particle_type = DataParticleType.DEV1_SAMPLE
+
+    def _build_parsed_values(self):
+        """
+        Parse device 1 values from raw data into a dictionary
+        """
+
+        matched = DEV1_SAMPLE_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        particle_keys = [Pco2wDev1SampleDataParticleKey.UNIQUE_ID,
+                         Pco2wDev1SampleDataParticleKey.RECORD_LENGTH,
+                         Pco2wDev1SampleDataParticleKey.RECORD_TYPE,
+                         Pco2wDev1SampleDataParticleKey.RECORD_TIME,
+                         Pco2wDev1SampleDataParticleKey.CHECKSUM
+                        ]
+
+        result = []
+        for key in particle_keys:
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: int(matched.group(key+1))})
+
+        return result
+
 
 ###############################################################################
 # Driver
