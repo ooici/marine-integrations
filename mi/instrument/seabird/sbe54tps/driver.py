@@ -125,6 +125,7 @@ class ProtocolEvent(BaseEnum):
     PING_DRIVER = DriverEvent.PING_DRIVER
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    INIT_PARAMS = DriverEvent.INIT_PARAMS
     SCHEDULED_CLOCK_SYNC = 'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'
     GET_CONFIGURATION_DATA = 'PROTOCOL_EVENT_GET_CONFIGURATION'
     GET_STATUS_DATA = 'PROTOCOL_EVENT_GET_STATUS'
@@ -1102,6 +1103,7 @@ class Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER,                  self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT,                   self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER,               self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER,                  self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,                   self._handler_command_exit)
@@ -1119,6 +1121,7 @@ class Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,           self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SAMPLE_REFERENCE_OSCILLATOR, self._handler_sample_ref_osc)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST_EEPROM,            self._handler_command_test_eeprom)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.INIT_PARAMS,            self._handler_command_init_params)
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,         self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_CLOCK_SYNC,   self._handler_autosample_clock_sync)
@@ -1130,6 +1133,7 @@ class Protocol(SeaBirdProtocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,                   self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET,                    self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,        self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.INIT_PARAMS,            self._handler_autosample_init_params)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,            self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,             self._handler_direct_access_exit)
@@ -1279,35 +1283,18 @@ class Protocol(SeaBirdProtocol):
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state; can be COMMAND or AUTOSAMPLE.
-        @retval (next_state, result)
-        @retval (next_state, result), (ProtocolState.COMMAND or
-        State.AUTOSAMPLE, None) if successful.
+        @retval (next_state, result), (SBE37ProtocolState.COMMAND or
+        SBE37State.AUTOSAMPLE, None) if successful.
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
         """
-        timeout = kwargs.get('timeout', TIMEOUT)
+        (protocol_state, agent_state) =  self._discover()
 
-        log.debug("_handler_unknown_discover")
-        next_state = None
-        next_agent_state = None
+        if(protocol_state == ProtocolState.COMMAND):
+            agent_state = ResourceAgentState.IDLE
 
-        logging = self._is_logging()
-        log.debug("are we logging? %s" % logging)
-
-        if(logging == None):
-            raise InstrumentProtocolException('_handler_unknown_discover - unable to to determine state')
-
-        elif(logging):
-            next_state = ProtocolState.AUTOSAMPLE
-            next_agent_state = ResourceAgentState.STREAMING
-
-        else:
-            next_state = ProtocolState.COMMAND
-            next_agent_state = ResourceAgentState.IDLE
-
-        log.debug("_handler_unknown_discover. result start: %s" % next_state)
-        return (next_state, next_agent_state)
+        return (protocol_state, agent_state)
 
     def _handler_unknown_exit(self, *args, **kwargs):
         """
@@ -1319,22 +1306,6 @@ class Protocol(SeaBirdProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
-
-    def _handler_command_enter(self, *args, **kwargs):
-        """
-        Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
-        """
-        # Command device to update parameters and send a config change event.
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        log.debug("%%% IN _handler_command_enter")
-        #self._restore_da_params()
-        self._update_params()
-
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_command_acquire_sample(self, *args, **kwargs):
         """
@@ -1676,15 +1647,6 @@ class Protocol(SeaBirdProtocol):
 
         return (next_state, (next_agent_state, result))
 
-    def _handler_autosample_enter(self, *args, **kwargs):
-        """
-        Enter autosample state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Switch into autosample mode.
@@ -1790,8 +1752,7 @@ class Protocol(SeaBirdProtocol):
         next_state = None
         result = None
 
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        (next_state, next_agent_state) = self._discover()
 
         return (next_state, (next_agent_state, result))
 
