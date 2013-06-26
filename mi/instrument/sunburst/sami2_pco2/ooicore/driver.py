@@ -65,6 +65,11 @@ class DataParticleType(BaseEnum):
     Data particle types produced by this driver
     """
     RAW = CommonDataParticleType.RAW
+    REGULAR_STATUS = 'regular_status'
+    CONTROL_RECORD = 'control_record'
+    SAMI_SAMPLE = 'sami_sample'
+    DEV1_SAMPLE = 'dev1_sample'
+    CONFIGURATION = 'configuration'
 
 
 class ProtocolState(BaseEnum):
@@ -106,7 +111,7 @@ class Capability(BaseEnum):
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    ACQUIRE_STATUS  = ProtocolEvent.ACQUIRE_STATUS
+    ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
 
 
 class Parameter(DriverParameter):
@@ -178,7 +183,7 @@ SAMI_SAMPLE_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(04|05)' + \
 SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
 
 # Device 1 Sample Records (Type 0x11)
-DEV1_SAMPLE_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(11)([0-9A-Fa-f]{8}'
+DEV1_SAMPLE_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(11)([0-9A-Fa-f]{8})'
 DEV1_SAMPLE_REGEX_MATCHER = re.compile(DEV1_SAMPLE_REGEX)
 
 # Configuration Records
@@ -201,12 +206,13 @@ CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 ERROR_REGEX = r'[?]([0-9A-Fa-f]{2})'
 ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
 
+
 # [TODO: This needs to be moved to the baseclass]
 class SamiRegularStatusDataParticleKey(BaseEnum):
     """
     Data particle key for the regular (1 Hz or polled) status messages.
     """
-    ELAPSED_TIME_CONFIG = 'elapsed_time_config'
+    ELAPSED_TIME_CONFIG = "elapsed_time_config"
     CLOCK_ACTIVE = 'clock_active'
     RECORDING_ACTIVE = 'recording_active'
     RECORD_END_ON_TIME = 'record_end_on_time'
@@ -268,8 +274,7 @@ class SamiRegularStatusDataParticleKey(DataParticle):
                          SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS,
                          SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS,
                          SamiRegularStatusDataParticleKey.NUM_BYTES_STORED,
-                         SamiRegularStatusDataParticleKey.CHECKSUM
-                        ]
+                         SamiRegularStatusDataParticleKey.CHECKSUM]
 
         result = []
         bit_index = 0
@@ -277,7 +282,7 @@ class SamiRegularStatusDataParticleKey(DataParticle):
         for key in particle_keys:
             if key in [SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG]:
                 result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: int(matched.group(1))})
+                               DataParticleKey.VALUE: int(matched.group(1), 16)})
             elif key in [SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
                          SamiRegularStatusDataParticleKey.RECORDING_ACTIVE,
                          SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME,
@@ -299,7 +304,7 @@ class SamiRegularStatusDataParticleKey(DataParticle):
                 bit_index += 1
             else:
                 result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: int(matched.group(3))})
+                               DataParticleKey.VALUE: int(matched.group(3), 16)})
 
         return result
 
@@ -377,11 +382,10 @@ class SamiControlRecordDataParticleKey(DataParticle):
                          SamiControlRecordDataParticleKey.NUM_DATA_RECORDS,
                          SamiControlRecordDataParticleKey.NUM_ERROR_RECORDS,
                          SamiControlRecordDataParticleKey.NUM_BYTES_STORED,
-                         SamiControlRecordDataParticleKey.CHECKSUM
-                        ]
+                         SamiControlRecordDataParticleKey.CHECKSUM]
 
         result = []
-        key_index = 1
+        grp_index = 1
         bit_index = 0
 
         for key in particle_keys:
@@ -390,7 +394,7 @@ class SamiControlRecordDataParticleKey(DataParticle):
                        SamiControlRecordDataParticleKey.RECORD_TYPE,
                        SamiControlRecordDataParticleKey.RECORD_TIME]:
                 result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: int(matched.group(key_index))})
+                               DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
             elif key in [SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
                          SamiControlRecordDataParticleKey.RECORDING_ACTIVE,
                          SamiControlRecordDataParticleKey.RECORD_END_ON_TIME,
@@ -412,9 +416,9 @@ class SamiControlRecordDataParticleKey(DataParticle):
                 bit_index += 1
             else:
                 result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: int(matched.group(key_index))})
+                               DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
 
-            key_index += 1
+            grp_index += 1
 
         return result
 
@@ -459,8 +463,7 @@ class Pco2wSamiSampleDataParticleKey(DataParticle):
                          Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS,
                          Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTER,
                          Pco2wSamiSampleDataParticleKey.THERMISTER_RAW,
-                         Pco2wSamiSampleDataParticleKey.CHECKSUM
-                        ]
+                         Pco2wSamiSampleDataParticleKey.CHECKSUM]
 
         result = []
         for key in particle_keys:
@@ -473,7 +476,7 @@ class Pco2wSamiSampleDataParticleKey(DataParticle):
                                DataParticleKey.VALUE: light})
             else:
                 result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: int(matched.group(key_index))})
+                               DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
 
         return result
 
@@ -512,13 +515,163 @@ class Pco2wDev1SampleDataParticleKey(DataParticle):
                          Pco2wDev1SampleDataParticleKey.RECORD_LENGTH,
                          Pco2wDev1SampleDataParticleKey.RECORD_TYPE,
                          Pco2wDev1SampleDataParticleKey.RECORD_TIME,
-                         Pco2wDev1SampleDataParticleKey.CHECKSUM
-                        ]
+                         Pco2wDev1SampleDataParticleKey.CHECKSUM]
 
         result = []
         for key in particle_keys:
             result.append({DataParticleKey.VALUE_ID: key,
-                           DataParticleKey.VALUE: int(matched.group(key+1))})
+                           DataParticleKey.VALUE: int(matched.group(key+1), 16)})
+
+        return result
+
+
+class Pco2wConfigurationDataParticleKey(BaseEnum):
+    """
+    Data particle key for the configuration record.
+    """
+    LAUNCH_TIME = 'launch_time'
+    START_TIME_OFFSET = 'start_time_offset'
+    RECORDING_TIME = 'recording_time'
+    PMI_SAMPLE_SCHEDULE = 'pmi_sample_schedule'
+    SAMI_SAMPLE_SCHEDULE = 'sami_sample_schedule'
+    SLOT1_FOLLOWS_SAMI_SCHEDULE = 'slot1_follows_sami_schedule'
+    SLOT1_INDEPENDENT_SCHEDULE = 'slot1_independent_schedule'
+    SLOT2_FOLLOWS_SAMI_SCHEDULE = 'slot2_follows_sami_schedule'
+    SLOT2_INDEPENDENT_SCHEDULE = 'slot2_independent_schedule'
+    SLOT3_FOLLOWS_SAMI_SCHEDULE = 'slot3_follows_sami_schedule'
+    SLOT3_INDEPENDENT_SCHEDULE = 'slot3_independent_schedule'
+    TIMER_INTERVAL_SAMI = 'timer_interval_sami'
+    DRIVER_ID_SAMI = 'driver_id_sami'
+    PARAMETER_POINTER_SAMI = 'parameter_pointer_sami'
+    TIMER_INTERVAL_DEVICE1 = 'timer_interval_device1'
+    DRIVER_ID_DEVICE1 = 'driver_id_device1'
+    PARAMETER_POINTER_DEVICE1 = 'parameter_pointer_device1'
+    TIMER_INTERVAL_DEVICE2 = 'timer_interval_device2'
+    DRIVER_ID_DEVICE2 = 'driver_id_device2'
+    PARAMETER_POINTER_DEVICE2 = 'parameter_pointer_device2'
+    TIMER_INTERVAL_DEVICE3 = 'timer_interval_device3'
+    DRIVER_ID_DEVICE3 = 'driver_id_device3'
+    PARAMETER_POINTER_DEVICE3 = 'parameter_pointer_device3'
+    TIMER_INTERVAL_PRESTART = 'timer_interval_prestart'
+    DRIVER_ID_PRESTART = 'driver_id_prestart'
+    PARAMETER_POINTER_PRESTART = 'parameter_pointer_prestart'
+    USE_BAUD_RATE_57600 = 'use_baud_rate_57600'
+    SEND_RECORD_TYPE = 'send_record_type'
+    SEND_LIVE_RECORDS = 'send_live_records'
+    EXTEND_GLOBAL_CONFIG = 'extend_global_config'
+    PUMP_PULSE = 'pump_pulse'
+    PUMP_ON_TO_MEAURSURE = 'pump_on_to_meaursure'
+    SAMPLES_PER_MEASURE = 'samples_per_measure'
+    CYCLES_BETWEEN_BLANKS = 'cycles_between_blanks'
+    NUM_REAGENT_CYCLES = 'num_reagent_cycles'
+    NUM_BLANK_CYCLES = 'num_blank_cycles'
+    FLUSH_PUMP_INTERVAL = 'flush_pump_interval'
+    DISABLE_START_BLANK_FLUSH = 'disable_start_blank_flush'
+    MEASURE_AFTER_PUMP_PULSE = 'measure_after_pump_pulse'
+    CYCLE_RATE = 'cycle_rate'
+    EXTERNAL_PUMP_SETTING = 'external_pump_setting'
+
+
+class Pco2wConfigurationDataParticleKey(DataParticle):
+    """
+    Routines for parsing raw data into a configuration record data particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+    _data_particle_type = DataParticleType.CONFIGURATION
+
+    def _build_parsed_values(self):
+        """
+        Parse configuration record values from raw data into a dictionary
+        """
+
+        matched = CONFIGURATION_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        particle_keys = [Pco2wConfigurationDataParticleKey.LAUNCH_TIME,
+                         Pco2wConfigurationDataParticleKey.START_TIME_OFFSET,
+                         Pco2wConfigurationDataParticleKey.RECORDING_TIME,
+                         Pco2wConfigurationDataParticleKey.PMI_SAMPLE_SCHEDULE,
+                         Pco2wConfigurationDataParticleKey.SAMI_SAMPLE_SCHEDULE,
+                         Pco2wConfigurationDataParticleKey.SLOT1_FOLLOWS_SAMI_SCHEDULE,
+                         Pco2wConfigurationDataParticleKey.SLOT1_INDEPENDENT_SCHEDULE,
+                         Pco2wConfigurationDataParticleKey.SLOT2_FOLLOWS_SAMI_SCHEDULE,
+                         Pco2wConfigurationDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE,
+                         Pco2wConfigurationDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE,
+                         Pco2wConfigurationDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE,
+                         Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_SAMI,
+                         Pco2wConfigurationDataParticleKey.DRIVER_ID_SAMI,
+                         Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_SAMI,
+                         Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE1,
+                         Pco2wConfigurationDataParticleKey.DRIVER_ID_DEVICE1,
+                         Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE1,
+                         Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE2,
+                         Pco2wConfigurationDataParticleKey.DRIVER_ID_DEVICE2,
+                         Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE2,
+                         Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE3,
+                         Pco2wConfigurationDataParticleKey.DRIVER_ID_DEVICE3,
+                         Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE3,
+                         Pco2wConfigurationDataParticleKey.TIMER_INTERVAL_PRESTART,
+                         Pco2wConfigurationDataParticleKey.DRIVER_ID_PRESTART,
+                         Pco2wConfigurationDataParticleKey.PARAMETER_POINTER_PRESTART,
+                         Pco2wConfigurationDataParticleKey.USE_BAUD_RATE_57600,
+                         Pco2wConfigurationDataParticleKey.SEND_RECORD_TYPE,
+                         Pco2wConfigurationDataParticleKey.SEND_LIVE_RECORDS,
+                         Pco2wConfigurationDataParticleKey.EXTEND_GLOBAL_CONFIG,
+                         Pco2wConfigurationDataParticleKey.PUMP_PULSE,
+                         Pco2wConfigurationDataParticleKey.PUMP_ON_TO_MEAURSURE,
+                         Pco2wConfigurationDataParticleKey.SAMPLES_PER_MEASURE,
+                         Pco2wConfigurationDataParticleKey.CYCLES_BETWEEN_BLANKS,
+                         Pco2wConfigurationDataParticleKey.NUM_REAGENT_CYCLES,
+                         Pco2wConfigurationDataParticleKey.NUM_BLANK_CYCLES,
+                         Pco2wConfigurationDataParticleKey.FLUSH_PUMP_INTERVAL,
+                         Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH,
+                         Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE,
+                         Pco2wConfigurationDataParticleKey.CYCLE_RATE,
+                         Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTING]
+
+        result = []
+        grp_index = 1
+        mode_index = 0
+        glbl_index = 0
+        sami_index = 0
+
+        for key in particle_keys:
+            if key in [Pco2wConfigurationDataParticleKey.PMI_SAMPLE_SCHEDULE,
+                       Pco2wConfigurationDataParticleKey.SAMI_SAMPLE_SCHEDULE,
+                       Pco2wConfigurationDataParticleKey.SLOT1_FOLLOWS_SAMI_SCHEDULE,
+                       Pco2wConfigurationDataParticleKey.SLOT1_INDEPENDENT_SCHEDULE,
+                       Pco2wConfigurationDataParticleKey.SLOT2_FOLLOWS_SAMI_SCHEDULE,
+                       Pco2wConfigurationDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE,
+                       Pco2wConfigurationDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE,
+                       Pco2wConfigurationDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE]:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: bool(int(matched.group(4), 16) & (1 << mode_index))})
+                mode_index += 1
+
+            elif key in [Pco2wConfigurationDataParticleKey.USE_BAUD_RATE_57600,
+                         Pco2wConfigurationDataParticleKey.SEND_RECORD_TYPE,
+                         Pco2wConfigurationDataParticleKey.SEND_LIVE_RECORDS,
+                         Pco2wConfigurationDataParticleKey.EXTEND_GLOBAL_CONFIG]:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: bool(int(matched.group(20), 16) & (1 << glbl_index))})
+                glbl_index += 1
+                if glbl_index == 3:
+                    glbl_index = 7
+
+            elif key in [Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH,
+                         Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE]:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: bool(int(matched.group(28), 16) & (1 << sami_index))})
+                sami_index += 1
+
+            else:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
+
+            grp_index += 1
 
         return result
 
@@ -526,7 +679,6 @@ class Pco2wDev1SampleDataParticleKey(DataParticle):
 ###############################################################################
 # Driver
 ###############################################################################
-
 class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass
@@ -565,7 +717,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 ###########################################################################
 # Protocol
 ###########################################################################
-
 class Protocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol class
@@ -583,7 +734,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Build protocol state machine.
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
-                            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+                                           ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
@@ -620,7 +771,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         #
         self._chunker = StringChunker(Protocol.sieve_function)
-
 
     @staticmethod
     def sieve_function(raw_data):
@@ -700,7 +850,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         next_state = None
         result = None
-
 
         return (next_state, result)
 

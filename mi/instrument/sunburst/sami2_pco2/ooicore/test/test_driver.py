@@ -55,6 +55,11 @@ from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Protocol
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Prompt
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import NEWLINE
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SAMI_EPOCH
+from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SamiRegularStatusDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SamiControlRecordDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wSamiSampleDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wDev1SampleDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wConfigurationDataParticleKey
 
 ###
 #   Driver parameters for the tests
@@ -143,11 +148,11 @@ class DriverTestMixinSub(DriverTestMixin):
 
     # Data records -- SAMI and Device1 (external pump) (responses to R0 and R1
     # commands, respectively)
-    VALID_R0_BLANK_SAMPLE = '^05' + NEWLINE + '*542705CEE91CC80040001909620680' + \
-                            '0730074C2CE04274003B0018096106800732074E0D82066124' + NEWLINE
-    VALID_R0_DATA_SAMPLE = '^04' + NEWLINE + '*542704CEE91DD2003B0019096201550' + \
-                           '73003E908A1232D0043001A09620154072F03EA0D92065F46' + NEWLINE
-    VALID_R1_SAMPLE = '^11' + NEWLINE + '*540711CEE91DE2CE' + NEWLINE
+    VALID_R0_BLANK_SAMPLE = '*542705CEE91CC800400019096206800730074C2CE042' + \
+                            '74003B0018096106800732074E0D82066124' + NEWLINE
+    VALID_R0_DATA_SAMPLE = '*542704CEE91DD2003B001909620155073003E908A1232' + \
+                           'D0043001A09620154072F03EA0D92065F46' + NEWLINE
+    VALID_R1_SAMPLE = '*540711CEE91DE2CE' + NEWLINE
 
     # Control record
     VALID_CONTROL_RECORD = '*541280CEE90B170041000001000000000200AF' + NEWLINE
@@ -229,7 +234,7 @@ class DriverTestMixinSub(DriverTestMixin):
     # [TODO] Consider moving to base class as these apply to both PCO2 and pH
     _regular_status_parameters = {
         # SAMI Regular Status Messages (S0)
-        SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG:       {TYPE: int, VALUE: 0xCEE90B1B, REQUIRED: True},
+        SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG:       {TYPE: int, VALUE: '0xCEE90B1B', REQUIRED: True},
         SamiRegularStatusDataParticleKey.CLOCK_ACTIVE:              {TYPE: bool, VALUE: True, REQUIRED: True},
         SamiRegularStatusDataParticleKey.RECORDING_ACTIVE:          {TYPE: bool, VALUE: False, REQUIRED: True},
         SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME:        {TYPE: bool, VALUE: False, REQUIRED: True},
@@ -446,6 +451,7 @@ class DriverTestMixinSub(DriverTestMixin):
         self.assert_data_particle_parameters(data_particle,
                                              self._configuration_parameters,
                                              verify_values)
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
