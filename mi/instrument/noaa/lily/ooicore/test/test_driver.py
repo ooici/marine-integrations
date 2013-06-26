@@ -119,11 +119,10 @@ DUMP_01_COMMAND_RESPONSE = "LILY,2013/05/29 00:22:57," + LILY_COMMAND_STRING + L
 DUMP_02_COMMAND_RESPONSE = "LILY,2013/05/29 00:23:34," + LILY_COMMAND_STRING + LILY_DUMP_02 + NEWLINE
 
 BOTPT_FIREHOSE_01  = "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
-BOTPT_FIREHOSE_01  += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
 BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 BOTPT_FIREHOSE_01  += "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
 BOTPT_FIREHOSE_01  += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
-BOTPT_FIREHOSE_01  += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
+BOTPT_FIREHOSE_01  += "LILY,2013/06/24 23:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NEWLINE
 BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 
 SIGNON_STATUS = \
@@ -205,19 +204,23 @@ class LILYTestMixinSub(DriverTestMixin):
     }
     
     _sample_parameters_01 = {
-        LILYDataParticleKey.TIME: {TYPE: float, VALUE: 3578801134.0, REQUIRED: True },
-        LILYDataParticleKey.X_TILT: {TYPE: float, VALUE: -0.0882, REQUIRED: True },
-        LILYDataParticleKey.Y_TILT: {TYPE: float, VALUE: -0.7524, REQUIRED: True },
-        LILYDataParticleKey.TEMP: {TYPE: float, VALUE: 28.45, REQUIRED: True },
-        LILYDataParticleKey.SN: {TYPE: unicode, VALUE: 'N8642', REQUIRED: True }
+        LILYDataParticleKey.TIME: {TYPE: float, VALUE: 3581130962.0, REQUIRED: True },
+        LILYDataParticleKey.X_TILT: {TYPE: float, VALUE: -235.500, REQUIRED: True },
+        LILYDataParticleKey.Y_TILT: {TYPE: float, VALUE: 25.930, REQUIRED: True },
+        LILYDataParticleKey.MAG_COMPASS: {TYPE: float, VALUE: 194.30, REQUIRED: True },
+        LILYDataParticleKey.TEMP: {TYPE: float, VALUE: 26.04, REQUIRED: True },
+        LILYDataParticleKey.SUPPLY_VOLTS: {TYPE: float, VALUE: 11.96, REQUIRED: True },
+        LILYDataParticleKey.SN: {TYPE: unicode, VALUE: 'N9655', REQUIRED: True }
     }
 
     _sample_parameters_02 = {
-        LILYDataParticleKey.TIME: {TYPE: float, VALUE: 3578801136.0, REQUIRED: True },
-        LILYDataParticleKey.X_TILT: {TYPE: float, VALUE: -0.0885, REQUIRED: True },
-        LILYDataParticleKey.Y_TILT: {TYPE: float, VALUE: -0.7517, REQUIRED: True },
-        LILYDataParticleKey.TEMP: {TYPE: float, VALUE: 28.49, REQUIRED: True },
-        LILYDataParticleKey.SN: {TYPE: unicode, VALUE: 'N8642', REQUIRED: True }
+        LILYDataParticleKey.TIME: {TYPE: float, VALUE: 3581130964.0, REQUIRED: True },
+        LILYDataParticleKey.X_TILT: {TYPE: float, VALUE: -235.349, REQUIRED: True },
+        LILYDataParticleKey.Y_TILT: {TYPE: float, VALUE: 26.082, REQUIRED: True },
+        LILYDataParticleKey.MAG_COMPASS: {TYPE: float, VALUE: 194.26, REQUIRED: True },
+        LILYDataParticleKey.TEMP: {TYPE: float, VALUE: 26.04, REQUIRED: True },
+        LILYDataParticleKey.SUPPLY_VOLTS: {TYPE: float, VALUE: 11.96, REQUIRED: True },
+        LILYDataParticleKey.SN: {TYPE: unicode, VALUE: 'N9655', REQUIRED: True }
     }
 
     def assert_particle_sample_01(self, data_particle, verify_values = False):

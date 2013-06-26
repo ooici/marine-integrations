@@ -202,7 +202,9 @@ class LILYDataParticleKey(BaseEnum):
     TIME = "lily_time"
     X_TILT = "lily_x_tilt"
     Y_TILT = "lily_y_tilt"
+    MAG_COMPASS = "lily_mag_compass"
     TEMP = "temperature"
+    SUPPLY_VOLTS = "supply_voltage"
     SN = "serial_number"
 
 class LILYDataParticle(DataParticle):
@@ -214,7 +216,7 @@ class LILYDataParticle(DataParticle):
        LILY,2013/06/24 23:22:00,-236.026,  25.666,194.25, 26.01,11.96,N9655
        LILY,2013/06/24 23:22:02,-236.051,  25.611,194.25, 26.02,11.96,N9655       
     Format:
-       IIII,YYYY/MM/DD hh:mm:ss,x.xxxx,y.yyyy,tt.tt,sn
+       IIII,YYYY/MM/DD hh:mm:ss,xxx.xxx,yyy.yyy,mmm.mm,tt.tt,vv.vv,sn
 
         ID = IIII = LILY
         Year = YYYY
@@ -226,7 +228,9 @@ class LILYDataParticle(DataParticle):
         NOTE: The above time expression is all grouped into one string.
         X_TILT = x.xxxx (float degrees)
         Y_TILT = y.yyyy (float degrees)
+        MagCompass = mmm.mm
         Temp = tt.tt (float degrees C)
+        SupplyVolts = vv.vv
         Serial Number = sn
     """
     _data_particle_type = DataParticleType.LILY_PARSED
@@ -239,10 +243,12 @@ class LILYDataParticle(DataParticle):
         """
         pattern = r'LILY,' # pattern starts with LILY '
         pattern += r'(.*),' # 1 time
-        pattern += r'( -*[.0-9]+),' # 2 x-tilt
-        pattern += r'( -*[.0-9]+),' # 3 y-tilt
-        pattern += r'(.*),' # 4 temp
-        pattern += r'(.*)' # 5 serial number
+        pattern += r'( *-*[.0-9]+),' # 2 x-tilt
+        pattern += r'( *-*[.0-9]+),' # 3 y-tilt
+        pattern += r'(.*),' # 4 Magnetic Compass (degrees)
+        pattern += r'(.*),' # 5 temp
+        pattern += r'(.*),' # 6 SupplyVolts
+        pattern += r'(.*)' # 7 serial number
         pattern += NEWLINE
         return pattern
 
@@ -274,8 +280,10 @@ class LILYDataParticle(DataParticle):
             ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
             x_tilt = float(match.group(2))
             y_tilt = float(match.group(3))
-            temperature = float(match.group(4))
-            sn = str(match.group(5))
+            mag_compass = float(match.group(4))
+            temperature = float(match.group(5))
+            supply_volts = float(match.group(6))
+            sn = str(match.group(7))
 
         except ValueError:
             raise SampleException("ValueError while converting data: [%s]" %
@@ -288,8 +296,12 @@ class LILYDataParticle(DataParticle):
                    DataParticleKey.VALUE: x_tilt},
                   {DataParticleKey.VALUE_ID: LILYDataParticleKey.Y_TILT,
                    DataParticleKey.VALUE: y_tilt},
+                  {DataParticleKey.VALUE_ID: LILYDataParticleKey.MAG_COMPASS,
+                   DataParticleKey.VALUE: mag_compass},
                   {DataParticleKey.VALUE_ID: LILYDataParticleKey.TEMP,
                    DataParticleKey.VALUE: temperature},
+                  {DataParticleKey.VALUE_ID: LILYDataParticleKey.SUPPLY_VOLTS,
+                   DataParticleKey.VALUE: supply_volts},
                   {DataParticleKey.VALUE_ID: LILYDataParticleKey.SN,
                    DataParticleKey.VALUE: sn}
                   ]
