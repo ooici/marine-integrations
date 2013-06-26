@@ -38,7 +38,12 @@ class WorkhorseParameter(TeledyneParameter):
     """
     Device parameters
     """
-
+    
+    SERIAL_FLOW_CONTROL = 'CF'
+    BANNER = 'CH'
+    SLEEP_ENABLE = 'CL'
+    SAVE_NVRAM_TO_RECORDER = 'CN'
+    POLLED_MODE = 'CP'
     TIME_PER_BURST = 'TB'
     ENSEMBLES_PER_BURST = 'TC'
     BUFFER_OUTPUT_PERIOD = 'TX'
@@ -47,6 +52,7 @@ class WorkhorseParameter(TeledyneParameter):
 class WorkhorseInstrumentCmds(TeledyneInstrumentCmds):
     """
     """
+    RESTORE_FACTORY_PARAMS = 'CR1'
     POWER_DOWN = 'CZ'
 
 
@@ -63,6 +69,7 @@ class WorkhorseProtocolState(TeledyneProtocolState):
 class WorkhorseCapability(TeledyneCapability):
     """
     """
+    RESTORE_FACTORY_PARAMS = TeledyneProtocolEvent.RESTORE_FACTORY_PARAMS
     POWER_DOWN = WorkhorseProtocolEvent.POWER_DOWN
 
 
@@ -159,6 +166,12 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._protocol_fsm.add_handler(WorkhorseProtocolState.COMMAND,
                                        WorkhorseProtocolEvent.POWER_DOWN,
                                        self._handler_command_power_down)
+        self._protocol_fsm.add_handler(WorkhorseProtocolState.COMMAND,
+                                       WorkhorseProtocolEvent.RESTORE_FACTORY_PARAMS,
+                                       self._handler_command_restore_factory_params)
+
+        self._add_build_handler(WorkhorseInstrumentCmds.RESTORE_FACTORY_PARAMS, self._build_simple_command)
+        self._add_response_handler(WorkhorseInstrumentCmds.RESTORE_FACTORY_PARAMS, self._parse_restore_factory_params_response)
 
         self._chunker = StringChunker(WorkhorseProtocol.sieve_function)
 
@@ -224,6 +237,8 @@ class WorkhorseProtocol(TeledyneProtocol):
                            display_name="clear fault log")
         self._cmd_dict.add(WorkhorseCapability.RUN_TEST_200,
                            display_name="run test 200")
+        self._cmd_dict.add(WorkhorseCapability.RESTORE_FACTORY_PARAMS,
+                           display_name="restore factory paramaters")
         self._cmd_dict.add(WorkhorseProtocolEvent.POWER_DOWN,   # <------the problem.
                            display_name="Power Down")
 
@@ -256,8 +271,14 @@ class WorkhorseProtocol(TeledyneProtocol):
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
 
-
+    def _filter_capabilities(self, events):
+        """
+        Return a list of currently available capabilities.
+        """
+        return [x for x in events if WorkhorseCapability.has(x)]
+    
     def _handler_command_power_down(self):
-        """
-        """
+        pass
+        
+    def _handler_command_restore_factory_params(self):
         pass

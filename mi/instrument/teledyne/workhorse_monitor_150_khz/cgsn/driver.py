@@ -12,7 +12,6 @@ import time
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
-from mi.core.instrument.port_agent_client.PortAgentClient import send_break # <- send a VSP break
 
 
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorsePrompt
@@ -32,6 +31,7 @@ class Prompt(WorkhorsePrompt):
 
 
 class Parameter(WorkhorseParameter):
+    HEADING_ALIGNMENT = 'EA'
     pass
 
 
@@ -83,12 +83,44 @@ class Protocol(WorkhorseProtocol):
         log.debug("IN Protocol.__init__")
         WorkhorseProtocol.__init__(self, prompts, newline, driver_event)
 
+
+
+        
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with sbe26plus parameters.
         For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
         """
+
+        self._param_dict.add(Parameter.SERIAL_DATA_OUT,
+            r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="serial data out",
+            visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._param_dict.add(Parameter.SERIAL_FLOW_CONTROL,
+            r'CF = (\d+) \-+ Flow Ctrl ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="serial flow control",
+            startup_param=True,
+            direct_access=False,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value='11110')
+
+        self._param_dict.add(Parameter.BANNER,
+            r'CH = (\d) \-+ Suppress Banner',
+            lambda match:  bool(int(match.group(1), base=10)),
+            self._bool_to_int,
+            type=ParameterDictType.BOOL,
+            display_name="banner",
+            startup_param=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value=0)
 
         self._param_dict.add(Parameter.INSTRUMENT_ID,
             r'CI = (\d+) \-+ Instrument ID ',
@@ -99,6 +131,34 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value=0)
 
+        self._param_dict.add(Parameter.SLEEP_ENABLE,
+            r'CL = (\d) \-+ Sleep Enable',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="sleep enable",
+            startup_param=True,
+            default_value=False)
+
+        self._param_dict.add(Parameter.SAVE_NVRAM_TO_RECORDER,
+            r'CN = (\d) \-+ Save NVRAM to recorder',
+            lambda match: bool(int(match.group(1), base=10)),
+            self._bool_to_int,
+            type=ParameterDictType.BOOL,
+            display_name="save nvram to recorder",
+            startup_param=True,
+            default_value=True,
+            visibility=ParameterDictVisibility.IMMUTABLE)
+
+        self._param_dict.add(Parameter.POLLED_MODE,
+            r'CP = (\d) \-+ PolledMode ',
+            lambda match: bool(int(match.group(1), base=10)),
+            self._bool_to_int,
+            type=ParameterDictType.BOOL,
+            display_name="polled mode",
+            startup_param=True,
+            default_value=False)
+
         self._param_dict.add(Parameter.XMIT_POWER,
             r'CQ = (\d+) \-+ Xmt Power ',
             lambda match: int(match.group(1), base=10),
@@ -108,6 +168,15 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value=255)
 
+        self._param_dict.add(Parameter.HEADING_ALIGNMENT,
+            r'EA = (\d+) \-+ Heading Alignment ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Heading Alignment",
+            startup_param=True,
+            default_value=0)
+
         self._param_dict.add(Parameter.SPEED_OF_SOUND,
             r'EC = (\d+) \-+ Speed Of Sound',
             lambda match: int(match.group(1), base=10),
@@ -116,6 +185,15 @@ class Protocol(WorkhorseProtocol):
             display_name="speed of sound",
             startup_param=True,
             default_value=1500)
+
+        self._param_dict.add(Parameter.HEADING_ALIGNMENT,
+            r'ED = (\d+) \-+ Transducer Depth ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Transducer Depth",
+            startup_param=True,
+            default_value=0)
 
         self._param_dict.add(Parameter.SALINITY,
             r'ES = (\d+) \-+ Salinity ',
@@ -134,6 +212,13 @@ class Protocol(WorkhorseProtocol):
             display_name="coordinate transformation",
             startup_param=True,
             default_value='11111')
+
+        self._param_dict.add(Parameter.SENSOR_SOURCE,
+            r'EZ = (\d+) \-+ Sensor Source ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="sensor source")
 
         self._param_dict.add(Parameter.TIME_PER_BURST,
             r'TB (\d\d:\d\d:\d\d.\d\d) \-+ Time per Burst ',
@@ -162,14 +247,15 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value='01:00:00.00')
 
+        # NEVER USE THIS COMMAND.
         self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
             r'TG (..../../..,..:..:..) - Time of First Ping ',
             lambda match: str(match.group(1)),
             str,
             type=ParameterDictType.STRING,
-            display_name="Time of First Ping")
-            #startup_param=True,
-            #default_value='****/**/**,**:**:**')
+            display_name="time of first ping",
+            startup_param=False,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.TIME_PER_PING,
             r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping',
@@ -188,7 +274,7 @@ class Protocol(WorkhorseProtocol):
             display_name="Time",
             expiration=1,
             visibility=ParameterDictVisibility.READ_ONLY)
-        
+
         self._param_dict.add(Parameter.BUFFER_OUTPUT_PERIOD,
             r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period',
             lambda match: str(match.group(1)),
@@ -348,29 +434,11 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value=175)
 
-    def _send_break_cmd(self):
+
+
+    def _send_break_cmd(self, delay):
         """
         Send a BREAK to attempt to wake the device.
-        
-        ./mi/core/instrument/port_agent_client.py
-        self.send_break() < to send a real break with the serial driver?
         """
         log.debug("IN _send_break_cmd")
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        except socket.error, msg:
-            log.error("WHOOPS! 1")
-
-        try:
-            sock.connect(('localhost', 2102))
-        except socket.error, msg:
-            log.error("WHOOPS! 2")
-        sock.send("break 500\r\n")
-        time.sleep(5)
-        sock.send("break 500\r\n")
-        time.sleep(5)
-        log.debug("SENT BREAK")
-        log.debug("self._linebuf = " + str(self._linebuf))
-        sock.close()
-
-    pass
+        self._connection.send_break()

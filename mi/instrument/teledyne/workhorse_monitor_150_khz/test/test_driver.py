@@ -49,8 +49,8 @@ from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorsePro
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseProtocolEvent
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import WorkhorseParameter
 
-from mi.instrument.teledyne.driver import ScheduledJob
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import Prompt
+from mi.instrument.teledyne.driver import TeledyneScheduledJob
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import TeledynePrompt
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import NEWLINE
 
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY

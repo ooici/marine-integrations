@@ -95,16 +95,16 @@ InstrumentDriverTestCase.initialize(
 
     driver_startup_config = {
         DriverStartupConfigKey.PARAMETERS: {
-            Parameter.SERIAL_FLOW_CONTROL: '11110',
+            Parameter.SERIAL_FLOW_CONTROL: '11111',
             Parameter.BANNER: False,
             Parameter.INSTRUMENT_ID: 0,
-            Parameter.SLEEP_ENABLE: 0,
+            Parameter.SLEEP_ENABLE: 1,
             Parameter.SAVE_NVRAM_TO_RECORDER: True,
             Parameter.POLLED_MODE: False,
             Parameter.XMIT_POWER: 255,
             Parameter.SPEED_OF_SOUND: 1485,
-            Parameter.PITCH: 0,
-            Parameter.ROLL: 0,
+            #Parameter.PITCH: 0,
+            #Parameter.ROLL: 0,
             Parameter.SALINITY: 35,
 
             # first 2 bits represent beam vs earth
@@ -174,24 +174,25 @@ class ADCPTMixin(DriverTestMixin):
     ###
     # Is DEFAULT the DEFAULT STARTUP VALUE?
     _driver_parameters = {
-        #Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
-        #Parameter.SERIAL_FLOW_CONTROL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '11110'},
-        #Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True, VALUE: True},
+        Parameter.HEADING_ALIGNMENT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
+        Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
+        Parameter.SERIAL_FLOW_CONTROL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '11110'},
+        Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.TIME: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
         Parameter.SERIAL_OUT_FW_SWITCHES: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '111100000'},
         Parameter.WATER_PROFILING_MODE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
 
-        #Parameter.BANNER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.BANNER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.INSTRUMENT_ID: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        #Parameter.SLEEP_ENABLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        #Parameter.POLLED_MODE: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.SLEEP_ENABLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        Parameter.POLLED_MODE: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.XMIT_POWER: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 255, VALUE: 255},
         Parameter.SPEED_OF_SOUND: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1500, VALUE: 1500},
         #Parameter.PITCH: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
         #Parameter.ROLL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.SALINITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 35, VALUE: 35},
         Parameter.COORDINATE_TRANSFORMATION: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '11111', VALUE: '11111'},
-        #Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1010101"}, # "1111101"
+        Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1010101"}, # "1111101"
         Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
         Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
         Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:01.00'},
@@ -221,13 +222,14 @@ class ADCPTMixin(DriverTestMixin):
         Capability.CLOCK_SYNC: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_CALIBRATION: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_CONFIGURATION: { STATES: [ProtocolState.COMMAND]},
-        Capability.SAVE_SETUP_TO_RAM: { STATES: [ProtocolState.COMMAND]},
         Capability.SEND_LAST_SAMPLE: { STATES: [ProtocolState.COMMAND]},
+        Capability.SAVE_SETUP_TO_RAM: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_ERROR_STATUS_WORD: { STATES: [ProtocolState.COMMAND]},
         Capability.CLEAR_ERROR_STATUS_WORD: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_FAULT_LOG: { STATES: [ProtocolState.COMMAND]},
         Capability.CLEAR_FAULT_LOG: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_INSTRUMENT_TRANSFORM_MATRIX: { STATES: [ProtocolState.COMMAND]},
+        Capability.RESTORE_FACTORY_PARAMS: { STATES: [ProtocolState.COMMAND]},          # PROBLEM HERE
         Capability.RUN_TEST_200: { STATES: [ProtocolState.COMMAND]},
         Capability.POWER_DOWN: { STATES: [ProtocolState.COMMAND]},
     }
@@ -508,14 +510,14 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
     def test_send_break(self):
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         self.protocol = Protocol(Prompt, NEWLINE, my_event_callback)
-        def fake_send_break1_cmd():
+        def fake_send_break1_cmd(delay):
             log.error("IN fake_send_break1_cmd")
             self.protocol._linebuf = "[BREAK Wakeup A]\n" + \
                                      "  Polled Mode is OFF -- Battery Saver is ONWorkHorse Broadband ADCP Version 50.40\n" + \
                                      "Teledyne RD Instruments (c) 1996-2010\n" + \
                                      "All Rights Reserved."
 
-        def fake_send_break2_cmd():
+        def fake_send_break2_cmd(delay):
             log.error("IN fake_send_break2_cmd")
             self.protocol._linebuf = "[BREAK Wakeup A]" + NEWLINE + \
                                     "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
@@ -596,6 +598,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     'PROTOCOL_EVENT_GET_FAULT_LOG',
                                     'PROTOCOL_EVENT_GET_INSTRUMENT_TRANSFORM_MATRIX',
                                     'PROTOCOL_EVENT_POWER_DOWN',
+                                    'PROTOCOL_EVENT_RESTORE_FACTORY_PARAMS',
                                     'PROTOCOL_EVENT_RUN_TEST_200',
                                     'PROTOCOL_EVENT_SAVE_SETUP_TO_RAM',
                                     'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
@@ -658,7 +661,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         protocol = Protocol(Prompt, NEWLINE, my_event_callback)
         driver_capabilities = Capability().list()
         test_capabilities = Capability().list()
-
         # Add a bogus capability that will be filtered out.
         test_capabilities.append("BOGUS_CAPABILITY")
 

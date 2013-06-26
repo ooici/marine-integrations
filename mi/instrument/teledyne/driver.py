@@ -115,7 +115,6 @@ class TeledyneInstrumentCmds(BaseEnum):
     GET_SYSTEM_CONFIGURATION = 'PS0'
     GET_INSTRUMENT_TRANSFORM_MATRIX = 'PS3'
     RUN_TEST_200 = 'PT200'
-
     SET = ' '  # leading spaces are OK. set is just PARAM_NAME next to VALUE
     GET = '  '
 
@@ -134,7 +133,7 @@ class TeledyneProtocolEvent(BaseEnum):
     """
     Protocol events
     """
-
+    INIT_PARAMS = DriverEvent.INIT_PARAMS
     DISCOVER = DriverEvent.DISCOVER
 
     ENTER = DriverEvent.ENTER
@@ -170,6 +169,7 @@ class TeledyneProtocolEvent(BaseEnum):
 
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+    RESTORE_FACTORY_PARAMS = "PROTOCOL_EVENT_RESTORE_FACTORY_PARAMS"
     POWER_DOWN = "PROTOCOL_EVENT_POWER_DOWN"
 
 
@@ -190,7 +190,7 @@ class TeledyneCapability(BaseEnum):
     CLEAR_FAULT_LOG = TeledyneProtocolEvent.CLEAR_FAULT_LOG
     GET_INSTRUMENT_TRANSFORM_MATRIX = TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX
     RUN_TEST_200 = TeledyneProtocolEvent.RUN_TEST_200
-    POWER_DOWN = TeledyneProtocolEvent.POWER_DOWN
+    #POWER_DOWN = TeledyneProtocolEvent.POWER_DOWN
 
 
 class TeledyneScheduledJob(BaseEnum):
@@ -256,6 +256,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.EXIT, self._handler_command_exit)
+        
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.INIT_PARAMS, self._handler_command_init_params)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SET, self._handler_command_set)
@@ -280,6 +282,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.INIT_PARAMS, self._handler_autosample_init_params)
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.GET, self._handler_command_get)
 
@@ -311,7 +314,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(TeledyneInstrumentCmds.RUN_TEST_200, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.SET, self._build_set_command)
         self._add_build_handler(TeledyneInstrumentCmds.GET, self._build_get_command)
-
+        #
+        # Response handlers
+        #
         #
         # Response handlers
         #
@@ -889,7 +894,13 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
-        # Command device to update parameters and send a config change event.
+        # Command device to initialize parameters and send a config change event.
+        self._protocol_fsm.on_event(TeledyneProtocolEvent.INIT_PARAMS)
+     
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
 
         log.trace("in _handler_command_enter()")
         #self._update_params()
@@ -925,40 +936,37 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state; can be COMMAND or AUTOSAMPLE.
-        @retval (next_state, result), (ProtocolState.COMMAND or
-        State.AUTOSAMPLE, None) if successful.
+        @retval (next_state, result), (SBE37ProtocolState.COMMAND or
+        SBE37State.AUTOSAMPLE, None) if successful.
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
         """
-        log.trace("in _handler_unknown_discover")
+        (protocol_state, agent_state) = self._discover()
 
-        next_state = None
-        next_agent_state = None
+        if(protocol_state == TeledyneProtocolState.COMMAND):
+            agent_state = ResourceAgentState.IDLE
 
-        logging = self._is_logging()
-
-        if(logging == None):
-            raise InstrumentProtocolException('_handler_unknown_discover - unable to to determine state')
-
-        elif(logging):
-            next_state = TeledyneProtocolState.AUTOSAMPLE
-            next_agent_state = ResourceAgentState.STREAMING
-
-        else:
-            next_state = TeledyneProtocolState.COMMAND
-            next_agent_state = ResourceAgentState.IDLE
-        return (next_state, next_agent_state)
+        return (protocol_state, agent_state)
 
     ######################################################
     #                                                    #
     ######################################################
+    def _handler_command_init_params(self, *args, **kwargs):
+        """
+        initialize parameters
+        """
+        next_state = None
+        result = None
+     
+        self._init_params()
+        return (next_state, result)
 
     def _handler_autosample_enter(self, *args, **kwargs):
         """
         Enter autosample state.
         """
-        log.trace("IN _handler_autosample_enter")
+        self._protocol_fsm.on_event(TeledyneProtocolEvent.INIT_PARAMS)
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
 
@@ -971,6 +979,37 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.trace("IN _handler_autosample_exit")
 
         pass
+    
+    def _handler_autosample_init_params(self, *args, **kwargs):
+        """
+        initialize parameters.  For this instrument we need to
+        put the instrument into command mode, apply the changes
+        then put it back.
+        """
+        next_state = None
+        result = None
+        error = None
+     
+        try:
+            self._do_cmd_resp(TeledyneInstrumentCmds.STOP_LOGGING, expected_prompt=TeledynePrompt.COMMAND)
+            self._init_params()
+     
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            error = e
+     
+        finally:
+            # Switch back to streaming
+            if(self._is_logging()):
+                log.debug("sbe start logging again")
+                self._do_cmd_no_resp(TeledyneInstrumentCmds.START_LOGGING)
+     
+        if(error):
+            log.error("Error in apply_startup_params: %s", error)
+            raise error
+     
+        return (next_state, result)
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
@@ -1358,18 +1397,38 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+    def _discover(self):
+        """
+        Discover current state; can be COMMAND or AUTOSAMPLE or UNKNOWN.
+        @retval (next_protocol_state, next_agent_state)
+        @throws InstrumentTimeoutException if the device cannot be woken.
+        @throws InstrumentStateException if the device response does not correspond to
+        an expected state.
+        """
+        logging = self._is_logging()
+     
+        if(logging == True):
+            return (TeledyneProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING)
+        elif(logging == False):
+            return (TeledyneProtocolState.COMMAND, ResourceAgentState.COMMAND)
+        else:
+            return (TeledyneProtocolState.UNKNOWN, ResourceAgentState.ACTIVE_UNKNOWN)
+
+
     def _handler_direct_access_stop_direct(self):
         """
         @throw InstrumentProtocolException on invalid command
         """
-
         next_state = None
         result = None
 
-        next_state = TeledyneProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        (next_state, next_agent_state) = self._discover()
 
         return (next_state, (next_agent_state, result))
+
+    def _handler_command_restore_factory_params(self):
+        """
+        """
 
     def _build_set_command(self, cmd, param, val):
         """
@@ -1540,8 +1599,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         response = re.sub("PT200\r\n\r\n", "", response)
         response = re.sub("\r\n>", "", response)
         return (True, response)
-
-    
+        
+    def _parse_restore_factory_params_response(self):
+        """
+        """
     ########################################################################
     # Static helpers to format set commands.
     ########################################################################
