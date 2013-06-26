@@ -955,24 +955,44 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         comm_config = self.get_comm_config()
 
-        config = {
-            'port_agent_addr' : comm_config.host,
-            'device_addr' : comm_config.device_addr,
+        if ConfigTypes.SERIAL == comm_config.method():
+            config = {
+                'port_agent_addr': comm_config.host,
+                'device_os_port': comm_config.device_os_port,
+                'device_baud': comm_config.device_baud,
+                'device_data_bits': comm_config.device_data_bits,
+                'device_stop_bits': comm_config.device_stop_bits,
+                'device_flow_control': comm_config.device_flow_control,
+                'device_parity': comm_config.device_parity,
+                'command_port': comm_config.command_port,
+                'data_port': comm_config.data_port,
 
-            'command_port': comm_config.command_port,
-            'data_port': comm_config.data_port,
+                'telnet_sniffer_port': comm_config.sniffer_port,
 
-            'telnet_sniffer_port': comm_config.sniffer_port,
+                'process_type': PortAgentProcessType.UNIX,
+                'log_level': 5,
+                }
+        else:
+            config = {
+                'port_agent_addr' : comm_config.host,
+                'device_addr' : comm_config.device_addr,
 
-            'process_type': PortAgentProcessType.UNIX,
-            'log_level': 5,
-            }
+                'command_port': comm_config.command_port,
+                'data_port': comm_config.data_port,
+
+                'telnet_sniffer_port': comm_config.sniffer_port,
+
+                'process_type': PortAgentProcessType.UNIX,
+                'log_level': 5,
+                }
+
+        config['instrument_type'] = comm_config.method()
 
         if ConfigTypes.BOTPT == comm_config.config_type:
             config['instrument_type'] = ConfigTypes.BOTPT
             config['device_tx_port'] = comm_config.device_tx_port
             config['device_rx_port'] = comm_config.device_rx_port
-        else:
+        elif ConfigTypes.ETHERNET == comm_config.config_type:
             config['device_port'] = comm_config.device_port
 
         if(comm_config.sniffer_prefix): config['telnet_sniffer_prefix'] = comm_config.sniffer_prefix
@@ -994,7 +1014,6 @@ class InstrumentDriverTestCase(MiIntTestCase):
         log.debug("Startup Port Agent")
 
         config = self.port_agent_config()
-        log.debug("port agent config: %s", config)
 
         port_agent = PortAgentProcess.launch_process(config, timeout = 60, test_mode = True)
 
