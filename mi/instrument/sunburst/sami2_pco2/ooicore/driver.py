@@ -70,6 +70,7 @@ class DataParticleType(BaseEnum):
     SAMI_SAMPLE = 'sami_sample'
     DEV1_SAMPLE = 'dev1_sample'
     CONFIGURATION = 'configuration'
+    ERROR_CODE = 'error_code'
 
 
 class ProtocolState(BaseEnum):
@@ -167,23 +168,23 @@ class InstrumentCommand(BaseEnum):
 ###############################################################################
 # Regular Status Strings (produced every 1 Hz or in response to S0 command)
 REGULAR_STATUS_REGEX = r'[:]([0-9A-Fa-f]{8})([0-9A-Fa-f]{4})([0-9A-Fa-f]{6})' + \
-                       '([0-9A-Fa-f]{6})([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})'
+                       '([0-9A-Fa-f]{6})([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})' + NEWLINE
 REGULAR_STATUS_REGEX_MATCHER = re.compile(REGULAR_STATUS_REGEX)
 
 # Control Records (Types 0x80 - 0xFF)
 CONTROL_RECORD_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([8-9A-Fa-f][0-9A-Fa-f])' + \
                        '([0-9A-Fa-f]{8})([0-9A-Fa-f]{4})([0-9A-Fa-f]{6})' + \
-                       '([0-9A-Fa-f]{6})([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})'
+                       '([0-9A-Fa-f]{6})([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})' + NEWLINE
 CONTROL_RECORD_REGEX_MATCHER = re.compile(CONTROL_RECORD_REGEX)
 
 # SAMI Sample Records (Types 0x04 or 0x05)
 SAMI_SAMPLE_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(04|05)' + \
                     '([0-9A-Fa-f]{8})([0-9A-Fa-f]{56})([0-9A-Fa-f]{4})' + \
-                    '([0-9A-Fa-f]{4})([0-9A-Fa-f]{2})'
+                    '([0-9A-Fa-f]{4})([0-9A-Fa-f]{2})' + NEWLINE
 SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
 
 # Device 1 Sample Records (Type 0x11)
-DEV1_SAMPLE_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(11)([0-9A-Fa-f]{8})'
+DEV1_SAMPLE_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(11)([0-9A-Fa-f]{8})([0-9A-Fa-f]{2})' + NEWLINE
 DEV1_SAMPLE_REGEX_MATCHER = re.compile(DEV1_SAMPLE_REGEX)
 
 # Configuration Records
@@ -199,11 +200,11 @@ CONFIGURATION_REGEX = r'([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})' + \
                       '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
                       '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
                       '([0-9A-Fa-f]{2})' + \
-                      '([0-9A-Fa-f]+)'
+                      '([0-9A-Fa-f]+)' + NEWLINE
 CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 
 # Error records
-ERROR_REGEX = r'[?]([0-9A-Fa-f]{2})'
+ERROR_REGEX = r'[?]([0-9A-Fa-f]{2})' + NEWLINE
 ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
 
 
@@ -236,7 +237,7 @@ class SamiRegularStatusDataParticleKey(BaseEnum):
 
 
 # [TODO: This needs to be moved to the baseclass]
-class SamiRegularStatusDataParticleKey(DataParticle):
+class SamiRegularStatusDataParticle(DataParticle):
     """
     Routines for parsing raw data into an regular status data particle
     structure.
@@ -341,7 +342,7 @@ class SamiControlRecordDataParticleKey(BaseEnum):
 
 
 # [TODO: This needs to be moved to the baseclass]
-class SamiControlRecordDataParticleKey(DataParticle):
+class SamiControlRecordDataParticle(DataParticle):
     """
     Routines for parsing raw data into a control record data particle
     structure.
@@ -423,6 +424,41 @@ class SamiControlRecordDataParticleKey(DataParticle):
         return result
 
 
+class SamiErrorCodeDataParticleKey(BaseEnum):
+    """
+    Data particle key for the error code records.
+    """
+    ERROR_CODE = 'error_code'
+
+
+class SamiErrorCodeDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into an error code data particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+    _data_particle_type = DataParticleType.ERROR_CODE
+
+    def _build_parsed_values(self):
+        """
+        Parse error_code values from raw data into a dictionary
+        """
+
+        matched = ERROR_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        particle_keys = [SamiErrorCodeDataParticleKey.ERROR_CODE]
+
+        result = []
+        for key in particle_keys:
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: int(matched.group(key+1), 16)})
+
+        return result
+
+
 class Pco2wSamiSampleDataParticleKey(BaseEnum):
     """
     Data particle key for the SAMI2-PCO2 records. These particles
@@ -438,7 +474,7 @@ class Pco2wSamiSampleDataParticleKey(BaseEnum):
     CHECKSUM = 'checksum'
 
 
-class Pco2wSamiSampleDataParticleKey(DataParticle):
+class Pco2wSamiSampleDataParticle(DataParticle):
     """
     Routines for parsing raw data into a SAMI2-PCO2 sample data particle
     structure.
@@ -493,7 +529,7 @@ class Pco2wDev1SampleDataParticleKey(BaseEnum):
     CHECKSUM = 'checksum'
 
 
-class Pco2wDev1SampleDataParticleKey(DataParticle):
+class Pco2wDev1SampleDataParticle(DataParticle):
     """
     Routines for parsing raw data into a device 1 sample data particle
     structure.
@@ -572,7 +608,7 @@ class Pco2wConfigurationDataParticleKey(BaseEnum):
     EXTERNAL_PUMP_SETTING = 'external_pump_setting'
 
 
-class Pco2wConfigurationDataParticleKey(DataParticle):
+class Pco2wConfigurationDataParticle(DataParticle):
     """
     Routines for parsing raw data into a configuration record data particle
     structure.
@@ -777,8 +813,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         The method that splits samples
         """
-
         return_list = []
+
+        sieve_matchers = [REGULAR_STATUS_REGEX_MATCHER,
+                          CONTROL_RECORD_REGEX_MATCHER,
+                          SAMI_SAMPLE_REGEX_MATCHER,
+                          DEV1_SAMPLE_REGEX_MATCHER,
+                          CONFIGURATION_REGEX_MATCHER,
+                          ERROR_REGEX_MATCHER]
+
+        for matcher in sieve_matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
 
         return return_list
 
@@ -790,11 +836,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         # Add parameter handlers to parameter dict.
 
-    def _got_chunk(self, chunk):
+    def _got_chunk(self, chunk, timestamp):
         """
-        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
-        with the appropriate particle objects and REGEXes.
+        The base class got_data has gotten a chunk from the chunker. Pass it to
+        extract_sample with the appropriate particle objects and REGEXes.
         """
+        self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
 
     def _filter_capabilities(self, events):
         """

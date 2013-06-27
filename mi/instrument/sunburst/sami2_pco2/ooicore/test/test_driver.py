@@ -57,6 +57,7 @@ from mi.instrument.sunburst.sami2_pco2.ooicore.driver import NEWLINE
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SAMI_EPOCH
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SamiRegularStatusDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SamiControlRecordDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SamiErrorCodeDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wSamiSampleDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wDev1SampleDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wConfigurationDataParticleKey
@@ -123,13 +124,14 @@ class DriverTestMixinSub(DriverTestMixin):
     ###
     #  Instrument output (driver input) Definitions
     ###
-    # Configuration string received from the instrument via the L command (clock
-    # set to 2014-01-01 00:00:00) with sampling set to start 540 days (~18 months)
-    # later and stop 365 days after that. SAMI and Device1 (external SBE pump) are
-    # set to run every 60 minutes, but will be polled on a regular schedule rather
-    # than autosampled. Device1 is not configured to run after the SAMI and will
-    # run for 10 seconds. To configure the instrument using this string, add a null
-    # byte (00) to the end of the string.
+    # Configuration string received from the instrument via the L command
+    # (clock set to 2014-01-01 00:00:00) with sampling set to start 540 days
+    # (~18 months) later and stop 365 days after that. SAMI and Device1
+    # (external SBE pump) are set to run every 60 minutes, but will be polled
+    # on a regular schedule rather than autosampled. Device1 is not configured
+    # to run after the SAMI and will run for 10 seconds. To configure the
+    # instrument using this string, add a null byte (00) to the end of the
+    # string.
     VALID_CONFIG_STRING = 'CEE90B0002C7EA0001E133800A000E100402000E10010B' + \
                           '000000000D000000000D000000000D07' + \
                           '1020FF54181C01003814' + \
@@ -141,7 +143,7 @@ class DriverTestMixinSub(DriverTestMixin):
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-                          'FFFFFFFFFFFFFFFFFFFFFFFFFFF'
+                          'FFFFFFFFFFFFFFFFFFFFFFFFFFF' + NEWLINE
 
     # Regular Status Message (response to S0 command)
     VALID_STATUS_MESSAGE = ':CEE90B1B004100000100000000021254' + NEWLINE
@@ -156,6 +158,9 @@ class DriverTestMixinSub(DriverTestMixin):
 
     # Control record
     VALID_CONTROL_RECORD = '*541280CEE90B170041000001000000000200AF' + NEWLINE
+
+    # Error records (valid error codes are between 0x00 and 0x11)
+    VALID_ERROR_CODE = '?05' + NEWLINE
 
     ###
     #  Parameter and Type Definitions
@@ -234,7 +239,7 @@ class DriverTestMixinSub(DriverTestMixin):
     # [TODO] Consider moving to base class as these apply to both PCO2 and pH
     _regular_status_parameters = {
         # SAMI Regular Status Messages (S0)
-        SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG:       {TYPE: int, VALUE: '0xCEE90B1B', REQUIRED: True},
+        SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG:       {TYPE: int, VALUE: 0xCEE90B1B, REQUIRED: True},
         SamiRegularStatusDataParticleKey.CLOCK_ACTIVE:              {TYPE: bool, VALUE: True, REQUIRED: True},
         SamiRegularStatusDataParticleKey.RECORDING_ACTIVE:          {TYPE: bool, VALUE: False, REQUIRED: True},
         SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME:        {TYPE: bool, VALUE: False, REQUIRED: True},
@@ -355,6 +360,12 @@ class DriverTestMixinSub(DriverTestMixin):
         Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTING:        {TYPE: int,  VALUE: 0x14, REQUIRED: True}
     }
 
+    # [TODO] Move to base class
+    _error_code_parameters = {
+        # Error codes
+        SamiErrorCodeDataParticleKey.ERROR_CODE:        {TYPE: int, VALUE: 0x05, REQUIRED: True},
+    }
+
     ###
     #   Driver Parameter Methods
     ###
@@ -452,6 +463,20 @@ class DriverTestMixinSub(DriverTestMixin):
                                              self._configuration_parameters,
                                              verify_values)
 
+    def assert_particle_error_code(self, data_particle, verify_values=False):
+        '''
+        Verify error_code particle
+        @param data_particle: SamiErrorCodeDataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(SamiErrorCodeDataParticleKey,
+                                       self._error_code_parameters)
+        self.assert_data_particle_header(data_particle,
+                                         DataParticleType.ERROR_CODE)
+        self.assert_data_particle_parameters(data_particle,
+                                             self._error_code_parameters,
+                                             verify_values)
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -493,6 +518,41 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         """
         chunker = StringChunker(Protocol.sieve_function)
 
+        self.assert_chunker_sample(chunker, self.VALID_STATUS_MESSAGE)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_STATUS_MESSAGE)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_STATUS_MESSAGE, 32)
+        self.assert_chunker_combined_sample(chunker, self.VALID_STATUS_MESSAGE)
+
+        self.assert_chunker_sample(chunker, self.VALID_CONTROL_RECORD)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_CONTROL_RECORD)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_CONTROL_RECORD, 32)
+        self.assert_chunker_combined_sample(chunker, self.VALID_CONTROL_RECORD)
+
+        self.assert_chunker_sample(chunker, self.VALID_R0_BLANK_SAMPLE)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_R0_BLANK_SAMPLE)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_R0_BLANK_SAMPLE, 32)
+        self.assert_chunker_combined_sample(chunker, self.VALID_R0_BLANK_SAMPLE)
+
+        self.assert_chunker_sample(chunker, self.VALID_R0_DATA_SAMPLE)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_R0_DATA_SAMPLE)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_R0_DATA_SAMPLE, 32)
+        self.assert_chunker_combined_sample(chunker, self.VALID_R0_DATA_SAMPLE)
+
+        self.assert_chunker_sample(chunker, self.VALID_R1_SAMPLE)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_R1_SAMPLE)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_R1_SAMPLE, 8)
+        self.assert_chunker_combined_sample(chunker, self.VALID_R1_SAMPLE)
+
+        self.assert_chunker_sample(chunker, self.VALID_CONFIG_STRING)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_CONFIG_STRING)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_CONFIG_STRING, 32)
+        self.assert_chunker_combined_sample(chunker, self.VALID_CONFIG_STRING)
+
+        self.assert_chunker_sample(chunker, self.VALID_ERROR_CODE)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_ERROR_CODE)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_ERROR_CODE, 2)
+        self.assert_chunker_combined_sample(chunker, self.VALID_ERROR_CODE)
+
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the
@@ -501,6 +561,17 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         # Create and initialize the instrument driver with a mock port agent
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
+
+        self.assert_raw_particle_published(driver, True)
+
+        # Start validating data particles
+        self.assert_particle_published(driver, self.VALID_STATUS_MESSAGE, self.assert_particle_regular_status, True)
+        self.assert_particle_published(driver, self.VALID_CONTROL_RECORD, self.assert_particle_control_record, True)
+        self.assert_particle_published(driver, self.VALID_RO_BLANK_SAMPLE, self.assert_particle_sami_sample, True)
+        self.assert_particle_published(driver, self.VALID_R0_DATA_SAMPLE, self.assert_particle_sami_sample, True)
+        self.assert_particle_published(driver, self.VALID_R1_SAMPLE, self.assert_particle_dev1_sample, True)
+        self.assert_particle_published(driver, self.VALID_CONFIG_STRING, self.assert_particle_configuration, True)
+        self.assert_particle_published(driver, self.VALID_ERROR_CODE, self.assert_particle_error_code, True)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -548,7 +619,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test manually tests that the Instrument Driver properly
+        supports direct access to the physical instrument. (telnet mode)
         """
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
@@ -559,18 +631,15 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
         self.assert_direct_access_stop_telnet()
 
-
     def test_poll(self):
         '''
         No polling for a single sample
         '''
 
-
     def test_autosample(self):
         '''
         start and stop autosample and verify data particle
         '''
-
 
     def test_get_set_parameters(self):
         '''
@@ -578,7 +647,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         ensuring that read only parameters fail on set.
         '''
         self.assert_enter_command_mode()
-
 
     def test_get_capabilities(self):
         """
