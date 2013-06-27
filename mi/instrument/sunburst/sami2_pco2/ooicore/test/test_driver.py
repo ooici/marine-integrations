@@ -152,11 +152,11 @@ class DriverTestMixinSub(DriverTestMixin):
     # commands, respectively)
     VALID_R0_BLANK_SAMPLE = '*542705CEE91CC800400019096206800730074C2CE042' + \
                             '74003B0018096106800732074E0D82066124' + NEWLINE
-    VALID_R0_DATA_SAMPLE = '*542704CEE91DD2003B001909620155073003E908A1232' + \
+    VALID_R0_DATA_SAMPLE = '*542704CEE91CC8003B001909620155073003E908A1232' + \
                            'D0043001A09620154072F03EA0D92065F46' + NEWLINE
     VALID_R1_SAMPLE = '*540711CEE91DE2CE' + NEWLINE
 
-    # Control record
+    # Control records
     VALID_CONTROL_RECORD = '*541280CEE90B170041000001000000000200AF' + NEWLINE
 
     # Error records (valid error codes are between 0x00 and 0x11)
@@ -290,12 +290,12 @@ class DriverTestMixinSub(DriverTestMixin):
         SamiControlRecordDataParticleKey.CHECKSUM:                 {TYPE: int, VALUE: 0xAF, REQUIRED: True},
     }
 
-    _sami_sample_parameters = {
+    _sami_data_sample_parameters = {
         # SAMI Type 4/5 sample (in this case it is a Type 4)
         Pco2wSamiSampleDataParticleKey.UNIQUE_ID:           {TYPE: int, VALUE: 0x54, REQUIRED: True},
         Pco2wSamiSampleDataParticleKey.RECORD_LENGTH:       {TYPE: int, VALUE: 0x27, REQUIRED: True},
         Pco2wSamiSampleDataParticleKey.RECORD_TYPE:         {TYPE: int, VALUE: 0x04, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.RECORD_TIME:         {TYPE: int, VALUE: 0xCEE91DD2, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.RECORD_TIME:         {TYPE: int, VALUE: 0xCEE91CC8, REQUIRED: True},
         Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS:  {TYPE: list, VALUE: [0x003B, 0x0019, 0x0962, 0x0155,
                                                                                  0x0730, 0x03E9, 0x08A1, 0x232D,
                                                                                  0x0043, 0x001A, 0x0962, 0x0154,
@@ -303,6 +303,21 @@ class DriverTestMixinSub(DriverTestMixin):
         Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTERY:     {TYPE: int, VALUE: 0x0D92, REQUIRED: True},
         Pco2wSamiSampleDataParticleKey.THERMISTER_RAW:      {TYPE: int, VALUE: 0x065F, REQUIRED: True},
         Pco2wSamiSampleDataParticleKey.CHECKSUM:            {TYPE: int, VALUE: 0x46, REQUIRED: True}
+    }
+
+    _sami_blank_sample_parameters = {
+        # SAMI Type 4/5 sample (in this case it is a Type 5)
+        Pco2wSamiSampleDataParticleKey.UNIQUE_ID:           {TYPE: int, VALUE: 0x54, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.RECORD_LENGTH:       {TYPE: int, VALUE: 0x27, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.RECORD_TYPE:         {TYPE: int, VALUE: 0x05, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.RECORD_TIME:         {TYPE: int, VALUE: 0xCEE91CC8, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS:  {TYPE: list, VALUE: [0x0040, 0x0019, 0x0962, 0x0680, 0x0730,
+                                                                                 0x074C, 0x2CE0, 0x4274, 0x003B, 0x0018,
+                                                                                 0x0961, 0x0680, 0x0732, 0x074E],
+                                                             REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTERY:     {TYPE: int, VALUE: 0x0D82, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.THERMISTER_RAW:      {TYPE: int, VALUE: 0x0661, REQUIRED: True},
+        Pco2wSamiSampleDataParticleKey.CHECKSUM:            {TYPE: int, VALUE: 0x24, REQUIRED: True}
     }
 
     _dev1_sample_parameters = {
@@ -381,8 +396,7 @@ class DriverTestMixinSub(DriverTestMixin):
             log.error("Unknown Particle Detected: %s" % data_particle)
             self.assertFalse(True)
 
-    def assert_driver_parameters(self, current_parameters,
-                                 verify_values=False):
+    def assert_driver_parameters(self, current_parameters, verify_values=False):
         """
         Verify that all driver parameters are correct and potentially verify
         values.
@@ -421,18 +435,32 @@ class DriverTestMixinSub(DriverTestMixin):
                                              self._control_record_parameters,
                                              verify_values)
 
-    def assert_particle_sami_sample(self, data_particle, verify_values=False):
+    def assert_particle_sami_data_sample(self, data_particle, verify_values=False):
         '''
-        Verify sami_sample particle
+        Verify sami_data_sample particle (Type 4)
         @param data_particle: Pco2wSamiSampleDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
         self.assert_data_particle_keys(Pco2wSamiSampleDataParticleKey,
-                                       self._sami_sample_parameters)
+                                       self._sami_data_sample_parameters)
         self.assert_data_particle_header(data_particle,
                                          DataParticleType.SAMI_SAMPLE)
         self.assert_data_particle_parameters(data_particle,
-                                             self._sami_sample_parameters,
+                                             self._sami_data_sample_parameters,
+                                             verify_values)
+
+    def assert_particle_sami_blank_sample(self, data_particle, verify_values=False):
+        '''
+        Verify sami_blank_sample particle (Type 5)
+        @param data_particle: Pco2wSamiSampleDataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(Pco2wSamiSampleDataParticleKey,
+                                       self._sami_blank_sample_parameters)
+        self.assert_data_particle_header(data_particle,
+                                         DataParticleType.SAMI_SAMPLE)
+        self.assert_data_particle_parameters(data_particle,
+                                             self._sami_blank_sample_parameters,
                                              verify_values)
 
     def assert_particle_dev1_sample(self, data_particle, verify_values=False):
@@ -567,8 +595,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         # Start validating data particles
         self.assert_particle_published(driver, self.VALID_STATUS_MESSAGE, self.assert_particle_regular_status, True)
         self.assert_particle_published(driver, self.VALID_CONTROL_RECORD, self.assert_particle_control_record, True)
-        self.assert_particle_published(driver, self.VALID_RO_BLANK_SAMPLE, self.assert_particle_sami_sample, True)
-        self.assert_particle_published(driver, self.VALID_R0_DATA_SAMPLE, self.assert_particle_sami_sample, True)
+        self.assert_particle_published(driver, self.VALID_R0_BLANK_SAMPLE, self.assert_particle_sami_blank_sample, True)
+        self.assert_particle_published(driver, self.VALID_R0_DATA_SAMPLE, self.assert_particle_sami_data_sample, True)
         self.assert_particle_published(driver, self.VALID_R1_SAMPLE, self.assert_particle_dev1_sample, True)
         self.assert_particle_published(driver, self.VALID_CONFIG_STRING, self.assert_particle_configuration, True)
         self.assert_particle_published(driver, self.VALID_ERROR_CODE, self.assert_particle_error_code, True)

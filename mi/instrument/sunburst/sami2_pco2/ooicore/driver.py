@@ -228,7 +228,7 @@ class SamiRegularStatusDataParticleKey(BaseEnum):
     EXTERNAL_DEVICE1_FAULT = 'external_device1_fault'
     EXTERNAL_DEVICE2_FAULT = 'external_device2_fault'
     EXTERNAL_DEVICE3_FAULT = 'external_device3_fault'
-    FLASH_ERASED = 'FLASH_ERASED'
+    FLASH_ERASED = 'flash_erased'
     POWER_ON_INVALID = 'power_on_invalid'
     NUM_DATA_RECORDS = 'num_data_records'
     NUM_ERROR_RECORDS = 'num_error_records'
@@ -247,7 +247,7 @@ class SamiRegularStatusDataParticle(DataParticle):
 
     def _build_parsed_values(self):
         """
-        Parse air sample values from raw data into a dictionary
+        Parse regular status values from raw data into a dictionary
         """
 
         matched = REGULAR_STATUS_REGEX_MATCHER.match(self.raw_data)
@@ -278,34 +278,34 @@ class SamiRegularStatusDataParticle(DataParticle):
                          SamiRegularStatusDataParticleKey.CHECKSUM]
 
         result = []
+        grp_index = 1
         bit_index = 0
 
         for key in particle_keys:
-            if key in [SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG]:
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: int(matched.group(1), 16)})
-            elif key in [SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
-                         SamiRegularStatusDataParticleKey.RECORDING_ACTIVE,
-                         SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME,
-                         SamiRegularStatusDataParticleKey.RECORD_MEMORY_FULL,
-                         SamiRegularStatusDataParticleKey.RECORD_END_ON_ERROR,
-                         SamiRegularStatusDataParticleKey.DATA_DOWNLOAD_OK,
-                         SamiRegularStatusDataParticleKey.FLASH_MEMORY_OPEN,
-                         SamiRegularStatusDataParticleKey.BATTERY_LOW_PRESTART,
-                         SamiRegularStatusDataParticleKey.BATTERY_LOW_MEASUREMENT,
-                         SamiRegularStatusDataParticleKey.BATTERY_LOW_BANK,
-                         SamiRegularStatusDataParticleKey.BATTERY_LOW_EXTERNAL,
-                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE1_FAULT,
-                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE2_FAULT,
-                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT,
-                         SamiRegularStatusDataParticleKey.FLASH_ERASED,
-                         SamiRegularStatusDataParticleKey.POWER_ON_INVALID]:
+            if key in [SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
+                       SamiRegularStatusDataParticleKey.RECORDING_ACTIVE,
+                       SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME,
+                       SamiRegularStatusDataParticleKey.RECORD_MEMORY_FULL,
+                       SamiRegularStatusDataParticleKey.RECORD_END_ON_ERROR,
+                       SamiRegularStatusDataParticleKey.DATA_DOWNLOAD_OK,
+                       SamiRegularStatusDataParticleKey.FLASH_MEMORY_OPEN,
+                       SamiRegularStatusDataParticleKey.BATTERY_LOW_PRESTART,
+                       SamiRegularStatusDataParticleKey.BATTERY_LOW_MEASUREMENT,
+                       SamiRegularStatusDataParticleKey.BATTERY_LOW_BANK,
+                       SamiRegularStatusDataParticleKey.BATTERY_LOW_EXTERNAL,
+                       SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE1_FAULT,
+                       SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE2_FAULT,
+                       SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT,
+                       SamiRegularStatusDataParticleKey.FLASH_ERASED,
+                       SamiRegularStatusDataParticleKey.POWER_ON_INVALID]:
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(2), 16) & (1 << bit_index))})
                 bit_index += 1
+                grp_index = 3
             else:
                 result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: int(matched.group(3), 16)})
+                               DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
+                grp_index += 1
 
         return result
 
@@ -333,7 +333,7 @@ class SamiControlRecordDataParticleKey(BaseEnum):
     EXTERNAL_DEVICE1_FAULT = 'external_device1_fault'
     EXTERNAL_DEVICE2_FAULT = 'external_device2_fault'
     EXTERNAL_DEVICE3_FAULT = 'external_device3_fault'
-    FLASH_ERASED = 'FLASH_ERASED'
+    FLASH_ERASED = 'flash_erased'
     POWER_ON_INVALID = 'power_on_invalid'
     NUM_DATA_RECORDS = 'num_data_records'
     NUM_ERROR_RECORDS = 'num_error_records'
@@ -390,40 +390,35 @@ class SamiControlRecordDataParticle(DataParticle):
         bit_index = 0
 
         for key in particle_keys:
-            if key in [SamiControlRecordDataParticleKey.UNIQUE_ID,
-                       SamiControlRecordDataParticleKey.RECORD_LENGTH,
-                       SamiControlRecordDataParticleKey.RECORD_TYPE,
-                       SamiControlRecordDataParticleKey.RECORD_TIME]:
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
-            elif key in [SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
-                         SamiControlRecordDataParticleKey.RECORDING_ACTIVE,
-                         SamiControlRecordDataParticleKey.RECORD_END_ON_TIME,
-                         SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL,
-                         SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR,
-                         SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK,
-                         SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN,
-                         SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART,
-                         SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT,
-                         SamiControlRecordDataParticleKey.BATTERY_LOW_BANK,
-                         SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL,
-                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT,
-                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT,
-                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT,
-                         SamiControlRecordDataParticleKey.FLASH_ERASED,
-                         SamiControlRecordDataParticleKey.POWER_ON_INVALID]:
+            if key in [SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
+                       SamiControlRecordDataParticleKey.RECORDING_ACTIVE,
+                       SamiControlRecordDataParticleKey.RECORD_END_ON_TIME,
+                       SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL,
+                       SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR,
+                       SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK,
+                       SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN,
+                       SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART,
+                       SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT,
+                       SamiControlRecordDataParticleKey.BATTERY_LOW_BANK,
+                       SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL,
+                       SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT,
+                       SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT,
+                       SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT,
+                       SamiControlRecordDataParticleKey.FLASH_ERASED,
+                       SamiControlRecordDataParticleKey.POWER_ON_INVALID]:
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(5), 16) & (1 << bit_index))})
                 bit_index += 1
+                grp_index = 6
             else:
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
-
-            grp_index += 1
+                grp_index += 1
 
         return result
 
 
+# [TODO: This needs to be moved to the baseclass]
 class SamiErrorCodeDataParticleKey(BaseEnum):
     """
     Data particle key for the error code records.
@@ -431,6 +426,7 @@ class SamiErrorCodeDataParticleKey(BaseEnum):
     ERROR_CODE = 'error_code'
 
 
+# [TODO: This needs to be moved to the baseclass]
 class SamiErrorCodeDataParticle(DataParticle):
     """
     Routines for parsing raw data into an error code data particle
@@ -452,9 +448,11 @@ class SamiErrorCodeDataParticle(DataParticle):
         particle_keys = [SamiErrorCodeDataParticleKey.ERROR_CODE]
 
         result = []
+        grp_index = 1
         for key in particle_keys:
             result.append({DataParticleKey.VALUE_ID: key,
-                           DataParticleKey.VALUE: int(matched.group(key+1), 16)})
+                           DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
+            grp_index += 1
 
         return result
 
@@ -497,22 +495,25 @@ class Pco2wSamiSampleDataParticle(DataParticle):
                          Pco2wSamiSampleDataParticleKey.RECORD_TYPE,
                          Pco2wSamiSampleDataParticleKey.RECORD_TIME,
                          Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS,
-                         Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTER,
+                         Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTERY,
                          Pco2wSamiSampleDataParticleKey.THERMISTER_RAW,
                          Pco2wSamiSampleDataParticleKey.CHECKSUM]
 
         result = []
+        grp_index = 1
+
         for key in particle_keys:
             if key in [Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS]:
                 # parse group 5 into 14, 2 byte (4 character) values stored in
                 # an array.
-                light = matched.group(key+1)
+                light = matched.group(grp_index)
                 light = [int(light[i:i+4], 16) for i in range(0, len(light), 4)]
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: light})
             else:
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
+            grp_index += 1
 
         return result
 
@@ -554,10 +555,12 @@ class Pco2wDev1SampleDataParticle(DataParticle):
                          Pco2wDev1SampleDataParticleKey.CHECKSUM]
 
         result = []
+        grp_index = 1
+
         for key in particle_keys:
             result.append({DataParticleKey.VALUE_ID: key,
-                           DataParticleKey.VALUE: int(matched.group(key+1), 16)})
-
+                           DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
+            grp_index += 1
         return result
 
 
@@ -686,6 +689,7 @@ class Pco2wConfigurationDataParticle(DataParticle):
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(4), 16) & (1 << mode_index))})
                 mode_index += 1
+                grp_index = 5
 
             elif key in [Pco2wConfigurationDataParticleKey.USE_BAUD_RATE_57600,
                          Pco2wConfigurationDataParticleKey.SEND_RECORD_TYPE,
@@ -696,18 +700,19 @@ class Pco2wConfigurationDataParticle(DataParticle):
                 glbl_index += 1
                 if glbl_index == 3:
                     glbl_index = 7
+                grp_index = 21
 
             elif key in [Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH,
                          Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE]:
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(28), 16) & (1 << sami_index))})
                 sami_index += 1
+                grp_index = 29
 
             else:
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
-
-            grp_index += 1
+                grp_index += 1
 
         return result
 
@@ -829,9 +834,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         return return_list
 
     def _build_param_dict(self):
-        """
-        Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
+        """For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
@@ -842,6 +845,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         extract_sample with the appropriate particle objects and REGEXes.
         """
         self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(SamiErrorCodeDataParticle, ERROR_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(Pco2wSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(Pco2wDev1SampleDataParticle, DEV1_SAMPLE_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(Pco2wConfigurationDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
 
     def _filter_capabilities(self, events):
         """
