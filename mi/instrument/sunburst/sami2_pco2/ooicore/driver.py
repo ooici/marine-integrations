@@ -81,8 +81,7 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    #TEST = DriverProtocolState.TEST
-    #CALIBRATE = DriverProtocolState.CALIBRATE
+    BUSY = 'DRIVER_STATE_BUSY'
 
 
 class ProtocolEvent(BaseEnum):
@@ -94,13 +93,12 @@ class ProtocolEvent(BaseEnum):
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    #CLOCK_SYNC = DriverEvent.CLOCK_SYNC
+    START_DIRECT = DriverEvent.START_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 
@@ -108,11 +106,9 @@ class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
-    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    #CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
+    START_DIRECT = ProtocolEvent.START_DIRECT
+    STOP_DIRECT = ProtocolEvent.STOP_DIRECT
 
 
 class Parameter(DriverParameter):
@@ -155,12 +151,26 @@ class Prompt(BaseEnum):
     """
     Device i/o prompts..
     """
+    SAMI_SAMPLE = '^4' + NEWLINE
+    SAMI_BLANK = '^5' + NEWLINE
+    DEV1_SAMPLE = '^11' + NEWLINE
+    BOOT_PROMPT = '7.7Boot>'
 
 
 class InstrumentCommand(BaseEnum):
     """
     Instrument command strings
     """
+    GET_STATUS = 'S0'
+    GET_CONFIG = 'L'
+    SET_CONFIG = 'L5A'
+    ERASE_FLASH = 'E'
+    ERASE_ALL = 'E5A'
+    START = 'G5A'
+    STOP = 'Q5A'
+    ACQUIRE_SAMPLE_SAMI = 'R0'
+    ACQUIRE_SAMPLE_DEV1 = 'R1'
+    ESCAPE_BOOT = 'u'
 
 
 ###############################################################################
@@ -777,22 +787,58 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
                                            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
-        # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        # Add event handlers for the protocol state machine.
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER,
+                                       self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT,
+                                       self._handler_unknown_exit)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER,
+                                       self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT,
+                                       self._handler_command_start_direct)
 
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER,
+                                       self._handler_command_enter)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,
+                                       self._handler_command_exit)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,
+                                       self._handler_command_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,
+                                       self._handler_command_set)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,
+                                       self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,
+                                       self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,
+                                       self._handler_command_acquire_sample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
+                                       self._handler_command_start_autosample)
 
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,
+                                       self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,
+                                       self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT,
+                                       self._handler_direct_access_stop_direct)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT,
+                                       self._handler_direct_access_execute_direct)
+
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,
+                                       self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,
+                                       self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
+                                       self._handler_autosample_stop)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE,
+                                       self._handler_autosample_acquire_sample)
+
+        # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
+        # and will last anywhere from 10 seconds to 3 minutes depending on
+        # instrument and sample type.
+        self._protocol_fsm.add_handler(ProtocolState.BUSY, ProtocolEvent.ENTER,
+                                       self._handler_busy_enter)
+        self._protocol_fsm.add_handler(ProtocolState.BUSY, ProtocolEvent.EXIT,
+                                       self._handler_busy_exit)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -899,6 +945,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+    def _handler_command_exit(self, *args, **kwargs):
+        """
+        Exit command state.
+        """
+        pass
+
     def _handler_command_get(self, *args, **kwargs):
         """
         Get parameter
@@ -917,12 +969,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
-
     def _handler_command_start_direct(self):
         """
         Start direct access
@@ -933,10 +979,37 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_handler_command_start_direct: entering DA mode")
         return (next_state, (next_agent_state, result))
 
+    def _handler_command_acquire_status(self, *args, **kwargs):
+        """
+        Set parameter
+        """
+        next_state = None
+        result = None
+
+        return (next_state, result)
+
+    def _handler_command_acquire_sample(self):
+        """
+        Acquire a sample
+        """
+        next_state = None
+        result = None
+
+        return (next_state, result)
+
+    def _handler_command_start_autosample(self):
+        """
+        Start autosample mode (spoofed via use of scheduler)
+        """
+        next_state = ProtocolState.START_AUTOSAMPLE
+        next_agent_state = ResourceAgentState.START_AUTOSAMPLE
+        result = None
+        log.debug("_handler_command_start_direct: entering DA mode")
+        return (next_state, (next_agent_state, result))
+
     ########################################################################
     # Direct access handlers.
     ########################################################################
-
     def _handler_direct_access_enter(self, *args, **kwargs):
         """
         Enter direct access state.
@@ -978,3 +1051,61 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = ResourceAgentState.COMMAND
 
         return (next_state, (next_agent_state, result))
+
+    ########################################################################
+    # Autosample handlers.
+    ########################################################################
+
+    def _handler_autosample_enter(self, *args, **kwargs):
+        """
+        Enter autosample state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        self._sent_cmds = []
+
+    def _handler_autosample_exit(self, *args, **kwargs):
+        """
+        Exit autosample state.
+        """
+        pass
+
+    def _handler_autosample_stop(self, *args, **kwargs):
+        """
+        Stop autosample
+        """
+        next_state = None
+        result = None
+
+        return (next_state, result)
+
+    def _handler_autosample_acquire_sample(self, *args, **kwargs):
+        """
+        While in autosample mode, poll for samples using the scheduler
+        """
+        next_state = None
+        result = None
+
+        return (next_state, result)
+
+    ########################################################################
+    # Direct access handlers.
+    ########################################################################
+
+    def _handler_busy_enter(self, *args, **kwargs):
+        """
+        Enter busy state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        self._sent_cmds = []
+
+    def _handler_busy_exit(self, *args, **kwargs):
+        """
+        Exit busy state.
+        """
+        pass

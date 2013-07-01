@@ -233,7 +233,10 @@ class DriverTestMixinSub(DriverTestMixin):
     _driver_capabilities = {
         # capabilities defined in the IOS
         Capability.ACQUIRE_STATUS:      {STATES: [ProtocolState.COMMAND]},
-        Capability.ACQUIRE_SAMPLE:      {STATES: [ProtocolState.COMMAND]}
+        Capability.START_DIRECT:      {STATES: [ProtocolState.COMMAND,
+                                                ProtocolState.DIRECT_ACCESS]},
+        Capability.STOP_DIRECT:      {STATES: [ProtocolState.DIRECT_ACCESS,
+                                               ProtocolState.COMMAND]}
     }
 
     # [TODO] Consider moving to base class as these apply to both PCO2 and pH
@@ -626,6 +629,39 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         # Verify "BOGUS_CAPABILITY was filtered out
         self.assertEquals(sorted(driver_capabilities),
                           sorted(protocol._filter_capabilities(test_capabilities)))
+
+    def test_capabilities(self):
+        """
+        Verify the FSM reports capabilities as expected. All states defined in
+        this dict must also be defined in the protocol FSM.
+        """
+        capabilities = {
+            ProtocolState.UNKNOWN: ['DRIVER_EVENT_ENTER',
+                                    'DRIVER_EVENT_EXIT',
+                                    'DRIVER_EVENT_START_DIRECT',
+                                    'DRIVER_EVENT_DISCOVER'],
+            ProtocolState.COMMAND: ['DRIVER_EVENT_ENTER',
+                                    'DRIVER_EVENT_EXIT',
+                                    'DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_SET',
+                                    'DRIVER_EVENT_START_DIRECT',
+                                    'DRIVER_EVENT_ACQUIRE_STATUS',
+                                    'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                    'DRIVER_EVENT_START_AUTOSAMPLE'],
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_ENTER',
+                                       'DRIVER_EVENT_EXIT',
+                                       'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                       'DRIVER_EVENT_STOP_AUTOSAMPLE'],
+            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_ENTER',
+                                          'DRIVER_EVENT_EXIT',
+                                          'DRIVER_EVENT_EXECURE_DIRECT',
+                                          'DRIVER_EVENT_STOP_DIRECT'],
+            ProtocolState.BUSY: ['PROTOCOL_EVENT_ENTER',
+                                 'PROTOCOL_EVENT_EXIT']
+        }
+
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_capabilities(driver, capabilities)
 
 
 ###############################################################################
