@@ -593,13 +593,20 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_raw_particle_published(driver, True)
 
         # Start validating data particles
-        self.assert_particle_published(driver, self.VALID_STATUS_MESSAGE, self.assert_particle_regular_status, True)
-        self.assert_particle_published(driver, self.VALID_CONTROL_RECORD, self.assert_particle_control_record, True)
-        self.assert_particle_published(driver, self.VALID_R0_BLANK_SAMPLE, self.assert_particle_sami_blank_sample, True)
-        self.assert_particle_published(driver, self.VALID_R0_DATA_SAMPLE, self.assert_particle_sami_data_sample, True)
-        self.assert_particle_published(driver, self.VALID_R1_SAMPLE, self.assert_particle_dev1_sample, True)
-        self.assert_particle_published(driver, self.VALID_CONFIG_STRING, self.assert_particle_configuration, True)
-        self.assert_particle_published(driver, self.VALID_ERROR_CODE, self.assert_particle_error_code, True)
+        self.assert_particle_published(driver, self.VALID_STATUS_MESSAGE,
+                                       self.assert_particle_regular_status, True)
+        self.assert_particle_published(driver, self.VALID_CONTROL_RECORD,
+                                       self.assert_particle_control_record, True)
+        self.assert_particle_published(driver, self.VALID_R0_BLANK_SAMPLE,
+                                       self.assert_particle_sami_blank_sample, True)
+        self.assert_particle_published(driver, self.VALID_R0_DATA_SAMPLE,
+                                       self.assert_particle_sami_data_sample, True)
+        self.assert_particle_published(driver, self.VALID_R1_SAMPLE,
+                                       self.assert_particle_dev1_sample, True)
+        self.assert_particle_published(driver, self.VALID_CONFIG_STRING,
+                                       self.assert_particle_configuration, True)
+        self.assert_particle_published(driver, self.VALID_ERROR_CODE,
+                                       self.assert_particle_error_code, True)
 
     def test_protocol_filter_capabilities(self):
         """
