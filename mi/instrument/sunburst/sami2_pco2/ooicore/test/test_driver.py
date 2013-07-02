@@ -633,31 +633,23 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
     def test_capabilities(self):
         """
         Verify the FSM reports capabilities as expected. All states defined in
-        this dict must also be defined in the protocol FSM.
+        this dict must also be defined in the protocol FSM. Note, the EXIT and
+        ENTER DRIVER_EVENTS don't need to be listed here.
         """
         capabilities = {
-            ProtocolState.UNKNOWN: ['DRIVER_EVENT_ENTER',
-                                    'DRIVER_EVENT_EXIT',
-                                    'DRIVER_EVENT_START_DIRECT',
-                                    'DRIVER_EVENT_DISCOVER'],
-            ProtocolState.COMMAND: ['DRIVER_EVENT_ENTER',
-                                    'DRIVER_EVENT_EXIT',
-                                    'DRIVER_EVENT_GET',
-                                    'DRIVER_EVENT_SET',
-                                    'DRIVER_EVENT_START_DIRECT',
-                                    'DRIVER_EVENT_ACQUIRE_STATUS',
-                                    'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                    'DRIVER_EVENT_START_AUTOSAMPLE'],
-            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_ENTER',
-                                       'DRIVER_EVENT_EXIT',
-                                       'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                       'DRIVER_EVENT_STOP_AUTOSAMPLE'],
-            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_ENTER',
-                                          'DRIVER_EVENT_EXIT',
-                                          'DRIVER_EVENT_EXECURE_DIRECT',
-                                          'DRIVER_EVENT_STOP_DIRECT'],
-            ProtocolState.BUSY: ['PROTOCOL_EVENT_ENTER',
-                                 'PROTOCOL_EVENT_EXIT']
+            ProtocolState.UNKNOWN:          ['DRIVER_EVENT_START_DIRECT',
+                                             'DRIVER_EVENT_DISCOVER'],
+            ProtocolState.COMMAND:          ['DRIVER_EVENT_GET',
+                                             'DRIVER_EVENT_SET',
+                                             'DRIVER_EVENT_START_DIRECT',
+                                             'DRIVER_EVENT_ACQUIRE_STATUS',
+                                             'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                             'DRIVER_EVENT_START_AUTOSAMPLE'],
+            ProtocolState.AUTOSAMPLE:       ['DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                             'DRIVER_EVENT_STOP_AUTOSAMPLE'],
+            ProtocolState.DIRECT_ACCESS:    ['EXECUTE_DIRECT',
+                                             'DRIVER_EVENT_STOP_DIRECT'],
+            ProtocolState.BUSY:             []
         }
 
         driver = InstrumentDriver(self._got_data_event_callback)

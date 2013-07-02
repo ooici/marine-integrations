@@ -81,7 +81,7 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    BUSY = 'DRIVER_STATE_BUSY'
+    BUSY = 'PROTOCOL_STATE_BUSY'
 
 
 class ProtocolEvent(BaseEnum):
@@ -151,17 +151,20 @@ class Prompt(BaseEnum):
     """
     Device i/o prompts..
     """
-    SAMI_SAMPLE = '^4' + NEWLINE
-    SAMI_BLANK = '^5' + NEWLINE
+    PCO2W_SAMPLE = '^04' + NEWLINE
+    PCO2W_BLANK = '^05' + NEWLINE
     DEV1_SAMPLE = '^11' + NEWLINE
     BOOT_PROMPT = '7.7Boot>'
 
 
+# [todo: move this to base class]
 class InstrumentCommand(BaseEnum):
     """
     Instrument command strings
     """
     GET_STATUS = 'S0'
+    START_STATUS = 'F0'
+    STOP_STATUS = 'F5A'
     GET_CONFIG = 'L'
     SET_CONFIG = 'L5A'
     ERASE_FLASH = 'E'
@@ -853,7 +856,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
-        # commands sent sent to device to be filtered in responses for telnet DA
+        # commands sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
         #
@@ -880,7 +883,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         return return_list
 
     def _build_param_dict(self):
-        """For each parameter key, add match stirng, match lambda function,
+        """
+        For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
