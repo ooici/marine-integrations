@@ -69,6 +69,8 @@ from mi.instrument.noaa.lily.ooicore.driver import LILY_DATA_ON
 from mi.instrument.noaa.lily.ooicore.driver import LILY_DATA_OFF
 from mi.instrument.noaa.lily.ooicore.driver import LILY_DUMP_01
 from mi.instrument.noaa.lily.ooicore.driver import LILY_DUMP_02
+from mi.instrument.noaa.lily.ooicore.driver import LILY_LEVEL_ON
+from mi.instrument.noaa.lily.ooicore.driver import LILY_LEVEL_OFF
 
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
@@ -117,6 +119,8 @@ DATA_ON_COMMAND_RESPONSE = "LILY,2013/05/29 00:23:34," + LILY_COMMAND_STRING + L
 DATA_OFF_COMMAND_RESPONSE = "LILY,2013/05/29 00:23:34," + LILY_COMMAND_STRING + LILY_DATA_OFF + NEWLINE
 DUMP_01_COMMAND_RESPONSE = "LILY,2013/05/29 00:22:57," + LILY_COMMAND_STRING + LILY_DUMP_01 + NEWLINE
 DUMP_02_COMMAND_RESPONSE = "LILY,2013/05/29 00:23:34," + LILY_COMMAND_STRING + LILY_DUMP_02 + NEWLINE
+START_LEVELING_COMMAND_RESPONSE = "LILY,2013/05/29 00:23:34," + LILY_COMMAND_STRING + LILY_LEVEL_ON + NEWLINE
+STOP_LEVELING_COMMAND_RESPONSE = "LILY,2013/05/29 00:23:34," + LILY_COMMAND_STRING + LILY_LEVEL_OFF + NEWLINE
 
 BOTPT_FIREHOSE_01  = "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
 BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
@@ -474,6 +478,33 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         finally:
             self.assertFalse(sampleException)
             self.assertTrue(retValue)
+
+        sampleException = False
+        try:
+            response = LILYCommandResponse(START_LEVELING_COMMAND_RESPONSE)
+            retValue = response.check_command_response(LILY_LEVEL_ON)
+        
+        except SampleException as e:
+            log.debug('SampleException caught: %s.', e)
+            sampleException = True
+            
+        finally:
+            self.assertFalse(sampleException)
+            self.assertTrue(retValue)
+
+        sampleException = False
+        try:
+            response = LILYCommandResponse(STOP_LEVELING_COMMAND_RESPONSE)
+            retValue = response.check_command_response(LILY_LEVEL_OFF)
+        
+        except SampleException as e:
+            log.debug('SampleException caught: %s.', e)
+            sampleException = True
+            
+        finally:
+            self.assertFalse(sampleException)
+            self.assertTrue(retValue)
+
 
     """
     Verify that the BOTPT LILY driver publishes its particles correctly
@@ -1256,7 +1287,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_initialize_driver()
 
         """
-        Issues acquire status command 
+        Issue acquire status command 
         """
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DUMP_01)
         log.debug("DUMP_01 returned: %r", response)
@@ -1268,11 +1299,32 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_initialize_driver()
 
         """
-        Issues acquire status command 
+        Issue acquire status command 
         """
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DUMP_02)
         log.debug("DUMP_02 returned: %r", response)
         
+    def test_leveling(self):
+        """
+        @brief Test for leveling
+        """
+        self.assert_initialize_driver()
+
+        """
+        Issue start leveling command 
+        """
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
+        log.debug("START_LEVELING returned: %r", response)
+        
+        time.sleep(10)
+        
+        """
+        Issue stop leveling command 
+        """
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
+        log.debug("STOP_LEVELING returned: %r", response)
+        
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
