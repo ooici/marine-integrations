@@ -254,7 +254,7 @@ class InstrumentProtocol(object):
                 self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
     
             sample = json.loads(parsed_sample)
-            return sample
+
         return sample
 
     def get_current_state(self):
@@ -1031,6 +1031,9 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         self._linebuf += data
         self._promptbuf += data
         self._last_data_timestamp = time.time()
+
+        log.debug("LINE BUF: %s", self._linebuf)
+        log.debug("PROMPT BUF: %s", self._linebuf)
 
     ########################################################################
     # Wakeup helpers.
