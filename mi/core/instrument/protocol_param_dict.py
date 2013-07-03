@@ -417,6 +417,7 @@ class ProtocolParameterDict(InstrumentDict):
             description=None,
             type=None,
             units=None,
+            regex_flags=None,
             value_description=None,
             expiration=None):
         """
@@ -447,6 +448,8 @@ class ProtocolParameterDict(InstrumentDict):
         @param description The description of what the parameter is
         @param type The type of the parameter (int, float, etc.) Should be a
         ParameterDictType object
+        @param regex_flags Flags that should be passed to the regex in this
+        parameter. Should comply with regex compile() interface (XORed flags).
         @param units The units of the value (ie "Hz" or "cm")
         @param value_description The description of what values are valid
         for the parameter
@@ -472,6 +475,7 @@ class ProtocolParameterDict(InstrumentDict):
                              display_name=display_name,
                              description=description,
                              type=type,
+                             regex_flags=regex_flags,
                              units=units,
                              value_description=value_description)
 

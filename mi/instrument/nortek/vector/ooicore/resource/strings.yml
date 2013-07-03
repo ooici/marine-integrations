@@ -1,18 +1,315 @@
 # Test file in a test location to mimic an egg resource directory
 # Used in test_protocol_param_dict.py
 parameters: {
-    dummy: {
-        description: "dummy",
-        units: "dummy",
-        value_description: "dummy",
-        type: "dummy"
+    TransmitPulseLength: {
+        description: "Transmit pulse length",
+        units: "counts",
+        type: "int"
     },
-
-    commands: {
-      dummy: stuff
-    },     
-    
-    driver: {
-      dummy: stuff
+    BlankingDistance: {
+        description: "Blanking distance",
+        units: "counts",
+        type: "int"
+    },
+    ReceiveLength: {
+        description: "Receive length",
+        units: "count",
+        type: "int"
+    },
+    TimeBetweenPings: {
+        description: "Time between pings",
+        units: "counts",
+        type: "int"
+    },
+    TimeBetweenBurstSequences: {
+        description: "Time between burst sequence",
+        units: "counts",
+        type: "int"
+    },
+    NumberPings: {
+        description: "Number of beam sequences per burst",
+        units: "counts",
+        type: "int"
+    },
+    AvgInterval: {
+        description: "Average interval",
+        units: "seconds",
+        type: "int"
+    },
+    UserNumberOfBeams: {
+        description: "Number of beams",
+        units: "count",
+        type: "int"
+    },
+    TimingControlRegister: {
+        description: "Timing controller mode",
+        value_description: "Bit 1: profile (0=single, 1=continuous)
+                            Bit 2: mode (0=burst, 1=continuous)
+                            Bit 5: power level (0=1, 1=2, 0=3, 1=4)
+                            Bit 6: power level (0 0 1 1 )
+                            Bit 7: synchout position (0=middle of sample, 1=end of sample (Vector))
+                            Bit 8: sample on synch (0=disabled,1=enabled, rising edge)
+                            Bit 9: start on synch (0=disabled,1=enabled, rising edge)",
+        type: "bit field"
+    },
+    PowerControlRegister: {
+        description: "Power control register",
+        value_description: "Bit 5: power level (0=1, 1=2, 0=3, 1=4)
+                            Bit 6: power level (0 0 1 1 )",
+        type: "int (bit field)"
+    },
+    CompassUpdateRate: {
+        description: "Compass update rate",
+        units: "Hz",
+        type: "int"
+    },
+    CoordinateSystem: {
+        description: "Coordinate system",
+        value_description: "(0=ENU, 1=XYZ, 2=BEAM)",
+        type: "int"
+    },
+    NumberOfBins: {
+        description: "Number of cells",
+        units: "count",
+        type: "int"
+    },
+    BinLength: {
+        description: "Cell size",
+        units: "meters",
+        type: "int"
+    },
+    MeasurementInterval: {
+        description: "Measurement interval",
+        units: "seconds",
+        type: "int"
+    },
+    DeploymentName: {
+        description: "Recorder deployment name",
+        type: "string"
+    },
+    WrapMode: {
+        description: "Recorder wrap mode",
+        value_description: "(0=NO WRAP, 1=WRAP WHEN FULL)",
+        type: "int"
+    },
+    ClockDeploy: {
+        description: "Deployment start time",
+        value_description: "date/time to second",
+        type: "timestamp"
+    },
+    DiagnosticInterval: {
+        description: "Time between diagnostics measurements",
+        units: "seconds",
+        type: "int"
+    },
+    Mode: {
+        description: "Operation mode",
+        value_description: "Bit 0: use user specified sound speed (0=no,1=yes)
+                            Bit 1: diagnostics/wave mode (0=disable, 1=enable)
+                            Bit 2: analog output mode (0=disable, 1=enable)
+                            Bit 3: output format (0=Vector, 1=ADV)
+                            Bit 4: scaling (0=1 mm, 1=0.1 mm)
+                            Bit 5: serial output (0=disable, 1=enable)
+                            Bit 6: reserved EasyQ
+                            Bit 7: stage (0=disable, 1=enable)
+                            Bit 8: output power for analog input (0=disable, 1=enable)",
+        type: "int (bit field)"
+    },
+    AdjustmentSoundSpeed: {
+        description: "User input sound speed adjustment factor",
+        units: "m/s",
+        type: "int"
+    },
+    NumberSamplesInDiagMode: {
+        description: "Number of samples in diagnostics mode",
+        units: "counts",
+        value_description: "(AI if EasyQ)",
+        type: "int"
+    },
+    NumberBeamsPerCellInDiagMode: {
+        description: "Number of beams per cell number to measure in diagnostics mode",
+        units: "counts",
+        type: "int"
+    },
+    NumberPingsInDiagMode: {
+        description: "Number of pings in diagnostics/wave mode",
+        units: "counts",
+        type: "int"
+    },
+    ModeTest: {
+        description: "Mode test",
+        value_description: "Bit 0: correct using DSP filter (0=no filter, 1=filter)
+                            Bit 1: filter data output (0=total corrected velocity,1=only correction part)",
+        type: "int (bit field)"
+    },
+    AnalogInputAddress: {
+        description: "Analog input address",
+        type: "int"
+    },
+    SwVersion: {
+        description: "Software version",
+        type: "int"
+    },
+    VelocityAdjTable: {
+        description: "Velocity adjustment table",
+        value_description: "binary representation of an adjustment table",
+        type: "binary"
+    },
+    Comments: {
+        description: "File comments",
+        type: "string"
+    },
+    WaveMeasurementMode: {
+        description: "Wave measurement mode",
+        value_description: "Bit 0: data rate (0=1 Hz, 1=2 Hz)
+                            Bit 1: wave cell position (0=fixed, 1=dynamic)
+                            Bit 2: type of dynamic position (0=percent of mean pressure, 1=percent of min re)",
+        type: "int (bit field)"
+    },
+    PercentageForCellPositioning: {
+        description: "Percentage for wave cell positioning",
+        units: "percent",
+        value_description: "= 32767 * pct/100",
+        type: "int"
+    },
+    WaveTransmitPulse: {
+        description: "Wave transmit pulse"
+    },
+    WaveBlankingDistance: {
+        description: "Wave blanking distance",
+        units: "counts"
+    },
+    WaveCellSize: {
+        description: "Wave measurement cell size"
+    },
+    NumberDiagnosticSamples: {
+        description: "Number of diagnistics/wave samples",
+        units: "count",
+        type: "int"
+    },
+    NumberSamplesPerBurst: {
+        description: "Number of samples per burst",
+        units: "count",
+        type: "int"
+    },
+    AnalogOutputScale: {
+        description: "analog output scale factor",
+        units: "counts",
+        value_description: "16384=1.0, max=4.0",
+        type: "int"
+    },
+    CorrelationThreshold: {
+        description: "correlation threshold for resolving ambiguities"
+    },
+    TransmitPulseLengthSecondLag: {
+        description: "Transmit pulse length second lag",
+        units: "counts",
+        type: "int"
+    },
+    StageMatchFilterConstants: {
+        description: "Stage match filter constants (EZQ)",
+        type: "binary"
     }
+}
+
+commands: {
+    EXPORTED_INSTRUMENT_CMD_SET_CONFIGURATION: {
+        arguments: {
+            description: "Binary block of user configuration",
+            display_name: "User configuration",
+            value: {
+                description: "block of data holding the user configuration, \
+                              format is the user config structure as specified \
+                              in the Nortek system integrator manual",
+                type: "binary"
+            }
+        }
+        description: "Set the instrument configuration with the given block \
+                      of configuration data",
+        display_name: "Set configuration",
+    }
+    EXPORTED_INSTRUMENT_CMD_READ_CLOCK: {
+        description: "Get the instrument clock time",
+        display_name: "Read instrument clock",
+        return: {
+            description: "Date/time structure in the format: \
+            \"day month year hour:min:sec\" (ie. \"24/10/2013 12:34:56\")",
+            type: "string",
+        }
+    }
+    EXPORTED_INSTRUMENT_CMD_READ_MODE: {
+        description: "Determine the mode the instrument is in",
+        display_name: "Mode Inquiry",
+        return: {
+            description: "0x0000: Firmware upgrade mode
+                          0x0001: Measurement mode
+                          0x0002: Command mode
+                          0x0004: Data retrieval mode
+                          0x0005: Confirmation mode",
+            type: "int (bit field)"
+        }
+    }
+    EXPORTED_INSTRUMENT_CMD_POWER_DOWN: {
+        description: "Put instrument in sleep mode",
+        display_name: "Power down",
+    }
+    EXPORTED_INSTRUMENT_CMD_READ_BATTERY_VOLTAGE: {
+        description: "Read battery voltage",
+        display_name: "Read battery voltage",
+        return: {
+            description: "voltage",
+            type: "int",
+            units: "mV"
+        }
+    }
+    EXPORTED_INSTRUMENT_CMD_READ_ID: {
+        description: "Read instrument ID string",
+        display_name: "Read ID",
+        return: {
+            description: " 14 byte ASCII string (instrument model and serial number (e.g. VEC8181))",
+            type: "string"
+        }
+    }
+    EXPORTED_INSTRUMENT_CMD_GET_HW_CONFIGURATION: {
+        description: "Get hardware configuration",
+        display_name: "Get HW config",
+        return: {
+            description: "Hardware configuration parsed into name-value pairs. \
+            Names include SerialNo (string), Config (int), Frequency(int), \
+            PICversion (int), HWrevision (int), RecSize (int), Status (int), and
+            FWversion (4 bytes)",
+            type: "dict"
+        }
+    }
+    EXPORTED_INSTRUMENT_CMD_GET_HEAD_CONFIGURATION: {
+        description: "Get head configuration",
+        display_name: "Get head config",
+        return: {
+            description: "Head configuration parsed into name-value pairs. \
+            Names include Config (int), Frequency (int), Type (int), SerialNo (string) \
+            System (binary), NBeams (int)",
+            type: "dict"
+        }
+    }
+    EXPORTED_INSTRUMENT_CMD_GET_USER_CONFIGURATION: {
+        description: "Get user configuration",
+        display_name: "Get user config",
+        return: {
+            description: "User configuration parsed into name-value pairs. \
+            Names include ",
+            type: "dict"
+        }
+    }
+    EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME: {
+        description: "Start measurement at a specific time as indicated in the config",
+        display_name: "Start measurement at specified time"
+    }
+    EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE: {
+        description: "Start measurement immediately, regardless of time in config",
+        display_name: "Start measurement immediately"
+    }
+}     
+
+driver: {
+    vendor_sw_compatible: True
 }

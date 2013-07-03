@@ -95,7 +95,7 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 from ion.agents.port.port_agent_process import PortAgentProcess
 
 from pyon.core.exception import Conflict
-from pyon.core.exception import ResourceError, BadRequest
+from pyon.core.exception import ResourceError, BadRequest, Timeout, ServerError
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 from ooi.logging import log
@@ -826,6 +826,33 @@ class DriverTestMixin(MiUnitTest):
         vendor_da_support = option_dict.get(DriverDictKey.VENDOR_SW_COMPATIBLE)
         self.assertIsNotNone(vendor_da_support, "%s not defined in driver options" % DriverDictKey.VENDOR_SW_COMPATIBLE)
 
+    def assert_metadata_generation(self):
+        """
+        Test that we can generate metadata information for the driver,
+        commands, and parameters. Needs a driver to exist first. Metadata
+        can come from any source (file or code)
+        """
+        json_result = self.driver_client.cmd_dvr("get_config_metadata")
+        self.assert_(json_result != None)
+        self.assert_(len(json_result) > 100) # just make sure we have something...
+        result = json.loads(json_result)
+        log.debug("Metadata JSON response: %s", json_result)
+        self.assert_(result != None)
+        self.assert_(isinstance(result, dict))
+        self.assertFalse(result[ConfigMetadataKey.COMMANDS])
+
+        self.assertTrue(result[ConfigMetadataKey.DRIVER])
+        self.assertTrue(result[ConfigMetadataKey.DRIVER][DriverDictKey.VENDOR_SW_COMPATIBLE])
+
+        self.assertTrue(result[ConfigMetadataKey.PARAMETERS])        
+        keys = result[ConfigMetadataKey.PARAMETERS].keys()
+        keys.append(DriverParameter.ALL)
+        keys.sort()
+        enum_list = InstrumentParameters.list()
+        enum_list.sort()
+        self.assertEqual(keys, enum_list)
+
+
 class InstrumentDriverTestCase(MiIntTestCase):
     """
     Base class for instrument driver tests
@@ -928,6 +955,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         repo_dir = Config().get('working_repo')
         driver_path = cls.test_config.driver_module
+        log.debug("*** driver_path: %s, repo_dir: %s", driver_path, repo_dir)
         p = re.compile('\.')
         driver_path = p.sub('/', driver_path)
         abs_path = "%s/%s/%s" % (repo_dir, os.path.dirname(driver_path), CommConfig.config_filename())
@@ -1765,8 +1793,25 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             if(self._driver_exception_match(badreq, ex)):
                 log.debug("Expected exception raised: %s", ex)
                 return
+        except ResourceError as e:
+            if(self._driver_exception_match(e, ex)):
+                log.debug("Expected exception raised as ResourceError: %s", ex)
+                return
+        except Timeout as e:
+            if(self._driver_exception_match(e, ex)):
+                log.debug("Expected exception raised as Timeout: %s", ex)
+                return
+        except ServerError as e:
+            if(self._driver_exception_match(e, ex)):
+                log.debug("Expected exception raised as ServerError: %s", ex)
+                return
+        except Conflict as e:
+            if(self._driver_exception_match(e, ex)):
+                log.debug("Expected exception raised as Conflict: %s", ex)
+                return
         except Exception as e:
-            self.fail("Call returned bad exception: %s" % e)
+            log.debug("Exception type: %s", type(e))
+            self.fail("Call returned bad exception: %s of type %s" % (e, type(e)))
 
     def _driver_exception_match(self, ion_exception, expected_exception, error_regex=None):
         """

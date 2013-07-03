@@ -19,8 +19,10 @@ from mi.core.common import BaseEnum
 from mi.core.exceptions import InstrumentProtocolException, \
                                SampleException
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
+from mi.instrument.nortek.driver import NortekParameterDictVal
+from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
 from mi.instrument.nortek.driver import NortekUserConfigDataParticle
@@ -46,14 +48,11 @@ SYSTEM_DATA_LEN = 28
 SYSTEM_DATA_SYNC_BYTES = '\xa5\x11\x0e\x00'
 VELOCITY_HEADER_DATA_LEN = 42
 VELOCITY_HEADER_DATA_SYNC_BYTES = '\xa5\x12\x15\x00'
-CLOCK_DATA_LEN = 6
-BATTERY_DATA_LEN = 2
-ID_DATA_LEN = 14
 
-sample_structures = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
-                     [SYSTEM_DATA_SYNC_BYTES, SYSTEM_DATA_LEN],
-                     [VELOCITY_HEADER_DATA_SYNC_BYTES, VELOCITY_HEADER_DATA_LEN]
-                     ]
+VECTOR_SAMPLE_STRUCTURES = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
+                            [SYSTEM_DATA_SYNC_BYTES, SYSTEM_DATA_LEN],
+                            [VELOCITY_HEADER_DATA_SYNC_BYTES, VELOCITY_HEADER_DATA_LEN]
+                           ]
 
 VELOCITY_DATA_PATTERN = r'^%s(.{1})(.{1})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{1})(.{1})(.{1}).{2}' % VELOCITY_DATA_SYNC_BYTES
 VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN, re.DOTALL)
@@ -62,26 +61,12 @@ SYSTEM_DATA_REGEX = re.compile(SYSTEM_DATA_PATTERN, re.DOTALL)
 VELOCITY_HEADER_DATA_PATTERN = r'^%s(.{6})(.{2})(.{1})(.{1})(.{1}).{1}(.{1})(.{1})(.{1}).{23}' % VELOCITY_HEADER_DATA_SYNC_BYTES
 VELOCITY_HEADER_DATA_REGEX = re.compile(VELOCITY_HEADER_DATA_PATTERN, re.DOTALL)
 
-CLOCK_DATA_PATTERN = r'(.{1})(.{1})(.{1})(.{1})(.{1})(.{1})\x06\x06'
-CLOCK_DATA_REGEX = re.compile(CLOCK_DATA_PATTERN, re.DOTALL)
-BATTERY_DATA_PATTERN = r'(.{2})\x06\x06'
-BATTERY_DATA_REGEX = re.compile(BATTERY_DATA_PATTERN, re.DOTALL)
-ID_DATA_PATTERN = r'(.{14})\x06\x06'
-ID_DATA_REGEX = re.compile(ID_DATA_PATTERN, re.DOTALL)
-
-
-class DataParticleType(BaseEnum):
-    RAW = CommonDataParticleType.RAW
+class DataParticleType(NortekDataParticleType):
     VELOCITY = 'vel3d_cd_velocity_data'
     VELOCITY_HEADER = 'vel3d_cd_data_header'
     SYSTEM = 'vel3d_cd_system_data'
-    HARDWARE_CONFIG = 'vel3d_cd_hardware_configuration'
-    HEAD_CONFIG = 'vel3d_cd_head_configuration'
-    USER_CONFIG = 'vel3d_cd_user_configuration'
-    CLOCK = 'vel3d_clock_data'
-    BATTERY = 'vel3d_cd_battery_voltage'
-    ID_STRING = 'vel3d_cd_identification_string'    
 
+    
 ###############################################################################
 # Driver
 ###############################################################################
@@ -397,120 +382,6 @@ class VectorSystemDataParticle(DataParticle):
  
         return result
 
-class VectorEngClockDataParticleKey(BaseEnum):
-    DATE_TIME_ARRAY = "date_time_array"
-    DATE_TIME_STAMP = "date_time_stamp"
-        
-class VectorEngClockDataParticle(DataParticle):
-    """
-    Routine for parsing clock engineering data into a data particle structure
-    for the Vector sensor. 
-    """
-    _data_particle_type = DataParticleType.CLOCK
-        
-    def _build_parsed_values(self):
-        """
-        Take something in the clock engineering data sample format and parse it
-        into values with appropriate tags.
-        @throws SampleException If there is a problem with sample creation
-        """
-        match = CLOCK_DATA_REGEX.match(self.raw_data)
-        
-        if not match:
-            raise SampleException("VectorEngClockDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
-        
-        # Calculate values ### FIXME
-        
-        date_time_array = [int((match.group(1)).encode("hex")),
-                           int((match.group(2)).encode("hex")),
-                           int((match.group(3)).encode("hex")),
-                           int((match.group(4)).encode("hex")),
-                           int((match.group(5)).encode("hex")),
-                           int((match.group(6)).encode("hex"))]
-
-        if None == date_time_array:
-            raise SampleException("No date/time array value parsed")
-        
-        # report values
-        result = [{DataParticleKey.VALUE_ID: VectorEngClockDataParticleKey.DATE_TIME_ARRAY,
-                   DataParticleKey.VALUE: date_time_array}
-                 ]
-        
-        log.debug('VectorEngClockDataParticle: particle=%s' %result)
-        return result
-
-class VectorEngBatteryDataParticleKey(BaseEnum):
-    BATTERY_VOLTAGE = "battery_voltage"
-        
-class VectorEngBatteryDataParticle(DataParticle):
-    """
-    Routine for parsing battery engineering data into a data particle
-    structure for the Vector sensor. 
-    """
-    _data_particle_type = DataParticleType.BATTERY
-    
-
-    def _build_parsed_values(self):
-        """
-        Take something in the battery engineering data sample format and parse
-        it into values with appropriate tags.
-        @throws SampleException If there is a problem with sample creation
-        """
-        match = BATTERY_DATA_REGEX.match(self.raw_data)
-        
-        if not match:
-            raise SampleException("VectorEngBatteryDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
-        
-        # Calculate value
-        battery_voltage = NortekProtocolParameterDict.convert_word_to_int(match.group(1))
-                
-        if None == battery_voltage:
-            raise SampleException("No battery_voltage value parsed")
-        
-        # report values
-        result = [{DataParticleKey.VALUE_ID: VectorEngBatteryDataParticleKey.BATTERY_VOLTAGE,
-                   DataParticleKey.VALUE: battery_voltage},
-                  ]
-        
-        log.debug('VectorEngBatteryDataParticle: particle=%s' %result)
-        return result
-
-
-class VectorEngIdDataParticleKey(BaseEnum):
-    ID = "identification_string"
-        
-class VectorEngIdDataParticle(DataParticle):
-    """
-    Routine for parsing id engineering data into a data particle
-    structure for the Vector sensor. 
-    """
-    _data_particle_type = DataParticleType.ID_STRING
-    
-
-    def _build_parsed_values(self):
-        """
-        Take something in the battery engineering data sample format and parse
-        it into values with appropriate tags.
-        @throws SampleException If there is a problem with sample creation
-        """
-        match = ID_DATA_REGEX.match(self.raw_data)
-        
-        if not match:
-            raise SampleException("VectorEngIdDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
-        
-        # Calculate values ### FIXME
-        id = NortekProtocolParameterDict.convert_bytes_to_string(match.group(1))
-                
-        if None == id:
-            raise SampleException("No ID value parsed")
-        
-        # report values
-        result = [{DataParticleKey.VALUE_ID: VectorEngIdDataParticleKey.ID,
-                   DataParticleKey.VALUE: id},
-                  ]
-        
-        log.debug('VectorEngIdDataParticle: particle=%s' %result)
-        return result
 
 ###############################################################################
 # Protocol
@@ -577,30 +448,15 @@ class Protocol(NortekInstrumentProtocol):
     
     
     def __init__(self, prompts, newline, driver_event):
-        NortekInstrumentProtocol.__init__(prompts, newline, driver_event)
+        NortekInstrumentProtocol.__init__(self, prompts, newline, driver_event)
         
         # create chunker for processing instrument samples.
         self._chunker = StringChunker(Protocol.chunker_sieve_function)
         
     @staticmethod
     def chunker_sieve_function(raw_data):
-        """ The method that detects data sample structures from instrument
-        """
-        return_list = []
-        structs = sample_structures + NORTEK_COMMON_SAMPLE_STRUCTS
-        for structure_sync, structure_len in structs:
-            start = raw_data.find(structure_sync)
-            if start != -1:    # found a sync pattern
-                if start+structure_len <= len(raw_data):    # only check the CRC if all of the structure has arrived
-                    calculated_checksum = NortekProtocolParameterDict.calculate_checksum(raw_data[start:start+structure_len], structure_len)
-                    log.debug('chunker_sieve_function: calculated checksum = %s' % calculated_checksum)
-                    sent_checksum = NortekProtocolParameterDict.convert_word_to_int(raw_data[start+structure_len-2:start+structure_len])
-                    if sent_checksum == calculated_checksum:
-                        return_list.append((start, start+structure_len))        
-                        log.debug("chunker_sieve_function: found %s", raw_data[start:start+structure_len].encode('hex'))
-                
-        return return_list
-    
+        return NortekInstrumentProtocol.chunker_sieve_function(raw_data,
+                                                               VECTOR_SAMPLE_STRUCTURES)
 
     ########################################################################
     # overridden superclass methods
@@ -616,7 +472,9 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(VectorVelocityDataParticle, VELOCITY_DATA_REGEX, structure, timestamp)
         self._extract_sample(VectorSystemDataParticle, SYSTEM_DATA_REGEX, structure, timestamp)
         self._extract_sample(VectorVelocityHeaderDataParticle, VELOCITY_HEADER_DATA_REGEX, structure, timestamp)
-        self._extract_sample(VectorUserConfigDataParticle, USER_CONFIG_DATA_REGEX, structure, timestamp)
+        self._extract_sample(NortekUserConfigDataParticle, USER_CONFIG_DATA_REGEX, structure, timestamp)
+        self._extract_sample(NortekHardwareConfigDataParticle, HARDWARE_CONFIG_DATA_REGEX, structure, timestamp)
+        self._extract_sample(NortekHeadConfigDataParticle, HEAD_CONFIG_DATA_REGEX, structure, timestamp)
 
             
     ########################################################################
@@ -646,16 +504,18 @@ class Protocol(NortekInstrumentProtocol):
     def _build_param_dict(self):
         NortekInstrumentProtocol._build_param_dict(self)
 
-        self._param_dict.add(Parameter.NUMBER_SAMPLES_PER_BURST,
-                     r'^.{%s}(.{2}).*' % str(452),
-                     lambda match : NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
-                     NortekProtocolParameterDict.word_to_string,
-                     regex_flags=re.DOTALL)
-        self._param_dict.add(Parameter.USER_3_SPARE,
-                             r'^.{%s}(.{2}).*' % str(460),
-                             lambda match : match.group(1),
-                             lambda string : string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             regex_flags=re.DOTALL)
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.NUMBER_SAMPLES_PER_BURST,
+                                    r'^.{%s}(.{2}).*' % str(452),
+                                    lambda match : NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                    NortekProtocolParameterDict.word_to_string,
+                                    regex_flags=re.DOTALL))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.USER_3_SPARE,
+                                    r'^.{%s}(.{2}).*' % str(460),
+                                    lambda match : match.group(1),
+                                    lambda string : string,
+                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    regex_flags=re.DOTALL))
 
         
