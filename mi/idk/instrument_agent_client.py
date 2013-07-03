@@ -358,18 +358,21 @@ class InstrumentAgentDataSubscribers(object):
             pd = pubsub_client.read_stream_definition(stream_def_id).parameter_dictionary
             #log.debug("Parameter Dictionary: %s" % pd)
 
-            stream_id, stream_route = pubsub_client.create_stream(name=stream_name,
-                                                exchange_point='science_data',
-                                                stream_definition_id=stream_def_id)
+            try:
+                stream_id, stream_route = pubsub_client.create_stream(name=stream_name,
+                                                    exchange_point='science_data',
+                                                    stream_definition_id=stream_def_id)
 
-            stream_config = dict(stream_route=stream_route,
-                                 routing_key=stream_route.routing_key,
-                                 exchange_point=stream_route.exchange_point,
-                                 stream_id=stream_id,
-                                 stream_definition_ref=stream_def_id,
-                                 parameter_dictionary=pd)
-            self.stream_config[stream_name] = stream_config
-            #log.debug("Stream Config (%s): %s" % (stream_name, stream_config))
+                stream_config = dict(stream_route=stream_route,
+                                     routing_key=stream_route.routing_key,
+                                     exchange_point=stream_route.exchange_point,
+                                     stream_id=stream_id,
+                                     stream_definition_ref=stream_def_id,
+                                     parameter_dictionary=pd)
+                self.stream_config[stream_name] = stream_config
+                #log.debug("Stream Config (%s): %s" % (stream_name, stream_config))
+            except Exception as e:
+                log.error("stream publisher exception: %s", e)
 
     def start_data_subscribers(self):
         """
