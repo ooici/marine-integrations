@@ -15,6 +15,7 @@ import re
 import time
 import string
 import json
+import time
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -54,8 +55,15 @@ NEWLINE = '\r\n'
 
 # default timeout.
 TIMEOUT = 10
+SYNC_TIMEOUT = 30
 
 AUTO_SAMPLE_SCHEDULED_JOB = 'auto_sample'
+
+LOGGING_STATUS_REGEX = r'.*Sampling (GO|STOPPED)'
+LOGGING_STATUS_COMPILED = re.compile(LOGGING_STATUS_REGEX, re.DOTALL)
+
+LOGGING_SYNC_REGEX = r'.*Sampling GO - synchronizing...'
+LOGGING_SYNC_COMPILED = re.compile(LOGGING_STATUS_REGEX, re.DOTALL)
         
 ####
 #    Driver Constant Definitions
@@ -73,6 +81,7 @@ class ProtocolState(BaseEnum):
     COMMAND       = DriverProtocolState.COMMAND
     AUTOSAMPLE    = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
+    SYNC_CLOCK    = 'PROTOCOL_STATE_SYNC_CLOCK'
 
 class ProtocolEvent(BaseEnum):
     """
@@ -117,8 +126,9 @@ class Prompt(BaseEnum):
     Device i/o prompts.
     """
     CR_NL   = NEWLINE
-    STOPPED = "Sampling STOPPED" + NEWLINE
-    GO      = "Sampling GO - synchronizing..." + NEWLINE
+    STOPPED = "Sampling STOPPED"
+    SYNC    = "Sampling GO - synchronizing..."
+    GO      = "Sampling GO"
     FS      = "bytes free\r" + NEWLINE
 
 class Command(BaseEnum):
@@ -327,18 +337,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-        # replace the driver's discover handler with one that applies the startup values after discovery
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED, 
-                                         DriverEvent.DISCOVER, 
-                                         self._handler_connected_discover)
-    
-    def _handler_connected_discover(self, event, *args, **kwargs):
-        # Redefine discover handler so that we can apply startup params after we discover. 
-        # For this instrument the driver puts the instrument into command mode during discover.
-        result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
-        self.apply_startup_params()
-        return result
-
 
     ########################################################################
     # Superclass overrides for resource query.
@@ -394,19 +392,27 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_sync_clock)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_sync_clock)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.FLASH_STATUS, self._handler_flash_status)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status)
 
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_acquire_sample)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.CLOCK_SYNC, self._handler_sync_clock)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.CLOCK_SYNC, self._handler_autosample_sync_clock)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_get)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.FLASH_STATUS, self._handler_flash_status)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_acquire_status)
+
+        # We setup a new state for clock sync because then we could use the state machine so the autosample scheduler
+        # is disabled before we try to sync the clock.  Otherwise there could be a race condition introduced when we
+        # are syncing the clock and the scheduler requests a sample.
+        self._protocol_fsm.add_handler(ProtocolState.SYNC_CLOCK, ProtocolEvent.ENTER, self._handler_sync_clock_enter)
+        self._protocol_fsm.add_handler(ProtocolState.SYNC_CLOCK, ProtocolEvent.CLOCK_SYNC, self._handler_sync_clock_sync)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -426,7 +432,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(Command.GET_CLOCK, self._parse_clock_response)
         self._add_response_handler(Command.SET_CLOCK, self._parse_clock_response)
         self._add_response_handler(Command.FS, self._parse_fs_response)
- 
+        self._add_response_handler(Command.STAT, self._parse_common_response)
+
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
@@ -456,10 +463,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             for match in matcher.finditer(raw_data):
                 return_list.append((match.start(), match.end()))
                     
-        """
-        if return_list != []:
-            log.debug("sieve_function: raw_data=%s, return_list=%s" %(raw_data, return_list))
-        """
         return return_list
 
     def _got_chunk(self, chunk, timestamp):
@@ -532,7 +535,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Apply sample_interval startup parameter.  
         """
-
         config = self.get_startup_config()
         log.debug("apply_startup_params: startup config = %s" %config)
         if config.has_key(Parameter.SAMPLE_INTERVAL):
@@ -547,6 +549,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter unknown state.
         """
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -563,13 +566,46 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval (next_state, result), (ProtocolState.COMMAND, None) if successful.
         """
 
-        # force to command mode, this instrument has no autosample mode
-        next_state = ProtocolState.COMMAND
-        result = ResourceAgentState.IDLE
+        (protocol_state, agent_state) = self._discover()
 
-        log.debug("_handler_unknown_discover: state = %s", next_state)
-        return (next_state, result)
+        # If we are just starting up and we land in command mode then our state should
+        # be idle
+        if(agent_state == ResourceAgentState.COMMAND):
+            agent_state = ResourceAgentState.IDLE
 
+        log.debug("_handler_unknown_discover: state = %s", protocol_state)
+        return (protocol_state, agent_state)
+
+    ########################################################################
+    # Clock Sync handlers.
+    # Not much to do in this state except sync the clock then transition
+    # back to autosample.  When in command mode we don't have to worry about
+    # stopping the scheduler so we just sync the clock without state
+    # transitions
+    ########################################################################
+
+    def _handler_sync_clock_enter(self, *args, **kwargs):
+        """
+        Enter sync clock state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        self._protocol_fsm.on_event(ProtocolEvent.CLOCK_SYNC)
+
+    def _handler_sync_clock_sync(self, *args, **kwargs):
+        """
+        Sync the clock
+        """
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+        result = None
+
+        self._sync_clock()
+
+        self._async_agent_state_change(ResourceAgentState.STREAMING)
+        return(next_state,(next_agent_state, result))
 
     ########################################################################
     # Command handlers.
@@ -580,9 +616,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter command state.
         """
-
-        # Command device to update parameters and send a config change event if needed.
-        self._update_params()
+        self._init_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -619,14 +653,51 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
-        self._ensure_autosample_config()
-        self._add_scheduler_event(AUTO_SAMPLE_SCHEDULED_JOB, ProtocolEvent.ACQUIRE_SAMPLE)
+        self._start_logging()
 
         return (next_state, (next_agent_state, result))
+
+    def _handler_command_sync_clock(self, *args, **kwargs):
+        """
+        sync clock close to a second edge
+        @retval (next_state, (next_agent_state, result)) tuple, (None, (None, None)).
+        @throws InstrumentTimeoutException if device respond correctly.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        self._sync_clock()
+
+        return(next_state,(next_agent_state, result))
 
     ########################################################################
     # autosample handlers.
     ########################################################################
+
+    def _handler_autosample_enter(self, *args, **kwargs):
+        """
+        Enter autosample state  Because this is an instrument that must be
+        polled we need to ensure the scheduler is added when we are in an
+        autosample state.  This scheduler raises events to poll the
+        instrument for data.
+        """
+        self._init_params()
+
+        self._ensure_autosample_config()
+        self._add_scheduler_event(AUTO_SAMPLE_SCHEDULED_JOB, ProtocolEvent.ACQUIRE_SAMPLE)
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_autosample_exit(self, *args, **kwargs):
+        """
+        exit autosample state.
+        """
+        self._remove_scheduler(AUTO_SAMPLE_SCHEDULED_JOB)
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
@@ -635,9 +706,22 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        self._remove_scheduler(AUTO_SAMPLE_SCHEDULED_JOB)
-        
+        self._stop_logging()
+
         return (next_state, (next_agent_state, result))
+
+    def _handler_autosample_sync_clock(self, *args, **kwargs):
+        """
+        sync clock close to a second edge
+        @retval (next_state, (next_agent_state, result)) tuple, (None, (None, None)).
+        @throws InstrumentTimeoutException if device respond correctly.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = ProtocolState.SYNC_CLOCK
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+        return(next_state,(next_agent_state, result))
 
     ########################################################################
     # Direct access handlers.
@@ -669,8 +753,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_direct_access_stop_direct(self):
         result = None
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+
+        (next_state, next_agent_state) = self._discover()
 
         return (next_state, (next_agent_state, result))
 
@@ -690,6 +774,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         result = self._do_cmd_resp(Command.FS, expected_prompt=Prompt.FS)
+        log.debug("FLASH RESULT: %s", result)
 
         return (next_state, (next_agent_state, result))
 
@@ -708,30 +793,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
-    def _handler_sync_clock(self, *args, **kwargs):
-        """
-        sync clock close to a second edge 
-        @retval (next_state, (next_agent_state, result)) tuple, (None, (None, None)).
-        @throws InstrumentTimeoutException if device respond correctly.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
-        """
-
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        time_format = "%Y/%m/%d %H:%M:%S"
-        str_val = get_timestamp_delayed(time_format)
-        log.debug("Setting instrument clock to '%s'", str_val)
-        self._do_cmd_resp(Command.STOP, expected_prompt=Prompt.STOPPED)
-        try:
-            self._do_cmd_resp(Command.SET_CLOCK, str_val, expected_prompt=Prompt.CR_NL)
-        finally:
-            # ensure that we try to start the instrument sampling again
-            self._do_cmd_resp(Command.GO, expected_prompt=Prompt.GO)
-
-        return (next_state, (next_agent_state, result))
-
     def _handler_acquire_status(self, *args, **kwargs):
         """
         Acquire status from instrument.
@@ -743,13 +804,115 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        result = self._do_cmd_resp(Command.STAT, *args, **kwargs)
+        log.debug( "Logging status: %s", self._is_logging())
+        result = self._do_cmd_resp(Command.STAT, expected_prompt=[Prompt.STOPPED, Prompt.GO])
 
         return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Private helpers.
     ########################################################################
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Overloaded from the base class, used in apply DA params.  Not needed
+        here so just noop it.
+        """
+        pass
+
+    def _discover(self, *args, **kwargs):
+        """
+        Discover current state; can only be COMMAND (instrument has no actual AUTOSAMPLE mode).
+        @retval (next_state, result), (ProtocolState.COMMAND, None) if successful.
+        """
+        logging = self._is_logging()
+
+        if(logging == True):
+            protocol_state = ProtocolState.AUTOSAMPLE
+            agent_state = ResourceAgentState.STREAMING
+        elif(logging == False):
+            protocol_state = ProtocolState.COMMAND
+            agent_state = ResourceAgentState.COMMAND
+        else:
+            protocol_state = ProtocolState.UNKNOWN
+            agent_state = ResourceAgentState.ACTIVE_UNKNOWN
+
+        return (protocol_state, agent_state)
+
+    def _start_logging(self):
+        """
+        start the instrument logging if is isn't running already.
+        """
+        if(not self._is_logging()):
+            log.debug("Sending start logging command: %s", Command.GO)
+            self._do_cmd_resp(Command.GO, expected_prompt=Prompt.GO)
+
+    def _stop_logging(self):
+        """
+        stop the instrument logging if is is running.  When the instrument
+        is in a syncing state we can not stop logging.  We must wait before
+        we sent the stop command.
+        """
+        if(self._is_logging()):
+            log.debug("Attempting to stop the instrument logging.")
+            result = self._do_cmd_resp(Command.STOP, expected_prompt=[Prompt.STOPPED, Prompt.SYNC, Prompt.GO])
+            log.debug("Stop Command Result: %s", result)
+
+            # If we are still logging then let's wait until we are not
+            # syncing before resending the command.
+            if(self._is_logging()):
+                self._wait_for_sync()
+                log.debug("Attempting to stop the instrument again.")
+                result = self._do_cmd_resp(Command.STOP, expected_prompt=[Prompt.STOPPED, Prompt.SYNC, Prompt.GO])
+                log.debug("Stop Command Result: %s", result)
+
+    def _wait_for_sync(self):
+        """
+        When the instrument is syncing internal parameters we can't stop
+        logging.  So we will watch the logging status and when it is not
+        synchronizing we will return.  Basically we will just block
+        until we are no longer syncing.
+        @raise InstrumentProtocolException when we timeout waiting for a
+        transition.
+        """
+        timeout = time.time() + SYNC_TIMEOUT
+
+        while(time.time() < timeout):
+            result = self._do_cmd_resp(Command.STAT, expected_prompt=[Prompt.STOPPED, Prompt.SYNC, Prompt.GO])
+
+            match = LOGGING_SYNC_COMPILED.match(result)
+
+            if(match):
+                log.debug("We are still in sync mode.  Wait a bit and retry")
+                time.sleep(2)
+            else:
+                log.debug("Transitioned out of sync.")
+                return True
+
+        # We timed out
+        raise InstrumentProtocolException("failed to transition out of sync mode")
+
+    def _is_logging(self):
+        """
+        Run the status command to determine if we are in command or autosample
+        mode.
+        @return: True if sampling, false if not, None if we can't determine
+        """
+        log.debug("_is_logging: start")
+        result = self._do_cmd_resp(Command.STAT, expected_prompt=[Prompt.STOPPED, Prompt.GO])
+        log.debug("Checking logging status from %s", result)
+
+        match = LOGGING_STATUS_COMPILED.match(result)
+
+        if not match:
+            log.error("Unable to determine logging status from: %s", result)
+            return None
+        if match.group(1) == 'GO':
+            log.debug("Looks like we are logging: %s", match.group(1))
+            return True
+        else:
+            log.debug("Looks like we are NOT logging: %s", match.group(1))
+            return False
 
     def _ensure_autosample_config(self):    
         scheduler_config = self._get_scheduler_config()
@@ -764,7 +927,25 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._startup_config[DriverConfigKey.SCHEDULER][AUTO_SAMPLE_SCHEDULED_JOB] = config
         if(not self._scheduler):
             self.initialize_scheduler()
-        
+
+    def _sync_clock(self, *args, **kwargs):
+        """
+        sync clock close to a second edge
+        @retval (next_state, (next_agent_state, result)) tuple, (None, (None, None)).
+        @throws InstrumentTimeoutException if device respond correctly.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        time_format = "%Y/%m/%d %H:%M:%S"
+        str_val = get_timestamp_delayed(time_format)
+        log.debug("Setting instrument clock to '%s'", str_val)
+
+        self._do_cmd_resp(Command.SET_CLOCK, str_val, expected_prompt=Prompt.CR_NL)
+
     def _wakeup(self, timeout):
         """There is no wakeup sequence for this instrument"""
         pass
@@ -855,11 +1036,19 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Parse handler for FS command.
         @param response command response string.
-        @param prompt prompt following command response.        
+        @param prompt prompt following command response.
         @throws InstrumentProtocolException if FS command misunderstood.
         """
         log.debug("_parse_fs_response: response=%s, prompt=%s" %(response, prompt))
-        if prompt not in [Prompt.FS]: 
+        if prompt not in [Prompt.FS]:
             raise InstrumentProtocolException('FS command not recognized: %s.' % response)
 
+        return response
+
+    def _parse_common_response(self, response, prompt):
+        """
+        Parse handler for common commands.
+        @param response command response string.
+        @param prompt prompt following command response.
+        """
         return response
