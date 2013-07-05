@@ -22,6 +22,8 @@ from mi.core.instrument.data_particle import DataParticle, DataParticleKey, Data
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.driver_dict import DriverDict, DriverDictKey
+from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import RegexParameter
@@ -1295,6 +1297,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         # Construct the parameter dictionary containing device parameters, current parameter values, and set formatting functions.
         self._build_param_dict()
+        self._build_cmd_dict()
+        self._build_driver_dict()
 
     @staticmethod
     def chunker_sieve_function(raw_data, add_structs=[]):
@@ -1327,33 +1331,33 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         events_out = [x for x in events if Capability.has(x)]
         return events_out
 
-    def set_init_params(self, config):
+    def set_init_params(self, param_config):
         """
         over-ridden to handle binary block configuration
         Set the initialization parameters to the given values in the protocol
         parameter dictionary. 
-        @param config The parameter_name/value to set in the initialization
-            fields of the parameter dictionary. May get a schedule too
+        @param param_config A dict with either param_name/value pairs or
+           {DriverParameter.ALL: base64-encoded string of raw values as the
+           instrument would return them from a get config}. If param_config
+           is false, nothing will happen.
         @raise InstrumentParameterException If the config cannot be set
         """
-        log.debug("set_init_params: config=%s", config)
-        if not isinstance(config, dict):
+        log.debug("set_init_params: param_config=%s", param_config)
+        if not isinstance(param_config, dict):
             raise InstrumentParameterException("Invalid init config format")
                 
-        param_config = config.get(DriverConfigKey.PARAMETERS)
-
         if not param_config:
             return
         
         if DriverParameter.ALL in param_config:
-            binary_config = base64.b64decode(config[DriverParameter.ALL])
+            binary_config = base64.b64decode(param_config[DriverParameter.ALL])
             # make the configuration string look like it came from instrument to get all the methods to be happy
             binary_config += InstrumentPrompts.Z_ACK    
             log.debug("binary_config len=%d, binary_config=%s",
                       len(binary_config), binary_config.encode('hex'))
             
             if len(binary_config) == USER_CONFIG_LEN+2:
-                if self._check_configuration(binary_config, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):                    
+                if self._check_configuration(binary_config, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):
                     self._param_dict.update(binary_config, init_value=True)
                 else:
                     raise InstrumentParameterException("bad configuration")
@@ -1909,6 +1913,41 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
         
+    def _build_driver_dict(self):
+        """
+        Build a driver dictionary structure, load the strings for the metadata
+        from a file if present.
+        """
+        self._driver_dict = DriverDict()
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
+        
+    def _build_cmd_dict(self):
+        """
+        Build a command dictionary structure, load the strings for the metadata
+        from a file if present.
+        """
+        self._cmd_dict = ProtocolCommandDict()
+        self._cmd_dict.add(Capability.SET)
+        self._cmd_dict.add(Capability.GET)
+        self._cmd_dict.add(Capability.ACQUIRE_SAMPLE)
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE)
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE)
+        self._cmd_dict.add(Capability.CLOCK_SYNC)
+        self._cmd_dict.add(Capability.SET_CONFIGURATION)
+        self._cmd_dict.add(Capability.READ_CLOCK)
+        self._cmd_dict.add(Capability.READ_MODE)
+        self._cmd_dict.add(Capability.POWER_DOWN)
+        self._cmd_dict.add(Capability.READ_BATTERY_VOLTAGE)
+        self._cmd_dict.add(Capability.READ_ID)
+        self._cmd_dict.add(Capability.GET_HW_CONFIGURATION)
+        self._cmd_dict.add(Capability.GET_HEAD_CONFIGURATION)
+        self._cmd_dict.add(Capability.GET_USER_CONFIGURATION)
+        self._cmd_dict.add(Capability.START_MEASUREMENT_AT_SPECIFIC_TIME)
+        self._cmd_dict.add(Capability.START_MEASUREMENT_IMMEDIATE)
+        
+        # Child should load this, no need to do it twice 
+        # self._cmd_dict.load_strings()
+        
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
@@ -2211,7 +2250,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     lambda match : match.group(1),
                                     lambda string : string,
                                     regex_flags=re.DOTALL))
-
+        
+        # Child should do this after adding any special strings
+        # self._param_dict.load_strings()
+        
     def _dump_config(self, input):
         # dump config block
         dump = ''
@@ -2226,31 +2268,32 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         return dump
     
     def _check_configuration(self, input, sync, length):        
-        log.debug('_check_configuration: config=')
-        print self._dump_config(input)
+        log.debug('_check_configuration: config=%s', self._dump_config(input))
+        #print self._dump_config(input)
         if len(input) != length+2:
             log.debug('_check_configuration: wrong length, expected length %d != %d' %(length+2, len(input)))
             return False
         
         # check for ACK bytes
         if input[length:length+2] != InstrumentPrompts.Z_ACK:
-            log.debug('_check_configuration: ACK bytes in error %s != %s' 
-                      %(input[length:length+2].encode('hex'), InstrumentPrompts.Z_ACK.encode('hex')))
+            log.debug('_check_configuration: ACK bytes in error %s != %s' ,
+                      input[length:length+2].encode('hex'),
+                      InstrumentPrompts.Z_ACK.encode('hex'))
             return False
         
         # check the sync bytes 
         if input[0:4] != sync:
-            log.debug('_check_configuration: sync bytes in error %s != %s' 
-                      %(input[0:4], sync))
+            log.debug('_check_configuration: sync bytes in error %s != %s', 
+                      input[0:4], sync)
             return False
         
         # check checksum
         calculated_checksum = NortekProtocolParameterDict.calculate_checksum(input, length)
-        log.debug('_check_configuration: user c_c = %s' % calculated_checksum)
+        log.debug('_check_configuration: user c_c = %s', calculated_checksum)
         sent_checksum = NortekProtocolParameterDict.convert_word_to_int(input[length-2:length])
         if sent_checksum != calculated_checksum:
-            log.debug('_check_configuration: user checksum in error %s != %s' 
-                      %(calculated_checksum, sent_checksum))
+            log.debug('_check_configuration: user checksum in error %s != %s', 
+                      calculated_checksum, sent_checksum)
             return False       
         
         return True

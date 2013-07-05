@@ -900,26 +900,31 @@ class ProtocolParameterDict(InstrumentDict):
         
         return return_struct
     
-    def load_strings(self, filename=None):
+    def load_strings(self, devel_path=None, filename=None):
         """
         Load the metadata for a parameter set. starting by looking at the default
         path in the egg and filesystem first, overriding what might have been
         hard coded. If a system filename is given look there. If parameter
         strings cannot be found, return False and carry on with hard coded values.
-    
+        
+        @param devel_path The path where the file can be found during development.
+        This is likely in the mi/instrument/make/model/flavor/resource directory.    
         @param filename The filename of the custom file to load, including as full a path
         as desired (complete path recommended)
         @retval True if something could be loaded, False otherwise
         """
+        log.debug("Loading parameter dictionary strings, filename is %s", filename)
         # if the file is in the default spot of the working path or egg, get that one
         try:
-            metadata = self.get_metadata_from_source(filename)
+            metadata = self.get_metadata_from_source(devel_path, filename)
         except IOError as e:
             log.warning("Encountered IOError: %s", e)
             return False        # Fill the fields           
 
         if metadata:
+            log.debug("Found parameter metadata, loading dictionary")
             for (param_name, param_value) in metadata[ParameterDictKey.PARAMETERS].items():
+                log.trace("load_strings setting param name/value: %s / %s", param_name, param_value)
                 for (name, value) in param_value.items():
                     if param_name not in self._param_dict:
                         continue

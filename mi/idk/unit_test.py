@@ -30,8 +30,6 @@ from mi.core.log import get_logger ; log = get_logger()
 
 import gevent
 import json
-import ntplib
-import time
 
 from pprint import PrettyPrinter
 
@@ -826,11 +824,15 @@ class DriverTestMixin(MiUnitTest):
         vendor_da_support = option_dict.get(DriverDictKey.VENDOR_SW_COMPATIBLE)
         self.assertIsNotNone(vendor_da_support, "%s not defined in driver options" % DriverDictKey.VENDOR_SW_COMPATIBLE)
 
-    def assert_metadata_generation(self):
+    def assert_metadata_generation(self, instrument_params=None, commands=None):
         """
         Test that we can generate metadata information for the driver,
         commands, and parameters. Needs a driver to exist first. Metadata
-        can come from any source (file or code)
+        can come from any source (file or code).
+        @param instrumnet_params The list of parameters to compare with the parameter
+        metadata being generated. Could be from an enum class's list() method.
+        @param commands The list of commands to compare with the command
+        metadata being generated. Could be from an enum class's list() method
         """
         json_result = self.driver_client.cmd_dvr("get_config_metadata")
         self.assert_(json_result != None)
@@ -839,16 +841,25 @@ class DriverTestMixin(MiUnitTest):
         log.debug("Metadata JSON response: %s", json_result)
         self.assert_(result != None)
         self.assert_(isinstance(result, dict))
-        self.assertFalse(result[ConfigMetadataKey.COMMANDS])
 
+        # simple driver metadata check
         self.assertTrue(result[ConfigMetadataKey.DRIVER])
         self.assertTrue(result[ConfigMetadataKey.DRIVER][DriverDictKey.VENDOR_SW_COMPATIBLE])
 
+        # param metadata check
         self.assertTrue(result[ConfigMetadataKey.PARAMETERS])        
         keys = result[ConfigMetadataKey.PARAMETERS].keys()
-        keys.append(DriverParameter.ALL)
+        keys.append(DriverParameter.ALL) # toss that in there to match up
         keys.sort()
-        enum_list = InstrumentParameters.list()
+        enum_list = instrument_params
+        enum_list.sort()
+        self.assertEqual(keys, enum_list)
+        
+        # command metadata check 
+        self.assertTrue(result[ConfigMetadataKey.COMMANDS])
+        keys = result[ConfigMetadataKey.COMMANDS].keys()
+        keys.sort()
+        enum_list = commands
         enum_list.sort()
         self.assertEqual(keys, enum_list)
 
@@ -955,7 +966,6 @@ class InstrumentDriverTestCase(MiIntTestCase):
         """
         repo_dir = Config().get('working_repo')
         driver_path = cls.test_config.driver_module
-        log.debug("*** driver_path: %s, repo_dir: %s", driver_path, repo_dir)
         p = re.compile('\.')
         driver_path = p.sub('/', driver_path)
         abs_path = "%s/%s/%s" % (repo_dir, os.path.dirname(driver_path), CommConfig.config_filename())

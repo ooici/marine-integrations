@@ -1,6 +1,6 @@
 """
 @package mi.instrument.nortek.vector.ooicore.driver
-@file /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore/driver.py
+@file mi/instrument/nortek/vector/ooicore/driver.py
 @author Bill Bollenbacher
 @brief Driver for the ooicore
 Release notes:
@@ -42,6 +42,7 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.log import get_logger ; log = get_logger()
 
+RESOURCE_FILE = 'mi/instrument/nortek/vector/ooicore/resource/strings.yml'
 VELOCITY_DATA_LEN = 24
 VELOCITY_DATA_SYNC_BYTES = '\xa5\x10'
 SYSTEM_DATA_LEN = 28
@@ -518,4 +519,8 @@ class Protocol(NortekInstrumentProtocol):
                                     visibility=ParameterDictVisibility.READ_ONLY,
                                     regex_flags=re.DOTALL))
 
-        
+        self._param_dict.load_strings(RESOURCE_FILE)
+
+    def _build_cmd_dict(self):
+        NortekInstrumentProtocol._build_cmd_dict(self)
+        self._cmd_dict.load_strings(RESOURCE_FILE)

@@ -67,7 +67,7 @@ from mi.instrument.nortek.driver import NortekUserConfigDataParticleKey
 
 
 from mi.instrument.nortek.driver import InstrumentPrompts
-from mi.instrument.nortek.driver import InstrumentCmds
+from mi.instrument.nortek.driver import InstrumentCmds, ExportedInstrumentCommand
 from mi.instrument.nortek.driver import Capability
 from mi.instrument.nortek.driver import ProtocolState
 from mi.instrument.nortek.driver import ProtocolEvent
@@ -722,7 +722,6 @@ class IntFromIDK(NortekIntTest):
         }
         self.assert_ion_exception(InstrumentParameterException,
             self.driver_client.cmd_dvr, 'set_resource', bogus_params)
-        
         
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

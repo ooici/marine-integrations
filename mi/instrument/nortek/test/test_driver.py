@@ -34,6 +34,9 @@ from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.instrument.instrument_driver import ConfigMetadataKey
+from mi.core.instrument.protocol_cmd_dict import CommandDictKey
+from mi.core.instrument.protocol_param_dict import ParameterDictKey
 
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticleKey
@@ -1178,7 +1181,23 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
         commands, and parameters.
         """
         self.assert_initialize_driver()
-	self.assert_metadata_generation()
+	self.assert_metadata_generation(instrument_params=Parameter.list(),
+                                        commands=Capability.list())
+        
+        # check one to see that the file is loading data from somewhere. This is
+        # a brittle test, but a key indicator probably worth having should the
+        # file load system not be working
+        json_result = self.driver_client.cmd_dvr("get_config_metadata")
+        result = json.loads(json_result)
+        
+        params = result[ConfigMetadataKey.PARAMETERS]
+        self.assertEqual(params[Parameter.TRANSMIT_PULSE_LENGTH][ParameterDictKey.DESCRIPTION],
+                         "Transmit pulse length")
+        
+        cmds = result[ConfigMetadataKey.COMMANDS]
+        self.assertEqual(cmds[Capability.SET_CONFIGURATION][CommandDictKey.DISPLAY_NAME],
+                         "Set configuration")
+        
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

@@ -223,11 +223,11 @@ commands: {
                               in the Nortek system integrator manual",
                 type: "binary"
             }
-        }
+        },
         description: "Set the instrument configuration with the given block \
                       of configuration data",
         display_name: "Set configuration",
-    }
+    },
     EXPORTED_INSTRUMENT_CMD_READ_CLOCK: {
         description: "Get the instrument clock time",
         display_name: "Read instrument clock",
@@ -236,7 +236,7 @@ commands: {
             \"day month year hour:min:sec\" (ie. \"24/10/2013 12:34:56\")",
             type: "string",
         }
-    }
+    },
     EXPORTED_INSTRUMENT_CMD_READ_MODE: {
         description: "Determine the mode the instrument is in",
         display_name: "Mode Inquiry",
@@ -248,11 +248,11 @@ commands: {
                           0x0005: Confirmation mode",
             type: "int (bit field)"
         }
-    }
+    },
     EXPORTED_INSTRUMENT_CMD_POWER_DOWN: {
         description: "Put instrument in sleep mode",
         display_name: "Power down",
-    }
+    },
     EXPORTED_INSTRUMENT_CMD_READ_BATTERY_VOLTAGE: {
         description: "Read battery voltage",
         display_name: "Read battery voltage",
@@ -261,7 +261,7 @@ commands: {
             type: "int",
             units: "mV"
         }
-    }
+    },
     EXPORTED_INSTRUMENT_CMD_READ_ID: {
         description: "Read instrument ID string",
         display_name: "Read ID",
@@ -269,7 +269,7 @@ commands: {
             description: " 14 byte ASCII string (instrument model and serial number (e.g. VEC8181))",
             type: "string"
         }
-    }
+    },
     EXPORTED_INSTRUMENT_CMD_GET_HW_CONFIGURATION: {
         description: "Get hardware configuration",
         display_name: "Get HW config",
@@ -280,7 +280,7 @@ commands: {
             FWversion (4 bytes)",
             type: "dict"
         }
-    }
+    },
     EXPORTED_INSTRUMENT_CMD_GET_HEAD_CONFIGURATION: {
         description: "Get head configuration",
         display_name: "Get head config",
@@ -290,7 +290,7 @@ commands: {
             System (binary), NBeams (int)",
             type: "dict"
         }
-    }
+    },
     EXPORTED_INSTRUMENT_CMD_GET_USER_CONFIGURATION: {
         description: "Get user configuration",
         display_name: "Get user config",
@@ -299,11 +299,11 @@ commands: {
             Names include ",
             type: "dict"
         }
-    }
+    },
     EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME: {
         description: "Start measurement at a specific time as indicated in the config",
         display_name: "Start measurement at specified time"
-    }
+    },
     EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE: {
         description: "Start measurement immediately, regardless of time in config",
         display_name: "Start measurement immediately"
