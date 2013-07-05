@@ -35,6 +35,7 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import InstrumentDriverPublicationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
@@ -165,7 +166,7 @@ class UtilMixin(DriverTestMixin):
         # capabilities defined in the IOS
         Capability.START_AUTOSAMPLE : {STATES: [ProtocolState.COMMAND]},
         Capability.STOP_AUTOSAMPLE : {STATES: [ProtocolState.AUTOSAMPLE]},
-        Capability.CLOCK_SYNC : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.CLOCK_SYNC : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE, ProtocolState.SYNC_CLOCK]},
         Capability.ACQUIRE_SAMPLE : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
         Capability.ACQUIRE_STATUS : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
         Capability.FLASH_STATUS : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
@@ -393,7 +394,8 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
                                        'DRIVER_EVENT_CLOCK_SYNC',
                                        'DRIVER_EVENT_FLASH_STATUS'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 
-                                          'EXECUTE_DIRECT']
+                                          'EXECUTE_DIRECT'],
+            ProtocolState.SYNC_CLOCK: ['DRIVER_EVENT_CLOCK_SYNC']
         }
 
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -427,7 +429,14 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
             if len(self.get_sample_events(particle_type)) > 0:
                 self.fail("assert_async_particle_not_generated: a particle of type %s was published" %particle_type)
             time.sleep(.3)
-    
+
+    def test_acquire_sample(self):
+        """
+        Test that we can generate sample particle with command
+        """
+        self.assert_initialize_driver()
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.METBK_PARSED, self.assert_data_particle_sample)
+
     def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample.
@@ -438,7 +447,7 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
 
         # test that sample particle is generated
         log.debug("test_autosample_particle_generation: waiting 60 seconds for instrument data")
-        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample, timeout=90)
         
         # take driver out of autosample mode
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
@@ -446,15 +455,14 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         # test that sample particle is not generated
         log.debug("test_autosample_particle_generation: waiting 60 seconds for no instrument data")
         self.clear_events()
-        self.assert_async_particle_not_generated(DataParticleType.METBK_PARSED, timeout=60)
+        self.assert_async_particle_not_generated(DataParticleType.METBK_PARSED, timeout=90)
         
         # put driver back in autosample mode
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         
         # test that sample particle is generated
         log.debug("test_autosample_particle_generation: waiting 60 seconds for instrument data")
-        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample, timeout=60)
-        
+        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample, timeout=90)
 
     def test_parameters(self):
         """
@@ -466,39 +474,12 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         self.assert_driver_parameters(reply, verify_sample_interval=True)
 
-    def test_flash_status_command_mode(self):
+    def assert_clock_synced(self):
         """
-        Test flash status in command mode.
+        Verify the clock is set to the current time with in a few seconds.
         """
-        self.assert_initialize_driver()
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.FLASH_STATUS)
-        regex = re.compile('Compact Flash Card present - Compact Flash OK!\r\n\r\r\nVolume in drive is .+ bytes free\r\r\n', re.DOTALL)
-        match = regex.match(reply[1])
-
-        self.assertNotEqual(match, None, "TestINT.test_flash_status: status response not correct")
-
-    def test_flash_status_autosample_mode(self):
-        """
-        Test flash status in autosample mode.
-        """
-        self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.FLASH_STATUS)
-        regex = re.compile('Compact Flash Card present - Compact Flash OK!\r\n\r\r\nVolume in drive is .+ bytes free\r\r\n', re.DOTALL)
-        match = regex.match(reply[1])
-
-        self.assertNotEqual(match, None, "TestINT.test_flash_status: status response not correct")
-
-    def test_execute_clock_sync_command_mode(self):
-        """
-        Verify we can synchronize the instrument internal clock in command mode
-        """
-        self.assert_initialize_driver()
-
-        # command the instrument to sync clock.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
-
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.CLOCK)
-        
+
         # convert driver's time from formatted date/time string to seconds integer
         instrument_time = time.mktime(time.strptime(reply.get(Parameter.CLOCK).lower(), "%Y/%m/%d %H:%M:%S"))
 
@@ -511,35 +492,41 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         # Now verify that the time matches to within 5 seconds
         self.assertLessEqual(abs(instrument_time - local_time), 5)
 
-    def test_execute_clock_sync_autossample_mode(self):
+    def test_commands(self):
         """
-        Verify we can synchronize the instrument internal clock in autosample mode
-        """
-        self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
-
-        # command the instrument to sync clock.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
-
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.CLOCK)
-        
-        # convert driver's time from formatted date/time string to seconds integer
-        instrument_time = time.mktime(time.strptime(reply.get(Parameter.CLOCK).lower(), "%Y/%m/%d %H:%M:%S"))
-
-        # need to convert local machine's time to date/time string and back to seconds to 'drop' the DST attribute so test passes
-        # get time from local machine
-        lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
-        # convert local time from formatted date/time string to seconds integer to drop DST
-        local_time = time.mktime(time.strptime(lt, "%d %b %Y %H:%M:%S"))
-
-        # Now verify that the time matches to within 5 seconds
-        self.assertLessEqual(abs(instrument_time - local_time), 5)
-
-    def test_acquire_sample(self):
-        """
-        Test that we can generate sample particle with command
+        Run instrument commands from both command and streaming mode.
         """
         self.assert_initialize_driver()
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.METBK_PARSED, self.assert_data_particle_sample)
+
+        ####
+        # First test in command mode
+        ####
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC, assert_function=self.assert_clock_synced)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample, timeout=90)
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'.*Sampling STOPPED')
+        self.assert_driver_command(ProtocolEvent.FLASH_STATUS, regex=r'Compact Flash Card present - Compact Flash OK!\r\n\r\r\nVolume in drive is .+ bytes free\r\r\n')
+
+        ####
+        # Test in streaming mode
+        ####
+        # Put us in streaming
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample, timeout=90)
+
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC, assert_function=self.assert_clock_synced)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'.*Sampling GO')
+        self.assert_driver_command(ProtocolEvent.FLASH_STATUS, regex=r'Compact Flash Card present - Compact Flash OK!\r\n\r\r\nVolume in drive is .+ bytes free\r\r\n')
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+
+        ####
+        # Test a bad command
+        ####
+        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -549,9 +536,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
 ###############################################################################
 @attr('QUAL', group='mi')
 class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
-    def setUp(self):
-        InstrumentDriverQualificationTestCase.setUp(self)
-
     def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout = 10):
         """
         Test observatory polling function.
@@ -615,61 +599,15 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         # go into direct access
         self.assert_direct_access_start_telnet(timeout=600)
         self.tcp_client.send_data("#D\r\n")
-        if  not self.tcp_client.expect("\r\n"):
-            self.fail("test_direct_access_telnet_mode: did not get expected response")
-        
+        self.assertTrue(self.tcp_client.expect("\r\n"))
+
         self.assert_direct_access_stop_telnet()
-
-    @unittest.skip('Only enabled and used for manual testing of vendor SW')
-    def test_direct_access_telnet_mode_manual(self):
-        """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (virtual serial port mode)
-        """
-        self.assert_enter_command_mode()
-
-        # go direct access
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-            kwargs={'session_type': DirectAccessTypes.vsp,
-                    'session_timeout':600,
-                    'inactivity_timeout':600})
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=600)
-        log.warn("go_direct_access retval=" + str(retval.result))
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
-        
-        print("test_direct_access_telnet_mode: waiting 120 seconds for manual testing")
-        gevent.sleep(120)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        retval = self.instrument_agent_client.execute_agent(cmd) 
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
-
-    def test_discover(self):
-        """
-        over-ridden because instrument doesn't actually have an autosample mode and therefore
-        driver will always go to command mode during the discover process after a reset.
-        """
-        # Verify the agent is in command mode
-        self.assert_enter_command_mode()
-        
-        self.assert_start_autosample()
-
-        # Now reset and try to discover.  This will stop the driver and cause it to re-discover which
-        # will always go back to command for this instrument
-        self.assert_reset()
-        self.assert_discover(ResourceAgentState.COMMAND)
-
 
     def test_get_capabilities(self):
         """
         @brief Walk through all driver protocol states and verify capabilities
         returned by get_current_capabilities
         """
-        self.assert_enter_command_mode()
-        
         ##################
         #  Command Mode
         ##################
@@ -689,6 +627,9 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
             }
 
+        log.debug("test_get_capabilities: enter command")
+        self.assert_enter_command_mode()
+        log.debug("test_get_capabilities: in command")
         self.assert_capabilities(capabilities)
 
         ##################
@@ -729,8 +670,9 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
 
-        self.assert_reset()
-        self.assert_capabilities(capabilities)
+        # Can't call get capabilities when uninitialized anymore?
+        #self.assert_reset()
+        #self.assert_capabilities(capabilities)
 
     def test_execute_clock_sync(self):
         """
@@ -753,8 +695,8 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         # Now verify that the time matches to within 5 seconds
         self.assertLessEqual(abs(instrument_time - local_time), 5)
-        
-    @unittest.skip("doesn't pass because IA doesn't apply the startup parameters yet")
+
+    @unittest.skip("Needs new agent code that automatically inits startup params")
     def test_get_parameters(self):
         '''
         verify that parameters can be gotten properly
@@ -764,3 +706,21 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         reply = self.instrument_agent_client.get_resource(Parameter.ALL)
         self.assert_driver_parameters(reply, verify_sample_interval=True)
         
+
+###############################################################################
+#                             PUBLICATION TESTS                               #
+# Device specific pulication tests are for                                    #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('PUB', group='mi')
+class TestPUB(InstrumentDriverPublicationTestCase, UtilMixin):
+    def test_granule_generation(self):
+        self.assert_initialize_driver()
+
+        # Currently these tests only verify that the data granule is generated, but the values
+        # are not tested.  We will eventually need to replace log.debug with a better callback
+        # function that actually tests the granule.
+        self.assert_sample_async("raw data", log.debug, DataParticleType.RAW, timeout=10)
+
+        self.assert_sample_async(self.METBK_SAMPLE_DATA, log.debug, DataParticleType.METBK_PARSED, timeout=10)
+        self.assert_sample_async(self.METBK_STATUS_DATA, log.debug, DataParticleType.METBK_STATUS, timeout=10)
