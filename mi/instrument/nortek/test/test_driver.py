@@ -27,7 +27,6 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import AgentCapabilityType
 from mi.idk.unit_test import DriverTestMixin
 
-from mi.core.exceptions import SampleException
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 
@@ -1051,6 +1050,12 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 				   ProtocolEvent.START_MEASUREMENT_IMMEDIATE)
         gevent.sleep(100)  # wait for measurement to complete               
 
+        # Verify we received at least 1 sample.
+        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
+        log.debug('test_instrument_start_measurement_at_specific_time: # 0f samples = %d',
+		  len(sample_events))
+        #log.debug('samples=%s' %sample_events)
+        self.assertTrue(len(sample_events) >= 1)
 
     #@unittest.skip("skip until issue with instrument recorder resolved, command fails with NACK from instrument")
     def test_instrument_start_measurement_at_specific_time(self):

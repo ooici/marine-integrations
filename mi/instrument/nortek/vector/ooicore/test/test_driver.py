@@ -23,11 +23,7 @@ __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
 from gevent import monkey; monkey.patch_all()
-import gevent
-import unittest
-import re
 import time
-import datetime
 import base64
 import ntplib
 
@@ -37,21 +33,14 @@ from mi.core.log import get_logger ; log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.idk.unit_test import AgentCapabilityType
 
-from mi.instrument.nortek.test.test_driver import hw_config_particle, hw_config_sample
-from mi.instrument.nortek.test.test_driver import head_config_particle, head_config_sample
-from mi.instrument.nortek.test.test_driver import user_config_particle, user_config_sample
+from mi.instrument.nortek.test.test_driver import head_config_sample
 from mi.instrument.nortek.test.test_driver import user_config1, user_config2
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest
 
 from mi.core.instrument.instrument_driver import DriverConnectionState
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import DriverConfigKey
 
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.chunker import StringChunker
@@ -61,23 +50,9 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
-from mi.instrument.nortek.driver import NortekHardwareConfigDataParticleKey
-from mi.instrument.nortek.driver import NortekHeadConfigDataParticleKey
-from mi.instrument.nortek.driver import NortekUserConfigDataParticleKey
-
-
-from mi.instrument.nortek.driver import InstrumentPrompts
-from mi.instrument.nortek.driver import InstrumentCmds, ExportedInstrumentCommand
-from mi.instrument.nortek.driver import Capability
 from mi.instrument.nortek.driver import ProtocolState
 from mi.instrument.nortek.driver import ProtocolEvent
 from mi.instrument.nortek.driver import Parameter
-from mi.instrument.nortek.driver import NortekEngClockDataParticleKey
-from mi.instrument.nortek.driver import NortekEngClockDataParticle
-from mi.instrument.nortek.driver import NortekEngBatteryDataParticleKey
-from mi.instrument.nortek.driver import NortekEngBatteryDataParticle
-from mi.instrument.nortek.driver import NortekEngIdDataParticleKey
-from mi.instrument.nortek.driver import NortekEngIdDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import DataParticleType
 from mi.instrument.nortek.vector.ooicore.driver import Protocol
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityHeaderDataParticle
@@ -86,16 +61,6 @@ from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticl
 from mi.instrument.nortek.vector.ooicore.driver import VectorVelocityDataParticleKey
 from mi.instrument.nortek.vector.ooicore.driver import VectorSystemDataParticle
 from mi.instrument.nortek.vector.ooicore.driver import VectorSystemDataParticleKey
-from mi.instrument.nortek.vector.ooicore.driver import VectorHardwareConfigDataParticle
-from mi.instrument.nortek.vector.ooicore.driver import VectorHeadConfigDataParticle
-from mi.instrument.nortek.vector.ooicore.driver import VectorUserConfigDataParticle
-
-from interface.objects import AgentCommand
-from interface.objects import CapabilityType
-
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-
-from pyon.agent.agent import ResourceAgentEvent
 
 ###
 #   Driver parameters for the tests
@@ -109,7 +74,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config = DataParticleType(),
     driver_startup_config = {
         Parameter.AVG_INTERVAL: 61
-        }
+    }
 )
 
 params_dict = {
@@ -452,8 +417,10 @@ class IntFromIDK(NortekIntTest):
         values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         
         self.driver_client.cmd_dvr('set_init_params',
-                                   {DriverParameter.ALL:
-                                    base64.b64encode(user_config1())})
+                                   {DriverConfigKey.PARAMETERS:
+                                       {DriverParameter.ALL:
+                                        base64.b64encode(user_config1())}
+                                   })
         self.driver_client.cmd_dvr("apply_startup_params") 
 
         values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)

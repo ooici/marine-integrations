@@ -20,7 +20,6 @@ from mi.core.instrument.instrument_fsm import InstrumentFSM
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 from mi.core.instrument.data_particle import CommonDataParticleType
-from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.driver_dict import DriverDict, DriverDictKey
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
@@ -29,13 +28,12 @@ from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import RegexParameter
 
 from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.instrument_driver import DriverConfigKey
-from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import ReadOnlyException
 from mi.core.exceptions import InstrumentStateException
@@ -1046,7 +1044,7 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
         for param in self._param_dict.keys():
             if not param.endswith('Spare'):
                 list.append(param) 
-        log.debug('get_keys: list=%s' %list)
+        log.debug('get_keys: list=%s', list)
         return list
     
     def set_params_to_read_write(self):
@@ -1331,24 +1329,29 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         events_out = [x for x in events if Capability.has(x)]
         return events_out
 
-    def set_init_params(self, param_config):
+    def set_init_params(self, config):
         """
         over-ridden to handle binary block configuration
         Set the initialization parameters to the given values in the protocol
         parameter dictionary. 
-        @param param_config A dict with either param_name/value pairs or
+        @param config A driver configuration dict that should contain an
+        enclosed dict with key DriverConfigKey.PARAMETERS. This should include
+        either param_name/value pairs or
            {DriverParameter.ALL: base64-encoded string of raw values as the
-           instrument would return them from a get config}. If param_config
+           instrument would return them from a get config}. If the desired value
            is false, nothing will happen.
         @raise InstrumentParameterException If the config cannot be set
         """
-        log.debug("set_init_params: param_config=%s", param_config)
-        if not isinstance(param_config, dict):
+        log.debug("set_init_params: param_config=%s", config)
+        if not isinstance(config, dict):
             raise InstrumentParameterException("Invalid init config format")
                 
+        
+        param_config = config.get(DriverConfigKey.PARAMETERS)
+
         if not param_config:
             return
-        
+
         if DriverParameter.ALL in param_config:
             binary_config = base64.b64decode(param_config[DriverParameter.ALL])
             # make the configuration string look like it came from instrument to get all the methods to be happy

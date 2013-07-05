@@ -13,11 +13,9 @@ __license__ = 'Apache 2.0'
 
 import time
 import re
-import base64
 
 from mi.core.common import BaseEnum
-from mi.core.exceptions import InstrumentProtocolException, \
-                               SampleException
+from mi.core.exceptions import SampleException
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
@@ -30,10 +28,7 @@ from mi.instrument.nortek.driver import NortekInstrumentDriver
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import NortekProtocolParameterDict
 from mi.instrument.nortek.driver import Parameter, InstrumentCmds, InstrumentPrompts
-from mi.instrument.nortek.driver import NORTEK_COMMON_SAMPLE_STRUCTS
 from mi.instrument.nortek.driver import NEWLINE
-from mi.instrument.nortek.driver import HEAD_CONFIG_LEN, HEAD_CONFIG_SYNC_BYTES
-from mi.instrument.nortek.driver import HW_CONFIG_LEN, HW_CONFIG_SYNC_BYTES
 from mi.instrument.nortek.driver import HARDWARE_CONFIG_DATA_REGEX
 from mi.instrument.nortek.driver import HEAD_CONFIG_DATA_REGEX
 from mi.instrument.nortek.driver import USER_CONFIG_DATA_REGEX
