@@ -57,7 +57,6 @@ from mi.instrument.sunburst.sami2_pco2.ooicore.driver import NEWLINE
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SAMI_EPOCH
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SamiRegularStatusDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SamiControlRecordDataParticleKey
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SamiErrorCodeDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wSamiSampleDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wDev1SampleDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wConfigurationDataParticleKey
@@ -159,73 +158,70 @@ class DriverTestMixinSub(DriverTestMixin):
     # Control records
     VALID_CONTROL_RECORD = '*541280CEE90B170041000001000000000200AF' + NEWLINE
 
-    # Error records (valid error codes are between 0x00 and 0x11)
-    VALID_ERROR_CODE = '?05' + NEWLINE
-
     ###
     #  Parameter and Type Definitions
     ###
     _driver_parameters = {
         # Parameters defined in the IOS
-        Parameter.LAUNCH_TIME:              {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.LAUNCH_TIME:              {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x00000000, VALUE: 0xCEE90B00},
-        Parameter.START_TIME_FROM_LAUNCH:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.START_TIME_FROM_LAUNCH:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x02C7EA00, VALUE: 0x02C7EA00},
-        Parameter.STOP_TIME_FROM_START:     {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.STOP_TIME_FROM_START:     {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x01E13380, VALUE: 0x01E13380},
-        Parameter.MODE_BITS:                {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.MODE_BITS:                {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x0A, VALUE: 0x0A},
-        Parameter.SAMI_SAMPLE_INTERVAL:     {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.SAMI_SAMPLE_INTERVAL:     {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x000E10, VALUE: 0x000E10},
-        Parameter.SAMI_DRIVER_VERSION:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.SAMI_DRIVER_VERSION:      {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x04, VALUE: 0x04},
-        Parameter.SAMI_PARAMS_POINTER:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.SAMI_PARAMS_POINTER:      {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x02, VALUE: 0x02},
-        Parameter.DEVICE1_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE1_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x000E10, VALUE: 0x000E10},
-        Parameter.DEVICE1_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE1_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x01, VALUE: 0x01},
-        Parameter.DEVICE1_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE1_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x0B, VALUE: 0x0B},
-        Parameter.DEVICE2_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE2_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x000000, VALUE: 0x000000},
-        Parameter.DEVICE2_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE2_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00},
-        Parameter.DEVICE2_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE2_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x0D, VALUE: 0x0D},
-        Parameter.DEVICE3_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE3_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x000000, VALUE: 0x000000},
-        Parameter.DEVICE3_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE3_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00},
-        Parameter.DEVICE3_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE3_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x0D, VALUE: 0x0D},
-        Parameter.PRESTART_SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PRESTART_SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x000000, VALUE: 0x000000},
-        Parameter.PRESTART_DRIVER_VERSION:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PRESTART_DRIVER_VERSION:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00},
-        Parameter.PRESTART_PARAMS_POINTER:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PRESTART_PARAMS_POINTER:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x0D, VALUE: 0x0D},
-        Parameter.GLOBAL_CONFIGURATION:     {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.GLOBAL_CONFIGURATION:     {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x07, VALUE: 0x07},
-        Parameter.PUMP_PULSE:               {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PUMP_PULSE:               {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x10, VALUE: 0x10},
-        Parameter.PUMP_DURATION:            {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PUMP_DURATION:            {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x20, VALUE: 0x20},
-        Parameter.SAMPLES_PER_MEASUREMENT:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.SAMPLES_PER_MEASUREMENT:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0xFF, VALUE: 0xFF},
-        Parameter.CYCLES_BETWEEN_BLANKS:    {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.CYCLES_BETWEEN_BLANKS:    {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x54, VALUE: 0x54},
-        Parameter.NUMBER_REAGENT_CYCLES:    {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.NUMBER_REAGENT_CYCLES:    {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x18, VALUE: 0x18},
-        Parameter.NUMBER_BLANK_CYCLES:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.NUMBER_BLANK_CYCLES:      {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x1C, VALUE: 0x1C},
-        Parameter.FLUSH_PUMP_INTERVAL:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.FLUSH_PUMP_INTERVAL:      {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x01, VALUE: 0x01},
-        Parameter.BIT_SWITCHES:             {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.BIT_SWITCHES:             {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00},
-        Parameter.NUMBER_EXTRA_PUMP_CYCLES: {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.NUMBER_EXTRA_PUMP_CYCLES: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x38, VALUE: 0x38},
-        Parameter.EXTERNAL_PUMP_SETTINGS:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.EXTERNAL_PUMP_SETTINGS:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x14, VALUE: 0x14}
     }
 
@@ -378,12 +374,6 @@ class DriverTestMixinSub(DriverTestMixin):
         Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTING:        {TYPE: int,  VALUE: 0x14, REQUIRED: True}
     }
 
-    # [TODO] Move to base class
-    _error_code_parameters = {
-        # Error codes
-        SamiErrorCodeDataParticleKey.ERROR_CODE:        {TYPE: int, VALUE: 0x05, REQUIRED: True},
-    }
-
     ###
     #   Driver Parameter Methods
     ###
@@ -494,20 +484,6 @@ class DriverTestMixinSub(DriverTestMixin):
                                              self._configuration_parameters,
                                              verify_values)
 
-    def assert_particle_error_code(self, data_particle, verify_values=False):
-        '''
-        Verify error_code particle
-        @param data_particle: SamiErrorCodeDataParticle data particle
-        @param verify_values: bool, should we verify parameter values
-        '''
-        self.assert_data_particle_keys(SamiErrorCodeDataParticleKey,
-                                       self._error_code_parameters)
-        self.assert_data_particle_header(data_particle,
-                                         DataParticleType.ERROR_CODE)
-        self.assert_data_particle_parameters(data_particle,
-                                             self._error_code_parameters,
-                                             verify_values)
-
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -524,8 +500,16 @@ class DriverTestMixinSub(DriverTestMixin):
 ###############################################################################
 @attr('UNIT', group='mi')
 class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
+
     def setUp(self):
-        InstrumentDriverUnitTestCase.setUp(self)
+        pass
+
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
     def test_driver_enums(self):
         """
@@ -579,11 +563,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_chunker_fragmented_sample(chunker, self.VALID_CONFIG_STRING, 32)
         self.assert_chunker_combined_sample(chunker, self.VALID_CONFIG_STRING)
 
-        self.assert_chunker_sample(chunker, self.VALID_ERROR_CODE)
-        self.assert_chunker_sample_with_noise(chunker, self.VALID_ERROR_CODE)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_ERROR_CODE, 2)
-        self.assert_chunker_combined_sample(chunker, self.VALID_ERROR_CODE)
-
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the
@@ -608,8 +587,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
                                        self.assert_particle_dev1_sample, True)
         self.assert_particle_published(driver, self.VALID_CONFIG_STRING,
                                        self.assert_particle_configuration, True)
-        self.assert_particle_published(driver, self.VALID_ERROR_CODE,
-                                       self.assert_particle_error_code, True)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -649,7 +626,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
                                              'DRIVER_EVENT_STOP_AUTOSAMPLE'],
             ProtocolState.DIRECT_ACCESS:    ['EXECUTE_DIRECT',
                                              'DRIVER_EVENT_STOP_DIRECT'],
-            ProtocolState.BUSY:             []
+            ProtocolState.ACQUIRE_SAMPLE:   [],
+            ProtocolState.POLLING_SAMPLE:   []
         }
 
         driver = InstrumentDriver(self._got_data_event_callback)

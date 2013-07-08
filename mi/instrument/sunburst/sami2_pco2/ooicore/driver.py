@@ -81,7 +81,8 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    BUSY = 'PROTOCOL_STATE_BUSY'
+    ACQUIRE_SAMPLE = 'PROTOCOL_STATE_BUSY'
+    POLLING_SAMPLE = 'PROTOCOL_STATE_BUSY'
 
 
 class ProtocolEvent(BaseEnum):
@@ -427,45 +428,6 @@ class SamiControlRecordDataParticle(DataParticle):
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
                 grp_index += 1
-
-        return result
-
-
-# [TODO: This needs to be moved to the baseclass]
-class SamiErrorCodeDataParticleKey(BaseEnum):
-    """
-    Data particle key for the error code records.
-    """
-    ERROR_CODE = 'error_code'
-
-
-# [TODO: This needs to be moved to the baseclass]
-class SamiErrorCodeDataParticle(DataParticle):
-    """
-    Routines for parsing raw data into an error code data particle
-    structure.
-    @throw SampleException If there is a problem with sample creation
-    """
-    _data_particle_type = DataParticleType.ERROR_CODE
-
-    def _build_parsed_values(self):
-        """
-        Parse error_code values from raw data into a dictionary
-        """
-
-        matched = ERROR_REGEX_MATCHER.match(self.raw_data)
-        if not matched:
-            raise SampleException("No regex match of parsed sample data: [%s]" %
-                                  self.decoded_raw)
-
-        particle_keys = [SamiErrorCodeDataParticleKey.ERROR_CODE]
-
-        result = []
-        grp_index = 1
-        for key in particle_keys:
-            result.append({DataParticleKey.VALUE_ID: key,
-                           DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
-            grp_index += 1
 
         return result
 
@@ -836,12 +798,21 @@ class Protocol(CommandResponseInstrumentProtocol):
                                        self._handler_autosample_acquire_sample)
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
-        # and will last anywhere from 10 seconds to 3 minutes depending on
-        # instrument and sample type.
-        self._protocol_fsm.add_handler(ProtocolState.BUSY, ProtocolEvent.ENTER,
-                                       self._handler_busy_enter)
-        self._protocol_fsm.add_handler(ProtocolState.BUSY, ProtocolEvent.EXIT,
-                                       self._handler_busy_exit)
+        # while in the AUTOSAMPLE state and will last anywhere from 10 seconds
+        # to 3 minutes depending on instrument and sample type.
+        self._protocol_fsm.add_handler(ProtocolState.ACQUIRE_SAMPLE, ProtocolEvent.ENTER,
+                                       self._handler_acquire_sample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.ACQUIRE_SAMPLE, ProtocolEvent.EXIT,
+                                       self._handler_acquire_sample_exit)
+
+        # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
+        # while in either the COMMAND or via the discover transition from the
+        # UNKNOWN state and will last anywhere from 10 seconds to 3 minutes
+        # depending on instrument and sample type.
+        self._protocol_fsm.add_handler(ProtocolState.POLLING_SAMPLE, ProtocolEvent.ENTER,
+                                       self._handler_polling_sample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.POLLING_SAMPLE, ProtocolEvent.EXIT,
+                                       self._handler_polling_sample_exit)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -873,8 +844,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                           CONTROL_RECORD_REGEX_MATCHER,
                           SAMI_SAMPLE_REGEX_MATCHER,
                           DEV1_SAMPLE_REGEX_MATCHER,
-                          CONFIGURATION_REGEX_MATCHER,
-                          ERROR_REGEX_MATCHER]
+                          CONFIGURATION_REGEX_MATCHER]
 
         for matcher in sieve_matchers:
             for match in matcher.finditer(raw_data):
@@ -896,7 +866,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(SamiErrorCodeDataParticle, ERROR_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(Pco2wSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(Pco2wDev1SampleDataParticle, DEV1_SAMPLE_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(Pco2wConfigurationDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
@@ -1095,10 +1064,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         return (next_state, result)
 
     ########################################################################
-    # Direct access handlers.
+    # Acquire Sample handlers.
     ########################################################################
 
-    def _handler_busy_enter(self, *args, **kwargs):
+    def _handler_acquire_sample_enter(self, *args, **kwargs):
         """
         Enter busy state.
         """
@@ -1108,7 +1077,27 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._sent_cmds = []
 
-    def _handler_busy_exit(self, *args, **kwargs):
+    def _handler_acquire_sample_exit(self, *args, **kwargs):
+        """
+        Exit busy state.
+        """
+        pass
+
+    ########################################################################
+    # polled Sample handlers.
+    ########################################################################
+
+    def _handler_polling_sample_enter(self, *args, **kwargs):
+        """
+        Enter busy state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        self._sent_cmds = []
+
+    def _handler_polling_sample_exit(self, *args, **kwargs):
         """
         Exit busy state.
         """
