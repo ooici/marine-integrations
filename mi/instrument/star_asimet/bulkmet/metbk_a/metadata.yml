@@ -1,8 +1,8 @@
 driver_metadata:
   author: Bill Bollenbacher
-  driver_make: star
-  driver_model: asimet
-  driver_name: ooicore
+  driver_make: star_asimet
+  driver_model: bulkmet
+  driver_name: metbk_a
   email: wbollenbacher@ucsd.edu
   release_notes: initial_rev
-  version: '1.0'
+  version: '0.0.1'
