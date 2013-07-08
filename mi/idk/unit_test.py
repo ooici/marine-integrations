@@ -1146,6 +1146,10 @@ class InstrumentDriverTestCase(MiIntTestCase):
         '''
         sample_length = len(sample)
         self.assertGreater(fragment_size, 0)
+
+        # If the sample length is less then the fragment size then we aren't going to fragment the sample and
+        # this test isn't verifying what we are trying to verify.
+        self.assertGreater(sample_length, fragment_size, msg="Fragment size must be greater than sample length")
         timestamps = []
 
         i = 0
