@@ -276,6 +276,11 @@ class WorkhorseProtocol(TeledyneProtocol):
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
 
+    def _filter_capabilities(self, events):
+        """
+        Return a list of currently available capabilities.
+        """
+        return [x for x in events if WorkhorseCapability.has(x)]
 
     def _handler_command_power_down(self):
         """

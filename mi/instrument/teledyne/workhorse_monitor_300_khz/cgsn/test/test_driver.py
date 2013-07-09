@@ -570,6 +570,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
             ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
             ProtocolState.COMMAND: ['DRIVER_EVENT_CLOCK_SYNC',
                                     'DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_INIT_PARAMS',
                                     'DRIVER_EVENT_SET',
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
@@ -587,6 +588,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     'PROTOCOL_EVENT_SEND_LAST_SAMPLE'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
                                     'DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_INIT_PARAMS',
                                     'PROTOCOL_EVENT_GET_CALIBRATION',
                                     'PROTOCOL_EVENT_GET_CONFIGURATION',
                                     'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
@@ -639,14 +641,13 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         Iterate through available capabilities, and verify that they can pass successfully through the filter.
         Test silly made up capabilities to verify they are blocked by filter.
         """
-        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        my_event_callback = Mock(spec="my_event_callback")
         protocol = Protocol(Prompt, NEWLINE, my_event_callback)
         driver_capabilities = Capability().list()
         test_capabilities = Capability().list()
 
         # Add a bogus capability that will be filtered out.
         test_capabilities.append("BOGUS_CAPABILITY")
-
         # Verify "BOGUS_CAPABILITY was filtered out
         self.assertEquals(driver_capabilities, protocol._filter_capabilities(test_capabilities))
 

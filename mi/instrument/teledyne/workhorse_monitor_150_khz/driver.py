@@ -289,6 +289,6 @@ class WorkhorseProtocol(TeledyneProtocol):
 
     def _handler_command_power_down(self):
         pass
-        
+
     def _handler_command_restore_factory_params(self):
         pass
