@@ -182,7 +182,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         Verify a status particle was generated
         """
         self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=300)
+        self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=100)
 
     ###
     #    Add instrument specific integration tests
@@ -214,7 +214,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
 
         self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
         self.assert_driver_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
-        self.assert_driver_command(ProtocolEvent.SEND_LAST_SAMPLE, regex='^\x7f\x7fh.*')
+        self.assert_driver_command(ProtocolEvent.SEND_LAST_SAMPLE, regex='^\x7f\x7f.*')
         self.assert_driver_command(ProtocolEvent.SAVE_SETUP_TO_RAM, expected="Parameters saved as USER defaults")
         self.assert_driver_command(ProtocolEvent.GET_ERROR_STATUS_WORD, regex='^........')
         self.assert_driver_command(ProtocolEvent.CLEAR_ERROR_STATUS_WORD, regex='^Error Status Word Cleared')
@@ -248,114 +248,154 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
 
-    # This needs reworking...
 
-    def test_startup_params(self):
-        """
-        Verify that startup parameters are applied correctly. Generally this
-        happens in the driver discovery method.
 
-        since nose orders the tests by ascii value this should run first.
-        """
-        log.error("BEFORE INITIALZIE")
-        self.assert_initialize_driver()
-        log.error("AFTER INITIALZIE")
+    def _test_set_serial_flow_control_readonly(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SERIAL_FLOW_CONTROL ======")
 
-        """
-        get_values = {
-            #Parameter.SERIAL_FLOW_CONTROL: '11110',
-            #Parameter.BANNER: False,
-            Parameter.INSTRUMENT_ID: 0,
-            #Parameter.SLEEP_ENABLE: 0,
-            #Parameter.SAVE_NVRAM_TO_RECORDER: True,
-            #Parameter.POLLED_MODE: False,
-            Parameter.XMIT_POWER: 255,
-            Parameter.SPEED_OF_SOUND: 1500,
-            #Parameter.PITCH: 0,
-            #Parameter.ROLL: 0,
-            Parameter.SALINITY: 35,
-            Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
-            Parameter.TIME_PER_PING: '00:01.00',
-            Parameter.FALSE_TARGET_THRESHOLD: '050,001',
-            #Parameter.BANDWIDTH_CONTROL: 0,
-            Parameter.CORRELATION_THRESHOLD: 64,
-            Parameter.SERIAL_OUT_FW_SWITCHES: '111100000',
-            Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
-            #Parameter.BLANK_AFTER_TRANSMIT: 704,
-            Parameter.CLIP_DATA_PAST_BOTTOM: 0,
-            Parameter.RECEIVER_GAIN_SELECT: 1,
-            Parameter.WATER_REFERENCE_LAYER: '001,005',
-            Parameter.WATER_PROFILING_MODE: 1,
-            Parameter.NUMBER_OF_DEPTH_CELLS: 100,
-            Parameter.PINGS_PER_ENSEMBLE: 1,
-            Parameter.DEPTH_CELL_SIZE: 800,
-            Parameter.TRANSMIT_LENGTH: 0,
-            Parameter.PING_WEIGHT: 0,
-            Parameter.AMBIGUITY_VELOCITY: 175,
-        }
-        Should be able to use the _driver_parameter_defaults instead of aboev
-        """
-        get_values = self._driver_parameter_defaults
+        # Test read only raise exceptions on set.
+        self.assert_set_exception(WorkhorseParameter.SERIAL_FLOW_CONTROL, '10110')
+        self._tested[WorkhorseParameter.SERIAL_FLOW_CONTROL] = True
 
-        # Change the values of these parameters to something before the
-        # driver is reinitalized.  They should be blown away on reinit.
-        new_values = {
-            Parameter.INSTRUMENT_ID: 1,
-            Parameter.XMIT_POWER: 250,
-            Parameter.SPEED_OF_SOUND: 1400,
-            Parameter.SALINITY: 37,
-            Parameter.COORDINATE_TRANSFORMATION: '11111',
-            Parameter.SENSOR_SOURCE: "1111101",
-            Parameter.TIME_PER_ENSEMBLE: '00:01:00.00',
-            Parameter.TIME_PER_PING: '00:02.00',
-            Parameter.FALSE_TARGET_THRESHOLD: '051,002',
-            #RO#Parameter.BANDWIDTH_CONTROL: 1,
-            Parameter.CORRELATION_THRESHOLD: 60,
-            #RO#Parameter.SERIAL_OUT_FW_SWITCHES: '101010101',
-            Parameter.ERROR_VELOCITY_THRESHOLD: 1900,
-            #RO#Parameter.BLANK_AFTER_TRANSMIT: 710,
-            Parameter.CLIP_DATA_PAST_BOTTOM: 1,
-            Parameter.RECEIVER_GAIN_SELECT: 0,
-            Parameter.WATER_REFERENCE_LAYER: '002,006',
-            #RO#Parameter.WATER_PROFILING_MODE: 0,
-            Parameter.NUMBER_OF_DEPTH_CELLS: 80,
-            Parameter.PINGS_PER_ENSEMBLE: 2,
-            Parameter.DEPTH_CELL_SIZE: 600,
-            Parameter.TRANSMIT_LENGTH: 1,
-            Parameter.PING_WEIGHT: 1,
-            Parameter.AMBIGUITY_VELOCITY: 100,
-        }
-        """
-            Parameter.INSTRUMENT_ID: 1,
-            #Parameter.SLEEP_ENABLE: 1,
-            #Parameter.POLLED_MODE: True,
-            Parameter.XMIT_POWER: 250,
-            Parameter.SPEED_OF_SOUND: 1400,
-            #Parameter.PITCH: 1,
-            #Parameter.ROLL: 1,
-            Parameter.SALINITY: 37,
-            Parameter.TIME_PER_ENSEMBLE: '00:01:00.00',
-            Parameter.TIME_PER_PING: '00:02.00',
-            Parameter.FALSE_TARGET_THRESHOLD: '051,001',
-            #Parameter.BANDWIDTH_CONTROL: 1,
-            Parameter.CORRELATION_THRESHOLD: 60,
-            Parameter.ERROR_VELOCITY_THRESHOLD: 1900,
-            #Parameter.BLANK_AFTER_TRANSMIT: 710,
-            Parameter.CLIP_DATA_PAST_BOTTOM: 1,
-            Parameter.RECEIVER_GAIN_SELECT: 0,
-            Parameter.WATER_REFERENCE_LAYER: '002,006',
-            Parameter.NUMBER_OF_DEPTH_CELLS: 80,
-            Parameter.PINGS_PER_ENSEMBLE: 2,
-            Parameter.DEPTH_CELL_SIZE: 600,
-            Parameter.TRANSMIT_LENGTH: 1,
-            Parameter.PING_WEIGHT: 1,
-            Parameter.AMBIGUITY_VELOCITY: 100,
-        """
+    def _test_set_banner_readonly(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for BANNER ======")
+
+        # Test read only raise exceptions on set.
+        self.assert_set_exception(WorkhorseParameter.BANNER, True)
+        self._tested[WorkhorseParameter.BANNER] = True
+
+    def _test_set_sleep_enable(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SLEEP_ENABLE ======")
+
+        # SLEEP_ENABLE:  -- (0,1,2)
+        self.assert_set(WorkhorseParameter.SLEEP_ENABLE, 1)
+        self.assert_set(WorkhorseParameter.SLEEP_ENABLE, 2)
+
+        self.assert_set_exception(WorkhorseParameter.SLEEP_ENABLE, -1)
+        self.assert_set_exception(WorkhorseParameter.SLEEP_ENABLE, 3)
+        self.assert_set_exception(WorkhorseParameter.SLEEP_ENABLE, 3.1415926)
+        self.assert_set_exception(WorkhorseParameter.SLEEP_ENABLE, "LEROY JENKINS")
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(WorkhorseParameter.SLEEP_ENABLE, self._driver_parameter_defaults[WorkhorseParameter.SLEEP_ENABLE])
+        self.assert_set(WorkhorseParameter.SLEEP_ENABLE, self._driver_parameters[WorkhorseParameter.SLEEP_ENABLE][self.VALUE])
+        self._tested[WorkhorseParameter.SLEEP_ENABLE] = True
+
+    def _test_set_save_nvram_to_recorder(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SAVE_NVRAM_TO_RECORDER ======")
+        self.assert_set(WorkhorseParameter.SAVE_NVRAM_TO_RECORDER, True)
+        self.assert_set(WorkhorseParameter.SAVE_NVRAM_TO_RECORDER, False)
+
+        # Test read only raise exceptions on set.
+        self.assert_set(WorkhorseParameter.SAVE_NVRAM_TO_RECORDER, self._driver_parameters[WorkhorseParameter.SAVE_NVRAM_TO_RECORDER][self.VALUE])
+        self._tested[WorkhorseParameter.SAVE_NVRAM_TO_RECORDER] = True
+
+    def _test_set_save_nvram_to_recorder_readonly(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for SAVE_NVRAM_TO_RECORDER ======")
+
+        # Test read only raise exceptions on set.
+        self.assert_set_exception(WorkhorseParameter.SAVE_NVRAM_TO_RECORDER, False)
+        self._tested[WorkhorseParameter.SAVE_NVRAM_TO_RECORDER] = True
+
+    def _test_set_polled_mode(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for POLLED_MODE ======")
+ 
+        # POLLED_MODE:  -- (True/False)
+        self.assert_set(WorkhorseParameter.POLLED_MODE, True)
+        self.assert_set_exception(WorkhorseParameter.POLLED_MODE, "LEROY JENKINS")
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(WorkhorseParameter.POLLED_MODE, self._driver_parameter_defaults[WorkhorseParameter.POLLED_MODE])
+        self.assert_set(WorkhorseParameter.POLLED_MODE, self._driver_parameters[WorkhorseParameter.POLLED_MODE][self.VALUE])
+        self._tested[WorkhorseParameter.POLLED_MODE] = True
+
+    def _test_set_time_per_burst(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for TIME_PER_BURST ======")
+ 
+        # POLLED_MODE:  -- (True/False)
+        self.assert_set(WorkhorseParameter.TIME_PER_BURST, "00:00:00.00")
+        self.assert_set(WorkhorseParameter.TIME_PER_BURST, "00:00:01.00")
+        self.assert_set(WorkhorseParameter.TIME_PER_BURST, "00:01:00.00")
+        self.assert_set(WorkhorseParameter.TIME_PER_BURST, "01:00:00.00")
+
+        self.assert_set_exception(WorkhorseParameter.TIME_PER_BURST, "99:99:99.00")
+        self.assert_set_exception(WorkhorseParameter.TIME_PER_BURST, 0)
+        self.assert_set_exception(WorkhorseParameter.TIME_PER_BURST, 1399)
+
+        self.assert_set_exception(WorkhorseParameter.TIME_PER_BURST, 1601)
+        self.assert_set_exception(WorkhorseParameter.TIME_PER_BURST, "LEROY JENKINS")
+        self.assert_set_exception(WorkhorseParameter.TIME_PER_BURST, -256)
+        self.assert_set_exception(WorkhorseParameter.TIME_PER_BURST, -1)
+        self.assert_set_exception(WorkhorseParameter.TIME_PER_BURST, 3.1415926)
+        #
+        # Reset to good value.
+        #
+        self.assert_set(WorkhorseParameter.TIME_PER_BURST, self._driver_parameters[WorkhorseParameter.TIME_PER_BURST][self.VALUE])
+        self._tested[WorkhorseParameter.TIME_PER_BURST] = True
+
+    def _test_set_ensembles_per_burst(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        # device says 0 - 65535, but it appears only to 32767 are supported.
+        ###
+        log.debug("====== Testing ranges for HEADING_ALIGNMENT ======")
+        # HEADING_ALIGNMENT:  -- -17999 to 18000
+        self.assert_set(WorkhorseParameter.ENSEMBLES_PER_BURST, 0)
+        self.assert_set(WorkhorseParameter.ENSEMBLES_PER_BURST, 32767)
+
+        self.assert_set_exception(WorkhorseParameter.ENSEMBLES_PER_BURST, -1)
+        self.assert_set_exception(WorkhorseParameter.ENSEMBLES_PER_BURST, 3.1415926)
+        self.assert_set_exception(WorkhorseParameter.ENSEMBLES_PER_BURST, "LEROY JENKINS")
+
+        self.assert_set(WorkhorseParameter.ENSEMBLES_PER_BURST, self._driver_parameters[WorkhorseParameter.ENSEMBLES_PER_BURST][self.VALUE])
+        self._tested[WorkhorseParameter.ENSEMBLES_PER_BURST] = True
+
+
+    def _test_set_buffer_output_period(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for BUFFER_OUTPUT_PERIOD ======")
+        # HEADING_ALIGNMENT:  -- -17999 to 18000
+        self.assert_set(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, "00:00:00")
+        self.assert_set(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, "00:05:00")
+        self.assert_set(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, "05:00:00")
+        self.assert_set(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, "00:00:00")
+        self.assert_set(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, "23:59:59")
         
-        
-        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
+        self.assert_set_exception(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, 0)
+        self.assert_set_exception(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, 65536)
+        self.assert_set_exception(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, "99:99:99")
+        self.assert_set_exception(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, -1)
+        self.assert_set_exception(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, 3)
+        self.assert_set_exception(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, 3.1415926)
+        self.assert_set_exception(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, "LEROY JENKINS")
 
-
+        self.assert_set(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, self._driver_parameters[WorkhorseParameter.BUFFER_OUTPUT_PERIOD][self.VALUE])
+        self._tested[WorkhorseParameter.BUFFER_OUTPUT_PERIOD] = True
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

@@ -60,27 +60,8 @@ from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import Wo
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import WorkhorseDriverQualificationTest
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import WorkhorseDriverPublicationTest
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import DataParticleType
-"""
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolEvent
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
-from mi.instrument.teledyne.driver import ScheduledJob
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Capability
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import InstrumentCmds
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_KEY
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_DataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_DataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_KEY
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_DataParticle
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import InstrumentDriver
-from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import Protocol
-
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolState
-"""
 ###
 #   Driver parameters for tests
 ###
@@ -93,36 +74,32 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name = 'teledyne_workhorse_monitor_150_khz_cgsn',
     instrument_agent_packet_config = DataParticleType(),
 
+    # STARTUP SYNCED WITH T-F IOS
     driver_startup_config = {
         DriverStartupConfigKey.PARAMETERS: {
-            Parameter.SERIAL_FLOW_CONTROL: '11111',
-            Parameter.BANNER: False,
-            Parameter.INSTRUMENT_ID: 0,
             Parameter.SLEEP_ENABLE: 1,
-            Parameter.SAVE_NVRAM_TO_RECORDER: True,
+            Parameter.INSTRUMENT_ID: 0,
             Parameter.POLLED_MODE: False,
             Parameter.XMIT_POWER: 255,
-            Parameter.SPEED_OF_SOUND: 1485,
-            #Parameter.PITCH: 0,
-            #Parameter.ROLL: 0,
+            Parameter.HEADING_ALIGNMENT: 0,
+            Parameter.SPEED_OF_SOUND: 1500,
+            Parameter.TRANSDUCER_DEPTH: 0,
             Parameter.SALINITY: 35,
-
-            # first 2 bits represent beam vs earth
             Parameter.COORDINATE_TRANSFORMATION: '11111',
-            Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
-            Parameter.TIME_PER_PING: '00:01.00',
+            Parameter.SENSOR_SOURCE: "1010101",
+            Parameter.TIME_PER_BURST: '00:00:00.00',
+            Parameter.ENSEMBLES_PER_BURST: 0,
+            Parameter.TIME_PER_ENSEMBLE: '01:00:00.00',
+            Parameter.TIME_PER_PING: '01:20.00',
+            Parameter.BUFFER_OUTPUT_PERIOD: '00:00:00',
             Parameter.FALSE_TARGET_THRESHOLD: '050,001',
-            Parameter.BANDWIDTH_CONTROL: 0,
             Parameter.CORRELATION_THRESHOLD: 64,
-            Parameter.SERIAL_OUT_FW_SWITCHES: '111100000',
             Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
-            Parameter.BLANK_AFTER_TRANSMIT: 704,
             Parameter.CLIP_DATA_PAST_BOTTOM: 0,
             Parameter.RECEIVER_GAIN_SELECT: 1,
             Parameter.WATER_REFERENCE_LAYER: '001,005',
-            Parameter.WATER_PROFILING_MODE: 1,
-            Parameter.NUMBER_OF_DEPTH_CELLS: 100,
-            Parameter.PINGS_PER_ENSEMBLE: 1,
+            Parameter.NUMBER_OF_DEPTH_CELLS: 30,
+            Parameter.PINGS_PER_ENSEMBLE: 45,
             Parameter.DEPTH_CELL_SIZE: 800,
             Parameter.TRANSMIT_LENGTH: 0,
             Parameter.PING_WEIGHT: 0,
@@ -153,6 +130,9 @@ InstrumentDriverTestCase.initialize(
 # methods for validating data particles.
 ###############################################################################
 
+#class ParameterAltValue(WorkhorseParameterAltValue):
+#    pass
+
 
 class ADCPTMixin(DriverTestMixin):
     '''
@@ -164,55 +144,56 @@ class ADCPTMixin(DriverTestMixin):
     READONLY  = ParameterTestConfigKey.READONLY
     STARTUP   = ParameterTestConfigKey.STARTUP
     DA        = ParameterTestConfigKey.DIRECT_ACCESS
-    VALUE     = ParameterTestConfigKey.VALUE
     REQUIRED  = ParameterTestConfigKey.REQUIRED
     DEFAULT   = ParameterTestConfigKey.DEFAULT
     STATES    = ParameterTestConfigKey.STATES 
+    VALUE     = ParameterTestConfigKey.VALUE
+    OFF_VALUE = 'off_value'
 
     ###
     # Parameter and Type Definitions
     ###
-    # Is DEFAULT the DEFAULT STARTUP VALUE?
-    _driver_parameters = {
-        Parameter.HEADING_ALIGNMENT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False},
-        Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
-        Parameter.SERIAL_FLOW_CONTROL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '11110'},
-        Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True, VALUE: True},
-        Parameter.TIME: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
-        Parameter.SERIAL_OUT_FW_SWITCHES: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '111100000'},
-        Parameter.WATER_PROFILING_MODE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
 
-        Parameter.BANNER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
-        Parameter.INSTRUMENT_ID: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.SLEEP_ENABLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.POLLED_MODE: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
-        Parameter.XMIT_POWER: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 255, VALUE: 255},
-        Parameter.SPEED_OF_SOUND: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1500, VALUE: 1500},
-        #Parameter.PITCH: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        #Parameter.ROLL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.SALINITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 35, VALUE: 35},
-        Parameter.COORDINATE_TRANSFORMATION: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '11111', VALUE: '11111'},
-        Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1010101"}, # "1111101"
-        Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
-        Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
-        Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:01.00'},
-        Parameter.FALSE_TARGET_THRESHOLD: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '050,001'},
-        Parameter.BANDWIDTH_CONTROL: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
-        Parameter.CORRELATION_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 64},
-        Parameter.ERROR_VELOCITY_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 2000},
-        Parameter.BLANK_AFTER_TRANSMIT: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 704},
-        Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
-        Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
-        Parameter.WATER_REFERENCE_LAYER: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '001,005'},
-        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 100},
-        Parameter.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
-        Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 800},
-        Parameter.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
-        Parameter.PING_WEIGHT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
-        Parameter.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 175},
-        Parameter.TIME_PER_BURST: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
-        Parameter.ENSEMBLES_PER_BURST: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
-        Parameter.BUFFER_OUTPUT_PERIOD: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00'}
+    # Values sync'ed with T-F IOS
+    _driver_parameters = {
+        # TODO: verify DEFAULT IS USED RIGHT.
+        Parameter.SERIAL_DATA_OUT:           {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: "000 000 000",VALUE: "000 000 000",OFF_VALUE: "000 000 001"},
+        Parameter.SERIAL_FLOW_CONTROL:       {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: '11111', VALUE: '11111',      OFF_VALUE: '10110'},
+        Parameter.BANNER:                    {TYPE: bool, READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: False,        OFF_VALUE: True},
+        Parameter.SLEEP_ENABLE:              {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 1,       VALUE: 1,            OFF_VALUE: 0},
+        Parameter.INSTRUMENT_ID:             {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
+        Parameter.SAVE_NVRAM_TO_RECORDER:    {TYPE: bool, READONLY: False, DA: False, STARTUP: True,  DEFAULT: True,    VALUE: True,         OFF_VALUE: False},
+        Parameter.POLLED_MODE:               {TYPE: bool, READONLY: False, DA: False, STARTUP: True,  DEFAULT: False,   VALUE: False,        OFF_VALUE: True},
+        Parameter.XMIT_POWER:                {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 255,     VALUE: 255,          OFF_VALUE: 250},
+        Parameter.HEADING_ALIGNMENT:         {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
+        Parameter.SPEED_OF_SOUND:            {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 1500,    VALUE: 1500,         OFF_VALUE: 1480},
+        Parameter.TRANSDUCER_DEPTH:          {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 32767},
+        Parameter.SALINITY:                  {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 35,      VALUE: 35,           OFF_VALUE: 36},
+        Parameter.COORDINATE_TRANSFORMATION: {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '11111', VALUE: '11111',      OFF_VALUE: '00111'},
+        Parameter.SENSOR_SOURCE:             {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: "1010101",VALUE: "1010101",   OFF_VALUE: '0000000'},
+        Parameter.TIME_PER_BURST:            {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '00:00:00.00',VALUE: '00:00:00.00',OFF_VALUE: '00:55:00.00'},
+        Parameter.ENSEMBLES_PER_BURST:       {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 999},
+        Parameter.TIME_PER_ENSEMBLE:         {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '01:00:00.00',VALUE: '01:00:00.00',OFF_VALUE: '00:00:01.00'},
+        Parameter.TIME_OF_FIRST_PING:        {TYPE: str,  READONLY: True,  DA: False, STARTUP: False}, 
+        Parameter.TIME_PER_PING:             {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '01:20.00',VALUE: '01:20.00',   OFF_VALUE: '00:02.00'},
+        Parameter.TIME:                      {TYPE: str,  READONLY: True,  DA: False, STARTUP: False},
+        Parameter.BUFFER_OUTPUT_PERIOD:      {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '00:00:00', VALUE: '00:00:00',   OFF_VALUE: '00:55:00'},
+        Parameter.FALSE_TARGET_THRESHOLD:    {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '050,001', VALUE: '050,001',    OFF_VALUE: '049,002'},
+        Parameter.BANDWIDTH_CONTROL:         {TYPE: int,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 1,   VALUE: 1,            OFF_VALUE: 0},
+        Parameter.CORRELATION_THRESHOLD:     {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 64,   VALUE: 64,           OFF_VALUE: 63},
+        Parameter.SERIAL_OUT_FW_SWITCHES:    {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: '111100000', VALUE: '111100000',  OFF_VALUE: '111100001'},
+        Parameter.ERROR_VELOCITY_THRESHOLD:  {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 2000,    VALUE: 2000,         OFF_VALUE: 1999},
+        Parameter.BLANK_AFTER_TRANSMIT:      {TYPE: int,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 352,     VALUE: 352,          OFF_VALUE: 342},
+        Parameter.CLIP_DATA_PAST_BOTTOM:     {TYPE: bool, READONLY: False, DA: False, STARTUP: True,  DEFAULT: False,   VALUE: False,        OFF_VALUE: True},
+        Parameter.RECEIVER_GAIN_SELECT:      {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 1,       VALUE: 1,            OFF_VALUE: 0},
+        Parameter.WATER_REFERENCE_LAYER:     {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '001,005', VALUE: '001,005',    OFF_VALUE: '002,006'},
+        Parameter.WATER_PROFILING_MODE:      {TYPE: int,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 1,       VALUE: 1,            OFF_VALUE: 0},
+        Parameter.NUMBER_OF_DEPTH_CELLS:     {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 30,      VALUE: 30,           OFF_VALUE: 90},
+        Parameter.PINGS_PER_ENSEMBLE:        {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 45,      VALUE: 45,           OFF_VALUE: 2},
+        Parameter.DEPTH_CELL_SIZE:           {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 800,     VALUE: 800,          OFF_VALUE: 790},
+        Parameter.TRANSMIT_LENGTH:           {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
+        Parameter.PING_WEIGHT:               {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
+        Parameter.AMBIGUITY_VELOCITY:        {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 175,     VALUE: 175,          OFF_VALUE: 176},
     }
 
     _driver_capabilities = {
@@ -440,7 +421,8 @@ class ADCPTMixin(DriverTestMixin):
         @param current_parameters: driver parameters read from the driver instance
         @param verify_values: should we verify values against definition?
         """
-        log.debug("assert_driver_parameters current_parameters = " + str(current_parameters))
+        log.debug("assert_driver_parameters current_parameters = " + repr(current_parameters))
+        
         self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
 
     ###
@@ -502,8 +484,35 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
     def setUp(self):
         WorkhorseDriverUnitTest.setUp(self)
 
+    @staticmethod
+    def _get_key_from_value(d, search_val):
+        for k, v in d.iteritems():
+            if v == search_val:
+                return k
+        return None
+
+    def test_paramater_off_value_complete(self):
+        fail = False
+        wanted = {}
+        param_dict = Parameter.dict()
+        for k in self._driver_parameters.keys():
+            log.debug("PROCESSING: " + str(self._get_key_from_value(param_dict, k)) + "/" + k)
+            if self._driver_parameters[k][ADCPTMixin.READONLY] == False:
+                if ADCPTMixin.OFF_VALUE not in self._driver_parameters[k].keys():
+                    log.error("_driver_parameters " + str(self._get_key_from_value(param_dict, k)) + " has no OFF_VALUE\n\n")
+                    fail = True
+                else:
+                    log.debug("TESTINV VALUES " + str(self._driver_parameters[k][ADCPTMixin.OFF_VALUE]) + "?=" + str(self._driver_parameters[k][ADCPTMixin.VALUE]))
+                    if self._driver_parameters[k][ADCPTMixin.OFF_VALUE] == self._driver_parameters[k][ADCPTMixin.VALUE]:
+                        log.error("_driver_parameters " + str(self._get_key_from_value(param_dict, k)) + " OFF_VALUE == VALUE\n\n")
+                        fail = True
+            else:
+                log.debug("^^^ READONLY")
+
+        self.assertFalse(fail, "See above for parameters lacking off values..")
+
     def test_sanity(self):
-        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        my_event_callback = Mock(spec="MOCK evt_callback")
         driver = InstrumentDriver(self._got_data_event_callback)
         protocol = Protocol(Prompt, NEWLINE, my_event_callback)
 
@@ -532,6 +541,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         self.assertTrue(self.protocol._send_break())
 
+    # broke
     def test_driver_schema(self):
         """
         get the driver schema and verify it is configured properly
@@ -560,6 +570,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_particle_published(driver, SAMPLE_RAW_DATA3, self.assert_particle_pd0_data, True)
         self.assert_particle_published(driver, SAMPLE_RAW_DATA4, self.assert_particle_pd0_data, True)
 
+    # broke
     def test_driver_parameters(self):
         """
         Verify the set of parameters known by the driver
@@ -587,6 +598,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
             ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
             ProtocolState.COMMAND: ['DRIVER_EVENT_CLOCK_SYNC',
                                     'DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_INIT_PARAMS',
                                     'DRIVER_EVENT_SET',
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
@@ -605,6 +617,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     'PROTOCOL_EVENT_SEND_LAST_SAMPLE'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
                                     'DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_INIT_PARAMS',
                                     'PROTOCOL_EVENT_GET_CALIBRATION',
                                     'PROTOCOL_EVENT_GET_CONFIGURATION',
                                     'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
@@ -681,42 +694,198 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         Test that we can generate particles when in autosample
         """
+        log.error("IN test_autosample_particle_generation")
         self.assert_initialize_driver()
 
-        params = {
+        # lets set things to do faster pinging so the test is runable in our time scales.
+        self.assert_set_bulk({Parameter.PINGS_PER_ENSEMBLE: 5,
+                              Parameter.TIME_PER_PING: "00:10.00",
+                              Parameter.TIME_PER_ENSEMBLE: "00:01:00.00"})
+
+
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+
+        self.assert_async_particle_generation(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=200)
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=50)
+
+    def test_set_ranges(self):
+        log.error("IN test_set_ranges")
+        self.assert_initialize_driver()
+        self._test_set_heading_alignment()
+        self._test_set_buffer_output_period()
+        self._test_set_time_per_burst()
+        self._test_set_ensembles_per_burst()
+        self._test_set_instrument_id()
+        self._test_set_sleep_enable()
+        self._test_set_save_nvram_to_recorder()
+        self._test_set_polled_mode()
+        self._test_set_xmit_power()
+        self._test_set_speed_of_sound()
+        self._test_set_transducer_depth()
+        self._test_set_salinity()
+        self._test_set_sensor_source()
+        self._test_set_time_per_ensemble()
+        self._test_set_time_of_first_ping_readonly()
+        self._test_set_time_per_ping()
+        self._test_set_false_target_threshold()
+        self._test_set_correlation_threshold()
+        self._test_set_error_velocity_threshold()
+        self._test_set_blank_after_transmit_readonly()
+        self._test_set_clip_data_past_bottom()
+        self._test_set_receiver_gain_select()
+        self._test_set_water_reference_layer()
+        self._test_set_number_of_depth_cells()
+        self._test_set_pings_per_ensemble()
+        self._test_set_depth_cell_size()
+        self._test_set_transmit_length()
+        self._test_set_ping_weight()
+        self._test_set_ambiguity_velocity()
+        self._test_set_coordinate_transformation()
+        self._test_set_bandwidth_control_readonly()
+        self._test_set_serial_data_out_readonly()
+        self._test_set_serial_flow_control_readonly()
+        self._test_set_water_profiling_mode_readonly()
+        self._test_set_serial_out_fw_switches_readonly()
+        self._test_set_banner_readonly()
+        self._test_set_blank_after_transmit_readonly()
+        fail = False
+        log.error("self._tested = " + repr(self._tested))
+        for k in self._tested.keys():
+            if k not in self._driver_parameters.keys():
+                log.error("*WARNING* " + k + " was tested but is not in _driver_parameters")
+                #fail = True
+
+        for k in self._driver_parameters.keys():
+            if k not in [Parameter.TIME_OF_FIRST_PING, Parameter.TIME] + self._tested.keys():
+                log.error("*ERROR* " + k + " is in _driver_parameters but was not tested.")
+                fail = True
+
+        self.assertFalse(fail, "See above for un-exercized parameters.")
+
+    def _test_set_heading_alignment(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for HEADING_ALIGNMENT ======")
+        # HEADING_ALIGNMENT:  -- -17999 to 18000
+        self.assert_set(Parameter.HEADING_ALIGNMENT, -17999)
+        self.assert_set(Parameter.HEADING_ALIGNMENT, 0)
+        self.assert_set(Parameter.HEADING_ALIGNMENT, 18000)
+
+        self.assert_set_exception(Parameter.HEADING_ALIGNMENT, -18000)
+        self.assert_set_exception(Parameter.HEADING_ALIGNMENT, 18001)
+
+        self.assert_set(Parameter.HEADING_ALIGNMENT, self._driver_parameters[Parameter.HEADING_ALIGNMENT][self.VALUE])
+        self._tested[Parameter.HEADING_ALIGNMENT] = True
+
+    def _test_set_transducer_depth(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for TRANSDUCER_DEPTH ======")
+        # HEADING_ALIGNMENT:  -- -17999 to 18000
+        self.assert_set(Parameter.TRANSDUCER_DEPTH, 0)
+        self.assert_set(Parameter.TRANSDUCER_DEPTH, 32767)
+        self.assert_set(Parameter.TRANSDUCER_DEPTH, 65535)
+
+        self.assert_set_exception(Parameter.TRANSDUCER_DEPTH, -1)
+        self.assert_set_exception(Parameter.TRANSDUCER_DEPTH, 65536)
+        self.assert_set_exception(Parameter.TIME_PER_BURST, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.TIME_PER_BURST, 3.1415926)
+
+        self.assert_set(Parameter.TRANSDUCER_DEPTH, self._driver_parameters[Parameter.TRANSDUCER_DEPTH][self.VALUE])
+        self._tested[Parameter.TRANSDUCER_DEPTH] = True
+
+    #passes
+    def test_set_bulk(self):
+        """
+        Test all set commands. Verify all exception cases.
+        """
+        log.error("IN test_set_bulk")
+        self.assert_initialize_driver()
+
+        params = {}
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if self._driver_parameters[k][self.READONLY] == False:
+                    params[k] = self._driver_parameters[k][self.VALUE]
+        # Set all parameters to a known ground state
+        self.assert_set_bulk(params)
+
+        ###
+        #   Instrument Parameteres
+        ###
+
+        # set to off_values so we get a config change
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if False == self._driver_parameters[k][self.READONLY]:
+                    self.assert_set(k, self._driver_parameters[k][self.OFF_VALUE])
+                    log.debug("WANT PARAM CHANGE EVENT, SETTING " + k + " to " + str(self._driver_parameters[k][self.VALUE]))
+                if True == self._driver_parameters[k][self.READONLY]:
+                    self.assert_set_readonly(k)
+
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if False == self._driver_parameters[k][self.READONLY]:
+                    self.assert_set(k, self._driver_parameters[k][self.VALUE])
+                    log.debug("WANT PARAM CHANGE EVENT, SETTING " + k + " to " + str(self._driver_parameters[k][self.VALUE]))
+                if True == self._driver_parameters[k][self.READONLY]:
+                    self.assert_set_exception(k, self._driver_parameters[k][self.VALUE])
+                    log.debug("WANT EXCEPTION SETTING " + k + " to " + str(self._driver_parameters[k][self.VALUE]))
+
+    def test_startup_params(self):
+        """
+        Verify that startup parameters are applied correctly. Generally this
+        happens in the driver discovery method.
+
+        since nose orders the tests by ascii value this should run first.
+        """
+        log.error("IN test_startup_params")
+        self.assert_initialize_driver()
+
+        # Updated to reflect T-F startup params.
+        get_values = {
+            Parameter.SLEEP_ENABLE: 1,
             Parameter.INSTRUMENT_ID: 0,
-            Parameter.SLEEP_ENABLE: 0,
             Parameter.POLLED_MODE: False,
             Parameter.XMIT_POWER: 255,
-            Parameter.SPEED_OF_SOUND: 1485,
-            Parameter.PITCH: 0,
-            Parameter.ROLL: 0,
+            Parameter.HEADING_ALIGNMENT: 0,
+            Parameter.SPEED_OF_SOUND: 1500,
+            Parameter.TRANSDUCER_DEPTH: 0,
             Parameter.SALINITY: 35,
-            Parameter.TIME_PER_ENSEMBLE: '00:00:20.00',
-            Parameter.TIME_PER_PING: '00:01.00',
+            Parameter.COORDINATE_TRANSFORMATION: '11111',
+            Parameter.SENSOR_SOURCE: "1010101",
+            Parameter.TIME_PER_BURST: '00:00:00.00',
+            Parameter.ENSEMBLES_PER_BURST: 0,
+            Parameter.TIME_PER_ENSEMBLE: '01:00:00.00',
+            Parameter.TIME_PER_PING: '01:20.00',
+            Parameter.BUFFER_OUTPUT_PERIOD: '00:00:00',
             Parameter.FALSE_TARGET_THRESHOLD: '050,001',
-            Parameter.BANDWIDTH_CONTROL: 0,
             Parameter.CORRELATION_THRESHOLD: 64,
             Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
-            Parameter.BLANK_AFTER_TRANSMIT: 704,
             Parameter.CLIP_DATA_PAST_BOTTOM: 0,
             Parameter.RECEIVER_GAIN_SELECT: 1,
             Parameter.WATER_REFERENCE_LAYER: '001,005',
-            Parameter.NUMBER_OF_DEPTH_CELLS: 100,
-            Parameter.PINGS_PER_ENSEMBLE: 1,
+            Parameter.NUMBER_OF_DEPTH_CELLS: 30,
+            Parameter.PINGS_PER_ENSEMBLE: 45,
             Parameter.DEPTH_CELL_SIZE: 800,
             Parameter.TRANSMIT_LENGTH: 0,
             Parameter.PING_WEIGHT: 0,
             Parameter.AMBIGUITY_VELOCITY: 175,
         }
-        self.assert_set_bulk(params)
 
-        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        # Change the values of these parameters to something before the
+        # driver is reinitalized.  They should be blown away on reinit.
+        new_values = {}
 
-        self.assert_async_particle_generation(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=40)
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if False == self._driver_parameters[k][self.READONLY]:
+                    new_values[k] = self._driver_parameters[k][self.OFF_VALUE]
 
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
-
+        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

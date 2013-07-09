@@ -10,7 +10,7 @@ SAMPLE_RAW_DATA4 = \
 "\x7F\x7F\xF0\x02\x00\x06\x12\x00\x4D\x00\x8E\x00\x80\x01\xFA\x01\x74\x02\x00\x00\x32\x28\xC9\x41\x00\x0D\x04\x1E\x0A\x00\x20\x03\x00\x00\x01\xFF\x09\x00\x0F\x27\x00\x00\x00\x1F\x00\x00\x00\x00\x7D\x3D\x71\x03\x61\x03\x05\x06\x32\x00\x62\x00\x28\x00\x00\x06\xFE\xD0\xFC\x09\x01\x00\xF0\x00\xA1\x48\x00\x00\x14\x80\x00\x04\x00\x0D\x05\x16\x12\x12\x35\x5C\x00\x00\x00\x00\x06\x09\x00\x94\x14\xC5\xEE\x93\xEE\x28\x00\x23\x09\x00\x00\x00\x00\x00\x00\x41\x4B\x53\x4A\x4A\x52\x82\x9F\x00\x00\x00\x88\xA4\xBE\x05\x03\x00\x00\xD2\x05\x00\x00\x00\x14\x0D\x05\x16\x12\x12\x35\x5C\x00\x01\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x02\x36\x5A\x38\x4E\x0F\x0D\x0D\x10\x0F\x0C\x0F\x0E\x0E\x0C\x0E\x0E\x0A\x10\x0E\x0B\x0B\x0E\x0D\x0D\x0B\x09\x0E\x0B\x0C\x0E\x0C\x0E\x0E\x0E\x0E\x0A\x0D\x0F\x0B\x0A\x0D\x10\x0B\x0C\x0F\x0C\x0F\x10\x0C\x00\x00\x0B\x0D\x00\x00\x0D\x0B\x00\x00\x0F\x0F\x00\x00\x0B\x0C\x00\x00\x0E\x0D\x00\x00\x0F\x0B\x00\x00\x0F\x0F\x00\x00\x0D\x0B\x00\x00\x0B\x0D\x00\x00\x0B\x0D\x00\x00\x0B\x0A\x00\x00\x0D\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x03\x16\x17\x23\x16\x0C\x09\x0D\x0B\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x08\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x08\x0C\x0A\x0B\x09\x0C\x0A\x0B\x08\x0C\x0A\x0B\x08\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x08\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0C\x0A\x0B\x09\x0D\x0A\x0B\x09\x0C\x0A\x00\x04\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x00\x00\x64\x00\x9E\x26\x85\x6D"
 
 
-
+# UPDATED break_success_str FOR ADCPT-F
 
 break_success_str = NEWLINE + "[BREAK Wakeup A]" + NEWLINE +\
 "WorkHorse Broadband ADCP Version 50.40" + NEWLINE +\
@@ -26,6 +26,8 @@ break_alarm_str = NEWLINE + "[ALARM Wakeup A]" + NEWLINE +\
 ">"
 
 EF_CHAR = '\xef'
+
+# UPDATED CALIBRATION_RAW_DATA FOR ADCPT-B
 
 CALIBRATION_RAW_DATA = \
 "ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE + \
@@ -73,6 +75,8 @@ NEWLINE + \
 NEWLINE + \
 ">"
 
+# UPDATED PS0 FOR ADCPT-F
+
 PS0_RAW_DATA = \
 "Instrument S/N:  18593" + NEWLINE +\
 "       Frequency:  153600 HZ" + NEWLINE +\
@@ -105,6 +109,7 @@ NEWLINE +\
 "   F0  00 00 06 F5 B2 EB  09 TUN727-1005-05A" + NEWLINE +\
 ">"
 
+# UPDATED PS3 FOR ADCPT-F
 
 PS3_RAW_DATA = \
 "Beam Width:   3.7 degrees" + NEWLINE +\
@@ -129,9 +134,13 @@ NEWLINE +\
 "Beam Angle Corrections Are Loaded." + NEWLINE +\
 ">"
 
+# UPDATED PS4 FOR ADCPT-F
+
 PS4_RAW_DATA = \
-"Ping Sequence:  W W W W W W W W W W" + NEWLINE +\
+"Ping Sequence:  W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W W" + NEWLINE +\
 ">" 
+
+# UPDATED FD FOR ADCPT-F
 
 FD_RAW_DATA = \
 "Total Unique Faults   =     2" + NEWLINE +\
@@ -167,55 +176,55 @@ NEWLINE +\
 "00 00 00 00 00 00 00 00 00 01" + NEWLINE +\
 ">"
 
-
+# UPDATED PT200 FOR ADCPT-F
 
 PT200_RAW_DATA = \
-"Ambient  Temperature =    23.43 Degrees C" + NEWLINE +\
-"  Attitude Temperature =    23.96 Degrees C" + NEWLINE +\
-"  Internal Moisture    = 8C66h" + NEWLINE +\
+"Ambient  Temperature =    22.08 Degrees C" + NEWLINE +\
+"  Attitude Temperature =    24.36 Degrees C" + NEWLINE +\
+"  Internal Moisture    = 8D3Ch" + NEWLINE +\
 NEWLINE +\
 "Correlation Magnitude: Narrow Bandwidth" + NEWLINE +\
 NEWLINE +\
 "               Lag  Bm1  Bm2  Bm3  Bm4" + NEWLINE +\
 "                 0  255  255  255  255" + NEWLINE +\
-"                 1  140  159  178  149" + NEWLINE +\
-"                 2   37   63   92   54" + NEWLINE +\
-"                 3   15   17   42    9" + NEWLINE +\
-"                 4   16    6   20    5" + NEWLINE +\
-"                 5    7    4   12    4" + NEWLINE +\
-"                 6   10    1   12    4" + NEWLINE +\
-"                 7    8    2    9    4" + NEWLINE +\
+"                 1  143  162  181  153" + NEWLINE +\
+"                 2   44   68   98   55" + NEWLINE +\
+"                 3   13   21   45    8" + NEWLINE +\
+"                 4    9    7   19    4" + NEWLINE +\
+"                 5    2    2    9    4" + NEWLINE +\
+"                 6    4    0    5    4" + NEWLINE +\
+"                 7    1    4    7    4" + NEWLINE +\
 NEWLINE +\
-"  High Gain RSSI:    67   65   72   65" + NEWLINE +\
+"  High Gain RSSI:    66   67   73   67" + NEWLINE +\
 "   Low Gain RSSI:    11    8   12   10" + NEWLINE +\
 NEWLINE +\
-"  SIN Duty Cycle:    49   50   48   48" + NEWLINE +\
-"  COS Duty Cycle:    50   50   50   49" + NEWLINE +\
+"  SIN Duty Cycle:    47   48   50   49" + NEWLINE +\
+"  COS Duty Cycle:    47   52   51   49" + NEWLINE +\
 NEWLINE +\
 "Receive Test Results = 00000000 ... PASS" + NEWLINE +\
 NEWLINE +\
-"IXMT    =      0.8 Amps rms  [Data=45h]" + NEWLINE +\
+"IXMT    =      0.8 Amps rms  [Data=44h]" + NEWLINE +\
 "VXMT    =     43.8 Volts rms [Data=4ah]" + NEWLINE +\
-"   Z    =     55.5 Ohms" + NEWLINE +\
+"   Z    =     56.3 Ohms" + NEWLINE +\
 "Transmit Test Results = $0 ... PASS" + NEWLINE +\
 NEWLINE +\
-"    0    0    0    0" + NEWLINE +\
-"    0    0    0    0" + NEWLINE +\
-"    0    0    0    0" + NEWLINE +\
-"   12   12   12   12" + NEWLINE +\
-"  255  255  255  255" + NEWLINE +\
-"    0    0    0    0" + NEWLINE +\
-"   12   12   12   12" + NEWLINE +\
-"  255  255  255  255" + NEWLINE +\
-"    0    0    0    0" + NEWLINE +\
-"    0    0    0    0" + NEWLINE +\
-"   12   12   12   12" + NEWLINE +\
-"  255  255  255  255" + NEWLINE +\
-"Electronics Test Results = $00000000" + NEWLINE +\
+"    0   63  121   45" + NEWLINE +\
+"    0   54   35  112" + NEWLINE +\
+"    0   63   28   44" + NEWLINE +\
+"    8   79   39  153" + NEWLINE +\
+"  255  252  255  208" + NEWLINE +\
+"    0   39   92   97" + NEWLINE +\
+"    8    8   56   63" + NEWLINE +\
+"  255  252  214  220" + NEWLINE +\
+"    0   50   63   35" + NEWLINE +\
+"    0   12  105   78" + NEWLINE +\
+"    8   56   32   59" + NEWLINE +\
+"  255  251  232  223" + NEWLINE +\
+"Electronics Test Results = $01110000" + NEWLINE +\
 "Receive Bandwidth:" + NEWLINE +\
 "    Sample      bw    bw    bw    bw    bw" + NEWLINE +\
 "      rate  expect   Bm1   Bm2   Bm3   Bm4" + NEWLINE +\
-"        38      12    13    12    10    14 Khz" + NEWLINE +\
+"        38      12    14    12    10    13 Khz" + NEWLINE +\
 "   results          PASS  PASS  PASS  PASS" + NEWLINE +\
 "RSSI Time Constant:" + NEWLINE +\
 NEWLINE +\
@@ -223,28 +232,25 @@ NEWLINE +\
 "  time   Bm1   Bm2   Bm3   Bm4" + NEWLINE +\
 "  msec  cnts  cnts  cnts  cnts" + NEWLINE +\
 "     1     5     7     6     7" + NEWLINE +\
-"     2    11    14    11    12" + NEWLINE +\
-"     3    15    19    15    17" + NEWLINE +\
-"     4    19    23    19    22" + NEWLINE +\
-"     5    22    27    22    25" + NEWLINE +\
-"     6    25    29    25    28" + NEWLINE +\
-"     7    27    32    27    30" + NEWLINE +\
-"     8    29    33    29    32" + NEWLINE +\
-"     9    31    35    31    34" + NEWLINE +\
-"    10    32    36    32    35" + NEWLINE +\
-"   nom    40    43    41    43" + NEWLINE +\
+"     2    11    13    10    13" + NEWLINE +\
+"     3    15    18    15    17" + NEWLINE +\
+"     4    18    23    18    22" + NEWLINE +\
+"     5    21    26    22    25" + NEWLINE +\
+"     6    24    29    25    28" + NEWLINE +\
+"     7    26    31    27    30" + NEWLINE +\
+"     8    28    33    29    32" + NEWLINE +\
+"     9    30    34    30    34" + NEWLINE +\
+"    10    31    36    32    35" + NEWLINE +\
+"   nom    38    42    40    43" + NEWLINE +\
 "result    PASS  PASS  PASS  PASS" + NEWLINE +\
 ">" 
 
-
+# UPDATED powering_down_str FOR ADCPT-F
 
 powering_down_str = NEWLINE +\
 "Powering Down"
 
-# typed CS, got samples
-# sent a break 300
-# instrument wokeup, but 10 minutes later had not sent below warning...
-# From Lytle
+# Not yet seen in the wild.
 self_deploy_str = NEWLINE +\
 "System will self-deploy in 1 minute unless valid command entered!"
 

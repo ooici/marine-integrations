@@ -31,32 +31,33 @@ from mi.instrument.teledyne.driver import TeledyneScheduledJob
 from mi.core.common import BaseEnum
 DEFAULT_CLOCK_DIFF = 500
 
-class TeledyneParameterAltValue(BaseEnum):
+#class TeledyneParameterAltValue(BaseEnum):
     # Values that are valid, but not the ones we want,
     # used for testing to verify that we are setting good values.
     #
 
-    INSTRUMENT_ID = 1
-    XMIT_POWER = 250
-    SPEED_OF_SOUND = 1480
-    SALINITY = 36
-    TIME_PER_ENSEMBLE = '00:00:01.00'
-    TIME_PER_PING = '00:02.00'
-    FALSE_TARGET_THRESHOLD = '049,002'
-    BANDWIDTH_CONTROL = 1
-    CORRELATION_THRESHOLD = 63
-    ERROR_VELOCITY_THRESHOLD = 1999
-    BLANK_AFTER_TRANSMIT = 714
-    CLIP_DATA_PAST_BOTTOM = 1
-    RECEIVER_GAIN_SELECT = 0
-    WATER_REFERENCE_LAYER = '002,006'
-    NUMBER_OF_DEPTH_CELLS = 99
-    PINGS_PER_ENSEMBLE = 0
-    DEPTH_CELL_SIZE = 790
-    TRANSMIT_LENGTH = 1
-    PING_WEIGHT = 1
-    AMBIGUITY_VELOCITY = 176
-
+#    INSTRUMENT_ID = 1
+#    XMIT_POWER = 250
+#    SPEED_OF_SOUND = 1480
+#    SALINITY = 36
+#    TIME_PER_ENSEMBLE = '00:00:01.00'
+#    TIME_PER_PING = '00:02.00'
+#    FALSE_TARGET_THRESHOLD = '049,002'
+#    BANDWIDTH_CONTROL = 1
+#    CORRELATION_THRESHOLD = 63
+#    ERROR_VELOCITY_THRESHOLD = 1999
+#    BLANK_AFTER_TRANSMIT = 714
+#    CLIP_DATA_PAST_BOTTOM = 1
+#    RECEIVER_GAIN_SELECT = 0
+#    WATER_REFERENCE_LAYER = '002,006'
+#    NUMBER_OF_DEPTH_CELLS = 99
+#    PINGS_PER_ENSEMBLE = 0
+#    DEPTH_CELL_SIZE = 790
+#    TRANSMIT_LENGTH = 1
+#    PING_WEIGHT = 1
+#    AMBIGUITY_VELOCITY = 176
+#    COORDINATE_TRANSFORMATION = '10111'
+#    SENSOR_SOURCE = '0000000'
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -137,14 +138,16 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         Verify the device configuration command can be triggered and run in command
         """
-        self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=250)
+        log.error("IN test_scheduled_compass_calibration_command")
+        self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100) #250
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
     def test_scheduled_compass_calibration_autosample(self):
         """
         Verify the device configuration command can be triggered and run in autosample
         """
-        self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=250,
+        log.error("IN test_scheduled_compass_calibration_autosample")
+        self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100, # 250
             autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE)
         self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
@@ -159,15 +162,17 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         Verify the device status command can be triggered and run in command
         """
-        self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=300)
+        log.error("IN test_scheduled_device_configuration_command")
+        self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=120)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
     def test_scheduled_device_configuration_autosample(self):
         """
         Verify the device status command can be triggered and run in autosample
         """
+        log.error("IN test_scheduled_device_configuration_autosample")
         self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status,
-                                    autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=300)
+                                    autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=100)
         self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
         time.sleep(5)
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
@@ -184,6 +189,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
+        log.error("IN test_scheduled_clock_sync_command")
         self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=350)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
@@ -191,11 +197,12 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
+        
+        log.error("IN test_scheduled_clock_sync_autosample")
         self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync, 
                                     autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=350)
         self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE)
-
 
     def _test_set_instrument_id(self):
         ###
@@ -357,36 +364,22 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(TeledyneParameter.TIME_PER_ENSEMBLE, self._driver_parameters[TeledyneParameter.TIME_PER_ENSEMBLE][self.VALUE])
         self._tested[TeledyneParameter.TIME_PER_ENSEMBLE] = True
 
-    def _test_set_time_of_first_ping(self):
+    def _test_set_time_of_first_ping_readonly(self):
         ###
         #   test get set of a variety of parameter ranges
         ###
-        log.debug("====== Testing ranges for TIME_OF_FIRST_PING ======")
-        """
-        # TIME_OF_FIRST_PING:  -- str ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+        log.debug("====== Testing ranges for TIME_OF_FIRST_PING ====== READONLY")
+
+        # Test read only raise exceptions on set.        # TIME_OF_FIRST_PING:  -- str ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
         now_1_hour = (dt.datetime.utcnow() + dt.timedelta(hours=1)).strftime("%Y/%m/%d,%H:%m:%S")
         today_plus_10 = (dt.datetime.utcnow() + dt.timedelta(days=10)).strftime("%Y/%m/%d,%H:%m:%S")
         today_plus_1month = (dt.datetime.utcnow() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
         today_plus_6month = (dt.datetime.utcnow() + dt.timedelta(days=183)).strftime("%Y/%m/%d,%H:%m:%S")
 
-        self.assert_set(TeledyneParameter.TIME_OF_FIRST_PING, now_1_hour)
-        self.assert_set(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_10)
-        self.assert_set(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_1month)
-        self.assert_set(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_6month)
-
-        # AssertionError: Unexpected exception: TG no value match (2013/06/06,06:06:06 != LEROY JENKINS)
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, "LEROY JENKINS")
-
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, 2)
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, -1)
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, '99:99.99')
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, '-1:-1.+1')
-        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, 3.1415926)
-        """
-        #
-        # Reset to good value.
-        #
-        # Ideally send a break to reset it...
+        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, now_1_hour)
+        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_10)
+        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_1month)
+        self.assert_set_exception(TeledyneParameter.TIME_OF_FIRST_PING, today_plus_6month)
         self._tested[TeledyneParameter.TIME_OF_FIRST_PING] = True
 
     def _test_set_time_per_ping(self):
@@ -584,6 +577,16 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(TeledyneParameter.RECEIVER_GAIN_SELECT, self._driver_parameters[TeledyneParameter.RECEIVER_GAIN_SELECT][self.VALUE])
         self._tested[TeledyneParameter.RECEIVER_GAIN_SELECT] = True
 
+    def _test_set_receiver_gain_select_readonly(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for BLANK_AFTER_TRANSMIT ====== READONLY")
+
+        # Test read only raise exceptions on set.
+        self.assert_set_exception(TeledyneParameter.RECEIVER_GAIN_SELECT, 0)
+        self._tested[TeledyneParameter.RECEIVER_GAIN_SELECT] = True
+
     def _test_set_water_reference_layer(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -592,9 +595,12 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         # WATER_REFERENCE_LAYER:  -- int Begin Cell (0=OFF), End Cell  (0-100)
         self.assert_set(TeledyneParameter.WATER_REFERENCE_LAYER, "000,001")
-        self.assert_set(TeledyneParameter.WATER_REFERENCE_LAYER, "000,100")
-        self.assert_set(TeledyneParameter.WATER_REFERENCE_LAYER, "000,100")
+        self.assert_set(TeledyneParameter.WATER_REFERENCE_LAYER, "001,002")
+        self.assert_set(TeledyneParameter.WATER_REFERENCE_LAYER, "002,003")
+        self.assert_set(TeledyneParameter.WATER_REFERENCE_LAYER, "001,030")
 
+        self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "001,031")
+        self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "001,100")
         self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "255,000")
         self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "000,000")
         self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "001,000")
@@ -782,7 +788,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set_exception(TeledyneParameter.SERIAL_DATA_OUT, '000 000 111')
         self._tested[TeledyneParameter.SERIAL_DATA_OUT] = True
 
-
     def _test_set_serial_out_fw_switches_readonly(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -817,6 +822,33 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         self.assert_set(TeledyneParameter.WATER_PROFILING_MODE, 0)
         self._tested[TeledyneParameter.WATER_PROFILING_MODE] = True
+
+    def _test_set_coordinate_transformation(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for COORDINATE_TRANSFORMATION ======")
+
+        # COORDINATE_TRANSFORMATION:  -- (5 bits 0 or 1)
+        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '11000')
+        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '11111')
+        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '11101')
+
+        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '00000')
+        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '00111')
+        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, '00101')
+
+        self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, -1)
+        self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, 3)
+        self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, 3.1415926)
+        self.assert_set_exception(TeledyneParameter.COORDINATE_TRANSFORMATION, "LEROY JENKINS")
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, self._driver_parameter_defaults[WorkhorseParameter.COORDINATE_TRANSFORMATION])
+        self.assert_set(TeledyneParameter.COORDINATE_TRANSFORMATION, self._driver_parameters[TeledyneParameter.COORDINATE_TRANSFORMATION][self.VALUE])
+        self._tested[TeledyneParameter.COORDINATE_TRANSFORMATION] = True
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

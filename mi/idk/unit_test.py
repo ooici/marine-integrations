@@ -110,9 +110,9 @@ from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
 #EXECUTE_TIMEOUT=900
 AGENT_DISCOVER_TIMEOUT=180
 GO_ACTIVE_TIMEOUT=400
-GET_TIMEOUT=30
+GET_TIMEOUT=90
 SET_TIMEOUT=90
-EXECUTE_TIMEOUT=30
+EXECUTE_TIMEOUT=90
 SAMPLE_RAW_DATA="Iam Apublished Message"
 
 LOCALHOST='localhost'
@@ -135,12 +135,12 @@ class ParameterTestConfigKey(BaseEnum):
     TYPE = 'type'
     REQUIRED = 'required'
     NAME = 'name'
-    VALUE = 'value'
     DIRECT_ACCESS = 'directaccess'
     STARTUP = 'startup'
     READONLY = 'readonly'
     DEFAULT = 'default'
     STATES = 'states'
+    VALUE = 'value'
 
 class InstrumentDriverTestConfig(Singleton):
     """

@@ -38,12 +38,13 @@ class WorkhorseParameter(TeledyneParameter):
     """
     Device parameters
     """
-    
+
     SERIAL_FLOW_CONTROL = 'CF'
     BANNER = 'CH'
     SLEEP_ENABLE = 'CL'
     SAVE_NVRAM_TO_RECORDER = 'CN'
     POLLED_MODE = 'CP'
+    HEADING_ALIGNMENT = 'EA'
     TIME_PER_BURST = 'TB'
     ENSEMBLES_PER_BURST = 'TC'
     BUFFER_OUTPUT_PERIOD = 'TX'
@@ -175,6 +176,15 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         self._chunker = StringChunker(WorkhorseProtocol.sieve_function)
 
+    def _get_params(self):
+        return dir(WorkhorseParameter)
+
+    def _getattr_key(self, attr):
+        return getattr(WorkhorseParameter, attr)
+
+    def _has_parameter(self, param):
+        return WorkhorseParameter.has(param)
+
     def _build_command_dict(self):
         """
         Populate the command dictionary with command.
@@ -276,7 +286,7 @@ class WorkhorseProtocol(TeledyneProtocol):
         Return a list of currently available capabilities.
         """
         return [x for x in events if WorkhorseCapability.has(x)]
-    
+
     def _handler_command_power_down(self):
         pass
         

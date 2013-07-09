@@ -155,7 +155,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION)
         self.assert_driver_command(TeledyneProtocolEvent.CLOCK_SYNC)
         self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
-        self.assert_driver_command(TeledyneProtocolEvent.SEND_LAST_SAMPLE, regex='^\x7f\x7fh.*')
+        self.assert_driver_command(TeledyneProtocolEvent.SEND_LAST_SAMPLE, regex='^\x7f\x7f.*')
         self.assert_driver_command(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM, expected="Parameters saved as USER defaults")
         self.assert_driver_command(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD, regex='^........')
         self.assert_driver_command(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, regex='^Error Status Word Cleared')

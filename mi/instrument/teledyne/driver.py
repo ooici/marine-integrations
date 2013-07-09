@@ -105,7 +105,7 @@ class TeledyneInstrumentCmds(BaseEnum):
     BREAK = 'break' # < case sensative!!!!
     SEND_LAST_SAMPLE = 'CE'
     SAVE_SETUP_TO_RAM = 'CK'
-    START_DEPLOYMENT = 'CS'
+    START_LOGGING = 'CS'
     CLEAR_ERROR_STATUS_WORD = 'CY0'         # May combine with next
     DISPLAY_ERROR_STATUS_WORD = 'CY1'       # May combine with prior
     POWER_DOWN = 'CZ'
@@ -304,7 +304,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, self._build_simple_command)
-        self._add_build_handler(TeledyneInstrumentCmds.START_DEPLOYMENT, self._build_simple_command)
+        self._add_build_handler(TeledyneInstrumentCmds.START_LOGGING, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.DISPLAY_ERROR_STATUS_WORD, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.CLEAR_ERROR_STATUS_WORD, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.CLEAR_FAULT_LOG, self._build_simple_command)
@@ -381,13 +381,13 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @return: true if the command is successful
         @throws: InstrumentProtocolException if command fails
         """
-        prompt = self._wakeup(timeout=timeout, delay=delay)
+        prompt = self._wakeup(timeout=3, delay=delay)
 
         # lets clear out any past data so it doesnt confuse the command
         self._linebuf = ''
         self._promptbuf = ''
 
-        prompt = self._wakeup(timeout=timeout, delay=delay)
+        prompt = self._wakeup(timeout=3, delay=delay)
         str_val = get_timestamp_delayed(time_format)
         reply = self._do_cmd_direct(date_time_param + str_val)
         time.sleep(1)
@@ -501,7 +501,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         if (self.last_wakeup + 30) > time.time():
             self.last_wakeup = time.time()
         else:
-            prompt = self._wakeup(timeout)
+            prompt = self._wakeup(timeout=3)
 
         # Clear line and prompt buffers for result.
 
@@ -674,7 +674,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         self._connection.send(NEWLINE)
 
-    def _wakeup(self, timeout=20, delay=1):
+    def _wakeup(self, timeout=3, delay=1):
         """
         Clear buffers and send a wakeup command to the instrument
         @param timeout The timeout to wake the device.
@@ -725,7 +725,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         for param in startup_params:
             if not self._has_parameter(param):
             #if not TeledyneParameter.has(param):
-                raise InstrumentParameterException()
+                log.error("WANT PARAM" + repr(param))
+                raise InstrumentParameterException("in _instrument_config_dirty")
 
             if (self._param_dict.get(param) != self._param_dict.get_config_value(param)):
                 log.trace("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_config_value(param)))
@@ -746,7 +747,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._linebuf = ""
         self._promptbuf = ""
 
-        prompt = self._wakeup(timeout=TIMEOUT)
+        prompt = self._wakeup(timeout=3)
         #log.debug("********** GOT PROMPT" + repr(prompt))
         if TeledynePrompt.COMMAND == prompt:
             logging = False
@@ -767,8 +768,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.trace("in _start_logging - are we logging? " + str(self._is_logging()))
         if(self._is_logging()):
             return True
-        self._do_cmd_no_resp(TeledyneInstrumentCmds.START_DEPLOYMENT, timeout=timeout)
-        #time.sleep(1) # WHY THE SLEEP?  UNCOMMENT IF PROBLEMS, REMOVE IF NO PROBLEMS WHEN FINALIZING.
+        self._do_cmd_no_resp(TeledyneInstrumentCmds.START_LOGGING, timeout=timeout)
 
         return True
 
@@ -791,6 +791,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._send_break(duration=500)
         time.sleep(2)
         # Prompt device until command prompt is seen.
+        timeout = 3
         self._wakeup_until(timeout, TeledynePrompt.COMMAND)
 
         # set logging to false, as we just got a prompt after a break
@@ -986,29 +987,30 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         put the instrument into command mode, apply the changes
         then put it back.
         """
+        log.debug("in _handler_autosample_init_params")
         next_state = None
         result = None
         error = None
-     
+
         try:
-            self._do_cmd_resp(TeledyneInstrumentCmds.STOP_LOGGING, expected_prompt=TeledynePrompt.COMMAND)
+            self._stop_logging()
             self._init_params()
-     
+
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
         except Exception as e:
+            log.error("in exception block")
             error = e
-     
+
         finally:
             # Switch back to streaming
-            if(self._is_logging()):
-                log.debug("sbe start logging again")
-                self._do_cmd_no_resp(TeledyneInstrumentCmds.START_LOGGING)
-     
-        if(error):
+            self._start_logging()
+                #self._do_cmd_no_resp(TeledyneInstrumentCmds.START_LOGGING)
+
+        if (error):
             log.error("Error in apply_startup_params: %s", error)
             raise error
-     
+
         return (next_state, result)
 
     def _handler_command_start_autosample(self, *args, **kwargs):
@@ -1332,7 +1334,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         result = None
 
         timeout = kwargs.get('timeout', TIMEOUT)
-        prompt = self._wakeup(timeout=TIMEOUT)
+        prompt = self._wakeup(timeout=3)
 
         self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
 
@@ -1346,7 +1348,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         kwargs['timeout'] = 30
         kwargs['expected_prompt'] = '>\r\n>' # special one off prompt.
 
-        prompt = self._wakeup(timeout=TIMEOUT)
+        prompt = self._wakeup(timeout=3)
         (result, last_sample) = self._do_cmd_resp(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
 
         decoded_last_sample = base64.b64decode(last_sample)
