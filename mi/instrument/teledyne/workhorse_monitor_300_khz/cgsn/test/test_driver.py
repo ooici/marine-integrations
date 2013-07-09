@@ -421,7 +421,7 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: Data particle of unkown type produced by the driver
         '''
 
-        if (isinstance(data_particle, DataParticleType.ADCP_PD0_PARSED_EARTH)):
+        if (isinstance(data_particle, DataParticleType.ADCP_PD0_PARSED_BEAM)):
             self.assert_particle_pd0_data(data_particle)
         elif (isinstance(data_particle, DataParticleType.ADCP_SYSTEM_CONFIGURATION)):
             self.assert_particle_system_configuration(data_particle)
@@ -896,9 +896,15 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         Verify autosample works and data particles are created
         """
         self.assert_enter_command_mode()
+
+
+
+        self.assert_set_parameter(Parameter.TIME_PER_ENSEMBLE, '00:01:00.00', True) 
+        self.assert_set_parameter(Parameter.TIME_PER_PING, '00:30.00', True) 
+        
         self.assert_start_autosample()
 
-        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=50) # ADCP_PD0_PARSED_BEAM
+        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data, timeout=200) 
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=50)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=50)
 
@@ -909,12 +915,12 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
 
         # Restart autosample and gather a couple samples
-        self.assert_sample_autosample(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_EARTH)
+        self.assert_sample_autosample(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_BEAM)
 
     def assert_cycle(self):
         self.assert_start_autosample()
 
-        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=200)
+        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data, timeout=200)
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=50)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=50)
 

@@ -136,37 +136,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
     #
 
     _tested = {}
-    """
-    _driver_parameter_defaults = {
-        #Parameter.SERIAL_DATA_OUT: None,
-        Parameter.INSTRUMENT_ID: 0,
-        Parameter.XMIT_POWER: 255,
-        Parameter.SPEED_OF_SOUND: 1500,
-        Parameter.SALINITY: 35,
-        Parameter.COORDINATE_TRANSFORMATION: '11111',
-        Parameter.SENSOR_SOURCE: "1111101",
-        Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
-        Parameter.TIME_OF_FIRST_PING: None,
-        Parameter.TIME_PER_PING: '00:01.00',
-        #Parameter.TIME: False,
-        Parameter.FALSE_TARGET_THRESHOLD: '050,001',
-        Parameter.BANDWIDTH_CONTROL: 0,
-        Parameter.CORRELATION_THRESHOLD: 64,
-        Parameter.SERIAL_OUT_FW_SWITCHES: '111100000',
-        Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
-        Parameter.BLANK_AFTER_TRANSMIT: 704,
-        Parameter.CLIP_DATA_PAST_BOTTOM: 0,
-        Parameter.RECEIVER_GAIN_SELECT: 1,
-        Parameter.WATER_REFERENCE_LAYER: '001,005',
-        Parameter.WATER_PROFILING_MODE: 1,
-        Parameter.NUMBER_OF_DEPTH_CELLS: 100,
-        Parameter.PINGS_PER_ENSEMBLE: 1,
-        Parameter.DEPTH_CELL_SIZE: 800,
-        Parameter.TRANSMIT_LENGTH: 0,
-        Parameter.PING_WEIGHT: 0,
-        Parameter.AMBIGUITY_VELOCITY: 175,
-    }
-    """
+
     def setUp(self):
         TeledyneIntegrationTest.setUp(self)
 
@@ -574,6 +544,19 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         """
         self.assert_enter_command_mode()
 
+        params = {}
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if False == self._driver_parameters[k][self.READONLY]:
+                    self.assert_get_parameter(k, self._driver_parameters[k][self.VALUE])
+                    log.error("VERIFYING %s is set to %s appropriately ", k, str(self._driver_parameters[k][self.VALUE]))
+
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if False == self._driver_parameters[k][self.READONLY]:
+                    self.assert_set_parameter(k, self._driver_parameters[k][self.OFF_VALUE])
+                    log.error("VERIFYING %s is set to %s appropriately ", k, str(self._driver_parameters[k][self.OFF_VALUE]))
+        """
         self.assert_get_parameter(Parameter.SERIAL_FLOW_CONTROL, '11110') # Immutable
         self.assert_get_parameter(Parameter.BANNER, False)
         self.assert_get_parameter(Parameter.INSTRUMENT_ID, 0)
@@ -628,7 +611,8 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_set_parameter(Parameter.DEPTH_CELL_SIZE, 790)
         self.assert_set_parameter(Parameter.TRANSMIT_LENGTH, 1)
         self.assert_set_parameter(Parameter.PING_WEIGHT, 1)
-        self.assert_set_parameter(Parameter.AMBIGUITY_VELOCITY, 176)
+        self.assert_set_parameter(Parameter.AMBIGUITY_VELOCITY, 176)*/
+        """
 
     def test_startup_params_second_pass(self):
         """

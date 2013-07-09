@@ -202,7 +202,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         """
         Parse the base portion of the particle
         """
-        log.debug("ADCP_PD0_PARSED_DataParticle._build_parsed_values")
+        log.error("****** ADCP_PD0_PARSED_DataParticle._build_parsed_values ******")
         if "[BREAK Wakeup A]" in self.raw_data:
             raise SampleException("BREAK encountered, Seems someone is escaping autosample mode.")
 
@@ -758,10 +758,10 @@ class ADCP_SYSTEM_CONFIGURATION_KEY(BaseEnum):
     BEAM_PATTERN = "beam_pattern"
     ORIENTATION = "orientation"
     SENSORS = "sensors"
-    PRESSURE_COEFF_c3 = "pressure_coeff_c3"
-    PRESSURE_COEFF_c2 = "pressure_coeff_c2"
-    PRESSURE_COEFF_c1 = "pressure_coeff_c1"
-    PRESSURE_COEFF_OFFSET = "pressure_coeff_offset"
+    #PRESSURE_COEFF_c3 = "pressure_coeff_c3"
+    #PRESSURE_COEFF_c2 = "pressure_coeff_c2"
+    #PRESSURE_COEFF_c1 = "pressure_coeff_c1"
+   # PRESSURE_COEFF_OFFSET = "pressure_coeff_offset"
     TEMPERATURE_SENSOR_OFFSET = "temperature_sensor_offset"
     CPU_FIRMWARE = "cpu_firmware"
     BOOT_CODE_REQUIRED = "boot_code_required"
