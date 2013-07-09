@@ -1073,6 +1073,7 @@ class InstrumentDriverTestCase(MiIntTestCase):
             log.debug("after 'process_echo'")
 
             startup_config = driver_config.get('startup_config')
+            log.debug("Setting Startup Params: %s", startup_config)
             retval = driver_client.cmd_dvr('set_init_params', startup_config)
 
             self.driver_client = driver_client
@@ -1164,6 +1165,10 @@ class InstrumentDriverTestCase(MiIntTestCase):
         '''
         sample_length = len(sample)
         self.assertGreater(fragment_size, 0)
+
+        # If the sample length is less then the fragment size then we aren't going to fragment the sample and
+        # this test isn't verifying what we are trying to verify.
+        self.assertGreater(sample_length, fragment_size, msg="Fragment size must be greater than sample length")
         timestamps = []
 
         i = 0
@@ -1822,7 +1827,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         """
         self.assert_set_exception(param, value, exception_class=exception_class)
 
-    def assert_driver_command(self, command, expected=None, regex=None, value_function=None, state=None, delay=0):
+    def assert_driver_command(self, command, expected=None, regex=None, value_function=None, state=None, delay=0, regex_options=re.DOTALL, assert_function=None):
         """
         Verify that we can run a command and that the reply matches if we have
         passed on in.  If we couldn't execute a command we assume an exception
@@ -1830,6 +1835,11 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @param command: driver command to execute
         @param expected: expected reply from the command
         @param regex: regex to match reply
+        @param value_function: function that will return a value to be tested
+        @param state: desired protocol state after the command is run.
+        @param delay: how long to wait, in seconds, after the command is executed before we can run tests
+        @param regex_options: options to pass to the regular expression compile
+        @param assert_function: assert method to call
         """
         # Execute the command
         reply = self.driver_client.cmd_dvr('execute_resource', command, )
@@ -1856,7 +1866,8 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         if(regex != None):
             log.debug("command reply: %s", value)
             self.assertIsNotNone(value)
-            self.assertRegexpMatches(value, regex)
+            compiled = re.compile(regex, regex_options)
+            self.assertRegexpMatches(value, compiled)
 
         if(state != None):
             self.assert_current_state(state)
@@ -1975,6 +1986,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         # Walk the driver to command mode.
         self.assert_initialize_driver()
+
         # We explicitly call apply startup params because we don't know if the
         # driver does it for us.  It should, but it is tested in another test.
         self.driver_client.cmd_dvr('apply_startup_params')
@@ -2060,7 +2072,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         InstrumentDriverTestCase.setUp(self)
 
         self.init_port_agent()
-        self.instrument_agent_manager = InstrumentAgentClient();
+        self.instrument_agent_manager = InstrumentAgentClient()
         self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
 
         self.container = self.instrument_agent_manager.container
@@ -2111,6 +2123,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             'test_mode' : True  ## Enable a poison pill. If the spawning process dies
             ## shutdown the daemon process.
         }
+
+        log.debug("Agent Config: %s", agent_config)
 
         # Start instrument agent client.
         self.instrument_agent_manager.start_client(
@@ -2873,7 +2887,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assert_reset()
 
         self.assert_enter_command_mode()
-        self.assert_direct_access_start_telnet(timeout=600)
+        self.assert_direct_access_start_telnet(inactivity_timeout=60, session_timeout=60)
+        self.assert_state_change(ResourceAgentState.DIRECT_ACCESS, DriverProtocolState.DIRECT_ACCESS, 30)
         self.assert_reset()
 
     @unittest.skip("Transaction management not yet implemented")
