@@ -70,7 +70,6 @@ class DataParticleType(BaseEnum):
     SAMI_SAMPLE = 'sami_sample'
     DEV1_SAMPLE = 'dev1_sample'
     CONFIGURATION = 'configuration'
-    ERROR_CODE = 'error_code'
 
 
 class ProtocolState(BaseEnum):
