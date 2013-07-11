@@ -634,6 +634,13 @@ class EggGenerator:
                                                           self.metadata.driver_name,
                                                           self.metadata.version)
 
+            # Remove all pyc files from the egg.  There was a jira case that suggested
+            # including the compiled py files caused the drivers to run slower.
+            # https://jira.oceanobservatories.org/tasks/browse/OOIION-1167
+            cmd = "zip %s -d \*.pyc" % egg_file
+            log.info("CMD: %s" % cmd)
+            os.system(cmd)
+
         except ValidationFailure, e:
             log.error("Failed egg verification: %s" % e )
             return None

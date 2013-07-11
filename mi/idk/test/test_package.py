@@ -17,6 +17,8 @@ from shutil import rmtree
 from os.path import basename, dirname
 from os import makedirs, path, remove
 from os.path import exists
+from zipfile import ZipFile
+from shutil import copyfile
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -441,8 +443,8 @@ class TestDriverEggGenerator(IDKPackageNose):
 
     def tearDown(self):
         IDKPackageNose.tearDown(self)
-        if exists(self._generator._build_dir()):
-            rmtree(self._generator._build_dir())
+        #if exists(self._generator._build_dir()):
+        #    rmtree(self._generator._build_dir())
 
 
     def test_path(self):
@@ -496,13 +498,42 @@ class TestDriverEggGenerator(IDKPackageNose):
 
 
     def test_egg_build(self):
-        files = [ 'mi/instrument/seabird/sbe37smb/ooicore/driver.py',
-                  'mi/instrument/seabird/sbe37smb/ooicore/test/test_driver.py',
-                  'res/config/mi-logging.yml',
-                  'resource/strings.yml']
+        '''
+        Build an egg with some python source files.  Verify the
+        egg was created properly and contains all expected files.
+        @return:
+        '''
+        files = [ 'mi/__init__.py',
+                  'mi/idk/__init__.py',
+                  'mi/idk/config.py',
+                  'res/config/mi-logging.yml']
+
+        egg_files = [
+            'EGG-INFO/dependency_links.txt',
+            'EGG-INFO/entry_points.txt',
+            'EGG-INFO/PKG-INFO',
+            'EGG-INFO/requires.txt',
+            'EGG-INFO/SOURCES.txt',
+            'EGG-INFO/top_level.txt',
+            'EGG-INFO/zip-safe',
+            'mi/main.py',
+            'mi/mi-logging.yml',
+        ]
 
         egg_file = self._generator._build_egg(files)
         self.assertTrue(exists(egg_file))
+
+        # Verify that the files in the egg are what we expect.
+        zipped = ZipFile(egg_file)
+
+        # this files is actually moved to mi/mi-logging.yml and appears
+        # in the egg_files list.
+        files.remove('res/config/mi-logging.yml')
+
+        log.debug("EGG FILES: %s", sorted(zipped.namelist()))
+        log.debug("EXP FILES: %s", sorted(files + egg_files))
+
+        self.assertListEqual(sorted(zipped.namelist()), sorted(files + egg_files))
 
     def test_sbe37_egg(self):
         egg_file = self._generator.save()
