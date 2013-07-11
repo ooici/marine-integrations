@@ -14,25 +14,19 @@ __license__ = 'Apache 2.0'
 
 import re
 import string
-import time
-import datetime
-import calendar
-import sys      # Exceptions
-import copy
-from threading import RLock
 
 from mi.core.log import get_logger
 log = get_logger()
 
-from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
+
+from mi.core.common import BaseEnum
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -40,8 +34,12 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.protocol_param_dict import ParameterDictType
+from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import FunctionParameter
+
 from mi.core.time import get_timestamp
 from mi.core.time import get_timestamp_delayed
 
@@ -80,8 +78,8 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    ACQUIRE_SAMPLE = 'PROTOCOL_STATE_BUSY'
-    POLLING_SAMPLE = 'PROTOCOL_STATE_BUSY'
+    SCHEDULED_SAMPLE = 'PROTOCOL_STATE_SCHEDULED_SAMPLE'
+    POLLED_SAMPLE = 'PROTOCOL_STATE_POLLED_SAMPLE'
 
 
 class ProtocolEvent(BaseEnum):
@@ -185,19 +183,19 @@ REGULAR_STATUS_REGEX = r'[:]([0-9A-Fa-f]{8})([0-9A-Fa-f]{4})([0-9A-Fa-f]{6})' + 
 REGULAR_STATUS_REGEX_MATCHER = re.compile(REGULAR_STATUS_REGEX)
 
 # Control Records (Types 0x80 - 0xFF)
-CONTROL_RECORD_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([8-9A-Fa-f][0-9A-Fa-f])' + \
+CONTROL_RECORD_REGEX = r'[*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([8-9A-Fa-f][0-9A-Fa-f])' + \
                        '([0-9A-Fa-f]{8})([0-9A-Fa-f]{4})([0-9A-Fa-f]{6})' + \
                        '([0-9A-Fa-f]{6})([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})' + NEWLINE
 CONTROL_RECORD_REGEX_MATCHER = re.compile(CONTROL_RECORD_REGEX)
 
 # SAMI Sample Records (Types 0x04 or 0x05)
-SAMI_SAMPLE_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(04|05)' + \
+SAMI_SAMPLE_REGEX = r'[*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(04|05)' + \
                     '([0-9A-Fa-f]{8})([0-9A-Fa-f]{56})([0-9A-Fa-f]{4})' + \
                     '([0-9A-Fa-f]{4})([0-9A-Fa-f]{2})' + NEWLINE
 SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
 
 # Device 1 Sample Records (Type 0x11)
-DEV1_SAMPLE_REGEX = r'[\*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(11)([0-9A-Fa-f]{8})([0-9A-Fa-f]{2})' + NEWLINE
+DEV1_SAMPLE_REGEX = r'[*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(11)([0-9A-Fa-f]{8})([0-9A-Fa-f]{2})' + NEWLINE
 DEV1_SAMPLE_REGEX_MATCHER = re.compile(DEV1_SAMPLE_REGEX)
 
 # Configuration Records
@@ -799,19 +797,19 @@ class Protocol(CommandResponseInstrumentProtocol):
         # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
         # while in the AUTOSAMPLE state and will last anywhere from 10 seconds
         # to 3 minutes depending on instrument and sample type.
-        self._protocol_fsm.add_handler(ProtocolState.ACQUIRE_SAMPLE, ProtocolEvent.ENTER,
-                                       self._handler_acquire_sample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.ACQUIRE_SAMPLE, ProtocolEvent.EXIT,
-                                       self._handler_acquire_sample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.ENTER,
+                                       self._handler_scheduled_sample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.EXIT,
+                                       self._handler_scheduled_sample_exit)
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
         # while in either the COMMAND or via the discover transition from the
         # UNKNOWN state and will last anywhere from 10 seconds to 3 minutes
         # depending on instrument and sample type.
-        self._protocol_fsm.add_handler(ProtocolState.POLLING_SAMPLE, ProtocolEvent.ENTER,
-                                       self._handler_polling_sample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.POLLING_SAMPLE, ProtocolEvent.EXIT,
-                                       self._handler_polling_sample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.ENTER,
+                                       self._handler_polled_sample_enter)
+        self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.EXIT,
+                                       self._handler_polled_sample_exit)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -857,6 +855,292 @@ class Protocol(CommandResponseInstrumentProtocol):
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
+        self._param_dict = ProtocolParameterDict()
+
+#        CONFIGURATION_REGEX = r'([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})' + \
+#                      '([0-9A-Fa-f]{2})' + \
+#                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+#                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+#                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+#                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+#                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+#                      '([0-9A-Fa-f]{2})' + \
+#                      '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+#                      '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+#                      '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+#                      '([0-9A-Fa-f]{2})' + \
+#                      '([0-9A-Fa-f]+)' + NEWLINE
+#CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
+
+        self._param_dict.add(Parameter.LAUNCH_TIME, r'([0-9A-Fa-f]{8})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='00000000',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='launch time')
+
+        self._param_dict.add(Parameter.START_TIME_FROM_LAUNCH, r'([0-9A-Fa-f]{8})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='start time after launch time')
+
+        self._param_dict.add(Parameter.STOP_TIME_FROM_START, r'([0-9A-Fa-f]{8})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='stop time after start time')
+
+        self._param_dict.add(Parameter.MODE_BITS, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='02',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.SAMI_SAMPLE_INTERVAL, r'([0-9A-Fa-f]{6})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='000E10',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.SAMI_DRIVER_VERSION, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='04',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.SAMI_PARAMS_POINTER, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='02',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.DEVICE1_SAMPLE_INTERVAL, r'([0-9A-Fa-f]{6})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.DEVICE1_DRIVER_VERSION, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.DEVICE1_PARAMS_POINTER, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.DEVICE2_SAMPLE_INTERVAL, r'([0-9A-Fa-f]{6})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.DEVICE2_DRIVER_VERSION, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.DEVICE2_PARAMS_POINTER, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.DEVICE3_SAMPLE_INTERVAL, r'([0-9A-Fa-f]{6})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.DEVICE3_DRIVER_VERSION, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.DEVICE3_PARAMS_POINTER, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.PRESTART_SAMPLE_INTERVAL, r'([0-9A-Fa-f]{6})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.PRESTART_DRIVER_VERSION, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.PRESTART_PARAMS_POINTER, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.GLOBAL_CONFIGURATION, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.PUMP_PULSE, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.PUMP_DURATION, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.SAMPLES_PER_MEASUREMENT, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.CYCLES_BETWEEN_BLANKS, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.NUMBER_REAGENT_CYCLES, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.NUMBER_BLANK_CYCLES, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.FLUSH_PUMP_INTERVAL, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.BIT_SWITCHES, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.NUMBER_EXTRA_PUMP_CYCLES, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
+
+        self._param_dict.add(Parameter.EXTERNAL_PUMP_SETTINGS, r'([0-9A-Fa-f]{2})',
+                             lambda match: match.group(1),
+                             str, type=ParameterDictType.STRING,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value='01E13380',
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='')
 
     def _got_chunk(self, chunk, timestamp):
         """
@@ -1066,7 +1350,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Acquire Sample handlers.
     ########################################################################
 
-    def _handler_acquire_sample_enter(self, *args, **kwargs):
+    def _handler_scheduled_sample_enter(self, *args, **kwargs):
         """
         Enter busy state.
         """
@@ -1076,7 +1360,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._sent_cmds = []
 
-    def _handler_acquire_sample_exit(self, *args, **kwargs):
+    def _handler_scheduled_sample_exit(self, *args, **kwargs):
         """
         Exit busy state.
         """
@@ -1086,7 +1370,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     # polled Sample handlers.
     ########################################################################
 
-    def _handler_polling_sample_enter(self, *args, **kwargs):
+    def _handler_polled_sample_enter(self, *args, **kwargs):
         """
         Enter busy state.
         """
@@ -1096,7 +1380,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._sent_cmds = []
 
-    def _handler_polling_sample_exit(self, *args, **kwargs):
+    def _handler_polled_sample_exit(self, *args, **kwargs):
         """
         Exit busy state.
         """

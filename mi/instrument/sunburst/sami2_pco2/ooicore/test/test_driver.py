@@ -228,11 +228,11 @@ class DriverTestMixinSub(DriverTestMixin):
     # [TODO] Consider moving to base class as these apply to both PCO2 and pH
     _driver_capabilities = {
         # capabilities defined in the IOS
-        Capability.ACQUIRE_STATUS:      {STATES: [ProtocolState.COMMAND]},
-        Capability.START_DIRECT:      {STATES: [ProtocolState.COMMAND,
-                                                ProtocolState.DIRECT_ACCESS]},
-        Capability.STOP_DIRECT:      {STATES: [ProtocolState.DIRECT_ACCESS,
-                                               ProtocolState.COMMAND]}
+        Capability.ACQUIRE_STATUS:  {STATES: [ProtocolState.COMMAND]},
+        Capability.START_DIRECT:    {STATES: [ProtocolState.COMMAND,
+                                              ProtocolState.DIRECT_ACCESS]},
+        Capability.STOP_DIRECT:     {STATES: [ProtocolState.DIRECT_ACCESS,
+                                              ProtocolState.COMMAND]}
     }
 
     # [TODO] Consider moving to base class as these apply to both PCO2 and pH
@@ -535,7 +535,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
 
         self.assert_chunker_sample(chunker, self.VALID_STATUS_MESSAGE)
         self.assert_chunker_sample_with_noise(chunker, self.VALID_STATUS_MESSAGE)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_STATUS_MESSAGE, 32)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_STATUS_MESSAGE, 16)
         self.assert_chunker_combined_sample(chunker, self.VALID_STATUS_MESSAGE)
 
         self.assert_chunker_sample(chunker, self.VALID_CONTROL_RECORD)
@@ -626,8 +626,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
                                              'DRIVER_EVENT_STOP_AUTOSAMPLE'],
             ProtocolState.DIRECT_ACCESS:    ['EXECUTE_DIRECT',
                                              'DRIVER_EVENT_STOP_DIRECT'],
-            ProtocolState.ACQUIRE_SAMPLE:   [],
-            ProtocolState.POLLING_SAMPLE:   []
+            ProtocolState.SCHEDULED_SAMPLE: [],
+            ProtocolState.POLLED_SAMPLE:    []
         }
 
         driver = InstrumentDriver(self._got_data_event_callback)
