@@ -443,8 +443,8 @@ class TestDriverEggGenerator(IDKPackageNose):
 
     def tearDown(self):
         IDKPackageNose.tearDown(self)
-        #if exists(self._generator._build_dir()):
-        #    rmtree(self._generator._build_dir())
+        if exists(self._generator._build_dir()):
+            rmtree(self._generator._build_dir())
 
 
     def test_path(self):
