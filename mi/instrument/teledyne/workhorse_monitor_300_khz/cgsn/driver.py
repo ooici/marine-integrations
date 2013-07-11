@@ -283,7 +283,9 @@ class Protocol(WorkhorseProtocol):
             display_name="Time",
             direct_access=False,
             startup_param=False,
-            expiration=86400, # Once per day
+            expiration=5, #86400, # Once per day
+            # Setting expiration to once per day breaks the test_set_clock as 
+            # it short circuits the setting due to a prior one on instrument startup.
             visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.BUFFER_OUTPUT_PERIOD,

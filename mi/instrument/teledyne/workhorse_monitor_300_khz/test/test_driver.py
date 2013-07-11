@@ -398,11 +398,16 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
 
+    # works
     def test_cycle(self):
         """
         Verify we can bounce between command and streaming.  We try it a few times to see if we can find a timeout.
         """
         self.assert_enter_command_mode()
+
+        # over ride some of the settings to make autosample sample faster... 1 hour is way too long.
+        self.assert_set_parameter(Parameter.TIME_PER_ENSEMBLE, '00:01:00.00', True) 
+        self.assert_set_parameter(Parameter.TIME_PER_PING, '00:30.00', True) 
 
         self.assert_cycle()
         self.assert_cycle()
@@ -422,7 +427,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         if(verify):
             result = self.instrument_agent_client.get_resource(getParams, timeout=300)
             self.assertEqual(result[name], value)
-
+    # works
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -445,6 +450,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1488)
 
+    # works
     def test_execute_clock_sync(self):
         """
         Verify we can syncronize the instrument internal clock
@@ -460,6 +466,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 15)
 
+    # works
     # this will probably need to move up to the leaf level.
     def test_get_capabilities(self):
         """
@@ -486,6 +493,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
                 ProtocolEvent.GET_ERROR_STATUS_WORD,
                 ProtocolEvent.GET_FAULT_LOG,
                 ProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX,
+                ProtocolEvent.POWER_DOWN,
                 ProtocolEvent.RUN_TEST_200,
                 ProtocolEvent.SAVE_SETUP_TO_RAM,
                 ProtocolEvent.SEND_LAST_SAMPLE
@@ -532,7 +540,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
-
+    # works
     def test_startup_params_first_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -543,77 +551,20 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         since nose orders the tests by ascii value this should run second.
         """
         self.assert_enter_command_mode()
-
         params = {}
         for k in self._driver_parameters.keys():
             if self.VALUE in self._driver_parameters[k]:
                 if False == self._driver_parameters[k][self.READONLY]:
                     self.assert_get_parameter(k, self._driver_parameters[k][self.VALUE])
-                    log.error("VERIFYING %s is set to %s appropriately ", k, str(self._driver_parameters[k][self.VALUE]))
+                    log.error("VERIFYING %s was set to %s appropriately ", k, str(self._driver_parameters[k][self.VALUE]))
 
         for k in self._driver_parameters.keys():
             if self.VALUE in self._driver_parameters[k]:
                 if False == self._driver_parameters[k][self.READONLY]:
                     self.assert_set_parameter(k, self._driver_parameters[k][self.OFF_VALUE])
-                    log.error("VERIFYING %s is set to %s appropriately ", k, str(self._driver_parameters[k][self.OFF_VALUE]))
-        """
-        self.assert_get_parameter(Parameter.SERIAL_FLOW_CONTROL, '11110') # Immutable
-        self.assert_get_parameter(Parameter.BANNER, False)
-        self.assert_get_parameter(Parameter.INSTRUMENT_ID, 0)
-        self.assert_get_parameter(Parameter.SLEEP_ENABLE, 0)
-        self.assert_get_parameter(Parameter.SAVE_NVRAM_TO_RECORDER, True) # Immutable
-        self.assert_get_parameter(Parameter.POLLED_MODE, False)
-        self.assert_get_parameter(Parameter.XMIT_POWER, 255)
-        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1500)
-        self.assert_get_parameter(Parameter.PITCH, 0)
-        self.assert_get_parameter(Parameter.ROLL, 0)
-        self.assert_get_parameter(Parameter.SALINITY, 35)
-        self.assert_get_parameter(Parameter.TIME_PER_ENSEMBLE, '00:00:00.00')
-        self.assert_get_parameter(Parameter.TIME_PER_PING, '00:01.00')
-        self.assert_get_parameter(Parameter.FALSE_TARGET_THRESHOLD, '050,001')
-        self.assert_get_parameter(Parameter.BANDWIDTH_CONTROL, 0)
-        self.assert_get_parameter(Parameter.CORRELATION_THRESHOLD, 64)
-        self.assert_get_parameter(Parameter.SERIAL_OUT_FW_SWITCHES, '111100000') # Immutable
-        self.assert_get_parameter(Parameter.ERROR_VELOCITY_THRESHOLD, 2000)
-        self.assert_get_parameter(Parameter.BLANK_AFTER_TRANSMIT, 704)
-        self.assert_get_parameter(Parameter.CLIP_DATA_PAST_BOTTOM, 0)
-        self.assert_get_parameter(Parameter.RECEIVER_GAIN_SELECT, 1)
-        self.assert_get_parameter(Parameter.WATER_REFERENCE_LAYER, '001,005')
-        self.assert_get_parameter(Parameter.WATER_PROFILING_MODE, 1) # Immutable
-        self.assert_get_parameter(Parameter.NUMBER_OF_DEPTH_CELLS, 100)
-        self.assert_get_parameter(Parameter.PINGS_PER_ENSEMBLE, 1)
-        self.assert_get_parameter(Parameter.DEPTH_CELL_SIZE, 800)
-        self.assert_get_parameter(Parameter.TRANSMIT_LENGTH, 0)
-        self.assert_get_parameter(Parameter.PING_WEIGHT, 0)
-        self.assert_get_parameter(Parameter.AMBIGUITY_VELOCITY, 175)
+                    log.error("SETTING %s to OFF_VALUE of %s ", k, str(self._driver_parameters[k][self.OFF_VALUE]))
 
-        # Change these values anyway just in case it ran first.
-        self.assert_set_parameter(Parameter.INSTRUMENT_ID, 1)
-        self.assert_set_parameter(Parameter.SLEEP_ENABLE, 1)
-        self.assert_set_parameter(Parameter.POLLED_MODE, True)
-        self.assert_set_parameter(Parameter.XMIT_POWER, 250)
-        self.assert_set_parameter(Parameter.SPEED_OF_SOUND, 1480)
-        self.assert_set_parameter(Parameter.PITCH, 1)
-        self.assert_set_parameter(Parameter.ROLL, 1)
-        self.assert_set_parameter(Parameter.SALINITY, 36)
-        self.assert_set_parameter(Parameter.TIME_PER_ENSEMBLE, '00:00:01.00')
-        self.assert_set_parameter(Parameter.TIME_PER_PING, '00:02.00')
-        self.assert_set_parameter(Parameter.FALSE_TARGET_THRESHOLD, '049,002')
-        self.assert_set_parameter(Parameter.BANDWIDTH_CONTROL, 1)
-        self.assert_set_parameter(Parameter.CORRELATION_THRESHOLD, 63)
-        self.assert_set_parameter(Parameter.ERROR_VELOCITY_THRESHOLD, 1999)
-        self.assert_set_parameter(Parameter.BLANK_AFTER_TRANSMIT, 714)
-        self.assert_set_parameter(Parameter.CLIP_DATA_PAST_BOTTOM, 1)
-        self.assert_set_parameter(Parameter.RECEIVER_GAIN_SELECT, 0)
-        self.assert_set_parameter(Parameter.WATER_REFERENCE_LAYER, '002,006')
-        self.assert_set_parameter(Parameter.NUMBER_OF_DEPTH_CELLS, 99)
-        self.assert_set_parameter(Parameter.PINGS_PER_ENSEMBLE, 0)
-        self.assert_set_parameter(Parameter.DEPTH_CELL_SIZE, 790)
-        self.assert_set_parameter(Parameter.TRANSMIT_LENGTH, 1)
-        self.assert_set_parameter(Parameter.PING_WEIGHT, 1)
-        self.assert_set_parameter(Parameter.AMBIGUITY_VELOCITY, 176)*/
-        """
-
+    # works
     def test_startup_params_second_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -624,62 +575,20 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         since nose orders the tests by ascii value this should run second.
         """
         self.assert_enter_command_mode()
+        params = {}
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if False == self._driver_parameters[k][self.READONLY]:
+                    self.assert_get_parameter(k, self._driver_parameters[k][self.VALUE])
+                    log.error("VERIFYING %s was set to %s appropriately ", k, str(self._driver_parameters[k][self.VALUE]))
 
-        self.assert_get_parameter(Parameter.SERIAL_FLOW_CONTROL, '11110') # Immutable
-        self.assert_get_parameter(Parameter.BANNER, False)
-        self.assert_get_parameter(Parameter.INSTRUMENT_ID, 0)
-        self.assert_get_parameter(Parameter.SLEEP_ENABLE, 0)
-        self.assert_get_parameter(Parameter.SAVE_NVRAM_TO_RECORDER, True) # Immutable
-        self.assert_get_parameter(Parameter.POLLED_MODE, False)
-        self.assert_get_parameter(Parameter.XMIT_POWER, 255)
-        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1500)
-        self.assert_get_parameter(Parameter.PITCH, 0)
-        self.assert_get_parameter(Parameter.ROLL, 0)
-        self.assert_get_parameter(Parameter.SALINITY, 35)
-        self.assert_get_parameter(Parameter.TIME_PER_ENSEMBLE, '00:00:00.00')
-        self.assert_get_parameter(Parameter.TIME_PER_PING, '00:01.00')
-        self.assert_get_parameter(Parameter.FALSE_TARGET_THRESHOLD, '050,001')
-        self.assert_get_parameter(Parameter.BANDWIDTH_CONTROL, 0)
-        self.assert_get_parameter(Parameter.CORRELATION_THRESHOLD, 64)
-        self.assert_get_parameter(Parameter.SERIAL_OUT_FW_SWITCHES, '111100000') # Immutable
-        self.assert_get_parameter(Parameter.ERROR_VELOCITY_THRESHOLD, 2000)
-        self.assert_get_parameter(Parameter.BLANK_AFTER_TRANSMIT, 704)
-        self.assert_get_parameter(Parameter.CLIP_DATA_PAST_BOTTOM, 0)
-        self.assert_get_parameter(Parameter.RECEIVER_GAIN_SELECT, 1)
-        self.assert_get_parameter(Parameter.WATER_REFERENCE_LAYER, '001,005')
-        self.assert_get_parameter(Parameter.WATER_PROFILING_MODE, 1) # Immutable
-        self.assert_get_parameter(Parameter.NUMBER_OF_DEPTH_CELLS, 100)
-        self.assert_get_parameter(Parameter.PINGS_PER_ENSEMBLE, 1)
-        self.assert_get_parameter(Parameter.DEPTH_CELL_SIZE, 800)
-        self.assert_get_parameter(Parameter.TRANSMIT_LENGTH, 0)
-        self.assert_get_parameter(Parameter.PING_WEIGHT, 0)
-        self.assert_get_parameter(Parameter.AMBIGUITY_VELOCITY, 175)
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if False == self._driver_parameters[k][self.READONLY]:
+                    self.assert_set_parameter(k, self._driver_parameters[k][self.OFF_VALUE])
+                    log.error("SETTING %s to OFF_VALUE of %s ", k, str(self._driver_parameters[k][self.OFF_VALUE]))
 
-        # Change these values anyway just in case it ran first.
-        self.assert_set_parameter(Parameter.INSTRUMENT_ID, 1)
-        self.assert_set_parameter(Parameter.SLEEP_ENABLE, 1)
-        self.assert_set_parameter(Parameter.POLLED_MODE, True)
-        self.assert_set_parameter(Parameter.XMIT_POWER, 250)
-        self.assert_set_parameter(Parameter.SPEED_OF_SOUND, 1480)
-        self.assert_set_parameter(Parameter.PITCH, 1)
-        self.assert_set_parameter(Parameter.ROLL, 1)
-        self.assert_set_parameter(Parameter.SALINITY, 36)
-        self.assert_set_parameter(Parameter.TIME_PER_ENSEMBLE, '00:00:01.00')
-        self.assert_set_parameter(Parameter.TIME_PER_PING, '00:02.00')
-        self.assert_set_parameter(Parameter.FALSE_TARGET_THRESHOLD, '049,002')
-        self.assert_set_parameter(Parameter.BANDWIDTH_CONTROL, 1)
-        self.assert_set_parameter(Parameter.CORRELATION_THRESHOLD, 63)
-        self.assert_set_parameter(Parameter.ERROR_VELOCITY_THRESHOLD, 1999)
-        self.assert_set_parameter(Parameter.BLANK_AFTER_TRANSMIT, 714)
-        self.assert_set_parameter(Parameter.CLIP_DATA_PAST_BOTTOM, 1)
-        self.assert_set_parameter(Parameter.RECEIVER_GAIN_SELECT, 0)
-        self.assert_set_parameter(Parameter.WATER_REFERENCE_LAYER, '002,006')
-        self.assert_set_parameter(Parameter.NUMBER_OF_DEPTH_CELLS, 99)
-        self.assert_set_parameter(Parameter.PINGS_PER_ENSEMBLE, 0)
-        self.assert_set_parameter(Parameter.DEPTH_CELL_SIZE, 790)
-        self.assert_set_parameter(Parameter.TRANSMIT_LENGTH, 1)
-        self.assert_set_parameter(Parameter.PING_WEIGHT, 1)
-        self.assert_set_parameter(Parameter.AMBIGUITY_VELOCITY, 176)
+
 
 
 ###############################################################################

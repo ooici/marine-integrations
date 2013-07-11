@@ -1335,9 +1335,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         timeout = kwargs.get('timeout', TIMEOUT)
         prompt = self._wakeup(timeout=3)
-
+        log.error("SYNC CLOCK")
         self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
-
+        log.error("SYNC CLOCK DONE")
         return (next_state, (next_agent_state, result))
 
     def _handler_command_send_last_sample(self, *args, **kwargs):
