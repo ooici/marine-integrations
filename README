@@ -33,9 +33,9 @@ INSTALL prequisite software for COI-services
        export WORKON_HOME=$HOME/OOICI/virtenvs
        . /usr/local/share/python/virtualenvwrapper.sh
 - setup a virtual environment to work in.
-    mkvirtualenv --no-site-packages --python=python2.7 ooi
+    mkvirtualenv --distribute --no-site-packages --python=python2.7 ooi
     workon ooi
-    pip install numpy==1.6.2
+    pip install numpy==1.7.1
 
 INSTALL
 =======
