@@ -72,9 +72,22 @@ class TestUnitStringsDict(MiUnitTestCase):
         self.assertTrue(result)
         self._assert_metadata_change()        
         
-    def test_metadata_load_default(self):
-        result = self.param_dict.load_strings()
+    def test_metadata_load_devel_path(self):
+        # test bad paths
+        result = self.param_dict.load_strings(devel_path="foo/resource/strings.yml")
+        self.assertFalse(result)
+        result = self.param_dict.load_strings(devel_path="../resource/strings.yml")
+        self.assertFalse(result)
+        result = self.param_dict.load_strings(devel_path="strings.yml")
+        self.assertFalse(result)
+        # test good path
+        result = self.param_dict.load_strings(devel_path="resource/test_strings.yml")
         self.assertTrue(result)
         self._assert_metadata_change()
+
+    def test_metadata_load_default(self):
+        # if you dont have an argument, you only have a chance of looking in an egg
+        result = self.param_dict.load_strings()
+        self.assertFalse(result)
 
 

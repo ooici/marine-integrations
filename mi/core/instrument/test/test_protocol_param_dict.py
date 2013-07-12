@@ -11,13 +11,10 @@ __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
 import json
-import time
 import re
-import os
 
 from ooi.logging import log
 from nose.plugins.attrib import attr
-from mi.core.unit_test import MiUnitTestCase
 from mi.core.instrument.test.test_strings import TestUnitStringsDict
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentParameterExpirationException
@@ -26,7 +23,6 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictKey
 from mi.core.instrument.protocol_param_dict import Parameter, FunctionParameter, RegexParameter
-from mi.core.util import dict_equal
 
 @attr('UNIT', group='mi')
 class TestUnitProtocolParameterDict(TestUnitStringsDict):

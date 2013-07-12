@@ -276,29 +276,34 @@ class ProtocolCommandDict(InstrumentDict):
         
         return return_struct            
         
-    def load_strings(self, filename=None):
+    def load_strings(self, devel_path=None, filename=None):
         """
         Load the metadata for a parameter set. starting by looking at the default
         path in the egg and filesystem first, overriding what might have been
         hard coded. If a system filename is given look there. If parameter
         strings cannot be found, return False and carry on with hard coded values.
     
+        @param devel_path The path where the file can be found during development.
+        This is likely in the mi/instrument/make/model/flavor/resource directory.    
         @param filename The filename of the custom file to load, including as full a path
         as desired (complete path recommended)
         @retval True if something could be loaded, False otherwise
         """
+        log.debug("Loading command dictionary strings")
         try:
-            metadata = self.get_metadata_from_source(filename)
+            metadata = self.get_metadata_from_source(devel_path, filename)
         except IOError as e:
             log.warning("Encountered IOError: %s", e)
             return False
             
         # Fill the fields           
         if metadata:
+            log.debug("Found command metadata, loading dictionary")
+
             for (cmd_name, cmd_value) in metadata[CommandDictKey.COMMANDS].items():
                 # base info
                 if not isinstance(cmd_value, dict):
-                    log.trace("Skipping value: %s while loading YAML strings", cmd_value)
+                    log.trace("Skipping value %s while loading YAML strings", cmd_value)
                     continue
                 if cmd_name not in self._cmd_dict:
                     continue

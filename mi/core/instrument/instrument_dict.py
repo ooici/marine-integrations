@@ -30,36 +30,53 @@ class InstrumentDict(object):
     """
     
     @staticmethod
-    def get_metadata_from_source(filename):
-        """
-        Load metadata from the given filename if it is there. If not, look for
-        the default filename in the egg or development directory. Return the
-        metadata as a structure.
-        @param filename The file name to look in for YAML strings describing
-        the dictionary.
-        @retval the metadata structure as loaded by YAML
-        @throw IOError if there is a problem opening the specified file
-        """
-        # if the file is in the default spot of the working path or egg, get that one       
-        if (filename == None):
-            resource_name = "%s/%s" % (EGG_PATH, DEFAULT_FILENAME)
-            resource_base = __name__
-            if not pkg_resources.resource_exists(resource_base, resource_name):
-                # We are probably in a devel directory structure
-                resource_name = "../%s/%s" % (EGG_PATH, DEFAULT_FILENAME)
-                resource_base = "mi"
-                log.debug("Attempting to load from devel dir with path %s", resource_name)
-                if not pkg_resources.resource_exists(resource_base, resource_name):
-                    return False # not in egg, not in devel dir
-            else:
-                log.debug("Attempting to load from egg with path %s", resource_name)
+    def load_metadata_from_file(filename):
+        log.debug("Attempting to load instrument dictionary metadata from file %s",
+                      filename)
+        file = open("%s" % filename, "r")
+        return yaml.safe_load(file)
+        
+    @staticmethod
+    def load_metadata_from_egg():
+        resource_name = "../%s/%s" % (EGG_PATH, DEFAULT_FILENAME)
+        resource_base = "mi"
+        log.debug("Attempting to load instrument dictionary metadata from egg with path %s",
+                  resource_name)
+        if pkg_resources.resource_exists(resource_base, resource_name):
             yml = pkg_resources.resource_string(resource_base, resource_name)
             return yaml.load(yml)
+        else:
+            return False
     
-        elif (filename != None):
-            log.debug("Attempting to load parameter metadata from file %s",
-                      filename)
-            file = open("%s" % filename, "r")
-            return yaml.safe_load(file)
+    @staticmethod
+    def get_metadata_from_source(devel_path=None, filename=None):
+        """
+        Load metadata from a specific file if included. If not specified,
+        try looking for where it would be in an egg. If not there, look in the
+        specified place withindevelopment environment.
+        
+        @param filename The file name to look in for YAML strings describing
+        the dictionary should it be in a random location.
+        @param devel_path The path where the file can be found during development.
+        This is likely in the mi/instrument/make/model/flavor/resource directory.
+        Include a filename for this argument.
+        @retval the metadata structure as loaded by YAML, None if no metadata successfully
+        loaded
+        @throw IOError if there is a problem opening the specified file
+        """
+        if filename:
+            return InstrumentDict.load_metadata_from_file(filename)     
+
+        result = InstrumentDict.load_metadata_from_egg()     
+        if result:
+            return result
+            
+        if devel_path:
+            result = InstrumentDict.load_metadata_from_file(devel_path)
+            if result:
+                return result        
+                            
+        log.debug("No external instrument dictionary metadata found, using hard coded values.")
+        return None
 
         
