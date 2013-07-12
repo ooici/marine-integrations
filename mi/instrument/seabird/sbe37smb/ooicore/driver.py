@@ -833,10 +833,18 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         @raise: InstrumentProtocolException if we can't identify the prompt
         """
         if(ds_result == None):
-            self._send_wakeup()
+            log.debug("Running DS command")
             ds_result = self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, expected_prompt=SBE37Prompt.COMMAND)
+            log.debug("DS command result: %s", ds_result)
 
         log.debug("_is_logging: DS result: %s", ds_result)
+
+        match = STATUS_DATA_REGEX_MATCHER.match(ds_result)
+        if(not match):
+            log.debug("Failed to get status, trying again")
+            ds_result = self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, expected_prompt=SBE37Prompt.COMMAND)
+            log.debug("DS command result: %s", ds_result)
+
 
         autosample_re = re.compile(r'.*logging data', re.DOTALL)
         command_re    = re.compile(r'.*not logging', re.DOTALL)
@@ -1025,9 +1033,16 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         finally:
             # Switch back to streaming
-            if(logging):
+            logging = self._is_logging()
+
+            if(logging == False):
                 log.debug("sbe start logging again")
                 self._do_cmd_no_resp(InstrumentCmds.START_LOGGING)
+
+            if(logging == None):
+                log.debug("could not determine logging state")
+                self._async_agent_state_change(ResourceAgentState.ACTIVE_UNKNOWN)
+                next_state = DriverProtocolState.UNKNOWN
 
         if(error):
             log.error("Error in apply_startup_params: %s", error)
@@ -1325,6 +1340,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if dsdc command misunderstood.
         """
+        log.debug("DS Response: %s", response)
         if prompt.strip() != SBE37Prompt.COMMAND:
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
