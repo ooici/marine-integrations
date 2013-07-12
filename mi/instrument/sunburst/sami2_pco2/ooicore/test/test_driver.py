@@ -228,11 +228,16 @@ class DriverTestMixinSub(DriverTestMixin):
     # [TODO] Consider moving to base class as these apply to both PCO2 and pH
     _driver_capabilities = {
         # capabilities defined in the IOS
-        Capability.ACQUIRE_STATUS:  {STATES: [ProtocolState.COMMAND]},
-        Capability.START_DIRECT:    {STATES: [ProtocolState.COMMAND,
-                                              ProtocolState.DIRECT_ACCESS]},
-        Capability.STOP_DIRECT:     {STATES: [ProtocolState.DIRECT_ACCESS,
-                                              ProtocolState.COMMAND]}
+        Capability.ACQUIRE_STATUS:      {STATES: [ProtocolState.COMMAND]},
+        Capability.START_AUTOSAMPLE:    {STATES: [ProtocolState.COMMAND,
+                                                  ProtocolState.AUTOSAMPLE]},
+        Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
+                                                  ProtocolState.COMMAND]},
+        Capability.START_DIRECT:        {STATES: [ProtocolState.COMMAND,
+                                                  ProtocolState.UNKNOWN,
+                                                  ProtocolState.DIRECT_ACCESS]},
+        Capability.STOP_DIRECT:         {STATES: [ProtocolState.DIRECT_ACCESS,
+                                                  ProtocolState.UNKNOWN]}
     }
 
     # [TODO] Consider moving to base class as these apply to both PCO2 and pH
@@ -328,7 +333,7 @@ class DriverTestMixinSub(DriverTestMixin):
         Pco2wDev1SampleDataParticleKey.CHECKSUM:         {TYPE: int, VALUE: 0xCE, REQUIRED: True}
     }
 
-    # [TODO] Several of these particles could come from a share base class.
+    # [TODO] Several of these particles could come from a shared base class.
     _configuration_parameters = {
         # Configuration settings
         Pco2wConfigurationDataParticleKey.LAUNCH_TIME:                  {TYPE: int, VALUE: 0xCEE90B00, REQUIRED: True},
@@ -619,6 +624,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
             ProtocolState.COMMAND:          ['DRIVER_EVENT_GET',
                                              'DRIVER_EVENT_SET',
                                              'DRIVER_EVENT_START_DIRECT',
+                                             'DRIVER_EVENT_ACQUIRE_CONFIGURATION',
                                              'DRIVER_EVENT_ACQUIRE_STATUS',
                                              'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                              'DRIVER_EVENT_START_AUTOSAMPLE'],

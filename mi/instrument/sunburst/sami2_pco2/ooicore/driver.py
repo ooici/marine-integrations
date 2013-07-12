@@ -35,6 +35,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
@@ -96,6 +97,7 @@ class ProtocolEvent(BaseEnum):
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
+    ACQUIRE_CONFIGURATION = 'DRIVER_EVENT_ACQUIRE_CONFIGURATION'
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
@@ -105,6 +107,8 @@ class Capability(BaseEnum):
     Protocol events that should be exposed to users (subset of above).
     """
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
+    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     START_DIRECT = ProtocolEvent.START_DIRECT
     STOP_DIRECT = ProtocolEvent.STOP_DIRECT
 
@@ -165,7 +169,6 @@ class InstrumentCommand(BaseEnum):
     STOP_STATUS = 'F5A'
     GET_CONFIG = 'L'
     SET_CONFIG = 'L5A'
-    ERASE_FLASH = 'E'
     ERASE_ALL = 'E5A'
     START = 'G5A'
     STOP = 'Q5A'
@@ -769,6 +772,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                                        self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,
                                        self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION,
+                                       self._handler_command_acquire_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,
                                        self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,
@@ -796,28 +801,49 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
         # while in the AUTOSAMPLE state and will last anywhere from 10 seconds
-        # to 3 minutes depending on instrument and sample type.
+        # to 3 minutes depending on instrument and the type of sampling.
         self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.ENTER,
                                        self._handler_scheduled_sample_enter)
         self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.EXIT,
                                        self._handler_scheduled_sample_exit)
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
-        # while in either the COMMAND or via the discover transition from the
-        # UNKNOWN state and will last anywhere from 10 seconds to 3 minutes
-        # depending on instrument and sample type.
+        # while in either the COMMAND state (or via the discover transition
+        # from the UNKNOWN state with the instrument unresponsive) and will
+        # last anywhere from a few seconds to 3 minutes depending on instrument
+        # and sample type.
         self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.ENTER,
                                        self._handler_polled_sample_enter)
         self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.EXIT,
                                        self._handler_polled_sample_exit)
 
         # Construct the parameter dictionary containing device parameters,
-        # current parameter values, and set formatting functions.
+        # current parameter values, and set formatting functions. Add the
+        # command and driver dictionaries.
         self._build_param_dict()
+        self._build_command_dict()
+        self._build_driver_dict()
 
         # Add build handlers for device commands.
+        self._add_build_handler(InstrumentCommand.GET_STATUS, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.START_STATUS, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.STOP_STATUS, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.GET_CONFIG, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.SET_CONFIG, self._build_set_config)
+        self._add_build_handler(InstrumentCommand.ERASE_ALL, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.START, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.STOP, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_sample_sami)
+        self._add_build_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_sample_dev1)
+        self._add_build_handler(InstrumentCommand.ESCAPE_BOOT, self._build_escape_boot)
 
         # Add response handlers for device commands.
+        self._add_response_handler(InstrumentCommand.GET_STATUS, self._build_response_get_status)
+        self._add_response_handler(InstrumentCommand.GET_CONFIG, self._build_response_get_config)
+        self._add_response_handler(InstrumentCommand.SET_CONFIG, self._build_response_set_config)
+        self._add_response_handler(InstrumentCommand.ERASE_ALL, self._build_response_erase_all)
+        self._add_response_handler(InstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_response_sample_sami)
+        self._add_response_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_response_sample_dev1)
 
         # Add sample handlers.
 
@@ -848,299 +874,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 return_list.append((match.start(), match.end()))
 
         return return_list
-
-    def _build_param_dict(self):
-        """
-        For each parameter key, add match stirng, match lambda function,
-        and value formatting function for set commands.
-        """
-        # Add parameter handlers to parameter dict.
-        self._param_dict = ProtocolParameterDict()
-
-#        CONFIGURATION_REGEX = r'([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})' + \
-#                      '([0-9A-Fa-f]{2})' + \
-#                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-#                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-#                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-#                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-#                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-#                      '([0-9A-Fa-f]{2})' + \
-#                      '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-#                      '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-#                      '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-#                      '([0-9A-Fa-f]{2})' + \
-#                      '([0-9A-Fa-f]+)' + NEWLINE
-#CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
-
-        self._param_dict.add(Parameter.LAUNCH_TIME, r'([0-9A-Fa-f]{8})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='00000000',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='launch time')
-
-        self._param_dict.add(Parameter.START_TIME_FROM_LAUNCH, r'([0-9A-Fa-f]{8})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='start time after launch time')
-
-        self._param_dict.add(Parameter.STOP_TIME_FROM_START, r'([0-9A-Fa-f]{8})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='stop time after start time')
-
-        self._param_dict.add(Parameter.MODE_BITS, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='02',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.SAMI_SAMPLE_INTERVAL, r'([0-9A-Fa-f]{6})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='000E10',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.SAMI_DRIVER_VERSION, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='04',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.SAMI_PARAMS_POINTER, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='02',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.DEVICE1_SAMPLE_INTERVAL, r'([0-9A-Fa-f]{6})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.DEVICE1_DRIVER_VERSION, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.DEVICE1_PARAMS_POINTER, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.DEVICE2_SAMPLE_INTERVAL, r'([0-9A-Fa-f]{6})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.DEVICE2_DRIVER_VERSION, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.DEVICE2_PARAMS_POINTER, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.DEVICE3_SAMPLE_INTERVAL, r'([0-9A-Fa-f]{6})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.DEVICE3_DRIVER_VERSION, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.DEVICE3_PARAMS_POINTER, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.PRESTART_SAMPLE_INTERVAL, r'([0-9A-Fa-f]{6})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.PRESTART_DRIVER_VERSION, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.PRESTART_PARAMS_POINTER, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.GLOBAL_CONFIGURATION, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.PUMP_PULSE, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.PUMP_DURATION, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.SAMPLES_PER_MEASUREMENT, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.CYCLES_BETWEEN_BLANKS, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.NUMBER_REAGENT_CYCLES, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.NUMBER_BLANK_CYCLES, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.FLUSH_PUMP_INTERVAL, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.BIT_SWITCHES, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.NUMBER_EXTRA_PUMP_CYCLES, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
-
-        self._param_dict.add(Parameter.EXTERNAL_PUMP_SETTINGS, r'([0-9A-Fa-f]{2})',
-                             lambda match: match.group(1),
-                             str, type=ParameterDictType.STRING,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value='01E13380',
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='')
 
     def _got_chunk(self, chunk, timestamp):
         """
@@ -1234,6 +967,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
         log.debug("_handler_command_start_direct: entering DA mode")
         return (next_state, (next_agent_state, result))
+
+    def _handler_command_acquire_configuration(self, *args, **kwargs):
+        """
+        Set parameter
+        """
+        next_state = None
+        result = None
+
+        return (next_state, result)
 
     def _handler_command_acquire_status(self, *args, **kwargs):
         """
@@ -1347,7 +1089,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         return (next_state, result)
 
     ########################################################################
-    # Acquire Sample handlers.
+    # Scheduled Sample handlers.
     ########################################################################
 
     def _handler_scheduled_sample_enter(self, *args, **kwargs):
@@ -1367,7 +1109,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         pass
 
     ########################################################################
-    # polled Sample handlers.
+    # Polled Sample handlers.
     ########################################################################
 
     def _handler_polled_sample_enter(self, *args, **kwargs):
@@ -1385,3 +1127,417 @@ class Protocol(CommandResponseInstrumentProtocol):
         Exit busy state.
         """
         pass
+
+    ########################################################################
+    # Build Command, Driver and Parameter dictionaries
+    ########################################################################
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
+        self._cmd_dict.add(Capability.START_DIRECT, display_name="start direct access")
+        self._cmd_dict.add(Capability.STOP_DIRECT, display_name="stop direct access")
+
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with options
+        """
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
+
+    def _build_param_dict(self):
+        """
+        For each parameter key, add match stirng, match lambda function,
+        and value formatting function for set commands.
+        """
+        # Add parameter handlers to parameter dict.
+        self._param_dict = ProtocolParameterDict()
+
+        ### example configuration string
+        # VALID_CONFIG_STRING = 'CEE90B0002C7EA0001E133800A000E100402000E10010B' + \
+        #                       '000000000D000000000D000000000D07' + \
+        #                       '1020FF54181C01003814' + \
+        #                       '000000000000000000000000000000000000000000000000000' + \
+        #                       '000000000000000000000000000000000000000000000000000' + \
+        #                       '0000000000000000000000000000' + \
+        #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+        #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+        #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+        #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+        #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+        #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + NEWLINE
+        #
+        ###
+
+        self._param_dict.add(Parameter.LAUNCH_TIME, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(1), 16),
+                             lambda x: self._int_to_hexstring(x, 8),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00000000,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='launch time')
+
+        self._param_dict.add(Parameter.START_TIME_FROM_LAUNCH, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(2), 16),
+                             lambda x: self._int_to_hexstring(x, 8),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x02C7EA00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='start time after launch time')
+
+        self._param_dict.add(Parameter.STOP_TIME_FROM_START, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(3), 16),
+                             lambda x: self._int_to_hexstring(x, 8),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x01E13380,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='stop time after start time')
+
+        self._param_dict.add(Parameter.MODE_BITS, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(4), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x0A,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='mode bits (set to 00001010)')
+
+        self._param_dict.add(Parameter.SAMI_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(5), 16),
+                             lambda x: self._int_to_hexstring(x, 6),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x000E10,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='sami sample interval')
+
+        self._param_dict.add(Parameter.SAMI_DRIVER_VERSION, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(6), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x04,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='sami driver version')
+
+        self._param_dict.add(Parameter.SAMI_PARAMS_POINTER, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(7), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x02,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='sami parameter pointer')
+
+        self._param_dict.add(Parameter.DEVICE1_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(8), 16),
+                             lambda x: self._int_to_hexstring(x, 6),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x000E10,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='device 1 sample interval')
+
+        self._param_dict.add(Parameter.DEVICE1_DRIVER_VERSION, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(9), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x01,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='device 1 driver version')
+
+        self._param_dict.add(Parameter.DEVICE1_PARAMS_POINTER, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(10), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x0B,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='device 1 parameter pointer')
+
+        self._param_dict.add(Parameter.DEVICE2_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(11), 16),
+                             lambda x: self._int_to_hexstring(x, 6),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x000000,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='device 2 sample interval')
+
+        self._param_dict.add(Parameter.DEVICE2_DRIVER_VERSION, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(12), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='device 2 driver version')
+
+        self._param_dict.add(Parameter.DEVICE2_PARAMS_POINTER, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(13), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x0D,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='device 2 parameter pointer')
+
+        self._param_dict.add(Parameter.DEVICE3_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(14), 16),
+                             lambda x: self._int_to_hexstring(x, 6),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x000000,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='device 3 sample interval')
+
+        self._param_dict.add(Parameter.DEVICE3_DRIVER_VERSION, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(15), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='device 3 driver version')
+
+        self._param_dict.add(Parameter.DEVICE3_PARAMS_POINTER, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(16), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x0D,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='device 3 parameter pointer')
+
+        self._param_dict.add(Parameter.PRESTART_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(17), 16),
+                             lambda x: self._int_to_hexstring(x, 6),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x000000,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='prestart sample interval')
+
+        self._param_dict.add(Parameter.PRESTART_DRIVER_VERSION, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(18), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='prestart driver version')
+
+        self._param_dict.add(Parameter.PRESTART_PARAMS_POINTER, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(19), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x0D,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='prestart parameter pointer')
+
+        self._param_dict.add(Parameter.GLOBAL_CONFIGURATION, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(20), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='global bits (set to 00000111)')
+
+        self._param_dict.add(Parameter.PUMP_PULSE, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(21), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x10,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='pump pulse duration')
+
+        self._param_dict.add(Parameter.PUMP_DURATION, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(22), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x20,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='pump measurement duration')
+
+        self._param_dict.add(Parameter.SAMPLES_PER_MEASUREMENT, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(23), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0xFF,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='samples per measurement')
+
+        self._param_dict.add(Parameter.CYCLES_BETWEEN_BLANKS, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(24), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0xA8,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='cycles between blanks')
+
+        self._param_dict.add(Parameter.NUMBER_REAGENT_CYCLES, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(25), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x18,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of reagent cycles')
+
+        self._param_dict.add(Parameter.NUMBER_BLANK_CYCLES, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(26), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x1C,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of blank cycles')
+
+        self._param_dict.add(Parameter.FLUSH_PUMP_INTERVAL, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(27), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x01,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='flush pump interval')
+
+        self._param_dict.add(Parameter.BIT_SWITCHES, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(28), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='bit switches')
+
+        self._param_dict.add(Parameter.NUMBER_EXTRA_PUMP_CYCLES, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(29), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x38,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of extra pump cycles')
+
+        self._param_dict.add(Parameter.EXTERNAL_PUMP_SETTINGS, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(30), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='external pump settings')
+
+    ########################################################################
+    # Command handlers.
+    ########################################################################
+
+    def _build_simple_command(self, cmd):
+        """
+        Build handler for basic SAMI commands.
+        @param cmd the simple SAMI command to format.
+        @retval The command to be sent to the device.
+        """
+        return cmd + NEWLINE
+
+    def _build_set_config(self):
+        pass
+
+    def _build_sample_sami(self):
+        pass
+
+    def _build_sample_dev1(self):
+        pass
+
+    def _build_escape_boot(self):
+        pass
+
+    ########################################################################
+    # Response handlers.
+    ########################################################################
+
+    def _build_response_get_status(self):
+        pass
+
+    def _build_response_get_config(self):
+        pass
+
+    def _build_response_set_config(self):
+        pass
+
+    def _build_response_erase_all(self):
+        pass
+
+    def _build_response_sample_sami(self):
+        pass
+
+    def _build_response_sample_dev1(self):
+        pass
+
+    ########################################################################
+    # Private helpers.
+    ########################################################################
+
+    @staticmethod
+    def _int_to_hexstring(self, v, slen):
+        """
+        Write an integer value to an ASCIIHEX string formatted for SAMI
+        configuration set operations.
+        @param v the integer value to convert.
+        @param slen the required length of the returned string.
+        @retval an integer string formatted in ASCIIHEX for SAMI configuration
+        set operations.
+        @throws InstrumentParameterException if the integer and string length
+        values are not an integers.
+        """
+        if not isinstance(v, int):
+            raise InstrumentParameterException('Value %s is not an integer.' % str(v))
+        elif not isinstance(slen, int):
+            raise InstrumentParameterException('Value %s is not an integer.' % str(slen))
+        else:
+            s = format(v, 'x')
+            return string.upper(s.zfill(slen))
