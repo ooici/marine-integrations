@@ -540,32 +540,32 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
 
         self.assert_chunker_sample(chunker, self.VALID_STATUS_MESSAGE)
         self.assert_chunker_sample_with_noise(chunker, self.VALID_STATUS_MESSAGE)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_STATUS_MESSAGE, 16)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_STATUS_MESSAGE)
         self.assert_chunker_combined_sample(chunker, self.VALID_STATUS_MESSAGE)
 
         self.assert_chunker_sample(chunker, self.VALID_CONTROL_RECORD)
         self.assert_chunker_sample_with_noise(chunker, self.VALID_CONTROL_RECORD)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_CONTROL_RECORD, 32)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_CONTROL_RECORD)
         self.assert_chunker_combined_sample(chunker, self.VALID_CONTROL_RECORD)
 
         self.assert_chunker_sample(chunker, self.VALID_R0_BLANK_SAMPLE)
         self.assert_chunker_sample_with_noise(chunker, self.VALID_R0_BLANK_SAMPLE)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_R0_BLANK_SAMPLE, 32)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_R0_BLANK_SAMPLE)
         self.assert_chunker_combined_sample(chunker, self.VALID_R0_BLANK_SAMPLE)
 
         self.assert_chunker_sample(chunker, self.VALID_R0_DATA_SAMPLE)
         self.assert_chunker_sample_with_noise(chunker, self.VALID_R0_DATA_SAMPLE)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_R0_DATA_SAMPLE, 32)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_R0_DATA_SAMPLE)
         self.assert_chunker_combined_sample(chunker, self.VALID_R0_DATA_SAMPLE)
 
         self.assert_chunker_sample(chunker, self.VALID_R1_SAMPLE)
         self.assert_chunker_sample_with_noise(chunker, self.VALID_R1_SAMPLE)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_R1_SAMPLE, 8)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_R1_SAMPLE)
         self.assert_chunker_combined_sample(chunker, self.VALID_R1_SAMPLE)
 
         self.assert_chunker_sample(chunker, self.VALID_CONFIG_STRING)
         self.assert_chunker_sample_with_noise(chunker, self.VALID_CONFIG_STRING)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_CONFIG_STRING, 32)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_CONFIG_STRING)
         self.assert_chunker_combined_sample(chunker, self.VALID_CONFIG_STRING)
 
     def test_got_data(self):

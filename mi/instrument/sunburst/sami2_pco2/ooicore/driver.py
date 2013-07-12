@@ -214,7 +214,7 @@ CONFIGURATION_REGEX = r'([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})' + \
                       '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
                       '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
                       '([0-9A-Fa-f]{2})' + \
-                      '([0-9A-Fa-f]+)' + NEWLINE
+                      '([0-9A-Fa-f]{414})' + NEWLINE
 CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 
 # Error records
@@ -261,8 +261,21 @@ class SamiRegularStatusDataParticle(DataParticle):
 
     def _build_parsed_values(self):
         """
-        Parse regular status values from raw data into a dictionary
+        Parses regular status messages into a dictionary.
         """
+
+        ### Regular Status Messages
+        # Produced in response to S0 command, or automatically at 1 Hz. All
+        # regular status messages are preceeded by the ':' character and
+        # terminate with a '/r'. Sample string:
+        #
+        #   :CEE90B1B004100000100000000021254
+        #
+        # These messages consist of the time since the last configuration,
+        # status flags, the number of data records, the number of error
+        # records, the number of bytes stored (including configuration bytes),
+        # and a checksum.
+        ###
 
         matched = REGULAR_STATUS_REGEX_MATCHER.match(self.raw_data)
         if not matched:
@@ -292,8 +305,9 @@ class SamiRegularStatusDataParticle(DataParticle):
                          SamiRegularStatusDataParticleKey.CHECKSUM]
 
         result = []
-        grp_index = 1
-        bit_index = 0
+        grp_index = 1   # used to index through match groups, starting at 1
+        bit_index = 0   # used to index through the bit fields represented by
+                        # the two bytes after CLOCK_ACTIVE.
 
         for key in particle_keys:
             if key in [SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
@@ -312,11 +326,15 @@ class SamiRegularStatusDataParticle(DataParticle):
                        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT,
                        SamiRegularStatusDataParticleKey.FLASH_ERASED,
                        SamiRegularStatusDataParticleKey.POWER_ON_INVALID]:
+                # if the keys match values represented by the bits in the two
+                # byte status flags value, parse bit-by-bit using the bit-shift
+                # operator to determine the boolean value.
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(2), 16) & (1 << bit_index))})
-                bit_index += 1
-                grp_index = 3
+                bit_index += 1  # bump the bit index
+                grp_index = 3   # set the right group index for when we leave this part of the loop.
             else:
+                # otherwise all values in the string are parsed to integers
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
                 grp_index += 1
@@ -366,8 +384,19 @@ class SamiControlRecordDataParticle(DataParticle):
 
     def _build_parsed_values(self):
         """
-        Parse control record values from raw data into a dictionary
+        Parse the values from control records from raw data into a dictionary
         """
+
+        ### Control Records
+        # Produced by the instrument periodically in reponse to certain events
+        # (e.g. when the Flash memory is opened). The messages are preceded by
+        # a '*' character and terminated with a '\r'. Sample string:
+        #
+        #   *541280CEE90B170041000001000000000200AF
+        #
+        # A full description of the control record strings can be found in the
+        # vendor supplied SAMI Record Format document.
+        ###
 
         matched = CONTROL_RECORD_REGEX_MATCHER.match(self.raw_data)
         if not matched:
@@ -400,8 +429,9 @@ class SamiControlRecordDataParticle(DataParticle):
                          SamiControlRecordDataParticleKey.CHECKSUM]
 
         result = []
-        grp_index = 1
-        bit_index = 0
+        grp_index = 1   # used to index through match groups, starting at 1
+        bit_index = 0   # used to index through the bit fields represented by
+                        # the two bytes after CLOCK_ACTIVE.
 
         for key in particle_keys:
             if key in [SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
@@ -420,11 +450,16 @@ class SamiControlRecordDataParticle(DataParticle):
                        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT,
                        SamiControlRecordDataParticleKey.FLASH_ERASED,
                        SamiControlRecordDataParticleKey.POWER_ON_INVALID]:
+                # if the keys match values represented by the bits in the two
+                # byte status flags value included in all control records,
+                # parse bit-by-bit using the bit-shift operator to determine
+                # boolean value.
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(5), 16) & (1 << bit_index))})
-                bit_index += 1
-                grp_index = 6
+                bit_index += 1  # bump the bit index
+                grp_index = 6   # set the right group index for when we leave this part of the loop.
             else:
+                # otherwise all values in the string are parsed to integers
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
                 grp_index += 1
@@ -457,8 +492,20 @@ class Pco2wSamiSampleDataParticle(DataParticle):
 
     def _build_parsed_values(self):
         """
-        Parse SAMI2-PCO2 values from raw data into a dictionary
+        Parse SAMI2-PCO2 measurement records from raw data into a dictionary
         """
+
+        ### SAMI Sample Record
+        # Regular SAMI (PCO2) data records produced by the instrument on either
+        # command or via an internal schedule. Like the control records, the
+        # messages are preceded by a '*' character and terminated with a '\r'.
+        # Sample string:
+        #
+        #   *542705CEE91CC800400019096206800730074C2CE04274003B0018096106800732074E0D82066124
+        #
+        # A full description of the data record strings can be found in the
+        # vendor supplied SAMI Record Format document.
+        ###
 
         matched = SAMI_SAMPLE_REGEX_MATCHER.match(self.raw_data)
         if not matched:
@@ -517,6 +564,19 @@ class Pco2wDev1SampleDataParticle(DataParticle):
         """
         Parse device 1 values from raw data into a dictionary
         """
+
+        ### Device 1 Sample Record (External Pump)
+        # Device 1 data records produced by the instrument on either command or
+        # via an internal schedule whenever the external pump is run (via the
+        # R1 command). Like the control records and SAMI data, these messages
+        # are preceded by a '*' character and terminated with a '\r'. Sample
+        # string:
+        #
+        #   *540711CEE91DE2CE
+        #
+        # A full description of the device 1 data record strings can be found
+        # in the vendor supplied SAMI Record Format document.
+        ###
 
         matched = DEV1_SAMPLE_REGEX_MATCHER.match(self.raw_data)
         if not matched:
@@ -599,6 +659,25 @@ class Pco2wConfigurationDataParticle(DataParticle):
         Parse configuration record values from raw data into a dictionary
         """
 
+        ### SAMI-PCO2 Configuration String
+        # Configuration string either sent to the instrument to configure it
+        # (via the L5A command), or retrieved from the instrument in response
+        # to the L command. Sample string (shown broken in multiple lines,
+        # would not be received this way):
+        #
+        #   CEE90B0002C7EA0001E133800A000E100402000E10010B000000000D000000000D
+        #   000000000D071020FF54181C010038140000000000000000000000000000000000
+        #   000000000000000000000000000000000000000000000000000000000000000000
+        #   000000000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+        #   FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+        #   FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+        #   FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+        #   FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+        #
+        # A full description of the configuration string can be found in the
+        # vendor supplied Low Level Operation of the SAMI/AFT document.
+        ###
+
         matched = CONFIGURATION_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
@@ -647,8 +726,9 @@ class Pco2wConfigurationDataParticle(DataParticle):
                          Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTING]
 
         result = []
-        grp_index = 1
-        mode_index = 0
+        grp_index = 1   # used to index through match groups, starting at 1
+        mode_index = 0  # index through the bit fields for MODE_BITS,
+                        # GLOBAL_CONFIGURATION and SAMI_BIT_SWITCHES.
         glbl_index = 0
         sami_index = 0
 
@@ -661,10 +741,13 @@ class Pco2wConfigurationDataParticle(DataParticle):
                        Pco2wConfigurationDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE,
                        Pco2wConfigurationDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE,
                        Pco2wConfigurationDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE]:
+                # if the keys match values represented by the bits in the one
+                # byte mode bits value, parse bit-by-bit using the bit-shift
+                # operator to determine the boolean value.
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(4), 16) & (1 << mode_index))})
-                mode_index += 1
-                grp_index = 5
+                mode_index += 1  # bump the bit index
+                grp_index = 5    # set the right group index for when we leave this part of the loop.
 
             elif key in [Pco2wConfigurationDataParticleKey.USE_BAUD_RATE_57600,
                          Pco2wConfigurationDataParticleKey.SEND_RECORD_TYPE,
@@ -672,19 +755,22 @@ class Pco2wConfigurationDataParticle(DataParticle):
                          Pco2wConfigurationDataParticleKey.EXTEND_GLOBAL_CONFIG]:
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(20), 16) & (1 << glbl_index))})
-                glbl_index += 1
+
+                glbl_index += 1  # bump the bit index
+                # skip bit indices 3 through 6
                 if glbl_index == 3:
                     glbl_index = 7
-                grp_index = 21
+                grp_index = 21  # set the right group index for when we leave this part of the loop.
 
             elif key in [Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH,
                          Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE]:
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(28), 16) & (1 << sami_index))})
-                sami_index += 1
-                grp_index = 29
+                sami_index += 1  # bump the bit index
+                grp_index = 29   # set the right group index for when we leave this part of the loop.
 
             else:
+                # otherwise all values in the string are parsed to integers
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
                 grp_index += 1
@@ -1468,7 +1554,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              startup_param=False,
                              direct_access=True,
-                             default_value=0x00,
+                             default_value=0x14,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='external pump settings')
 
