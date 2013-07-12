@@ -178,7 +178,13 @@ DUMP_02_STATUS = \
         "LILY,2013/06/24 23:36:06,*01: Outputting Data: Yes" + NEWLINE + \
         "LILY,2013/06/24 23:36:06,*01: Auto Power-Off Recovery Mode: Off" + NEWLINE + \
         "LILY,2013/06/24 23:36:06,*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No" + NEWLINE
+        
+LEVELED_STATUS = \
+        "LILY,2013/06/28 17:29:21,*  -2.277,  -2.165,190.81, 25.69,,Leveled!11.87,N9651" + NEWLINE
 
+SWITCHING_STATUS = \
+        "LILY,2013/06/28 18:04:41,*  -7.390, -14.063,190.91, 25.83,,Switching to Y!11.87,N9651"
+        
 ###############################################################################
 #                           DRIVER TEST MIXIN                                  #
 #     Defines a set of constants and assert methods used for data particle    #
@@ -307,6 +313,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self.assert_chunker_sample(chunker, DUMP_02_STATUS)
         self.assert_chunker_sample(chunker, DUMP_01_COMMAND_RESPONSE)
         self.assert_chunker_sample(chunker, DUMP_02_COMMAND_RESPONSE)
+        self.assert_chunker_sample(chunker, LEVELED_STATUS)
 
 
     """
@@ -1212,7 +1219,50 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         response = driver._protocol._get_response(timeout = 0)
         self.assertTrue(isinstance(response[1], LILYStatus_02_Particle))
 
-        
+    @unittest.skip("Skipping because need distinct states to test")    
+    def test_leveling_complete(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into command mode
+        self.assert_force_state(driver, ProtocolState.LEVELING)
+
+        ts = ntplib.system_to_ntp_time(time.time())
+
+        result = driver._protocol._got_chunk(LEVELED_STATUS, ts)
+
+        #
+        # Because the driver will send a DATA_ON message and look for the response,
+        # we need to feed it a simulated response
+        #
+        ts = ntplib.system_to_ntp_time(time.time())
+        result = driver._protocol._got_chunk(DATA_ON_COMMAND_RESPONSE, ts)
+
+        current_state = driver._protocol._protocol_fsm.get_current_state()
+        self.assertTrue(ProtocolState.AUTOSAMPLE == current_state)
+
+
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.
@@ -1319,11 +1369,35 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         time.sleep(10)
         
         """
-        Issue stop leveling command 
+        Don't issue stop leveling command 
         """
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
-        log.debug("STOP_LEVELING returned: %r", response)
+        #response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
+        #log.debug("STOP_LEVELING returned: %r", response)
+
+        self.assert_state_change(ProtocolState.AUTOSAMPLE, 1000)
+
         
+    def test_leveling_complete(self):
+        """
+        @brief Test for leveling
+        """
+        self.assert_initialize_driver()
+
+        """
+        Issue start leveling command 
+        """
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
+        log.debug("START_LEVELING returned: %r", response)
+
+        self.assert_state_change(ProtocolState.AUTOSAMPLE, 1000)
+        
+        """
+        Don't issue stop leveling command; should stop automatically 
+        """
+        #response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
+        #log.debug("STOP_LEVELING returned: %r", response)
+        
+
 
 
 ###############################################################################

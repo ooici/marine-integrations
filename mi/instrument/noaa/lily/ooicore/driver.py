@@ -17,11 +17,14 @@ import re
 import time
 import datetime
 import ntplib
+import threading
 
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+#from mi.core.instrument.instrument_protocol import DEFAULT_CMD_TIMEOUT
+from mi.core.instrument.instrument_protocol import DEFAULT_WRITE_DELAY
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -61,6 +64,9 @@ LILY_LEVEL_OFF = '-LEVEL,0'
 
 # default timeout.
 TIMEOUT = 10
+DEFAULT_CMD_TIMEOUT = 120
+
+promptbuf_mutex = threading.Lock()
 
 class DataParticleType(BaseEnum):
     """
@@ -98,6 +104,7 @@ class ProtocolEvent(BaseEnum):
     DUMP_02 = ExportedInstrumentCommand.DUMP_02
     START_LEVELING = ExportedInstrumentCommand.START_LEVELING
     STOP_LEVELING = ExportedInstrumentCommand.STOP_LEVELING
+    LEVELING_COMPLETE = "PROTOCOL_EVENT_LEVELING_COMPLETE"
 
 class Capability(BaseEnum):
     """
@@ -255,7 +262,7 @@ class LILYDataParticle(DataParticle):
         """
         pattern = r'LILY,' # pattern starts with LILY '
         pattern += r'(.*),' # 1 time
-        pattern += r'( *-*[.0-9]+),' # 2 x-tilt
+        pattern += r'( ?-*[.0-9]+),' # 2 x-tilt
         pattern += r'( *-*[.0-9]+),' # 3 y-tilt
         pattern += r'(.*),' # 4 Magnetic Compass (degrees)
         pattern += r'(.*),' # 5 temp
@@ -517,12 +524,13 @@ class LILYLevelingParticle(DataParticle):
         """
         LILY,2013/06/28 18:04:41,*  -7.390, -14.063,190.91, 25.83,,Switching to Y!11.87,N9651
         LILY,2013/06/28 17:29:21,*  -2.277,  -2.165,190.81, 25.69,,Leveled!11.87,N9651
+        LILY,2013/07/02 23:41:27,*  -5.296,  -2.640,185.18, 28.44,,Leveled!11.87,N9651
         LILY,2013/03/22 19:07:28,*-330.000,-330.000,185.45, -6.45,,X Axis out of range, switching to Y!11.37,N9651
         LILY,2013/03/22 19:07:29,*-330.000,-330.000,184.63, -6.43,,Y Axis out of range!11.34,N9651
         """       
         pattern = r'LILY,' # pattern starts with LILY '
         pattern += r'(.*),' # 1 time
-        pattern += r'\*.*Leveled!.*' # 2 x-tilt
+        pattern += r'\*.*Leveled!.*' # leveled message
         pattern += NEWLINE
         return pattern
 
@@ -538,6 +546,34 @@ class LILYLevelingParticle(DataParticle):
         pass
 
 
+###############################################################################
+# Driver
+###############################################################################
+
+class RepeatedTimer(object):
+    def __init__(self, interval, function, *args, **kwargs):
+        self._timer     = None
+        self.interval   = interval
+        self.function   = function
+        self.args       = args
+        self.kwargs     = kwargs
+        self.is_running = False
+        self.start()
+
+    def _run(self):
+        self.is_running = False
+        self.start()
+        self.function(*self.args, **self.kwargs)
+
+    def start(self):
+        if not self.is_running:
+            self._timer = threading.Timer(self.interval, self._run)
+            self._timer.start()
+            self.is_running = True
+
+    def stop(self):
+        self._timer.cancel()
+        self.is_running = False
 
 ###############################################################################
 # Driver
@@ -623,6 +659,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_LEVELING, self._handler_command_autosample_start_leveling)
 
         self._protocol_fsm.add_handler(ProtocolState.LEVELING, ProtocolEvent.STOP_LEVELING, self._handler_leveling_stop_leveling)
+        self._protocol_fsm.add_handler(ProtocolState.LEVELING, ProtocolEvent.LEVELING_COMPLETE, self._handler_leveling_complete)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -659,6 +696,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self.signon_regex = LILYStatusSignOnParticle.regex_compiled()
         self.status_01_regex = LILYStatus_01_Particle.regex_compiled()
         self.status_02_regex = LILYStatus_02_Particle.regex_compiled()
+        self.leveling_regex = LILYLevelingParticle.regex_compiled()
 
 
     @staticmethod
@@ -745,9 +783,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param data: bytes to add to the buffer
         """
         
-        # Update the line and prompt buffers.
+        # Update the line and prompt buffers; first acquire mutex.
+        promptbuf_mutex.acquire()
         self._linebuf += data
         self._promptbuf += data
+        promptbuf_mutex.release()
+
         self._last_data_timestamp = time.time()
 
     def _got_chunk(self, chunk, timestamp):
@@ -762,11 +803,23 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         log.debug("_got_chunk_: %s", chunk)
         
+        """
+        If we're in leveling mode, use a different got_chunk
+        """
+        if (self._protocol_fsm.get_current_state() == ProtocolState.LEVELING):
+            log.error("~~~~~~~~~~~~~~~~~~~~~~~~~ YAHOOO!!!!   LEVELING CHUNK: %s", chunk)
+            if (self.leveling_regex.match(chunk)):
+                self._protocol_fsm.on_event(ProtocolEvent.LEVELING_COMPLETE)
+                return
+            else:
+                log.error("!!!!!!!!!!!!!!!!!!!! NOOOO!!")
+        
         if (self.cmd_rsp_regex.match(chunk) \
         #or self.signon_regex.match(chunk) \ # currently not using the signon chunk
         or self.status_01_regex.match(chunk) \
         or self.status_02_regex.match(chunk)):
             self._my_add_to_buffer(chunk)
+            log.error("++++++++++++++++++++++++ Adding CHUNK: %s to buffer", chunk)
         else:
             if not self._extract_sample(LILYDataParticle,
                                         self.data_regex, 
@@ -797,7 +850,70 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         pass
 
-    def _get_response(self, timeout=10, expected_prompt=None):
+    """
+    Overriding this because it clears the promptbuf with no coordination with
+    another thread of execution that uses the same variable.
+    """
+    def _do_cmd_resp(self, cmd, *args, **kwargs):
+        """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+
+        # Get timeout and initialize response.
+        timeout = kwargs.get('timeout', DEFAULT_CMD_TIMEOUT)
+        expected_prompt = kwargs.get('expected_prompt', None)
+        write_delay = kwargs.get('write_delay', DEFAULT_WRITE_DELAY)
+        retval = None
+        
+        # Get the build handler.
+        build_handler = self._build_handlers.get(cmd, None)
+        if not build_handler:
+            raise InstrumentProtocolException('Cannot build command: %s' % cmd)
+
+        cmd_line = build_handler(cmd, *args)
+
+        # Wakeup the device, pass up exception if timeout
+
+        prompt = self._wakeup(timeout)
+        
+        # Clear line and prompt buffers for result.
+
+
+        self._linebuf = ''
+        #self._promptbuf = ''
+
+        # Send command.
+        log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
+                        (repr(cmd_line), timeout, write_delay, expected_prompt))
+
+        if (write_delay == 0):
+            self._connection.send(cmd_line)
+        else:
+            for char in cmd_line:
+                self._connection.send(char)
+                time.sleep(write_delay)
+
+        # Wait for the prompt, prepare result and return, timeout exception
+        (prompt, result) = self._get_response(timeout,
+                                              expected_prompt=expected_prompt)
+
+        resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
+            self._response_handlers.get(cmd, None)
+        resp_result = None
+        if resp_handler:
+            resp_result = resp_handler(result, prompt)
+
+        return resp_result
+            
+
+    def _get_response(self, timeout=30, expected_prompt=None):
         """
         Overriding _get_response: this one uses regex on chunks
         that have already been filtered by the chunker.  An improvement
@@ -816,6 +932,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         
         response = None
         
+        log.error("!!!!!!!! DHE Timeout is: %d", timeout)
+        
         """
         Spin around for <timeout> looking for the response to arrive
         """
@@ -824,7 +942,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         while continuing:
             if self.cmd_rsp_regex.match(self._promptbuf):
                 response = LILYCommandResponse(self._promptbuf)
-                log.debug("_get_response() matched CommandResponse")
+                log.debug("_get_response() matched CommandResponse. _promptbuf: %s",
+                           self._promptbuf)
                 response.check_command_response(expected_prompt)
                 continuing = False
             #elif self.signon_regex.match(self._promptbuf):
@@ -844,11 +963,26 @@ class Protocol(CommandResponseInstrumentProtocol):
                 response.build_response()
                 continuing = False
             else:
-                self._promptbuf = ''
-                time.sleep(.1)
+                log.error("DHE TEMPTEMP no match: promptbuf: %s", self._promptbuf)
+                """
+                TODO: moved clearing of promptbuf to after everything.
+                """
+                #self._promptbuf = ''
+                #time.sleep(.1)
+                time.sleep(.5)
 
             if timeout and time.time() > starttime + timeout:
+                log.error("TIMEOUT IN GET RESPONSE!  LOOKING FOR %r in %s", 
+                          expected_prompt, self._promptbuf)
                 raise InstrumentTimeoutException("in BOTPT LILY driver._get_response()")
+
+            
+        """
+        Clear the promptbuf here; first acquire mutex
+        """
+        promptbuf_mutex.acquire()
+        self._promptbuf = ''
+        promptbuf_mutex.release()
 
         return ('LILY_RESPONSE', response)
     
@@ -987,13 +1121,42 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         log.debug("STOP_LEVELING response: %s", result)
 
-        log.debug("Turning LILY data on and transitioning to AUTOSAMPLE.", result)
+        log.debug("Turning LILY data on and transitioning to AUTOSAMPLE.")
         result = self._do_cmd_resp(InstrumentCommand.DATA_ON,
                                    expected_prompt = LILY_DATA_ON)
 
         log.debug("DATA_ON response: %s", result)
 
         return (next_state, (next_agent_state, result))
+
+    def _handler_leveling_complete(self, *args, **kwargs):
+        """
+        Leveling is complete.  According to LILY Commands document, we 
+        need to turn data on automatically (enter AUTOSAMPLE)
+        @retval (next_state, result) tuple, (None, sample dict).
+        """
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+        result = None
+
+        log.debug("LILY reports leveling complete: sending STOP LEVELING.")
+        result = self._do_cmd_resp(InstrumentCommand.STOP_LEVELING,
+                                      expected_prompt = LILY_LEVEL_OFF)
+
+        log.debug("Turning LILY data on, transitioning to AUTOSAMPLE.")
+
+        
+        result = self._do_cmd_resp(InstrumentCommand.DATA_ON,
+                                   expected_prompt = LILY_DATA_ON)
+
+        #result = self._do_cmd_no_resp(InstrumentCommand.DATA_ON)
+
+        #log.debug("DATA_ON response: %s", result)
+
+        self._async_agent_state_change(ResourceAgentState.STREAMING)
+
+        return (next_state, next_agent_state)
+
 
     ########################################################################
     # Handlers common to Command and Autosample States.
