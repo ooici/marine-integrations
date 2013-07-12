@@ -73,7 +73,9 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name = 'nortek_vector_dw_ooicore_agent',
     instrument_agent_packet_config = DataParticleType(),
     driver_startup_config = {
-        Parameter.AVG_INTERVAL: 61
+        DriverConfigKey.PARAMETERS: {
+            Parameter.AVG_INTERVAL: 61
+        }
     }
 )
 
@@ -95,7 +97,7 @@ params_dict = {
     Parameter.MEASUREMENT_INTERVAL : int,
     Parameter.DEPLOYMENT_NAME : str,
     Parameter.WRAP_MODE : int,
-    Parameter.CLOCK_DEPLOY : str,
+    Parameter.CLOCK_DEPLOY : list,
     Parameter.DIAGNOSTIC_INTERVAL : int,
     Parameter.MODE : int,
     Parameter.ADJUSTMENT_SOUND_SPEED : int,
@@ -442,6 +444,8 @@ class IntFromIDK(NortekIntTest):
         self.put_driver_in_command_mode()
         value_before = self.driver_client.cmd_dvr('get_resource',
                                                   [Parameter.AVG_INTERVAL])
+        log.debug("Value before applying startup parameters: %s", value_before)
+        
         self.driver_client.cmd_dvr('apply_startup_params')
         reply = self.driver_client.cmd_dvr('get_resource',
                                            [Parameter.AVG_INTERVAL])
@@ -698,7 +702,7 @@ class IntFromIDK(NortekIntTest):
 @attr('QUAL', group='mi')
 class QualFromIDK(NortekQualTest):
     def assertSampleDataParticle(self, sample):
-        if not self.assertBaseDataParticle(sample): # Check the common types
+        if not self.assertBaseSampleDataParticle(sample): # Check the common types
             values = sample['values']
             value_ids = []
             for value in values:

@@ -37,6 +37,7 @@ from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.core.instrument.protocol_cmd_dict import CommandDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictKey
 
+from mi.instrument.nortek.driver import NortekProtocolParameterDict
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekUserConfigDataParticleKey
@@ -510,6 +511,14 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         (timestamp,result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
+    def test_date_conversion(self):
+	date = "\x09\x07\x02\x11\x10\x12"
+	datetime_from_words = NortekProtocolParameterDict.convert_words_to_datetime(date)
+	log.debug("Date time conversion from words: %s", datetime_from_words)
+	words_from_datetime = NortekProtocolParameterDict.convert_datetime_to_words(datetime_from_words)
+	log.debug("Date time conversion back to words: %s", words_from_datetime)
+	self.assertEqual(words_from_datetime, date)
+	
     def test_core_chunker(self):
         """
         Tests the chunker
@@ -776,6 +785,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
         if all_params:
             self.assertEqual(set(pd1.keys()), set(pd2.keys()))
             for (key, type_val) in pd2.iteritems():
+		log.debug("pd1 key: %s, value: %s, type: %s", key, pd1[key], type_val)
                 self.assertTrue(isinstance(pd1[key], type_val))
         else:
             for (key, val) in pd1.iteritems():
@@ -1013,10 +1023,10 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 		       NortekUserConfigDataParticleKey.TX_LENGTH: 2,
 		       NortekUserConfigDataParticleKey.MEASUREMENT_INTERVAL: 3600,
 		       NortekUserConfigDataParticleKey.WAVE_MODE: [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1],
-		       NortekUserConfigDataParticleKey.AVG_INTERVAL: 60,
+		       NortekUserConfigDataParticleKey.AVG_INTERVAL: 61,
 		       NortekUserConfigDataParticleKey.NUM_CELLS: 1,
 		       NortekUserConfigDataParticleKey.COORDINATE_SYSTEM: 1,
-		       NortekUserConfigDataParticleKey.CHECKSUM: 2911,
+		       NortekUserConfigDataParticleKey.CHECKSUM: 64970,
 		       NortekUserConfigDataParticleKey.NUM_PINGS: 1,
 		       NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR: 0,
 		       NortekUserConfigDataParticleKey.MODE: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
@@ -1027,7 +1037,8 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 		       NortekUserConfigDataParticleKey.TIME_BETWEEN_BURSTS: 512,
 		       NortekUserConfigDataParticleKey.ANALOG_SCALE_FACTOR: 11185,
 		       NortekUserConfigDataParticleKey.NUM_PINGS_DIAG: 20}
-        self.put_driver_in_command_mode()
+        self.assert_initialize_driver()
+        self.driver_client.cmd_dvr('apply_startup_params')
         
         # command the instrument to read the head config.
         response = self.driver_client.cmd_dvr('execute_resource',
@@ -1503,11 +1514,11 @@ class NortekQualTest(InstrumentDriverQualificationTestCase):
                 ProtocolEvent.CLOCK_SYNC,
                 ProtocolEvent.GET_HEAD_CONFIGURATION,
                 ProtocolEvent.GET_HW_CONFIGURATION,
+		ProtocolEvent.GET_USER_CONFIGURATION,
                 ProtocolEvent.POWER_DOWN,
                 ProtocolEvent.READ_BATTERY_VOLTAGE,
                 ProtocolEvent.READ_CLOCK, 
                 ProtocolEvent.READ_ID,
-                ProtocolEvent.READ_FAT,
                 ProtocolEvent.READ_MODE,
                 ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME,
                 ProtocolEvent.START_MEASUREMENT_IMMEDIATE,

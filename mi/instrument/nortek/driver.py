@@ -999,6 +999,31 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
                 found = True
         return found
     
+    @staticmethod
+    def convert_to_raw_value(param_name, initial_value):
+        """
+        Convert COMMENTS, DEPLOYMENT_NAME, QUAL_CONSTANTS, VELOCITY_ADJ_TABLE,
+        and CLOCK_DEPLOY back to their instrument-ready binary representation
+        despite them being stored in an ION-friendly not-raw-binary format.
+        @param params a name of a parameter
+        @param initial_value The value that is being converted
+        @retval The raw, instrument-binary value for that name. If the value would
+        already be instrument-level coming  out of the param dict, there is
+        no change
+        """
+        if param_name == Parameter.COMMENTS:
+            return (initial_value.ljust(180, "\x00"))
+        if param_name == Parameter.DEPLOYMENT_NAME:
+            return (initial_value.ljust(6, "\x00"))
+        if param_name == Parameter.QUAL_CONSTANTS:
+            return base64.b64decode(initial_value.get_value())
+        if param_name == Parameter.VELOCITY_ADJ_TABLE:
+            return base64.b64decode(initial_value.get_value())
+        if param_name == Parameter.CLOCK_DEPLOY:
+            return NortekProtocolParameterDict.convert_datetime_to_words(initial_value.get_value())
+        
+        return initial_value
+    
     def get_config(self):
         """
         Retrieve the configuration (all key values not ending in 'Spare').
@@ -1026,10 +1051,10 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
         if ((self._param_dict[name].value.f_format == NortekProtocolParameterDict.word_to_string) or
             (self._param_dict[name].value.f_format == NortekProtocolParameterDict.double_word_to_string)):
             if not isinstance(value, int):
-                raise InstrumentParameterException('Unable to set parameter %s to %s: value not an integer' %(name, value))
-        else:
-            if not isinstance(value, str):
-                raise InstrumentParameterException('Unable to set parameter %s to %s: value not a string' %(name, value))
+                raise InstrumentParameterException('Unable to set parameter %s to %s: value not an integer' %(name, value))            
+        #else:
+        #    if not isinstance(value, str):
+        #        raise InstrumentParameterException('Unable to set parameter %s to %s: value not a string' %(name, value))
         
         if self._param_dict[name].description.visibility == ParameterDictVisibility.READ_ONLY:
             raise ReadOnlyException('Unable to set parameter %s to %s: parameter %s is read only' %(name, value, name))
@@ -1060,7 +1085,7 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
     @staticmethod
     def convert_word_to_int(word):
         if len(word) != 2:
-            raise SampleException("Invalid number of bytes in word input! Found %s" % len(word))
+            raise SampleException("Invalid number of bytes in word input! Found %s with input %s" % len(word))
 
         low_byte = ord(word[0])
         high_byte = 0x100 * ord(word[1])
@@ -1118,6 +1143,22 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
             
         return list
 
+    @staticmethod
+    def convert_datetime_to_words(int_array):
+        """
+        Convert array if integers into a block of 6 words that could be fed
+        back to the instrument as a timestamp. The 6 array probably came from
+        convert_words_to_datetime in the first place.
+        @param int_array An array of 6 hex values corresponding to a vector
+        date/time stamp.
+        @retval A string of 6 binary characters
+        """
+        if len(int_array) != 6:
+            raise SampleException("Invalid number of bytes in date/time input! Found %s" % len(int_array))
+            
+        list = [chr(int(str(n), 16)) for n in int_array]
+        return "".join(list)        
+        
     @staticmethod
     def convert_to_array(bytes, item_size):
         """
@@ -1194,9 +1235,11 @@ class NortekInstrumentDriver(SingleConnectionInstrumentDriver):
         @raise InstrumentParameterException If the config cannot be applied
         """
         config = self._protocol.get_startup_config()
+        log.debug("Startup config to be applied: %s", config)
         
         if not isinstance(config, dict):
             raise InstrumentParameterException("Incompatible initialization parameters")
+        
         
         self.set_resource(config, NotUserRequested=True)
 
@@ -1423,8 +1466,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             cmd_line = cmd
 
         # Send command.
-        log.debug('_do_cmd_resp: %s(%s), timeout=%s, expected_prompt=%s (%s),' 
-                  % (repr(cmd_line), repr(cmd_line.encode("hex")), timeout, expected_prompt, expected_prompt.encode("hex")))
+        log.debug('_do_cmd_resp: %s(%s), timeout=%s, expected_prompt=%s (%s),', 
+                  repr(cmd_line), repr(cmd_line.encode("hex")), timeout, expected_prompt, expected_prompt.encode("hex"))
         self._connection.send(cmd_line)
 
         # Wait for the prompt, prepare result and return, timeout exception
@@ -1559,7 +1602,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Clear the prompt buffer.
         self._promptbuf = ''
         self._get_response(timeout=TIMEOUT, expected_prompt=InstrumentPrompts.Z_ACK)
-
         self._update_params()
             
         return (next_state, result)
@@ -1894,9 +1936,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         except IndexError:
             raise InstrumentParameterException('Get command requires a parameter list or tuple.')
-
         # If all params requested, retrieve config.
-        if params == DriverParameter.ALL:
+        if (params == DriverParameter.ALL) or (params == [DriverParameter.ALL]):
             result = self._param_dict.get_config()
 
         # If not all params, confirm a list or tuple of params to retrieve.
@@ -2080,7 +2121,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.DEPLOYMENT_NAME,
                                     r'^.{%s}(.{6}).*' % str(40),
-                                    lambda match : match.group(1),
+                                    lambda match : NortekProtocolParameterDict.convert_bytes_to_string(match.group(1)),
+                                    #lambda match : match.group(1),
                                     lambda string : string,
                                     regex_flags=re.DOTALL))
         self._param_dict.add_parameter(
@@ -2092,7 +2134,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.CLOCK_DEPLOY,
                                     r'^.{%s}(.{6}).*' % str(48),
-                                    lambda match : match.group(1),
+                                    lambda match : NortekProtocolParameterDict.convert_words_to_datetime(match.group(1)),
+                                    #lambda match : match.group(1),
                                     lambda string : string,
                                     regex_flags=re.DOTALL))
         self._param_dict.add_parameter(
@@ -2160,13 +2203,16 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.VELOCITY_ADJ_TABLE,
                                     r'^.{%s}(.{180}).*' % str(76),
-                                    lambda match : match.group(1),
+                                    lambda match : base64.b64encode(match.group(1)),
+                                    #lambda match : match.group(1),
+                                    #lambda string : base64.b64encode(string),
                                     lambda string : string,
                                     regex_flags=re.DOTALL))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.COMMENTS,
                                     r'^.{%s}(.{180}).*' % str(256),
-                                    lambda match : match.group(1),
+                                    lambda match : NortekProtocolParameterDict.convert_bytes_to_string(match.group(1)),
+                                    #lambda match : match.group(1),
                                     lambda string : string,
                                     regex_flags=re.DOTALL))
         self._param_dict.add_parameter(
@@ -2250,7 +2296,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.QUAL_CONSTANTS,
                                     r'^.{%s}(.{16}).*' % str(494),
-                                    lambda match : match.group(1),
+                                    #lambda match : match.group(1),
+                                    lambda match : base64.b64encode(match.group(1)),
                                     lambda string : string,
                                     regex_flags=re.DOTALL))
         
@@ -2267,7 +2314,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                 dump += '{:03x}  '.format(byte_index)
             #dump += '0x{:02x}, '.format(ord(input[byte_index]))
             dump += '{:02x} '.format(ord(input[byte_index]))
-        #log.debug("dump = %s", dump)
         return dump
     
     def _check_configuration(self, input, sync, length):        
@@ -2373,20 +2419,32 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException()
-
+    
     def _create_set_output(self, parameters):
         # load buffer with sync byte (A5), ID byte (0), and size word (# of words in little-endian form)
         # 'user' configuration is 512 bytes, 256 words long, so size is 0x100
         output = '\xa5\x00\x00\x01'
         for name in self.UserParameters:
             log.debug('_create_set_output: adding %s to list', name)
-            output += parameters.format(name)
+            if (name == Parameter.COMMENTS):
+                output += parameters.format(name).ljust(180, "\x00")
+            elif (name == Parameter.DEPLOYMENT_NAME):
+                output += parameters.format(name).ljust(6, "\x00")
+            elif (name == Parameter.QUAL_CONSTANTS):
+                output += base64.b64decode(parameters.format(name))
+            elif (name == Parameter.VELOCITY_ADJ_TABLE):
+                output += base64.b64decode(parameters.format(name))
+            elif (name == Parameter.CLOCK_DEPLOY):
+                output += NortekProtocolParameterDict.convert_datetime_to_words(parameters.format(name))
+            else:            
+                output += parameters.format(name)
+        log.debug("Created set output: %s with length: %s", output, len(output))
         
         checksum = CHECK_SUM_SEED
         for word_index in range(0, len(output), 2):
             word_value = NortekProtocolParameterDict.convert_word_to_int(output[word_index:word_index+2])
             checksum = (checksum + word_value) % 0x10000
-            #log.debug('w_i=%d, c_c=%d' %(word_index, calculated_checksum))
+            #log.debug('*** w_i=%d, c_c=%d', word_index, checksum)
         log.debug('_create_set_output: user checksum = %s', checksum)
 
         output += NortekProtocolParameterDict.word_to_string(checksum)
