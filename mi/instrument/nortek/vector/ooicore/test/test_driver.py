@@ -548,9 +548,11 @@ class IntFromIDK(NortekIntTest):
                                 'EXPORTED_INSTRUMENT_CMD_GET_USER_CONFIGURATION', 
                                 'EXPORTED_INSTRUMENT_CMD_POWER_DOWN', 
                                 'EXPORTED_INSTRUMENT_CMD_READ_MODE', 
-                                'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME', 
-                                'EXPORTED_INSTRUMENT_CMD_READ_BATTERY_VOLTAGE', 
-                                'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE',
+                                # RECORDER
+                                #'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME', 
+                                'EXPORTED_INSTRUMENT_CMD_READ_BATTERY_VOLTAGE',
+                                # RECORDER
+                                #'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE',
                                 'EXPORTED_INSTRUMENT_CMD_SET_CONFIGURATION', 
                                 'DRIVER_EVENT_START_AUTOSAMPLE',
                                 'DRIVER_EVENT_ACQUIRE_SAMPLE',

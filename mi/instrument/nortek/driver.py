@@ -113,8 +113,9 @@ class InstrumentCmds(BaseEnum):
     POWER_DOWN                         = 'PD'     
     READ_BATTERY_VOLTAGE               = 'BV'
     READ_ID                            = 'ID'
-    START_MEASUREMENT_AT_SPECIFIC_TIME = 'SD'
-    START_MEASUREMENT_IMMEDIATE        = 'SR'
+    # RECORDER
+    #START_MEASUREMENT_AT_SPECIFIC_TIME = 'SD'
+    #START_MEASUREMENT_IMMEDIATE        = 'SR'
     START_MEASUREMENT_WITHOUT_RECORDER = 'ST'
     ACQUIRE_DATA                       = 'AD'
     CONFIRMATION                       = 'MC'        # confirm a break request
@@ -152,8 +153,9 @@ class ExportedInstrumentCommand(BaseEnum):
     GET_HW_CONFIGURATION = "EXPORTED_INSTRUMENT_CMD_GET_HW_CONFIGURATION"
     GET_HEAD_CONFIGURATION = "EXPORTED_INSTRUMENT_CMD_GET_HEAD_CONFIGURATION"
     GET_USER_CONFIGURATION = "EXPORTED_INSTRUMENT_CMD_GET_USER_CONFIGURATION"
-    START_MEASUREMENT_AT_SPECIFIC_TIME = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME"
-    START_MEASUREMENT_IMMEDIATE = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE"
+    # RECORDER
+    #START_MEASUREMENT_AT_SPECIFIC_TIME = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME"
+    #START_MEASUREMENT_IMMEDIATE = "EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE"
 
 class ProtocolEvent(BaseEnum):
     """
@@ -184,8 +186,9 @@ class ProtocolEvent(BaseEnum):
     GET_HW_CONFIGURATION = ExportedInstrumentCommand.GET_HW_CONFIGURATION
     GET_HEAD_CONFIGURATION = ExportedInstrumentCommand.GET_HEAD_CONFIGURATION
     GET_USER_CONFIGURATION = ExportedInstrumentCommand.GET_USER_CONFIGURATION
-    START_MEASUREMENT_AT_SPECIFIC_TIME = ExportedInstrumentCommand.START_MEASUREMENT_AT_SPECIFIC_TIME
-    START_MEASUREMENT_IMMEDIATE = ExportedInstrumentCommand.START_MEASUREMENT_IMMEDIATE
+    # RECORDER
+    #START_MEASUREMENT_AT_SPECIFIC_TIME = ExportedInstrumentCommand.START_MEASUREMENT_AT_SPECIFIC_TIME
+    #START_MEASUREMENT_IMMEDIATE = ExportedInstrumentCommand.START_MEASUREMENT_IMMEDIATE
 
 class Capability(BaseEnum):
     """
@@ -206,8 +209,9 @@ class Capability(BaseEnum):
     GET_HW_CONFIGURATION = ProtocolEvent.GET_HW_CONFIGURATION
     GET_HEAD_CONFIGURATION = ProtocolEvent.GET_HEAD_CONFIGURATION
     GET_USER_CONFIGURATION = ProtocolEvent.GET_USER_CONFIGURATION
-    START_MEASUREMENT_AT_SPECIFIC_TIME = ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME
-    START_MEASUREMENT_IMMEDIATE = ProtocolEvent.START_MEASUREMENT_IMMEDIATE
+    # RECORDER
+    #START_MEASUREMENT_AT_SPECIFIC_TIME = ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME
+    #START_MEASUREMENT_IMMEDIATE = ProtocolEvent.START_MEASUREMENT_IMMEDIATE
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -1307,8 +1311,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_HW_CONFIGURATION, self._handler_command_get_hw_config)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_HEAD_CONFIGURATION, self._handler_command_get_head_config)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_USER_CONFIGURATION, self._handler_command_get_user_config)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME, self._handler_command_start_measurement_specific_time)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_IMMEDIATE, self._handler_command_start_measurement_immediate)
+        # RECORDER
+        #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME, self._handler_command_start_measurement_specific_time)
+        #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_IMMEDIATE, self._handler_command_start_measurement_immediate)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
@@ -1621,9 +1626,12 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.on_event(ProtocolEvent.CLOCK_SYNC)
         
         # Issue start command and switch to autosample if successful.
-        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_IMMEDIATE, 
+        # RECORDER
+        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, 
                                    expected_prompt = InstrumentPrompts.Z_ACK, *args, **kwargs)
-                
+        #result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_IMMEDIATE, 
+        #                           expected_prompt = InstrumentPrompts.Z_ACK, *args, **kwargs)
+                                
         next_state = ProtocolState.AUTOSAMPLE        
         next_agent_state = ResourceAgentState.STREAMING
         
@@ -1758,9 +1766,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+    # RECORDER
+    """
     def _handler_command_start_measurement_specific_time(self):
-        """
-        """
         next_state = None
         next_agent_state = None
         result = None
@@ -1773,8 +1781,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         return (next_state, (next_agent_state, result))
 
     def _handler_command_start_measurement_immediate(self):
-        """
-        """
         next_state = None
         next_agent_state = None
         result = None
@@ -1785,6 +1791,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # TODO: what state should the driver/IA go to? Should this command even be exported?
 
         return (next_state, (next_agent_state, result))
+    """
 
     def _clock_sync(self, *args, **kwargs):
         """
@@ -1986,8 +1993,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._cmd_dict.add(Capability.GET_HW_CONFIGURATION)
         self._cmd_dict.add(Capability.GET_HEAD_CONFIGURATION)
         self._cmd_dict.add(Capability.GET_USER_CONFIGURATION)
-        self._cmd_dict.add(Capability.START_MEASUREMENT_AT_SPECIFIC_TIME)
-        self._cmd_dict.add(Capability.START_MEASUREMENT_IMMEDIATE)
+        # RECORDER
+        #self._cmd_dict.add(Capability.START_MEASUREMENT_AT_SPECIFIC_TIME)
+        #self._cmd_dict.add(Capability.START_MEASUREMENT_IMMEDIATE)
         
         # Child should load this, no need to do it twice 
         # self._cmd_dict.load_strings()

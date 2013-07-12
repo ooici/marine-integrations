@@ -1049,11 +1049,12 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
         self.assertEqual(user_config, response[1])
 	
 
-    #@unittest.skip("skip until issue with instrument recorder resolved, command fails with NACK from instrument")
-    def test_instrument_start_measurement_immediate(self):
-        """
-        @brief Test for starting measurement immediate
-        """
+    # RECORDER
+    #def test_instrument_start_measurement_immediate(self):
+    """
+    @brief Test for starting measurement immediate
+    """
+    """
         self.put_driver_in_command_mode()
         
         # command the instrument to start measurement immediate.
@@ -1067,12 +1068,14 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 		  len(sample_events))
         #log.debug('samples=%s' %sample_events)
         self.assertTrue(len(sample_events) >= 1)
-
-    #@unittest.skip("skip until issue with instrument recorder resolved, command fails with NACK from instrument")
-    def test_instrument_start_measurement_at_specific_time(self):
-        """
-        @brief Test for starting measurement immediate
-        """
+    """
+    
+    # RECORDER
+    #def test_instrument_start_measurement_at_specific_time(self):
+    """
+    @brief Test for starting measurement immediate
+    """
+    """
         self.put_driver_in_command_mode()
         
         # command the instrument to start measurement immediate.
@@ -1086,7 +1089,8 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 		  len(sample_events))
         #log.debug('samples=%s' %sample_events)
         self.assertTrue(len(sample_events) >= 1)
-
+    """
+    
     def test_instrument_acquire_sample(self):
         """
         Test acquire sample command and events.
@@ -1520,8 +1524,9 @@ class NortekQualTest(InstrumentDriverQualificationTestCase):
                 ProtocolEvent.READ_CLOCK, 
                 ProtocolEvent.READ_ID,
                 ProtocolEvent.READ_MODE,
-                ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME,
-                ProtocolEvent.START_MEASUREMENT_IMMEDIATE,
+                # RECORDER
+		#ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME,
+                #ProtocolEvent.START_MEASUREMENT_IMMEDIATE,
                 ProtocolEvent.SET_CONFIGURATION
             ],
             AgentCapabilityType.RESOURCE_PARAMETER: [

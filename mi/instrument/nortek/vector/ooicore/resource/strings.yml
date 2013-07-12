@@ -299,15 +299,15 @@ commands: {
             Names include ",
             type: "dict"
         }
-    },
-    EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME: {
-        description: "Start measurement at a specific time as indicated in the config",
-        display_name: "Start measurement at specified time"
-    },
-    EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE: {
-        description: "Start measurement immediately, regardless of time in config",
-        display_name: "Start measurement immediately"
     }
+    #EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME: {
+    #    description: "Start measurement at a specific time as indicated in the config",
+    #    display_name: "Start measurement at specified time"
+    #},
+    #EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE: {
+    #    description: "Start measurement immediately, regardless of time in config",
+    #    display_name: "Start measurement immediately"
+    #}
 }     
 
 driver: {
