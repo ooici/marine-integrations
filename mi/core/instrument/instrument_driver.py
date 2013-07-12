@@ -935,6 +935,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         next_state = None
         result = None
         
+        log.info("_handler_connected_disconnect: invoking stop_comms().")
         self._connection.stop_comms()
         self._protocol = None
         next_state = DriverConnectionState.DISCONNECTED
@@ -951,10 +952,13 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         next_state = None
         result = None
         
+        log.info("_handler_connected_connection_lost: invoking stop_comms().")
         self._connection.stop_comms()
         self._protocol = None
         
         # Send async agent state change event.
+        log.info("_handler_connected_connection_lost: sending LOST_CONNECTION " \
+                 "event, moving to DISCONNECTED state.")
         self._driver_event(DriverAsyncEvent.AGENT_EVENT,
                            ResourceAgentEvent.LOST_CONNECTION)
          
@@ -1064,11 +1068,16 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         """
         
         if not self._connection_lost:
+            log.info("_lost_connection_callback: starting thread to send " \
+                     "CONNECTION_LOST event to instrument driver.")
             self._connection_lost = True
             lost_comms_thread = Thread(
                 target=self._connection_fsm.on_event,
                 args=(DriverEvent.CONNECTION_LOST, ))
             lost_comms_thread.start()
+        else:
+            log.info("_lost_connection_callback: connection_lost flag true.")
+            
             
     def _build_protocol(self):
         """

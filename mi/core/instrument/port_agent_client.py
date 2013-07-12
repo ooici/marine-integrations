@@ -854,6 +854,13 @@ class Listener(threading.Thread):
                  % (self.thread_name, e)
                 log.error(errorString)
                 self._invoke_error_callback(self.recovery_attempt, errorString)
+                """
+                This next statement causes the thread to exit.  This 
+                thread is done regardless of which condition exists 
+                above; it is the job of the callbacks to restart the
+                thread
+                """
+                self._done = True
 
             except Exception as e:
                 self.default_callback_error(e)
