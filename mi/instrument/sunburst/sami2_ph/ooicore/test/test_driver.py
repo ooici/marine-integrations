@@ -21,7 +21,8 @@ import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -143,6 +144,25 @@ class DriverTestMixinSub(DriverTestMixin):
         'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
         'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + NEWLINE
 
+    # Data records -- SAMI (response to the R or R0 command)
+    VALID_DATA_SAMPLE = '*F8E70ACDDE9E4F06350BAA077C06A408040BAD077906A307' + \
+        'FE0BA80778069F08010BAA077C06A208020BAB077E06A208040BAB077906A' + \
+        '008010BAA06F806A107FE0BAE04EC06A707EF0BAF027C06A407E20BAA0126' + \
+        '069E07D60BAF00A806A207D60BAC008906A407DF0BAD009206A207E70BAB0' + \
+        '0C206A207F20BB0011306A707F80BAC019106A208000BAE022D069F08010B' + \
+        'AB02E006A008030BAD039706A308000BAB044706A208000BAA04E906A3080' + \
+        '30BAB056D06A408030BAA05DC069F08010BAF063406A608070BAE067406A2' + \
+        '08000BAC06AB069E07FF0BAD06D506A2080200000D650636CE' + NEWLINE
+
+    # Control records
+    VALID_CONTROL_RECORD = '*F81285CDDD74DD0041000003000000000224FC' + NEWLINE
+
+    # Regular Status Message (response to S0 command)
+    VALID_STATUS_MESSAGE = ':CDDD74E10041000003000000000236F8' + NEWLINE
+
+    # Error records (valid error codes are between 0x00 and 0x11)
+    VALID_ERROR_CODE = '?0B' + NEWLINE
+
     ###
     #  Parameter and Type Definitions
     ###
@@ -225,9 +245,6 @@ class DriverTestMixinSub(DriverTestMixin):
         Capability.ACQUIRE_SAMPLE:      {STATES: [ProtocolState.COMMAND]}
     }
 
-    # Regular Status Message (response to S0 command)
-    VALID_STATUS_MESSAGE = ':CDDD74E10041000003000000000236F8' + NEWLINE
-
     # [TODO] Consider moving to base class as these apply to both PCO2 and pH
     _regular_status_parameters = {
         # SAMI Regular Status Messages (S0)
@@ -253,9 +270,6 @@ class DriverTestMixinSub(DriverTestMixin):
         SamiRegularStatusDataParticleKey.NUM_BYTES_STORED:          {TYPE: int, VALUE: 0x000236, REQUIRED: True},
         SamiRegularStatusDataParticleKey.CHECKSUM:                  {TYPE: int, VALUE: 0xF8, REQUIRED: True}
     }
-
-    # Control records
-    VALID_CONTROL_RECORD = '*F81285CDDD74DD0041000003000000000224FC' + NEWLINE
 
     # [TODO] Consider moving to base class as these apply to both PCO2 and pH
     _control_record_parameters = {
@@ -284,16 +298,6 @@ class DriverTestMixinSub(DriverTestMixin):
         SamiControlRecordDataParticleKey.NUM_BYTES_STORED:        {TYPE: int, VALUE: 0x000224, REQUIRED: True},
         SamiControlRecordDataParticleKey.CHECKSUM:                {TYPE: int, VALUE: 0xFC, REQUIRED: True}
     }
-
-    # Data records -- SAMI (response to the R or R0 command)
-    VALID_DATA_SAMPLE = '*F8E70ACDDE9E4F06350BAA077C06A408040BAD077906A307' + \
-        'FE0BA80778069F08010BAA077C06A208020BAB077E06A208040BAB077906A' + \
-        '008010BAA06F806A107FE0BAE04EC06A707EF0BAF027C06A407E20BAA0126' + \
-        '069E07D60BAF00A806A207D60BAC008906A407DF0BAD009206A207E70BAB0' + \
-        '0C206A207F20BB0011306A707F80BAC019106A208000BAE022D069F08010B' + \
-        'AB02E006A008030BAD039706A308000BAB044706A208000BAA04E906A3080' + \
-        '30BAB056D06A408030BAA05DC069F08010BAF063406A608070BAE067406A2' + \
-        '08000BAC06AB069E07FF0BAD06D506A2080200000D650636CE' + NEWLINE
 
     _sami_data_sample_parameters = {
         # SAMI pH sample (type 0x0A)
@@ -390,9 +394,6 @@ class DriverTestMixinSub(DriverTestMixin):
         PhsenConfigDataParticleKey.NUMBER_MEASUREMENTS:         {TYPE: int, VALUE: 0x17, REQUIRED: True},
         PhsenConfigDataParticleKey.SALINITY_DELAY:              {TYPE: int, VALUE: 0x00, REQUIRED: True}
     }
-
-    # Error records (valid error codes are between 0x00 and 0x11)
-    VALID_ERROR_CODE = '?0B' + NEWLINE
 
     # [TODO] Move to base class
     _error_code_parameters = {
@@ -494,7 +495,6 @@ class DriverTestMixinSub(DriverTestMixin):
                                              verify_values)
 
 
-
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
@@ -513,7 +513,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
-
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -529,13 +528,31 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
-
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
         """
         chunker = StringChunker(Protocol.sieve_function)
 
+        self.assert_chunker_sample(chunker, self.VALID_STATUS_MESSAGE)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_STATUS_MESSAGE)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_STATUS_MESSAGE, 32)
+        self.assert_chunker_combined_sample(chunker, self.VALID_STATUS_MESSAGE)
+
+        self.assert_chunker_sample(chunker, self.VALID_CONTROL_RECORD)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_CONTROL_RECORD)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_CONTROL_RECORD, 32)
+        self.assert_chunker_combined_sample(chunker, self.VALID_CONTROL_RECORD)
+
+        self.assert_chunker_sample(chunker, self.VALID_DATA_SAMPLE)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_DATA_SAMPLE)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_DATA_SAMPLE, 32)
+        self.assert_chunker_combined_sample(chunker, self.VALID_DATA_SAMPLE)
+
+        self.assert_chunker_sample(chunker, self.VALID_CONFIG_STRING)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_CONFIG_STRING)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_CONFIG_STRING, 32)
+        self.assert_chunker_combined_sample(chunker, self.VALID_CONFIG_STRING)
 
     def test_got_data(self):
         """
@@ -545,6 +562,14 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
+        self.assert_raw_particle_published(driver, True)
+
+        # Start validating data particles
+        self.assert_particle_published(driver, self.VALID_STATUS_MESSAGE, self.assert_particle_regular_status, True)
+        self.assert_particle_published(driver, self.VALID_CONTROL_RECORD, self.assert_particle_control_record, True)
+        self.assert_particle_published(driver, self.VALID_DATA_SAMPLE, self.assert_particle_sami_data_sample, True)
+        self.assert_particle_published(driver, self.VALID_CONFIG_STRING, self.assert_particle_configuration, True)
+        self.assert_particle_published(driver, self.VALID_ERROR_CODE, self.assert_particle_error_code, True)
 
     def test_protocol_filter_capabilities(self):
         """

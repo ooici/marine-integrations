@@ -11,6 +11,7 @@ Sunburst Sensors SAMI2-PH pH underwater sensor
 __author__ = 'Stuart Pearce'
 __license__ = 'Apache 2.0'
 
+import re
 import string
 import datetime as dt
 
@@ -48,12 +49,112 @@ SAMI_TO_NTP = (dt.datetime(1904, 1, 1) - dt.datetime(1900, 1, 1)).total_seconds(
 #    Driver Constant Definitions
 ###
 
+###
+#    Driver RegEx Definitions
+###
 
+# Regular Status Strings (produced every 1 Hz or in response to S0 command)
+REGULAR_STATUS_REGEX = (
+    r'[:]' +  # status message identifier
+    '([0-9A-Fa-f]{8})' +  # timestamp (seconds since 1904)
+    '([0-9A-Fa-f]{4})' +  # status bit field
+    '([0-9A-Fa-f]{6})' +  # number of data records recorded
+    '([0-9A-Fa-f]{6})' +  # number of errors
+    '([0-9A-Fa-f]{6})' +  # number of bytes stored
+    '([0-9A-Fa-f]{2})' +  # checksum
+    NEWLINE)
+REGULAR_STATUS_REGEX_MATCHER = re.compile(REGULAR_STATUS_REGEX)
+
+# Control Records (Types 0x80 - 0xFF)
+CONTROL_RECORD_REGEX = (
+    r'[\*]' +  # record identifier
+    '([0-9A-Fa-f]{2})' +  # unique instrument identifier
+    '([0-9A-Fa-f]{2})' +  # control record length (bytes)
+    '([8-9A-Fa-f][0-9A-Fa-f])' +  # type of control record 0x80-FF
+    '([0-9A-Fa-f]{8})' +  # timestamp (seconds since 1904)
+    '([0-9A-Fa-f]{4})' +  # status bit field
+    '([0-9A-Fa-f]{6})' +  # number of data records recorded
+    '([0-9A-Fa-f]{6})' +  # number of errors
+    '([0-9A-Fa-f]{6})' +  # number of bytes stored
+    '([0-9A-Fa-f]{2})' +  # checksum
+    NEWLINE)
+CONTROL_RECORD_REGEX_MATCHER = re.compile(CONTROL_RECORD_REGEX)
+
+# SAMI pH Sample Records (Type 0x0A)
+SAMI_SAMPLE_REGEX = (
+    r'[\*]' +  # record identifier
+    '([0-9A-Fa-f]{2})' +  # unique instrument identifier
+    '([0-9A-Fa-f]{2})' +  # length of data record (bytes)
+    '(0A|0B)' +  # type of data record (0A for pH)
+    '([0-9A-Fa-f]{8})' +  # timestamp (seconds since 1904)
+    '([0-9A-Fa-f]{4})' +  # starting thermistor reading
+    '([0-9A-Fa-f]{64})' +  # 16 reference measurements
+    '([0-9A-Fa-f]{368})' +  # 23 sets of 4 sample measurements
+    '([0-9A-Fa-f]{4})' +  # currently unused but reserved
+    '([0-9A-Fa-f]{4})' +  # battery voltage
+    '([0-9A-Fa-f]{4})' +  # ending thermistor reading
+    '([0-9A-Fa-f]{2})' +  # checksum
+    NEWLINE)
+SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
+
+# Configuration Records
+CONFIGURATION_REGEX = (
+    r'([0-9A-Fa-f]{8})' +  # Launch time timestamp (seconds since 1904)
+    '([0-9A-Fa-f]{8})' +  # start time (seconds from launch time)
+    '([0-9A-Fa-f]{8})' +  # stop time (seconds from start time)
+    '([0-9A-Fa-f]{2})' +  # mode bit field
+    '([0-9A-Fa-f]{6})' +  # Sami sampling interval (seconds)
+    '([0-9A-Fa-f]{2})' +  # Sami driver type (0A)
+    '([0-9A-Fa-f]{2})' +  # Pointer to Sami ph config parameters
+    '([0-9A-Fa-f]{6})' +  # Device 1 interval
+    '([0-9A-Fa-f]{2})' +  # Device 1 driver type
+    '([0-9A-Fa-f]{2})' +  # Device 1 pointer to config params
+    '([0-9A-Fa-f]{6})' +  # Device 2 interval
+    '([0-9A-Fa-f]{2})' +  # Device 2 driver type
+    '([0-9A-Fa-f]{2})' +  # Device 2 pointer to config params
+    '([0-9A-Fa-f]{6})' +  # Device 3 interval
+    '([0-9A-Fa-f]{2})' +  # Device 3 driver type
+    '([0-9A-Fa-f]{2})' +  # Device 3 pointer to config params
+    '([0-9A-Fa-f]{6})' +  # Prestart interval
+    '([0-9A-Fa-f]{2})' +  # Prestart driver type
+    '([0-9A-Fa-f]{2})' +  # Prestart pointer to config params
+    '([0-9A-Fa-f]{2})' +  # Global config bit field
+    '([0-9A-Fa-f]{2})' +  # pH1: Number of samples averaged
+    '([0-9A-Fa-f]{2})' +  # pH2: Number of Flushes
+    '([0-9A-Fa-f]{2})' +  # pH3: Pump On-Flush
+    '([0-9A-Fa-f]{2})' +  # pH4: Pump Off-Flush
+    '([0-9A-Fa-f]{2})' +  # pH5: Number of reagent pumps
+    '([0-9A-Fa-f]{2})' +  # pH6: Valve Delay
+    '([0-9A-Fa-f]{2})' +  # pH7: Pump On-Ind
+    '([0-9A-Fa-f]{2})' +  # pH8: Pump Off-Ind
+    '([0-9A-Fa-f]{2})' +  # pH9: Number of blanks
+    '([0-9A-Fa-f]{2})' +  # pH10: Pump measure T
+    '([0-9A-Fa-f]{2})' +  # pH11: Pump off to measure
+    '([0-9A-Fa-f]{2})' +  # pH12: Measure to pump on
+    '([0-9A-Fa-f]{2})' +  # pH13: Number of measurements
+    '([0-9A-Fa-f]{2})' +  # pH14: Salinity delay
+    '([0-9A-Fa-f]{406})' +  # padding of F or 0
+    NEWLINE)
+CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
+
+# Error records
+ERROR_REGEX = r'[?]([0-9A-Fa-f]{2})' + NEWLINE
+ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
+
+
+###
+#    Begin Classes
+###
 class DataParticleType(BaseEnum):
     """
     Data particle types produced by this driver
     """
     RAW = CommonDataParticleType.RAW
+    REGULAR_STATUS = 'regular_status'
+    CONTROL_RECORD = 'control_record'
+    SAMI_SAMPLE = 'sami_sample'
+    CONFIGURATION = 'configuration'
+    ERROR_CODE = 'error_code'
 
 
 class ProtocolState(BaseEnum):
@@ -182,6 +283,79 @@ class SamiRegularStatusDataParticleKey(BaseEnum):
     CHECKSUM = 'checksum'
 
 
+class SamiRegularStatusDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into an regular status data particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+    _data_particle_type = DataParticleType.REGULAR_STATUS
+
+    def _build_parsed_values(self):
+        """
+        Parse regular status values from raw data into a dictionary
+        """
+
+        matched = REGULAR_STATUS_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        particle_keys = [SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG,
+                         SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
+                         SamiRegularStatusDataParticleKey.RECORDING_ACTIVE,
+                         SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME,
+                         SamiRegularStatusDataParticleKey.RECORD_MEMORY_FULL,
+                         SamiRegularStatusDataParticleKey.RECORD_END_ON_ERROR,
+                         SamiRegularStatusDataParticleKey.DATA_DOWNLOAD_OK,
+                         SamiRegularStatusDataParticleKey.FLASH_MEMORY_OPEN,
+                         SamiRegularStatusDataParticleKey.BATTERY_LOW_PRESTART,
+                         SamiRegularStatusDataParticleKey.BATTERY_LOW_MEASUREMENT,
+                         SamiRegularStatusDataParticleKey.BATTERY_LOW_BANK,
+                         SamiRegularStatusDataParticleKey.BATTERY_LOW_EXTERNAL,
+                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE1_FAULT,
+                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE2_FAULT,
+                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT,
+                         SamiRegularStatusDataParticleKey.FLASH_ERASED,
+                         SamiRegularStatusDataParticleKey.POWER_ON_INVALID,
+                         SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS,
+                         SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS,
+                         SamiRegularStatusDataParticleKey.NUM_BYTES_STORED,
+                         SamiRegularStatusDataParticleKey.CHECKSUM]
+
+        result = []
+        grp_index = 1
+        bit_index = 0
+
+        for key in particle_keys:
+            if key in [SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
+                       SamiRegularStatusDataParticleKey.RECORDING_ACTIVE,
+                       SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME,
+                       SamiRegularStatusDataParticleKey.RECORD_MEMORY_FULL,
+                       SamiRegularStatusDataParticleKey.RECORD_END_ON_ERROR,
+                       SamiRegularStatusDataParticleKey.DATA_DOWNLOAD_OK,
+                       SamiRegularStatusDataParticleKey.FLASH_MEMORY_OPEN,
+                       SamiRegularStatusDataParticleKey.BATTERY_LOW_PRESTART,
+                       SamiRegularStatusDataParticleKey.BATTERY_LOW_MEASUREMENT,
+                       SamiRegularStatusDataParticleKey.BATTERY_LOW_BANK,
+                       SamiRegularStatusDataParticleKey.BATTERY_LOW_EXTERNAL,
+                       SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE1_FAULT,
+                       SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE2_FAULT,
+                       SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT,
+                       SamiRegularStatusDataParticleKey.FLASH_ERASED,
+                       SamiRegularStatusDataParticleKey.POWER_ON_INVALID]:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: bool(int(matched.group(2), 16) & (1 << bit_index))})
+                bit_index += 1
+                grp_index = 3
+            else:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
+                grp_index += 1
+
+        return result
+
+
 # [TODO: This needs to be moved to the baseclass]
 class SamiControlRecordDataParticleKey(BaseEnum):
     """
@@ -214,11 +388,119 @@ class SamiControlRecordDataParticleKey(BaseEnum):
 
 
 # [TODO: This needs to be moved to the baseclass]
+class SamiControlRecordDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a control record data particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+    _data_particle_type = DataParticleType.CONTROL_RECORD
+
+    def _build_parsed_values(self):
+        """
+        Parse control record values from raw data into a dictionary
+        """
+
+        matched = CONTROL_RECORD_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        particle_keys = [SamiControlRecordDataParticleKey.UNIQUE_ID,
+                         SamiControlRecordDataParticleKey.RECORD_LENGTH,
+                         SamiControlRecordDataParticleKey.RECORD_TYPE,
+                         SamiControlRecordDataParticleKey.RECORD_TIME,
+                         SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
+                         SamiControlRecordDataParticleKey.RECORDING_ACTIVE,
+                         SamiControlRecordDataParticleKey.RECORD_END_ON_TIME,
+                         SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL,
+                         SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR,
+                         SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK,
+                         SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN,
+                         SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART,
+                         SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT,
+                         SamiControlRecordDataParticleKey.BATTERY_LOW_BANK,
+                         SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL,
+                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT,
+                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT,
+                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT,
+                         SamiControlRecordDataParticleKey.FLASH_ERASED,
+                         SamiControlRecordDataParticleKey.POWER_ON_INVALID,
+                         SamiControlRecordDataParticleKey.NUM_DATA_RECORDS,
+                         SamiControlRecordDataParticleKey.NUM_ERROR_RECORDS,
+                         SamiControlRecordDataParticleKey.NUM_BYTES_STORED,
+                         SamiControlRecordDataParticleKey.CHECKSUM]
+
+        result = []
+        grp_index = 1
+        bit_index = 0
+
+        for key in particle_keys:
+            if key in [SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
+                       SamiControlRecordDataParticleKey.RECORDING_ACTIVE,
+                       SamiControlRecordDataParticleKey.RECORD_END_ON_TIME,
+                       SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL,
+                       SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR,
+                       SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK,
+                       SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN,
+                       SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART,
+                       SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT,
+                       SamiControlRecordDataParticleKey.BATTERY_LOW_BANK,
+                       SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL,
+                       SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT,
+                       SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT,
+                       SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT,
+                       SamiControlRecordDataParticleKey.FLASH_ERASED,
+                       SamiControlRecordDataParticleKey.POWER_ON_INVALID]:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: bool(int(matched.group(5), 16) & (1 << bit_index))})
+                bit_index += 1
+                grp_index = 6
+            else:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
+                grp_index += 1
+
+        return result
+
+
+# [TODO: This needs to be moved to the baseclass]
 class SamiErrorCodeDataParticleKey(BaseEnum):
     """
     Data particle key for the error code records.
     """
     ERROR_CODE = 'error_code'
+
+
+# [TODO: This needs to be moved to the baseclass]
+class SamiErrorCodeDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into an error code data particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+    _data_particle_type = DataParticleType.ERROR_CODE
+
+    def _build_parsed_values(self):
+        """
+        Parse error_code values from raw data into a dictionary
+        """
+
+        matched = ERROR_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        particle_keys = [SamiErrorCodeDataParticleKey.ERROR_CODE]
+
+        result = []
+        grp_index = 1
+        for key in particle_keys:
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
+            grp_index += 1
+
+        return result
 
 
 class PhsenSamiSampleDataParticleKey(BaseEnum):
@@ -237,6 +519,71 @@ class PhsenSamiSampleDataParticleKey(BaseEnum):
     VOLTAGE_BATTERY = 'voltage_battery'
     END_THERMISTOR = 'thermistor_end'
     CHECKSUM = 'checksum'
+
+
+class PhsenSamiSampleDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a SAMI2-PH sample data particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+    _data_particle_type = DataParticleType.SAMI_SAMPLE
+
+    def _build_parsed_values(self):
+        """
+        Parse SAMI2-PH values from raw data into a dictionary
+        """
+
+        matched = SAMI_SAMPLE_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        particle_keys = [PhsenSamiSampleDataParticleKey.UNIQUE_ID,
+                         PhsenSamiSampleDataParticleKey.RECORD_LENGTH,
+                         PhsenSamiSampleDataParticleKey.RECORD_TYPE,
+                         PhsenSamiSampleDataParticleKey.RECORD_TIME,
+                         PhsenSamiSampleDataParticleKey.START_THERMISTOR,
+                         PhsenSamiSampleDataParticleKey.REF_MEASUREMENTS,
+                         PhsenSamiSampleDataParticleKey.PH_MEASUREMENTS,
+                         PhsenSamiSampleDataParticleKey.RESERVED_UNUSED,
+                         PhsenSamiSampleDataParticleKey.VOLTAGE_BATTERY,
+                         PhsenSamiSampleDataParticleKey.END_THERMISTOR,
+                         PhsenSamiSampleDataParticleKey.CHECKSUM]
+
+        result = []
+        grp_index = 1
+        unhex = lambda x: int(x, 16)
+        # ref_measurements
+        ref_measurements_string = matched.groups()[5]
+        ph_measurements_string = matched.groups()[6]
+
+        # 16 reference light measurements each 2 bytes (4 hex digits)
+        ref_regex = r'([0-9A-Fa-f]{4})' * 16
+        ref_regex_matcher = re.compile(ref_regex)
+        ref_match = ref_regex_matcher.match(ref_measurements_string)
+        ref_measurements = map(unhex, list(ref_match.groups()))
+
+        # 92 ph measurements (23 sets of 4 measurement types)
+        # each 2 bytes (4 hex digits)
+        ph_regex = r'([0-9A-Fa-f]{4})' * 92
+        ph_regex_matcher = re.compile(ph_regex)
+        ph_match = ph_regex_matcher.match(ph_measurements_string)
+        ph_measurements = map(unhex, list(ph_match.groups()))
+
+        for key in particle_keys:
+            if key is PhsenSamiSampleDataParticleKey.REF_MEASUREMENTS:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: ref_measurements})
+            elif key is PhsenSamiSampleDataParticleKey.PH_MEASUREMENTS:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: ph_measurements})
+            else:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: unhex(matched.group(grp_index))})
+            grp_index += 1
+
+        return result
 
 
 class PhsenConfigDataParticleKey(BaseEnum):
@@ -287,6 +634,112 @@ class PhsenConfigDataParticleKey(BaseEnum):
     MEASURE_TO_PUMP_ON = 'measure_to_pump_on'
     NUMBER_MEASUREMENTS = 'number_measurements'
     SALINITY_DELAY = 'salinity_delay'
+
+
+class PhsenConfigurationDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a configuration record data particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+    _data_particle_type = DataParticleType.CONFIGURATION
+
+    def _build_parsed_values(self):
+        """
+        Parse configuration record values from raw data into a dictionary
+        """
+
+        matched = CONFIGURATION_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        particle_keys = [PhsenConfigurationDataParticleKey.LAUNCH_TIME,
+                         PhsenConfigurationDataParticleKey.START_TIME_OFFSET,
+                         PhsenConfigurationDataParticleKey.RECORDING_TIME,
+                         PhsenConfigurationDataParticleKey.PMI_SAMPLE_SCHEDULE,
+                         PhsenConfigurationDataParticleKey.SAMI_SAMPLE_SCHEDULE,
+                         PhsenConfigurationDataParticleKey.SLOT1_FOLLOWS_SAMI_SCHEDULE,
+                         PhsenConfigurationDataParticleKey.SLOT1_INDEPENDENT_SCHEDULE,
+                         PhsenConfigurationDataParticleKey.SLOT2_FOLLOWS_SAMI_SCHEDULE,
+                         PhsenConfigurationDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE,
+                         PhsenConfigurationDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE,
+                         PhsenConfigurationDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE,
+                         PhsenConfigurationDataParticleKey.TIMER_INTERVAL_SAMI,
+                         PhsenConfigurationDataParticleKey.DRIVER_ID_SAMI,
+                         PhsenConfigurationDataParticleKey.PARAMETER_POINTER_SAMI,
+                         PhsenConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE1,
+                         PhsenConfigurationDataParticleKey.DRIVER_ID_DEVICE1,
+                         PhsenConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE1,
+                         PhsenConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE2,
+                         PhsenConfigurationDataParticleKey.DRIVER_ID_DEVICE2,
+                         PhsenConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE2,
+                         PhsenConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE3,
+                         PhsenConfigurationDataParticleKey.DRIVER_ID_DEVICE3,
+                         PhsenConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE3,
+                         PhsenConfigurationDataParticleKey.TIMER_INTERVAL_PRESTART,
+                         PhsenConfigurationDataParticleKey.DRIVER_ID_PRESTART,
+                         PhsenConfigurationDataParticleKey.PARAMETER_POINTER_PRESTART,
+                         PhsenConfigurationDataParticleKey.USE_BAUD_RATE_57600,
+                         PhsenConfigurationDataParticleKey.SEND_RECORD_TYPE,
+                         PhsenConfigurationDataParticleKey.SEND_LIVE_RECORDS,
+                         PhsenConfigurationDataParticleKey.EXTEND_GLOBAL_CONFIG,
+                         PhsenConfigurationDataParticleKey.PUMP_PULSE,
+                         PhsenConfigurationDataParticleKey.PUMP_ON_TO_MEAURSURE,
+                         PhsenConfigurationDataParticleKey.SAMPLES_PER_MEASURE,
+                         PhsenConfigurationDataParticleKey.CYCLES_BETWEEN_BLANKS,
+                         PhsenConfigurationDataParticleKey.NUM_REAGENT_CYCLES,
+                         PhsenConfigurationDataParticleKey.NUM_BLANK_CYCLES,
+                         PhsenConfigurationDataParticleKey.FLUSH_PUMP_INTERVAL,
+                         PhsenConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH,
+                         PhsenConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE,
+                         PhsenConfigurationDataParticleKey.CYCLE_RATE,
+                         PhsenConfigurationDataParticleKey.EXTERNAL_PUMP_SETTING]
+
+        result = []
+        grp_index = 1
+        mode_index = 0
+        glbl_index = 0
+        sami_index = 0
+
+        for key in particle_keys:
+            if key in [PhsenConfigurationDataParticleKey.PMI_SAMPLE_SCHEDULE,
+                       PhsenConfigurationDataParticleKey.SAMI_SAMPLE_SCHEDULE,
+                       PhsenConfigurationDataParticleKey.SLOT1_FOLLOWS_SAMI_SCHEDULE,
+                       PhsenConfigurationDataParticleKey.SLOT1_INDEPENDENT_SCHEDULE,
+                       PhsenConfigurationDataParticleKey.SLOT2_FOLLOWS_SAMI_SCHEDULE,
+                       PhsenConfigurationDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE,
+                       PhsenConfigurationDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE,
+                       PhsenConfigurationDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE]:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: bool(int(matched.group(4), 16) & (1 << mode_index))})
+                mode_index += 1
+                grp_index = 5
+
+            elif key in [PhsenConfigurationDataParticleKey.USE_BAUD_RATE_57600,
+                         PhsenConfigurationDataParticleKey.SEND_RECORD_TYPE,
+                         PhsenConfigurationDataParticleKey.SEND_LIVE_RECORDS,
+                         PhsenConfigurationDataParticleKey.EXTEND_GLOBAL_CONFIG]:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: bool(int(matched.group(20), 16) & (1 << glbl_index))})
+                glbl_index += 1
+                if glbl_index == 3:
+                    glbl_index = 7
+                grp_index = 21
+
+            elif key in [PhsenConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH,
+                         PhsenConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE]:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: bool(int(matched.group(28), 16) & (1 << sami_index))})
+                sami_index += 1
+                grp_index = 29
+
+            else:
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
+                grp_index += 1
+
+        return result
 
 
 ###############################################################################
@@ -396,6 +849,16 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return_list = []
 
+        sieve_matchers = [REGULAR_STATUS_REGEX_MATCHER,
+                          CONTROL_RECORD_REGEX_MATCHER,
+                          SAMI_SAMPLE_REGEX_MATCHER,
+                          CONFIGURATION_REGEX_MATCHER,
+                          ERROR_REGEX_MATCHER]
+
+        for matcher in sieve_matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
+
         return return_list
 
     def _build_param_dict(self):
@@ -406,11 +869,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         # Add parameter handlers to parameter dict.
 
-    def _got_chunk(self, chunk):
+    def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
+        self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(SamiErrorCodeDataParticle, ERROR_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(PhsenSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(PhsenConfigurationDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
 
     def _filter_capabilities(self, events):
         """
