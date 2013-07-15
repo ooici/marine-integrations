@@ -636,7 +636,7 @@ class PhsenConfigDataParticleKey(BaseEnum):
     SALINITY_DELAY = 'salinity_delay'
 
 
-class PhsenConfigurationDataParticle(DataParticle):
+class PhsenConfigDataParticle(DataParticle):
     """
     Routines for parsing raw data into a configuration record data particle
     structure.
@@ -654,85 +654,81 @@ class PhsenConfigurationDataParticle(DataParticle):
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.decoded_raw)
 
-        particle_keys = [PhsenConfigurationDataParticleKey.LAUNCH_TIME,
-                         PhsenConfigurationDataParticleKey.START_TIME_OFFSET,
-                         PhsenConfigurationDataParticleKey.RECORDING_TIME,
-                         PhsenConfigurationDataParticleKey.PMI_SAMPLE_SCHEDULE,
-                         PhsenConfigurationDataParticleKey.SAMI_SAMPLE_SCHEDULE,
-                         PhsenConfigurationDataParticleKey.SLOT1_FOLLOWS_SAMI_SCHEDULE,
-                         PhsenConfigurationDataParticleKey.SLOT1_INDEPENDENT_SCHEDULE,
-                         PhsenConfigurationDataParticleKey.SLOT2_FOLLOWS_SAMI_SCHEDULE,
-                         PhsenConfigurationDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE,
-                         PhsenConfigurationDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE,
-                         PhsenConfigurationDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE,
-                         PhsenConfigurationDataParticleKey.TIMER_INTERVAL_SAMI,
-                         PhsenConfigurationDataParticleKey.DRIVER_ID_SAMI,
-                         PhsenConfigurationDataParticleKey.PARAMETER_POINTER_SAMI,
-                         PhsenConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE1,
-                         PhsenConfigurationDataParticleKey.DRIVER_ID_DEVICE1,
-                         PhsenConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE1,
-                         PhsenConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE2,
-                         PhsenConfigurationDataParticleKey.DRIVER_ID_DEVICE2,
-                         PhsenConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE2,
-                         PhsenConfigurationDataParticleKey.TIMER_INTERVAL_DEVICE3,
-                         PhsenConfigurationDataParticleKey.DRIVER_ID_DEVICE3,
-                         PhsenConfigurationDataParticleKey.PARAMETER_POINTER_DEVICE3,
-                         PhsenConfigurationDataParticleKey.TIMER_INTERVAL_PRESTART,
-                         PhsenConfigurationDataParticleKey.DRIVER_ID_PRESTART,
-                         PhsenConfigurationDataParticleKey.PARAMETER_POINTER_PRESTART,
-                         PhsenConfigurationDataParticleKey.USE_BAUD_RATE_57600,
-                         PhsenConfigurationDataParticleKey.SEND_RECORD_TYPE,
-                         PhsenConfigurationDataParticleKey.SEND_LIVE_RECORDS,
-                         PhsenConfigurationDataParticleKey.EXTEND_GLOBAL_CONFIG,
-                         PhsenConfigurationDataParticleKey.PUMP_PULSE,
-                         PhsenConfigurationDataParticleKey.PUMP_ON_TO_MEAURSURE,
-                         PhsenConfigurationDataParticleKey.SAMPLES_PER_MEASURE,
-                         PhsenConfigurationDataParticleKey.CYCLES_BETWEEN_BLANKS,
-                         PhsenConfigurationDataParticleKey.NUM_REAGENT_CYCLES,
-                         PhsenConfigurationDataParticleKey.NUM_BLANK_CYCLES,
-                         PhsenConfigurationDataParticleKey.FLUSH_PUMP_INTERVAL,
-                         PhsenConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH,
-                         PhsenConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE,
-                         PhsenConfigurationDataParticleKey.CYCLE_RATE,
-                         PhsenConfigurationDataParticleKey.EXTERNAL_PUMP_SETTING]
+        particle_keys = [PhsenConfigDataParticleKey.LAUNCH_TIME,
+                         PhsenConfigDataParticleKey.START_TIME_OFFSET,
+                         PhsenConfigDataParticleKey.RECORDING_TIME,
+                         PhsenConfigDataParticleKey.PMI_SAMPLE_SCHEDULE,
+                         PhsenConfigDataParticleKey.SAMI_SAMPLE_SCHEDULE,
+                         PhsenConfigDataParticleKey.SLOT1_FOLLOWS_SAMI_SCHEDULE,
+                         PhsenConfigDataParticleKey.SLOT1_INDEPENDENT_SCHEDULE,
+                         PhsenConfigDataParticleKey.SLOT2_FOLLOWS_SAMI_SCHEDULE,
+                         PhsenConfigDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE,
+                         PhsenConfigDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE,
+                         PhsenConfigDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE,
+                         PhsenConfigDataParticleKey.TIMER_INTERVAL_SAMI,
+                         PhsenConfigDataParticleKey.DRIVER_ID_SAMI,
+                         PhsenConfigDataParticleKey.PARAMETER_POINTER_SAMI,
+                         PhsenConfigDataParticleKey.TIMER_INTERVAL_DEVICE1,
+                         PhsenConfigDataParticleKey.DRIVER_ID_DEVICE1,
+                         PhsenConfigDataParticleKey.PARAMETER_POINTER_DEVICE1,
+                         PhsenConfigDataParticleKey.TIMER_INTERVAL_DEVICE2,
+                         PhsenConfigDataParticleKey.DRIVER_ID_DEVICE2,
+                         PhsenConfigDataParticleKey.PARAMETER_POINTER_DEVICE2,
+                         PhsenConfigDataParticleKey.TIMER_INTERVAL_DEVICE3,
+                         PhsenConfigDataParticleKey.DRIVER_ID_DEVICE3,
+                         PhsenConfigDataParticleKey.PARAMETER_POINTER_DEVICE3,
+                         PhsenConfigDataParticleKey.TIMER_INTERVAL_PRESTART,
+                         PhsenConfigDataParticleKey.DRIVER_ID_PRESTART,
+                         PhsenConfigDataParticleKey.PARAMETER_POINTER_PRESTART,
+                         PhsenConfigDataParticleKey.USE_BAUD_RATE_57600,
+                         PhsenConfigDataParticleKey.SEND_RECORD_TYPE,
+                         PhsenConfigDataParticleKey.SEND_LIVE_RECORDS,
+                         PhsenConfigDataParticleKey.EXTEND_GLOBAL_CONFIG,
+                         PhsenConfigDataParticleKey.NUMBER_SAMPLES_AVERAGED,
+                         PhsenConfigDataParticleKey.NUMBER_FLUSHES,
+                         PhsenConfigDataParticleKey.PUMP_ON_FLUSH,
+                         PhsenConfigDataParticleKey.PUMP_OFF_FLUSH,
+                         PhsenConfigDataParticleKey.NUMBER_REAGENT_PUMPS,
+                         PhsenConfigDataParticleKey.VALVE_DELAY,
+                         PhsenConfigDataParticleKey.PUMP_ON_IND,
+                         PhsenConfigDataParticleKey.PV_OFF_IND,
+                         PhsenConfigDataParticleKey.NUMBER_BLANKS,
+                         PhsenConfigDataParticleKey.PUMP_MEASURE_T,
+                         PhsenConfigDataParticleKey.PUMP_OFF_TO_MEASURE,
+                         PhsenConfigDataParticleKey.MEASURE_TO_PUMP_ON,
+                         PhsenConfigDataParticleKey.NUMBER_MEASUREMENTS,
+                         PhsenConfigDataParticleKey.SALINITY_DELAY]
 
         result = []
         grp_index = 1
         mode_index = 0
         glbl_index = 0
-        sami_index = 0
+        #sami_index = 0
 
         for key in particle_keys:
-            if key in [PhsenConfigurationDataParticleKey.PMI_SAMPLE_SCHEDULE,
-                       PhsenConfigurationDataParticleKey.SAMI_SAMPLE_SCHEDULE,
-                       PhsenConfigurationDataParticleKey.SLOT1_FOLLOWS_SAMI_SCHEDULE,
-                       PhsenConfigurationDataParticleKey.SLOT1_INDEPENDENT_SCHEDULE,
-                       PhsenConfigurationDataParticleKey.SLOT2_FOLLOWS_SAMI_SCHEDULE,
-                       PhsenConfigurationDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE,
-                       PhsenConfigurationDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE,
-                       PhsenConfigurationDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE]:
+            if key in [PhsenConfigDataParticleKey.PMI_SAMPLE_SCHEDULE,
+                       PhsenConfigDataParticleKey.SAMI_SAMPLE_SCHEDULE,
+                       PhsenConfigDataParticleKey.SLOT1_FOLLOWS_SAMI_SCHEDULE,
+                       PhsenConfigDataParticleKey.SLOT1_INDEPENDENT_SCHEDULE,
+                       PhsenConfigDataParticleKey.SLOT2_FOLLOWS_SAMI_SCHEDULE,
+                       PhsenConfigDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE,
+                       PhsenConfigDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE,
+                       PhsenConfigDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE]:
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(4), 16) & (1 << mode_index))})
                 mode_index += 1
                 grp_index = 5
 
-            elif key in [PhsenConfigurationDataParticleKey.USE_BAUD_RATE_57600,
-                         PhsenConfigurationDataParticleKey.SEND_RECORD_TYPE,
-                         PhsenConfigurationDataParticleKey.SEND_LIVE_RECORDS,
-                         PhsenConfigurationDataParticleKey.EXTEND_GLOBAL_CONFIG]:
+            elif key in [PhsenConfigDataParticleKey.USE_BAUD_RATE_57600,
+                         PhsenConfigDataParticleKey.SEND_RECORD_TYPE,
+                         PhsenConfigDataParticleKey.SEND_LIVE_RECORDS,
+                         PhsenConfigDataParticleKey.EXTEND_GLOBAL_CONFIG]:
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(20), 16) & (1 << glbl_index))})
                 glbl_index += 1
                 if glbl_index == 3:
                     glbl_index = 7
                 grp_index = 21
-
-            elif key in [PhsenConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH,
-                         PhsenConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE]:
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: bool(int(matched.group(28), 16) & (1 << sami_index))})
-                sami_index += 1
-                grp_index = 29
 
             else:
                 result.append({DataParticleKey.VALUE_ID: key,
@@ -878,7 +874,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(SamiErrorCodeDataParticle, ERROR_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(PhsenSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(PhsenConfigurationDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(PhsenConfigDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
 
     def _filter_capabilities(self, events):
         """
