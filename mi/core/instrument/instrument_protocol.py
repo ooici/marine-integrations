@@ -543,6 +543,7 @@ class InstrumentProtocol(object):
             elif(self._param_dict.is_startup_param(param)):
                 raise InstrumentProtocolException("Required startup value not specified: %s" % param)
 
+        log.debug("Applying startup config: %s", return_dict)
         return return_dict
         
     def get_direct_access_params(self):

@@ -3,4 +3,6 @@ comm:
   data_port: 5112
   device_addr: localhost
   device_port: 2102
+  host: localhost
   method: ethernet
+  sniffer_port: 6003

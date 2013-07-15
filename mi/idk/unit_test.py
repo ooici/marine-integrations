@@ -30,8 +30,6 @@ from mi.core.log import get_logger ; log = get_logger()
 
 import gevent
 import json
-import ntplib
-import time
 
 from pprint import PrettyPrinter
 
@@ -95,7 +93,7 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 from ion.agents.port.port_agent_process import PortAgentProcess
 
 from pyon.core.exception import Conflict
-from pyon.core.exception import ResourceError, BadRequest
+from pyon.core.exception import ResourceError, BadRequest, Timeout, ServerError
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 from ooi.logging import log
@@ -826,6 +824,46 @@ class DriverTestMixin(MiUnitTest):
         vendor_da_support = option_dict.get(DriverDictKey.VENDOR_SW_COMPATIBLE)
         self.assertIsNotNone(vendor_da_support, "%s not defined in driver options" % DriverDictKey.VENDOR_SW_COMPATIBLE)
 
+    def assert_metadata_generation(self, instrument_params=None, commands=None):
+        """
+        Test that we can generate metadata information for the driver,
+        commands, and parameters. Needs a driver to exist first. Metadata
+        can come from any source (file or code).
+        @param instrumnet_params The list of parameters to compare with the parameter
+        metadata being generated. Could be from an enum class's list() method.
+        @param commands The list of commands to compare with the command
+        metadata being generated. Could be from an enum class's list() method
+        """
+        json_result = self.driver_client.cmd_dvr("get_config_metadata")
+        self.assert_(json_result != None)
+        self.assert_(len(json_result) > 100) # just make sure we have something...
+        result = json.loads(json_result)
+        log.debug("Metadata JSON response: %s", json_result)
+        self.assert_(result != None)
+        self.assert_(isinstance(result, dict))
+
+        # simple driver metadata check
+        self.assertTrue(result[ConfigMetadataKey.DRIVER])
+        self.assertTrue(result[ConfigMetadataKey.DRIVER][DriverDictKey.VENDOR_SW_COMPATIBLE])
+
+        # param metadata check
+        self.assertTrue(result[ConfigMetadataKey.PARAMETERS])        
+        keys = result[ConfigMetadataKey.PARAMETERS].keys()
+        keys.append(DriverParameter.ALL) # toss that in there to match up
+        keys.sort()
+        enum_list = instrument_params
+        enum_list.sort()
+        self.assertEqual(keys, enum_list)
+        
+        # command metadata check 
+        self.assertTrue(result[ConfigMetadataKey.COMMANDS])
+        keys = result[ConfigMetadataKey.COMMANDS].keys()
+        keys.sort()
+        enum_list = commands
+        enum_list.sort()
+        self.assertEqual(keys, enum_list)
+
+
 class InstrumentDriverTestCase(MiIntTestCase):
     """
     Base class for instrument driver tests
@@ -1299,6 +1337,9 @@ class InstrumentDriverUnitTestCase(InstrumentDriverTestCase):
         
         # run it through json so unicode and everything lines up
         standard = json.dumps(happy_structure, sort_keys=True)
+        
+        log.debug("Parsed Result:\n%s", json.dumps(json.loads(parsed_result), sort_keys = True, indent = 2))
+        log.debug("Standard:\n%s", json.dumps(json.loads(standard), sort_keys = True, indent = 2))
 
         self.assertEqual(parsed_result, standard)
 
@@ -1781,8 +1822,25 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
             if(self._driver_exception_match(badreq, ex)):
                 log.debug("Expected exception raised: %s", ex)
                 return
+        except ResourceError as e:
+            if(self._driver_exception_match(e, ex)):
+                log.debug("Expected exception raised as ResourceError: %s", ex)
+                return
+        except Timeout as e:
+            if(self._driver_exception_match(e, ex)):
+                log.debug("Expected exception raised as Timeout: %s", ex)
+                return
+        except ServerError as e:
+            if(self._driver_exception_match(e, ex)):
+                log.debug("Expected exception raised as ServerError: %s", ex)
+                return
+        except Conflict as e:
+            if(self._driver_exception_match(e, ex)):
+                log.debug("Expected exception raised as Conflict: %s", ex)
+                return
         except Exception as e:
-            self.fail("Call returned bad exception: %s" % e)
+            log.debug("Exception type: %s", type(e))
+            self.fail("Call returned bad exception: %s of type %s" % (e, type(e)))
 
     def _driver_exception_match(self, ion_exception, expected_exception, error_regex=None):
         """

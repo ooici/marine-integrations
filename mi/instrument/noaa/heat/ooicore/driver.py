@@ -39,6 +39,7 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import SampleException
 
 ###
 #    Driver Constant Definitions
@@ -463,16 +464,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
 
         log.debug("_got_chunk_: %s", chunk)        
-        self._my_add_to_buffer(chunk)
-        
-        """
-        Invoke _extract_sample here.  However, don't raise an exception if 
-        if _extract_sample does not fine one, because this this driver only 
-        deals in chunks; that is, all data that is pertinent to this driver
-        has been defined as a particle.  (We can get chunks that won't apply
-        to _extract_sample.)
-        """
-        self._extract_sample(HEATDataParticle, HEATDataParticle.regex_compiled(), chunk, timestamp)
+        regex = HEATCommandResponse.regex_compiled()
+        if regex.match(chunk):
+            self._my_add_to_buffer(chunk)
+        else:
+            if not self._extract_sample(HEATDataParticle, 
+                                 HEATDataParticle.regex_compiled(), 
+                                 chunk, timestamp):
+                raise InstrumentProtocolException("Unhandled chunk")
 
     def _filter_capabilities(self, events):
         """
