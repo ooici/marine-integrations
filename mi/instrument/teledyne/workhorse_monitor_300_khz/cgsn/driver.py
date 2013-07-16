@@ -486,7 +486,6 @@ class Protocol(WorkhorseProtocol):
         """
         Send a BREAK to attempt to wake the device.
         """
-
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         except socket.error, msg:

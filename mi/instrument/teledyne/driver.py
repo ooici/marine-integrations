@@ -724,8 +724,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         for param in startup_params:
             if not self._has_parameter(param):
-            #if not TeledyneParameter.has(param):
-                log.error("WANT PARAM" + repr(param))
                 raise InstrumentParameterException("in _instrument_config_dirty")
 
             if (self._param_dict.get(param) != self._param_dict.get_config_value(param)):
@@ -999,7 +997,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
         except Exception as e:
-            log.error("in exception block")
             error = e
 
         finally:
@@ -1335,9 +1332,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         timeout = kwargs.get('timeout', TIMEOUT)
         prompt = self._wakeup(timeout=3)
-        log.error("SYNC CLOCK")
         self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
-        log.error("SYNC CLOCK DONE")
         return (next_state, (next_agent_state, result))
 
     def _handler_command_send_last_sample(self, *args, **kwargs):
