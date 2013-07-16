@@ -33,9 +33,11 @@ INSTALL prequisite software for COI-services
        export WORKON_HOME=$HOME/OOICI/virtenvs
        . /usr/local/share/python/virtualenvwrapper.sh
 - setup a virtual environment to work in.
-    mkvirtualenv --no-site-packages --python=python2.7 ooi
+    mkvirtualenv --distribute --no-site-packages --python=python2.7 ooi
+    pip install -U setuptools==0.8
+    pip install numpy==1.7.1
+
     workon ooi
-    pip install numpy==1.6.2
 
 INSTALL
 =======
@@ -55,7 +57,7 @@ $ cd marine-integrations
 $ git submodule update --init
 
 # Buildout the environment
-$ python bootstrap.py
+$ python bootstrap.py -v 2.2.0
 $ bin/buildout
 $ bin/generate_interfaces
 
