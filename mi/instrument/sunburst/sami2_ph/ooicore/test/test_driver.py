@@ -242,7 +242,16 @@ class DriverTestMixinSub(DriverTestMixin):
     _driver_capabilities = {
         # capabilities defined in the IOS
         Capability.ACQUIRE_STATUS:      {STATES: [ProtocolState.COMMAND]},
-        Capability.ACQUIRE_SAMPLE:      {STATES: [ProtocolState.COMMAND]}
+        Capability.ACQUIRE_SAMPLE:      {STATES: [ProtocolState.COMMAND]},
+        Capability.START_AUTOSAMPLE:    {STATES: [ProtocolState.COMMAND,
+                                                  ProtocolState.AUTOSAMPLE]},
+        Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
+                                                  ProtocolState.COMMAND]},
+        Capability.START_DIRECT:        {STATES: [ProtocolState.COMMAND,
+                                                  ProtocolState.UNKNOWN,
+                                                  ProtocolState.DIRECT_ACCESS]},
+        Capability.STOP_DIRECT:         {STATES: [ProtocolState.DIRECT_ACCESS,
+                                                  ProtocolState.UNKNOWN]}
     }
 
     # [TODO] Consider moving to base class as these apply to both PCO2 and pH
@@ -589,6 +598,33 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assertEquals(sorted(driver_capabilities),
                           sorted(protocol._filter_capabilities(test_capabilities)))
 
+    def test_capabilities(self):
+        """
+        Verify the FSM reports capabilities as expected. All states defined in
+        this dict must also be defined in the protocol FSM. Note, the EXIT and
+        ENTER DRIVER_EVENTS don't need to be listed here.
+        """
+        capabilities = {
+            ProtocolState.UNKNOWN:          ['DRIVER_EVENT_START_DIRECT',
+                                             'DRIVER_EVENT_DISCOVER'],
+            ProtocolState.COMMAND:          ['DRIVER_EVENT_GET',
+                                             'DRIVER_EVENT_SET',
+                                             'DRIVER_EVENT_START_DIRECT',
+                                             'DRIVER_EVENT_ACQUIRE_CONFIGURATION',
+                                             'DRIVER_EVENT_ACQUIRE_STATUS',
+                                             'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                             'DRIVER_EVENT_START_AUTOSAMPLE'],
+            ProtocolState.AUTOSAMPLE:       ['DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                             'DRIVER_EVENT_STOP_AUTOSAMPLE'],
+            ProtocolState.DIRECT_ACCESS:    ['EXECUTE_DIRECT',
+                                             'DRIVER_EVENT_STOP_DIRECT'],
+            ProtocolState.SCHEDULED_SAMPLE: [],
+            ProtocolState.POLLED_SAMPLE:    []
+        }
+
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_capabilities(driver, capabilities)
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -627,18 +663,15 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
         self.assert_direct_access_stop_telnet()
 
-
     def test_poll(self):
         '''
         No polling for a single sample
         '''
 
-
     def test_autosample(self):
         '''
         start and stop autosample and verify data particle
         '''
-
 
     def test_get_set_parameters(self):
         '''
@@ -646,7 +679,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         ensuring that read only parameters fail on set.
         '''
         self.assert_enter_command_mode()
-
 
     def test_get_capabilities(self):
         """
