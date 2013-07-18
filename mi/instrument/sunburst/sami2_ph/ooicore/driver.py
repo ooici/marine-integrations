@@ -32,7 +32,6 @@ from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 
-
 # newline.
 NEWLINE = '\r'
 
@@ -179,21 +178,23 @@ class ProtocolEvent(BaseEnum):
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
+    START_DIRECT = DriverEvent.START_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
+    ACQUIRE_CONFIGURATION = 'DRIVER_EVENT_ACQUIRE_CONFIGURATION'
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
+    #CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    FUNNY_PICTURES = 'FUNNY_PICTURES_OF_STUART'
 
 
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE  # why not ACQUIRE_SAMPLE ?
+    # ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE  # why not ACQUIRE_SAMPLE ?
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
@@ -252,10 +253,10 @@ class InstrumentCommand(BaseEnum):
     Instrument command strings
     """
 
+
 ###############################################################################
 # Data Particles
 ###############################################################################
-
 
 # [TODO: This needs to be moved to the baseclass]
 class SamiRegularStatusDataParticleKey(BaseEnum):
@@ -799,25 +800,99 @@ class Protocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
-        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
-                            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+        self._protocol_fsm = InstrumentFSM(
+            ProtocolState, ProtocolEvent,
+            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
-        # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        # Add event handlers for protocol state machine
+        self._protocol_fsm.add_handler(
+            ProtocolState.UNKNOWN, ProtocolEvent.ENTER,
+            self._handler_unknown_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.UNKNOWN, ProtocolEvent.EXIT,
+            self._handler_unknown_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER,
+            self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(
+            ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT,
+            self._handler_command_start_direct)
 
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.ENTER,
+            self._handler_command_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.EXIT,
+            self._handler_command_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.GET,
+            self._handler_command_get)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.SET,
+            self._handler_command_set)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,
+            self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION,
+            self._handler_command_acquire_configuration)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,
+            self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,
+            self._handler_command_acquire_sample)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
+            self._handler_command_start_autosample)
 
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
+        self._protocol_fsm.add_handler(
+            ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,
+            self._handler_direct_access_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,
+            self._handler_direct_access_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT,
+            self._handler_direct_access_stop_direct)
+        self._protocol_fsm.add_handler(
+            ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT,
+            self._handler_direct_access_execute_direct)
+
+        self._protocol_fsm.add_handler(
+            ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,
+            self._handler_autosample_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,
+            self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
+            self._handler_autosample_stop)
+        self._protocol_fsm.add_handler(
+            ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE,
+            self._handler_autosample_acquire_sample)
+
+        # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
+        # while in the AUTOSAMPLE state and will last anywhere from 10 seconds
+        # to 3 minutes depending on instrument and the type of sampling.
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.ENTER,
+            self._handler_scheduled_sample_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.EXIT,
+            self._handler_scheduled_sample_exit)
+
+        # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
+        # while in either the COMMAND state (or via the discover transition
+        # from the UNKNOWN state with the instrument unresponsive) and will
+        # last anywhere from a few seconds to 3 minutes depending on instrument
+        # and sample type.
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_SAMPLE, ProtocolEvent.ENTER,
+            self._handler_polled_sample_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_SAMPLE, ProtocolEvent.EXIT,
+            self._handler_polled_sample_exit)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -926,13 +1001,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+    def _handler_command_exit(self, *args, **kwargs):
+        """
+        Exit command state.
+        """
+        pass
+
     def _handler_command_get(self, *args, **kwargs):
         """
         Get parameter
         """
         next_state = None
         result = None
-
 
         return (next_state, result)
 
@@ -945,12 +1025,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
-
     def _handler_command_start_direct(self):
         """
         Start direct access
@@ -960,6 +1034,42 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
         log.debug("_handler_command_start_direct: entering DA mode")
         return (next_state, (next_agent_state, result))
+
+    def _handler_command_acquire_configuration(self, *args, **kwargs):
+        """
+        Acquire the instrument's configuration
+        """
+        next_state = None
+        result = None
+
+        return (next_state, result)
+
+    def _handler_command_acquire_status(self, *args, **kwargs):
+        """
+        Acquire the instrument's status
+        """
+        next_state = None
+        result = None
+
+        return (next_state, result)
+
+    def _handler_command_acquire_sample(self, *args, **kwargs):
+        """
+        Acquire a sample
+        """
+        next_state = None
+        result = None
+
+        return (next_state, result)
+
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        """
+        Start autosample mode (spoofed via use of scheduler)
+        """
+        next_state = None
+        result = None
+
+        return (next_state, result)
 
     ########################################################################
     # Direct access handlers.
@@ -1006,3 +1116,82 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = ResourceAgentState.COMMAND
 
         return (next_state, (next_agent_state, result))
+
+    ########################################################################
+    # Autosample handlers.
+    ########################################################################
+
+    def _handler_autosample_enter(self, ):
+        """
+        Enter Autosample state
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        self._sent_cmds = []
+
+    def _handler_autosample_exit(self, *args, **kwargs):
+        """
+        Exit autosample state
+        """
+        pass
+
+    def _handler_autosample_stop(self, *args, **kwargs):
+        """
+        Stop autosample
+        """
+        next_state = None
+        result = None
+
+        return (next_state, result)
+
+    def _handler_autosample_acquire_sample(self, *args, **kwargs):
+        """
+        While in autosample mode, poll for samples using the scheduler
+        """
+        next_state = None
+        result = None
+
+        return (next_state, result)
+
+    ########################################################################
+    # Scheduled Sample handlers.
+    ########################################################################
+
+    def _handler_scheduled_sample_enter(self, *args, **kwargs):
+        """
+        Enter busy state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        self._sent_cmds = []
+
+    def _handler_scheduled_sample_exit(self, *args, **kwargs):
+        """
+        Exit busy state.
+        """
+        pass
+
+    ########################################################################
+    # Polled Sample handlers.
+    ########################################################################
+
+    def _handler_polled_sample_enter(self, *args, **kwargs):
+        """
+        Enter busy state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        self._sent_cmds = []
+
+    def _handler_polled_sample_exit(self, *args, **kwargs):
+        """
+        Exit busy state.
+        """
+        pass
+
