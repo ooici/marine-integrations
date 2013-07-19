@@ -4,8 +4,7 @@
 @author Christopher Wingard
 @brief Driver for the Sunburst Sensors, SAMI2-PCO2 (PCO2W)
 Release notes:
-
-Sunburst Sensors SAMI2-PCO2 pCO2 underwater sensor
+    Sunburst Sensors SAMI2-PCO2 pCO2 underwater sensor
     Derived from initial code developed by Chris Center
 """
 
@@ -14,6 +13,7 @@ __license__ = 'Apache 2.0'
 
 import re
 import string
+import time
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -76,6 +76,7 @@ class ProtocolState(BaseEnum):
     Instrument protocol states
     """
     UNKNOWN = DriverProtocolState.UNKNOWN
+    WAITING = 'PROTOCOL_STATE_WAITING'
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
@@ -97,10 +98,9 @@ class ProtocolEvent(BaseEnum):
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
-    ACQUIRE_CONFIGURATION = 'DRIVER_EVENT_ACQUIRE_CONFIGURATION'
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-
+    
 
 class Capability(BaseEnum):
     """
@@ -848,6 +848,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT,
                                        self._handler_command_start_direct)
 
+        self._protocol_fsm.add_handler(ProtocolState.WAITING, ProtocolEvent.ENTER,
+                                       self._handler_waiting_enter)
+        self._protocol_fsm.add_handler(ProtocolState.WAITING, ProtocolEvent.EXIT,
+                                       self._handler_waiting_exit)
+        self._protocol_fsm.add_handler(ProtocolState.WAITING, ProtocolEvent.DISCOVER,
+                                       self._handler_waiting_discover)
+
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER,
                                        self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,
@@ -858,8 +865,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                                        self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,
                                        self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION,
-                                       self._handler_command_acquire_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,
                                        self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,
@@ -886,8 +891,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                                        self._handler_autosample_acquire_sample)
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
-        # while in the AUTOSAMPLE state and will last anywhere from 10 seconds
-        # to 3 minutes depending on instrument and the type of sampling.
+        # while in the AUTOSAMPLE state and will last anywhere from a few
+        # seconds to ~12 minutes depending on instrument and the type of
+        # sampling.
         self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.ENTER,
                                        self._handler_scheduled_sample_enter)
         self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.EXIT,
@@ -986,6 +992,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter unknown state.
         """
+        # Turn on debugging
+        log.debug("_handler_unknown_enter")
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -998,10 +1007,66 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
-        Discover current state
+        Discover current state; can be UNKNOWN, COMMAND or POLLED_SAMPLE
         @retval (next_state, result)
         """
-        return (ProtocolState.COMMAND, ResourceAgentState.IDLE)
+        next_state = None
+        result = None
+
+        log.debug("_handler_unknown_discover: starting discover")
+        (next_state, next_agent_state) = self._discover()
+        log.debug("_handler_unknown_discover: next agent state: %s", next_agent_state)
+
+        return (next_state, (next_agent_state, result))
+
+    ########################################################################
+    # Waiting handlers.
+    ########################################################################
+
+    def _handler_waiting_enter(self, *args, **kwargs):
+        """
+        Enter discover state.
+        """
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        # Test to determine what state we truly are in, command or unknown.
+        self._protocol_fsm.on_event(ProtocolEvent.DISCOVER)
+
+    def _handler_waiting_exit(self, *args, **kwargs):
+        """
+        Exit discover state.
+        """
+        pass
+
+    def _handler_waiting_discover(self, *args, **kwargs):
+        """
+        Discover current state; can be UNKNOWN or COMMAND
+        @retval (next_state, result)
+        """
+        # Exit states can be either COMMAND or back to UNKNOWN.
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        # try to discover our state
+        count = 1
+        while count <= 6:
+            log.debug("_handler_waiting_discover: starting discover")
+            (next_state, next_agent_state) = self._discover()
+            if next_state is ProtocolState.COMMAND:
+                log.debug("_handler_waiting_discover: discover succeeded")
+                log.debug("_handler_waiting_discover: next agent state: %s", next_agent_state)
+                return (next_state, (next_agent_state, result))
+            else:
+                log.debug("_handler_waiting_discover: discover failed, attempt %d of 3", count)
+                count += 1
+                time.sleep(20)
+
+        log.debug("_handler_waiting_discover: discover failed")
+        log.debug("_handler_waiting_discover: next agent state: %s", ResourceAgentState.ACTIVE_UNKNOWN)
+        return (ProtocolState.UNKNOWN, (ResourceAgentState.ACTIVE_UNKNOWN, result))
 
     ########################################################################
     # Command handlers.
@@ -1013,12 +1078,22 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
-        # Command device to update parameters and send a config change event.
-        #self._update_params()
+        # Command device to initialize parameters and send a config change event.
+        self._protocol_fsm.on_event(DriverEvent.INIT_PARAMS)
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_command_init_params(self, *args, **kwargs):
+        """
+        initialize parameters
+        """
+        next_state = None
+        result = None
+
+        self._init_params()
+        return (next_state, result)
 
     def _handler_command_exit(self, *args, **kwargs):
         """
@@ -1051,17 +1126,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.DIRECT_ACCESS
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
         result = None
+
         log.debug("_handler_command_start_direct: entering DA mode")
         return (next_state, (next_agent_state, result))
-
-    def _handler_command_acquire_configuration(self, *args, **kwargs):
-        """
-        Set parameter
-        """
-        next_state = None
-        result = None
-
-        return (next_state, result)
 
     def _handler_command_acquire_status(self, *args, **kwargs):
         """
@@ -1088,7 +1155,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.START_AUTOSAMPLE
         next_agent_state = ResourceAgentState.START_AUTOSAMPLE
         result = None
-        log.debug("_handler_command_start_direct: entering DA mode")
+        log.debug("_handler_command_start_autosample: entering Autosample mode")
         return (next_state, (next_agent_state, result))
 
     ########################################################################
@@ -1131,8 +1198,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        log.debug("_handler_direct_access_stop_direct: starting discover")
+        (next_state, next_agent_state) = self._discover()
+        log.debug("_handler_direct_access_stop_direct: next agent state: %s", next_agent_state)
 
         return (next_state, (next_agent_state, result))
 
@@ -1608,6 +1676,47 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
 
+    def _discover(self):
+        """
+        Discover current state; can be UNKNOWN, COMMAND or DISCOVER
+        @retval (next_state, result)
+        """
+        # Exit states can be either COMMAND, DISCOVER or back to UNKNOWN.
+        next_state = None
+        next_agent_state = None
+
+        log.debug("_discover")
+
+        # Set response timeout to 10 seconds. Should be immediate if
+        # communications are enabled and the instrument is not sampling.
+        # Otherwise, sampling can take up to ~3 minutes to complete. Partial
+        # strings are output during that time period.
+        kwargs['timeout'] = 10
+
+        # Make sure automatic-status updates are off. This will stop the
+        # broadcast of information while we are trying to get data.
+        cmd = self._build_simple_command(InstrumentCommand.STOP_STATUS)
+        self._do_cmd_direct(cmd)
+
+        # Acquire the current instrument status
+        status = self._do_cmd_resp(InstrumentCommand.GET_STATUS, *args, **kwargs)
+        status_match = REGULAR_STATUS_REGEX_MATCHER.match(status)
+
+        if status is None or not status_match:
+            # No response received in the timeout period, or response that does
+            # not match the status string format is received. In either case,
+            # we assume the unit is sampling and transition to a new state,
+            # WAITING, to confirm or deny.
+            next_state = ProtocolState.WAITING
+            next_agent_state = ResourceAgentState.BUSY
+        else:
+            # Unit is powered on and ready to accept commands, etc.
+            next_state = ProtocolState.COMMAND
+            next_agent_state = ResourceAgentState.IDLE
+
+        log.debug("_discover. result start: %s" % next_state)
+        return (next_state, next_agent_state)
+
     @staticmethod
     def _int_to_hexstring(self, v, slen):
         """
@@ -1625,5 +1734,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         elif not isinstance(slen, int):
             raise InstrumentParameterException('Value %s is not an integer.' % str(slen))
         else:
-            s = format(v, 'x')
-            return string.upper(s.zfill(slen))
+            s = format(v, 'X')
+            return s.zfill(slen)
+
+    @staticmethod
+    def _epoch_to_sami(self):
+        """
+        Create a timestamp in seconds using January 1, 1904 as the Epoch
+        @retval an integer value representing the number of seconds since
+            January 1, 1904.
+        """
+        return int(time.time()) + SAMI_EPOCH

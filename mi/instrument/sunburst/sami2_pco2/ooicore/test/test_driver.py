@@ -621,10 +621,10 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         capabilities = {
             ProtocolState.UNKNOWN:          ['DRIVER_EVENT_START_DIRECT',
                                              'DRIVER_EVENT_DISCOVER'],
+            ProtocolState.WAITING:          ['DRIVER_EVENT_DISCOVER'],
             ProtocolState.COMMAND:          ['DRIVER_EVENT_GET',
                                              'DRIVER_EVENT_SET',
                                              'DRIVER_EVENT_START_DIRECT',
-                                             'DRIVER_EVENT_ACQUIRE_CONFIGURATION',
                                              'DRIVER_EVENT_ACQUIRE_STATUS',
                                              'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                              'DRIVER_EVENT_START_AUTOSAMPLE'],
@@ -649,8 +649,375 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
 ###############################################################################
 @attr('INT', group='mi')
 class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
+
+    protocol_state = ''
+
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
+
+    def check_state(self, expected_state):
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, expected_state)
+
+    def assertParamDictionariesEqual(self, pd1, pd2, all_params=False):
+        """
+        Verify all device parameters exist and are correct type.
+        """
+        if all_params:
+            self.assertEqual(set(pd1.keys()), set(pd2.keys()))
+            for (key, type_val) in pd2.iteritems():
+                self.assertTrue(isinstance(pd1[key], type_val))
+        else:
+            for (key, val) in pd1.iteritems():
+                #self.assertTrue(pd2.has_key(key))
+                self.assertTrue(key in pd2)
+                self.assertTrue(isinstance(val, pd2[key]))
+
+    def put_driver_in_unconfigured_mode(self):
+        """
+        Wrap the steps and asserts for going into unconfigured state.
+        May be used in multiple test cases.
+        """
+        # Test that the driver protocol is in state connected.
+        self.check_state(ProtocolState.COMMAND)
+
+        # put driver in disconnected state.
+        self.driver_client.cmd_dvr('disconnect')
+
+        # Test that the driver is in state disconnected.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Setup the protocol state machine and the connection to port agent.
+        self.driver_client.cmd_dvr('initialize')
+
+        # Test that the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+
+    def put_driver_in_command_mode(self):
+        """
+        Wrap the steps and asserts for going into command mode.
+        May be used in multiple test cases.
+        """
+        # Test that the driver is in state unconfigured.
+        self.check_state(DriverConnectionState.UNCONFIGURED)
+
+        # Configure driver and transition to disconnected.
+        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test that the driver is in state disconnected.
+        self.check_state(DriverConnectionState.DISCONNECTED)
+
+        # Setup the protocol state machine and the connection to port agent.
+        self.driver_client.cmd_dvr('connect')
+
+        # Test that the driver protocol is in state unknown.
+        self.check_state(ProtocolState.UNKNOWN)
+
+        # Discover what state the instrument is in and set the protocol state accordingly.
+        self.driver_client.cmd_dvr('discover_state')
+
+        # Test that the driver protocol is in state command.
+        self.check_state(ProtocolState.COMMAND)
+
+    #def test_instrument_set(self):
+    #    """
+    #    @brief Test for setting instrument parameter
+    #    """
+    #    self.put_driver_in_command_mode()
+    #
+    #    # Get all device parameters. Confirm all expected keys are retrieved
+    #    # and have correct type.
+    #    reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+    #    self.assertParamDictionariesEqual(reply, params_dict, True)
+    #
+    #    # Grab a subset of parameters.
+    #    params = [Parameter.LAUNCH_TIME]
+    #    reply = self.driver_client.cmd_dvr('get_resource', params)
+    #
+    #    # Remember the original subset.
+    #    orig_params = reply
+    #
+    #    # Construct new parameters to set.
+    #    sami_date_time = int(time.time()) + SAMI_EPOCH
+    #    log.debug('old=%d, new=%d' % (orig_params[Parameter.LAUNCH_TIME], sami_date_time))
+    #    new_params = {
+    #        Parameter.LAUNCH_TIME: sami_date_time
+    #    }
+    #
+    #    # Set parameter and verify.
+    #    reply = self.driver_client.cmd_dvr('set_resource', new_params)
+    #
+    #    reply = self.driver_client.cmd_dvr('get_resource', params)
+    #    self.assertEqual(new_params[Parameter.LAUNCH_TIME], reply[Parameter.LAUNCH_TIME])
+    #
+    #    # Reset parameter to original value and verify.
+    #    reply = self.driver_client.cmd_dvr('set_resource', orig_params)
+    #
+    #    reply = self.driver_client.cmd_dvr('get_resource', params)
+    #    self.assertEqual(orig_params[Parameter.LAUNCH_TIME], reply[Parameter.LAUNCH_TIME])
+    #
+    #def test_instrument_acquire_status(self):
+    #    """
+    #    @brief Test for reading battery voltage
+    #    """
+    #    self.put_driver_in_command_mode()
+    #
+    #    # command the instrument to read the battery voltage.
+    #    response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_BATTERY_VOLTAGE)
+    #
+    #    log.debug("read battery voltage returned: %s", response)
+    #    self.assertTrue(isinstance(response[1], int))
+    #
+    #def test_instrument_acquire_sample(self):
+    #    """
+    #    Test acquire sample command and events.
+    #    """
+    #
+    #    self.put_driver_in_command_mode()
+    #
+    #    # command the instrument to auto-sample mode.
+    #    self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
+    #
+    #    # wait for some samples to be generated
+    #    gevent.sleep(100)
+    #
+    #    # Verify we received at least 4 samples.
+    #    sample_events = [evt for evt in self.events if evt['type'] == DriverAsyncEvent.SAMPLE]
+    #    log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' % len(sample_events))
+    #    #log.debug('samples=%s' %sample_events)
+    #    self.assertTrue(len(sample_events) >= 4)
+    #
+    #def test_instrument_start_stop_autosample(self):
+    #    """
+    #    @brief Test for putting instrument in 'auto-sample' state
+    #    """
+    #    self.put_driver_in_command_mode()
+    #
+    #    # command the instrument to auto-sample mode.
+    #    self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
+    #
+    #    self.check_state(ProtocolState.AUTOSAMPLE)
+    #
+    #    # re-initialize the driver and re-discover instrument state (should be in autosample)
+    #    # Transition driver to disconnected.
+    #    self.driver_client.cmd_dvr('disconnect')
+    #
+    #    # Test the driver is disconnected.
+    #    self.check_state(DriverConnectionState.DISCONNECTED)
+    #
+    #    # Transition driver to unconfigured.
+    #    self.driver_client.cmd_dvr('initialize')
+    #
+    #    # Test the driver is unconfigured.
+    #    self.check_state(DriverConnectionState.UNCONFIGURED)
+    #
+    #    # Configure driver and transition to disconnected.
+    #    self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+    #
+    #    # Test that the driver is in state disconnected.
+    #    self.check_state(DriverConnectionState.DISCONNECTED)
+    #
+    #    # Setup the protocol state machine and the connection to port agent.
+    #    self.driver_client.cmd_dvr('connect')
+    #
+    #    # Test that the driver protocol is in state unknown.
+    #    self.check_state(ProtocolState.UNKNOWN)
+    #
+    #    # Discover what state the instrument is in and set the protocol state accordingly.
+    #    self.driver_client.cmd_dvr('discover_state')
+    #
+    #    self.check_state(ProtocolState.AUTOSAMPLE)
+    #
+    #    # wait for some samples to be generated
+    #    gevent.sleep(100)
+    #
+    #    # Verify we received at least 4 samples.
+    #    sample_events = [evt for evt in self.events if evt['type'] == DriverAsyncEvent.SAMPLE]
+    #    log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' % len(sample_events))
+    #    #log.debug('samples=%s' %sample_events)
+    #    self.assertTrue(len(sample_events) >= 4)
+    #
+    #    # stop autosample and return to command mode
+    #    self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+    #
+    #    self.check_state(ProtocolState.COMMAND)
+    #
+    #def test_capabilities(self):
+    #    """
+    #    Test get_resource_capaibilties in command state and autosample state;
+    #    should be different in each.
+    #    """
+    #    command_capabilities = ['DRIVER_EVENT_GET',
+    #                            'DRIVER_EVENT_SET',
+    #                            'DRIVER_EVENT_START_DIRECT',
+    #                            'DRIVER_EVENT_ACQUIRE_STATUS',
+    #                            'DRIVER_EVENT_ACQUIRE_SAMPLE',
+    #                            'DRIVER_EVENT_START_AUTOSAMPLE']
+    #
+    #    autosample_capabilities = ['DRIVER_EVENT_ACQUIRE_SAMPLE',
+    #                               'DRIVER_EVENT_STOP_AUTOSAMPLE']
+    #
+    #    params_list = [Parameter.TRANSMIT_PULSE_LENGTH,
+    #                   Parameter.BLANKING_DISTANCE,
+    #                   Parameter.RECEIVE_LENGTH,
+    #                   Parameter.TIME_BETWEEN_PINGS,
+    #                   Parameter.TIME_BETWEEN_BURST_SEQUENCES,
+    #                   Parameter.NUMBER_PINGS,
+    #                   Parameter.AVG_INTERVAL,
+    #                   Parameter.USER_NUMBER_BEAMS,
+    #                   Parameter.TIMING_CONTROL_REGISTER,
+    #                   Parameter.POWER_CONTROL_REGISTER,
+    #                   Parameter.COMPASS_UPDATE_RATE,
+    #                   Parameter.COORDINATE_SYSTEM,
+    #                   Parameter.NUMBER_BINS,
+    #                   Parameter.BIN_LENGTH,
+    #                   Parameter.MEASUREMENT_INTERVAL,
+    #                   Parameter.DEPLOYMENT_NAME,
+    #                   Parameter.WRAP_MODE,
+    #                   Parameter.CLOCK_DEPLOY,
+    #                   Parameter.DIAGNOSTIC_INTERVAL,
+    #                   Parameter.MODE,
+    #                   Parameter.ADJUSTMENT_SOUND_SPEED,
+    #                   Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
+    #                   Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
+    #                   Parameter.NUMBER_PINGS_DIAGNOSTIC,
+    #                   Parameter.MODE_TEST,
+    #                   Parameter.ANALOG_INPUT_ADDR,
+    #                   Parameter.SW_VERSION,
+    #                   Parameter.VELOCITY_ADJ_TABLE,
+    #                   Parameter.COMMENTS,
+    #                   Parameter.WAVE_MEASUREMENT_MODE,
+    #                   Parameter.DYN_PERCENTAGE_POSITION,
+    #                   Parameter.WAVE_TRANSMIT_PULSE,
+    #                   Parameter.WAVE_BLANKING_DISTANCE,
+    #                   Parameter.WAVE_CELL_SIZE,
+    #                   Parameter.NUMBER_DIAG_SAMPLES,
+    #                   Parameter.ANALOG_OUTPUT_SCALE,
+    #                   Parameter.CORRELATION_THRESHOLD,
+    #                   Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
+    #                   Parameter.QUAL_CONSTANTS,
+    #                   ]
+    #
+    #    self.put_driver_in_command_mode()
+    #
+    #    # Get the capabilities of the driver.
+    #    driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
+    #    log.debug("\nec=%s\ndc=%s" % (sorted(command_capabilities), sorted(driver_capabilities[0])))
+    #    self.assertTrue(sorted(command_capabilities) == sorted(driver_capabilities[0]))
+    #    self.assertTrue(sorted(params_list) == sorted(driver_capabilities[1]))
+    #
+    #    # Put the driver in autosample
+    #    self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
+    #    self.check_state(ProtocolState.AUTOSAMPLE)
+    #
+    #    # Get the capabilities of the driver.
+    #    driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
+    #    log.debug('test_capabilities: autosample mode capabilities=%s' % driver_capabilities)
+    #    self.assertTrue(autosample_capabilities == driver_capabilities[0])
+    #
+    #def test_errors(self):
+    #    """
+    #    Test response to erroneous commands and parameters.
+    #    """
+    #    # Test that the driver is in state unconfigured.
+    #    self.check_state(DriverConnectionState.UNCONFIGURED)
+    #
+    #    # Assert for an unknown driver command.
+    #    with self.assertRaises(InstrumentCommandException):
+    #        self.driver_client.cmd_dvr('bogus_command')
+    #
+    #    # Assert for a known command, invalid state.
+    #    with self.assertRaises(InstrumentStateException):
+    #        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
+    #
+    #    # Assert we forgot the comms parameter.
+    #    with self.assertRaises(InstrumentParameterException):
+    #        self.driver_client.cmd_dvr('configure')
+    #
+    #    # Assert we send a bad config object (not a dict).
+    #    with self.assertRaises(InstrumentParameterException):
+    #        BOGUS_CONFIG = 'not a config dict'
+    #        self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+    #
+    #    # Assert we send a bad config object (missing addr value).
+    #    with self.assertRaises(InstrumentParameterException):
+    #        BOGUS_CONFIG = self.port_agent_comm_config().copy()
+    #        BOGUS_CONFIG.pop('addr')
+    #        self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+    #
+    #    # Assert we send a bad config object (bad addr value).
+    #    with self.assertRaises(InstrumentParameterException):
+    #        BOGUS_CONFIG = self.port_agent_comm_config().copy()
+    #        BOGUS_CONFIG['addr'] = ''
+    #        self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
+    #
+    #    # Configure driver and transition to disconnected.
+    #    self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+    #
+    #    # Test that the driver is in state disconnected.
+    #    self.check_state(DriverConnectionState.DISCONNECTED)
+    #
+    #    # Assert for a known command, invalid state.
+    #    with self.assertRaises(InstrumentStateException):
+    #        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
+    #
+    #    self.driver_client.cmd_dvr('connect')
+    #
+    #    # Test the driver is in unknown state.
+    #    self.check_state(ProtocolState.UNKNOWN)
+    #
+    #    # Assert for a known command, invalid state.
+    #    with self.assertRaises(InstrumentStateException):
+    #        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
+    #
+    #    self.driver_client.cmd_dvr('discover_state')
+    #
+    #    try:
+    #        # Test that the driver protocol is in state command.
+    #        self.check_state(ProtocolState.COMMAND)
+    #    except:
+    #        self.assertEqual(self.protocol_state, ProtocolState.AUTOSAMPLE)
+    #        # Put the driver in command mode
+    #        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+    #        # Test that the driver protocol is in state command.
+    #        self.check_state(ProtocolState.COMMAND)
+    #
+    #    # Assert for a known command, invalid state.
+    #    with self.assertRaises(InstrumentStateException):
+    #        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+    #
+    #    # Assert for a known command, invalid state.
+    #    with self.assertRaises(InstrumentStateException):
+    #        self.driver_client.cmd_dvr('connect')
+    #
+    #    # Assert get fails without a parameter.
+    #    with self.assertRaises(InstrumentParameterException):
+    #        self.driver_client.cmd_dvr('get_resource')
+    #
+    #    # Assert get fails with a bad parameter (not ALL or a list).
+    #    with self.assertRaises(InstrumentParameterException):
+    #        bogus_params = 'I am a bogus param list.'
+    #        self.driver_client.cmd_dvr('get_resource', bogus_params)
+    #
+    #    # Assert get fails with a bad parameter (not ALL or a list).
+    #    with self.assertRaises(InstrumentParameterException):
+    #        bogus_params = ['a bogus parameter name',
+    #                        Parameter.ADJUSTMENT_SOUND_SPEED]
+    #        self.driver_client.cmd_dvr('get_resource', bogus_params)
+    #
+    #    # Assert we cannot set a bogus parameter.
+    #    with self.assertRaises(InstrumentParameterException):
+    #        bogus_params = {
+    #            'a bogus parameter name': 'bogus value'
+    #        }
+    #        self.driver_client.cmd_dvr('set_resource', bogus_params)
+    #
+    #    # Assert we cannot set a real parameter to a bogus value.
+    #    with self.assertRaises(InstrumentParameterException):
+    #        bogus_params = {
+    #            Parameter.ADJUSTMENT_SOUND_SPEED: 'bogus value'
+    #        }
+    #        self.driver_client.cmd_dvr('set_resource', bogus_params)
 
 
 ###############################################################################
