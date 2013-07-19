@@ -1219,6 +1219,40 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         response = driver._protocol._get_response(timeout = 0)
         self.assertTrue(isinstance(response[1], LILYStatus_02_Particle))
 
+
+    def test_leveling_timeout(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into a known state
+        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+
+        result = driver._protocol._handler_leveling_enter()
+        
+        time.sleep(120)
+
+
     @unittest.skip("Skipping because need distinct states to test")    
     def test_leveling_complete(self):
         mock_port_agent = Mock(spec=PortAgentClient)
@@ -1374,7 +1408,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         #response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
         #log.debug("STOP_LEVELING returned: %r", response)
 
-        self.assert_state_change(ProtocolState.AUTOSAMPLE, 1000)
+        self.assert_state_change(ProtocolState.AUTOSAMPLE, 3700)
 
         
     def test_leveling_complete(self):

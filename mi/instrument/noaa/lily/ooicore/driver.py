@@ -25,7 +25,7 @@ from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 #from mi.core.instrument.instrument_protocol import DEFAULT_CMD_TIMEOUT
 from mi.core.instrument.instrument_protocol import DEFAULT_WRITE_DELAY
-from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -39,6 +39,11 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
+from mi.core.driver_scheduler import DriverScheduler
+from mi.core.instrument.instrument_driver import DriverConfigKey
+from mi.core.driver_scheduler import DriverSchedulerConfigKey
+from mi.core.driver_scheduler import TriggerType
+
 
 # DHE: Might need this if we use multiline regex
 #from mi.instrument.noaa.driver import BOTPTParticle
@@ -65,8 +70,13 @@ LILY_LEVEL_OFF = '-LEVEL,0'
 # default timeout.
 TIMEOUT = 10
 DEFAULT_CMD_TIMEOUT = 120
+#LEVELING_TIMEOUT = 60
+LEVELING_TIMEOUT = 2
 
 promptbuf_mutex = threading.Lock()
+
+class ScheduledJob(BaseEnum):
+    LEVELING_TIMEOUT = 'leveling_timeout'
 
 class DataParticleType(BaseEnum):
     """
@@ -105,6 +115,7 @@ class ProtocolEvent(BaseEnum):
     START_LEVELING = ExportedInstrumentCommand.START_LEVELING
     STOP_LEVELING = ExportedInstrumentCommand.STOP_LEVELING
     LEVELING_COMPLETE = "PROTOCOL_EVENT_LEVELING_COMPLETE"
+    LEVELING_TIMEOUT = "PROTOCOL_EVENT_LEVELING_TIMEOUT"
 
 class Capability(BaseEnum):
     """
@@ -144,6 +155,37 @@ class InstrumentCommand(BaseEnum):
     DUMP_SETTINGS_02  = LILY_STRING + LILY_COMMAND_STRING + LILY_DUMP_02 + NEWLINE    # outputs current extended settings 
     START_LEVELING  = LILY_STRING + LILY_COMMAND_STRING + LILY_LEVEL_ON + NEWLINE    # starts leveling 
     STOP_LEVELING  = LILY_STRING + LILY_COMMAND_STRING + LILY_LEVEL_OFF + NEWLINE    # stops leveling 
+
+class LILYCoarseChunk():
+
+    def __init__(self, raw_data):
+        """ 
+        Construct a LILYCoarseChunk object 
+        
+        @param raw_data The raw data used in the particle
+        """
+        self.raw_data = raw_data
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        @return: regex string
+        """
+        pattern = r'LILY,' # pattern starts with LILY '
+        pattern += r'.*' # group 1: time
+        pattern += NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        """
+        get the compiled regex pattern
+        @return: compiled re
+        """
+        return re.compile(LILYCoarseChunk.regex())
+
+        return retValue
 
 class LILYCommandResponse():
 
@@ -550,35 +592,6 @@ class LILYLevelingParticle(DataParticle):
 # Driver
 ###############################################################################
 
-class RepeatedTimer(object):
-    def __init__(self, interval, function, *args, **kwargs):
-        self._timer     = None
-        self.interval   = interval
-        self.function   = function
-        self.args       = args
-        self.kwargs     = kwargs
-        self.is_running = False
-        self.start()
-
-    def _run(self):
-        self.is_running = False
-        self.start()
-        self.function(*self.args, **self.kwargs)
-
-    def start(self):
-        if not self.is_running:
-            self._timer = threading.Timer(self.interval, self._run)
-            self._timer.start()
-            self.is_running = True
-
-    def stop(self):
-        self._timer.cancel()
-        self.is_running = False
-
-###############################################################################
-# Driver
-###############################################################################
-
 class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass
@@ -634,7 +647,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
-        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
+        self._protocol_fsm = ThreadSafeFSM(ProtocolState, ProtocolEvent,
                             ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
@@ -658,8 +671,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_LEVELING, self._handler_command_autosample_start_leveling)
 
+        self._protocol_fsm.add_handler(ProtocolState.LEVELING, ProtocolEvent.ENTER, self._handler_leveling_enter)
         self._protocol_fsm.add_handler(ProtocolState.LEVELING, ProtocolEvent.STOP_LEVELING, self._handler_leveling_stop_leveling)
         self._protocol_fsm.add_handler(ProtocolState.LEVELING, ProtocolEvent.LEVELING_COMPLETE, self._handler_leveling_complete)
+        self._protocol_fsm.add_handler(ProtocolState.LEVELING, ProtocolEvent.LEVELING_TIMEOUT, self._handler_leveling_timeout)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -688,6 +703,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._sent_cmds = []
 
         #
+        self._coarse_chunker = StringChunker(Protocol.coarse_sieve_function)
         self._chunker = StringChunker(Protocol.sieve_function)
 
         # set up the regexes now so we don't have to do it repeatedly
@@ -698,6 +714,28 @@ class Protocol(CommandResponseInstrumentProtocol):
         self.status_02_regex = LILYStatus_02_Particle.regex_compiled()
         self.leveling_regex = LILYLevelingParticle.regex_compiled()
 
+        self.initialize_scheduler()
+
+    @staticmethod
+    def coarse_sieve_function(raw_data):
+        """
+        The method that filters LILY coarse chunks
+        """
+
+        matchers = []
+        return_list = []
+
+        """
+        Not a good idea to be compiling these for every invocation of this
+        method; they don't change.
+        """
+        matchers.append(LILYCoarseChunk.regex_compiled())
+
+        for matcher in matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
+
+        return return_list
 
     @staticmethod
     def sieve_function(raw_data):
@@ -721,11 +759,26 @@ class Protocol(CommandResponseInstrumentProtocol):
         Not a good idea to be compiling these for every invocation of this
         method; they don't change.
         """
- 
+        """
+        DHE Note!!!  use separate sieve functions / chunkers for leveling
+        state vs other states.
+        """
+
+        """
+        TEMPTEMPTEMP; driver gets way behind; thinking it's the chunker. 
+        testing by removing some of these
+        """ 
         matchers.append(LILYDataParticle.regex_compiled())
-        #matchers.append(LILYStatusSignOnParticle.regex_compiled())
-        matchers.append(LILYStatus_01_Particle.regex_compiled())
-        matchers.append(LILYStatus_02_Particle.regex_compiled())
+        
+        """
+        Things work well when these are in the sieve function.  It's fine
+        to not have them in while in leveling state.  Leveling state needs
+        to have its own chunker.   Also try to use a static variable for
+        the compiled regex
+        """
+        #matchers.append(LILYStatus_01_Particle.regex_compiled())
+        #matchers.append(LILYStatus_02_Particle.regex_compiled())
+        
         matchers.append(LILYCommandResponse.regex_compiled())
         matchers.append(LILYLevelingParticle.regex_compiled())
 
@@ -791,6 +844,49 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._last_data_timestamp = time.time()
 
+    ########################################################################
+    # Incomming data (for parsing) callback.
+    ########################################################################            
+    def got_data(self, port_agent_packet):
+        """
+        Called by the instrument connection when data is available.
+        This is overridden from the base class because this is where
+        we filter the LILY data from the firehose of BOTPT data.
+        
+        In this method all we do is call the coarse chunker.
+        """
+
+        data_length = port_agent_packet.get_data_length()
+        data = port_agent_packet.get_data()
+        timestamp = port_agent_packet.get_timestamp()
+
+        log.debug("LILY Got Data: %s" % data)
+        log.debug("LILY Add Port Agent Timestamp: %s" % timestamp)
+
+        if data_length > 0:
+            self._coarse_chunker.add_chunk(data, timestamp)
+            (timestamp, chunk) = self._coarse_chunker.get_next_data()
+            while(chunk):
+                self._got_coarse_chunk(chunk, timestamp)
+                (timestamp, chunk) = self._chunker.get_next_data()
+
+
+    def _got_coarse_chunk(self, coarse_chunk, timestamp):
+        """
+        Got a course chunk: that is, a complete message from the LILY sensor
+        has been filtered out of the firehose of BOTPT data
+        """
+
+        log.error("_got_coarse_chunk: %s", coarse_chunk)
+        self.add_to_buffer(coarse_chunk)
+
+        self._chunker.add_chunk(coarse_chunk, timestamp)
+        (timestamp, chunk) = self._chunker.get_next_data()
+        while(chunk):
+            self._got_chunk(chunk, timestamp)
+            (timestamp, chunk) = self._chunker.get_next_data()
+
+        
     def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.  Invoke
@@ -807,12 +903,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         If we're in leveling mode, use a different got_chunk
         """
         if (self._protocol_fsm.get_current_state() == ProtocolState.LEVELING):
-            log.error("~~~~~~~~~~~~~~~~~~~~~~~~~ YAHOOO!!!!   LEVELING CHUNK: %s", chunk)
+            log.error("~~~~~~~~~~~~~~~~~~~~~~~~~ YAHOOO!!!! CHUNK IN LEVELING STATE: %s", chunk)
             if (self.leveling_regex.match(chunk)):
                 self._protocol_fsm.on_event(ProtocolEvent.LEVELING_COMPLETE)
                 return
             else:
-                log.error("!!!!!!!!!!!!!!!!!!!! NOOOO!!")
+                log.error("!!!!!!!!!!!!!!!!!!!! NOT A LEVELING CHUNK!!")
         
         if (self.cmd_rsp_regex.match(chunk) \
         #or self.signon_regex.match(chunk) \ # currently not using the signon chunk
@@ -981,6 +1077,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Clear the promptbuf here; first acquire mutex
         """
         promptbuf_mutex.acquire()
+        log.error("!!!!!!!!!!! Deleting promptbuf: %s", self._promptbuf)
         self._promptbuf = ''
         promptbuf_mutex.release()
 
@@ -1019,6 +1116,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter autosample state.
         """
+        log.error("_handler_autosample_enter ------------------>>>")
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1105,16 +1203,42 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Leveling Handlers
     ########################################################################
 
+    def _handler_leveling_enter(self, *args, **kwargs):
+        """
+        Set up a leveling timer to make sure we don't stay in
+        leveling state forever if something goes wrong
+        """
+
+        log.error("!!!!!!!!! LILY handler_leveling_enter.")
+        
+        job_name = 'leveling_timeout'
+        config = {
+            DriverConfigKey.SCHEDULER: {
+                job_name: {
+                    DriverSchedulerConfigKey.TRIGGER: {
+                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                        DriverSchedulerConfigKey.MINUTES: LEVELING_TIMEOUT
+                    },
+                }
+            }
+        }
+
+        self.set_init_params(config)
+
+        self._add_scheduler_event(ScheduledJob.LEVELING_TIMEOUT, ProtocolEvent.LEVELING_TIMEOUT)
+
+        
     def _handler_leveling_stop_leveling(self, *args, **kwargs):
         """
         Take instrument out of leveling mode; according to the LILY Commands
         document, we need to turn data on automatically (corresponds to 
         AUTOSAMPLE).  
         """
+        log.error("!!!!!!!!!!! _handler_leveling_stop_leveling")
+
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
         result = None
-        log.debug("_handler_leveling_stop_leveling")
 
         result = self._do_cmd_resp(InstrumentCommand.STOP_LEVELING,
                                    expected_prompt = LILY_LEVEL_OFF)
@@ -1135,6 +1259,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         need to turn data on automatically (enter AUTOSAMPLE)
         @retval (next_state, result) tuple, (None, sample dict).
         """
+        log.error("!!!!!!!!!!! _handler_leveling_complete")
+
+        self._remove_scheduler(ScheduledJob.LEVELING_TIMEOUT)
+
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
         result = None
@@ -1144,7 +1272,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                                       expected_prompt = LILY_LEVEL_OFF)
 
         log.debug("Turning LILY data on, transitioning to AUTOSAMPLE.")
-
         
         result = self._do_cmd_resp(InstrumentCommand.DATA_ON,
                                    expected_prompt = LILY_DATA_ON)
@@ -1156,6 +1283,37 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._async_agent_state_change(ResourceAgentState.STREAMING)
 
         return (next_state, next_agent_state)
+
+
+    def _handler_leveling_timeout(self, *args, **kwargs):
+        """
+        The LILY leveling operation has timed out.  Do the following:
+        - Send Stop Leveling command to LILY
+        - Enter Autosample (or a similar state as Autosample, but 
+          that knows the axis is out of range)
+        - Send Alert to Marine Operator (?)
+        - Flag subsequent data as "Axis out of range"
+        """
+        log.error("!!!!!!!!!!! _handler_leveling_timeout -------------------------->>>>")
+
+        self._remove_scheduler(ScheduledJob.LEVELING_TIMEOUT)
+
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+        result = None
+
+        log.error("LILY leveling operation timed out: sending STOP LEVELING. -------------->>>>")
+        result = self._do_cmd_resp(InstrumentCommand.STOP_LEVELING,
+                                      expected_prompt = LILY_LEVEL_OFF)
+
+        log.debug("Turning LILY data on, transitioning to AUTOSAMPLE.")
+        
+        log.error("LILY leveling operation timed out: sending DATA_ON. ------------------>>>")
+        result = self._do_cmd_resp(InstrumentCommand.DATA_ON,
+                                   expected_prompt = LILY_DATA_ON)
+
+        log.error("_handler_leveling_timeout returning ------------------>>>")
+        return (next_state, (next_agent_state, result))
 
 
     ########################################################################
@@ -1202,6 +1360,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Put instrument into leveling mode
         """
+        log.error("!!!!!!!!! LILY handler_command_autosample_start_leveling.")
+
         next_state = ProtocolState.LEVELING
         next_agent_state = ResourceAgentState.CALIBRATE
         result = None
