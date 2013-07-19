@@ -2756,7 +2756,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         resource_state = None
 
         while(time.time() <= end_time):
+            log.debug("*** Checking state")
             agent_state = self.instrument_agent_client.get_agent_state()
+            log.debug("*** got agent state")
             resource_state = self.instrument_agent_client.get_resource_state()
             log.error("Current agent state: %s", agent_state)
             log.error("Current resource state: %s", resource_state)
@@ -2764,8 +2766,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             if(agent_state == target_agent_state and resource_state == target_resource_state):
                 log.debug("Current state match: %s %s", agent_state, resource_state)
                 return
-            log.debug("state mismatch, waiting for state to transition")
-            gevent.sleep(2)
+            log.debug("state mismatch, waiting for state to transition. Current time: %s, end time: %s",
+                      time.time(), end_time)
+            gevent.sleep(3)
 
         if(agent_state != target_agent_state):
             log.error("Failed to transition agent state to %s, current state: %s", target_agent_state, agent_state)
