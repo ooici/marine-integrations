@@ -2662,9 +2662,12 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assert_enter_command_mode()
 
         # Direct access configurations
-        args={'session_type':DirectAccessTypes.telnet}
-        if inactivity_timeout != None: args['inactivity_timeout'] = inactivity_timeout
-        if session_timeout != None: args['session_timeout'] = session_timeout
+        args={'session_type':DirectAccessTypes.telnet,
+              'inactivity_timeout': inactivity_timeout,
+              'session_timeout': session_timeout}
+        
+        #if inactivity_timeout != None: args['inactivity_timeout'] = inactivity_timeout
+        #if session_timeout != None: args['session_timeout'] = session_timeout
 
         log.debug("DA startup parameters: %s", args)
 
