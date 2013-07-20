@@ -522,6 +522,13 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
+
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
