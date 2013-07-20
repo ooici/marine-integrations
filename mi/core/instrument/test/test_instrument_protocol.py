@@ -10,13 +10,14 @@
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
-import logging
+import re
 import time
 import ntplib
 import datetime
 from mock import Mock
 from nose.plugins.attrib import attr
 from mi.core.log import get_logger ; log = get_logger()
+from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_protocol import InstrumentProtocol
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
@@ -35,6 +36,7 @@ from mi.core.driver_scheduler import TriggerType
 
 from mi.core.unit_test import MiUnitTestCase
 import unittest
+from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import NotImplementedException
@@ -464,6 +466,106 @@ class TestUnitInstrumentProtocol(MiUnitTestCase):
 
         with self.assertRaises(InstrumentParameterException):
             self.protocol._verify_not_readonly({'rw': 1, 'ro': 2}, startup=True)
+
+
+@attr('UNIT', group='mi')
+class TestUnitCommandInstrumentProtocol(MiUnitTestCase):
+    """
+    Test cases for instrument protocol class. Functions in this class provide
+    instrument protocol unit tests and provide a tutorial on use of
+    the protocol interface.
+    """
+
+    class TestState(BaseEnum):
+        """
+        Protocol states for SBE37. Cherry picked from DriverProtocolState
+        enum.
+        """
+        TEST = "TEST"
+
+    class TestEvent(BaseEnum):
+        """
+        Protocol events for SBE37. Cherry picked from DriverEvent enum.
+        """
+        ENTER = "ENTER"
+        EXIT = "EXIT"
+        TEST = "TEST"
+        
+    def setUp(self):
+        """
+        """
+        self.prompts = [">"]
+        self.newline = "\n"
+        self.callback_result = None
+        self._trigger_count = 0
+        self._events = []
+
+        self.protocol = CommandResponseInstrumentProtocol(self.prompts,
+                                                          self.newline,
+                                                          self.event_callback)
+                
+        self.protocol_fsm = ThreadSafeFSM(self.TestState, self.TestEvent,
+                            self.TestEvent.ENTER, self.TestEvent.EXIT)
+
+        self.protocol_fsm.add_handler(self.TestState.TEST, self.TestEvent.TEST, lambda x : x)
+
+        self.protocol._add_build_handler(self.TestEvent.TEST, self._build_simple_command)
+        self.protocol._add_response_handler(self.TestEvent.TEST, self._parse_test_response)
+        self.protocol._connection = Mock()
+        self.protocol._connection.send = lambda x : self.protocol.add_to_buffer("%s >->" % x)
+        self.protocol.get_current_state = Mock(return_value=self.TestState.TEST)
+        self.protocol._send_wakeup = lambda: self.protocol.add_to_buffer("wakeup response >->")
+        
+    def _build_simple_command(self, cmd):
+        return "cmd...do it!"
+
+    def _parse_test_response(self, resp, prompt):
+        return "c=%s p=%s" % (resp, prompt)
+    
+    def event_callback(self, event, value=None):
+        log.debug("Test event callback: %s" % event)
+        self._events.append(event)
+        self._trigger_count += 1
+
+    def test_cmd_response(self):
+        """
+        Test getting a response from a command supplied with prompts ad
+        regexes.
+        """
+        regex1 = re.compile(r'.*(do it).*')
+        regex2 = re.compile(r'foobar')
+        regex3 = re.compile(r'.*(do) (it).*')
+        regex4 = re.compile(r'.*do it.*')
+                        
+        # Normal case
+        result = self.protocol._do_cmd_resp(self.TestEvent.TEST)
+        self.assertEqual(result, self._parse_test_response(self._build_simple_command(None)+" >", ">"))
+        
+        # expected prompt cases
+        result = self.protocol._do_cmd_resp(self.TestEvent.TEST, expected_prompt=">")
+        self.assertEqual(result, self._parse_test_response(self._build_simple_command(None)+" >", ">"))
+        
+        result = self.protocol._do_cmd_resp(self.TestEvent.TEST, expected_prompt=">-")
+        self.assertEqual(result, self._parse_test_response(self._build_simple_command(None)+" >-", ">-"))
+        # Should time out looking for a bad prompt
+        self.assertRaises(InstrumentTimeoutException,
+                          self.protocol._do_cmd_resp,
+                          self.TestEvent.TEST, expected_prompt="-->", timeout=5)
+
+        # regex cases
+        result = self.protocol._do_cmd_resp(self.TestEvent.TEST, response_regex=regex1)
+        self.assertEqual(result, self._parse_test_response("do it", ""))
+        result = self.protocol._do_cmd_resp(self.TestEvent.TEST, response_regex=regex3)
+        self.assertEqual(result, self._parse_test_response("doit", ""))
+        result = self.protocol._do_cmd_resp(self.TestEvent.TEST, response_regex=regex2)
+        self.assertEqual(result, self._parse_test_response("", ""))
+        result = self.protocol._do_cmd_resp(self.TestEvent.TEST, response_regex=regex4)
+        self.assertEqual(result, self._parse_test_response("", ""))
+                          
+        # combo case
+        self.assertRaises(InstrumentProtocolException,
+                          self.protocol._do_cmd_resp,
+                          self.TestEvent.TEST, expected_prompt=">", response_regex=regex1)
 
 
 @attr('UNIT', group='mi')
