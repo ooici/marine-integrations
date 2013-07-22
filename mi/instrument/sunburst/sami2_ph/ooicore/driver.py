@@ -18,6 +18,10 @@ import datetime as dt
 from mi.core.log import get_logger
 log = get_logger()
 
+from mi.core.exceptions import SampleException
+from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentParameterException
+
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
@@ -902,6 +906,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
+        self._build_command_dict()
+        self._build_driver_dict()
 
         # Add build handlers for device commands.
 
@@ -1191,11 +1197,27 @@ class Protocol(CommandResponseInstrumentProtocol):
         Exit busy state.
         """
         pass
-    
+
     ####################################################################
-    # Build Parameter dictionary
+    # Build Command & Parameter dictionary
     ####################################################################
-    
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
+        self._cmd_dict.add(Capability.START_DIRECT, display_name="start direct access")
+        self._cmd_dict.add(Capability.STOP_DIRECT, display_name="stop direct access")
+
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with options
+        """
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
@@ -1417,108 +1439,176 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='global bits (set to 00000111)')
 
+        self._param_dict.add(Parameter.NUMBER_SAMPLES_AVERAGED, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(21), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
 
+        self._param_dict.add(Parameter.NUMBER_FLUSHES, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(22), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
 
+        self._param_dict.add(Parameter.PUMP_ON_FLUSH, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(23), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
 
+        self._param_dict.add(Parameter.PUMP_OFF_FLUSH, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(24), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
 
+        self._param_dict.add(Parameter.NUMBER_REAGENT_PUMPS, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(25), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
 
-        ## Wingard's
-        #self._param_dict.add(Parameter.PUMP_PULSE, CONFIGURATION_REGEX,
-        #                     lambda match: int(match.group(21), 16),
-        #                     lambda x: self._int_to_hexstring(x, 2),
-        #                     type=ParameterDictType.INT,
-        #                     startup_param=False,
-        #                     direct_access=True,
-        #                     default_value=0x10,
-        #                     visibility=ParameterDictVisibility.READ_ONLY,
-        #                     display_name='pump pulse duration')
-        #
-        #self._param_dict.add(Parameter.PUMP_DURATION, CONFIGURATION_REGEX,
-        #                     lambda match: int(match.group(22), 16),
-        #                     lambda x: self._int_to_hexstring(x, 2),
-        #                     type=ParameterDictType.INT,
-        #                     startup_param=False,
-        #                     direct_access=True,
-        #                     default_value=0x20,
-        #                     visibility=ParameterDictVisibility.READ_ONLY,
-        #                     display_name='pump measurement duration')
-        #
-        #self._param_dict.add(Parameter.SAMPLES_PER_MEASUREMENT, CONFIGURATION_REGEX,
-        #                     lambda match: int(match.group(23), 16),
-        #                     lambda x: self._int_to_hexstring(x, 2),
-        #                     type=ParameterDictType.INT,
-        #                     startup_param=False,
-        #                     direct_access=True,
-        #                     default_value=0xFF,
-        #                     visibility=ParameterDictVisibility.READ_ONLY,
-        #                     display_name='samples per measurement')
-        #
-        #self._param_dict.add(Parameter.CYCLES_BETWEEN_BLANKS, CONFIGURATION_REGEX,
-        #                     lambda match: int(match.group(24), 16),
-        #                     lambda x: self._int_to_hexstring(x, 2),
-        #                     type=ParameterDictType.INT,
-        #                     startup_param=False,
-        #                     direct_access=True,
-        #                     default_value=0xA8,
-        #                     visibility=ParameterDictVisibility.READ_ONLY,
-        #                     display_name='cycles between blanks')
-        #
-        #self._param_dict.add(Parameter.NUMBER_REAGENT_CYCLES, CONFIGURATION_REGEX,
-        #                     lambda match: int(match.group(25), 16),
-        #                     lambda x: self._int_to_hexstring(x, 2),
-        #                     type=ParameterDictType.INT,
-        #                     startup_param=False,
-        #                     direct_access=True,
-        #                     default_value=0x18,
-        #                     visibility=ParameterDictVisibility.READ_ONLY,
-        #                     display_name='number of reagent cycles')
-        #
-        #self._param_dict.add(Parameter.NUMBER_BLANK_CYCLES, CONFIGURATION_REGEX,
-        #                     lambda match: int(match.group(26), 16),
-        #                     lambda x: self._int_to_hexstring(x, 2),
-        #                     type=ParameterDictType.INT,
-        #                     startup_param=False,
-        #                     direct_access=True,
-        #                     default_value=0x1C,
-        #                     visibility=ParameterDictVisibility.READ_ONLY,
-        #                     display_name='number of blank cycles')
-        #
-        #self._param_dict.add(Parameter.FLUSH_PUMP_INTERVAL, CONFIGURATION_REGEX,
-        #                     lambda match: int(match.group(27), 16),
-        #                     lambda x: self._int_to_hexstring(x, 2),
-        #                     type=ParameterDictType.INT,
-        #                     startup_param=False,
-        #                     direct_access=True,
-        #                     default_value=0x01,
-        #                     visibility=ParameterDictVisibility.READ_ONLY,
-        #                     display_name='flush pump interval')
-        #
-        #self._param_dict.add(Parameter.BIT_SWITCHES, CONFIGURATION_REGEX,
-        #                     lambda match: int(match.group(28), 16),
-        #                     lambda x: self._int_to_hexstring(x, 2),
-        #                     type=ParameterDictType.INT,
-        #                     startup_param=False,
-        #                     direct_access=True,
-        #                     default_value=0x00,
-        #                     visibility=ParameterDictVisibility.READ_ONLY,
-        #                     display_name='bit switches')
-        #
-        #self._param_dict.add(Parameter.NUMBER_EXTRA_PUMP_CYCLES, CONFIGURATION_REGEX,
-        #                     lambda match: int(match.group(29), 16),
-        #                     lambda x: self._int_to_hexstring(x, 2),
-        #                     type=ParameterDictType.INT,
-        #                     startup_param=False,
-        #                     direct_access=True,
-        #                     default_value=0x38,
-        #                     visibility=ParameterDictVisibility.READ_ONLY,
-        #                     display_name='number of extra pump cycles')
-        #
-        #self._param_dict.add(Parameter.EXTERNAL_PUMP_SETTINGS, CONFIGURATION_REGEX,
-        #                     lambda match: int(match.group(30), 16),
-        #                     lambda x: self._int_to_hexstring(x, 2),
-        #                     type=ParameterDictType.INT,
-        #                     startup_param=False,
-        #                     direct_access=True,
-        #                     default_value=0x14,
-        #                     visibility=ParameterDictVisibility.READ_ONLY,
-        #                     display_name='external pump settings')
+        self._param_dict.add(Parameter.VALVE_DELAY, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(26), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
+
+        self._param_dict.add(Parameter.PUMP_ON_IND, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(27), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
+
+        self._param_dict.add(Parameter.PV_OFF_IND, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(28), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
+
+        self._param_dict.add(Parameter.NUMBER_BLANKS, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(29), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
+
+        self._param_dict.add(Parameter.PUMP_MEASURE_T, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(30), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
+
+        self._param_dict.add(Parameter.PUMP_OFF_TO_MEASURE, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(31), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
+
+        self._param_dict.add(Parameter.MEASURE_TO_PUMP_ON, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(32), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
+
+        self._param_dict.add(Parameter.NUMBER_MEASUREMENTS, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(33), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
+
+        self._param_dict.add(Parameter.SALINITY_DELAY, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(34), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             display_name='number of samples averaged',
+                             description='')
+
+    @staticmethod
+    def _int_to_hexstring(self, val, slen):
+        """
+        Write an integer value to an ASCIIHEX string formatted for SAMI
+        configuration set operations.
+        @param v the integer value to convert.
+        @param slen the required length of the returned string.
+        @retval an integer string formatted in ASCIIHEX for SAMI configuration
+        set operations.
+        @throws InstrumentParameterException if the integer and string length
+        values are not an integers.
+        """
+        if not isinstance(val, int):
+            raise InstrumentParameterException('Value %s is not an integer.' % str(val))
+        elif not isinstance(slen, int):
+            raise InstrumentParameterException('Value %s is not an integer.' % str(slen))
+        else:
+            s = format(val, 'X')
+            return s.zfill(slen)
