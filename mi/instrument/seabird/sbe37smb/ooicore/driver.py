@@ -967,7 +967,6 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         # Issue start command and switch to autosample if successful.
         self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, *args, **kwargs)
-        log.debug("*** sent %s command", InstrumentCmds.START_LOGGING)
         
         if self._is_logging():
             log.debug("SBE confirmed in logging mode!")
@@ -1083,7 +1082,6 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         tries = kwargs.get('tries',5)
         notries = 0
         try:
-            log.debug("*** attempting to wake up until autosample prompt")
             self._wakeup_until(timeout, SBE37Prompt.AUTOSAMPLE)
 
         except InstrumentTimeoutException:
@@ -1092,7 +1090,6 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
                 raise
 
         # Issue the stop command.
-        log.debug("*** Woke up, stopping logging now")
         self._do_cmd_resp(InstrumentCmds.STOP_LOGGING, *args, **kwargs)
 
         # Prompt device until command prompt is seen.
