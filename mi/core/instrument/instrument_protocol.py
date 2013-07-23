@@ -964,7 +964,6 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             (prompt, result) = self._get_response(timeout,
                                                   expected_prompt=expected_prompt)
 
-        log.debug("*** prompt=[%s], result=[%s]", prompt, result) 
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
         resp_result = None
