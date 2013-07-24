@@ -73,7 +73,6 @@ from mi.idk.exceptions import TestNoCommConfig
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentStateException
-from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
 from mi.core.instrument.data_particle import CommonDataParticleType
@@ -81,6 +80,7 @@ from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 from mi.core.instrument.data_particle import RawDataParticleKey
+from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -2681,9 +2681,12 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assert_enter_command_mode()
 
         # Direct access configurations
-        args={'session_type':DirectAccessTypes.telnet}
-        if inactivity_timeout != None: args['inactivity_timeout'] = inactivity_timeout
-        if session_timeout != None: args['session_timeout'] = session_timeout
+        args={'session_type':DirectAccessTypes.telnet,
+              'inactivity_timeout': inactivity_timeout,
+              'session_timeout': session_timeout}
+        
+        #if inactivity_timeout != None: args['inactivity_timeout'] = inactivity_timeout
+        #if session_timeout != None: args['session_timeout'] = session_timeout
 
         log.debug("DA startup parameters: %s", args)
 
@@ -2780,8 +2783,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
             if(agent_state == target_agent_state and resource_state == target_resource_state):
                 log.debug("Current state match: %s %s", agent_state, resource_state)
                 return
-            log.debug("state mismatch, waiting for state to transition")
-            gevent.sleep(2)
+            log.debug("state mismatch, waiting for state to transition. Current time: %s, end time: %s",
+                      time.time(), end_time)
+            gevent.sleep(3)
 
         if(agent_state != target_agent_state):
             log.error("Failed to transition agent state to %s, current state: %s", target_agent_state, agent_state)
@@ -3156,8 +3160,34 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         num_actual = len(self.de_dupe(raw_events))
         log.debug("num_expected = " + str(num_expected) + " num_actual = " + str(num_actual))
         self.assertTrue(num_actual == num_expected)
+    
+    @unittest.skip("Until we are ready to force everyone to write this...")
+    def test_direct_access_exit_from_autosample(self):
+        """
+        Verify that direct access mode can be exited while the instrument is
+        sampling. This should be done for all instrument states. Override
+        this function on a per-instrument basis. Pseudo code looks like:
+        self.assert_enter_command_mode()
 
-        pass
+        # go into direct access, and start sampling so ION doesnt know about it
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data("start_auto_sample") # or whatever the instrument uses
+
+        self.assert_direct_access_stop_telnet()
+        """
+        self.fail("This test needs to be overridden at the instrument level.")
+
+    def test_direct_access_telnet_closed(self):
+        """
+        Test that we can properly handle the situation when a direct access
+        session is launched, the telnet is closed, then direct access is stopped.
+        """
+        self.assert_enter_command_mode()
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.disconnect()
+        self.assert_state_change(ResourceAgentState.COMMAND, DriverProtocolState.COMMAND, 20)
 
     def test_agent_save_and_restore(self):
         """

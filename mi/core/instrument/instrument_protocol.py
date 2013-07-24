@@ -13,6 +13,7 @@ nitty-gritty interaction with individual instruments in the system.
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
+import re
 import time
 import json
 from functools import partial
@@ -21,7 +22,6 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.common import BaseEnum, InstErrorCode
-from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import RawDataParticle
 from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.core.driver_scheduler import DriverScheduler
@@ -44,6 +44,7 @@ from mi.core.exceptions import InstrumentParameterExpirationException
 
 DEFAULT_CMD_TIMEOUT=20
 DEFAULT_WRITE_DELAY=0
+RE_PATTERN = type(re.compile(""))
 
 class InterfaceType(BaseEnum):
     """The methods of connecting to a device"""
@@ -794,7 +795,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
 
         return prompts
 
-    def _get_response(self, timeout=10, expected_prompt=None):
+    def _get_response(self, timeout=10, expected_prompt=None, response_regex=None):
         """
         Get a response from the instrument, but be a bit loose with what we
         find. Leave some room for white space around prompts and not try to
@@ -805,11 +806,30 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @param timeout The timeout in seconds
         @param expected_prompt Only consider the specific expected prompt as
         presented by this string
-        @throw InstrumentProtocolExecption on timeout
+        @param response_regex Look for a resposne value that matches the
+        supplied compiled regex pattern. Groups that match will be returned as a
+        string. Cannot be used with expected prompt. None
+        will be returned as a prompt with this match. If a regex is supplied,
+        internal the prompt list will be ignored.
+        @retval Regex search result tuple (as MatchObject.groups() would return
+        if a response_regex is supplied. A tuple of (prompt, response) if a
+        prompt is looked for.
+        @throw InstrumentProtocolException if both regex and expected prompt are
+        passed in or regex is not a compiled pattern.
+        @throw InstrumentTimeoutExecption on timeout
         """
         # Grab time for timeout and wait for prompt.
-
         starttime = time.time()
+        
+        if response_regex and not isinstance(response_regex, RE_PATTERN):
+            raise InstrumentProtocolException('Response regex is not a compiled pattern!')
+        
+        if expected_prompt and response_regex:
+            raise InstrumentProtocolException('Cannot supply both regex and expected prompt!')
+
+        if response_regex:
+            prompt_list = []
+            
         if expected_prompt == None:
             prompt_list = self._get_prompts()
         else:
@@ -818,15 +838,23 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             else:
                 prompt_list = expected_prompt
 
-        log.debug('_get_response: timeout=%s, prompt_list=%s, expected_prompt=%s,' %(timeout, prompt_list, expected_prompt))
+        log.debug('_get_response: timeout=%s, prompt_list=%s, expected_prompt=%s, response_regex=%s, promptbuf=%s',
+                  timeout, prompt_list, expected_prompt, response_regex, self._promptbuf)
         while True:
-            for item in prompt_list:
-                index = self._promptbuf.find(item)
-                if index >= 0:
-                    result = self._promptbuf[0:index+len(item)]
-                    return (item, result)
+            if response_regex:
+                match = response_regex.search(self._linebuf)
+                if match:
+                    return match.groups()
                 else:
                     time.sleep(.1)
+            else:
+                for item in prompt_list:
+                    index = self._promptbuf.find(item)
+                    if index >= 0:
+                        result = self._promptbuf[0:index+len(item)]
+                        return (item, result)
+                    else:
+                        time.sleep(.1)
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")
@@ -868,8 +896,20 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         Perform a command-response on the device.
         @param cmd The command to execute.
         @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
+        @param write_delay kwarg for the amount of delay in seconds to pause
+        between each character. If none supplied, the DEFAULT_WRITE_DELAY
+        value will be used.
+        @param timeout optional wakeup and command timeout via kwargs.
+        @param expected_prompt kwarg offering a specific prompt to look for
+        other than the ones in the protocol class itself.
+        @param response_regex kwarg with a compiled regex for the response to
+        match. Groups that match will be returned as a string.
+        Cannot be supplied with expected_prompt. May be helpful for
+        instruments that do not have a prompt.
+        @retval resp_result The (possibly parsed) response result including the
+        first instance of the prompt matched. If a regex was used, the prompt
+        will be an empty string and the response will be the joined collection
+        of matched groups.
         @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
@@ -878,8 +918,15 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', DEFAULT_CMD_TIMEOUT)
         expected_prompt = kwargs.get('expected_prompt', None)
+        response_regex = kwargs.get('response_regex', None)
         write_delay = kwargs.get('write_delay', DEFAULT_WRITE_DELAY)
         retval = None
+        
+        if response_regex and not isinstance(response_regex, RE_PATTERN):
+            raise InstrumentProtocolException('Response regex is not a compiled pattern!')
+        
+        if expected_prompt and response_regex:
+            raise InstrumentProtocolException('Cannot supply both regex and expected prompt!')
         
         # Get the build handler.
         build_handler = self._build_handlers.get(cmd, None)
@@ -887,20 +934,17 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             raise InstrumentProtocolException('Cannot build command: %s' % cmd)
 
         cmd_line = build_handler(cmd, *args)
-
         # Wakeup the device, pass up exception if timeout
 
         prompt = self._wakeup(timeout)
         
         # Clear line and prompt buffers for result.
-
-
         self._linebuf = ''
         self._promptbuf = ''
 
         # Send command.
-        log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s,' %
-                        (repr(cmd_line), timeout, write_delay, expected_prompt))
+        log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s, response_regex=%s',
+                        repr(cmd_line), timeout, write_delay, expected_prompt, response_regex)
 
         if (write_delay == 0):
             self._connection.send(cmd_line)
@@ -910,8 +954,15 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                 time.sleep(write_delay)
 
         # Wait for the prompt, prepare result and return, timeout exception
-        (prompt, result) = self._get_response(timeout,
+        if response_regex:
+            prompt = ""
+            result_tuple = self._get_response(timeout,
+                                              response_regex=response_regex,
                                               expected_prompt=expected_prompt)
+            result = "".join(result_tuple)
+        else:
+            (prompt, result) = self._get_response(timeout,
+                                                  expected_prompt=expected_prompt)
 
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
@@ -1034,7 +1085,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         self._last_data_timestamp = time.time()
 
         log.debug("LINE BUF: %s", self._linebuf)
-        log.debug("PROMPT BUF: %s", self._linebuf)
+        log.debug("PROMPT BUF: %s", self._promptbuf)
 
     ########################################################################
     # Wakeup helpers.
@@ -1055,7 +1106,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         @throw InstrumentTimeoutException if the device could not be woken.
         """
         # Clear the prompt buffer.
-        log.debug("clearing promptbuf: %s" % self._promptbuf)
+        log.debug("clearing promptbuf: %s", self._promptbuf)
         self._promptbuf = ''
         
         # Grab time for timeout.
@@ -1063,20 +1114,21 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         
         while True:
             # Send a line return and wait a sec.
-            log.trace('Sending wakeup. timeout=%s' % timeout)
+            log.trace('Sending wakeup. timeout=%s', timeout)
             self._send_wakeup()
             time.sleep(delay)
 
-            log.debug("Prompts: %s" % self._get_prompts())
+            log.debug("Prompts: %s", self._get_prompts())
 
             for item in self._get_prompts():
-                log.debug("buffer: %s" % self._promptbuf)
-                log.debug("find prompt: %s" % item)
+                log.debug("buffer: %s", self._promptbuf)
+                log.debug("find prompt: %s", item)
                 index = self._promptbuf.find(item)
-                log.debug("Got prompt (index: %s): %s " % (index, repr(self._promptbuf)))
+                log.debug("Got prompt (index: %s): %s ", index, repr(self._promptbuf))
                 if index >= 0:
-                    log.trace('wakeup got prompt: %s' % repr(item))
+                    log.trace('wakeup got prompt: %s', repr(item))
                     return item
+            log.debug("Searched for all prompts")
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException("in _wakeup()")
@@ -1084,7 +1136,8 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
     def _wakeup_until(self, timeout, desired_prompt, delay=1, no_tries=5):
         """
         Continue waking device until a specific prompt appears or a number
-        of tries has occurred.
+        of tries has occurred. Desired prompt must be in the instrument's
+        prompt list. 
         @param timeout The timeout to wake the device.
         @desired_prompt Continue waking until this prompt is seen.
         @delay Time to wake between consecutive wakeups.
