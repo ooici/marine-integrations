@@ -903,7 +903,7 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
 
         self.assert_start_autosample()
 
-        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data, timeout=200) 
+        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data, timeout=90) 
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=50)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=50)
 

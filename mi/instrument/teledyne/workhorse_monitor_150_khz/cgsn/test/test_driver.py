@@ -166,7 +166,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.POLLED_MODE:               {TYPE: bool, READONLY: False, DA: False, STARTUP: True,  DEFAULT: False,   VALUE: False,        OFF_VALUE: True},
         Parameter.XMIT_POWER:                {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 255,     VALUE: 255,          OFF_VALUE: 250},
         Parameter.HEADING_ALIGNMENT:         {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
-        Parameter.SPEED_OF_SOUND:            {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 1500,    VALUE: 1500,         OFF_VALUE: 1480},
+        Parameter.SPEED_OF_SOUND:            {TYPE: int,  READONLY: False, DA: True,  STARTUP: True,  DEFAULT: 1500,    VALUE: 1500,         OFF_VALUE: 1480},
         Parameter.TRANSDUCER_DEPTH:          {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 32767},
         Parameter.SALINITY:                  {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 35,      VALUE: 35,           OFF_VALUE: 36},
         Parameter.COORDINATE_TRANSFORMATION: {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '11111', VALUE: '11111',      OFF_VALUE: '00111'},
@@ -198,8 +198,8 @@ class ADCPTMixin(DriverTestMixin):
 
     _driver_capabilities = {
         # capabilities defined in the IOS
-        Capability.START_AUTOSAMPLE: { STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
-        Capability.STOP_AUTOSAMPLE: { STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.START_AUTOSAMPLE: { STATES: [ProtocolState.COMMAND]}, # , ProtocolState.AUTOSAMPLE
+        Capability.STOP_AUTOSAMPLE: { STATES: [ ProtocolState.AUTOSAMPLE]}, #ProtocolState.COMMAND,
         Capability.CLOCK_SYNC: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_CALIBRATION: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_CONFIGURATION: { STATES: [ProtocolState.COMMAND]},
@@ -899,9 +899,13 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         Verify autosample works and data particles are created
         """
         self.assert_enter_command_mode()
-        self.assert_start_autosample()
 
-        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=50) # ADCP_PD0_PARSED_BEAM
+        self.assert_set_parameter(Parameter.TIME_PER_ENSEMBLE, '00:01:00.00', True)
+        self.assert_set_parameter(Parameter.TIME_PER_PING, '00:30.00', True)
+        self.assert_set_parameter(Parameter.PINGS_PER_ENSEMBLE, 1, True)
+
+        self.assert_start_autosample()
+        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=100) 
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=50)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=50)
 
@@ -915,6 +919,10 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         self.assert_sample_autosample(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_EARTH)
 
     def assert_cycle(self):
+        self.assert_set_parameter(Parameter.TIME_PER_ENSEMBLE, '00:01:00.00', True)
+        self.assert_set_parameter(Parameter.TIME_PER_PING, '00:30.00', True)
+        self.assert_set_parameter(Parameter.PINGS_PER_ENSEMBLE, 1, True)
+        
         self.assert_start_autosample()
 
         self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=200)

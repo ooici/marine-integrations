@@ -169,6 +169,7 @@ class TeledyneProtocolEvent(BaseEnum):
 
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+    RECOVER_AUTOSAMPLE = 'PROTOCOL_EVENT_RECOVER_AUTOSAMPLE'
     RESTORE_FACTORY_PARAMS = "PROTOCOL_EVENT_RESTORE_FACTORY_PARAMS"
     POWER_DOWN = "PROTOCOL_EVENT_POWER_DOWN"
 
@@ -289,6 +290,12 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_autosample_clock_sync)
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.GET_CALIBRATION, self._handler_autosample_get_calibration)
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.GET_CONFIGURATION, self._handler_autosample_get_configuration)
+
+
+        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.RECOVER_AUTOSAMPLE, self._handler_recover_autosample)
+
+
+
 
         self._protocol_fsm.add_handler(TeledyneProtocolState.DIRECT_ACCESS, TeledyneProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(TeledyneProtocolState.DIRECT_ACCESS, TeledyneProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -740,7 +747,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @param: timeout - Command timeout
         @return: True - instrument logging, False - not logging
         """
-        log.trace("in _is_logging")
+        log.error("in _is_logging")
 
         self._linebuf = ""
         self._promptbuf = ""
@@ -1196,10 +1203,24 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         if(error):
             raise error
 
-
         result = self._sanitize(base64.b64decode(output))
         return (next_state, (next_agent_state, result))
         #return (next_state, (next_agent_state, {'result': result}))
+
+    def _handler_recover_autosample(self, *args, **kwargs):
+        """
+        Reenter autosample mode.  Used when our data handler detects
+        as data sample.
+        @retval (next_state, result) tuple, (None, sample dict).
+        """
+        next_state = TeledyneProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+        result = None
+
+        self._async_agent_state_change(ResourceAgentState.STREAMING)
+
+        return (next_state, next_agent_state)
+
 
     def _handler_autosample_clock_sync(self, *args, **kwargs):
         """
@@ -1352,10 +1373,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
     def _handler_command_start_direct(self, *args, **kwargs):
         next_state = None
         result = None
+        log.error("_handler_command_start_direct: entering DA mode")
 
         next_state = TeledyneProtocolState.DIRECT_ACCESS
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        log.trace("_handler_command_start_direct: entering DA mode")
         return (next_state, (next_agent_state, result))
 
     def _handler_direct_access_enter(self, *args, **kwargs):
@@ -1364,7 +1385,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
-        log.trace("IN _handler_direct_access_enter")
+        log.error("IN _handler_direct_access_enter")
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._sent_cmds = []
@@ -1373,7 +1394,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         Exit direct access state.
         """
-        log.debug("%%% IN NEW _handler_direct_access_exit")
+        log.error("IN _handler_direct_access_exit")
+        self._send_break()
 
         result = self._do_cmd_resp(TeledyneInstrumentCmds.GET, TeledyneParameter.TIME_OF_FIRST_PING)
         if "****/**/**,**:**:**" not in result:
@@ -1382,11 +1404,11 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             self._send_break()
 
     def _handler_direct_access_execute_direct(self, data):
-        log.trace("IN _handler_direct_access_execute_direct")
+        log.error("IN _handler_direct_access_execute_direct")
         next_state = None
         result = None
         next_agent_state = None
-
+        log.error("sending direct command = '" + repr(data) + "'")
         self._do_cmd_direct(data)
 
         # add sent command to list for 'echo' filtering in callback
@@ -1402,6 +1424,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
         """
+        log.error("IN _discover")
         logging = self._is_logging()
      
         if(logging == True):
@@ -1411,14 +1434,13 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         else:
             return (TeledyneProtocolState.UNKNOWN, ResourceAgentState.ACTIVE_UNKNOWN)
 
-
     def _handler_direct_access_stop_direct(self):
         """
         @throw InstrumentProtocolException on invalid command
         """
         next_state = None
         result = None
-
+        log.error("IN _handler_direct_access_stop_direct")
         (next_state, next_agent_state) = self._discover()
 
         return (next_state, (next_agent_state, result))

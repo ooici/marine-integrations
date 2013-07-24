@@ -343,7 +343,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_set(WorkhorseParameter.ENSEMBLES_PER_BURST, self._driver_parameters[WorkhorseParameter.ENSEMBLES_PER_BURST][self.VALUE])
         self._tested[WorkhorseParameter.ENSEMBLES_PER_BURST] = True
 
-
     def _test_set_buffer_output_period(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -373,6 +372,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
 # integration.  The generally aren't used for instrument debugging and should #
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
+
 @attr('QUAL', group='mi')
 class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
     def setUp(self):

@@ -200,7 +200,7 @@ class Protocol(WorkhorseProtocol):
             self._int_to_string,
             type=ParameterDictType.INT,
             display_name="speed of sound",
-            direct_access=False,
+            direct_access=True,
             startup_param=True,
             default_value=1500)
 
