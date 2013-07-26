@@ -12,7 +12,6 @@ __author__ = 'Stuart Pearce'
 __license__ = 'Apache 2.0'
 
 import re
-import string
 import datetime as dt
 
 from mi.core.log import get_logger
