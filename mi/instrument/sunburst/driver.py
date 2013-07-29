@@ -5,14 +5,13 @@
 @brief Base Driver for the SAMI instruments
 Release notes:
 
-Sunburst Sensors SAMI2-PH pH underwater sensor
+Sunburst Instruments SAMI-PCO2 partial CO2 & SAMI2-PH pH underwater sensors
 """
 
 __author__ = 'Chris Wingard & Stuart Pearce'
 __license__ = 'Apache 2.0'
 
 import re
-import datetime as dt
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -40,20 +39,20 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import FunctionParameter
 from mi.core.instrument.driver_dict import DriverDictKey
 
-# TODO: BASE CLASS
 # newline.
 NEWLINE = '\r'
 
-# TODO: BASE CLASS
 # default timeout.
 TIMEOUT = 10
 
-# TODO: BASE CLASS
 # Conversion from SAMI time (seconds since 1904-01-01) to POSIX or Unix
 # timestamps (seconds since 1970-01-01). Add this value to convert POSIX
 # timestamps to SAMI, and subtract for the reverse.
 SAMI_TO_UNIX = 2082844800
-SAMI_TO_NTP = (dt.datetime(1904, 1, 1) - dt.datetime(1900, 1, 1)).total_seconds()
+# Conversion from SAMI time (seconds since 1904-01-01) to NTP timestamps
+# (seconds since 1900-01-01). Subtract this value to convert NTP timestamps to
+# SAMI, and add for the reverse.
+SAMI_TO_NTP = 126144000
 
 ###
 #    Driver Constant Definitions
@@ -77,7 +76,7 @@ REGULAR_STATUS_REGEX_MATCHER = re.compile(REGULAR_STATUS_REGEX)
 
 # Control Records (Types 0x80 - 0xFF)
 CONTROL_RECORD_REGEX = (
-    r'[\*]' +  # record identifier
+    r'[*]' +  # record identifier
     '([0-9A-Fa-f]{2})' +  # unique instrument identifier
     '([0-9A-Fa-f]{2})' +  # control record length (bytes)
     '([8-9A-Fa-f][0-9A-Fa-f])' +  # type of control record 0x80-FF
@@ -99,16 +98,16 @@ ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
 #    Begin Classes
 ###
 # TODO: BASE CLASS and will require inherit extend
-class DataParticleType(BaseEnum):
+class SamiDataParticleType(BaseEnum):
     """
-    Data particle types produced by this driver
+    Base class Data particle types produced by a SAMI instrument. Should be
+    sub-classed in the specific instrument driver
     """
     RAW = CommonDataParticleType.RAW
     REGULAR_STATUS = 'regular_status'
     CONTROL_RECORD = 'control_record'
     SAMI_SAMPLE = 'sami_sample'
     CONFIGURATION = 'configuration'
-    ERROR_CODE = 'error_code'
 
 
 class ProtocolState(BaseEnum):
@@ -138,7 +137,7 @@ class ProtocolEvent(BaseEnum):
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
-    #ACQUIRE_CONFIGURATION = 'DRIVER_EVENT_ACQUIRE_CONFIGURATION'
+    ACQUIRE_CONFIGURATION = 'DRIVER_EVENT_ACQUIRE_CONFIGURATION'
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
@@ -189,7 +188,7 @@ class SamiParameter(DriverParameter):
     # the portions of the configuration that is unique to each.
 
 
-# TODO: talk to Chris about prompts.
+# TODO: Find out about use of prompts
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
@@ -431,46 +430,11 @@ class SamiControlRecordDataParticle(DataParticle):
         return result
 
 
-class SamiErrorCodeDataParticleKey(BaseEnum):
-    """
-    Data particle key for the error code records.
-    """
-    ERROR_CODE = 'error_code'
-
-
-class SamiErrorCodeDataParticle(DataParticle):
-    """
-    Routines for parsing raw data into an error code data particle
-    structure.
-    @throw SampleException If there is a problem with sample creation
-    """
-    _data_particle_type = DataParticleType.ERROR_CODE
-
-    def _build_parsed_values(self):
-        """
-        Parse error_code values from raw data into a dictionary
-        """
-
-        matched = ERROR_REGEX_MATCHER.match(self.raw_data)
-        if not matched:
-            raise SampleException("No regex match of parsed sample data: [%s]" %
-                                  self.decoded_raw)
-
-        particle_keys = [SamiErrorCodeDataParticleKey.ERROR_CODE]
-
-        result = []
-        grp_index = 1
-        for key in particle_keys:
-            result.append({DataParticleKey.VALUE_ID: key,
-                           DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
-            grp_index += 1
-
-        return result
-
-
 class SamiConfigDataParticleKey(BaseEnum):
     """
-    Data particle key for the configuration record.
+    SAMI Instrument Data particle key Base Class for configuration records.
+    This should be subclassed in the specific instrument driver and extended
+    with specific instrument parameters.
     """
     LAUNCH_TIME = 'launch_time'
     START_TIME_OFFSET = 'start_time_offset'
@@ -549,9 +513,9 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 # Protocol
 ###########################################################################
 
-class Protocol(CommandResponseInstrumentProtocol):
+class SamiProtocol(CommandResponseInstrumentProtocol):
     """
-    Instrument protocol class
+    SAMI Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
     def __init__(self, prompts, newline, driver_event):
@@ -657,6 +621,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.EXIT,
             self._handler_scheduled_sample_exit)
+        # TODO: these next two may need to be added at the specific driver
+        # level or at least the handlers
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
+            self._handler_sample_success)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
+            self._handler_sample_timeout)
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
         # while in either the COMMAND state (or via the discover transition
@@ -669,6 +641,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.POLLED_SAMPLE, ProtocolEvent.EXIT,
             self._handler_polled_sample_exit)
+        # TODO: these next two may need to be added at the specific driver
+        # level, or at least the handlers
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
+            self._handler_sample_success)
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
+            self._handler_sample_timeout)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -725,12 +705,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         #                  CONFIGURATION_REGEX_MATCHER,
         #                  ERROR_REGEX_MATCHER]
 
-        for matcher in SIEVE_MATCHERS:
+        for matcher in self.SIEVE_MATCHERS:
             for match in matcher.finditer(raw_data):
                 return_list.append((match.start(), match.end()))
 
         return return_list
 
+    # this should probably go into the specific driver
     def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
@@ -846,9 +827,26 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Command device to update parameters and send a config change event.
         #self._update_params()
 
+        # Command device to initialize parameters and send a config change event.
+        self._protocol_fsm.on_event(DriverEvent.INIT_PARAMS)
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_command_init_params(self, *args, **kwargs):
+        """
+        initialize parameters
+        """
+        next_state = None
+        result = None
+
+        self._init_params()
+        return (next_state, result)
 
     def _handler_command_exit(self, *args, **kwargs):
         """
@@ -884,14 +882,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_handler_command_start_direct: entering DA mode")
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_acquire_configuration(self, *args, **kwargs):
-        """
-        Acquire the instrument's configuration
-        """
-        next_state = None
-        result = None
-
-        return (next_state, result)
+    # Not used currently.  Maybe added later
+    #def _handler_command_acquire_configuration(self, *args, **kwargs):
+    #    """
+    #    Acquire the instrument's configuration
+    #    """
+    #    next_state = None
+    #    result = None
+    #
+    #    return (next_state, result)
 
     def _handler_command_acquire_status(self, *args, **kwargs):
         """
@@ -911,12 +910,15 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
-    def _handler_command_start_autosample(self, *args, **kwargs):
+    def _handler_command_start_autosample(self):
         """
         Start autosample mode (spoofed via use of scheduler)
         """
-        next_state = None
+        next_state = ProtocolState.START_AUTOSAMPLE
+        next_agent_state = ResourceAgentState.START_AUTOSAMPLE
         result = None
+        log.debug("_handler_command_start_autosample: entering Autosample mode")
+        return (next_state, (next_agent_state, result))
 
         return (next_state, result)
 
@@ -961,8 +963,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        # This commented out section is the old action taken
+        #next_state = ProtocolState.COMMAND
+        #next_agent_state = ResourceAgentState.COMMAND
+
+        log.debug("_handler_direct_access_stop_direct: starting discover")
+        (next_state, next_agent_state) = self._discover()
+        log.debug("_handler_direct_access_stop_direct: next agent state: %s", next_agent_state)
 
         return (next_state, (next_agent_state, result))
 
@@ -1004,6 +1011,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+    # NOTE:  I think that these handlers will be exactly the same and so can be
+    # reduced to a single _handler_sample_[EVENT]
     ########################################################################
     # Scheduled Sample handlers.
     ########################################################################
@@ -1023,6 +1032,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         Exit busy state.
         """
         pass
+
+    # define in the instrument specific driver Protocol subclass these handlers
+    # _handler_scheduled_sample_success & _handler_scheduled_sample_timeout
 
     ########################################################################
     # Polled Sample handlers.
@@ -1044,6 +1056,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         pass
 
+    # define in the instrument specific driver Protocol subclass these handlers
+    # _handler_polled_sample_success & _handler_polled_sample_timeout
+
     ####################################################################
     # Build Command & Parameter dictionary
     ####################################################################
@@ -1064,26 +1079,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
 
+    # I think this will need to be created in the specific driver sub-class
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
+        For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
         self._param_dict = ProtocolParameterDict()
-
-        ### example configuration string
-        #VALID_CONFIG_STRING = 'CDDD731D01E1338001E1338002000E100A0200000000110' + \
-        #'0000000110000000011000000001107013704200108081004081008170000' + \
-        #'0000000000000000000000000000000000000000000000000000000000000' + \
-        #'0000000000000000000000000000000000000000000000000000000000000' + \
-        #'00' + \
-        #'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-        #'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-        #'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-        #'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
-        #'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + NEWLINE
 
         self._param_dict.add(Parameter.LAUNCH_TIME, CONFIGURATION_REGEX,
                              lambda match: int(match.group(1), 16),
@@ -1284,167 +1288,108 @@ class Protocol(CommandResponseInstrumentProtocol):
                              default_value=0x00,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='global bits (set to 00000111)')
+        # Extend any further _param_dict.add's in the specific driver subclass
 
-        self._param_dict.add(Parameter.NUMBER_SAMPLES_AVERAGED, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(21), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    ########################################################################
+    # Command handlers.
+    ########################################################################
 
-        self._param_dict.add(Parameter.NUMBER_FLUSHES, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(22), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    def _build_simple_command(self, cmd):
+        """
+        Build handler for basic SAMI commands.
+        @param cmd the simple SAMI command to format.
+        @retval The command to be sent to the device.
+        """
+        return cmd + NEWLINE
 
-        self._param_dict.add(Parameter.PUMP_ON_FLUSH, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(23), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    def _build_set_config(self):
+        pass
 
-        self._param_dict.add(Parameter.PUMP_OFF_FLUSH, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(24), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    def _build_sample_sami(self):
+        pass
 
-        self._param_dict.add(Parameter.NUMBER_REAGENT_PUMPS, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(25), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    def _build_escape_boot(self):
+        pass
 
-        self._param_dict.add(Parameter.VALVE_DELAY, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(26), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    # this needs to be defined in the subclass in the PCO2 specific driver
+    #def _build_sample_dev1(self):
+    #    pass
 
-        self._param_dict.add(Parameter.PUMP_ON_IND, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(27), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    ########################################################################
+    # Response handlers.
+    ########################################################################
 
-        self._param_dict.add(Parameter.PV_OFF_IND, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(28), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    def _build_response_get_status(self):
+        pass
 
-        self._param_dict.add(Parameter.NUMBER_BLANKS, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(29), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    def _build_response_get_config(self):
+        pass
 
-        self._param_dict.add(Parameter.PUMP_MEASURE_T, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(30), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    def _build_response_set_config(self):
+        pass
 
-        self._param_dict.add(Parameter.PUMP_OFF_TO_MEASURE, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(31), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    def _build_response_erase_all(self):
+        pass
 
-        self._param_dict.add(Parameter.MEASURE_TO_PUMP_ON, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(32), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    def _build_response_sample_sami(self):
+        pass
 
-        self._param_dict.add(Parameter.NUMBER_MEASUREMENTS, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(33), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    # this needs to be defined in the subclass in the PCO2 specific driver
+    #def _build_response_sample_dev1(self):
+    #    pass
 
-        self._param_dict.add(Parameter.SALINITY_DELAY, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(34), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
-                             type=ParameterDictType.INT,
-                             startup_param=False,
-                             direct_access=True,
-                             default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name='number of samples averaged',
-                             description='')
+    ########################################################################
+    # Private helpers.
+    ########################################################################
+
+    @staticmethod
+    def _discover(self):
+        """
+        Discover current state; can be UNKNOWN, COMMAND or DISCOVER
+        @retval (next_state, result)
+        """
+        # Exit states can be either COMMAND, DISCOVER or back to UNKNOWN.
+        next_state = None
+        next_agent_state = None
+
+        log.debug("_discover")
+
+        # Set response timeout to 10 seconds. Should be immediate if
+        # communications are enabled and the instrument is not sampling.
+        # Otherwise, sampling can take up to ~3 minutes to complete. Partial
+        # strings are output during that time period.
+        kwargs['timeout'] = 10
+
+        # Make sure automatic-status updates are off. This will stop the
+        # broadcast of information while we are trying to get data.
+        cmd = self._build_simple_command(InstrumentCommand.STOP_STATUS)
+        self._do_cmd_direct(cmd)
+
+        # Acquire the current instrument status
+        status = self._do_cmd_resp(InstrumentCommand.GET_STATUS, *args, **kwargs)
+        status_match = REGULAR_STATUS_REGEX_MATCHER.match(status)
+
+        if status is None or not status_match:
+            # No response received in the timeout period, or response that does
+            # not match the status string format is received. In either case,
+            # we assume the unit is sampling and transition to a new state,
+            # WAITING, to confirm or deny.
+            next_state = ProtocolState.WAITING
+            next_agent_state = ResourceAgentState.BUSY
+        else:
+            # Unit is powered on and ready to accept commands, etc.
+            next_state = ProtocolState.COMMAND
+            next_agent_state = ResourceAgentState.IDLE
+
+        log.debug("_discover. result start: %s" % next_state)
+        return (next_state, next_agent_state)
 
     @staticmethod
     def _int_to_hexstring(self, val, slen):
         """
         Write an integer value to an ASCIIHEX string formatted for SAMI
         configuration set operations.
-        @param v the integer value to convert.
+        @param val the integer value to convert.
         @param slen the required length of the returned string.
         @retval an integer string formatted in ASCIIHEX for SAMI configuration
         set operations.
@@ -1458,3 +1403,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         else:
             s = format(val, 'X')
             return s.zfill(slen)
+
+    @staticmethod
+    def _epoch_to_sami(self):
+        """
+        Create a timestamp in seconds using January 1, 1904 as the Epoch
+        @retval an integer value representing the number of seconds since
+            January 1, 1904.
+        """
+        return int(time.time()) + SAMI_EPOCH
