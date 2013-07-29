@@ -1333,7 +1333,6 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         self.tcp_client.disconnect()
         self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 30)
 
-    #@unittest.skip("Pending investigation/repair from IA crew CIDEVSWMI-??")
     def test_direct_access_telnet_mode_autosample(self):
         """
         @brief Same as the previous DA test except in this test
@@ -1367,42 +1366,6 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         self.assert_get_parameter(SBE37Parameter.INTERVAL, 10)
 
         ###
-        # Test direct access inactivity timeout
-        #
-        # We have to call start now after the assert because the assert
-        # puts the instrument in command mode first.  you can not start DA from
-        # autosample.
-        ###
-        # INACTIVITY TIMEOUT DOESNT WORK IF THE INSTRUMENT IS STREAMING...that's activity
-        #self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
-        #log.debug("*** started telnet")
-        #self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
-        #log.debug("*** sent startnow via DA")
-        #gevent.sleep(3)
-        #self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 80)
-
-        ###
-        # Test session timeout without activity
-        ###
-        self.assert_direct_access_start_telnet(inactivity_timeout=120, session_timeout=30)
-        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
-        gevent.sleep(3)
-        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 120)
-
-        ###
-        # Test direct access session timeout with activity
-        ###
-        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
-        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
-        # Send some activity every 30 seconds to keep DA alive.
-        for i in range(1, 2, 3):
-            self.tcp_client.send_data(NEWLINE)
-            log.debug("Sending a little keep alive communication, sleeping for 15 seconds")
-            gevent.sleep(15)
-
-        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 240)
-
-        ###
         # Test direct access disconnect
         ###
         self.assert_direct_access_start_telnet(inactivity_timeout=600, session_timeout=600)
@@ -1412,7 +1375,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         log.debug("DA server autosample started")
         self.tcp_client.disconnect()
         log.debug("DA server tcp client disconnected")
-        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 240)
+        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 90)
 
 
     @unittest.skip("Do not include until a good method is devised")
