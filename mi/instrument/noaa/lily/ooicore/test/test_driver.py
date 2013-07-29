@@ -114,6 +114,8 @@ GO_ACTIVE_TIMEOUT=180
 INVALID_SAMPLE  = "This is an invalid sample; it had better cause an exception." + NEWLINE
 VALID_SAMPLE_01 = "LILY,2013/06/24 23:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NEWLINE
 VALID_SAMPLE_02 = "LILY,2013/06/24 23:36:04,-235.349,  26.082,194.26, 26.04,11.96,N9655" + NEWLINE
+#                 "LILY,2013/07/24 20:36:27,*  14.667,  81.642,185.21, 33.67,11.59,N9651" + NEWLINE
+
 
 DATA_ON_COMMAND_RESPONSE = "LILY,2013/05/29 00:23:34," + LILY_COMMAND_STRING + LILY_DATA_ON + NEWLINE
 DATA_OFF_COMMAND_RESPONSE = "LILY,2013/05/29 00:23:34," + LILY_COMMAND_STRING + LILY_DATA_OFF + NEWLINE
@@ -128,6 +130,14 @@ BOTPT_FIREHOSE_01  += "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" +
 BOTPT_FIREHOSE_01  += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
 BOTPT_FIREHOSE_01  += "LILY,2013/06/24 23:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NEWLINE
 BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
+
+BOTPT_FIREHOSE_02  = "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
+BOTPT_FIREHOSE_02  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
+BOTPT_FIREHOSE_02  += "LILY,2013/06/24 22:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NEWLINE
+BOTPT_FIREHOSE_02  += "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
+BOTPT_FIREHOSE_02  += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
+BOTPT_FIREHOSE_02  += "LILY,2013/06/24 23:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NEWLINE
+BOTPT_FIREHOSE_02  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 
 SIGNON_STATUS = \
         "LILY,2013/06/24 23:35:41,*APPLIED GEOMECHANICS LILY Firmware V2.1 SN-N9655 ID01" + NEWLINE
@@ -179,6 +189,9 @@ DUMP_02_STATUS = \
         "LILY,2013/06/24 23:36:06,*01: Auto Power-Off Recovery Mode: Off" + NEWLINE + \
         "LILY,2013/06/24 23:36:06,*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No" + NEWLINE
         
+LEVELING_STATUS = \
+        "LILY,2013/07/24 20:36:27,*  14.667,  81.642,185.21, 33.67,11.59,N9651" + NEWLINE
+
 LEVELED_STATUS = \
         "LILY,2013/06/28 17:29:21,*  -2.277,  -2.165,190.81, 25.69,,Leveled!11.87,N9651" + NEWLINE
 
@@ -304,8 +317,12 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         """
         Test the chunker and verify the particles created.
         """
-        chunker = StringChunker(Protocol.sieve_function)
-
+        chunker = StringChunker(Protocol.leveling_sieve_function)
+        self.assert_chunker_sample(chunker, LEVELED_STATUS)
+        self.assert_chunker_sample(chunker, START_LEVELING_COMMAND_RESPONSE)
+        self.assert_chunker_sample(chunker, STOP_LEVELING_COMMAND_RESPONSE)
+        
+        chunker = StringChunker(Protocol.command_autosample_sieve_function)
         self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
         #self.assert_chunker_sample(chunker, SIGNON_STATUS)
         self.assert_chunker_sample(chunker, SIGNON_STATUS + DUMP_01_STATUS)
@@ -313,8 +330,43 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self.assert_chunker_sample(chunker, DUMP_02_STATUS)
         self.assert_chunker_sample(chunker, DUMP_01_COMMAND_RESPONSE)
         self.assert_chunker_sample(chunker, DUMP_02_COMMAND_RESPONSE)
-        self.assert_chunker_sample(chunker, LEVELED_STATUS)
 
+    def test_combined_samples(self):
+
+        chunker = StringChunker(Protocol.command_autosample_sieve_function)
+
+        sample = BOTPT_FIREHOSE_02
+        
+        ts = self.get_ntp_timestamp()
+        chunker.add_chunk(sample, ts)
+
+        (timestamp, result) = chunker.get_next_data()
+        self.assertTrue(result in sample)
+        self.assertEqual(timestamp, ts)
+
+        (timestamp, result) = chunker.get_next_data()
+        self.assertTrue(result in sample)
+        self.assertEqual(timestamp, ts)
+
+        (timestamp, result) = chunker.get_next_data()
+        self.assertEqual(result, None)
+
+    def test_leveling_status(self):
+
+        chunker = StringChunker(Protocol.leveling_sieve_function)
+
+        #sample = VALID_SAMPLE_01
+        sample = LEVELING_STATUS
+        
+        ts = self.get_ntp_timestamp()
+        chunker.add_chunk(sample, ts)
+
+        (timestamp, result) = chunker.get_next_data()
+        self.assertEqual(result, sample)
+        self.assertEqual(timestamp, ts)
+
+        (timestamp, result) = chunker.get_next_data()
+        self.assertEqual(result, None)
 
     """
     Test the connection to the BOTPT
@@ -1007,7 +1059,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         result = driver._protocol._handler_command_start_autosample(timeout = 0)
         ts = ntplib.system_to_ntp_time(time.time())
-        result = driver._protocol._got_chunk(DATA_ON_COMMAND_RESPONSE, ts)
+        result = driver._protocol._got_coarse_chunk(DATA_ON_COMMAND_RESPONSE, ts)
 
 
     def test_stop_autosample(self):
@@ -1049,7 +1101,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         result = driver._protocol._handler_autosample_stop_autosample()
         ts = ntplib.system_to_ntp_time(time.time())
-        result = driver._protocol._got_chunk(DATA_OFF_COMMAND_RESPONSE, ts)
+        result = driver._protocol._got_coarse_chunk(DATA_OFF_COMMAND_RESPONSE, ts)
 
 
     def test_status_01_handler(self):
@@ -1170,8 +1222,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         # but we really want to return the status as a string.  Might have to
         # expose the two commands to run separately instead of one combined
         # acquire_status
-        driver._protocol._got_chunk(DUMP_01_STATUS, ts)
-        driver._protocol._got_chunk(DUMP_01_COMMAND_RESPONSE, ts)
+        driver._protocol._got_coarse_chunk(DUMP_01_STATUS, ts)
+        driver._protocol._got_coarse_chunk(DUMP_01_COMMAND_RESPONSE, ts)
 
         response = driver._protocol._get_response(timeout = 0)
         self.assertTrue(isinstance(response[1], LILYStatus_01_Particle))
@@ -1213,13 +1265,13 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         # but we really want to return the status as a string.  Might have to
         # expose the two commands to run separately instead of one combined
         # acquire_status
-        result = driver._protocol._got_chunk(DUMP_02_STATUS, ts)
-        result = driver._protocol._got_chunk(DUMP_02_COMMAND_RESPONSE, ts)
+        result = driver._protocol._got_coarse_chunk(DUMP_02_STATUS, ts)
+        result = driver._protocol._got_coarse_chunk(DUMP_02_COMMAND_RESPONSE, ts)
 
         response = driver._protocol._get_response(timeout = 0)
         self.assertTrue(isinstance(response[1], LILYStatus_02_Particle))
 
-
+    @unittest.skip("Skipping for now because time is too long")    
     def test_leveling_timeout(self):
         mock_port_agent = Mock(spec=PortAgentClient)
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -1253,7 +1305,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         time.sleep(120)
 
 
-    @unittest.skip("Skipping because need distinct states to test")    
     def test_leveling_complete(self):
         mock_port_agent = Mock(spec=PortAgentClient)
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -1284,16 +1335,32 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         ts = ntplib.system_to_ntp_time(time.time())
 
-        result = driver._protocol._got_chunk(LEVELED_STATUS, ts)
+        result = driver._protocol._got_coarse_chunk(LEVELED_STATUS, ts)
+        ts = ntplib.system_to_ntp_time(time.time())
+        result = driver._protocol._got_coarse_chunk(STOP_LEVELING_COMMAND_RESPONSE, ts)
+        
+        time.sleep(1)
 
         #
         # Because the driver will send a DATA_ON message and look for the response,
         # we need to feed it a simulated response
         #
         ts = ntplib.system_to_ntp_time(time.time())
-        result = driver._protocol._got_chunk(DATA_ON_COMMAND_RESPONSE, ts)
+        result = driver._protocol._got_coarse_chunk(DATA_ON_COMMAND_RESPONSE, ts)
 
-        current_state = driver._protocol._protocol_fsm.get_current_state()
+
+        timeout = 10
+        target_state = ProtocolState.AUTOSAMPLE 
+        end_time = time.time() + timeout
+
+        while (time.time() <= end_time):
+            current_state = driver._protocol._protocol_fsm.get_current_state()
+            if (current_state == target_state):
+                break
+            else:
+                log.debug("state mismatch %s != %s, sleep for a bit", current_state, target_state)
+                time.sleep(2)
+
         self.assertTrue(ProtocolState.AUTOSAMPLE == current_state)
 
 
