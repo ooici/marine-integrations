@@ -354,6 +354,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._add_scheduler_event(TeledyneScheduledJob.GET_CALIBRATION, TeledyneProtocolEvent.GET_CALIBRATION)
         self._add_scheduler_event(TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
+        # Workaround for problem where send last sample makes the driver 
+        # believe it is in autosample mode...
+        self.disable_autosample_recover = False
+
     def _build_param_dict(self):
         pass
 
@@ -491,27 +495,24 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
-
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', DEFAULT_CMD_TIMEOUT)
         expected_prompt = kwargs.get('expected_prompt', None)
         write_delay = kwargs.get('write_delay', DEFAULT_WRITE_DELAY)
         retval = None
-        
+
         # Get the build handler.
         build_handler = self._build_handlers.get(cmd, None)
         if not build_handler:
             raise InstrumentProtocolException('Cannot build command: %s' % cmd)
 
         cmd_line = build_handler(cmd, *args)
-
         # Wakeup the device, pass up exception if timeout
 
         if (self.last_wakeup + 30) > time.time():
             self.last_wakeup = time.time()
         else:
             prompt = self._wakeup(timeout=3)
-
         # Clear line and prompt buffers for result.
 
 
@@ -712,11 +713,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                     log.debug('wakeup got prompt: %s' % repr(item))
                     return item
         return None
-        #raise a timeout?
 
-        #**
-        #** THIS SPEEDUP MUST BE PROPAGATED. IT SEE
-        #**
 
     def _instrument_config_dirty(self):
         """
@@ -1360,17 +1357,22 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         return (next_state, (next_agent_state, result))
 
     def _handler_command_send_last_sample(self, *args, **kwargs):
-        log.debug("***********IN _handler_command_send_last_sample")
+        log.debug("IN _handler_command_send_last_sample")
 
         next_state = None
         next_agent_state = None
         kwargs['timeout'] = 30
         kwargs['expected_prompt'] = '>\r\n>' # special one off prompt.
-
         prompt = self._wakeup(timeout=3)
+
+        # Disable autosample recover, so it isnt faked out....
+        self.disable_autosample_recover = True
         (result, last_sample) = self._do_cmd_resp(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
+        # re-enable it.
+        self.disable_autosample_recover = False
 
         decoded_last_sample = base64.b64decode(last_sample)
+
         return (next_state, (next_agent_state, decoded_last_sample))
 
     def _handler_command_start_direct(self, *args, **kwargs):
@@ -1554,7 +1556,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         Remove the >\n> from the end of it.
         return it base64 encoded
         """
-
         response = re.sub("CE\r\n", "", response)
         return (True, base64.b64encode(response))
 
