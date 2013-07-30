@@ -630,7 +630,7 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         self.assert_scheduled_event(ScheduledJob.HARDWARE_DATA, self.assert_hardware_data, delay=90)
         self.assert_current_state(ProtocolState.COMMAND)
 
-    def test_scheduled_device_configuration_autosample(self):
+    def test_scheduled_device_hardware_autosample(self):
         """
         Verify the device configuration command can be triggered and run in autosample
         """
