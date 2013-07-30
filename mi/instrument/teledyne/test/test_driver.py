@@ -31,33 +31,7 @@ from mi.instrument.teledyne.driver import TeledyneScheduledJob
 from mi.core.common import BaseEnum
 DEFAULT_CLOCK_DIFF = 500
 
-#class TeledyneParameterAltValue(BaseEnum):
-    # Values that are valid, but not the ones we want,
-    # used for testing to verify that we are setting good values.
-    #
-
-#    INSTRUMENT_ID = 1
-#    XMIT_POWER = 250
-#    SPEED_OF_SOUND = 1480
-#    SALINITY = 36
-#    TIME_PER_ENSEMBLE = '00:00:01.00'
-#    TIME_PER_PING = '00:02.00'
-#    FALSE_TARGET_THRESHOLD = '049,002'
-#    BANDWIDTH_CONTROL = 1
-#    CORRELATION_THRESHOLD = 63
-#    ERROR_VELOCITY_THRESHOLD = 1999
-#    BLANK_AFTER_TRANSMIT = 714
-#    CLIP_DATA_PAST_BOTTOM = 1
-#    RECEIVER_GAIN_SELECT = 0
-#    WATER_REFERENCE_LAYER = '002,006'
-#    NUMBER_OF_DEPTH_CELLS = 99
-#    PINGS_PER_ENSEMBLE = 0
-#    DEPTH_CELL_SIZE = 790
-#    TRANSMIT_LENGTH = 1
-#    PING_WEIGHT = 1
-#    AMBIGUITY_VELOCITY = 176
-#    COORDINATE_TRANSFORMATION = '10111'
-#    SENSOR_SOURCE = '0000000'
+from mi.core.instrument.instrument_driver import ResourceAgentState
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -860,6 +834,33 @@ class TeledyneQualificationTest(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
+    # works (BASE CLASS CANDIDATE)
+    def test_direct_access_telnet_disconnect(self):
+        """
+        Verify that a disconnection from the DA server transitions the agent back to
+        command mode.
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.disconnect()
+
+        self.assert_state_change(ResourceAgentState.COMMAND, TeledyneProtocolState.COMMAND, 30)
+
+    #works (BASE CLASS CANDIDATE)
+    def test_direct_access_telnet_timeout(self):
+        """
+        Verify that DA timesout as expected and transistions back to command mode.
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=30)
+        self.assertTrue(self.tcp_client)
+
+        self.assert_state_change(ResourceAgentState.COMMAND, TeledyneProtocolState.COMMAND, 90)
 ###############################################################################
 #                             PUBLICATION  TESTS                              #
 # Device specific publication tests are for                                   #

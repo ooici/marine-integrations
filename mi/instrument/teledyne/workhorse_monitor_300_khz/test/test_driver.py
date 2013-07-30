@@ -18,6 +18,7 @@ __license__ = 'Apache 2.0'
 import socket
 
 import unittest
+import gevent
 import time as time
 import datetime as dt
 from mi.core.time import get_timestamp_delayed
@@ -47,6 +48,7 @@ from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseIns
 from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import DataParticleType
 from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseProtocolEvent
 from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseParameter
+from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseInstrumentCmds
 
 from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorseScheduledJob
 from mi.instrument.teledyne.workhorse_monitor_300_khz.driver import WorkhorsePrompt
@@ -449,6 +451,131 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_enter_command_mode()
 
         self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1488)
+
+
+
+
+
+
+
+
+
+
+
+    # works
+    def test_direct_access_telnet_autosample(self):
+        """
+        Verify we can handle an instrument state change while in DA
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access, and muck up a setting.
+        self.assert_set_parameter(Parameter.TIME_PER_ENSEMBLE, '00:00:01.00', True)
+        self.assert_set_parameter(Parameter.TIME_PER_PING, '00:00.50', True)
+        self.assert_set_parameter(Parameter.PINGS_PER_ENSEMBLE, 1, True)
+
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+
+        self.tcp_client.send_data("%s%s" % (WorkhorseInstrumentCmds.START_LOGGING, NEWLINE))
+
+        gevent.sleep(3)
+        self.assert_sample_async(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_BEAM, 20)
+
+        self.tcp_client.disconnect()
+
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 70)
+
+    def test_direct_access_telnet_mode_autosample_disconnect(self):
+        """
+        @brief Same as the previous DA test except in this test
+               we force the instrument into streaming when in
+               DA.  Then we need to verify the transition back
+               to the driver works as expected.
+        """
+        ###
+        # First test direct access and exit with a go command
+        # call.  Also add a parameter change to verify DA
+        # parameters are restored on DA exit.
+        ###
+        self.assert_enter_command_mode()   
+        ###
+        # Test direct access disconnect
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=600, session_timeout=600)
+        log.debug("DA server started and connected")
+        self.tcp_client.send_data("%s%s" % (WorkhorseInstrumentCmds.START_LOGGING, NEWLINE))
+        gevent.sleep(3)
+        log.debug("DA server autosample started")
+        self.tcp_client.disconnect()
+        log.debug("DA server tcp client disconnected")
+        gevent.sleep(60)
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 400)
+
+
+    # works
+    def test_direct_access_telnet_mode_command(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+
+        self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.SPEED_OF_SOUND, 1500)
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet()
+        self.tcp_client.send_data("%sEC1488%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.expect(Prompt.COMMAND)
+        self.assert_direct_access_stop_telnet()
+
+        # verify the setting got restored.
+        self.assert_enter_command_mode()
+        # verify the setting got restored.
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
+        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1500)
+
+        ###
+        # Test direct access inactivity timeout
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+
+        ###
+        # Test session timeout without activity
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=120, session_timeout=30)
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+
+        ###
+        # Test direct access session timeout with activity
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=60)
+        # Send some activity every 30 seconds to keep DA alive.
+        for i in range(1, 2, 3):
+            self.tcp_client.send_data(NEWLINE)
+            log.debug("Sending a little keep alive communication, sleeping for 15 seconds")
+            gevent.sleep(15)
+
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 45)
+
+        ###
+        # Test direct access disconnect
+        ###
+        self.assert_direct_access_start_telnet()
+        self.tcp_client.disconnect()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
+
+
+
+
+
+
+
+
+
+
+
+
 
     # works
     def test_execute_clock_sync(self):

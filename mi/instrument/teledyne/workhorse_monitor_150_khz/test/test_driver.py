@@ -460,7 +460,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         """
 
         self.assert_enter_command_mode()
-        self.assert_set_parameter(Parameter.SPEED_OF_SOUND, 1487)
+        self.assert_set_parameter(Parameter.SPEED_OF_SOUND, 1500)
 
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet()
@@ -472,7 +472,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_enter_command_mode()
         # verify the setting got restored.
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
-        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1488)
+        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1500)
 
         ###
         # Test direct access inactivity timeout
@@ -668,33 +668,9 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         gevent.sleep(60)
         self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 400)
 
-    #works (BASE CLASS CANDIDATE)
-    def test_direct_access_telnet_timeout(self):
-        """
-        Verify that DA timesout as expected and transistions back to command mode.
-        """
-        self.assert_enter_command_mode()
 
-        # go into direct access, and muck up a setting.
-        self.assert_direct_access_start_telnet(timeout=30)
-        self.assertTrue(self.tcp_client)
 
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 90)
 
-    # works (BASE CLASS CANDIDATE)
-    def test_direct_access_telnet_disconnect(self):
-        """
-        Verify that a disconnection from the DA server transitions the agent back to
-        command mode.
-        """
-        self.assert_enter_command_mode()
-
-        # go into direct access, and muck up a setting.
-        self.assert_direct_access_start_telnet(timeout=600)
-        self.assertTrue(self.tcp_client)
-        self.tcp_client.disconnect()
-
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
 
     def test_execute_clock_sync(self):
         """

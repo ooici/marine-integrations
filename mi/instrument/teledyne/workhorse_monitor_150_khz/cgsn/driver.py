@@ -488,4 +488,5 @@ class Protocol(WorkhorseProtocol):
         """
         log.debug("IN _send_break_cmd")
         self._connection.send_break()
+        log.debug("AFTER _send_break_cmd")
 

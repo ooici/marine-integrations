@@ -159,7 +159,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.POLLED_MODE:               {TYPE: bool, READONLY: False, DA: False, STARTUP: True,  DEFAULT: False,   VALUE: False,        OFF_VALUE: True},
         Parameter.XMIT_POWER:                {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 255,     VALUE: 255,          OFF_VALUE: 250},
         Parameter.HEADING_ALIGNMENT:         {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
-        Parameter.SPEED_OF_SOUND:            {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 1500,    VALUE: 1500,         OFF_VALUE: 1480},
+        Parameter.SPEED_OF_SOUND:            {TYPE: int,  READONLY: False, DA: True, STARTUP: True,  DEFAULT: 1500,    VALUE: 1500,         OFF_VALUE: 1480},
         Parameter.TRANSDUCER_DEPTH:          {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 32767},
         Parameter.SALINITY:                  {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 35,      VALUE: 35,           OFF_VALUE: 36},
         Parameter.COORDINATE_TRANSFORMATION: {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '00111', VALUE: '00111',      OFF_VALUE: '00000'},
@@ -483,7 +483,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
     def test_defaults(self):
         for label in sorted(self._driver_parameter_defaults.keys()):
-            log.error(str(label) + " = " + str(self._driver_parameter_defaults[label]))
+            log.debug(str(label) + " = " + str(self._driver_parameter_defaults[label]))
 
     def test_sanity(self):
         my_event_callback = Mock(spec="fake evt_callback")
@@ -494,14 +494,14 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         my_event_callback = Mock(spec="fake evt_callback")
         self.protocol = Protocol(Prompt, NEWLINE, my_event_callback)
         def fake_send_break1_cmd(duration):
-            log.error("IN fake_send_break1_cmd")
+            log.debug("IN fake_send_break1_cmd")
             self.protocol._linebuf = "[BREAK Wakeup A]\n" + \
                                      "  Polled Mode is OFF -- Battery Saver is ONWorkHorse Broadband ADCP Version 50.40\n" + \
                                      "Teledyne RD Instruments (c) 1996-2010\n" + \
                                      "All Rights Reserved."
 
         def fake_send_break2_cmd(duration):
-            log.error("IN fake_send_break2_cmd")
+            log.debug("IN fake_send_break2_cmd")
             self.protocol._linebuf = "[BREAK Wakeup A]" + NEWLINE + \
                                     "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
                                     "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
@@ -582,6 +582,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     'PROTOCOL_EVENT_GET_FAULT_LOG',
                                     'PROTOCOL_EVENT_GET_INSTRUMENT_TRANSFORM_MATRIX',
                                     'PROTOCOL_EVENT_POWER_DOWN',
+                                    'PROTOCOL_EVENT_RECOVER_AUTOSAMPLE',
                                     'PROTOCOL_EVENT_RUN_TEST_200',
                                     'PROTOCOL_EVENT_SAVE_SETUP_TO_RAM',
                                     'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
@@ -589,6 +590,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
                                     'DRIVER_EVENT_GET',
                                     'DRIVER_EVENT_INIT_PARAMS',
+                                    'DRIVER_EVENT_DISCOVER',
                                     'PROTOCOL_EVENT_GET_CALIBRATION',
                                     'PROTOCOL_EVENT_GET_CONFIGURATION',
                                     'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
@@ -596,6 +598,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         }
 
         driver = InstrumentDriver(self._got_data_event_callback)
+
         self.assert_capabilities(driver, capabilities)
 
     def test_driver_enums(self):
@@ -668,7 +671,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         """
         Test that we can generate particles when in autosample
         """
-        log.error("IN test_autosample_particle_generation")
+        log.debug("IN test_autosample_particle_generation")
         self.assert_initialize_driver()
 
         # lets set things to do faster pinging so the test is runable in our time scales.
@@ -684,7 +687,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 
     def test_set_ranges(self):
         # Updated to match ADCPT-B
-        log.error("IN test_set_ranges")
+        log.debug("IN test_set_ranges")
         self.assert_initialize_driver()
         self._test_set_serial_data_out_readonly()
         self._test_set_serial_flow_control_readonly()

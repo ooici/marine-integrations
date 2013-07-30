@@ -291,8 +291,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.GET_CALIBRATION, self._handler_autosample_get_calibration)
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.GET_CONFIGURATION, self._handler_autosample_get_configuration)
 
+        # we may have got a particle and slipped into AUTOSAMPLE, so we should honor discover...
+        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.DISCOVER, self._handler_unknown_discover) 
 
-        self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.RECOVER_AUTOSAMPLE, self._handler_recover_autosample)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.RECOVER_AUTOSAMPLE, self._handler_recover_autosample)
 
 
 
@@ -671,6 +673,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._chunker._clean_buffer(len(self._chunker.raw_chunk_list))
         self._promptbuf = ''
         self._linebuf = ''
+        log.trace("leaving send_break")
         return True
 
     def _send_wakeup(self):
@@ -747,7 +750,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @param: timeout - Command timeout
         @return: True - instrument logging, False - not logging
         """
-        log.error("in _is_logging")
+        log.debug("in _is_logging")
 
         self._linebuf = ""
         self._promptbuf = ""
@@ -1373,7 +1376,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
     def _handler_command_start_direct(self, *args, **kwargs):
         next_state = None
         result = None
-        log.error("_handler_command_start_direct: entering DA mode")
+        log.debug("_handler_command_start_direct: entering DA mode")
 
         next_state = TeledyneProtocolState.DIRECT_ACCESS
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
@@ -1385,7 +1388,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
-        log.error("IN _handler_direct_access_enter")
+        log.debug("IN _handler_direct_access_enter")
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._sent_cmds = []
@@ -1394,7 +1397,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         Exit direct access state.
         """
-        log.error("IN _handler_direct_access_exit")
+        log.debug("IN _handler_direct_access_exit")
         self._send_break()
 
         result = self._do_cmd_resp(TeledyneInstrumentCmds.GET, TeledyneParameter.TIME_OF_FIRST_PING)
@@ -1404,11 +1407,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             self._send_break()
 
     def _handler_direct_access_execute_direct(self, data):
-        log.error("IN _handler_direct_access_execute_direct")
+        log.debug("IN _handler_direct_access_execute_direct")
         next_state = None
         result = None
         next_agent_state = None
-        log.error("sending direct command = '" + repr(data) + "'")
         self._do_cmd_direct(data)
 
         # add sent command to list for 'echo' filtering in callback
@@ -1424,7 +1426,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
         """
-        log.error("IN _discover")
+        log.debug("IN _discover")
         logging = self._is_logging()
      
         if(logging == True):
@@ -1440,7 +1442,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         next_state = None
         result = None
-        log.error("IN _handler_direct_access_stop_direct")
+        log.debug("IN _handler_direct_access_stop_direct")
         (next_state, next_agent_state) = self._discover()
 
         return (next_state, (next_agent_state, result))

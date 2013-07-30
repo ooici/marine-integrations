@@ -2777,8 +2777,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         while(time.time() <= end_time):
             agent_state = self.instrument_agent_client.get_agent_state()
             resource_state = self.instrument_agent_client.get_resource_state()
-            log.error("Current agent state: %s", agent_state)
-            log.error("Current resource state: %s", resource_state)
+            log.debug("Current agent state: %s", agent_state)
+            log.debug("Current resource state: %s", resource_state)
 
             if(agent_state == target_agent_state and resource_state == target_resource_state):
                 log.debug("Current state match: %s %s", agent_state, resource_state)

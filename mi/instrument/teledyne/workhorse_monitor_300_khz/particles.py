@@ -202,7 +202,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         """
         Parse the base portion of the particle
         """
-        log.error("****** ADCP_PD0_PARSED_DataParticle._build_parsed_values ******")
+        log.debug("****** ADCP_PD0_PARSED_DataParticle._build_parsed_values ******")
         if "[BREAK Wakeup A]" in self.raw_data:
             raise SampleException("BREAK encountered, Seems someone is escaping autosample mode.")
 
