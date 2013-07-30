@@ -102,7 +102,7 @@ class TeledyneInstrumentCmds(BaseEnum):
     """
 
     OUTPUT_CALIBRATION_DATA = 'AC'
-    BREAK = 'break' # < case sensative!!!!
+    BREAK = 'break' # < case sensitive!!!!
     SEND_LAST_SAMPLE = 'CE'
     SAVE_SETUP_TO_RAM = 'CK'
     START_LOGGING = 'CS'
