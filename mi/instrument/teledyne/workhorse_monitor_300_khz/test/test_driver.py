@@ -220,8 +220,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
 
-
-
     def _test_set_serial_flow_control_readonly(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -436,7 +434,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         """
 
         self.assert_enter_command_mode()
-        self.assert_set_parameter(Parameter.SPEED_OF_SOUND, 1487)
+        self.assert_set_parameter(Parameter.SPEED_OF_SOUND, 1500)
 
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet(timeout=600)
@@ -450,7 +448,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         # verify the setting got restored.
         self.assert_enter_command_mode()
 
-        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1488)
+        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1500)
 
 
 
