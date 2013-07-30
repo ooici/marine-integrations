@@ -159,7 +159,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.POLLED_MODE:               {TYPE: bool, READONLY: False, DA: False, STARTUP: True,  DEFAULT: False,   VALUE: False,        OFF_VALUE: True},
         Parameter.XMIT_POWER:                {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 255,     VALUE: 255,          OFF_VALUE: 250},
         Parameter.HEADING_ALIGNMENT:         {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
-        Parameter.SPEED_OF_SOUND:            {TYPE: int,  READONLY: False, DA: True, STARTUP: True,  DEFAULT: 1500,    VALUE: 1500,         OFF_VALUE: 1480},
+        Parameter.SPEED_OF_SOUND:            {TYPE: int,  READONLY: False, DA: True,  STARTUP: True,  DEFAULT: 1500,    VALUE: 1500,         OFF_VALUE: 1480},
         Parameter.TRANSDUCER_DEPTH:          {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 32767},
         Parameter.SALINITY:                  {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 35,      VALUE: 35,           OFF_VALUE: 36},
         Parameter.COORDINATE_TRANSFORMATION: {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '00111', VALUE: '00111',      OFF_VALUE: '00000'},
