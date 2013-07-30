@@ -12,6 +12,7 @@ __author__ = 'Chris Wingard & Stuart Pearce'
 __license__ = 'Apache 2.0'
 
 import re
+import time
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -21,7 +22,10 @@ from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 
 from mi.core.common import BaseEnum
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.data_particle import DataParticle
+from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -29,15 +33,15 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.data_particle import DataParticle
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.data_particle import CommonDataParticleType
-from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import FunctionParameter
-from mi.core.instrument.driver_dict import DriverDictKey
+
+from mi.core.time import get_timestamp
+from mi.core.time import get_timestamp_delayed
 
 # newline.
 NEWLINE = '\r'
@@ -151,18 +155,18 @@ class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    # ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE  # why not ACQUIRE_SAMPLE ?
+    # ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE  # why not ACQUIRE_SAMPLE?
+    ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
     START_DIRECT = ProtocolEvent.START_DIRECT
     STOP_DIRECT = ProtocolEvent.STOP_DIRECT
 
 
 class SamiParameter(DriverParameter):
     """
-    Base SAMI specific parameters.  Extend these with device specific
-    parameters in a subclass named Parameter.
+    Base SAMI instrument parameters. Subclass and extend this Enum with device
+    specific parameters in subclass 'Parameter'.
     """
     LAUNCH_TIME = 'launch_time'
     START_TIME_FROM_LAUNCH = 'start_time_from_launch'
@@ -196,11 +200,10 @@ class Prompt(BaseEnum):
     BOOT_PROMPT = '7.7Boot>'
 
 
-# TODO: BASE CLASS with inherit extend (R1 and Blank only difference?)
 class SamiInstrumentCommand(BaseEnum):
     """
-    Base SAMI Instrument command strings.  Extend these with device specific
-    commands in a subclass named InstrumentCommand.
+    Base SAMI instrument command strings. Subclass and extend these with device
+    specific commands in subclass 'InstrumentCommand'.
 
     This particularly applies to the PCO2 where an additional ACQUIRE_SAMPLE
     command is required for device 1, the external pump.
@@ -216,7 +219,6 @@ class SamiInstrumentCommand(BaseEnum):
     ACQUIRE_SAMPLE_SAMI = 'R0'
     ESCAPE_BOOT = 'u'
     #ACQUIRE_SAMPLE_DEV1 = 'R1'  # Extend in indv. driver?
-    # TODO: Ask Chris if you have to give a command for a blank sample
 
 
 ###############################################################################
@@ -264,6 +266,19 @@ class SamiRegularStatusDataParticle(DataParticle):
         Parse regular status values from raw data into a dictionary
         """
 
+        ### Regular Status Messages
+        # Produced in response to S0 command, or automatically at 1 Hz. All
+        # regular status messages are preceeded by the ':' character and
+        # terminate with a '/r'. Sample string:
+        #
+        #   :CEE90B1B004100000100000000021254
+        #
+        # These messages consist of the time since the last configuration,
+        # status flags, the number of data records, the number of error
+        # records, the number of bytes stored (including configuration bytes),
+        # and a checksum.
+        ###
+
         matched = REGULAR_STATUS_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
@@ -292,8 +307,9 @@ class SamiRegularStatusDataParticle(DataParticle):
                          SamiRegularStatusDataParticleKey.CHECKSUM]
 
         result = []
-        grp_index = 1
-        bit_index = 0
+        grp_index = 1  # used to index through match groups, starting at 1
+        bit_index = 0  # used to index through the bit fields represented by
+                       # the two bytes after CLOCK_ACTIVE.
 
         for key in particle_keys:
             if key in [SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
@@ -312,11 +328,15 @@ class SamiRegularStatusDataParticle(DataParticle):
                        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT,
                        SamiRegularStatusDataParticleKey.FLASH_ERASED,
                        SamiRegularStatusDataParticleKey.POWER_ON_INVALID]:
+                # if the keys match values represented by the bits in the two
+                # byte status flags value, parse bit-by-bit using the bit-shift
+                # operator to determine the boolean value.
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(2), 16) & (1 << bit_index))})
-                bit_index += 1
-                grp_index = 3
+                bit_index += 1  # bump the bit index
+                grp_index = 3  # set the right group index for when we leave this part of the loop.
             else:
+                # otherwise all values in the string are parsed to integers
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
                 grp_index += 1
@@ -367,6 +387,17 @@ class SamiControlRecordDataParticle(DataParticle):
         Parse control record values from raw data into a dictionary
         """
 
+        ### Control Records
+        # Produced by the instrument periodically in reponse to certain events
+        # (e.g. when the Flash memory is opened). The messages are preceded by
+        # a '*' character and terminated with a '\r'. Sample string:
+        #
+        #   *541280CEE90B170041000001000000000200AF
+        #
+        # A full description of the control record strings can be found in the
+        # vendor supplied SAMI Record Format document.
+        ###
+
         matched = CONTROL_RECORD_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
@@ -398,8 +429,9 @@ class SamiControlRecordDataParticle(DataParticle):
                          SamiControlRecordDataParticleKey.CHECKSUM]
 
         result = []
-        grp_index = 1
-        bit_index = 0
+        grp_index = 1  # used to index through match groups, starting at 1
+        bit_index = 0  # used to index through the bit fields represented by
+                       # the two bytes after CLOCK_ACTIVE.
 
         for key in particle_keys:
             if key in [SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
@@ -418,11 +450,16 @@ class SamiControlRecordDataParticle(DataParticle):
                        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT,
                        SamiControlRecordDataParticleKey.FLASH_ERASED,
                        SamiControlRecordDataParticleKey.POWER_ON_INVALID]:
+                # if the keys match values represented by the bits in the two
+                # byte status flags value included in all control records,
+                # parse bit-by-bit using the bit-shift operator to determine
+                # boolean value.
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: bool(int(matched.group(5), 16) & (1 << bit_index))})
-                bit_index += 1
-                grp_index = 6
+                bit_index += 1  # bump the bit index
+                grp_index = 6  # set the right group index for when we leave this part of the loop.
             else:
+                # otherwise all values in the string are parsed to integers
                 result.append({DataParticleKey.VALUE_ID: key,
                                DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
                 grp_index += 1
@@ -474,11 +511,14 @@ class SamiConfigDataParticleKey(BaseEnum):
 # Driver
 ###############################################################################
 
-class InstrumentDriver(SingleConnectionInstrumentDriver):
+class SamiInstrumentDriver(SingleConnectionInstrumentDriver):
     """
-    InstrumentDriver subclass
+    SamiInstrumentDriver baseclass
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
+
+    Needs to be subclassed again in the specific driver module to call Protocol
+    in the _build_protocol method correctly
     """
     def __init__(self, evt_callback):
         """
@@ -498,15 +538,15 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         return Parameter.list()
 
-    ########################################################################
-    # Protocol builder.
-    ########################################################################
-
-    def _build_protocol(self):
-        """
-        Construct the driver protocol state machine.
-        """
-        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
+    #########################################################################
+    ## Protocol builder.  create this definition in the subclassed driver
+    #########################################################################
+    #
+    #def _build_protocol(self):
+    #    """
+    #    Construct the driver protocol state machine.
+    #    """
+    #    self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
 
 
 ###########################################################################
@@ -623,12 +663,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             self._handler_scheduled_sample_exit)
         # TODO: these next two may need to be added at the specific driver
         # level or at least the handlers
-        self._protocol_fsm.add_handler(
-            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
-            self._handler_sample_success)
-        self._protocol_fsm.add_handler(
-            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
-            self._handler_sample_timeout)
+        #self._protocol_fsm.add_handler(
+        #    ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
+        #    self._handler_sample_success)
+        #self._protocol_fsm.add_handler(
+        #    ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
+        #    self._handler_sample_timeout)
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
         # while in either the COMMAND state (or via the discover transition
@@ -643,12 +683,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             self._handler_polled_sample_exit)
         # TODO: these next two may need to be added at the specific driver
         # level, or at least the handlers
-        self._protocol_fsm.add_handler(
-            ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
-            self._handler_sample_success)
-        self._protocol_fsm.add_handler(
-            ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
-            self._handler_sample_timeout)
+        #self._protocol_fsm.add_handler(
+        #    ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
+        #    self._handler_sample_success)
+        #self._protocol_fsm.add_handler(
+        #    ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
+        #    self._handler_sample_timeout)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -1289,6 +1329,14 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='global bits (set to 00000111)')
         # Extend any further _param_dict.add's in the specific driver subclass
+
+        self._build_param_dict_contd()
+
+    def _build_param_dict_contd(self):
+        """
+        This method should be overloaded in the specific driver submodule
+        """
+        pass
 
     ########################################################################
     # Command handlers.
