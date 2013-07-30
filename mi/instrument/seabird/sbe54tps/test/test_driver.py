@@ -704,7 +704,7 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status, delay=120)
         self.assert_current_state(ProtocolState.COMMAND)
 
-    def test_scheduled_device_status_autosample(self):
+    def test_scheduled_aquire_status_autosample(self):
         """
         Verify the device status command can be triggered and run in autosample
         """
