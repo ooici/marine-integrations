@@ -274,10 +274,12 @@ class WorkhorseProtocol(TeledyneProtocol):
                                  chunk,
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_PD0_PARSED_DataParticle")
-            if(self._protocol_fsm.get_current_state() == WorkhorseProtocolState.COMMAND):
-                log.debug("FSM appears out of date.  Fixing it!")
-                self._protocol_fsm.on_event(WorkhorseProtocolEvent.RECOVER_AUTOSAMPLE)
+            if self.disable_autosample_recover != True:
+                if (self._protocol_fsm.get_current_state() == WorkhorseProtocolState.COMMAND):
+                    log.debug("FSM appears out of date.  Fixing it!")
+                    self._protocol_fsm.on_event(WorkhorseProtocolEvent.RECOVER_AUTOSAMPLE)
                 return
+            log.debug("_got_chunk - successful match for ADCP_PD0_PARSED_DataParticle")
 
         if (self._extract_sample(ADCP_SYSTEM_CONFIGURATION_DataParticle,
                                  ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
