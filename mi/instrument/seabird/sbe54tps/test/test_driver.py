@@ -678,7 +678,7 @@ class SeaBird54PlusIntegrationTest(SeaBirdIntegrationTest, SeaBird54tpsMixin):
         self.assert_scheduled_event(ScheduledJob.STATUS_DATA, self.assert_device_status_data, delay=90)
         self.assert_current_state(ProtocolState.COMMAND)
 
-    def test_scheduled_device_event_counter_autosample(self):
+    def test_scheduled_device_status_autosample(self):
         """
         Verify the device event_counter command can be triggered and run in autosample
         """
