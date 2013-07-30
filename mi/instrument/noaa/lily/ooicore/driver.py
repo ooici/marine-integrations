@@ -921,7 +921,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         async_event_thread = threading.Thread(
             target=self._protocol_fsm.on_event,
             args=(event, ))
-            #args=(ProtocolEvent.LEVELING_COMPLETE, ))
         async_event_thread.start()
         
     def _got_leveling_chunk(self, chunk, timestamp):

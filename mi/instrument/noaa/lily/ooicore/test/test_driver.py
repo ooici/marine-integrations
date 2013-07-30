@@ -76,6 +76,7 @@ from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
+from pyon.agent.common import BaseEnum
 from pyon.core.exception import Conflict
 
 ###
@@ -296,6 +297,45 @@ class LILYTestMixinSub(DriverTestMixin):
 class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
+
+    def test_async_send_event(self):
+        class TestStates(BaseEnum):
+            test_state = 'TEST_STATE'
+            
+        class TestEvents(BaseEnum):
+            test_event = 'TEST_EVENT'
+            
+        # Create and initialize the instrument driver
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+        
+        """
+        Patch the fsm's states and events variables to our own test states and
+        events; need to do this because the test wouldn't work for all drivers
+        unless we new a common event and state that they all have, and that
+        haven't already had a handler associated with them.
+        """
+        driver._protocol._protocol_fsm.states = TestStates
+        driver._protocol._protocol_fsm.events = TestEvents
+        
+        self.my_handler_entered = False
+
+        """
+        Define a test handler for the fsm to call that will set a variable that
+        we can then test to make sure the handler was called.
+        """
+        def _my_handler_test(*args, **kwargs):
+            next_state = None
+            result = None
+            
+            self.my_handler_entered = True
+            return (next_state, result)
+            
+        driver._protocol._protocol_fsm.add_handler(TestStates.test_state, TestEvents.test_event, _my_handler_test)
+        self.assert_force_state(driver, TestStates.test_state)
+        driver._protocol._protocol_fsm.on_event(TestEvents.test_event)
+
+        self.assertTrue(self.my_handler_entered)
 
     def test_driver_enums(self):
         """
