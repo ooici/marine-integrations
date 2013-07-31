@@ -48,7 +48,9 @@ from mi.instrument.sunburst.driver import SamiControlRecordDataParticle
 from mi.instrument.sunburst.driver import SamiConfigDataParticleKey
 from mi.instrument.sunburst.driver import SamiInstrumentDriver
 from mi.instrument.sunburst.driver import SamiProtocol
-
+from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX_MATCHER
+from mi.instrument.sunburst.driver import CONTROL_RECORD_REGEX_MATCHER
+from mi.instrument.sunburst.driver import ERROR_REGEX_MATCHER
 # newline.
 from mi.instrument.sunburst.driver import NEWLINE
 
@@ -66,18 +68,6 @@ from mi.instrument.sunburst.driver import SAMI_TO_NTP
 ###
 #    Driver RegEx Definitions
 ###
-
-# Regular Status Strings (produced every 1 Hz or in response to S0 command)
-#from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX
-from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX_MATCHER
-
-# Control Records (Types 0x80 - 0xFF)
-#from mi.instrument.sunburst.driver import CONTROL_RECORD_REGEX
-from mi.instrument.sunburst.driver import CONTROL_RECORD_REGEX_MATCHER
-
-# Error records
-#from mi.instrument.sunburst.driver import ERROR_REGEX
-from mi.instrument.sunburst.driver import ERROR_REGEX_MATCHER
 
 # SAMI pH Sample Records (Type 0x0A)
 SAMI_SAMPLE_REGEX = (
@@ -785,34 +775,30 @@ class Protocol(SamiProtocol):
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        # NOTE: Definitely in the sub driver here
-        self.sieve_matchers = [
-            REGULAR_STATUS_REGEX_MATCHER,
-            CONTROL_RECORD_REGEX_MATCHER,
-            SAMI_SAMPLE_REGEX_MATCHER,
-            CONFIGURATION_REGEX_MATCHER,
-            ERROR_REGEX_MATCHER]
+        # something about the chunker
         self._chunker = StringChunker(Protocol.sieve_function)
 
-    #@staticmethod
-    #def sieve_function(raw_data):
-    #    """
-    #    The method that splits samples
-    #    """
-    #
-    #    return_list = []
-    #
-    #    sieve_matchers = [REGULAR_STATUS_REGEX_MATCHER,
-    #                      CONTROL_RECORD_REGEX_MATCHER,
-    #                      SAMI_SAMPLE_REGEX_MATCHER,
-    #                      CONFIGURATION_REGEX_MATCHER,
-    #                      ERROR_REGEX_MATCHER]
-    #
-    #    for matcher in sieve_matchers:
-    #        for match in matcher.finditer(raw_data):
-    #            return_list.append((match.start(), match.end()))
-    #
-    #    return return_list
+    # NOTE: it turns out that sieve_function needs to remain in the sub driver
+    # since it is a static method and could not pass sieve_matchers well.
+    @staticmethod
+    def sieve_function(raw_data):
+        """
+        The method that splits samples
+        """
+
+        return_list = []
+
+        sieve_matchers = [REGULAR_STATUS_REGEX_MATCHER,
+                          CONTROL_RECORD_REGEX_MATCHER,
+                          SAMI_SAMPLE_REGEX_MATCHER,
+                          CONFIGURATION_REGEX_MATCHER,
+                          ERROR_REGEX_MATCHER]
+
+        for matcher in sieve_matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
+
+        return return_list
 
     # NOTE: I think kept here in the sub driver
     def _got_chunk(self, chunk, timestamp):

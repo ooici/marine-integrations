@@ -259,7 +259,7 @@ class SamiRegularStatusDataParticle(DataParticle):
     structure.
     @throw SampleException If there is a problem with sample creation
     """
-    _data_particle_type = DataParticleType.REGULAR_STATUS
+    _data_particle_type = SamiDataParticleType.REGULAR_STATUS
 
     def _build_parsed_values(self):
         """
@@ -380,7 +380,7 @@ class SamiControlRecordDataParticle(DataParticle):
     structure.
     @throw SampleException If there is a problem with sample creation
     """
-    _data_particle_type = DataParticleType.CONTROL_RECORD
+    _data_particle_type = SamiDataParticleType.CONTROL_RECORD
 
     def _build_parsed_values(self):
         """
@@ -697,72 +697,72 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._build_driver_dict()
 
         # Add build handlers for device commands.
-        self._add_build_handler(InstrumentCommand.GET_STATUS, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.START_STATUS, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.STOP_STATUS, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.GET_CONFIG, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.SET_CONFIG, self._build_set_config)
-        self._add_build_handler(InstrumentCommand.ERASE_ALL, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.START, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.STOP, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_sample_sami)
-        self._add_build_handler(InstrumentCommand.ESCAPE_BOOT, self._build_escape_boot)
+        self._add_build_handler(SamiInstrumentCommand.GET_STATUS, self._build_simple_command)
+        self._add_build_handler(SamiInstrumentCommand.START_STATUS, self._build_simple_command)
+        self._add_build_handler(SamiInstrumentCommand.STOP_STATUS, self._build_simple_command)
+        self._add_build_handler(SamiInstrumentCommand.GET_CONFIG, self._build_simple_command)
+        self._add_build_handler(SamiInstrumentCommand.SET_CONFIG, self._build_set_config)
+        self._add_build_handler(SamiInstrumentCommand.ERASE_ALL, self._build_simple_command)
+        self._add_build_handler(SamiInstrumentCommand.START, self._build_simple_command)
+        self._add_build_handler(SamiInstrumentCommand.STOP, self._build_simple_command)
+        self._add_build_handler(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_sample_sami)
+        self._add_build_handler(SamiInstrumentCommand.ESCAPE_BOOT, self._build_escape_boot)
         # Add this statement in the Protocol.__init__ method in the Pco2 driver
         #self._add_build_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_sample_dev1)
 
         # Add response handlers for device commands.
-        self._add_response_handler(InstrumentCommand.GET_STATUS, self._build_response_get_status)
-        self._add_response_handler(InstrumentCommand.GET_CONFIG, self._build_response_get_config)
-        self._add_response_handler(InstrumentCommand.SET_CONFIG, self._build_response_set_config)
-        self._add_response_handler(InstrumentCommand.ERASE_ALL, self._build_response_erase_all)
-        self._add_response_handler(InstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_response_sample_sami)
+        self._add_response_handler(SamiInstrumentCommand.GET_STATUS, self._build_response_get_status)
+        self._add_response_handler(SamiInstrumentCommand.GET_CONFIG, self._build_response_get_config)
+        self._add_response_handler(SamiInstrumentCommand.SET_CONFIG, self._build_response_set_config)
+        self._add_response_handler(SamiInstrumentCommand.ERASE_ALL, self._build_response_erase_all)
+        self._add_response_handler(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_response_sample_sami)
         # Add this statement in the Protocol.__init__ method in the Pco2 driver
         #self._add_response_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_response_sample_dev1)
 
         # Add sample handlers.
 
-        # Start state machine in UNKNOWN state.
-        self._protocol_fsm.start(ProtocolState.UNKNOWN)
+        # NOTE: I think this needs to be started in the subclass since more handlers will be added.
+        ## Start state machine in UNKNOWN state.
+        #self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        #
-        self._chunker = StringChunker(Protocol.sieve_function)
+        # Goes in the sub driver
+        #self._chunker = StringChunker(Protocol.sieve_function)
 
-    @staticmethod
-    def sieve_function(raw_data):
-        """
-        The method that splits samples
-        """
-
-        return_list = []
-
-        # Put this list into the indv. drivers as a constant
-        # SIEVE_MATCHERS = [REGULAR_STATUS_REGEX_MATCHER,
-        #                  CONTROL_RECORD_REGEX_MATCHER,
-        #                  SAMI_SAMPLE_REGEX_MATCHER,
-        #                  CONFIGURATION_REGEX_MATCHER,
-        #                  ERROR_REGEX_MATCHER]
-
-        for matcher in self.SIEVE_MATCHERS:
-            for match in matcher.finditer(raw_data):
-                return_list.append((match.start(), match.end()))
-
-        return return_list
+    # needs to be in the sub driver
+    #@staticmethod
+    #def sieve_function(raw_data):
+    #    """
+    #    The method that splits samples
+    #    """
+    #
+    #    return_list = []
+    #
+    #    # This may not work !!!
+    #    # SIEVE_MATCHERS = [REGULAR_STATUS_REGEX_MATCHER,
+    #    #                  CONTROL_RECORD_REGEX_MATCHER,
+    #    #                  SAMI_SAMPLE_REGEX_MATCHER,
+    #    #                  CONFIGURATION_REGEX_MATCHER,
+    #    #                  ERROR_REGEX_MATCHER]
+    #
+    #    for matcher in self.sieve_matchers:
+    #        for match in matcher.finditer(raw_data):
+    #            return_list.append((match.start(), match.end()))
+    #
+    #    return return_list
 
     # this should probably go into the specific driver
-    def _got_chunk(self, chunk, timestamp):
-        """
-        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
-        with the appropriate particle objects and REGEXes.
-        """
-        self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(PhsenSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(PhsenConfigDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
-        # Probably not needed
-        #self._extract_sample(SamiErrorCodeDataParticle, ERROR_REGEX_MATCHER, chunk, timestamp)
+    #def _got_chunk(self, chunk, timestamp):
+    #    """
+    #    The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
+    #    with the appropriate particle objects and REGEXes.
+    #    """
+    #    self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
+    #    self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
+    #    self._extract_sample(PhsenSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
+    #    self._extract_sample(PhsenConfigDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
 
     def _filter_capabilities(self, events):
         """
