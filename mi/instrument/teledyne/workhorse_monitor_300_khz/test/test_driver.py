@@ -219,7 +219,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
-
     def _test_set_serial_flow_control_readonly(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -398,7 +397,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_COMPASS_CALIBRATION)
         self.assert_data_particle_parameters(data_particle, self._calibration_data_parameters, verify_values)
 
-    # works
     def test_cycle(self):
         """
         Verify we can bounce between command and streaming.  We try it a few times to see if we can find a timeout.
@@ -427,7 +425,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         if(verify):
             result = self.instrument_agent_client.get_resource(getParams, timeout=300)
             self.assertEqual(result[name], value)
-    # works
+
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -450,17 +448,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1500)
 
-
-
-
-
-
-
-
-
-
-
-    # works
     def test_direct_access_telnet_autosample(self):
         """
         Verify we can handle an instrument state change while in DA
@@ -510,8 +497,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         gevent.sleep(60)
         self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 400)
 
-
-    # works
     def test_direct_access_telnet_mode_command(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -563,19 +548,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.tcp_client.disconnect()
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
 
-
-
-
-
-
-
-
-
-
-
-
-
-    # works
     def test_execute_clock_sync(self):
         """
         Verify we can syncronize the instrument internal clock
@@ -591,8 +563,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 15)
 
-    # works
-    # this will probably need to move up to the leaf level.
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -665,7 +635,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
-    # works
+
     def test_startup_params_first_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -689,7 +659,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
                     self.assert_set_parameter(k, self._driver_parameters[k][self.OFF_VALUE])
                     log.error("SETTING %s to OFF_VALUE of %s ", k, str(self._driver_parameters[k][self.OFF_VALUE]))
 
-    # works
     def test_startup_params_second_pass(self):
         """
         Verify that startup parameters are applied correctly. Generally this
@@ -713,7 +682,68 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
                     self.assert_set_parameter(k, self._driver_parameters[k][self.OFF_VALUE])
                     log.error("SETTING %s to OFF_VALUE of %s ", k, str(self._driver_parameters[k][self.OFF_VALUE]))
 
+    def assert_resource_command_conflict_exception(self, command):
+        try:
+            self.assert_resource_command(command)
+        except Conflict as e:
+            pass
+        else:
+            self.assertFalse(1, "Did not raise expected Conflict exception")
 
+    def test_commands(self):
+        """
+        Run instrument commands from both command and streaming mode.
+        """
+        self.assert_enter_command_mode()
+
+        ####
+        # First test in command mode
+        ####
+
+        self.assert_resource_command(ProtocolEvent.START_AUTOSAMPLE, agent_state=ResourceAgentState.STREAMING, delay=1)
+        self.assert_resource_command(ProtocolEvent.STOP_AUTOSAMPLE, agent_state=ResourceAgentState.COMMAND, delay=1)
+
+        self.assert_resource_command(ProtocolEvent.GET_CALIBRATION)
+        self.assert_resource_command(ProtocolEvent.GET_CONFIGURATION)
+        self.assert_resource_command(ProtocolEvent.CLOCK_SYNC)
+        self.assert_resource_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        self.assert_resource_command(ProtocolEvent.SEND_LAST_SAMPLE, regex='^\x7f\x7f.*')
+        self.assert_resource_command(ProtocolEvent.SAVE_SETUP_TO_RAM, expected="Parameters saved as USER defaults")
+        self.assert_resource_command(ProtocolEvent.GET_ERROR_STATUS_WORD, regex='^........')
+        self.assert_resource_command(ProtocolEvent.CLEAR_ERROR_STATUS_WORD, regex='^Error Status Word Cleared')
+        self.assert_resource_command(ProtocolEvent.GET_FAULT_LOG, regex='^Total Unique Faults   =.*')
+        self.assert_resource_command(ProtocolEvent.CLEAR_FAULT_LOG, expected='FC ..........\r\n Fault Log Cleared.\r\nClearing buffer @0x00801000\r\nDone [i=2048].\r\n')
+        self.assert_resource_command(ProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX, regex='^Beam Width:')
+        self.assert_resource_command(ProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
+        ####
+        # Test in streaming mode
+        ####
+        # Put us in streaming
+
+        self.assert_resource_command(ProtocolEvent.START_AUTOSAMPLE, agent_state=ResourceAgentState.STREAMING, delay=1)
+
+        self.assert_resource_command_conflict_exception(ProtocolEvent.SEND_LAST_SAMPLE)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.SAVE_SETUP_TO_RAM)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.GET_ERROR_STATUS_WORD)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.CLEAR_ERROR_STATUS_WORD)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.GET_FAULT_LOG)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.CLEAR_FAULT_LOG)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.RUN_TEST_200)
+        self.assert_resource_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.CLOCK_SYNC)
+        self.assert_resource_command(ProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
+        self.assert_resource_command(ProtocolEvent.GET_CONFIGURATION, regex=r' Instrument S/N')
+        self.assert_resource_command(ProtocolEvent.STOP_AUTOSAMPLE, agent_state=ResourceAgentState.COMMAND, delay=1)
+
+        ####
+        # Test a bad command
+        ####
+
+        try:
+            self.assert_resource_command('ima_bad_command')
+        except Conflict as e: # InstrumentCommandException
+            pass
 
 
 ###############################################################################
