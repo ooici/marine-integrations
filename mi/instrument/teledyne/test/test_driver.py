@@ -97,8 +97,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         # Verify the clock is set within the tolerance
         return abs(converted_time - time.mktime(expected_time_struct)) <= tolerance
 
-
-
     ###
     #   Test scheduled events
     ###
@@ -171,7 +169,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        
+
         log.error("IN test_scheduled_clock_sync_autosample")
         self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync, 
                                     autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=350)
@@ -834,7 +832,6 @@ class TeledyneQualificationTest(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    # works (BASE CLASS CANDIDATE)
     def test_direct_access_telnet_disconnect(self):
         """
         Verify that a disconnection from the DA server transitions the agent back to
@@ -849,7 +846,6 @@ class TeledyneQualificationTest(InstrumentDriverQualificationTestCase):
 
         self.assert_state_change(ResourceAgentState.COMMAND, TeledyneProtocolState.COMMAND, 30)
 
-    #works (BASE CLASS CANDIDATE)
     def test_direct_access_telnet_timeout(self):
         """
         Verify that DA timesout as expected and transistions back to command mode.
@@ -861,6 +857,8 @@ class TeledyneQualificationTest(InstrumentDriverQualificationTestCase):
         self.assertTrue(self.tcp_client)
 
         self.assert_state_change(ResourceAgentState.COMMAND, TeledyneProtocolState.COMMAND, 90)
+
+
 ###############################################################################
 #                             PUBLICATION  TESTS                              #
 # Device specific publication tests are for                                   #
