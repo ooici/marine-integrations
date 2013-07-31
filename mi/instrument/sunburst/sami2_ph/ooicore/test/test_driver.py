@@ -56,7 +56,6 @@ from mi.instrument.sunburst.sami2_ph.ooicore.driver import Prompt
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import NEWLINE
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import SamiRegularStatusDataParticleKey
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import SamiControlRecordDataParticleKey
-from mi.instrument.sunburst.sami2_ph.ooicore.driver import SamiErrorCodeDataParticleKey
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import PhsenSamiSampleDataParticleKey
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import PhsenConfigDataParticleKey
 
@@ -404,12 +403,6 @@ class DriverTestMixinSub(DriverTestMixin):
         PhsenConfigDataParticleKey.SALINITY_DELAY:              {TYPE: int, VALUE: 0x00, REQUIRED: True}
     }
 
-    # [TODO] Move to base class
-    _error_code_parameters = {
-        # Error codes
-        SamiErrorCodeDataParticleKey.ERROR_CODE:        {TYPE: int, VALUE: 0x0B, REQUIRED: True}
-    }
-
     def assertSampleDataParticle(self, data_particle):
         '''
         Verify a particle is a known particle to this driver and verify the particle is
@@ -489,21 +482,7 @@ class DriverTestMixinSub(DriverTestMixin):
                                              self._configuration_parameters,
                                              verify_values)
 
-    def assert_particle_error_code(self, data_particle, verify_values=False):
-        '''
-        Verify error_code particle
-        @param data_particle: SamiErrorCodeDataParticle data particle
-        @param verify_values: bool, should we verify parameter values
-        '''
-        self.assert_data_particle_keys(SamiErrorCodeDataParticleKey,
-                                       self._error_code_parameters)
-        self.assert_data_particle_header(data_particle,
-                                         DataParticleType.ERROR_CODE)
-        self.assert_data_particle_parameters(data_particle,
-                                             self._error_code_parameters,
-                                             verify_values)
-
-
+    
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
@@ -585,7 +564,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_particle_published(driver, self.VALID_CONTROL_RECORD, self.assert_particle_control_record, True)
         self.assert_particle_published(driver, self.VALID_DATA_SAMPLE, self.assert_particle_sami_data_sample, True)
         self.assert_particle_published(driver, self.VALID_CONFIG_STRING, self.assert_particle_configuration, True)
-        self.assert_particle_published(driver, self.VALID_ERROR_CODE, self.assert_particle_error_code, True)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -614,10 +592,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         capabilities = {
             ProtocolState.UNKNOWN:          ['DRIVER_EVENT_START_DIRECT',
                                              'DRIVER_EVENT_DISCOVER'],
+            ProtocolState.WAITING:          ['DRIVER_EVENT_DISCOVER'],
             ProtocolState.COMMAND:          ['DRIVER_EVENT_GET',
                                              'DRIVER_EVENT_SET',
                                              'DRIVER_EVENT_START_DIRECT',
-                                             'DRIVER_EVENT_ACQUIRE_CONFIGURATION',
+                                             #'DRIVER_EVENT_ACQUIRE_CONFIGURATION',
                                              'DRIVER_EVENT_ACQUIRE_STATUS',
                                              'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                              'DRIVER_EVENT_START_AUTOSAMPLE'],
