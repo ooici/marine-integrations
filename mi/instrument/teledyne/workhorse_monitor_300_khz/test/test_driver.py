@@ -133,9 +133,6 @@ class WorkhorseDriverUnitTest(TeledyneUnitTest):
 ###############################################################################
 @attr('INT', group='mi')
 class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
-    # test if this can pre-set, and be overridden by mixin
-    # TODO: does this work
-    #
 
     _tested = {}
 
@@ -159,6 +156,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
     ###
     #    Add instrument specific integration tests
     ###
+
     def test_parameters(self):
         """
         Test driver parameters and verify their type.  Startup parameters also verify the parameter
