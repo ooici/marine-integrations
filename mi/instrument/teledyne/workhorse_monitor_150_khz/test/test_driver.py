@@ -151,12 +151,29 @@ class WorkhorseDriverUnitTest(TeledyneUnitTest):
 ###############################################################################
 @attr('INT', group='mi')
 class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
+    _tested = {}
+
     def setUp(self):
         TeledyneIntegrationTest.setUp(self)
 
     ###
     #    Add instrument specific integration tests
     ###
+
+    def assert_compass_calibration(self):
+        """
+        Verify a calibration particle was generated
+        """
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=700)
+
+    def assert_acquire_status(self):
+        """
+        Verify a status particle was generated
+        """
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=300)
+
     def test_parameters(self):
         """
         Test driver parameters and verify their type.  Startup parameters also verify the parameter
@@ -221,20 +238,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         # Test a bad command
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
-
-    def assert_compass_calibration(self):
-        """
-        Verify a calibration particle was generated
-        """
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.ADCP_COMPASS_CALIBRATION, self.assert_particle_compass_calibration, timeout=700)
-
-    def assert_acquire_status(self):
-        """
-        Verify a status particle was generated
-        """
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=300)
 
     def _test_set_serial_flow_control_readonly(self):
         ###
