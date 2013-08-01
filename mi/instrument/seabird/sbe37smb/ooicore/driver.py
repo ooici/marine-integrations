@@ -1093,7 +1093,6 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._do_cmd_resp(InstrumentCmds.STOP_LOGGING, *args, **kwargs)
 
         # Prompt device until command prompt is seen.
-        log.debug("*** attempting to wake up until command prompt")
         self._wakeup_until(timeout, SBE37Prompt.COMMAND)
 
         next_state = SBE37ProtocolState.COMMAND
@@ -1224,7 +1223,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         log.debug("_handler_direct_access_stop_direct: starting discover")
         (next_state, next_agent_state) = self._discover()
-        log.debug("_handler_direct_access_stop_direct: next agent state: %s", next_agent_state)
+        log.debug("_handler_direct_access_stop_direct: next_state: %s, next agent state: %s",
+                  next_state, next_agent_state)
 
         return (next_state, (next_agent_state, result))
 
