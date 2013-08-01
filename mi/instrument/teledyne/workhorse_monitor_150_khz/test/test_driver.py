@@ -453,7 +453,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
             result = self.instrument_agent_client.get_resource(getParams, timeout=300)
             self.assertEqual(result[name], value)
 
-    # works
     def test_direct_access_telnet_mode_command(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -505,7 +504,14 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.tcp_client.disconnect()
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
 
-    # works
+    def assert_resource_command_conflict_exception(self, command):
+        try:
+            self.assert_resource_command(command)
+        except Conflict as e:
+            pass
+        else:
+            self.assertFalse(1, "Did not raise expected Conflict exception")
+
     def test_commands(self):
         """
         Run instrument commands from both command and streaming mode.
@@ -536,14 +542,23 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         ####
         # Then test in streaming mode
         self.assert_resource_command(ProtocolEvent.START_AUTOSAMPLE)
-
+        self.assert_resource_command_conflict_exception(ProtocolEvent.SEND_LAST_SAMPLE)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.SAVE_SETUP_TO_RAM)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.GET_ERROR_STATUS_WORD)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.CLEAR_ERROR_STATUS_WORD)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.GET_FAULT_LOG)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.CLEAR_FAULT_LOG)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.RUN_TEST_200)
         self.assert_resource_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.CLOCK_SYNC)
         self.assert_resource_command(ProtocolEvent.GET_CALIBRATION, regex=r'ACTIVE FLUXGATE CALIBRATION MATRICES')
         self.assert_resource_command(ProtocolEvent.GET_CONFIGURATION, regex=r'HEADING  TILT 1  TILT 2')
 
         self.assert_resource_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
-    # works
+        self.assert_resource_command_conflict_exception('ima_bad_command')
+ 
     def test_direct_access_telnet_autosample(self):
         """
         Verify we can handle an instrument state change while in DA
