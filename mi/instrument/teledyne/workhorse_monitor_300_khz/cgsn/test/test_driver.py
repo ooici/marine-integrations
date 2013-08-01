@@ -931,6 +931,7 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
 
+
 ###############################################################################
 #                             PUBLICATION TESTS                               #
 # Device specific publication tests are for                                   #
