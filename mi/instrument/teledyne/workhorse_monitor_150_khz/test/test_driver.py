@@ -641,7 +641,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 45)
 
-    #broke
+
     def test_direct_access_telnet_mode_autosample_disconnect(self):
         """
         @brief Same as the previous DA test except in this test
