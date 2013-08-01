@@ -471,31 +471,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 70)
 
-    def test_direct_access_telnet_mode_autosample_disconnect(self):
-        """
-        @brief Same as the previous DA test except in this test
-               we force the instrument into streaming when in
-               DA.  Then we need to verify the transition back
-               to the driver works as expected.
-        """
-        ###
-        # First test direct access and exit with a go command
-        # call.  Also add a parameter change to verify DA
-        # parameters are restored on DA exit.
-        ###
-        self.assert_enter_command_mode()   
-        ###
-        # Test direct access disconnect
-        ###
-        self.assert_direct_access_start_telnet(inactivity_timeout=600, session_timeout=600)
-        log.debug("DA server started and connected")
-        self.tcp_client.send_data("%s%s" % (WorkhorseInstrumentCmds.START_LOGGING, NEWLINE))
-        gevent.sleep(3)
-        log.debug("DA server autosample started")
-        self.tcp_client.disconnect()
-        log.debug("DA server tcp client disconnected")
-        gevent.sleep(60)
-        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 400)
 
     def test_direct_access_telnet_mode_command(self):
         """
@@ -547,6 +522,170 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_direct_access_start_telnet()
         self.tcp_client.disconnect()
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
+
+
+
+    def assert_resource_command_conflict_exception(self, command):
+        try:
+            self.assert_resource_command(command)
+        except Conflict as e:
+            pass
+        else:
+            self.assertFalse(1, "Did not raise expected Conflict exception")
+
+    def test_commands(self):
+        """
+        Run instrument commands from both command and streaming mode.
+        """
+        self.assert_enter_command_mode()
+
+        ####
+        # First test in command mode
+        ####
+
+        self.assert_resource_command(ProtocolEvent.START_AUTOSAMPLE, agent_state=ResourceAgentState.STREAMING, delay=1)
+        self.assert_resource_command(ProtocolEvent.STOP_AUTOSAMPLE, agent_state=ResourceAgentState.COMMAND, delay=1)
+
+        self.assert_resource_command(ProtocolEvent.GET_CALIBRATION)
+        self.assert_resource_command(ProtocolEvent.GET_CONFIGURATION)
+        self.assert_resource_command(ProtocolEvent.CLOCK_SYNC)
+        self.assert_resource_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        self.assert_resource_command(ProtocolEvent.SEND_LAST_SAMPLE, regex='^\x7f\x7f.*')
+        self.assert_resource_command(ProtocolEvent.SAVE_SETUP_TO_RAM, expected="Parameters saved as USER defaults")
+        self.assert_resource_command(ProtocolEvent.GET_ERROR_STATUS_WORD, regex='^........')
+        self.assert_resource_command(ProtocolEvent.CLEAR_ERROR_STATUS_WORD, regex='^Error Status Word Cleared')
+        self.assert_resource_command(ProtocolEvent.GET_FAULT_LOG, regex='^Total Unique Faults   =.*')
+        self.assert_resource_command(ProtocolEvent.CLEAR_FAULT_LOG, expected='FC ..........\r\n Fault Log Cleared.\r\nClearing buffer @0x00801000\r\nDone [i=2048].\r\n')
+        self.assert_resource_command(ProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX, regex='^Beam Width:')
+        self.assert_resource_command(ProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
+        ####
+        # Test in streaming mode
+        ####
+        # Put us in streaming
+
+        self.assert_resource_command(ProtocolEvent.START_AUTOSAMPLE, agent_state=ResourceAgentState.STREAMING, delay=1)
+
+        self.assert_resource_command_conflict_exception(ProtocolEvent.SEND_LAST_SAMPLE)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.SAVE_SETUP_TO_RAM)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.GET_ERROR_STATUS_WORD)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.CLEAR_ERROR_STATUS_WORD)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.GET_FAULT_LOG)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.CLEAR_FAULT_LOG)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.RUN_TEST_200)
+        self.assert_resource_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        self.assert_resource_command_conflict_exception(ProtocolEvent.CLOCK_SYNC)
+        self.assert_resource_command(ProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
+        self.assert_resource_command(ProtocolEvent.GET_CONFIGURATION, regex=r' Instrument S/N')
+        self.assert_resource_command(ProtocolEvent.STOP_AUTOSAMPLE, agent_state=ResourceAgentState.COMMAND, delay=1)
+
+        ####
+        # Test a bad command
+        ####
+
+        try:
+            self.assert_resource_command('ima_bad_command')
+        except Conflict as e: # InstrumentCommandException
+            pass
+
+    def test_direct_access_telnet_mode_autosample(self):
+        """
+        @brief Same as the previous DA test except in this test
+               we force the instrument into streaming when in
+               DA.  Then we need to verify the transition back
+               to the driver works as expected.
+        """
+        ###
+        # First test direct access and exit with a go command
+        # call.  Also add a parameter change to verify DA
+        # parameters are restored on DA exit.
+        ###
+        self.assert_enter_command_mode()
+
+        self.assert_set_parameter(Parameter.TIME_PER_ENSEMBLE, '00:00:05.00', True)
+        self.assert_set_parameter(Parameter.TIME_PER_PING, '00:03.00', True)
+        self.assert_set_parameter(Parameter.PINGS_PER_ENSEMBLE, 1, True)
+        self.assert_set_parameter(Parameter.SPEED_OF_SOUND, 1500)
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+
+        self.tcp_client.send_data("EC1488%s" % (NEWLINE))
+        self.tcp_client.expect(Prompt.COMMAND)
+
+        self.tcp_client.send_data("%s%s" % (WorkhorseInstrumentCmds.START_LOGGING, NEWLINE))
+        gevent.sleep(3)
+        self.assert_sample_async(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_EARTH, 20)
+        
+        self.assert_direct_access_stop_telnet() # does this work?
+        #self.tcp_client.disconnect() # this one works
+        
+        # verify the setting got restored.
+        log.error("ROGER 1---------------------------------------------")
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 200)
+        log.error("ROGER 2---------------------------------------------")
+        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1500)
+        log.error("ROGER 3---------------------------------------------")
+
+        ###
+        # Test direct access inactivity timeout
+        #
+        # We have to call start now after the assert because the assert
+        # puts the instrument in command mode first.  you can not start DA from
+        # autosample.
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
+        self.tcp_client.send_data("%scs%s" % (NEWLINE, NEWLINE))
+        gevent.sleep(3)
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 200)
+
+        ###
+        # Test session timeout without activity
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=120, session_timeout=30)
+        self.tcp_client.send_data("%scs%s" % (NEWLINE, NEWLINE))
+        gevent.sleep(3)
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 60)
+
+        ###
+        # Test direct access session timeout with activity
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=60)
+        self.tcp_client.send_data("%scs%s" % (NEWLINE, NEWLINE))
+        # Send some activity every 30 seconds to keep DA alive.
+        for i in range(1, 2, 3):
+            self.tcp_client.send_data(NEWLINE)
+            log.debug("Sending a little keep alive communication, sleeping for 15 seconds")
+            gevent.sleep(15)
+
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 45)
+
+    def test_direct_access_telnet_mode_autosample_disconnect(self):
+        """
+        @brief Same as the previous DA test except in this test
+               we force the instrument into streaming when in
+               DA.  Then we need to verify the transition back
+               to the driver works as expected.
+        """
+        ###
+        # First test direct access and exit with a go command
+        # call.  Also add a parameter change to verify DA
+        # parameters are restored on DA exit.
+        ###
+        self.assert_enter_command_mode()   
+        ###
+        # Test direct access disconnect
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=600, session_timeout=600)
+        log.debug("DA server started and connected")
+        self.tcp_client.send_data("%s%s" % (WorkhorseInstrumentCmds.START_LOGGING, NEWLINE))
+        gevent.sleep(3)
+        log.debug("DA server autosample started")
+        self.tcp_client.disconnect()
+        log.debug("DA server tcp client disconnected")
+        gevent.sleep(60)
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 400)
 
     def test_execute_clock_sync(self):
         """
@@ -681,70 +820,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
                 if False == self._driver_parameters[k][self.READONLY]:
                     self.assert_set_parameter(k, self._driver_parameters[k][self.OFF_VALUE])
                     log.error("SETTING %s to OFF_VALUE of %s ", k, str(self._driver_parameters[k][self.OFF_VALUE]))
-
-    def assert_resource_command_conflict_exception(self, command):
-        try:
-            self.assert_resource_command(command)
-        except Conflict as e:
-            pass
-        else:
-            self.assertFalse(1, "Did not raise expected Conflict exception")
-
-    def test_commands(self):
-        """
-        Run instrument commands from both command and streaming mode.
-        """
-        self.assert_enter_command_mode()
-
-        ####
-        # First test in command mode
-        ####
-
-        self.assert_resource_command(ProtocolEvent.START_AUTOSAMPLE, agent_state=ResourceAgentState.STREAMING, delay=1)
-        self.assert_resource_command(ProtocolEvent.STOP_AUTOSAMPLE, agent_state=ResourceAgentState.COMMAND, delay=1)
-
-        self.assert_resource_command(ProtocolEvent.GET_CALIBRATION)
-        self.assert_resource_command(ProtocolEvent.GET_CONFIGURATION)
-        self.assert_resource_command(ProtocolEvent.CLOCK_SYNC)
-        self.assert_resource_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
-        self.assert_resource_command(ProtocolEvent.SEND_LAST_SAMPLE, regex='^\x7f\x7f.*')
-        self.assert_resource_command(ProtocolEvent.SAVE_SETUP_TO_RAM, expected="Parameters saved as USER defaults")
-        self.assert_resource_command(ProtocolEvent.GET_ERROR_STATUS_WORD, regex='^........')
-        self.assert_resource_command(ProtocolEvent.CLEAR_ERROR_STATUS_WORD, regex='^Error Status Word Cleared')
-        self.assert_resource_command(ProtocolEvent.GET_FAULT_LOG, regex='^Total Unique Faults   =.*')
-        self.assert_resource_command(ProtocolEvent.CLEAR_FAULT_LOG, expected='FC ..........\r\n Fault Log Cleared.\r\nClearing buffer @0x00801000\r\nDone [i=2048].\r\n')
-        self.assert_resource_command(ProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX, regex='^Beam Width:')
-        self.assert_resource_command(ProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
-        ####
-        # Test in streaming mode
-        ####
-        # Put us in streaming
-
-        self.assert_resource_command(ProtocolEvent.START_AUTOSAMPLE, agent_state=ResourceAgentState.STREAMING, delay=1)
-
-        self.assert_resource_command_conflict_exception(ProtocolEvent.SEND_LAST_SAMPLE)
-        self.assert_resource_command_conflict_exception(ProtocolEvent.SAVE_SETUP_TO_RAM)
-        self.assert_resource_command_conflict_exception(ProtocolEvent.GET_ERROR_STATUS_WORD)
-        self.assert_resource_command_conflict_exception(ProtocolEvent.CLEAR_ERROR_STATUS_WORD)
-        self.assert_resource_command_conflict_exception(ProtocolEvent.GET_FAULT_LOG)
-        self.assert_resource_command_conflict_exception(ProtocolEvent.CLEAR_FAULT_LOG)
-        self.assert_resource_command_conflict_exception(ProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX)
-        self.assert_resource_command_conflict_exception(ProtocolEvent.RUN_TEST_200)
-        self.assert_resource_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
-        self.assert_resource_command_conflict_exception(ProtocolEvent.CLOCK_SYNC)
-        self.assert_resource_command(ProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
-        self.assert_resource_command(ProtocolEvent.GET_CONFIGURATION, regex=r' Instrument S/N')
-        self.assert_resource_command(ProtocolEvent.STOP_AUTOSAMPLE, agent_state=ResourceAgentState.COMMAND, delay=1)
-
-        ####
-        # Test a bad command
-        ####
-
-        try:
-            self.assert_resource_command('ima_bad_command')
-        except Conflict as e: # InstrumentCommandException
-            pass
-
 
 ###############################################################################
 #                             PUBLICATION TESTS                               #
