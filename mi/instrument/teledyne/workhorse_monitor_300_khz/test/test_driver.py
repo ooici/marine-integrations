@@ -426,31 +426,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
             result = self.instrument_agent_client.get_resource(getParams, timeout=300)
             self.assertEqual(result[name], value)
 
-    def test_direct_access_telnet_mode(self):
-        """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
-        """
-
-        self.assert_enter_command_mode()
-        self.assert_set_parameter(Parameter.SPEED_OF_SOUND, 1500)
-
-        # go into direct access, and muck up a setting.
-        self.assert_direct_access_start_telnet(timeout=600)
-
-        self.tcp_client.send_data("%sEC1488%s" % (NEWLINE, NEWLINE))
-
-        self.tcp_client.expect(Prompt.COMMAND)
-
-        self.assert_direct_access_stop_telnet()
-
-        # verify the setting got restored.
-        self.assert_enter_command_mode()
-
-        self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1500)
-
-
-
-
     def test_direct_access_telnet_mode_command(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -501,8 +476,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         self.assert_direct_access_start_telnet()
         self.tcp_client.disconnect()
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
-
-
 
     def assert_resource_command_conflict_exception(self, command):
         try:
