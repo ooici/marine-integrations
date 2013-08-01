@@ -448,28 +448,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1500)
 
-    def test_direct_access_telnet_autosample(self):
-        """
-        Verify we can handle an instrument state change while in DA
-        """
-        self.assert_enter_command_mode()
 
-        # go into direct access, and muck up a setting.
-        self.assert_set_parameter(Parameter.TIME_PER_ENSEMBLE, '00:00:01.00', True)
-        self.assert_set_parameter(Parameter.TIME_PER_PING, '00:00.50', True)
-        self.assert_set_parameter(Parameter.PINGS_PER_ENSEMBLE, 1, True)
-
-        self.assert_direct_access_start_telnet(timeout=600)
-        self.assertTrue(self.tcp_client)
-
-        self.tcp_client.send_data("%s%s" % (WorkhorseInstrumentCmds.START_LOGGING, NEWLINE))
-
-        gevent.sleep(3)
-        self.assert_sample_async(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_BEAM, 20)
-
-        self.tcp_client.disconnect()
-
-        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 70)
 
 
     def test_direct_access_telnet_mode_command(self):
@@ -587,6 +566,29 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
             self.assert_resource_command('ima_bad_command')
         except Conflict as e: # InstrumentCommandException
             pass
+
+    def test_direct_access_telnet_autosample(self):
+        """
+        Verify we can handle an instrument state change while in DA
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access, and muck up a setting.
+        self.assert_set_parameter(Parameter.TIME_PER_ENSEMBLE, '00:00:01.00', True)
+        self.assert_set_parameter(Parameter.TIME_PER_PING, '00:00.50', True)
+        self.assert_set_parameter(Parameter.PINGS_PER_ENSEMBLE, 1, True)
+
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+
+        self.tcp_client.send_data("%s%s" % (WorkhorseInstrumentCmds.START_LOGGING, NEWLINE))
+
+        gevent.sleep(3)
+        self.assert_sample_async(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_BEAM, 20)
+
+        self.tcp_client.disconnect()
+
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 70)
 
     def test_direct_access_telnet_mode_autosample(self):
         """
