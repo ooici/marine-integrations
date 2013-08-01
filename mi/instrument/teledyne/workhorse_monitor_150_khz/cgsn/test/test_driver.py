@@ -610,6 +610,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     'PROTOCOL_EVENT_GET_FAULT_LOG',
                                     'PROTOCOL_EVENT_GET_INSTRUMENT_TRANSFORM_MATRIX',
                                     'PROTOCOL_EVENT_POWER_DOWN',
+                                    'PROTOCOL_EVENT_RECOVER_AUTOSAMPLE',
                                     'PROTOCOL_EVENT_RESTORE_FACTORY_PARAMS',
                                     'PROTOCOL_EVENT_RUN_TEST_200',
                                     'PROTOCOL_EVENT_SAVE_SETUP_TO_RAM',
@@ -618,6 +619,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
                                     'DRIVER_EVENT_GET',
                                     'DRIVER_EVENT_INIT_PARAMS',
+                                    'DRIVER_EVENT_DISCOVER',
                                     'PROTOCOL_EVENT_GET_CALIBRATION',
                                     'PROTOCOL_EVENT_GET_CONFIGURATION',
                                     'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
@@ -690,6 +692,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 ###############################################################################
 @attr('INT', group='mi')
 class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
+
     def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample
@@ -763,41 +766,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 
         self.assertFalse(fail, "See above for un-exercized parameters.")
 
-    def _test_set_heading_alignment(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for HEADING_ALIGNMENT ======")
-        # HEADING_ALIGNMENT:  -- -17999 to 18000
-        self.assert_set(Parameter.HEADING_ALIGNMENT, -17999)
-        self.assert_set(Parameter.HEADING_ALIGNMENT, 0)
-        self.assert_set(Parameter.HEADING_ALIGNMENT, 18000)
-
-        self.assert_set_exception(Parameter.HEADING_ALIGNMENT, -18000)
-        self.assert_set_exception(Parameter.HEADING_ALIGNMENT, 18001)
-
-        self.assert_set(Parameter.HEADING_ALIGNMENT, self._driver_parameters[Parameter.HEADING_ALIGNMENT][self.VALUE])
-        self._tested[Parameter.HEADING_ALIGNMENT] = True
-
-    def _test_set_transducer_depth(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for TRANSDUCER_DEPTH ======")
-        # HEADING_ALIGNMENT:  -- -17999 to 18000
-        self.assert_set(Parameter.TRANSDUCER_DEPTH, 0)
-        self.assert_set(Parameter.TRANSDUCER_DEPTH, 32767)
-        self.assert_set(Parameter.TRANSDUCER_DEPTH, 65535)
-
-        self.assert_set_exception(Parameter.TRANSDUCER_DEPTH, -1)
-        self.assert_set_exception(Parameter.TRANSDUCER_DEPTH, 65536)
-        self.assert_set_exception(Parameter.TIME_PER_BURST, "LEROY JENKINS")
-        self.assert_set_exception(Parameter.TIME_PER_BURST, 3.1415926)
-
-        self.assert_set(Parameter.TRANSDUCER_DEPTH, self._driver_parameters[Parameter.TRANSDUCER_DEPTH][self.VALUE])
-        self._tested[Parameter.TRANSDUCER_DEPTH] = True
-
-    #passes
     def test_set_bulk(self):
         """
         Test all set commands. Verify all exception cases.
@@ -886,6 +854,40 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
                     new_values[k] = self._driver_parameters[k][self.OFF_VALUE]
 
         self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
+
+    def _test_set_heading_alignment(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for HEADING_ALIGNMENT ======")
+        # HEADING_ALIGNMENT:  -- -17999 to 18000
+        self.assert_set(Parameter.HEADING_ALIGNMENT, -17999)
+        self.assert_set(Parameter.HEADING_ALIGNMENT, 0)
+        self.assert_set(Parameter.HEADING_ALIGNMENT, 18000)
+
+        self.assert_set_exception(Parameter.HEADING_ALIGNMENT, -18000)
+        self.assert_set_exception(Parameter.HEADING_ALIGNMENT, 18001)
+
+        self.assert_set(Parameter.HEADING_ALIGNMENT, self._driver_parameters[Parameter.HEADING_ALIGNMENT][self.VALUE])
+        self._tested[Parameter.HEADING_ALIGNMENT] = True
+
+    def _test_set_transducer_depth(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for TRANSDUCER_DEPTH ======")
+        # HEADING_ALIGNMENT:  -- -17999 to 18000
+        self.assert_set(Parameter.TRANSDUCER_DEPTH, 0)
+        self.assert_set(Parameter.TRANSDUCER_DEPTH, 32767)
+        self.assert_set(Parameter.TRANSDUCER_DEPTH, 65535)
+
+        self.assert_set_exception(Parameter.TRANSDUCER_DEPTH, -1)
+        self.assert_set_exception(Parameter.TRANSDUCER_DEPTH, 65536)
+        self.assert_set_exception(Parameter.TIME_PER_BURST, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.TIME_PER_BURST, 3.1415926)
+
+        self.assert_set(Parameter.TRANSDUCER_DEPTH, self._driver_parameters[Parameter.TRANSDUCER_DEPTH][self.VALUE])
+        self._tested[Parameter.TRANSDUCER_DEPTH] = True
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
