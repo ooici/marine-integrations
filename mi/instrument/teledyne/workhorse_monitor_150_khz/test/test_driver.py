@@ -567,7 +567,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 70)
 
-    #works
     def test_direct_access_telnet_mode_autosample(self):
         """
         @brief Same as the previous DA test except in this test
@@ -641,7 +640,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 45)
 
-
     def test_direct_access_telnet_mode_autosample_disconnect(self):
         """
         @brief Same as the previous DA test except in this test
@@ -667,10 +665,6 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         log.debug("DA server tcp client disconnected")
         gevent.sleep(60)
         self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 400)
-
-
-
-
 
     def test_execute_clock_sync(self):
         """
