@@ -486,16 +486,6 @@ class Protocol(WorkhorseProtocol):
         """
         Send a BREAK to attempt to wake the device.
         """
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        except socket.error, msg:
-            log.error("EXCEPTION 1 in _send_break_cmd")
+        self._connection.send_break(duration)
 
-        try:
-            sock.connect(('localhost', 2102))
-        except socket.error, msg:
-            log.error("EXCEPTION 2 in _send_break_cmd")
-        sock.send(InstrumentCmds.BREAK + " " + str(duration) + "\r\n")
-        sock.close()
 
-    pass
