@@ -4,223 +4,114 @@
 @author Christopher Wingard
 @brief Driver for the Sunburst Sensors, SAMI2-PCO2 (PCO2W)
 Release notes:
-    Sunburst Sensors SAMI2-PCO2 pCO2 underwater sensor
+    Sunburst Sensors SAMI2-PCO2 pCO2 underwater sensor.
     Derived from initial code developed by Chris Center
+    and merged with a base class covering both the PCO2W
+    and PHSEN instrument classes.
 """
 
 __author__ = 'Christopher Wingard'
 __license__ = 'Apache 2.0'
 
 import re
-import string
-import time
 
 from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentProtocolException
-from mi.core.exceptions import InstrumentParameterException
+#from mi.core.exceptions import InstrumentParameterException
 
 from mi.core.common import BaseEnum
-from mi.core.instrument.chunker import StringChunker
+#from mi.core.instrument.instrument_driver import DriverEvent
+#from mi.core.instrument.instrument_driver import DriverAsyncEvent
+#from mi.core.instrument.instrument_driver import DriverProtocolState
+#from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.data_particle import CommonDataParticleType
-from mi.core.instrument.instrument_fsm import InstrumentFSM
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.instrument.instrument_driver import DriverParameter
-from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
-from mi.core.instrument.driver_dict import DriverDictKey
-from mi.core.instrument.protocol_param_dict import ParameterDictType
+#from mi.core.instrument.data_particle import CommonDataParticleType
+from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-from mi.core.instrument.protocol_param_dict import FunctionParameter
-
-from mi.core.time import get_timestamp
-from mi.core.time import get_timestamp_delayed
-
+#from mi.core.instrument.protocol_param_dict import FunctionParameter
+from mi.instrument.sunburst.driver import SamiDataParticleType
+from mi.instrument.sunburst.driver import ProtocolState
+from mi.instrument.sunburst.driver import ProtocolEvent
+from mi.instrument.sunburst.driver import Capability
+from mi.instrument.sunburst.driver import SamiParameter
+from mi.instrument.sunburst.driver import Prompt
+from mi.instrument.sunburst.driver import SamiInstrumentCommand
+# NOTE: These may not need to be imported [start]
+from mi.instrument.sunburst.driver import SamiRegularStatusDataParticleKey
+from mi.instrument.sunburst.driver import SamiControlRecordDataParticleKey
+# [/stop]
+from mi.instrument.sunburst.driver import SamiRegularStatusDataParticle
+from mi.instrument.sunburst.driver import SamiControlRecordDataParticle
+from mi.instrument.sunburst.driver import SamiConfigDataParticleKey
+from mi.instrument.sunburst.driver import SamiInstrumentDriver
+from mi.instrument.sunburst.driver import SamiProtocol
+from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX_MATCHER
+from mi.instrument.sunburst.driver import CONTROL_RECORD_REGEX_MATCHER
+from mi.instrument.sunburst.driver import ERROR_REGEX_MATCHER
 # newline.
-NEWLINE = '\r'
+from mi.instrument.sunburst.driver import NEWLINE
 
 # default timeout.
-TIMEOUT = 10
+from mi.instrument.sunburst.driver import TIMEOUT
 
-# Conversion from SAMI time (seconds since 1904-01-01) to POSIX or Unix
-# timestamps (seconds since 1970-01-01). Add this value to convert POSIX
-# timestamps to SAMI, and subtract for the reverse.
-SAMI_EPOCH = 2082844800
-
+# Epoch conversions (SAMI epoch Jan. 1, 1904) see sunburst driver for usage
+from mi.instrument.sunburst.driver import SAMI_TO_UNIX
+from mi.instrument.sunburst.driver import SAMI_TO_NTP
 
 ###
 #    Driver Constant Definitions
 ###
-class DataParticleType(BaseEnum):
-    """
-    Data particle types produced by this driver
-    """
-    RAW = CommonDataParticleType.RAW
-    REGULAR_STATUS = 'regular_status'
-    CONTROL_RECORD = 'control_record'
-    SAMI_SAMPLE = 'sami_sample'
-    DEV1_SAMPLE = 'dev1_sample'
-    CONFIGURATION = 'configuration'
-
-
-class ProtocolState(BaseEnum):
-    """
-    Instrument protocol states
-    """
-    UNKNOWN = DriverProtocolState.UNKNOWN
-    WAITING = 'PROTOCOL_STATE_WAITING'
-    COMMAND = DriverProtocolState.COMMAND
-    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    SCHEDULED_SAMPLE = 'PROTOCOL_STATE_SCHEDULED_SAMPLE'
-    POLLED_SAMPLE = 'PROTOCOL_STATE_POLLED_SAMPLE'
-
-
-class ProtocolEvent(BaseEnum):
-    """
-    Protocol events
-    """
-    ENTER = DriverEvent.ENTER
-    EXIT = DriverEvent.EXIT
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
-    DISCOVER = DriverEvent.DISCOVER
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-    
-
-class Capability(BaseEnum):
-    """
-    Protocol events that should be exposed to users (subset of above).
-    """
-    ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
-    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    START_DIRECT = ProtocolEvent.START_DIRECT
-    STOP_DIRECT = ProtocolEvent.STOP_DIRECT
-
-
-class Parameter(DriverParameter):
-    """
-    Device specific parameters.
-    """
-    LAUNCH_TIME = 'launch_time'
-    START_TIME_FROM_LAUNCH = 'start_time_from_launch'
-    STOP_TIME_FROM_START = 'stop_time_from_start'
-    MODE_BITS = 'mode_bits'
-    SAMI_SAMPLE_INTERVAL = 'sami_sample_interval'
-    SAMI_DRIVER_VERSION = 'sami_driver_version'
-    SAMI_PARAMS_POINTER = 'sami_params_pointer'
-    DEVICE1_SAMPLE_INTERVAL = 'device1_sample_interval'
-    DEVICE1_DRIVER_VERSION = 'device1_driver_version'
-    DEVICE1_PARAMS_POINTER = 'device1_params_pointer'
-    DEVICE2_SAMPLE_INTERVAL = 'device2_sample_interval'
-    DEVICE2_DRIVER_VERSION = 'device2_driver_version'
-    DEVICE2_PARAMS_POINTER = 'device2_params_pointer'
-    DEVICE3_SAMPLE_INTERVAL = 'device3_sample_interval'
-    DEVICE3_DRIVER_VERSION = 'device3_driver_version'
-    DEVICE3_PARAMS_POINTER = 'device3_params_pointer'
-    PRESTART_SAMPLE_INTERVAL = 'prestart_sample_interval'
-    PRESTART_DRIVER_VERSION = 'prestart_driver_version'
-    PRESTART_PARAMS_POINTER = 'prestart_params_pointer'
-    GLOBAL_CONFIGURATION = 'global_configuration'
-    PUMP_PULSE = 'pump_pulse'
-    PUMP_DURATION = 'pump_duration'
-    SAMPLES_PER_MEASUREMENT = 'samples_per_measurement'
-    CYCLES_BETWEEN_BLANKS = 'cycles_between_blanks'
-    NUMBER_REAGENT_CYCLES = 'number_reagent_cycles'
-    NUMBER_BLANK_CYCLES = 'number_blank_cycles'
-    FLUSH_PUMP_INTERVAL = 'flush_pump_interval'
-    BIT_SWITCHES = 'bit_switches'
-    NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
-    EXTERNAL_PUMP_SETTINGS = 'external_pump_settings'
-
-
-class Prompt(BaseEnum):
-    """
-    Device i/o prompts..
-    """
-    PCO2W_SAMPLE = '^04' + NEWLINE
-    PCO2W_BLANK = '^05' + NEWLINE
-    DEV1_SAMPLE = '^11' + NEWLINE
-    BOOT_PROMPT = '7.7Boot>'
-
-
-# [todo: move this to base class]
-class InstrumentCommand(BaseEnum):
-    """
-    Instrument command strings
-    """
-    GET_STATUS = 'S0'
-    START_STATUS = 'F0'
-    STOP_STATUS = 'F5A'
-    GET_CONFIG = 'L'
-    SET_CONFIG = 'L5A'
-    ERASE_ALL = 'E5A'
-    START = 'G5A'
-    STOP = 'Q5A'
-    ACQUIRE_SAMPLE_SAMI = 'R0'
-    ACQUIRE_SAMPLE_DEV1 = 'R1'
-    ESCAPE_BOOT = 'u'
-
 
 ###############################################################################
 # Data Particles
 ###############################################################################
-# Regular Status Strings (produced every 1 Hz or in response to S0 command)
-REGULAR_STATUS_REGEX = r'[:]([0-9A-Fa-f]{8})([0-9A-Fa-f]{4})([0-9A-Fa-f]{6})' + \
-                       '([0-9A-Fa-f]{6})([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})' + NEWLINE
-REGULAR_STATUS_REGEX_MATCHER = re.compile(REGULAR_STATUS_REGEX)
-
-# Control Records (Types 0x80 - 0xFF)
-CONTROL_RECORD_REGEX = r'[*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([8-9A-Fa-f][0-9A-Fa-f])' + \
-                       '([0-9A-Fa-f]{8})([0-9A-Fa-f]{4})([0-9A-Fa-f]{6})' + \
-                       '([0-9A-Fa-f]{6})([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})' + NEWLINE
-CONTROL_RECORD_REGEX_MATCHER = re.compile(CONTROL_RECORD_REGEX)
-
 # SAMI Sample Records (Types 0x04 or 0x05)
-SAMI_SAMPLE_REGEX = r'[*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(04|05)' + \
-                    '([0-9A-Fa-f]{8})([0-9A-Fa-f]{56})([0-9A-Fa-f]{4})' + \
-                    '([0-9A-Fa-f]{4})([0-9A-Fa-f]{2})' + NEWLINE
+SAMI_SAMPLE_REGEX = (
+    r'[\*]' +  # record identifier
+    '([0-9A-Fa-f]{2})' +  # unique instrument identifier
+    '([0-9A-Fa-f]{2})' +  # length of data record (bytes)
+    '(04|05)' +  # type of data record (04 for measurement, 05 for blank)
+    '([0-9A-Fa-f]{8})' +  # timestamp (seconds since 1904)
+    '([0-9A-Fa-f]{56})' +  # 14 sets of light measurements (counts)
+    '([0-9A-Fa-f]{4})' +  # battery voltage (counts)
+    '([0-9A-Fa-f]{4})' +  # thermistor (counts)
+    '([0-9A-Fa-f]{2})' +  # checksum
+    NEWLINE)
 SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
 
 # Device 1 Sample Records (Type 0x11)
-DEV1_SAMPLE_REGEX = r'[*]([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})(11)([0-9A-Fa-f]{8})([0-9A-Fa-f]{2})' + NEWLINE
+DEV1_SAMPLE_REGEX = (
+    r'[\*]' +  #
+    '([0-9A-Fa-f]{2})' +  # unique instrument identifier
+    '([0-9A-Fa-f]{2})' +  # length of data record (bytes)
+    '(11)' +  # type of data record (11 for external Device 1, aka the external pump)
+    '([0-9A-Fa-f]{8})' +  # timestamp (seconds since 1904)
+    '([0-9A-Fa-f]{2})' +  # checksum
+    NEWLINE)
 DEV1_SAMPLE_REGEX_MATCHER = re.compile(DEV1_SAMPLE_REGEX)
 
-# Configuration Records
-CONFIGURATION_REGEX = r'([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})' + \
-                      '([0-9A-Fa-f]{2})' + \
-                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-                      '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-                      '([0-9A-Fa-f]{2})' + \
-                      '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-                      '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-                      '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-                      '([0-9A-Fa-f]{2})' + \
-                      '([0-9A-Fa-f]{414})' + NEWLINE
+# PCO2W Configuration Record
+CONFIGURATION_REGEX = (
+    r'([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})' + \
+    '([0-9A-Fa-f]{2})' + \
+    '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+    '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+    '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+    '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+    '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+    '([0-9A-Fa-f]{2})' + \
+    '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+    '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+    '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
+    '([0-9A-Fa-f]{2})' + \
+    '([0-9A-Fa-f]{414})' + NEWLINE)
 CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
-
-# Error records
-ERROR_REGEX = r'[?]([0-9A-Fa-f]{2})' + NEWLINE
-ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
-
 
 # [TODO: This needs to be moved to the baseclass]
 class SamiRegularStatusDataParticleKey(BaseEnum):
