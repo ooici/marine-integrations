@@ -532,8 +532,9 @@ class SamiMixin(DriverTestMixin):
 ###############################################################################
 @attr('UNIT', group='mi')
 class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
-    def setUp(self):
-        InstrumentDriverUnitTestCase.setUp(self)
+    # This is not needed.  Inheritance takes care of that.
+    #def setUp(self):
+    #    InstrumentDriverUnitTestCase.setUp(self)
 
     # NOTE: I think can stay here, no probably not.  Needs to call Instrument Driver class
     #def test_driver_schema(self):
@@ -549,8 +550,9 @@ class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
     # change the name to test_sami_driver_enum
     def test_base_driver_enums(self):
         """
-        Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilites
+        Verify that all the SAMI Instrument driver enumerations have no
+        duplicate values that might cause confusion. Also do a little
+        extra validation for the Capabilites
         """
         #self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(ProtocolState())
@@ -659,7 +661,7 @@ class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
     #    driver = InstrumentDriver(self._got_data_event_callback)
     #    self.assert_capabilities(driver, capabilities)
 
-    capabilities = {
+    capabilities_test_dict = {
         ProtocolState.UNKNOWN:          ['DRIVER_EVENT_START_DIRECT',
                                          'DRIVER_EVENT_DISCOVER'],
         ProtocolState.WAITING:          ['DRIVER_EVENT_DISCOVER'],
@@ -679,8 +681,6 @@ class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
         ProtocolState.POLLED_SAMPLE:    ['PROTOCOL_EVENT_SUCCESS',
                                          'PROTOCOL_EVENT_TIMEOUT']
     }
-
-
 
 
 ###############################################################################
