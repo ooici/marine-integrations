@@ -2757,7 +2757,8 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         while(time.time() <= end_time):
             agent_state = self.instrument_agent_client.get_agent_state()
-            resource_state = self.instrument_agent_client.get_resource_state()
+
+            resource_state = self.instrument_agent_client.get_resource_state(timeout=90)
             log.error("Current agent state: %s", agent_state)
             log.error("Current resource state: %s", resource_state)
 
