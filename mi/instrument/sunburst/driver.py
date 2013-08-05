@@ -43,6 +43,9 @@ from mi.core.instrument.protocol_param_dict import FunctionParameter
 from mi.core.time import get_timestamp
 from mi.core.time import get_timestamp_delayed
 
+###
+#    Driver Constant Definitions
+###
 # newline.
 NEWLINE = '\r'
 
@@ -57,10 +60,6 @@ SAMI_TO_UNIX = 2082844800
 # (seconds since 1900-01-01). Subtract this value to convert NTP timestamps to
 # SAMI, and add for the reverse.
 SAMI_TO_NTP = 126144000
-
-###
-#    Driver Constant Definitions
-###
 
 ###
 #    Driver RegEx Definitions
@@ -1434,7 +1433,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         return (next_state, next_agent_state)
 
     @staticmethod
-    def _int_to_hexstring(self, val, slen):
+    def _int_to_hexstring(val, slen):
         """
         Write an integer value to an ASCIIHEX string formatted for SAMI
         configuration set operations.
@@ -1450,14 +1449,14 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         elif not isinstance(slen, int):
             raise InstrumentParameterException('Value %s is not an integer.' % str(slen))
         else:
-            s = format(val, 'X')
-            return s.zfill(slen)
+            hexstr = format(val, 'X')
+            return hexstr.zfill(slen)
 
     @staticmethod
-    def _epoch_to_sami(self):
+    def _epoch_to_sami():
         """
         Create a timestamp in seconds using January 1, 1904 as the Epoch
         @retval an integer value representing the number of seconds since
             January 1, 1904.
         """
-        return int(time.time()) + SAMI_EPOCH
+        return int(time.time()) + SAMI_TO_UNIX
