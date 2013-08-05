@@ -29,7 +29,6 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 
 from interface.objects import AgentCommand
@@ -49,17 +48,19 @@ from mi.instrument.sunburst.sami2_pco2.ooicore.driver import DataParticleType
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import InstrumentCommand
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import ProtocolState
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import ProtocolEvent
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Capability
+from mi.instrument.sunburst.driver import Capability
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Parameter
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Protocol
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Prompt
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import NEWLINE
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SAMI_EPOCH
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SamiRegularStatusDataParticleKey
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import SamiControlRecordDataParticleKey
+from mi.instrument.sunburst.driver import Prompt
+from mi.instrument.sunburst.driver import NEWLINE
+from mi.instrument.sunburst.driver import SAMI_TO_UNIX
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wSamiSampleDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wDev1SampleDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wConfigurationDataParticleKey
+
+# Added Imports (Note, these pick up some of the base classes not directly imported above)
+from mi.instrument.sunburst.test.test_driver import SamiMixin
+from mi.instrument.sunburst.test.test_driver import SamiUnitTest
 
 ###
 #   Driver parameters for the tests
@@ -105,7 +106,7 @@ InstrumentDriverTestCase.initialize(
 # This class defines a configuration structure for testing and common assert  #
 # methods for validating data particles.                                      #
 ###############################################################################
-class DriverTestMixinSub(DriverTestMixin):
+class DriverTestMixinSub(SamiMixin):
     '''
     Mixin class used for storing data particle constants and common data
     assertion methods.
@@ -144,9 +145,6 @@ class DriverTestMixinSub(DriverTestMixin):
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + NEWLINE
 
-    # Regular Status Message (response to S0 command)
-    VALID_STATUS_MESSAGE = ':CEE90B1B004100000100000000021254' + NEWLINE
-
     # Data records -- SAMI and Device1 (external pump) (responses to R0 and R1
     # commands, respectively)
     VALID_R0_BLANK_SAMPLE = '*542705CEE91CC800400019096206800730074C2CE042' + \
@@ -155,8 +153,8 @@ class DriverTestMixinSub(DriverTestMixin):
                            'D0043001A09620154072F03EA0D92065F46' + NEWLINE
     VALID_R1_SAMPLE = '*540711CEE91DE2CE' + NEWLINE
 
-    # Control records
-    VALID_CONTROL_RECORD = '*541280CEE90B170041000001000000000200AF' + NEWLINE
+    ## Control records
+    #VALID_CONTROL_RECORD = '*541280CEE90B170041000001000000000200AF' + NEWLINE
 
     ###
     #  Parameter and Type Definitions
@@ -225,75 +223,6 @@ class DriverTestMixinSub(DriverTestMixin):
                                              DEFAULT: 0x14, VALUE: 0x14}
     }
 
-    # [TODO] Consider moving to base class as these apply to both PCO2 and pH
-    _driver_capabilities = {
-        # capabilities defined in the IOS
-        Capability.ACQUIRE_STATUS:      {STATES: [ProtocolState.COMMAND]},
-        Capability.START_AUTOSAMPLE:    {STATES: [ProtocolState.COMMAND,
-                                                  ProtocolState.AUTOSAMPLE]},
-        Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
-                                                  ProtocolState.COMMAND]},
-        Capability.START_DIRECT:        {STATES: [ProtocolState.COMMAND,
-                                                  ProtocolState.UNKNOWN,
-                                                  ProtocolState.DIRECT_ACCESS]},
-        Capability.STOP_DIRECT:         {STATES: [ProtocolState.DIRECT_ACCESS,
-                                                  ProtocolState.UNKNOWN]}
-    }
-
-    # [TODO] Consider moving to base class as these apply to both PCO2 and pH
-    _regular_status_parameters = {
-        # SAMI Regular Status Messages (S0)
-        SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG:       {TYPE: int, VALUE: 0xCEE90B1B, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.CLOCK_ACTIVE:              {TYPE: bool, VALUE: True, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.RECORDING_ACTIVE:          {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME:        {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.RECORD_MEMORY_FULL:        {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.RECORD_END_ON_ERROR:       {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.DATA_DOWNLOAD_OK:          {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.FLASH_MEMORY_OPEN:         {TYPE: bool, VALUE: True, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.BATTERY_LOW_PRESTART:      {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.BATTERY_LOW_MEASUREMENT:   {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.BATTERY_LOW_BANK:          {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.BATTERY_LOW_EXTERNAL:      {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE1_FAULT:    {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE2_FAULT:    {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT:    {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.FLASH_ERASED:              {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.POWER_ON_INVALID:          {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS:          {TYPE: int, VALUE: 0x000001, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS:         {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.NUM_BYTES_STORED:          {TYPE: int, VALUE: 0x000212, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.CHECKSUM:                  {TYPE: int, VALUE: 0x54, REQUIRED: True}
-    }
-
-    # [TODO] Consider moving to base class as these apply to both PCO2 and pH
-    _control_record_parameters = {
-        SamiControlRecordDataParticleKey.UNIQUE_ID:                {TYPE: int, VALUE: 0x54, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_LENGTH:            {TYPE: int, VALUE: 0x12, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_TYPE:              {TYPE: int, VALUE: 0x80,  REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_TIME:              {TYPE: int, VALUE: 0xCEE90B17, REQUIRED: True},
-        SamiControlRecordDataParticleKey.CLOCK_ACTIVE:             {TYPE: bool, VALUE: True, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORDING_ACTIVE:         {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_END_ON_TIME:       {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL:       {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR:      {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK:         {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN:        {TYPE: bool, VALUE: True, REQUIRED: True},
-        SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART:     {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT:  {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.BATTERY_LOW_BANK:         {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL:     {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT:   {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT:   {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT:   {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.FLASH_ERASED:             {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.POWER_ON_INVALID:         {TYPE: bool, VALUE: False, REQUIRED: True},
-        SamiControlRecordDataParticleKey.NUM_DATA_RECORDS:         {TYPE: int, VALUE: 0x000001, REQUIRED: True},
-        SamiControlRecordDataParticleKey.NUM_ERROR_RECORDS:        {TYPE: int, VALUE: 0x000000, REQUIRED: True},
-        SamiControlRecordDataParticleKey.NUM_BYTES_STORED:         {TYPE: int, VALUE: 0x000200, REQUIRED: True},
-        SamiControlRecordDataParticleKey.CHECKSUM:                 {TYPE: int, VALUE: 0xAF, REQUIRED: True},
-    }
-
     _sami_data_sample_parameters = {
         # SAMI Type 4/5 sample (in this case it is a Type 4)
         Pco2wSamiSampleDataParticleKey.UNIQUE_ID:           {TYPE: int, VALUE: 0x54, REQUIRED: True},
@@ -333,7 +262,6 @@ class DriverTestMixinSub(DriverTestMixin):
         Pco2wDev1SampleDataParticleKey.CHECKSUM:         {TYPE: int, VALUE: 0xCE, REQUIRED: True}
     }
 
-    # [TODO] Several of these particles could come from a shared base class.
     _configuration_parameters = {
         # Configuration settings
         Pco2wConfigurationDataParticleKey.LAUNCH_TIME:                  {TYPE: int, VALUE: 0xCEE90B00, REQUIRED: True},
@@ -367,33 +295,21 @@ class DriverTestMixinSub(DriverTestMixin):
         Pco2wConfigurationDataParticleKey.SEND_LIVE_RECORDS:            {TYPE: bool, VALUE: True, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.EXTEND_GLOBAL_CONFIG:         {TYPE: bool, VALUE: False, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.PUMP_PULSE:                   {TYPE: int, VALUE: 0x10, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.PUMP_ON_TO_MEAURSURE:         {TYPE: int, VALUE: 0x20, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.SAMPLES_PER_MEASURE:          {TYPE: int, VALUE: 0xFF, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.PUMP_DURATION:                {TYPE: int, VALUE: 0x20, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.SAMPLES_PER_MEASUREMENT:      {TYPE: int, VALUE: 0xFF, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.CYCLES_BETWEEN_BLANKS:        {TYPE: int, VALUE: 0x54, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.NUM_REAGENT_CYCLES:           {TYPE: int, VALUE: 0x18, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.NUM_BLANK_CYCLES:             {TYPE: int, VALUE: 0x1C, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.NUMBER_REAGENT_CYCLES:        {TYPE: int, VALUE: 0x18, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.NUMBER_BLANK_CYCLES:          {TYPE: int, VALUE: 0x1C, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.FLUSH_PUMP_INTERVAL:          {TYPE: int, VALUE: 0x01,  REQUIRED: True},
         Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH:    {TYPE: bool, VALUE: False, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE:     {TYPE: bool, VALUE: False, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.CYCLE_RATE:                   {TYPE: int,  VALUE: 0x38, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTING:        {TYPE: int,  VALUE: 0x14, REQUIRED: True}
+        Pco2wConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES:     {TYPE: int,  VALUE: 0x38, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTINGS:       {TYPE: int,  VALUE: 0x14, REQUIRED: True}
     }
 
     ###
     #   Driver Parameter Methods
     ###
-    def assertSampleDataParticle(self, data_particle):
-        '''
-        Verify a particle is a known particle to this driver and verify the
-        particle is correct.
-        @param data_particle: Data particle of unknown type produced by the driver
-        '''
-        if (isinstance(data_particle, RawDataParticle)):
-            self.assert_particle_raw(data_particle)
-        else:
-            log.error("Unknown Particle Detected: %s" % data_particle)
-            self.assertFalse(True)
-
     def assert_driver_parameters(self, current_parameters, verify_values=False):
         """
         Verify that all driver parameters are correct and potentially verify
@@ -404,34 +320,6 @@ class DriverTestMixinSub(DriverTestMixin):
         """
         self.assert_parameters(current_parameters, self._driver_parameters,
                                verify_values)
-
-    def assert_particle_regular_status(self, data_particle, verify_values=False):
-        '''
-        Verify regular_status particle
-        @param data_particle: SamiRegularStatusDataParticle data particle
-        @param verify_values: bool, should we verify parameter values
-        '''
-        self.assert_data_particle_keys(SamiRegularStatusDataParticleKey,
-                                       self._regular_status_parameters)
-        self.assert_data_particle_header(data_particle,
-                                         DataParticleType.REGULAR_STATUS)
-        self.assert_data_particle_parameters(data_particle,
-                                             self._regular_status_parameters,
-                                             verify_values)
-
-    def assert_particle_control_record(self, data_particle, verify_values=False):
-        '''
-        Verify control_record particle
-        @param data_particle: SamiControlRecordDataParticle data particle
-        @param verify_values: bool, should we verify parameter values
-        '''
-        self.assert_data_particle_keys(SamiControlRecordDataParticleKey,
-                                       self._control_record_parameters)
-        self.assert_data_particle_header(data_particle,
-                                         DataParticleType.CONTROL_RECORD)
-        self.assert_data_particle_parameters(data_particle,
-                                             self._control_record_parameters,
-                                             verify_values)
 
     def assert_particle_sami_data_sample(self, data_particle, verify_values=False):
         '''
@@ -504,10 +392,7 @@ class DriverTestMixinSub(DriverTestMixin):
 #   driver process.                                                           #
 ###############################################################################
 @attr('UNIT', group='mi')
-class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
-
-    def setUp(self):
-        pass
+class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
 
     def test_driver_schema(self):
         """
@@ -522,15 +407,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         cause confusion. Also do a little extra validation for the Capabilites
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
-        self.assert_enum_has_no_duplicates(ProtocolState())
-        self.assert_enum_has_no_duplicates(ProtocolEvent())
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(InstrumentCommand())
-
-        # Test capabilites for duplicates, then verify that capabilities is a
-        # subset of proto events
-        self.assert_enum_has_no_duplicates(Capability())
-        self.assert_enum_complete(Capability(), ProtocolEvent())
 
     def test_chunker(self):
         """
@@ -618,26 +496,10 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         this dict must also be defined in the protocol FSM. Note, the EXIT and
         ENTER DRIVER_EVENTS don't need to be listed here.
         """
-        capabilities = {
-            ProtocolState.UNKNOWN:          ['DRIVER_EVENT_START_DIRECT',
-                                             'DRIVER_EVENT_DISCOVER'],
-            ProtocolState.WAITING:          ['DRIVER_EVENT_DISCOVER'],
-            ProtocolState.COMMAND:          ['DRIVER_EVENT_GET',
-                                             'DRIVER_EVENT_SET',
-                                             'DRIVER_EVENT_START_DIRECT',
-                                             'DRIVER_EVENT_ACQUIRE_STATUS',
-                                             'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                             'DRIVER_EVENT_START_AUTOSAMPLE'],
-            ProtocolState.AUTOSAMPLE:       ['DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                             'DRIVER_EVENT_STOP_AUTOSAMPLE'],
-            ProtocolState.DIRECT_ACCESS:    ['EXECUTE_DIRECT',
-                                             'DRIVER_EVENT_STOP_DIRECT'],
-            ProtocolState.SCHEDULED_SAMPLE: [],
-            ProtocolState.POLLED_SAMPLE:    []
-        }
+        # capabilities defined in base class test_driver.
 
         driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_capabilities(driver, capabilities)
+        self.assert_capabilities(driver, self.capabilities_test_dict)
 
 
 ###############################################################################
@@ -649,375 +511,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
 ###############################################################################
 @attr('INT', group='mi')
 class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
-
-    protocol_state = ''
-
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
-
-    def check_state(self, expected_state):
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, expected_state)
-
-    def assertParamDictionariesEqual(self, pd1, pd2, all_params=False):
-        """
-        Verify all device parameters exist and are correct type.
-        """
-        if all_params:
-            self.assertEqual(set(pd1.keys()), set(pd2.keys()))
-            for (key, type_val) in pd2.iteritems():
-                self.assertTrue(isinstance(pd1[key], type_val))
-        else:
-            for (key, val) in pd1.iteritems():
-                #self.assertTrue(pd2.has_key(key))
-                self.assertTrue(key in pd2)
-                self.assertTrue(isinstance(val, pd2[key]))
-
-    def put_driver_in_unconfigured_mode(self):
-        """
-        Wrap the steps and asserts for going into unconfigured state.
-        May be used in multiple test cases.
-        """
-        # Test that the driver protocol is in state connected.
-        self.check_state(ProtocolState.COMMAND)
-
-        # put driver in disconnected state.
-        self.driver_client.cmd_dvr('disconnect')
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Setup the protocol state machine and the connection to port agent.
-        self.driver_client.cmd_dvr('initialize')
-
-        # Test that the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-
-    def put_driver_in_command_mode(self):
-        """
-        Wrap the steps and asserts for going into command mode.
-        May be used in multiple test cases.
-        """
-        # Test that the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver and transition to disconnected.
-        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Setup the protocol state machine and the connection to port agent.
-        self.driver_client.cmd_dvr('connect')
-
-        # Test that the driver protocol is in state unknown.
-        self.check_state(ProtocolState.UNKNOWN)
-
-        # Discover what state the instrument is in and set the protocol state accordingly.
-        self.driver_client.cmd_dvr('discover_state')
-
-        # Test that the driver protocol is in state command.
-        self.check_state(ProtocolState.COMMAND)
-
-    #def test_instrument_set(self):
-    #    """
-    #    @brief Test for setting instrument parameter
-    #    """
-    #    self.put_driver_in_command_mode()
-    #
-    #    # Get all device parameters. Confirm all expected keys are retrieved
-    #    # and have correct type.
-    #    reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-    #    self.assertParamDictionariesEqual(reply, params_dict, True)
-    #
-    #    # Grab a subset of parameters.
-    #    params = [Parameter.LAUNCH_TIME]
-    #    reply = self.driver_client.cmd_dvr('get_resource', params)
-    #
-    #    # Remember the original subset.
-    #    orig_params = reply
-    #
-    #    # Construct new parameters to set.
-    #    sami_date_time = int(time.time()) + SAMI_EPOCH
-    #    log.debug('old=%d, new=%d' % (orig_params[Parameter.LAUNCH_TIME], sami_date_time))
-    #    new_params = {
-    #        Parameter.LAUNCH_TIME: sami_date_time
-    #    }
-    #
-    #    # Set parameter and verify.
-    #    reply = self.driver_client.cmd_dvr('set_resource', new_params)
-    #
-    #    reply = self.driver_client.cmd_dvr('get_resource', params)
-    #    self.assertEqual(new_params[Parameter.LAUNCH_TIME], reply[Parameter.LAUNCH_TIME])
-    #
-    #    # Reset parameter to original value and verify.
-    #    reply = self.driver_client.cmd_dvr('set_resource', orig_params)
-    #
-    #    reply = self.driver_client.cmd_dvr('get_resource', params)
-    #    self.assertEqual(orig_params[Parameter.LAUNCH_TIME], reply[Parameter.LAUNCH_TIME])
-    #
-    #def test_instrument_acquire_status(self):
-    #    """
-    #    @brief Test for reading battery voltage
-    #    """
-    #    self.put_driver_in_command_mode()
-    #
-    #    # command the instrument to read the battery voltage.
-    #    response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_BATTERY_VOLTAGE)
-    #
-    #    log.debug("read battery voltage returned: %s", response)
-    #    self.assertTrue(isinstance(response[1], int))
-    #
-    #def test_instrument_acquire_sample(self):
-    #    """
-    #    Test acquire sample command and events.
-    #    """
-    #
-    #    self.put_driver_in_command_mode()
-    #
-    #    # command the instrument to auto-sample mode.
-    #    self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
-    #
-    #    # wait for some samples to be generated
-    #    gevent.sleep(100)
-    #
-    #    # Verify we received at least 4 samples.
-    #    sample_events = [evt for evt in self.events if evt['type'] == DriverAsyncEvent.SAMPLE]
-    #    log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' % len(sample_events))
-    #    #log.debug('samples=%s' %sample_events)
-    #    self.assertTrue(len(sample_events) >= 4)
-    #
-    #def test_instrument_start_stop_autosample(self):
-    #    """
-    #    @brief Test for putting instrument in 'auto-sample' state
-    #    """
-    #    self.put_driver_in_command_mode()
-    #
-    #    # command the instrument to auto-sample mode.
-    #    self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
-    #
-    #    self.check_state(ProtocolState.AUTOSAMPLE)
-    #
-    #    # re-initialize the driver and re-discover instrument state (should be in autosample)
-    #    # Transition driver to disconnected.
-    #    self.driver_client.cmd_dvr('disconnect')
-    #
-    #    # Test the driver is disconnected.
-    #    self.check_state(DriverConnectionState.DISCONNECTED)
-    #
-    #    # Transition driver to unconfigured.
-    #    self.driver_client.cmd_dvr('initialize')
-    #
-    #    # Test the driver is unconfigured.
-    #    self.check_state(DriverConnectionState.UNCONFIGURED)
-    #
-    #    # Configure driver and transition to disconnected.
-    #    self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-    #
-    #    # Test that the driver is in state disconnected.
-    #    self.check_state(DriverConnectionState.DISCONNECTED)
-    #
-    #    # Setup the protocol state machine and the connection to port agent.
-    #    self.driver_client.cmd_dvr('connect')
-    #
-    #    # Test that the driver protocol is in state unknown.
-    #    self.check_state(ProtocolState.UNKNOWN)
-    #
-    #    # Discover what state the instrument is in and set the protocol state accordingly.
-    #    self.driver_client.cmd_dvr('discover_state')
-    #
-    #    self.check_state(ProtocolState.AUTOSAMPLE)
-    #
-    #    # wait for some samples to be generated
-    #    gevent.sleep(100)
-    #
-    #    # Verify we received at least 4 samples.
-    #    sample_events = [evt for evt in self.events if evt['type'] == DriverAsyncEvent.SAMPLE]
-    #    log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' % len(sample_events))
-    #    #log.debug('samples=%s' %sample_events)
-    #    self.assertTrue(len(sample_events) >= 4)
-    #
-    #    # stop autosample and return to command mode
-    #    self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-    #
-    #    self.check_state(ProtocolState.COMMAND)
-    #
-    #def test_capabilities(self):
-    #    """
-    #    Test get_resource_capaibilties in command state and autosample state;
-    #    should be different in each.
-    #    """
-    #    command_capabilities = ['DRIVER_EVENT_GET',
-    #                            'DRIVER_EVENT_SET',
-    #                            'DRIVER_EVENT_START_DIRECT',
-    #                            'DRIVER_EVENT_ACQUIRE_STATUS',
-    #                            'DRIVER_EVENT_ACQUIRE_SAMPLE',
-    #                            'DRIVER_EVENT_START_AUTOSAMPLE']
-    #
-    #    autosample_capabilities = ['DRIVER_EVENT_ACQUIRE_SAMPLE',
-    #                               'DRIVER_EVENT_STOP_AUTOSAMPLE']
-    #
-    #    params_list = [Parameter.TRANSMIT_PULSE_LENGTH,
-    #                   Parameter.BLANKING_DISTANCE,
-    #                   Parameter.RECEIVE_LENGTH,
-    #                   Parameter.TIME_BETWEEN_PINGS,
-    #                   Parameter.TIME_BETWEEN_BURST_SEQUENCES,
-    #                   Parameter.NUMBER_PINGS,
-    #                   Parameter.AVG_INTERVAL,
-    #                   Parameter.USER_NUMBER_BEAMS,
-    #                   Parameter.TIMING_CONTROL_REGISTER,
-    #                   Parameter.POWER_CONTROL_REGISTER,
-    #                   Parameter.COMPASS_UPDATE_RATE,
-    #                   Parameter.COORDINATE_SYSTEM,
-    #                   Parameter.NUMBER_BINS,
-    #                   Parameter.BIN_LENGTH,
-    #                   Parameter.MEASUREMENT_INTERVAL,
-    #                   Parameter.DEPLOYMENT_NAME,
-    #                   Parameter.WRAP_MODE,
-    #                   Parameter.CLOCK_DEPLOY,
-    #                   Parameter.DIAGNOSTIC_INTERVAL,
-    #                   Parameter.MODE,
-    #                   Parameter.ADJUSTMENT_SOUND_SPEED,
-    #                   Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
-    #                   Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
-    #                   Parameter.NUMBER_PINGS_DIAGNOSTIC,
-    #                   Parameter.MODE_TEST,
-    #                   Parameter.ANALOG_INPUT_ADDR,
-    #                   Parameter.SW_VERSION,
-    #                   Parameter.VELOCITY_ADJ_TABLE,
-    #                   Parameter.COMMENTS,
-    #                   Parameter.WAVE_MEASUREMENT_MODE,
-    #                   Parameter.DYN_PERCENTAGE_POSITION,
-    #                   Parameter.WAVE_TRANSMIT_PULSE,
-    #                   Parameter.WAVE_BLANKING_DISTANCE,
-    #                   Parameter.WAVE_CELL_SIZE,
-    #                   Parameter.NUMBER_DIAG_SAMPLES,
-    #                   Parameter.ANALOG_OUTPUT_SCALE,
-    #                   Parameter.CORRELATION_THRESHOLD,
-    #                   Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
-    #                   Parameter.QUAL_CONSTANTS,
-    #                   ]
-    #
-    #    self.put_driver_in_command_mode()
-    #
-    #    # Get the capabilities of the driver.
-    #    driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
-    #    log.debug("\nec=%s\ndc=%s" % (sorted(command_capabilities), sorted(driver_capabilities[0])))
-    #    self.assertTrue(sorted(command_capabilities) == sorted(driver_capabilities[0]))
-    #    self.assertTrue(sorted(params_list) == sorted(driver_capabilities[1]))
-    #
-    #    # Put the driver in autosample
-    #    self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
-    #    self.check_state(ProtocolState.AUTOSAMPLE)
-    #
-    #    # Get the capabilities of the driver.
-    #    driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
-    #    log.debug('test_capabilities: autosample mode capabilities=%s' % driver_capabilities)
-    #    self.assertTrue(autosample_capabilities == driver_capabilities[0])
-    #
-    #def test_errors(self):
-    #    """
-    #    Test response to erroneous commands and parameters.
-    #    """
-    #    # Test that the driver is in state unconfigured.
-    #    self.check_state(DriverConnectionState.UNCONFIGURED)
-    #
-    #    # Assert for an unknown driver command.
-    #    with self.assertRaises(InstrumentCommandException):
-    #        self.driver_client.cmd_dvr('bogus_command')
-    #
-    #    # Assert for a known command, invalid state.
-    #    with self.assertRaises(InstrumentStateException):
-    #        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
-    #
-    #    # Assert we forgot the comms parameter.
-    #    with self.assertRaises(InstrumentParameterException):
-    #        self.driver_client.cmd_dvr('configure')
-    #
-    #    # Assert we send a bad config object (not a dict).
-    #    with self.assertRaises(InstrumentParameterException):
-    #        BOGUS_CONFIG = 'not a config dict'
-    #        self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
-    #
-    #    # Assert we send a bad config object (missing addr value).
-    #    with self.assertRaises(InstrumentParameterException):
-    #        BOGUS_CONFIG = self.port_agent_comm_config().copy()
-    #        BOGUS_CONFIG.pop('addr')
-    #        self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
-    #
-    #    # Assert we send a bad config object (bad addr value).
-    #    with self.assertRaises(InstrumentParameterException):
-    #        BOGUS_CONFIG = self.port_agent_comm_config().copy()
-    #        BOGUS_CONFIG['addr'] = ''
-    #        self.driver_client.cmd_dvr('configure', BOGUS_CONFIG)
-    #
-    #    # Configure driver and transition to disconnected.
-    #    self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-    #
-    #    # Test that the driver is in state disconnected.
-    #    self.check_state(DriverConnectionState.DISCONNECTED)
-    #
-    #    # Assert for a known command, invalid state.
-    #    with self.assertRaises(InstrumentStateException):
-    #        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
-    #
-    #    self.driver_client.cmd_dvr('connect')
-    #
-    #    # Test the driver is in unknown state.
-    #    self.check_state(ProtocolState.UNKNOWN)
-    #
-    #    # Assert for a known command, invalid state.
-    #    with self.assertRaises(InstrumentStateException):
-    #        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
-    #
-    #    self.driver_client.cmd_dvr('discover_state')
-    #
-    #    try:
-    #        # Test that the driver protocol is in state command.
-    #        self.check_state(ProtocolState.COMMAND)
-    #    except:
-    #        self.assertEqual(self.protocol_state, ProtocolState.AUTOSAMPLE)
-    #        # Put the driver in command mode
-    #        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-    #        # Test that the driver protocol is in state command.
-    #        self.check_state(ProtocolState.COMMAND)
-    #
-    #    # Assert for a known command, invalid state.
-    #    with self.assertRaises(InstrumentStateException):
-    #        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-    #
-    #    # Assert for a known command, invalid state.
-    #    with self.assertRaises(InstrumentStateException):
-    #        self.driver_client.cmd_dvr('connect')
-    #
-    #    # Assert get fails without a parameter.
-    #    with self.assertRaises(InstrumentParameterException):
-    #        self.driver_client.cmd_dvr('get_resource')
-    #
-    #    # Assert get fails with a bad parameter (not ALL or a list).
-    #    with self.assertRaises(InstrumentParameterException):
-    #        bogus_params = 'I am a bogus param list.'
-    #        self.driver_client.cmd_dvr('get_resource', bogus_params)
-    #
-    #    # Assert get fails with a bad parameter (not ALL or a list).
-    #    with self.assertRaises(InstrumentParameterException):
-    #        bogus_params = ['a bogus parameter name',
-    #                        Parameter.ADJUSTMENT_SOUND_SPEED]
-    #        self.driver_client.cmd_dvr('get_resource', bogus_params)
-    #
-    #    # Assert we cannot set a bogus parameter.
-    #    with self.assertRaises(InstrumentParameterException):
-    #        bogus_params = {
-    #            'a bogus parameter name': 'bogus value'
-    #        }
-    #        self.driver_client.cmd_dvr('set_resource', bogus_params)
-    #
-    #    # Assert we cannot set a real parameter to a bogus value.
-    #    with self.assertRaises(InstrumentParameterException):
-    #        bogus_params = {
-    #            Parameter.ADJUSTMENT_SOUND_SPEED: 'bogus value'
-    #        }
-    #        self.driver_client.cmd_dvr('set_resource', bogus_params)
 
 
 ###############################################################################

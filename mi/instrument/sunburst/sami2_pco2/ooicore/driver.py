@@ -5,7 +5,7 @@
 @brief Driver for the Sunburst Sensors, SAMI2-PCO2 (PCO2W)
 Release notes:
     Sunburst Sensors SAMI2-PCO2 pCO2 underwater sensor.
-    Derived from initial code developed by Chris Center
+    Derived from initial code developed by Chris Center,
     and merged with a base class covering both the PCO2W
     and PHSEN instrument classes.
 """
@@ -20,21 +20,14 @@ log = get_logger()
 
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentProtocolException
-#from mi.core.exceptions import InstrumentParameterException
 
 from mi.core.common import BaseEnum
-#from mi.core.instrument.instrument_driver import DriverEvent
-#from mi.core.instrument.instrument_driver import DriverAsyncEvent
-#from mi.core.instrument.instrument_driver import DriverProtocolState
-#from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
-#from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-#from mi.core.instrument.protocol_param_dict import FunctionParameter
 from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import ProtocolState
 from mi.instrument.sunburst.driver import ProtocolEvent
@@ -42,25 +35,18 @@ from mi.instrument.sunburst.driver import Capability
 from mi.instrument.sunburst.driver import SamiParameter
 from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import SamiInstrumentCommand
-# NOTE: These may not need to be imported [start]
-from mi.instrument.sunburst.driver import SamiRegularStatusDataParticleKey
-from mi.instrument.sunburst.driver import SamiControlRecordDataParticleKey
-# [/stop]
 from mi.instrument.sunburst.driver import SamiRegularStatusDataParticle
+from mi.instrument.sunburst.driver import SamiRegularStatusDataParticleKey
 from mi.instrument.sunburst.driver import SamiControlRecordDataParticle
+from mi.instrument.sunburst.driver import SamiControlRecordDataParticleKey
 from mi.instrument.sunburst.driver import SamiConfigDataParticleKey
 from mi.instrument.sunburst.driver import SamiInstrumentDriver
 from mi.instrument.sunburst.driver import SamiProtocol
 from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX_MATCHER
 from mi.instrument.sunburst.driver import CONTROL_RECORD_REGEX_MATCHER
 from mi.instrument.sunburst.driver import ERROR_REGEX_MATCHER
-# newline.
 from mi.instrument.sunburst.driver import NEWLINE
-
-# default timeout.
 from mi.instrument.sunburst.driver import TIMEOUT
-
-# Epoch conversions (SAMI epoch Jan. 1, 1904) see sunburst driver for usage
 from mi.instrument.sunburst.driver import SAMI_TO_UNIX
 from mi.instrument.sunburst.driver import SAMI_TO_NTP
 
@@ -68,9 +54,15 @@ from mi.instrument.sunburst.driver import SAMI_TO_NTP
 #    Driver Constant Definitions
 ###
 
-###############################################################################
-# Data Particles
-###############################################################################
+# Imported from base class
+
+###
+#    Driver RegEx Definitions
+###
+
+# Mostly defined in base class with these additional, instrument specfic
+# additions
+
 # SAMI Sample Records (Types 0x04 or 0x05)
 SAMI_SAMPLE_REGEX = (
     r'[\*]' +  # record identifier
@@ -98,266 +90,81 @@ DEV1_SAMPLE_REGEX_MATCHER = re.compile(DEV1_SAMPLE_REGEX)
 
 # PCO2W Configuration Record
 CONFIGURATION_REGEX = (
-    r'([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})([0-9A-Fa-f]{8})' + \
-    '([0-9A-Fa-f]{2})' + \
-    '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-    '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-    '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-    '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-    '([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-    '([0-9A-Fa-f]{2})' + \
-    '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-    '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-    '([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})([0-9A-Fa-f]{2})' + \
-    '([0-9A-Fa-f]{2})' + \
-    '([0-9A-Fa-f]{414})' + NEWLINE)
+    r'([0-9A-Fa-f]{8})' +  # Launch time timestamp (seconds since 1904)
+    '([0-9A-Fa-f]{8})' +  # start time (seconds from launch time)
+    '([0-9A-Fa-f]{8})' +  # stop time (seconds from start time)
+    '([0-9A-Fa-f]{2})' +  # mode bit field
+    '([0-9A-Fa-f]{6})' +  # Sami sampling interval (seconds)
+    '([0-9A-Fa-f]{2})' +  # Sami driver type (0A)
+    '([0-9A-Fa-f]{2})' +  # Pointer to Sami ph config parameters
+    '([0-9A-Fa-f]{6})' +  # Device 1 interval
+    '([0-9A-Fa-f]{2})' +  # Device 1 driver type
+    '([0-9A-Fa-f]{2})' +  # Device 1 pointer to config params
+    '([0-9A-Fa-f]{6})' +  # Device 2 interval
+    '([0-9A-Fa-f]{2})' +  # Device 2 driver type
+    '([0-9A-Fa-f]{2})' +  # Device 2 pointer to config params
+    '([0-9A-Fa-f]{6})' +  # Device 3 interval
+    '([0-9A-Fa-f]{2})' +  # Device 3 driver type
+    '([0-9A-Fa-f]{2})' +  # Device 3 pointer to config params
+    '([0-9A-Fa-f]{6})' +  # Prestart interval
+    '([0-9A-Fa-f]{2})' +  # Prestart driver type
+    '([0-9A-Fa-f]{2})' +  # Prestart pointer to config params
+    '([0-9A-Fa-f]{2})' +  # Global config bit field
+    '([0-9A-Fa-f]{2})' +  # pCO2-1: pump pulse duration
+    '([0-9A-Fa-f]{2})' +  # pCO2-2: pump measurement duration
+    '([0-9A-Fa-f]{2})' +  # pCO2-3: # samples per measurement
+    '([0-9A-Fa-f]{2})' +  # pCO2-4: cycles between blanks
+    '([0-9A-Fa-f]{2})' +  # pCO2-5: reagent cycles
+    '([0-9A-Fa-f]{2})' +  # pCO2-6: blank cycles
+    '([0-9A-Fa-f]{2})' +  # pCO2-7: flush pump interval
+    '([0-9A-Fa-f]{2})' +  # pCO2-8: bit switches
+    '([0-9A-Fa-f]{2})' +  # pCO2-9: extra pumps + cycle interval
+    '([0-9A-Fa-f]{2})' +  # Device 1 (external pump) setting
+    '([0-9A-Fa-f]{414})' +  # padding of 0's and then F's
+    NEWLINE)
 CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 
-# [TODO: This needs to be moved to the baseclass]
-class SamiRegularStatusDataParticleKey(BaseEnum):
+
+###
+#    Begin Classes
+###
+class DataParticleType(SamiDataParticleType):
     """
-    Data particle key for the regular (1 Hz or polled) status messages.
+    Data particle types produced by this driver
     """
-    ELAPSED_TIME_CONFIG = "elapsed_time_config"
-    CLOCK_ACTIVE = 'clock_active'
-    RECORDING_ACTIVE = 'recording_active'
-    RECORD_END_ON_TIME = 'record_end_on_time'
-    RECORD_MEMORY_FULL = 'record_memory_full'
-    RECORD_END_ON_ERROR = 'record_end_on_error'
-    DATA_DOWNLOAD_OK = 'data_download_ok'
-    FLASH_MEMORY_OPEN = 'flash_memory_open'
-    BATTERY_LOW_PRESTART = 'battery_low_prestart'
-    BATTERY_LOW_MEASUREMENT = 'battery_low_measurement'
-    BATTERY_LOW_BANK = 'battery_low_bank'
-    BATTERY_LOW_EXTERNAL = 'battery_low_external'
-    EXTERNAL_DEVICE1_FAULT = 'external_device1_fault'
-    EXTERNAL_DEVICE2_FAULT = 'external_device2_fault'
-    EXTERNAL_DEVICE3_FAULT = 'external_device3_fault'
-    FLASH_ERASED = 'flash_erased'
-    POWER_ON_INVALID = 'power_on_invalid'
-    NUM_DATA_RECORDS = 'num_data_records'
-    NUM_ERROR_RECORDS = 'num_error_records'
-    NUM_BYTES_STORED = 'num_bytes_stored'
-    CHECKSUM = 'checksum'
+    # PCO2W driver extends the base class (SamiDataParticleType) with:
+    DEV1_SAMPLE = 'dev1_sample'
 
 
-# [TODO: This needs to be moved to the baseclass]
-class SamiRegularStatusDataParticle(DataParticle):
+class Parameter(SamiParameter):
     """
-    Routines for parsing raw data into an regular status data particle
-    structure.
-    @throw SampleException If there is a problem with sample creation
+    Device specific parameters.
     """
-    _data_particle_type = DataParticleType.REGULAR_STATUS
-
-    def _build_parsed_values(self):
-        """
-        Parses regular status messages into a dictionary.
-        """
-
-        ### Regular Status Messages
-        # Produced in response to S0 command, or automatically at 1 Hz. All
-        # regular status messages are preceeded by the ':' character and
-        # terminate with a '/r'. Sample string:
-        #
-        #   :CEE90B1B004100000100000000021254
-        #
-        # These messages consist of the time since the last configuration,
-        # status flags, the number of data records, the number of error
-        # records, the number of bytes stored (including configuration bytes),
-        # and a checksum.
-        ###
-
-        matched = REGULAR_STATUS_REGEX_MATCHER.match(self.raw_data)
-        if not matched:
-            raise SampleException("No regex match of parsed sample data: [%s]" %
-                                  self.decoded_raw)
-
-        particle_keys = [SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG,
-                         SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
-                         SamiRegularStatusDataParticleKey.RECORDING_ACTIVE,
-                         SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME,
-                         SamiRegularStatusDataParticleKey.RECORD_MEMORY_FULL,
-                         SamiRegularStatusDataParticleKey.RECORD_END_ON_ERROR,
-                         SamiRegularStatusDataParticleKey.DATA_DOWNLOAD_OK,
-                         SamiRegularStatusDataParticleKey.FLASH_MEMORY_OPEN,
-                         SamiRegularStatusDataParticleKey.BATTERY_LOW_PRESTART,
-                         SamiRegularStatusDataParticleKey.BATTERY_LOW_MEASUREMENT,
-                         SamiRegularStatusDataParticleKey.BATTERY_LOW_BANK,
-                         SamiRegularStatusDataParticleKey.BATTERY_LOW_EXTERNAL,
-                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE1_FAULT,
-                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE2_FAULT,
-                         SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT,
-                         SamiRegularStatusDataParticleKey.FLASH_ERASED,
-                         SamiRegularStatusDataParticleKey.POWER_ON_INVALID,
-                         SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS,
-                         SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS,
-                         SamiRegularStatusDataParticleKey.NUM_BYTES_STORED,
-                         SamiRegularStatusDataParticleKey.CHECKSUM]
-
-        result = []
-        grp_index = 1   # used to index through match groups, starting at 1
-        bit_index = 0   # used to index through the bit fields represented by
-                        # the two bytes after CLOCK_ACTIVE.
-
-        for key in particle_keys:
-            if key in [SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
-                       SamiRegularStatusDataParticleKey.RECORDING_ACTIVE,
-                       SamiRegularStatusDataParticleKey.RECORD_END_ON_TIME,
-                       SamiRegularStatusDataParticleKey.RECORD_MEMORY_FULL,
-                       SamiRegularStatusDataParticleKey.RECORD_END_ON_ERROR,
-                       SamiRegularStatusDataParticleKey.DATA_DOWNLOAD_OK,
-                       SamiRegularStatusDataParticleKey.FLASH_MEMORY_OPEN,
-                       SamiRegularStatusDataParticleKey.BATTERY_LOW_PRESTART,
-                       SamiRegularStatusDataParticleKey.BATTERY_LOW_MEASUREMENT,
-                       SamiRegularStatusDataParticleKey.BATTERY_LOW_BANK,
-                       SamiRegularStatusDataParticleKey.BATTERY_LOW_EXTERNAL,
-                       SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE1_FAULT,
-                       SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE2_FAULT,
-                       SamiRegularStatusDataParticleKey.EXTERNAL_DEVICE3_FAULT,
-                       SamiRegularStatusDataParticleKey.FLASH_ERASED,
-                       SamiRegularStatusDataParticleKey.POWER_ON_INVALID]:
-                # if the keys match values represented by the bits in the two
-                # byte status flags value, parse bit-by-bit using the bit-shift
-                # operator to determine the boolean value.
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: bool(int(matched.group(2), 16) & (1 << bit_index))})
-                bit_index += 1  # bump the bit index
-                grp_index = 3   # set the right group index for when we leave this part of the loop.
-            else:
-                # otherwise all values in the string are parsed to integers
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
-                grp_index += 1
-
-        return result
+    # PCO2W driver extends the base class (SamiParameter) with:
+    PUMP_PULSE = 'pump_pulse'
+    PUMP_DURATION = 'pump_duration'
+    SAMPLES_PER_MEASUREMENT = 'samples_per_measurement'
+    CYCLES_BETWEEN_BLANKS = 'cycles_between_blanks'
+    NUMBER_REAGENT_CYCLES = 'number_reagent_cycles'
+    NUMBER_BLANK_CYCLES = 'number_blank_cycles'
+    FLUSH_PUMP_INTERVAL = 'flush_pump_interval'
+    BIT_SWITCHES = 'bit_switches'
+    NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
+    EXTERNAL_PUMP_SETTINGS = 'external_pump_setting'
 
 
-# [TODO: This needs to be moved to the baseclass]
-class SamiControlRecordDataParticleKey(BaseEnum):
+class InstrumentCommand(SamiInstrumentCommand):
     """
-    Data particle key for peridoically produced control records.
+    Device specfic Instrument command strings. Extends superclass
+    SamiInstrumentCommand
     """
-    UNIQUE_ID = 'unique_id'
-    RECORD_LENGTH = 'record_length'
-    RECORD_TYPE = 'record_type'
-    RECORD_TIME = 'record_time'
-    CLOCK_ACTIVE = 'clock_active'
-    RECORDING_ACTIVE = 'recording_active'
-    RECORD_END_ON_TIME = 'record_end_on_time'
-    RECORD_MEMORY_FULL = 'record_memory_full'
-    RECORD_END_ON_ERROR = 'record_end_on_error'
-    DATA_DOWNLOAD_OK = 'data_download_ok'
-    FLASH_MEMORY_OPEN = 'flash_memory_open'
-    BATTERY_LOW_PRESTART = 'battery_low_prestart'
-    BATTERY_LOW_MEASUREMENT = 'battery_low_measurement'
-    BATTERY_LOW_BANK = 'battery_low_bank'
-    BATTERY_LOW_EXTERNAL = 'battery_low_external'
-    EXTERNAL_DEVICE1_FAULT = 'external_device1_fault'
-    EXTERNAL_DEVICE2_FAULT = 'external_device2_fault'
-    EXTERNAL_DEVICE3_FAULT = 'external_device3_fault'
-    FLASH_ERASED = 'flash_erased'
-    POWER_ON_INVALID = 'power_on_invalid'
-    NUM_DATA_RECORDS = 'num_data_records'
-    NUM_ERROR_RECORDS = 'num_error_records'
-    NUM_BYTES_STORED = 'num_bytes_stored'
-    CHECKSUM = 'checksum'
+    # PCO2W driver extends the base class (SamiInstrumentCommand) with:
+    ACQUIRE_SAMPLE_DEV1 = 'R1'
 
 
-# [TODO: This needs to be moved to the baseclass]
-class SamiControlRecordDataParticle(DataParticle):
-    """
-    Routines for parsing raw data into a control record data particle
-    structure.
-    @throw SampleException If there is a problem with sample creation
-    """
-    _data_particle_type = DataParticleType.CONTROL_RECORD
-
-    def _build_parsed_values(self):
-        """
-        Parse the values from control records from raw data into a dictionary
-        """
-
-        ### Control Records
-        # Produced by the instrument periodically in reponse to certain events
-        # (e.g. when the Flash memory is opened). The messages are preceded by
-        # a '*' character and terminated with a '\r'. Sample string:
-        #
-        #   *541280CEE90B170041000001000000000200AF
-        #
-        # A full description of the control record strings can be found in the
-        # vendor supplied SAMI Record Format document.
-        ###
-
-        matched = CONTROL_RECORD_REGEX_MATCHER.match(self.raw_data)
-        if not matched:
-            raise SampleException("No regex match of parsed sample data: [%s]" %
-                                  self.decoded_raw)
-
-        particle_keys = [SamiControlRecordDataParticleKey.UNIQUE_ID,
-                         SamiControlRecordDataParticleKey.RECORD_LENGTH,
-                         SamiControlRecordDataParticleKey.RECORD_TYPE,
-                         SamiControlRecordDataParticleKey.RECORD_TIME,
-                         SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
-                         SamiControlRecordDataParticleKey.RECORDING_ACTIVE,
-                         SamiControlRecordDataParticleKey.RECORD_END_ON_TIME,
-                         SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL,
-                         SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR,
-                         SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK,
-                         SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN,
-                         SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART,
-                         SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT,
-                         SamiControlRecordDataParticleKey.BATTERY_LOW_BANK,
-                         SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL,
-                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT,
-                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT,
-                         SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT,
-                         SamiControlRecordDataParticleKey.FLASH_ERASED,
-                         SamiControlRecordDataParticleKey.POWER_ON_INVALID,
-                         SamiControlRecordDataParticleKey.NUM_DATA_RECORDS,
-                         SamiControlRecordDataParticleKey.NUM_ERROR_RECORDS,
-                         SamiControlRecordDataParticleKey.NUM_BYTES_STORED,
-                         SamiControlRecordDataParticleKey.CHECKSUM]
-
-        result = []
-        grp_index = 1   # used to index through match groups, starting at 1
-        bit_index = 0   # used to index through the bit fields represented by
-                        # the two bytes after CLOCK_ACTIVE.
-
-        for key in particle_keys:
-            if key in [SamiControlRecordDataParticleKey.CLOCK_ACTIVE,
-                       SamiControlRecordDataParticleKey.RECORDING_ACTIVE,
-                       SamiControlRecordDataParticleKey.RECORD_END_ON_TIME,
-                       SamiControlRecordDataParticleKey.RECORD_MEMORY_FULL,
-                       SamiControlRecordDataParticleKey.RECORD_END_ON_ERROR,
-                       SamiControlRecordDataParticleKey.DATA_DOWNLOAD_OK,
-                       SamiControlRecordDataParticleKey.FLASH_MEMORY_OPEN,
-                       SamiControlRecordDataParticleKey.BATTERY_LOW_PRESTART,
-                       SamiControlRecordDataParticleKey.BATTERY_LOW_MEASUREMENT,
-                       SamiControlRecordDataParticleKey.BATTERY_LOW_BANK,
-                       SamiControlRecordDataParticleKey.BATTERY_LOW_EXTERNAL,
-                       SamiControlRecordDataParticleKey.EXTERNAL_DEVICE1_FAULT,
-                       SamiControlRecordDataParticleKey.EXTERNAL_DEVICE2_FAULT,
-                       SamiControlRecordDataParticleKey.EXTERNAL_DEVICE3_FAULT,
-                       SamiControlRecordDataParticleKey.FLASH_ERASED,
-                       SamiControlRecordDataParticleKey.POWER_ON_INVALID]:
-                # if the keys match values represented by the bits in the two
-                # byte status flags value included in all control records,
-                # parse bit-by-bit using the bit-shift operator to determine
-                # boolean value.
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: bool(int(matched.group(5), 16) & (1 << bit_index))})
-                bit_index += 1  # bump the bit index
-                grp_index = 6   # set the right group index for when we leave this part of the loop.
-            else:
-                # otherwise all values in the string are parsed to integers
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
-                grp_index += 1
-
-        return result
-
-
+###############################################################################
+# Data Particles
+###############################################################################
 class Pco2wSamiSampleDataParticleKey(BaseEnum):
     """
     Data particle key for the SAMI2-PCO2 records. These particles
@@ -490,51 +297,21 @@ class Pco2wDev1SampleDataParticle(DataParticle):
         return result
 
 
-class Pco2wConfigurationDataParticleKey(BaseEnum):
+class Pco2wConfigurationDataParticleKey(SamiConfigDataParticleKey):
     """
     Data particle key for the configuration record.
     """
-    LAUNCH_TIME = 'launch_time'
-    START_TIME_OFFSET = 'start_time_offset'
-    RECORDING_TIME = 'recording_time'
-    PMI_SAMPLE_SCHEDULE = 'pmi_sample_schedule'
-    SAMI_SAMPLE_SCHEDULE = 'sami_sample_schedule'
-    SLOT1_FOLLOWS_SAMI_SCHEDULE = 'slot1_follows_sami_schedule'
-    SLOT1_INDEPENDENT_SCHEDULE = 'slot1_independent_schedule'
-    SLOT2_FOLLOWS_SAMI_SCHEDULE = 'slot2_follows_sami_schedule'
-    SLOT2_INDEPENDENT_SCHEDULE = 'slot2_independent_schedule'
-    SLOT3_FOLLOWS_SAMI_SCHEDULE = 'slot3_follows_sami_schedule'
-    SLOT3_INDEPENDENT_SCHEDULE = 'slot3_independent_schedule'
-    TIMER_INTERVAL_SAMI = 'timer_interval_sami'
-    DRIVER_ID_SAMI = 'driver_id_sami'
-    PARAMETER_POINTER_SAMI = 'parameter_pointer_sami'
-    TIMER_INTERVAL_DEVICE1 = 'timer_interval_device1'
-    DRIVER_ID_DEVICE1 = 'driver_id_device1'
-    PARAMETER_POINTER_DEVICE1 = 'parameter_pointer_device1'
-    TIMER_INTERVAL_DEVICE2 = 'timer_interval_device2'
-    DRIVER_ID_DEVICE2 = 'driver_id_device2'
-    PARAMETER_POINTER_DEVICE2 = 'parameter_pointer_device2'
-    TIMER_INTERVAL_DEVICE3 = 'timer_interval_device3'
-    DRIVER_ID_DEVICE3 = 'driver_id_device3'
-    PARAMETER_POINTER_DEVICE3 = 'parameter_pointer_device3'
-    TIMER_INTERVAL_PRESTART = 'timer_interval_prestart'
-    DRIVER_ID_PRESTART = 'driver_id_prestart'
-    PARAMETER_POINTER_PRESTART = 'parameter_pointer_prestart'
-    USE_BAUD_RATE_57600 = 'use_baud_rate_57600'
-    SEND_RECORD_TYPE = 'send_record_type'
-    SEND_LIVE_RECORDS = 'send_live_records'
-    EXTEND_GLOBAL_CONFIG = 'extend_global_config'
     PUMP_PULSE = 'pump_pulse'
-    PUMP_ON_TO_MEAURSURE = 'pump_on_to_meaursure'
-    SAMPLES_PER_MEASURE = 'samples_per_measure'
+    PUMP_DURATION = 'pump_duration'
+    SAMPLES_PER_MEASUREMENT = 'samples_per_measurement'
     CYCLES_BETWEEN_BLANKS = 'cycles_between_blanks'
-    NUM_REAGENT_CYCLES = 'num_reagent_cycles'
-    NUM_BLANK_CYCLES = 'num_blank_cycles'
+    NUMBER_REAGENT_CYCLES = 'number_reagent_cycles'
+    NUMBER_BLANK_CYCLES = 'number_blank_cycles'
     FLUSH_PUMP_INTERVAL = 'flush_pump_interval'
     DISABLE_START_BLANK_FLUSH = 'disable_start_blank_flush'
     MEASURE_AFTER_PUMP_PULSE = 'measure_after_pump_pulse'
-    CYCLE_RATE = 'cycle_rate'
-    EXTERNAL_PUMP_SETTING = 'external_pump_setting'
+    NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
+    EXTERNAL_PUMP_SETTINGS = 'external_pump_setting'
 
 
 class Pco2wConfigurationDataParticle(DataParticle):
@@ -605,16 +382,16 @@ class Pco2wConfigurationDataParticle(DataParticle):
                          Pco2wConfigurationDataParticleKey.SEND_LIVE_RECORDS,
                          Pco2wConfigurationDataParticleKey.EXTEND_GLOBAL_CONFIG,
                          Pco2wConfigurationDataParticleKey.PUMP_PULSE,
-                         Pco2wConfigurationDataParticleKey.PUMP_ON_TO_MEAURSURE,
-                         Pco2wConfigurationDataParticleKey.SAMPLES_PER_MEASURE,
+                         Pco2wConfigurationDataParticleKey.PUMP_DURATION,
+                         Pco2wConfigurationDataParticleKey.SAMPLES_PER_MEASUREMENT,
                          Pco2wConfigurationDataParticleKey.CYCLES_BETWEEN_BLANKS,
-                         Pco2wConfigurationDataParticleKey.NUM_REAGENT_CYCLES,
-                         Pco2wConfigurationDataParticleKey.NUM_BLANK_CYCLES,
+                         Pco2wConfigurationDataParticleKey.NUMBER_REAGENT_CYCLES,
+                         Pco2wConfigurationDataParticleKey.NUMBER_BLANK_CYCLES,
                          Pco2wConfigurationDataParticleKey.FLUSH_PUMP_INTERVAL,
                          Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH,
                          Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE,
-                         Pco2wConfigurationDataParticleKey.CYCLE_RATE,
-                         Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTING]
+                         Pco2wConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES,
+                         Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTINGS]
 
         result = []
         grp_index = 1   # used to index through match groups, starting at 1
@@ -672,20 +449,12 @@ class Pco2wConfigurationDataParticle(DataParticle):
 ###############################################################################
 # Driver
 ###############################################################################
-class InstrumentDriver(SingleConnectionInstrumentDriver):
+class InstrumentDriver(SamiInstrumentDriver):
     """
-    InstrumentDriver subclass
-    Subclasses SingleConnectionInstrumentDriver with connection state
-    machine.
+    InstrumentDriver subclass.
+    Subclasses SamiInstrumentDriver and SingleConnectionInstrumentDriver with
+    connection state machine.
     """
-    def __init__(self, evt_callback):
-        """
-        Driver constructor.
-        @param evt_callback Driver process event callback.
-        """
-        #Construct superclass.
-        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-
     ########################################################################
     # Superclass overrides for resource query.
     ########################################################################
@@ -710,7 +479,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 ###########################################################################
 # Protocol
 ###########################################################################
-class Protocol(CommandResponseInstrumentProtocol):
+class Protocol(SamiProtocol):
     """
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
@@ -723,112 +492,44 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param driver_event Driver process event callback.
         """
         # Construct protocol superclass.
-        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+        SamiProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
-        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
-                                           ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
-        # Add event handlers for the protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER,
-                                       self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT,
-                                       self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER,
-                                       self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT,
-                                       self._handler_command_start_direct)
-
-        self._protocol_fsm.add_handler(ProtocolState.WAITING, ProtocolEvent.ENTER,
-                                       self._handler_waiting_enter)
-        self._protocol_fsm.add_handler(ProtocolState.WAITING, ProtocolEvent.EXIT,
-                                       self._handler_waiting_exit)
-        self._protocol_fsm.add_handler(ProtocolState.WAITING, ProtocolEvent.DISCOVER,
-                                       self._handler_waiting_discover)
-
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER,
-                                       self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT,
-                                       self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET,
-                                       self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET,
-                                       self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,
-                                       self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,
-                                       self._handler_command_acquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,
-                                       self._handler_command_acquire_sample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
-                                       self._handler_command_start_autosample)
-
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,
-                                       self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,
-                                       self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT,
-                                       self._handler_direct_access_stop_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT,
-                                       self._handler_direct_access_execute_direct)
-
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER,
-                                       self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT,
-                                       self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
-                                       self._handler_autosample_stop)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE,
-                                       self._handler_autosample_acquire_sample)
+        ###
+        # most of these are defined in the base class with exception of handlers
+        # defined below that differ for the two instruments (what defines
+        # success and the timeout duration)
+        ###
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
         # while in the AUTOSAMPLE state and will last anywhere from a few
         # seconds to ~12 minutes depending on instrument and the type of
         # sampling.
-        self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.ENTER,
-                                       self._handler_scheduled_sample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.EXIT,
-                                       self._handler_scheduled_sample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
+                                       self._handler_sample_success)
+        self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
+                                       self._handler_sample_timeout)
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
         # while in either the COMMAND state (or via the discover transition
         # from the UNKNOWN state with the instrument unresponsive) and will
         # last anywhere from a few seconds to 3 minutes depending on instrument
         # and sample type.
-        self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.ENTER,
-                                       self._handler_polled_sample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.EXIT,
-                                       self._handler_polled_sample_exit)
-
-        # Construct the parameter dictionary containing device parameters,
-        # current parameter values, and set formatting functions. Add the
-        # command and driver dictionaries.
-        self._build_param_dict()
-        self._build_command_dict()
-        self._build_driver_dict()
+        self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
+                                       self._handler_sample_success)
+        self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
+                                       self._handler_sample_timeout)
 
         # Add build handlers for device commands.
-        self._add_build_handler(InstrumentCommand.GET_STATUS, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.START_STATUS, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.STOP_STATUS, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.GET_CONFIG, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.SET_CONFIG, self._build_set_config)
-        self._add_build_handler(InstrumentCommand.ERASE_ALL, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.START, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.STOP, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_sample_sami)
+        ### primarily defined in base class
         self._add_build_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_sample_dev1)
-        self._add_build_handler(InstrumentCommand.ESCAPE_BOOT, self._build_escape_boot)
 
         # Add response handlers for device commands.
-        self._add_response_handler(InstrumentCommand.GET_STATUS, self._build_response_get_status)
-        self._add_response_handler(InstrumentCommand.GET_CONFIG, self._build_response_get_config)
-        self._add_response_handler(InstrumentCommand.SET_CONFIG, self._build_response_set_config)
-        self._add_response_handler(InstrumentCommand.ERASE_ALL, self._build_response_erase_all)
-        self._add_response_handler(InstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_response_sample_sami)
+        ### primarily defined in base class
         self._add_response_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_response_sample_dev1)
 
-        # Add sample handlers.
+        # Add sample handlers
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -836,7 +537,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # commands sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        #
+        # build the chunker
         self._chunker = StringChunker(Protocol.sieve_function)
 
     @staticmethod
@@ -869,329 +570,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._extract_sample(Pco2wDev1SampleDataParticle, DEV1_SAMPLE_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(Pco2wConfigurationDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
 
-    def _filter_capabilities(self, events):
-        """
-        Return a list of currently available capabilities.
-        """
-        return [x for x in events if Capability.has(x)]
-
-    ########################################################################
-    # Unknown handlers.
-    ########################################################################
-
-    def _handler_unknown_enter(self, *args, **kwargs):
-        """
-        Enter unknown state.
-        """
-        # Turn on debugging
-        log.debug("_handler_unknown_enter")
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    def _handler_unknown_exit(self, *args, **kwargs):
-        """
-        Exit unknown state.
-        """
-        pass
-
-    def _handler_unknown_discover(self, *args, **kwargs):
-        """
-        Discover current state; can be UNKNOWN, COMMAND or POLLED_SAMPLE
-        @retval (next_state, result)
-        """
-        next_state = None
-        result = None
-
-        log.debug("_handler_unknown_discover: starting discover")
-        (next_state, next_agent_state) = self._discover()
-        log.debug("_handler_unknown_discover: next agent state: %s", next_agent_state)
-
-        return (next_state, (next_agent_state, result))
-
-    ########################################################################
-    # Waiting handlers.
-    ########################################################################
-
-    def _handler_waiting_enter(self, *args, **kwargs):
-        """
-        Enter discover state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        # Test to determine what state we truly are in, command or unknown.
-        self._protocol_fsm.on_event(ProtocolEvent.DISCOVER)
-
-    def _handler_waiting_exit(self, *args, **kwargs):
-        """
-        Exit discover state.
-        """
-        pass
-
-    def _handler_waiting_discover(self, *args, **kwargs):
-        """
-        Discover current state; can be UNKNOWN or COMMAND
-        @retval (next_state, result)
-        """
-        # Exit states can be either COMMAND or back to UNKNOWN.
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        # try to discover our state
-        count = 1
-        while count <= 6:
-            log.debug("_handler_waiting_discover: starting discover")
-            (next_state, next_agent_state) = self._discover()
-            if next_state is ProtocolState.COMMAND:
-                log.debug("_handler_waiting_discover: discover succeeded")
-                log.debug("_handler_waiting_discover: next agent state: %s", next_agent_state)
-                return (next_state, (next_agent_state, result))
-            else:
-                log.debug("_handler_waiting_discover: discover failed, attempt %d of 3", count)
-                count += 1
-                time.sleep(20)
-
-        log.debug("_handler_waiting_discover: discover failed")
-        log.debug("_handler_waiting_discover: next agent state: %s", ResourceAgentState.ACTIVE_UNKNOWN)
-        return (ProtocolState.UNKNOWN, (ResourceAgentState.ACTIVE_UNKNOWN, result))
-
-    ########################################################################
-    # Command handlers.
-    ########################################################################
-
-    def _handler_command_enter(self, *args, **kwargs):
-        """
-        Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
-        """
-        # Command device to initialize parameters and send a config change event.
-        self._protocol_fsm.on_event(DriverEvent.INIT_PARAMS)
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    def _handler_command_init_params(self, *args, **kwargs):
-        """
-        initialize parameters
-        """
-        next_state = None
-        result = None
-
-        self._init_params()
-        return (next_state, result)
-
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
-
-    def _handler_command_get(self, *args, **kwargs):
-        """
-        Get parameter
-        """
-        next_state = None
-        result = None
-
-        return (next_state, result)
-
-    def _handler_command_set(self, *args, **kwargs):
-        """
-        Set parameter
-        """
-        next_state = None
-        result = None
-
-        return (next_state, result)
-
-    def _handler_command_start_direct(self):
-        """
-        Start direct access
-        """
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-
-        log.debug("_handler_command_start_direct: entering DA mode")
-        return (next_state, (next_agent_state, result))
-
-    def _handler_command_acquire_status(self, *args, **kwargs):
-        """
-        Set parameter
-        """
-        next_state = None
-        result = None
-
-        return (next_state, result)
-
-    def _handler_command_acquire_sample(self):
-        """
-        Acquire a sample
-        """
-        next_state = None
-        result = None
-
-        return (next_state, result)
-
-    def _handler_command_start_autosample(self):
-        """
-        Start autosample mode (spoofed via use of scheduler)
-        """
-        next_state = ProtocolState.START_AUTOSAMPLE
-        next_agent_state = ResourceAgentState.START_AUTOSAMPLE
-        result = None
-        log.debug("_handler_command_start_autosample: entering Autosample mode")
-        return (next_state, (next_agent_state, result))
-
-    ########################################################################
-    # Direct access handlers.
-    ########################################################################
-    def _handler_direct_access_enter(self, *args, **kwargs):
-        """
-        Enter direct access state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        self._sent_cmds = []
-
-    def _handler_direct_access_exit(self, *args, **kwargs):
-        """
-        Exit direct access state.
-        """
-        pass
-
-    def _handler_direct_access_execute_direct(self, data):
-        """
-        """
-        next_state = None
-        result = None
-        next_agent_state = None
-
-        self._do_cmd_direct(data)
-
-        # add sent command to list for 'echo' filtering in callback
-        self._sent_cmds.append(data)
-
-        return (next_state, (next_agent_state, result))
-
-    def _handler_direct_access_stop_direct(self):
-        """
-        @throw InstrumentProtocolException on invalid command
-        """
-        next_state = None
-        result = None
-
-        log.debug("_handler_direct_access_stop_direct: starting discover")
-        (next_state, next_agent_state) = self._discover()
-        log.debug("_handler_direct_access_stop_direct: next agent state: %s", next_agent_state)
-
-        return (next_state, (next_agent_state, result))
-
-    ########################################################################
-    # Autosample handlers.
-    ########################################################################
-
-    def _handler_autosample_enter(self, *args, **kwargs):
-        """
-        Enter autosample state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        self._sent_cmds = []
-
-    def _handler_autosample_exit(self, *args, **kwargs):
-        """
-        Exit autosample state.
-        """
-        pass
-
-    def _handler_autosample_stop(self, *args, **kwargs):
-        """
-        Stop autosample
-        """
-        next_state = None
-        result = None
-
-        return (next_state, result)
-
-    def _handler_autosample_acquire_sample(self, *args, **kwargs):
-        """
-        While in autosample mode, poll for samples using the scheduler
-        """
-        next_state = None
-        result = None
-
-        return (next_state, result)
-
-    ########################################################################
-    # Scheduled Sample handlers.
-    ########################################################################
-
-    def _handler_scheduled_sample_enter(self, *args, **kwargs):
-        """
-        Enter busy state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        self._sent_cmds = []
-
-    def _handler_scheduled_sample_exit(self, *args, **kwargs):
-        """
-        Exit busy state.
-        """
-        pass
-
-    ########################################################################
-    # Polled Sample handlers.
-    ########################################################################
-
-    def _handler_polled_sample_enter(self, *args, **kwargs):
-        """
-        Enter busy state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        self._sent_cmds = []
-
-    def _handler_polled_sample_exit(self, *args, **kwargs):
-        """
-        Exit busy state.
-        """
-        pass
-
     ########################################################################
     # Build Command, Driver and Parameter dictionaries
     ########################################################################
-
-    def _build_command_dict(self):
-        """
-        Populate the command dictionary with command.
-        """
-        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
-        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
-        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
-        self._cmd_dict.add(Capability.START_DIRECT, display_name="start direct access")
-        self._cmd_dict.add(Capability.STOP_DIRECT, display_name="stop direct access")
-
-    def _build_driver_dict(self):
-        """
-        Populate the driver dictionary with options
-        """
-        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
 
     def _build_param_dict(self):
         """
@@ -1517,122 +898,30 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='external pump settings')
 
+    #########################################################################
+    ## General (for POLLED and SCHEDULED states) Sample handlers.
+    #########################################################################
+
+    def _handler_sample_success(self, *args, **kwargs):
+        next_state = None
+        result = None
+
+        return (next_state, result)
+
+    def _handler_sample_timeout(self, ):
+        next_state = None
+        result = None
+
+        return (next_state, result)
+
     ########################################################################
     # Command handlers.
     ########################################################################
-
-    def _build_simple_command(self, cmd):
-        """
-        Build handler for basic SAMI commands.
-        @param cmd the simple SAMI command to format.
-        @retval The command to be sent to the device.
-        """
-        return cmd + NEWLINE
-
-    def _build_set_config(self):
-        pass
-
-    def _build_sample_sami(self):
-        pass
-
     def _build_sample_dev1(self):
-        pass
-
-    def _build_escape_boot(self):
         pass
 
     ########################################################################
     # Response handlers.
     ########################################################################
-
-    def _build_response_get_status(self):
-        pass
-
-    def _build_response_get_config(self):
-        pass
-
-    def _build_response_set_config(self):
-        pass
-
-    def _build_response_erase_all(self):
-        pass
-
-    def _build_response_sample_sami(self):
-        pass
-
     def _build_response_sample_dev1(self):
         pass
-
-    ########################################################################
-    # Private helpers.
-    ########################################################################
-
-    def _discover(self):
-        """
-        Discover current state; can be UNKNOWN, COMMAND or DISCOVER
-        @retval (next_state, result)
-        """
-        # Exit states can be either COMMAND, DISCOVER or back to UNKNOWN.
-        next_state = None
-        next_agent_state = None
-
-        log.debug("_discover")
-
-        # Set response timeout to 10 seconds. Should be immediate if
-        # communications are enabled and the instrument is not sampling.
-        # Otherwise, sampling can take up to ~3 minutes to complete. Partial
-        # strings are output during that time period.
-        kwargs['timeout'] = 10
-
-        # Make sure automatic-status updates are off. This will stop the
-        # broadcast of information while we are trying to get data.
-        cmd = self._build_simple_command(InstrumentCommand.STOP_STATUS)
-        self._do_cmd_direct(cmd)
-
-        # Acquire the current instrument status
-        status = self._do_cmd_resp(InstrumentCommand.GET_STATUS, *args, **kwargs)
-        status_match = REGULAR_STATUS_REGEX_MATCHER.match(status)
-
-        if status is None or not status_match:
-            # No response received in the timeout period, or response that does
-            # not match the status string format is received. In either case,
-            # we assume the unit is sampling and transition to a new state,
-            # WAITING, to confirm or deny.
-            next_state = ProtocolState.WAITING
-            next_agent_state = ResourceAgentState.BUSY
-        else:
-            # Unit is powered on and ready to accept commands, etc.
-            next_state = ProtocolState.COMMAND
-            next_agent_state = ResourceAgentState.IDLE
-
-        log.debug("_discover. result start: %s" % next_state)
-        return (next_state, next_agent_state)
-
-    @staticmethod
-    def _int_to_hexstring(self, v, slen):
-        """
-        Write an integer value to an ASCIIHEX string formatted for SAMI
-        configuration set operations.
-        @param v the integer value to convert.
-        @param slen the required length of the returned string.
-        @retval an integer string formatted in ASCIIHEX for SAMI configuration
-        set operations.
-        @throws InstrumentParameterException if the integer and string length
-        values are not an integers.
-        """
-        if not isinstance(v, int):
-            raise InstrumentParameterException('Value %s is not an integer.' % str(v))
-        elif not isinstance(slen, int):
-            raise InstrumentParameterException('Value %s is not an integer.' % str(slen))
-        else:
-            s = format(v, 'X')
-            return s.zfill(slen)
-
-    @staticmethod
-    def _epoch_to_sami(self):
-        """
-        Create a timestamp in seconds using January 1, 1904 as the Epoch
-        @retval an integer value representing the number of seconds since
-            January 1, 1904.
-        """
-        return int(time.time()) + SAMI_EPOCH

@@ -389,7 +389,7 @@ class InstrumentCommand(SamiInstrumentCommand):
 
 class PhsenSamiSampleDataParticleKey(BaseEnum):
     """
-    Data particle key for the SAMI2-PCO2 records. These particles
+    Data particle key for the SAMI2-PH records. These particles
     capture when a sample was processed.
     """
     UNIQUE_ID = 'unique_id'
