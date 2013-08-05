@@ -29,7 +29,6 @@ from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-#from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 
 from interface.objects import AgentCommand
@@ -44,23 +43,18 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from mi.instrument.sunburst.sami2_ph.ooicore.driver import InstrumentDriver
-from mi.instrument.sunburst.sami2_ph.ooicore.driver import DataParticleType
-from mi.instrument.sunburst.sami2_ph.ooicore.driver import InstrumentCommand
-from mi.instrument.sunburst.sami2_ph.ooicore.driver import ProtocolState
-from mi.instrument.sunburst.sami2_ph.ooicore.driver import ProtocolEvent
-#from mi.instrument.sunburst.sami2_ph.ooicore.driver import Capability
 from mi.instrument.sunburst.driver import Capability
-from mi.instrument.sunburst.sami2_ph.ooicore.driver import Parameter
-from mi.instrument.sunburst.sami2_ph.ooicore.driver import Protocol
-from mi.instrument.sunburst.sami2_ph.ooicore.driver import Prompt
-from mi.instrument.sunburst.sami2_ph.ooicore.driver import NEWLINE
-#from mi.instrument.sunburst.sami2_ph.ooicore.driver import SamiRegularStatusDataParticleKey
-#from mi.instrument.sunburst.sami2_ph.ooicore.driver import SamiControlRecordDataParticleKey
+from mi.instrument.sunburst.driver import Prompt
+from mi.instrument.sunburst.driver import NEWLINE
+from mi.instrument.sunburst.sami2_ph.ooicore.driver import DataParticleType
+from mi.instrument.sunburst.sami2_ph.ooicore.driver import InstrumentDriver
+from mi.instrument.sunburst.sami2_ph.ooicore.driver import InstrumentCommand
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import PhsenSamiSampleDataParticleKey
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import PhsenConfigDataParticleKey
-
-# Added Imports
+from mi.instrument.sunburst.sami2_ph.ooicore.driver import ProtocolState
+from mi.instrument.sunburst.sami2_ph.ooicore.driver import ProtocolEvent
+from mi.instrument.sunburst.sami2_ph.ooicore.driver import Parameter
+from mi.instrument.sunburst.sami2_ph.ooicore.driver import Protocol
 from mi.instrument.sunburst.test.test_driver import SamiMixin
 from mi.instrument.sunburst.test.test_driver import SamiUnitTest
 
@@ -94,6 +88,14 @@ InstrumentDriverTestCase.initialize(
 ###
 #   Driver constant definitions
 ###
+TYPE = ParameterTestConfigKey.TYPE
+READONLY = ParameterTestConfigKey.READONLY
+STARTUP = ParameterTestConfigKey.STARTUP
+DA = ParameterTestConfigKey.DIRECT_ACCESS
+VALUE = ParameterTestConfigKey.VALUE
+REQUIRED = ParameterTestConfigKey.REQUIRED
+DEFAULT = ParameterTestConfigKey.DEFAULT
+STATES = ParameterTestConfigKey.STATES
 
 ###############################################################################
 #                           DRIVER TEST MIXIN        		                  #
@@ -114,15 +116,6 @@ class DriverTestMixinSub(SamiMixin):
     Mixin class used for storing data particle constants and common data
     assertion methods.  Inherits from SAMI Instrument base Mixin class
     '''
-
-    TYPE = ParameterTestConfigKey.TYPE
-    READONLY = ParameterTestConfigKey.READONLY
-    STARTUP = ParameterTestConfigKey.STARTUP
-    DA = ParameterTestConfigKey.DIRECT_ACCESS
-    VALUE = ParameterTestConfigKey.VALUE
-    REQUIRED = ParameterTestConfigKey.REQUIRED
-    DEFAULT = ParameterTestConfigKey.DEFAULT
-    STATES = ParameterTestConfigKey.STATES
 
     ###
     #  Instrument output (driver input) Definitions
@@ -162,8 +155,49 @@ class DriverTestMixinSub(SamiMixin):
     ###
     #  Parameter and Type Definitions
     ###
-    SamiMixin._driver_parameters.update({
-        # Parameters defined in the IOS
+    _driver_parameters = {
+        # Parameters defined in the PHSEN IOS. NOTE:these test values are
+        # different than the PCO2's:/NOTE
+        Parameter.LAUNCH_TIME:              {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x00000000, VALUE: 0xCDDD731D},
+        Parameter.START_TIME_FROM_LAUNCH:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x00000000, VALUE: 0x01E13380},
+        Parameter.STOP_TIME_FROM_START:     {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x01E13380, VALUE: 0x01E13380},
+        Parameter.MODE_BITS:                {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x02, VALUE: 0x02},
+        Parameter.SAMI_SAMPLE_INTERVAL:     {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x000E10, VALUE: 0x000E10},
+        Parameter.SAMI_DRIVER_VERSION:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x0A, VALUE: 0x0A},
+        Parameter.SAMI_PARAMS_POINTER:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x02, VALUE: 0x02},
+        Parameter.DEVICE1_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x000000, VALUE: 0x000000},
+        Parameter.DEVICE1_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x00, VALUE: 0x00},
+        Parameter.DEVICE1_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x11, VALUE: 0x11},
+        Parameter.DEVICE2_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x000000, VALUE: 0x000000},
+        Parameter.DEVICE2_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x00, VALUE: 0x00},
+        Parameter.DEVICE2_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x11, VALUE: 0x11},
+        Parameter.DEVICE3_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x000000, VALUE: 0x000000},
+        Parameter.DEVICE3_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x00, VALUE: 0x00},
+        Parameter.DEVICE3_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x11, VALUE: 0x11},
+        Parameter.PRESTART_SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x000000, VALUE: 0x000000},
+        Parameter.PRESTART_DRIVER_VERSION:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x00, VALUE: 0x00},
+        Parameter.PRESTART_PARAMS_POINTER:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x11, VALUE: 0x11},
+        Parameter.GLOBAL_CONFIGURATION:     {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+                                             DEFAULT: 0x07, VALUE: 0x07},
         Parameter.NUMBER_SAMPLES_AVERAGED:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x01, VALUE: 0x01},
         Parameter.NUMBER_FLUSHES:           {TYPE: int, READONLY: True, DA: False, STARTUP: False,
@@ -192,7 +226,7 @@ class DriverTestMixinSub(SamiMixin):
                                              DEFAULT: 0x17, VALUE: 0x17},
         Parameter.SALINITY_DELAY:           {TYPE: int, READONLY: True, DA: False, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00}
-    })
+    }
 
     _sami_data_sample_parameters = {
         # SAMI pH sample (type 0x0A)
@@ -258,57 +292,6 @@ class DriverTestMixinSub(SamiMixin):
         PhsenConfigDataParticleKey.SALINITY_DELAY:              {TYPE: int, VALUE: 0x00, REQUIRED: True}
     })
 
-    #def assertSampleDataParticle(self, data_particle):
-    #    '''
-    #    Verify a particle is a known particle to this driver and verify the particle is
-    #    correct
-    #    @param data_particle: Data particle of unkown type produced by the driver
-    #    '''
-    #    if (isinstance(data_particle, RawDataParticle)):
-    #        self.assert_particle_raw(data_particle)
-    #    else:
-    #        log.error("Unknown Particle Detected: %s" % data_particle)
-    #        self.assertFalse(True)
-
-    #def assert_driver_parameters(self, current_parameters, verify_values=False):
-    #    """
-    #    Verify that all driver parameters are correct and potentially verify
-    #    values.
-    #    @param current_parameters: driver parameters read from the driver
-    #    instance
-    #    @param verify_values: should we verify values against definition?
-    #    """
-    #    self.assert_parameters(current_parameters, self._driver_parameters,
-    #                           verify_values)
-
-    #def assert_particle_regular_status(self, data_particle, verify_values=False):
-    #    '''
-    #    Verify regular_status particle
-    #    @param data_particle: SamiRegularStatusDataParticle data particle
-    #    @param verify_values: bool, should we verify parameter values
-    #    '''
-    #    self.assert_data_particle_keys(SamiRegularStatusDataParticleKey,
-    #                                   self._regular_status_parameters)
-    #    self.assert_data_particle_header(data_particle,
-    #                                     DataParticleType.REGULAR_STATUS)
-    #    self.assert_data_particle_parameters(data_particle,
-    #                                         self._regular_status_parameters,
-    #                                         verify_values)
-
-    #def assert_particle_control_record(self, data_particle, verify_values=False):
-    #    '''
-    #    Verify control_record particle
-    #    @param data_particle: SamiControlRecordDataParticle data particle
-    #    @param verify_values: bool, should we verify parameter values
-    #    '''
-    #    self.assert_data_particle_keys(SamiControlRecordDataParticleKey,
-    #                                   self._control_record_parameters)
-    #    self.assert_data_particle_header(data_particle,
-    #                                     DataParticleType.CONTROL_RECORD)
-    #    self.assert_data_particle_parameters(data_particle,
-    #                                         self._control_record_parameters,
-    #                                         verify_values)
-
     def assert_particle_sami_data_sample(self, data_particle, verify_values=False):
         '''
         Verify sami_data_sample particle (Type 0A pH)
@@ -353,9 +336,6 @@ class DriverTestMixinSub(SamiMixin):
 ###############################################################################
 @attr('UNIT', group='mi')
 class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
-    # NOTE: don't think this needs to be replicated if the code is the same
-    #def setUp(self):
-    #    SamiUnitTestCase.setUp(self)
 
     def test_driver_schema(self):
         """
@@ -449,27 +429,7 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         this dict must also be defined in the protocol FSM. Note, the EXIT and
         ENTER DRIVER_EVENTS don't need to be listed here.
         """
-        #capabilities = {
-        #    ProtocolState.UNKNOWN:          ['DRIVER_EVENT_START_DIRECT',
-        #                                     'DRIVER_EVENT_DISCOVER'],
-        #    ProtocolState.WAITING:          ['DRIVER_EVENT_DISCOVER'],
-        #    ProtocolState.COMMAND:          ['DRIVER_EVENT_GET',
-        #                                     'DRIVER_EVENT_SET',
-        #                                     'DRIVER_EVENT_START_DIRECT',
-        #                                     #'DRIVER_EVENT_ACQUIRE_CONFIGURATION',
-        #                                     'DRIVER_EVENT_ACQUIRE_STATUS',
-        #                                     'DRIVER_EVENT_ACQUIRE_SAMPLE',
-        #                                     'DRIVER_EVENT_START_AUTOSAMPLE'],
-        #    ProtocolState.AUTOSAMPLE:       ['DRIVER_EVENT_ACQUIRE_SAMPLE',
-        #                                     'DRIVER_EVENT_STOP_AUTOSAMPLE'],
-        #    ProtocolState.DIRECT_ACCESS:    ['EXECUTE_DIRECT',
-        #                                     'DRIVER_EVENT_STOP_DIRECT'],
-        #    ProtocolState.SCHEDULED_SAMPLE: ['PROTOCOL_EVENT_SUCCESS',
-        #                                     'PROTOCOL_EVENT_TIMEOUT'],
-        #    ProtocolState.POLLED_SAMPLE:    ['PROTOCOL_EVENT_SUCCESS',
-        #                                     'PROTOCOL_EVENT_TIMEOUT']
-        #}
-
+        #
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, self.capabilities_test_dict)
 
