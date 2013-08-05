@@ -137,6 +137,7 @@ class Parameter(SamiParameter):
     """
     Device specific parameters.
     """
+    # PHSEN driver extends the base class (SamiParameter)
     NUMBER_SAMPLES_AVERAGED = 'number_samples_averaged'
     NUMBER_FLUSHES = 'number_flushes'
     PUMP_ON_FLUSH = 'pump_on_flush'
@@ -174,7 +175,7 @@ class InstrumentCommand(SamiInstrumentCommand):
 
 class PhsenSamiSampleDataParticleKey(BaseEnum):
     """
-    Data particle key for the SAMI2-PCO2 records. These particles
+    Data particle key for the SAMI2-PH records. These particles
     capture when a sample was processed.
     """
     UNIQUE_ID = 'unique_id'
@@ -183,7 +184,7 @@ class PhsenSamiSampleDataParticleKey(BaseEnum):
     RECORD_TIME = 'record_time'
     START_THERMISTOR = 'thermistor_start'
     REF_MEASUREMENTS = 'reference_light_measurements'
-    PH_MEASUREMENTS = 'light_measurements'
+    PH_MEASUREMENTS = 'ph_light_measurements'
     RESERVED_UNUSED = 'unused'
     VOLTAGE_BATTERY = 'voltage_battery'
     END_THERMISTOR = 'thermistor_end'
@@ -259,6 +260,7 @@ class PhsenConfigDataParticleKey(SamiConfigDataParticleKey):
     """
     Data particle key for the configuration record.
     """
+    # PHSEN driver extends the base class (SamiConfiDataParticleKey)
     NUMBER_SAMPLES_AVERAGED = 'number_samples_averaged'
     NUMBER_FLUSHES = 'number_flushes'
     PUMP_ON_FLUSH = 'pump_on_flush'
