@@ -47,13 +47,13 @@ from mi.instrument.sunburst.driver import Capability
 from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import NEWLINE
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import DataParticleType
-from mi.instrument.sunburst.sami2_ph.ooicore.driver import InstrumentDriver
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import InstrumentCommand
-from mi.instrument.sunburst.sami2_ph.ooicore.driver import PhsenSamiSampleDataParticleKey
+from mi.instrument.sunburst.sami2_ph.ooicore.driver import InstrumentDriver
+from mi.instrument.sunburst.sami2_ph.ooicore.driver import Parameter
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import PhsenConfigDataParticleKey
+from mi.instrument.sunburst.sami2_ph.ooicore.driver import PhsenSamiSampleDataParticleKey
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import ProtocolState
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import ProtocolEvent
-from mi.instrument.sunburst.sami2_ph.ooicore.driver import Parameter
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import Protocol
 from mi.instrument.sunburst.test.test_driver import SamiMixin
 from mi.instrument.sunburst.test.test_driver import SamiUnitTest
@@ -122,12 +122,9 @@ class DriverTestMixinSub(SamiMixin):
     ###
     # Configuration string received from the instrument via the L command
     # (clock set to 2014-01-01 00:00:00) with sampling set to start 540 days
-    # (~18 months) later and stop 365 days after that. SAMI and Device1
-    # (external SBE pump) are set to run every 60 minutes, but will be polled
-    # on a regular schedule rather than autosampled. Device1 is not configured
-    # to run after the SAMI and will run for 10 seconds. To configure the
-    # instrument using this string, add a null byte (00) to the end of the
-    # string.
+    # (~18 months) later and stop 365 days after that. SAMI is set to run every
+    # 60 minutes, but will be polled on a regular schedule rather than
+    # autosampled.
     VALID_CONFIG_STRING = 'CDDD731D01E1338001E1338002000E100A0200000000110' + \
         '0000000110000000011000000001107013704200108081004081008170000' + \
         '0000000000000000000000000000000000000000000000000000000000000' + \
@@ -274,8 +271,39 @@ class DriverTestMixinSub(SamiMixin):
         PhsenSamiSampleDataParticleKey.CHECKSUM:         {TYPE: int, VALUE: 0xCE, REQUIRED: True}
     }
 
-    SamiMixin._configuration_parameters.update({
-        # Configuration settings uniqe to pH
+    _configuration_parameters = {
+        # Configuration settings NOTE:These test values are different than the
+        # PCO2's and so are all included here:/NOTE
+        PhsenConfigDataParticleKey.LAUNCH_TIME:                 {TYPE: int, VALUE: 0xCDDD731D, REQUIRED: True},
+        PhsenConfigDataParticleKey.START_TIME_OFFSET:           {TYPE: int, VALUE: 0x01E13380, REQUIRED: True},
+        PhsenConfigDataParticleKey.RECORDING_TIME:              {TYPE: int, VALUE: 0x01E13380, REQUIRED: True},
+        PhsenConfigDataParticleKey.PMI_SAMPLE_SCHEDULE:         {TYPE: bool, VALUE: False,  REQUIRED: True},
+        PhsenConfigDataParticleKey.SAMI_SAMPLE_SCHEDULE:        {TYPE: bool, VALUE: True,  REQUIRED: True},
+        PhsenConfigDataParticleKey.SLOT1_FOLLOWS_SAMI_SCHEDULE: {TYPE: bool, VALUE: False,  REQUIRED: True},
+        PhsenConfigDataParticleKey.SLOT1_INDEPENDENT_SCHEDULE:  {TYPE: bool, VALUE: False, REQUIRED: True},
+        PhsenConfigDataParticleKey.SLOT2_FOLLOWS_SAMI_SCHEDULE: {TYPE: bool, VALUE: False,  REQUIRED: True},
+        PhsenConfigDataParticleKey.SLOT2_INDEPENDENT_SCHEDULE:  {TYPE: bool, VALUE: False, REQUIRED: True},
+        PhsenConfigDataParticleKey.SLOT3_FOLLOWS_SAMI_SCHEDULE: {TYPE: bool, VALUE: False,  REQUIRED: True},
+        PhsenConfigDataParticleKey.SLOT3_INDEPENDENT_SCHEDULE:  {TYPE: bool, VALUE: False, REQUIRED: True},
+        PhsenConfigDataParticleKey.TIMER_INTERVAL_SAMI:         {TYPE: int, VALUE: 0x000E10, REQUIRED: True},
+        PhsenConfigDataParticleKey.DRIVER_ID_SAMI:              {TYPE: int, VALUE: 0x0A,  REQUIRED: True},
+        PhsenConfigDataParticleKey.PARAMETER_POINTER_SAMI:      {TYPE: int, VALUE: 0x02,  REQUIRED: True},
+        PhsenConfigDataParticleKey.TIMER_INTERVAL_DEVICE1:      {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        PhsenConfigDataParticleKey.DRIVER_ID_DEVICE1:           {TYPE: int, VALUE: 0x00,  REQUIRED: True},
+        PhsenConfigDataParticleKey.PARAMETER_POINTER_DEVICE1:   {TYPE: int, VALUE: 0x11, REQUIRED: True},
+        PhsenConfigDataParticleKey.TIMER_INTERVAL_DEVICE2:      {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        PhsenConfigDataParticleKey.DRIVER_ID_DEVICE2:           {TYPE: int, VALUE: 0x00,  REQUIRED: True},
+        PhsenConfigDataParticleKey.PARAMETER_POINTER_DEVICE2:   {TYPE: int, VALUE: 0x11, REQUIRED: True},
+        PhsenConfigDataParticleKey.TIMER_INTERVAL_DEVICE3:      {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        PhsenConfigDataParticleKey.DRIVER_ID_DEVICE3:           {TYPE: int, VALUE: 0x00,  REQUIRED: True},
+        PhsenConfigDataParticleKey.PARAMETER_POINTER_DEVICE3:   {TYPE: int, VALUE: 0x11, REQUIRED: True},
+        PhsenConfigDataParticleKey.TIMER_INTERVAL_PRESTART:     {TYPE: int, VALUE: 0x000000, REQUIRED: True},
+        PhsenConfigDataParticleKey.DRIVER_ID_PRESTART:          {TYPE: int, VALUE: 0x00, REQUIRED: True},
+        PhsenConfigDataParticleKey.PARAMETER_POINTER_PRESTART:  {TYPE: int, VALUE: 0x11, REQUIRED: True},
+        PhsenConfigDataParticleKey.USE_BAUD_RATE_57600:         {TYPE: bool, VALUE: True, REQUIRED: True},
+        PhsenConfigDataParticleKey.SEND_RECORD_TYPE:            {TYPE: bool, VALUE: True, REQUIRED: True},
+        PhsenConfigDataParticleKey.SEND_LIVE_RECORDS:           {TYPE: bool, VALUE: True, REQUIRED: True},
+        PhsenConfigDataParticleKey.EXTEND_GLOBAL_CONFIG:        {TYPE: bool, VALUE: False, REQUIRED: True},
         PhsenConfigDataParticleKey.NUMBER_SAMPLES_AVERAGED:     {TYPE: int, VALUE: 0x01, REQUIRED: True},
         PhsenConfigDataParticleKey.NUMBER_FLUSHES:              {TYPE: int, VALUE: 0x37, REQUIRED: True},
         PhsenConfigDataParticleKey.PUMP_ON_FLUSH:               {TYPE: int, VALUE: 0x04, REQUIRED: True},
@@ -290,7 +318,7 @@ class DriverTestMixinSub(SamiMixin):
         PhsenConfigDataParticleKey.MEASURE_TO_PUMP_ON:          {TYPE: int, VALUE: 0x08, REQUIRED: True},
         PhsenConfigDataParticleKey.NUMBER_MEASUREMENTS:         {TYPE: int, VALUE: 0x17, REQUIRED: True},
         PhsenConfigDataParticleKey.SALINITY_DELAY:              {TYPE: int, VALUE: 0x00, REQUIRED: True}
-    })
+    }
 
     def assert_particle_sami_data_sample(self, data_particle, verify_values=False):
         '''

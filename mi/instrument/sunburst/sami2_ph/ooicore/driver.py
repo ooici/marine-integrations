@@ -449,14 +449,6 @@ class Protocol(SamiProtocol):
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
-        # NOTE: didn't know if _sent_cmds should go in the base or specific
-        # driver? It could likely go into the base since the commands are all
-        # the same (except for the DEV1 sample command 'R1' for the PCO2
-        # driver) :/NOTE
-
-        # commands sent sent to device to be filtered in responses for telnet DA
-        self._sent_cmds = []
-
         # build the chunker bot
         self._chunker = StringChunker(Protocol.sieve_function)
 

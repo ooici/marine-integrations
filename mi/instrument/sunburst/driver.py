@@ -100,7 +100,6 @@ ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
 ###
 #    Begin Classes
 ###
-# TODO: BASE CLASS and will require inherit extend
 class SamiDataParticleType(BaseEnum):
     """
     Base class Data particle types produced by a SAMI instrument. Should be
@@ -143,11 +142,8 @@ class ProtocolEvent(BaseEnum):
     ACQUIRE_CONFIGURATION = 'DRIVER_EVENT_ACQUIRE_CONFIGURATION'
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-
-    # New Protocol Events as discussed with Bill F. regarding a SUCCESS and a
-    # TIMEOUT event for the SCHEDULED_SAMPLE and POLLED_SAMPLE states.
-    SUCCESS = 'PROTOCOL_EVENT_SUCCESS'
-    TIMEOUT = 'PROTOCOL_EVENT_TIMEOUT'
+    SUCCESS = 'PROTOCOL_EVENT_SUCCESS'  # success getting a sample
+    TIMEOUT = 'PROTOCOL_EVENT_TIMEOUT'  # timeout while getting a sample
 
 
 class Capability(BaseEnum):
@@ -249,7 +245,7 @@ class SamiRegularStatusDataParticleKey(BaseEnum):
     NUM_DATA_RECORDS = 'num_data_records'
     NUM_ERROR_RECORDS = 'num_error_records'
     NUM_BYTES_STORED = 'num_bytes_stored'
-    CHECKSUM = 'checksum'
+    UNIQUE_ID = 'unique_id'
 
 
 class SamiRegularStatusDataParticle(DataParticle):
@@ -275,7 +271,7 @@ class SamiRegularStatusDataParticle(DataParticle):
         # These messages consist of the time since the last configuration,
         # status flags, the number of data records, the number of error
         # records, the number of bytes stored (including configuration bytes),
-        # and a checksum.
+        # and the instrument's unique id.
         ###
 
         matched = REGULAR_STATUS_REGEX_MATCHER.match(self.raw_data)
@@ -303,7 +299,7 @@ class SamiRegularStatusDataParticle(DataParticle):
                          SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS,
                          SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS,
                          SamiRegularStatusDataParticleKey.NUM_BYTES_STORED,
-                         SamiRegularStatusDataParticleKey.CHECKSUM]
+                         SamiRegularStatusDataParticleKey.UNIQUE_ID]
 
         result = []
         grp_index = 1  # used to index through match groups, starting at 1
@@ -527,27 +523,6 @@ class SamiInstrumentDriver(SingleConnectionInstrumentDriver):
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
 
-    # NOTE: These 2 definitions should be defined in the sub driver
-    #########################################################################
-    ## Superclass overrides for resource query.
-    #########################################################################
-    #
-    #def get_resource_params(self):
-    #    """
-    #    Return list of device parameters available.
-    #    """
-    #    return Parameter.list()
-
-    #########################################################################
-    ## Protocol builder.  create this definition in the subclassed driver
-    #########################################################################
-    #
-    #def _build_protocol(self):
-    #    """
-    #    Construct the driver protocol state machine.
-    #    """
-    #    self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
-
 
 ###########################################################################
 # Protocol
@@ -661,14 +636,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.EXIT,
             self._handler_scheduled_sample_exit)
-        # TODO: these next two may need to be added at the specific driver
-        # level or at least the handlers
-        #self._protocol_fsm.add_handler(
-        #    ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
-        #    self._handler_sample_success)
-        #self._protocol_fsm.add_handler(
-        #    ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
-        #    self._handler_sample_timeout)
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
         # while in either the COMMAND state (or via the discover transition
@@ -681,14 +648,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.POLLED_SAMPLE, ProtocolEvent.EXIT,
             self._handler_polled_sample_exit)
-        # TODO: these next two may need to be added at the specific driver
-        # level, or at least the handlers
-        #self._protocol_fsm.add_handler(
-        #    ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
-        #    self._handler_sample_success)
-        #self._protocol_fsm.add_handler(
-        #    ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
-        #    self._handler_sample_timeout)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -707,8 +666,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(SamiInstrumentCommand.STOP, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_sample_sami)
         self._add_build_handler(SamiInstrumentCommand.ESCAPE_BOOT, self._build_escape_boot)
-        # Add this statement in the Protocol.__init__ method in the Pco2 driver
-        #self._add_build_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_sample_dev1)
 
         # Add response handlers for device commands.
         self._add_response_handler(SamiInstrumentCommand.GET_STATUS, self._build_response_get_status)
@@ -721,48 +678,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         # Add sample handlers.
 
-        # NOTE: I think this needs to be started in the subclass since more handlers will be added.
-        ## Start state machine in UNKNOWN state.
-        #self._protocol_fsm.start(ProtocolState.UNKNOWN)
-
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
         # Goes in the sub driver
         #self._chunker = StringChunker(Protocol.sieve_function)
-
-    # needs to be in the sub driver
-    #@staticmethod
-    #def sieve_function(raw_data):
-    #    """
-    #    The method that splits samples
-    #    """
-    #
-    #    return_list = []
-    #
-    #    # This may not work !!!
-    #    # SIEVE_MATCHERS = [REGULAR_STATUS_REGEX_MATCHER,
-    #    #                  CONTROL_RECORD_REGEX_MATCHER,
-    #    #                  SAMI_SAMPLE_REGEX_MATCHER,
-    #    #                  CONFIGURATION_REGEX_MATCHER,
-    #    #                  ERROR_REGEX_MATCHER]
-    #
-    #    for matcher in self.sieve_matchers:
-    #        for match in matcher.finditer(raw_data):
-    #            return_list.append((match.start(), match.end()))
-    #
-    #    return return_list
-
-    # this should probably go into the specific driver
-    #def _got_chunk(self, chunk, timestamp):
-    #    """
-    #    The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
-    #    with the appropriate particle objects and REGEXes.
-    #    """
-    #    self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
-    #    self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
-    #    self._extract_sample(PhsenSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
-    #    self._extract_sample(PhsenConfigDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
 
     def _filter_capabilities(self, events):
         """
@@ -1003,10 +923,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        # This commented out section is the old action taken
-        #next_state = ProtocolState.COMMAND
-        #next_agent_state = ResourceAgentState.COMMAND
-
         log.debug("_handler_direct_access_stop_direct: starting discover")
         (next_state, next_agent_state) = self._discover()
         log.debug("_handler_direct_access_stop_direct: next agent state: %s", next_agent_state)
@@ -1051,8 +967,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
-    # NOTE:  I think that these handlers will be exactly the same and so can be
-    # reduced to a single _handler_sample_[EVENT]
     ########################################################################
     # Scheduled Sample handlers.
     ########################################################################
@@ -1072,9 +986,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Exit busy state.
         """
         pass
-
-    # define in the instrument specific driver Protocol subclass these handlers
-    # _handler_scheduled_sample_success & _handler_scheduled_sample_timeout
 
     ########################################################################
     # Polled Sample handlers.
@@ -1096,8 +1007,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         pass
 
-    # define in the instrument specific driver Protocol subclass these handlers
-    # _handler_polled_sample_success & _handler_polled_sample_timeout
+    # handlers for the SUCCESS and TIMEOUT events associated with the Polled
+    # Sample and Scheduled Sample states are defined in the sub class.
 
     ####################################################################
     # Build Command & Parameter dictionary
@@ -1118,225 +1029,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Populate the driver dictionary with options
         """
         self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
-
-    # NOTE: Needs to be in sub driver because of CONFIGURATION_REGEX
-    #def _build_param_dict(self):
-    #    """
-    #    Populate the parameter dictionary with parameters.
-    #    For each parameter key, add match string, match lambda function,
-    #    and value formatting function for set commands.
-    #    """
-    #    # Add parameter handlers to parameter dict.
-    #    self._param_dict = ProtocolParameterDict()
-    #
-    #    self._param_dict.add(SamiParameter.LAUNCH_TIME, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(1), 16),
-    #                         lambda x: self._int_to_hexstring(x, 8),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x00000000,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='launch time')
-    #
-    #    self._param_dict.add(SamiParameter.START_TIME_FROM_LAUNCH, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(2), 16),
-    #                         lambda x: self._int_to_hexstring(x, 8),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x02C7EA00,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='start time after launch time')
-    #
-    #    self._param_dict.add(SamiParameter.STOP_TIME_FROM_START, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(3), 16),
-    #                         lambda x: self._int_to_hexstring(x, 8),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x01E13380,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='stop time after start time')
-    #
-    #    self._param_dict.add(SamiParameter.MODE_BITS, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(4), 16),
-    #                         lambda x: self._int_to_hexstring(x, 2),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x0A,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='mode bits (set to 00001010)')
-    #
-    #    self._param_dict.add(SamiParameter.SAMI_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(5), 16),
-    #                         lambda x: self._int_to_hexstring(x, 6),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x000E10,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='sami sample interval')
-    #
-    #    self._param_dict.add(SamiParameter.SAMI_DRIVER_VERSION, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(6), 16),
-    #                         lambda x: self._int_to_hexstring(x, 2),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x04,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='sami driver version')
-    #
-    #    self._param_dict.add(SamiParameter.SAMI_PARAMS_POINTER, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(7), 16),
-    #                         lambda x: self._int_to_hexstring(x, 2),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x02,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='sami parameter pointer')
-    #
-    #    self._param_dict.add(SamiParameter.DEVICE1_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(8), 16),
-    #                         lambda x: self._int_to_hexstring(x, 6),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x000E10,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='device 1 sample interval')
-    #
-    #    self._param_dict.add(SamiParameter.DEVICE1_DRIVER_VERSION, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(9), 16),
-    #                         lambda x: self._int_to_hexstring(x, 2),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x01,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='device 1 driver version')
-    #
-    #    self._param_dict.add(SamiParameter.DEVICE1_PARAMS_POINTER, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(10), 16),
-    #                         lambda x: self._int_to_hexstring(x, 2),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x0B,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='device 1 parameter pointer')
-    #
-    #    self._param_dict.add(SamiParameter.DEVICE2_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(11), 16),
-    #                         lambda x: self._int_to_hexstring(x, 6),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x000000,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='device 2 sample interval')
-    #
-    #    self._param_dict.add(SamiParameter.DEVICE2_DRIVER_VERSION, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(12), 16),
-    #                         lambda x: self._int_to_hexstring(x, 2),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x00,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='device 2 driver version')
-    #
-    #    self._param_dict.add(SamiParameter.DEVICE2_PARAMS_POINTER, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(13), 16),
-    #                         lambda x: self._int_to_hexstring(x, 2),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x0D,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='device 2 parameter pointer')
-    #
-    #    self._param_dict.add(SamiParameter.DEVICE3_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(14), 16),
-    #                         lambda x: self._int_to_hexstring(x, 6),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x000000,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='device 3 sample interval')
-    #
-    #    self._param_dict.add(SamiParameter.DEVICE3_DRIVER_VERSION, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(15), 16),
-    #                         lambda x: self._int_to_hexstring(x, 2),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x00,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='device 3 driver version')
-    #
-    #    self._param_dict.add(SamiParameter.DEVICE3_PARAMS_POINTER, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(16), 16),
-    #                         lambda x: self._int_to_hexstring(x, 2),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x0D,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='device 3 parameter pointer')
-    #
-    #    self._param_dict.add(SamiParameter.PRESTART_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(17), 16),
-    #                         lambda x: self._int_to_hexstring(x, 6),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x000000,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='prestart sample interval')
-    #
-    #    self._param_dict.add(SamiParameter.PRESTART_DRIVER_VERSION, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(18), 16),
-    #                         lambda x: self._int_to_hexstring(x, 2),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x00,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='prestart driver version')
-    #
-    #    self._param_dict.add(SamiParameter.PRESTART_PARAMS_POINTER, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(19), 16),
-    #                         lambda x: self._int_to_hexstring(x, 2),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x0D,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='prestart parameter pointer')
-    #
-    #    self._param_dict.add(SamiParameter.GLOBAL_CONFIGURATION, CONFIGURATION_REGEX,
-    #                         lambda match: int(match.group(20), 16),
-    #                         lambda x: self._int_to_hexstring(x, 2),
-    #                         type=ParameterDictType.INT,
-    #                         startup_param=False,
-    #                         direct_access=True,
-    #                         default_value=0x00,
-    #                         visibility=ParameterDictVisibility.READ_ONLY,
-    #                         display_name='global bits (set to 00000111)')
-    #    # Extend any further _param_dict.add's in the specific driver subclass
-    #
-    #    self._build_param_dict_contd()
-    #
-    #def _build_param_dict_contd(self):
-    #    """
-    #    This method should be overloaded in the specific driver submodule
-    #    """
-    #    pass
 
     ########################################################################
     # Command handlers.
@@ -1391,7 +1083,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     ########################################################################
 
     @staticmethod
-    def _discover(self):
+    def _discover():
         """
         Discover current state; can be UNKNOWN, COMMAND or DISCOVER
         @retval (next_state, result)
@@ -1460,3 +1152,29 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             January 1, 1904.
         """
         return int(time.time()) + SAMI_TO_UNIX
+
+    @staticmethod
+    def calc_crc(s, num_points):
+        """
+        Compute a checksum for a Sami data record or control record string.
+
+        The '*' (character 1) and unique identifying byte (byte 1, characters 2
+        & 3) at the beginning should be excluded from the checksum calculation
+        as well as the checksum value itself (last byte, last 2 characters). It
+        should include the record length (byte 2, characters 4 & 5).
+
+        Note that this method does NOT calculate the checksum on the
+        configuration string that is returned during instrument configuration.
+
+        @author Chris Center
+        @param s: string for check-sum analysis.
+        @param num_points: number of bytes (each byte is 2-chars).
+        """
+        cs = 0
+        k = 0
+        for i in range(num_points):
+            value = int(s[k:k+2], 16)  # 2-chars per data point
+            cs = cs + value
+            k = k + 2
+        cs = cs & 0xFF
+        return(cs)
