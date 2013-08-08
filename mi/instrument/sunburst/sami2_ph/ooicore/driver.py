@@ -4,8 +4,13 @@
 @author Stuart Pearce
 @brief Driver for the ooicore
 Release notes:
+    Sunburst Sensors SAMI2-PH pH underwater sensor.
+    Derived from initial code developed by Chris Center.
 
-Sunburst Sensors SAMI2-PH pH underwater sensor
+    Much of this code inherits from a SAMI Base Driver at:
+    marine-integrations/mi/instrument/sunburst/driver.py,
+    since the SAMI2-PH & SAMI2-PCO2 instruments have the same basic
+    SAMI2 operating structure.
 """
 
 __author__ = 'Stuart Pearce'
@@ -153,7 +158,7 @@ class Parameter(SamiParameter):
     NUMBER_MEASUREMENTS = 'number_measurements'
     SALINITY_DELAY = 'salinity_delay'
 
-# NOTE: I don't think this one needs subclassing.
+
 #class Prompt(BaseEnum):
 #    """
 #    Device i/o prompts..
@@ -222,9 +227,15 @@ class PhsenSamiSampleDataParticle(DataParticle):
                          PhsenSamiSampleDataParticleKey.CHECKSUM]
 
         result = []
-        grp_index = 1
+        grp_index = 1  # regex group index counter
         unhex = lambda x: int(x, 16)
-        # ref_measurements
+
+        # Create secondary regexes to read the ref set and ph set into
+        # lists before putting into the data particle.
+
+        # From the regex data sample match, group 5 is a set of 16
+        # reference light measurements, and group 6 is a set of 92 light
+        # measurements from which determines pH
         ref_measurements_string = matched.groups()[5]
         ph_measurements_string = matched.groups()[6]
 
@@ -241,6 +252,7 @@ class PhsenSamiSampleDataParticle(DataParticle):
         ph_match = ph_regex_matcher.match(ph_measurements_string)
         ph_measurements = map(unhex, list(ph_match.groups()))
 
+        # fill out the data particle with values
         for key in particle_keys:
             if key is PhsenSamiSampleDataParticleKey.REF_MEASUREMENTS:
                 result.append({DataParticleKey.VALUE_ID: key,

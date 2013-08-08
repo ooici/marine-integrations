@@ -4,8 +4,15 @@
 @author Stuart Pearce and Chris Wingard
 @brief Base Driver for the SAMI instruments
 Release notes:
+    Sunburst Instruments SAMI2-PCO2 partial CO2 & SAMI2-PH pH underwater
+    sensors.
 
-Sunburst Instruments SAMI-PCO2 partial CO2 & SAMI2-PH pH underwater sensors
+    This is the base driver that contains common code for the SAMI2
+    instruments SAMI2-PCO2 & SAMI2-PH since they have the same basic
+    SAMI2 operating structure.
+
+    Some of this code also derives from initial code developed by Chris
+    Center
 """
 
 __author__ = 'Chris Wingard & Stuart Pearce'
@@ -150,7 +157,6 @@ class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    # ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE  # why not ACQUIRE_SAMPLE?
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
@@ -187,11 +193,15 @@ class SamiParameter(DriverParameter):
     # the portions of the configuration that is unique to each.
 
 
-# TODO: Find out about use of prompts
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
     """
+    # The boot prompt is the prompt of the SAMI2's Lower Level operating
+    # system. If this prompt is reached, it means the SAMI2 instrument
+    # software has crashed and needs to be restarted with the command
+    # 'u'. If this has occured, the instrument has been reset and will
+    # be in an unconfigured state.
     BOOT_PROMPT = '7.7Boot>'
 
 
@@ -200,7 +210,7 @@ class SamiInstrumentCommand(BaseEnum):
     Base SAMI instrument command strings. Subclass and extend these with device
     specific commands in subclass 'InstrumentCommand'.
 
-    This particularly applies to the PCO2 where an additional ACQUIRE_SAMPLE
+    This applies to the PCO2 where an additional ACQUIRE_SAMPLE
     command is required for device 1, the external pump.
     """
     GET_STATUS = 'S0'
@@ -213,7 +223,6 @@ class SamiInstrumentCommand(BaseEnum):
     STOP = 'Q5A'
     ACQUIRE_SAMPLE_SAMI = 'R0'
     ESCAPE_BOOT = 'u'
-    #ACQUIRE_SAMPLE_DEV1 = 'R1'  # Extend in indv. driver?
 
 
 ###############################################################################
@@ -512,8 +521,7 @@ class SamiInstrumentDriver(SingleConnectionInstrumentDriver):
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
 
-    Needs to be subclassed again in the specific driver module to call Protocol
-    in the _build_protocol method correctly
+    Needs to be subclassed in the specific driver module.
     """
     def __init__(self, evt_callback):
         """
@@ -532,6 +540,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     """
     SAMI Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
+
+    Should be sub-classed in specific driver.
     """
     def __init__(self, prompts, newline, driver_event):
         """
@@ -627,9 +637,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE,
             self._handler_autosample_acquire_sample)
 
-        # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
-        # while in the AUTOSAMPLE state and will last anywhere from 10 seconds
-        # to 3 minutes depending on instrument and the type of sampling.
+        # this state would be entered whenever an ACQUIRE_SAMPLE event
+        # occurred while in the AUTOSAMPLE state and will last anywhere
+        # from 10 seconds to 3 minutes depending on instrument and the
+        # type of sampling.
         self._protocol_fsm.add_handler(
             ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.ENTER,
             self._handler_scheduled_sample_enter)
@@ -637,11 +648,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.EXIT,
             self._handler_scheduled_sample_exit)
 
-        # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
-        # while in either the COMMAND state (or via the discover transition
-        # from the UNKNOWN state with the instrument unresponsive) and will
-        # last anywhere from a few seconds to 3 minutes depending on instrument
-        # and sample type.
+        # this state would be entered whenever an ACQUIRE_SAMPLE event
+        # occurred while in either the COMMAND state (or via the
+        # discover transition from the UNKNOWN state with the instrument
+        # unresponsive) and will last anywhere from a few seconds to 3
+        # minutes depending on instrument and sample type.
         self._protocol_fsm.add_handler(
             ProtocolState.POLLED_SAMPLE, ProtocolEvent.ENTER,
             self._handler_polled_sample_enter)
@@ -649,8 +660,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             ProtocolState.POLLED_SAMPLE, ProtocolEvent.EXIT,
             self._handler_polled_sample_exit)
 
-        # Construct the parameter dictionary containing device parameters,
-        # current parameter values, and set formatting functions.
+        # Construct the parameter dictionary containing device
+        # parameters, current parameter values, and set formatting
+        # functions.
         self._build_param_dict()
         self._build_command_dict()
         self._build_driver_dict()
@@ -673,16 +685,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(SamiInstrumentCommand.SET_CONFIG, self._build_response_set_config)
         self._add_response_handler(SamiInstrumentCommand.ERASE_ALL, self._build_response_erase_all)
         self._add_response_handler(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_response_sample_sami)
-        # Add this statement in the Protocol.__init__ method in the Pco2 driver
-        #self._add_response_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_response_sample_dev1)
 
         # Add sample handlers.
 
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        # Goes in the sub driver
-        #self._chunker = StringChunker(Protocol.sieve_function)
+        # continue __init__ in the sub-class in the specific driver
 
     def _filter_capabilities(self, events):
         """
@@ -1007,8 +1016,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         pass
 
-    # handlers for the SUCCESS and TIMEOUT events associated with the Polled
-    # Sample and Scheduled Sample states are defined in the sub class.
+    # handlers for the SUCCESS and TIMEOUT events associated with the
+    # Polled Sample and Scheduled Sample states are defined in the sub
+    # class.
 
     ####################################################################
     # Build Command & Parameter dictionary
@@ -1051,10 +1061,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     def _build_escape_boot(self):
         pass
 
-    # this needs to be defined in the subclass in the PCO2 specific driver
-    #def _build_sample_dev1(self):
-    #    pass
-
     ########################################################################
     # Response handlers.
     ########################################################################
@@ -1073,10 +1079,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
     def _build_response_sample_sami(self):
         pass
-
-    # this needs to be defined in the subclass in the PCO2 specific driver
-    #def _build_response_sample_dev1(self):
-    #    pass
 
     ########################################################################
     # Private helpers.
@@ -1158,13 +1160,15 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Compute a checksum for a Sami data record or control record string.
 
-        The '*' (character 1) and unique identifying byte (byte 1, characters 2
-        & 3) at the beginning should be excluded from the checksum calculation
-        as well as the checksum value itself (last byte, last 2 characters). It
-        should include the record length (byte 2, characters 4 & 5).
+        The '*' (character 1) and unique identifying byte (byte 1,
+        characters 2 & 3) at the beginning should be excluded from the
+        checksum calculation as well as the checksum value itself (last
+        byte, last 2 characters). It should include the record length
+        (byte 2, characters 4 & 5).
 
         Note that this method does NOT calculate the checksum on the
-        configuration string that is returned during instrument configuration.
+        configuration string that is returned during instrument
+        configuration.
 
         @author Chris Center
         @param s: string for check-sum analysis.

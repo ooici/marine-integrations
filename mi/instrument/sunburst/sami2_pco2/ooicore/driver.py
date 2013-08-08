@@ -534,9 +534,6 @@ class Protocol(SamiProtocol):
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
-        # commands sent to device to be filtered in responses for telnet DA
-        self._sent_cmds = []
-
         # build the chunker
         self._chunker = StringChunker(Protocol.sieve_function)
 
