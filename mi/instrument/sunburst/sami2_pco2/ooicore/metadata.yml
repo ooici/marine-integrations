@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Christopher Wingard
+  driver_make: sunburst
+  driver_model: sami2_pco2
+  driver_name: ooicore
+  email: cwingard@coas.oregonstate.edu
+  release_notes: Sunburst Sensors SAMI2-PCO2 pCO2 underwater sensor
+  version: 0.0.0
