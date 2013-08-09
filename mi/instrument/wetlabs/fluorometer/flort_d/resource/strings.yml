@@ -1,0 +1,32 @@
+# Template for a strings used to describe driver parameters and commands
+parameters: {
+    test: {
+        description: "Test Parameter Description",
+        units: "ie. seconds",
+        value_description: "ie. A float between 4 and 6",
+        type: "ie. a float"
+    }
+}
+
+commands: {
+    test_command: {
+        arguments: {
+            test_arg1: {
+                description: "Test Argument 1", 
+                display_name: "Test Arg", 
+                value: {
+                    description: "ie. An int greater than 0",
+                    units: "ie. counts",
+                    type: "ie. int"
+                }
+            },
+        },
+        description: "Test Command Description", 
+        display_name: "Test Cmd", 
+        return: {
+            description: "Voltage 0-5VDC applied to pump control switch", 
+            type: "float", 
+            units: "volts"
+        }, 
+     }
+}

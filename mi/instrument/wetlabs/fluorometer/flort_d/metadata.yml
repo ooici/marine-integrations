@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Art Teranishi
+  driver_make: wetlabs
+  driver_model: fluorometer
+  driver_name: flort_d
+  email: Arthur.M.Teranishi@raytheon.com
+  release_notes: Initial development
+  version: 0.0.1
