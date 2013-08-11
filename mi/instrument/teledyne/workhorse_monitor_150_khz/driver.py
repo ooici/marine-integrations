@@ -25,7 +25,7 @@ from mi.instrument.teledyne.driver import TeledyneCapability
 from mi.instrument.teledyne.driver import TeledyneInstrumentDriver
 from mi.instrument.teledyne.driver import TeledyneScheduledJob
 
-from mi.instrument.teledyne.particles import *
+from mi.instrument.teledyne.workhorse_monitor_150_khz.particles import *
 
 from mi.core.instrument.chunker import StringChunker
 
