@@ -374,7 +374,7 @@ class DriverTestMixin(MiUnitTest):
             self.assertIsNotNone(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP))
             self.assertIsInstance(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP), float)
 
-    def assert_data_particle_parameters(self, data_particle, param_dict, verify_values = False):
+    def assert_data_particle_parameters(self, data_particle, param_dict, verify_values=False):
         """
         Verify data partice parameters.  Does a quick conversion of the values to a dict
         so that common methods can operate on them.
@@ -384,7 +384,7 @@ class DriverTestMixin(MiUnitTest):
         @param verify_values: bool should ve verify parameter values
         """
         sample_dict = self.get_data_particle_values_as_dict(data_particle)
-        self.assert_parameters(sample_dict,param_dict,verify_values)
+        self.assert_parameters(sample_dict, param_dict, verify_values)
 
     def assert_driver_parameter_definition(self, driver, param_dict):
         """
@@ -2473,10 +2473,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         for i in range(0, sample_count):
             cmd = AgentCommand(command=command)
             reply = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
-
         # Watch the parsed data queue and return once three samples
         # have been read or the default timeout has been reached.
-        samples = self.data_subscribers.get_samples(sample_queue, sample_count, timeout = timeout)
+        samples = self.data_subscribers.get_samples(sample_queue, sample_count, timeout=timeout)
         self.assertGreaterEqual(len(samples), sample_count)
         log.trace("SAMPLE: %s", samples)
 
