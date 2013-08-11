@@ -120,7 +120,7 @@ class Protocol(WorkhorseProtocol):
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=False,
-            default_value='11111')
+            default_value='11110')
 
         self._param_dict.add(Parameter.BANNER,
             r'CH = (\d) \-+ Suppress Banner',
@@ -480,13 +480,20 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value=175)
 
-
-
     def _send_break_cmd(self, delay):
         """
         Send a BREAK to attempt to wake the device.
         """
-        log.debug("IN _send_break_cmd")
-        self._connection.send_break()
-        log.debug("AFTER _send_break_cmd")
+        log.trace("IN _send_break_cmd")
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        except socket.error, msg:
+            log.trace("WHOOPS! 1")
+
+        try:
+            sock.connect(('localhost', 2102))
+        except socket.error, msg:
+            log.trace("WHOOPS! 2")
+        sock.send("break " + str(delay) + "\r\n")
+        sock.close()
 
