@@ -619,11 +619,8 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
         #self.tcp_client.disconnect() # this one works
         
         # verify the setting got restored.
-        log.error("ROGER 1---------------------------------------------")
         self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 200)
-        log.error("ROGER 2---------------------------------------------")
         self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1500)
-        log.error("ROGER 3---------------------------------------------")
 
         ###
         # Test direct access inactivity timeout
@@ -656,7 +653,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
             log.debug("Sending a little keep alive communication, sleeping for 15 seconds")
             gevent.sleep(15)
 
-        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 45)
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 120)
 
     def test_direct_access_telnet_mode_autosample_disconnect(self):
         """
