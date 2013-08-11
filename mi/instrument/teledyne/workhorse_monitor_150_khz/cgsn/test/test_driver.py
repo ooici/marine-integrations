@@ -158,7 +158,7 @@ class ADCPTMixin(DriverTestMixin):
     _driver_parameters = {
         # TODO: verify DEFAULT IS USED RIGHT.
         Parameter.SERIAL_DATA_OUT:           {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: "000 000 000",VALUE: "000 000 000",OFF_VALUE: "000 000 001"},
-        Parameter.SERIAL_FLOW_CONTROL:       {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: '11111', VALUE: '11111',      OFF_VALUE: '10110'},
+        Parameter.SERIAL_FLOW_CONTROL:       {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: '11110', VALUE: '11110',      OFF_VALUE: '10110'},
         Parameter.BANNER:                    {TYPE: bool, READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: False,        OFF_VALUE: True},
         Parameter.SLEEP_ENABLE:              {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 1,       VALUE: 1,            OFF_VALUE: 0},
         Parameter.INSTRUMENT_ID:             {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
@@ -218,36 +218,32 @@ class ADCPTMixin(DriverTestMixin):
     #name, type done, value pending
     EF_CHAR = '\xef'
     _calibration_data_parameters = {
-        ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP: {'type': float, 'value': 1348340012.0 },
-        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX: {'type': list, 'value': [0.41275, 0.42168, -0.020631, -2.844e-05] },
-        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY: {'type': list, 'value': [-0.0049163, 4.7625e-06, -0.0027393, -0.56853] },
-        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ: {'type': list, 'value': [0.21975, -0.20662, -0.3012, 0.0027459] },
-        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR: {'type': list, 'value': [0.48227, -0.44007, 0.65367, -0.0073235] },
-        ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET: {'type': list, 'value': [33914.0, 33331.0, 34030.0, 34328.0] },
-        ADCP_COMPASS_CALIBRATION_KEY.ELECTRICAL_NULL: {'type': float, 'value': 33989.0 },
-        ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP: {'type': float, 'value': 1348339848.0 },
-        ADCP_COMPASS_CALIBRATION_KEY.CALIBRATION_TEMP: {'type': float, 'value': 25.7 },
-        ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN: {'type': list, 'value': [-1.7305e-07, -2.9588e-05, 3.0294e-07, 3.1274e-05] },
-        ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN: {'type': list, 'value': [-2.9052e-05, -5.6057e-07, -3.1059e-05, -5.2326e-07] },
-        ADCP_COMPASS_CALIBRATION_KEY.OFFSET_UP_DOWN: {'type': list, 'value': [32805.0, 32384.0, 33287.0, 31595.0] },
-        ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL: {'type': float, 'value': 33272.0 }
+        ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP: {'type': float, 'value': -1785800539.0 },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX: {'type': list, 'value': [3.8774e-01, 4.7391e-01, -2.5109e-02, -1.4835e-02] },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY: {'type': list, 'value': [-8.2932e-03, 1.8434e-02, -5.2666e-02, 5.8153e-01] },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ: {'type': list, 'value': [2.2218e-01, -1.7820e-01, 2.9168e-01, 1.6125e-02] },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR: {'type': list, 'value': [-5.3909e-01, 4.7951e-01, 7.0135e-01, 4.0629e-02] },
+        ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET: {'type': list, 'value': [3.8310e+04, 3.4872e+04, 3.7008e+04, 3.4458e+04] },
+        ADCP_COMPASS_CALIBRATION_KEY.ELECTRICAL_NULL: {'type': float, 'value': 34159 },
+        ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP: {'type': float, 'value': 1348176909.0 },
+        ADCP_COMPASS_CALIBRATION_KEY.CALIBRATION_TEMP: {'type': float, 'value': 24.9 },
+        ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN: {'type': list, 'value': [3.5167e-07, -1.4728e-05, -3.5240e-07,  1.5687e-05] },
+        ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN: {'type': list, 'value': [-1.4773e-05, 2.9804e-23, -1.5654e-05, -1.2675e-07] },
+        ADCP_COMPASS_CALIBRATION_KEY.OFFSET_UP_DOWN: {'type': list, 'value': [3.2170e+04, 3.3840e+04, 3.4094e+04, 3.3028e+04] },
+        ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL: {'type': float, 'value': 33296 }
     }
 
     #name, type done, value pending
     _system_configuration_data_parameters = {
-        ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER: {'type': unicode, 'value': "18593" },
-        ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY: {'type': int, 'value': 153600 }, 
+        ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER: {'type': unicode, 'value': "18493" },
+        ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY: {'type': int, 'value': 307200 }, 
         ADCP_SYSTEM_CONFIGURATION_KEY.CONFIGURATION: {'type': unicode, 'value': "4 BEAM, JANUS" },
         ADCP_SYSTEM_CONFIGURATION_KEY.MATCH_LAYER: {'type': unicode, 'value': "10" },
         ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_ANGLE: {'type': int, 'value': 20 },
         ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_PATTERN: {'type': unicode, 'value': "CONVEX" },
         ADCP_SYSTEM_CONFIGURATION_KEY.ORIENTATION: {'type': unicode, 'value': "UP" },
-        ADCP_SYSTEM_CONFIGURATION_KEY.SENSORS: {'type': unicode, 'value': "HEADING  TILT 1  TILT 2  DEPTH  TEMPERATURE  PRESSURE" },
-        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c3: {'type': float, 'value': 1.629386e-10 },
-        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c2: {'type': float, 'value': -1.886023e-06 },
-        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c1: {'type': float, 'value': 1.364779 },
-        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_OFFSET: {'type': float, 'value': -24.57906 },
-        ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET: {'type': float, 'value': -0.17 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.SENSORS: {'type': unicode, 'value': "HEADING  TILT 1  TILT 2  TEMPERATURE" },
+        ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET: {'type': float, 'value': -0.02 },
         ADCP_SYSTEM_CONFIGURATION_KEY.CPU_FIRMWARE: {'type': unicode, 'value': "50.40 [0]" },
         ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_REQUIRED: {'type': unicode, 'value': "1.16" }, 
         ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_ACTUAL: {'type': unicode, 'value': "1.16" }, 
@@ -256,8 +252,8 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_VERSION: {'type': unicode, 'value': "ad48" },
         ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_TYPE: {'type': unicode, 'value': "1f" }, 
         ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION: {'type': unicode, 'value': "85d3" }, 
-        ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE: {'type': unicode, 'value': "6" }, 
-        ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS: {'type': unicode, 'value': u'98  00 00 06 FF 13 A0  09 HPI727-3007-00A\n28  00 00 06 FE D0 FC  09 CPU727-2011-00E\n0C  00 00 06 FF 13 BA  09 HPA727-3009-02B\nE7  00 00 06 B2 C6 7D  09 REC727-1004-05A\n70  00 00 06 F5 AF 73  09 DSP727-2001-05H\nF0  00 00 06 F5 B2 EB  09 TUN727-1005-05A'}
+        ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE: {'type': unicode, 'value': "7" }, 
+        ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS: {'type': unicode, 'value': u'2F  00 00 06 FF 25 D1  09 CPU727-2011-00E\n16  00 00 06 F5 E5 D1  09 DSP727-2001-04H\n27  00 00 06 FF 29 31  09 PIO727-3000-00G\n91  00 00 06 F6 17 A7  09 REC727-1000-04E'}
         }
 
     #name, type done, value pending
@@ -541,7 +537,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         self.assertTrue(self.protocol._send_break())
 
-    # broke
     def test_driver_schema(self):
         """
         get the driver schema and verify it is configured properly
@@ -570,7 +565,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_particle_published(driver, SAMPLE_RAW_DATA3, self.assert_particle_pd0_data, True)
         self.assert_particle_published(driver, SAMPLE_RAW_DATA4, self.assert_particle_pd0_data, True)
 
-    # broke
     def test_driver_parameters(self):
         """
         Verify the set of parameters known by the driver
@@ -888,6 +882,29 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 
         self.assert_set(Parameter.TRANSDUCER_DEPTH, self._driver_parameters[Parameter.TRANSDUCER_DEPTH][self.VALUE])
         self._tested[Parameter.TRANSDUCER_DEPTH] = True
+
+    # Override existing function, this instrument has a different range maxing out at 40 - 3200
+    def _test_set_depth_cell_size(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for DEPTH_CELL_SIZE ======")
+
+        # DEPTH_CELL_SIZE: int 20 - 1600
+        self.assert_set(Parameter.DEPTH_CELL_SIZE, 20)
+        self.assert_set(Parameter.DEPTH_CELL_SIZE, 1600)
+
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, 1601)
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, -1)
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, 19)
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, 3.1415926)
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, "LEROY JENKINS")
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.DEPTH_CELL_SIZE, self._driver_parameter_defaults[TeledyneParameter.DEPTH_CELL_SIZE])
+        self.assert_set(Parameter.DEPTH_CELL_SIZE, self._driver_parameters[Parameter.DEPTH_CELL_SIZE][self.VALUE])
+        self._tested[Parameter.DEPTH_CELL_SIZE] = True
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
