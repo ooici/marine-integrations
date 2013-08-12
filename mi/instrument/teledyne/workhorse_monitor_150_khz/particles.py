@@ -202,6 +202,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         """
         Parse the base portion of the particle
         """
+        log.debug("****** ADCP_PD0_PARSED_DataParticle._build_parsed_values ******")
         if "[BREAK Wakeup A]" in self.raw_data:
             raise SampleException("BREAK encountered, Seems someone is escaping autosample mode.")
 
@@ -757,10 +758,10 @@ class ADCP_SYSTEM_CONFIGURATION_KEY(BaseEnum):
     BEAM_PATTERN = "beam_pattern"
     ORIENTATION = "orientation"
     SENSORS = "sensors"
-    PRESSURE_COEFF_c3 = "pressure_coeff_c3"
-    PRESSURE_COEFF_c2 = "pressure_coeff_c2"
-    PRESSURE_COEFF_c1 = "pressure_coeff_c1"
-    PRESSURE_COEFF_OFFSET = "pressure_coeff_offset"
+    #PRESSURE_COEFF_c3 = "pressure_coeff_c3"
+    #PRESSURE_COEFF_c2 = "pressure_coeff_c2"
+    #PRESSURE_COEFF_c1 = "pressure_coeff_c1"
+    #PRESSURE_COEFF_OFFSET = "pressure_coeff_offset"
     TEMPERATURE_SENSOR_OFFSET = "temperature_sensor_offset"
     CPU_FIRMWARE = "cpu_firmware"
     BOOT_CODE_REQUIRED = "boot_code_required"
@@ -786,11 +787,6 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
     RE06 = re.compile(r'     Orientation:  ([a-zA-Z]+)')
     RE07 = re.compile(r'       Sensor\(s\):  ([a-zA-Z0-9 ]+)')
 
-    RE09 = re.compile(r'              c3 = ([\+\-0-9.E]+)')
-    RE10 = re.compile(r'              c2 = ([\+\-0-9.E]+)')
-    RE11 = re.compile(r'              c1 = ([\+\-0-9.E]+)')
-    RE12 = re.compile(r'          Offset = ([\+\-0-9.E]+)')
-
     RE14 = re.compile(r'Temp Sens Offset: +([\+\-0-9.]+) degrees C')
 
     RE16 = re.compile(r'    CPU Firmware:  ([0-9.\[\] ]+)')
@@ -803,73 +799,214 @@ class ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
     RE24 = re.compile(r' +([0-9a-zA-Z\- ]+)')
     RE25 = re.compile(r' +([0-9a-zA-Z\- ]+)')
     RE26 = re.compile(r' +([0-9a-zA-Z\- ]+)')
-    RE27 = re.compile(r' +([0-9a-zA-Z\- ]+)')
-    RE28 = re.compile(r' +([0-9a-zA-Z\- ]+)')
 
     def _build_parsed_values(self):
         # Initialize
+        
         matches = {}
 
-        lines = self.raw_data.split(NEWLINE)
-
-        match = self.RE00.match(lines[0])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER] = match.group(1)
-        match = self.RE01.match(lines[1])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY] = int(match.group(1))
-        match = self.RE02.match(lines[2])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.CONFIGURATION] = match.group(1)
-        match = self.RE03.match(lines[3])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.MATCH_LAYER] = match.group(1)
-        match = self.RE04.match(lines[4])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_ANGLE] = int(match.group(1))
-        match = self.RE05.match(lines[5])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_PATTERN] = match.group(1)
-        match = self.RE06.match(lines[6])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.ORIENTATION] = match.group(1)
-        match = self.RE07.match(lines[7])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.SENSORS] = match.group(1)
-        match = self.RE09.match(lines[9])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c3] = float(match.group(1))
-        match = self.RE10.match(lines[10])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c2] = float(match.group(1))
-        match = self.RE11.match(lines[11])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c1] = float(match.group(1))
-        match = self.RE12.match(lines[12])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_OFFSET] = float(match.group(1))
-        match = self.RE14.match(lines[14])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET] = float(match.group(1))
-        match = self.RE16.match(lines[16])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.CPU_FIRMWARE] = match.group(1)
-        match = self.RE17.match(lines[17])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_REQUIRED] = match.group(1)
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_ACTUAL] = match.group(2)
-        match = self.RE18.match(lines[18])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_VERSION] = match.group(1)
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_TYPE] = match.group(2)
-        match = self.RE19.match(lines[19])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_VERSION] = match.group(1)
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_TYPE] = match.group(2)
-        match = self.RE20.match(lines[20])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION] = match.group(1)
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE] = match.group(2)
-
-        match = self.RE23.match(lines[23])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] = str(match.group(1)) + "\n"
-        match = self.RE24.match(lines[24])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
-        match = self.RE25.match(lines[25])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
-        match = self.RE26.match(lines[26])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
-        match = self.RE27.match(lines[27])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
-        match = self.RE28.match(lines[28])
-        matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1))
-
+        try:
+            lines = self.raw_data.split(NEWLINE)
+    
+            match = self.RE00.match(lines[0])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER] = match.group(1)
+            match = self.RE01.match(lines[1])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY] = int(match.group(1))
+            match = self.RE02.match(lines[2])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.CONFIGURATION] = match.group(1)
+            match = self.RE03.match(lines[3])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.MATCH_LAYER] = match.group(1)
+            match = self.RE04.match(lines[4])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_ANGLE] = int(match.group(1))
+            match = self.RE05.match(lines[5])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_PATTERN] = match.group(1)
+            match = self.RE06.match(lines[6])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.ORIENTATION] = match.group(1)
+            match = self.RE07.match(lines[7])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.SENSORS] = match.group(1)
+            match = self.RE14.match(lines[8])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET] = float(match.group(1))
+            match = self.RE16.match(lines[10])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.CPU_FIRMWARE] = match.group(1)
+            match = self.RE17.match(lines[11])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_REQUIRED] = match.group(1)
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_ACTUAL] = match.group(2)
+            match = self.RE18.match(lines[12])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_VERSION] = match.group(1)
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_TYPE] = match.group(2)
+            match = self.RE19.match(lines[13])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_VERSION] = match.group(1)
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_TYPE] = match.group(2)
+            match = self.RE20.match(lines[14])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION] = match.group(1)
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE] = match.group(2)
+    
+            match = self.RE23.match(lines[17])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] = str(match.group(1)) + "\n"
+            match = self.RE24.match(lines[18])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
+            match = self.RE25.match(lines[19])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
+            match = self.RE26.match(lines[20])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) 
+        except Exception as e:
+            log.error("EXCEPTION WAS !!!! " + str(e))
         result = []
         for (key, value) in matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
                            DataParticleKey.VALUE: value})
+        return result
+
+class BROKE_ADCP_SYSTEM_CONFIGURATION_DataParticle(DataParticle):
+    _data_particle_type = DataParticleType.ADCP_SYSTEM_CONFIGURATION
+
+    RE00 = re.compile(r'Instrument S/N: +(\d+)')
+    RE01 = re.compile(r'       Frequency: +(\d+) HZ')
+    RE02 = re.compile(r'   Configuration: +([a-zA-Z0-9, ]+)')
+    RE03 = re.compile(r'     Match Layer: +(\d+)')
+    RE04 = re.compile(r'      Beam Angle:  ([0-9.]+) DEGREES')
+    RE05 = re.compile(r'    Beam Pattern:  ([a-zA-Z]+)')
+    RE06 = re.compile(r'     Orientation:  ([a-zA-Z]+)')
+    RE07 = re.compile(r'       Sensor\(s\):  ([a-zA-Z0-9 ]+)')
+    
+    RE09 = re.compile(r'              c3 = ([\+\-0-9.E]+)')
+    RE10 = re.compile(r'              c2 = ([\+\-0-9.E]+)')
+    RE11 = re.compile(r'              c1 = ([\+\-0-9.E]+)')
+    RE12 = re.compile(r'          Offset = ([\+\-0-9.E]+)')
+    RE14 = re.compile(r'Temp Sens Offset: +([\+\-0-9.]+) degrees C')
+
+    RE16 = re.compile(r'    CPU Firmware:  ([0-9.\[\] ]+)')
+    RE17 = re.compile(r' +Boot Code Ver: +Required: +([0-9.]+) +Actual: +([0-9.]+)')
+    RE18 = re.compile(r'    DEMOD #1 Ver: +([a-zA-Z0-9]+), Type: +([a-zA-Z0-9]+)')
+    RE19 = re.compile(r'    DEMOD #2 Ver: +([a-zA-Z0-9]+), Type: +([a-zA-Z0-9]+)')
+    RE20 = re.compile(r'    PWRTIMG  Ver: +([a-zA-Z0-9]+), Type: +([a-zA-Z0-9]+)')
+
+    RE23 = re.compile(r' +([0-9a-zA-Z\- ]+)')
+    RE24 = re.compile(r' +([0-9a-zA-Z\- ]+)')
+    RE25 = re.compile(r' +([0-9a-zA-Z\- ]+)')
+    RE26 = re.compile(r' +([0-9a-zA-Z\- ]+)')
+
+    def _build_parsed_values(self):
+        # Initialize
+        log.error("in ADCP_SYSTEM_CONFIGURATION_DataParticle _build_parsed_values")
+        matches = {}
+
+        try:
+            lines = self.raw_data.split(NEWLINE)
+            line_num = 0
+            log.error("LINE = " + repr(lines[0]))
+        
+            match = self.RE00.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER] = match.group(1)
+
+            line_num += 1
+            
+            match = self.RE01.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY] = int(match.group(1))
+
+            line_num += 1
+            match = self.RE02.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.CONFIGURATION] = match.group(1)
+            line_num += 1
+            match = self.RE03.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.MATCH_LAYER] = match.group(1)
+            line_num += 1
+            match = self.RE04.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_ANGLE] = int(match.group(1))
+            line_num += 1
+            match = self.RE05.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_PATTERN] = match.group(1)
+            line_num += 1
+            match = self.RE06.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.ORIENTATION] = match.group(1)
+            line_num += 1
+            match = self.RE07.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.SENSORS] = match.group(1)
+
+            line_num += 1
+            match = self.RE09.match(lines[line_num])
+            matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c3] = float(match.group(1))
+            line_num += 1
+            match = self.RE10.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c2] = float(match.group(1))
+            line_num += 1
+            match = self.RE11.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c1] = float(match.group(1))
+            line_num += 1
+            match = self.RE12.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_OFFSET] = float(match.group(1))
+            line_num += 2
+            match = self.RE14.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET] = float(match.group(1))
+            line_num += 2
+            match = self.RE16.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.CPU_FIRMWARE] = match.group(1)
+            line_num += 1
+            match = self.RE17.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_REQUIRED] = match.group(1)
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_ACTUAL] = match.group(2)
+            else:
+                log.error(line_num)
+                log.error(lines[line_num])
+                log.error(match.group(1))
+                log.error(match.group(1))
+                
+            line_num += 1
+            match = self.RE18.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_VERSION] = match.group(1)
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_1_TYPE] = match.group(2)
+            line_num += 1
+            match = self.RE19.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_VERSION] = match.group(1)
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_TYPE] = match.group(2)
+            line_num += 1
+            match = self.RE20.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION] = match.group(1)
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE] = match.group(2)
+            line_num += 3
+    
+            match = self.RE23.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] = str(match.group(1)) + "\n"
+            line_num += 1
+            match = self.RE24.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
+            line_num += 1
+            match = self.RE25.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
+            line_num += 1
+            match = self.RE26.match(lines[line_num])
+            if match:
+                matches[ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS] += str(match.group(1)) + "\n"
+        except Exception as e:
+            log.error("GOT AN EXCEPTION" + str(e))
+    
+            result = []
+            for (key, value) in matches.iteritems():
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: value})
+    
+            log.error("RETURNING result = " + repr(result))
+
         return result
 
 
@@ -914,50 +1051,53 @@ class ADCP_COMPASS_CALIBRATION_DataParticle(DataParticle):
 
     def _build_parsed_values(self):
         # Initialize
+        log.error("in ADCP_COMPASS_CALIBRATION_DataParticle _build_parsed_values")
         matches = {}
-        lines = self.raw_data.split(NEWLINE)
-        match = self.RE01.match(lines[1])
-        timestamp = match.group(1)
-        matches[ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP] = time.mktime(time.strptime(timestamp, "%m/%d/%Y  %H:%M:%S"))
-
-        match = self.RE04.match(lines[4])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
-        match = self.RE05.match(lines[5])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
-        match = self.RE06.match(lines[6])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
-        match = self.RE07.match(lines[7])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
-
-        match = self.RE11.match(lines[11])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET] = [float(match.group(1))]
-        match = self.RE12.match(lines[12])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(float(match.group(1)))
-        match = self.RE13.match(lines[13])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(float(match.group(1)))
-        match = self.RE14.match(lines[14])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(float(match.group(1)))
-
-        match = self.RE18.match(lines[18])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.ELECTRICAL_NULL] = float(match.group(1))
-
-        match = self.RE21.match(lines[21])
-        timestamp = match.group(1)
-        matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP] = time.mktime(time.strptime(timestamp, "%m/%d/%Y  %H:%M:%S"))
-
-        match = self.RE22.match(lines[22])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.CALIBRATION_TEMP] = float(match.group(1))
-
-        match = self.RE27.match(lines[27])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
-        match = self.RE28.match(lines[28])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
-        match = self.RE32.match(lines[32])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.OFFSET_UP_DOWN] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
-
-        match = self.RE36.match(lines[36])
-        matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL] = float(match.group(1))
-
+        try:
+            lines = self.raw_data.split(NEWLINE)
+            match = self.RE01.match(lines[1])
+            timestamp = match.group(1)
+            matches[ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP] = time.mktime(time.strptime(timestamp, "%m/%d/%Y  %H:%M:%S"))
+    
+            match = self.RE04.match(lines[4])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+            match = self.RE05.match(lines[5])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+            match = self.RE06.match(lines[6])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+            match = self.RE07.match(lines[7])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+    
+            match = self.RE11.match(lines[11])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET] = [float(match.group(1))]
+            match = self.RE12.match(lines[12])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(float(match.group(1)))
+            match = self.RE13.match(lines[13])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(float(match.group(1)))
+            match = self.RE14.match(lines[14])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET].append(float(match.group(1)))
+    
+            match = self.RE18.match(lines[18])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.ELECTRICAL_NULL] = float(match.group(1))
+    
+            match = self.RE21.match(lines[21])
+            timestamp = match.group(1)
+            matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP] = time.mktime(time.strptime(timestamp, "%m/%d/%Y  %H:%M:%S"))
+    
+            match = self.RE22.match(lines[22])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.CALIBRATION_TEMP] = float(match.group(1))
+    
+            match = self.RE27.match(lines[27])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+            match = self.RE28.match(lines[28])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+            match = self.RE32.match(lines[32])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.OFFSET_UP_DOWN] = [float(match.group(1)), float(match.group(2)), float(match.group(3)), float(match.group(4))]
+    
+            match = self.RE36.match(lines[36])
+            matches[ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL] = float(match.group(1))
+        except Exception as e:
+            log.error("EXCEPTION WAS !!!! " + str(e))
         result = []
         for (key, value) in matches.iteritems():
             result.append({DataParticleKey.VALUE_ID: key,
