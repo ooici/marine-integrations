@@ -10,6 +10,7 @@ __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 import time
 import datetime as dt
+import unittest
 
 from gevent import monkey; monkey.patch_all()
 
@@ -137,6 +138,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         log.error("IN test_scheduled_device_configuration_command")
         self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=120)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
+
 
     def test_scheduled_device_configuration_autosample(self):
         """

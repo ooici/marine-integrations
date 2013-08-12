@@ -127,8 +127,8 @@ class WorkhorseProtocol(TeledyneProtocol):
         The chunks are all the same type.
         """
 
-        sieve_matchers = [ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
-                          ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
+        sieve_matchers = [ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
+                          ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
                           ADCP_PD0_PARSED_REGEX_MATCHER]
 
         return_list = []
@@ -153,7 +153,7 @@ class WorkhorseProtocol(TeledyneProtocol):
             else:
                 for match in matcher.finditer(raw_data):
                     return_list.append((match.start(), match.end()))
-
+                    
         return return_list
 
     def __init__(self, prompts, newline, driver_event):
@@ -172,6 +172,7 @@ class WorkhorseProtocol(TeledyneProtocol):
                                        self._handler_command_power_down)
 
         self._chunker = StringChunker(WorkhorseProtocol.sieve_function)
+        
 
     ########################################################################
     # Private helpers.
@@ -257,29 +258,29 @@ class WorkhorseProtocol(TeledyneProtocol):
         Pass it to extract_sample with the appropriate particle
         objects and REGEXes.
         """
-
         if (self._extract_sample(ADCP_COMPASS_CALIBRATION_DataParticle,
                                  ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_COMPASS_CALIBRATION_DataParticle")
 
-        if (self._extract_sample(ADCP_PD0_PARSED_DataParticle,
-                                 ADCP_PD0_PARSED_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)):
-            log.error("_got_chunk - successful match for ADCP_PD0_PARSED_DataParticle")
-            if self.disable_autosample_recover != True:
-                if(self._protocol_fsm.get_current_state() == WorkhorseProtocolState.COMMAND):
-                    log.error("FSM appears out of date.  Fixing it!")
-                    self._protocol_fsm.on_event(WorkhorseProtocolEvent.RECOVER_AUTOSAMPLE)
-                return
-
         if (self._extract_sample(ADCP_SYSTEM_CONFIGURATION_DataParticle,
                                  ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
+        if (self._extract_sample(ADCP_PD0_PARSED_DataParticle,
+                                 ADCP_PD0_PARSED_REGEX_MATCHER,
+                                 chunk,
+                                 timestamp)):
+            log.debug("_got_chunk - successful match for ADCP_PD0_PARSED_DataParticle")
+            if self.disable_autosample_recover != True:
+                if (self._protocol_fsm.get_current_state() == WorkhorseProtocolState.COMMAND):
+                    log.debug("FSM appears out of date.  Fixing it!")
+                    self._protocol_fsm.on_event(WorkhorseProtocolEvent.RECOVER_AUTOSAMPLE)
+                return
+
+
 
     def _filter_capabilities(self, events):
         """

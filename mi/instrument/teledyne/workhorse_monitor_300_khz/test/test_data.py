@@ -1,6 +1,6 @@
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import NEWLINE
 
-# UPDATED RAW DATA FROM ADCPT-B
+# UPDATED RAW DATA FROM ADCPT-B NEED VERIFY.
 
 SAMPLE_RAW_DATA1 = "\x7f\x7f\xf0\x02\x00\x06\x12\x00\x4d\x00\x8e\x00\x80\x01\xfa\x01\x74\x02\x00\x00\x32\x28\xca\x41\x00\x0d\x04\x1e\x01\x00\x20\x03\x60\x01\x01\x40\x11\x00\xd0\x07\x00\x1e\x00\x07\x00\x00\x00\x00\x7d\x1d\xa3\x04\x36\x03\x01\x05\x32\x00\x31\x00\x2f\x00\x00\x06\xff\x25\xd1\x09\x01\x00\xff\x00\x3d\x48\x00\x00\x14\x80\x00\x01\x00\x0d\x07\x09\x00\x18\x2e\x05\x00\x00\x00\xfc\x05\x00\x00\xf3\x38\xb2\xff\x03\x00\x23\x00\x55\x09\x00\x00\x01\x00\x00\x00\x7b\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x88\x7e\x89\x00\x00\x00\x00\x00\x00\x00\x00\x00\x14\x0d\x07\x09\x00\x18\x2e\x05\x00\x01\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80\x00\x02\x0a\x04\x07\x0c\x0b\x0b\x0a\x12\x11\x04\x0a\x06\x08\x05\x08\x0d\x0d\x09\x0a\x06\x0c\x04\x13\x09\x0c\x0d\x0a\x0b\x0b\x09\x06\x06\x0a\x0a\x06\x06\x0a\x09\x0b\x0b\x0f\x0f\x07\x0f\x10\x0d\x12\x0a\x0f\x0d\x0a\x0c\x06\x0b\x0b\x06\x0b\x0a\x10\x13\x01\x09\x08\x08\x0a\x09\x0d\x07\x0c\x0d\x0d\x03\x0a\x0c\x0e\x09\x06\x06\x05\x12\x04\x05\x0a\x0c\x0a\x0a\x07\x0c\x10\x0a\x0f\x07\x0f\x04\x0d\x0b\x0c\x06\x06\x07\x09\x0d\x0c\x0e\x11\x06\x07\x0d\x06\x0c\x13\x09\x10\x07\x11\x07\x0a\x13\x05\x0c\x00\x03\x44\x42\x42\x47\x48\x47\x46\x4a\x49\x47\x45\x49\x4a\x47\x46\x4a\x48\x48\x48\x4c\x4a\x46\x46\x4a\x49\x47\x46\x4a\x49\x47\x45\x4b\x48\x48\x45\x4b\x4a\x46\x47\x4b\x49\x48\x46\x4c\x4b\x48\x48\x4b\x49\x47\x48\x4b\x49\x47\x46\x4b\x49\x48\x46\x4b\x49\x47\x45\x4a\x49\x46\x45\x4b\x49\x47\x46\x4c\x4a\x47\x47\x4b\x4b\x46\x48\x4b\x4a\x48\x46\x4b\x49\x49\x46\x49\x48\x47\x46\x4a\x4a\x48\x47\x4b\x47\x48\x47\x4b\x49\x47\x46\x4c\x48\x47\x46\x4a\x49\x48\x49\x49\x4a\x48\x47\x4c\x48\x48\x49\x4b\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xe9\x64\xce\x79"
 
@@ -14,7 +14,7 @@ SAMPLE_RAW_DATA4 = "\x7f\x7f\xf0\x02\x00\x06\x12\x00\x4d\x00\x8e\x00\x80\x01\xfa
 
 
 
-# UPDATED break success FOR ADCPT-B
+# UPDATED break success FOR ADCPT-B 300 18493
 
 break_success_str = NEWLINE + "[BREAK Wakeup A]" + NEWLINE +\
 "WorkHorse Broadband ADCP Version 50.40" + NEWLINE +\
@@ -31,46 +31,46 @@ break_alarm_str = NEWLINE + "[ALARM Wakeup A]" + NEWLINE +\
 
 EF_CHAR = '\xef'
 
-# UPDATED CALIBRATION RAW DATA FROM ADCPT-B
+# UPDATED CALIBRATION RAW DATA FROM ADCPT-B 300 18493
 
 CALIBRATION_RAW_DATA = \
 "ACTIVE FLUXGATE CALIBRATION MATRICES in NVRAM" + NEWLINE + \
-"               Calibration date and time: 5/30/1913  16:17:41" + NEWLINE + \
+"               Calibration date and time: 9/22/2012  11:53:32" + NEWLINE + \
 "                             S inverse" + NEWLINE + \
 "          " + EF_CHAR + "                                                  " + EF_CHAR + NEWLINE + \
-"     Bx   " + EF_CHAR + "   3.8774e-01  4.7391e-01 -2.5109e-02 -1.4835e-02 " + EF_CHAR + NEWLINE + \
-"     By   " + EF_CHAR + "  -8.2932e-03  1.8434e-02 -5.2666e-02  5.8153e-01 " + EF_CHAR + NEWLINE + \
-"     Bz   " + EF_CHAR + "   2.2218e-01 -1.7820e-01  2.9168e-01  1.6125e-02 " + EF_CHAR + NEWLINE + \
-"     Err  " + EF_CHAR + "  -5.3909e-01  4.7951e-01  7.0135e-01  4.0629e-02 " + EF_CHAR + NEWLINE + \
+"     Bx   " + EF_CHAR + "   4.1275e-01  4.2168e-01 -2.0631e-02 -2.8440e-05 " + EF_CHAR + NEWLINE + \
+"     By   " + EF_CHAR + "  -4.9163e-03  4.7625e-06 -2.7393e-03 -5.6853e-01 " + EF_CHAR + NEWLINE + \
+"     Bz   " + EF_CHAR + "   2.1975e-01 -2.0662e-01 -3.0120e-01  2.7459e-03 " + EF_CHAR + NEWLINE + \
+"     Err  " + EF_CHAR + "   4.8227e-01 -4.4007e-01  6.5367e-01 -7.3235e-03 " + EF_CHAR + NEWLINE + \
 "          " + EF_CHAR + "                                                  " + EF_CHAR + NEWLINE + \
 "                             Coil Offset" + NEWLINE + \
 "                         " + EF_CHAR + "                " + EF_CHAR + NEWLINE + \
-"                         " + EF_CHAR + "   3.8310e+04   " + EF_CHAR + NEWLINE + \
-"                         " + EF_CHAR + "   3.4872e+04   " + EF_CHAR + NEWLINE + \
-"                         " + EF_CHAR + "   3.7008e+04   " + EF_CHAR + NEWLINE + \
-"                         " + EF_CHAR + "   3.4458e+04   " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "   3.3914e+04   " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "   3.3331e+04   " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "   3.4030e+04   " + EF_CHAR + NEWLINE + \
+"                         " + EF_CHAR + "   3.4328e+04   " + EF_CHAR + NEWLINE + \
 "                         " + EF_CHAR + "                " + EF_CHAR + NEWLINE + \
 "                             Electrical Null" + NEWLINE + \
 "                              " + EF_CHAR + "       " + EF_CHAR + NEWLINE + \
-"                              " + EF_CHAR + " 34159 " + EF_CHAR + NEWLINE + \
+"                              " + EF_CHAR + " 33989 " + EF_CHAR + NEWLINE + \
 "                              " + EF_CHAR + "       " + EF_CHAR + NEWLINE + \
 "                    TILT CALIBRATION MATRICES in NVRAM" + NEWLINE + \
-"                Calibration date and time: 9/20/2012  14:35:09" + NEWLINE + \
-"              Average Temperature During Calibration was   24.9 " + EF_CHAR + "C" + NEWLINE + \
+"                Calibration date and time: 9/22/2012  11:50:48" + NEWLINE + \
+"              Average Temperature During Calibration was   25.7 " + EF_CHAR + "C" + NEWLINE + \
 NEWLINE + \
 "                   Up                              Down" + NEWLINE + \
 NEWLINE + \
 "        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + NEWLINE + \
-" Roll   " + EF_CHAR + "   3.5167e-07  -1.4728e-05 " + EF_CHAR + "     " + EF_CHAR + "  -3.5240e-07   1.5687e-05 " + EF_CHAR + NEWLINE + \
-" Pitch  " + EF_CHAR + "  -1.4773e-05   2.9804e-23 " + EF_CHAR + "     " + EF_CHAR + "  -1.5654e-05  -1.2675e-07 " + EF_CHAR + NEWLINE + \
+" Roll   " + EF_CHAR + "  -1.7305e-07  -2.9588e-05 " + EF_CHAR + "     " + EF_CHAR + "   3.0294e-07   3.1274e-05 " + EF_CHAR + NEWLINE + \
+" Pitch  " + EF_CHAR + "  -2.9052e-05  -5.6057e-07 " + EF_CHAR + "     " + EF_CHAR + "  -3.1059e-05  -5.2326e-07 " + EF_CHAR + NEWLINE + \
 "        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + NEWLINE + \
 NEWLINE + \
 "        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + NEWLINE + \
-" Offset " + EF_CHAR + "   3.2170e+04   3.3840e+04 " + EF_CHAR + "     " + EF_CHAR + "   3.4094e+04   3.3028e+04 " + EF_CHAR + NEWLINE + \
+" Offset " + EF_CHAR + "   3.2805e+04   3.2384e+04 " + EF_CHAR + "     " + EF_CHAR + "   3.3287e+04   3.1595e+04 " + EF_CHAR + NEWLINE + \
 "        " + EF_CHAR + "                           " + EF_CHAR + "     " + EF_CHAR + "                           " + EF_CHAR + NEWLINE + \
 NEWLINE + \
 "                             " + EF_CHAR + "       " + EF_CHAR + NEWLINE + \
-"                      Null   " + EF_CHAR + " 33296 " + EF_CHAR + NEWLINE + \
+"                      Null   " + EF_CHAR + " 33272 " + EF_CHAR + NEWLINE + \
 "                             " + EF_CHAR + "       " + EF_CHAR + NEWLINE + \
 NEWLINE + \
 NEWLINE + \
@@ -79,61 +79,69 @@ NEWLINE + \
 NEWLINE + \
 ">"
 
-# UPDATED PS0 FOR ADCPT-B
+# UPDATED PS0 FOR ADCPT-B 300 18493
 
 PS0_RAW_DATA = \
-"Instrument S/N:  18493" + NEWLINE +\
-"       Frequency:  307200 HZ" + NEWLINE +\
+"Instrument S/N:  18593" + NEWLINE +\
+"       Frequency:  153600 HZ" + NEWLINE +\
 "   Configuration:  4 BEAM, JANUS" + NEWLINE +\
 "     Match Layer:  10" + NEWLINE +\
 "      Beam Angle:  20 DEGREES" + NEWLINE +\
 "    Beam Pattern:  CONVEX" + NEWLINE +\
 "     Orientation:  UP" + NEWLINE +\
-"       Sensor(s):  HEADING  TILT 1  TILT 2  TEMPERATURE" + NEWLINE +\
-"Temp Sens Offset:  -0.02 degrees C" + NEWLINE +\
+"       Sensor(s):  HEADING  TILT 1  TILT 2  DEPTH  TEMPERATURE  PRESSURE" + NEWLINE +\
+"Pressure Sens Coefficients:" + NEWLINE +\
+"              c3 = +1.629386E-10" + NEWLINE +\
+"              c2 = -1.886023E-06" + NEWLINE +\
+"              c1 = +1.364779E+00" + NEWLINE +\
+"          Offset = -2.457906E+01" + NEWLINE +\
+NEWLINE +\
+"Temp Sens Offset:  -0.17 degrees C" + NEWLINE +\
 NEWLINE +\
 "    CPU Firmware:  50.40 [0]" + NEWLINE +\
 "   Boot Code Ver:  Required:  1.16   Actual:  1.16" + NEWLINE +\
 "    DEMOD #1 Ver:  ad48, Type:  1f" + NEWLINE +\
 "    DEMOD #2 Ver:  ad48, Type:  1f" + NEWLINE +\
-"    PWRTIMG  Ver:  85d3, Type:   7" + NEWLINE +\
+"    PWRTIMG  Ver:  85d3, Type:   6" + NEWLINE +\
 NEWLINE +\
 "Board Serial Number Data:" + NEWLINE +\
-"   2F  00 00 06 FF 25 D1  09 CPU727-2011-00E\n" + NEWLINE + \
-"   16  00 00 06 F5 E5 D1  09 DSP727-2001-04H\n" + NEWLINE + \
-"   27  00 00 06 FF 29 31  09 PIO727-3000-00G\n" + NEWLINE + \
-"   91  00 00 06 F6 17 A7  09 REC727-1000-04E\n" + NEWLINE + \
+"   98  00 00 06 FF 13 A0  09 HPI727-3007-00A" + NEWLINE +\
+"   28  00 00 06 FE D0 FC  09 CPU727-2011-00E" + NEWLINE +\
+"   0C  00 00 06 FF 13 BA  09 HPA727-3009-02B" + NEWLINE +\
+"   E7  00 00 06 B2 C6 7D  09 REC727-1004-05A" + NEWLINE +\
+"   70  00 00 06 F5 AF 73  09 DSP727-2001-05H" + NEWLINE +\
+"   F0  00 00 06 F5 B2 EB  09 TUN727-1005-05A" + NEWLINE +\
 ">"
 
-# UPDATED PS3 FOR ADCPT-B
+# UPDATED PS3 FOR ADCPT-B 300 18493
 
 PS3_RAW_DATA = \
 "Beam Width:   3.7 degrees" + NEWLINE +\
 NEWLINE +\
 "Beam     Elevation     Azimuth" + NEWLINE +\
-"  1         -70.00      270.00" + NEWLINE +\
-"  2         -70.00       90.00" + NEWLINE +\
-"  3         -70.00        0.01" + NEWLINE +\
-"  4         -70.00      180.00" + NEWLINE +\
+"  1         -69.81      269.92" + NEWLINE +\
+"  2         -70.00       89.92" + NEWLINE +\
+"  3         -69.82        0.07" + NEWLINE +\
+"  4         -69.89      180.08" + NEWLINE +\
 NEWLINE +\
 "Beam Directional Matrix (Down):" + NEWLINE +\
-"  0.3420    0.0000    0.9397    0.2419" + NEWLINE +\
-" -0.3420    0.0000    0.9397    0.2419" + NEWLINE +\
-"  0.0000   -0.3420    0.9397   -0.2419" + NEWLINE +\
-"  0.0000    0.3420    0.9397   -0.2419" + NEWLINE +\
+"  0.3453    0.0005    0.9385    0.2421" + NEWLINE +\
+" -0.3421   -0.0005    0.9397    0.2444" + NEWLINE +\
+" -0.0005   -0.3451    0.9386   -0.2429" + NEWLINE +\
+"  0.0005    0.3438    0.9390   -0.2438" + NEWLINE +\
 NEWLINE +\
 "Instrument Transformation Matrix (Down):    Q14:" + NEWLINE +\
-"  1.4619   -1.4619    0.0000    0.0000       23952  -23952       0       0" + NEWLINE +\
-"  0.0000    0.0000   -1.4619    1.4619           0       0  -23952   23952" + NEWLINE +\
-"  0.2661    0.2661    0.2661    0.2661        4359    4359    4359    4359" + NEWLINE +\
-"  1.0337    1.0337   -1.0337   -1.0337       16936   16936  -16936  -16936" + NEWLINE +\
+"  1.4587   -1.4508   -0.0010   -0.0051       23899  -23770     -16     -83" + NEWLINE +\
+" -0.0008    0.0033   -1.4532    1.4500         -13      54  -23809   23757" + NEWLINE +\
+"  0.2650    0.2676    0.2657    0.2667        4342    4384    4353    4370" + NEWLINE +\
+"  1.0225    1.0323   -1.0257   -1.0297       16752   16913  -16805  -16871" + NEWLINE +\
 "Beam Angle Corrections Are Loaded." + NEWLINE +\
 ">"
 
-# UPDATED PS4 FOR ADCPT-B
+# UPDATED PS4 FOR ADCPT-B 300 18493
 
 PS4_RAW_DATA = \
-"Ping Sequence:  W W W W W" + NEWLINE +\
+"Ping Sequence:  W" + NEWLINE +\
 ">"
 
 # UPDATED FD FOR ADCPT-B
@@ -145,7 +153,7 @@ FD_RAW_DATA = \
 "Time of last fault:     64/64/64,64:64:64.128" + NEWLINE +\
 NEWLINE
 
-# UPDATED PT200 FOR ADCPT-B
+# UPDATED PT200 FOR ADCPT-B 300 18493
 
 PT200_RAW_DATA = \
 "Ambient  Temperature =    22.74 Degrees C" + NEWLINE +\
