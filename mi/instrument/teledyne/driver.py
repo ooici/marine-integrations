@@ -424,7 +424,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws: InstrumentProtocolException if not in command or streaming
         """
         # Let's give it a try in unknown state
-        log.trace("in apply_startup_params")
+        log.debug("in apply_startup_params")
         if (self.get_current_state() != TeledyneProtocolState.COMMAND and
             self.get_current_state() != TeledyneProtocolState.AUTOSAMPLE):
             raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
@@ -456,6 +456,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         finally:
             # Switch back to streaming
             if logging:
+                log.debug("GOING BACK INTO LOGGING")
                 my_state = self._protocol_fsm.get_current_state()
                 log.trace("current_state = %s", my_state)
                 self._start_logging()
@@ -468,7 +469,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         apply startup parameters to the instrument.
         @throws: InstrumentProtocolException if in wrong mode.
         """
-        log.trace("IN _apply_params")
+        log.debug("IN _apply_params")
         config = self.get_startup_config()
         # Pass true to _set_params so we know these are startup values
         self._set_params(config, True)
@@ -582,8 +583,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         finally:
             # Switch back to streaming
             if logging:
+                log.debug("GOING BACK INTO LOGGING")
                 my_state = self._protocol_fsm.get_current_state()
-                log.trace("current_state = %s calling start_logging", my_state)
+                log.debug("current_state = %s calling start_logging", my_state)
                 self._start_logging()
 
         if(error):
@@ -645,7 +647,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         Send a BREAK to attempt to wake the device.
         """
-        log.trace("IN _send_break, clearing buffer.")
+        log.debug("IN _send_break, clearing buffer.")
         self._promptbuf = ''
         self._linebuf = ''
         self._send_break_cmd(duration)
@@ -770,9 +772,11 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @return: True if successful
         @throws: InstrumentProtocolException if failed to start logging
         """
-        log.trace("in _start_logging - are we logging? " + str(self._is_logging()))
-        if(self._is_logging()):
+        log.debug("in _start_logging - are we logging? ")
+        if (self._is_logging()):
+            log.debug("ALREADY LOGGING")
             return True
+        log.debug("SENDING START LOGGING")
         self._do_cmd_no_resp(TeledyneInstrumentCmds.START_LOGGING, timeout=timeout)
 
         return True
@@ -785,7 +789,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws: InstrumentTimeoutException if prompt isn't seen
         @throws: InstrumentProtocolException failed to stop logging
         """
-        log.trace("in Stop Logging!")
+        log.debug("in Stop Logging!")
         # Issue the stop command.
 
 
@@ -803,6 +807,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         logging = False
 
         if self._is_logging(timeout):
+            log.debug("FAILED TO STOP LOGGING")
             raise InstrumentProtocolException("failed to stop logging")
 
         return True
@@ -998,6 +1003,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         error = None
 
         try:
+            log.debug("stopping logging without checking")
             self._stop_logging()
             self._init_params()
 
@@ -1008,6 +1014,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         finally:
             # Switch back to streaming
+            log.debug("starting logging")
             self._start_logging()
                 #self._do_cmd_no_resp(TeledyneInstrumentCmds.START_LOGGING)
 
@@ -1058,8 +1065,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # Wake up the device, continuing until autosample prompt seen.
         timeout = kwargs.get('timeout', TIMEOUT)
 
-        if (self._is_logging(timeout)):
-            self._stop_logging(timeout)
+        #if (self._is_logging(timeout)):
+        self._stop_logging(timeout)
 
         next_state = TeledyneProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
@@ -1150,6 +1157,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             kwargs['timeout'] = 120
             output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
 
+
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
         except Exception as e:
@@ -1178,6 +1186,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
+        
         next_state = None
         next_agent_state = None
         result = None
@@ -1202,10 +1211,11 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         if(error):
             raise error
-
+        
         result = self._sanitize(base64.b64decode(output))
+        
         return (next_state, (next_agent_state, result))
-        #return (next_state, (next_agent_state, {'result': result}))
+        
 
     def _handler_recover_autosample(self, *args, **kwargs):
         """
@@ -1334,7 +1344,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         result = None
 
         kwargs['timeout'] = 120  # long time to get params.
-
+        log.debug("in _handler_command_get_configuration")
         output = self._do_cmd_resp(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
         result = self._sanitize(base64.b64decode(output))
         return (next_state, (next_agent_state, {'result': result}))
@@ -1430,10 +1440,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug("IN _discover")
         logging = self._is_logging()
-     
-        if(logging == True):
+        log.error("LOGGING = " + str(logging))
+        if (logging == True):
             return (TeledyneProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING)
-        elif(logging == False):
+        elif (logging == False):
             return (TeledyneProtocolState.COMMAND, ResourceAgentState.COMMAND)
         else:
             return (TeledyneProtocolState.UNKNOWN, ResourceAgentState.ACTIVE_UNKNOWN)
@@ -1542,6 +1552,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         Return the output from the calibration request base 64 encoded
         """
+        log.debug("in _parse_output_calibration_data_response")
         return base64.b64encode(response)
 
     def _parse_get_system_configuration(self, response, prompt):

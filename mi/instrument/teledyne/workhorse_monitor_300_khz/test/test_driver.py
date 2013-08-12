@@ -363,6 +363,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_set(WorkhorseParameter.BUFFER_OUTPUT_PERIOD, self._driver_parameters[WorkhorseParameter.BUFFER_OUTPUT_PERIOD][self.VALUE])
         self._tested[WorkhorseParameter.BUFFER_OUTPUT_PERIOD] = True
 
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #
@@ -375,17 +376,18 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
     def setUp(self):
         TeledyneQualificationTest.setUp(self)
 
-    def assert_configuration(self, data_particle, verify_values = False):
+    def assert_configuration(self, data_particle, verify_values=False):
         '''
         Verify assert_compass_calibration particle
         @param data_particle:  ADCP_COMPASS_CALIBRATION data particle
         @param verify_values:  bool, should we verify parameter values
         '''
+        log.error("in assert_configuration " +  str(data_particle) + str(verify_values))
         self.assert_data_particle_keys(ADCP_SYSTEM_CONFIGURATION_KEY, self._system_configuration_data_parameters)
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_SYSTEM_CONFIGURATION)
         self.assert_data_particle_parameters(data_particle, self._system_configuration_data_parameters, verify_values)
 
-    def assert_compass_calibration(self, data_particle, verify_values = False):
+    def assert_compass_calibration(self, data_particle, verify_values=False):
         '''
         Verify assert_compass_calibration particle
         @param data_particle:  ADCP_COMPASS_CALIBRATION data particle
@@ -482,6 +484,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
             pass
         else:
             self.assertFalse(1, "Did not raise expected Conflict exception")
+
 
     def test_commands(self):
         """
@@ -589,17 +592,14 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         self.tcp_client.send_data("%s%s" % (WorkhorseInstrumentCmds.START_LOGGING, NEWLINE))
         gevent.sleep(3)
-        self.assert_sample_async(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_EARTH, 20)
+        self.assert_sample_async(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_BEAM, 20)
         
         self.assert_direct_access_stop_telnet() # does this work?
         #self.tcp_client.disconnect() # this one works
         
         # verify the setting got restored.
-        log.error("ROGER 1---------------------------------------------")
         self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 200)
-        log.error("ROGER 2---------------------------------------------")
         self.assert_get_parameter(Parameter.SPEED_OF_SOUND, 1500)
-        log.error("ROGER 3---------------------------------------------")
 
         ###
         # Test direct access inactivity timeout
@@ -632,8 +632,8 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
             log.debug("Sending a little keep alive communication, sleeping for 15 seconds")
             gevent.sleep(15)
 
-        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 45)
-
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 120)
+    
     def test_direct_access_telnet_mode_autosample_disconnect(self):
         """
         @brief Same as the previous DA test except in this test
