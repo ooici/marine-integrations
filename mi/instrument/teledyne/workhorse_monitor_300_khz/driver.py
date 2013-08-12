@@ -1,17 +1,15 @@
 """
-@package mi.instrument.teledyne.workhorse_monitor_150_khz.driver
-@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_150_khz/driver.py
+@package mi.instrument.teledyne.workhorse_monitor_300_khz.driver
+@file marine-integrations/mi/instrument/teledyne/workhorse_monitor_300_khz/driver.py
 @author Roger Unwin
-@brief Driver for the 150khz family
+@brief Driver for the 300khz family
 Release notes:
-
-ADCPT-F
 """
 
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
-
+from mi.core.util import dict_equal
 
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -25,10 +23,14 @@ from mi.instrument.teledyne.driver import TeledyneCapability
 from mi.instrument.teledyne.driver import TeledyneInstrumentDriver
 from mi.instrument.teledyne.driver import TeledyneScheduledJob
 
-from mi.instrument.teledyne.workhorse_monitor_150_khz.particles import *
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+
+from mi.instrument.teledyne.workhorse_monitor_300_khz.particles import *
 
 from mi.core.instrument.chunker import StringChunker
 
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ParameterDictType
 
 class WorkhorsePrompt(TeledynePrompt):
     pass
@@ -39,21 +41,23 @@ class WorkhorseParameter(TeledyneParameter):
     Device parameters
     """
 
-    SERIAL_FLOW_CONTROL = 'CF'
-    BANNER = 'CH'
-    SLEEP_ENABLE = 'CL'
-    SAVE_NVRAM_TO_RECORDER = 'CN'
-    POLLED_MODE = 'CP'
-    HEADING_ALIGNMENT = 'EA'
     TIME_PER_BURST = 'TB'
     ENSEMBLES_PER_BURST = 'TC'
     BUFFER_OUTPUT_PERIOD = 'TX'
-
+    SYNC_INTERVAL = "SI"
+    SLAVE_TIMEOUT = "ST"
+    SYNC_DELAY = "SW"
+    BANNER = 'CH'
+    SERIAL_FLOW_CONTROL = 'CF'
+    SLEEP_ENABLE = 'CL'
+    SAVE_NVRAM_TO_RECORDER = 'CN'
+    POLLED_MODE = 'CP'
+    #PITCH = 'EP'                        # Tilt 1 Sensor (1/100 deg) -6000 to 6000 (-60.00 to +60.00 degrees)
+    #ROLL = 'ER'                         # Tilt 2 Sensor (1/100 deg) -6000 to 6000 (-60.00 to +60.00 degrees)
 
 class WorkhorseInstrumentCmds(TeledyneInstrumentCmds):
     """
     """
-    RESTORE_FACTORY_PARAMS = 'CR1'
     POWER_DOWN = 'CZ'
 
 
@@ -70,7 +74,6 @@ class WorkhorseProtocolState(TeledyneProtocolState):
 class WorkhorseCapability(TeledyneCapability):
     """
     """
-    RESTORE_FACTORY_PARAMS = TeledyneProtocolEvent.RESTORE_FACTORY_PARAMS
     POWER_DOWN = WorkhorseProtocolEvent.POWER_DOWN
 
 
@@ -124,8 +127,8 @@ class WorkhorseProtocol(TeledyneProtocol):
         The chunks are all the same type.
         """
 
-        sieve_matchers = [ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
-                          ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
+        sieve_matchers = [ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
+                          ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
                           ADCP_PD0_PARSED_REGEX_MATCHER]
 
         return_list = []
@@ -150,7 +153,7 @@ class WorkhorseProtocol(TeledyneProtocol):
             else:
                 for match in matcher.finditer(raw_data):
                     return_list.append((match.start(), match.end()))
-
+                    
         return return_list
 
     def __init__(self, prompts, newline, driver_event):
@@ -160,21 +163,20 @@ class WorkhorseProtocol(TeledyneProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
-        log.debug("IN WorkhorseProtocol.__init__")
+        log.trace("IN WorkhorseProtocol.__init__")
         # Construct protocol superclass.
         TeledyneProtocol.__init__(self, prompts, newline, driver_event)
 
         self._protocol_fsm.add_handler(WorkhorseProtocolState.COMMAND,
                                        WorkhorseProtocolEvent.POWER_DOWN,
                                        self._handler_command_power_down)
-        self._protocol_fsm.add_handler(WorkhorseProtocolState.COMMAND,
-                                       WorkhorseProtocolEvent.RESTORE_FACTORY_PARAMS,
-                                       self._handler_command_restore_factory_params)
-
-        self._add_build_handler(WorkhorseInstrumentCmds.RESTORE_FACTORY_PARAMS, self._build_simple_command)
-        self._add_response_handler(WorkhorseInstrumentCmds.RESTORE_FACTORY_PARAMS, self._parse_restore_factory_params_response)
 
         self._chunker = StringChunker(WorkhorseProtocol.sieve_function)
+        
+
+    ########################################################################
+    # Private helpers.
+    ########################################################################
 
     def _get_params(self):
         return dir(WorkhorseParameter)
@@ -247,14 +249,8 @@ class WorkhorseProtocol(TeledyneProtocol):
                            display_name="clear fault log")
         self._cmd_dict.add(WorkhorseCapability.RUN_TEST_200,
                            display_name="run test 200")
-        self._cmd_dict.add(WorkhorseCapability.RESTORE_FACTORY_PARAMS,
-                           display_name="restore factory paramaters")
-        self._cmd_dict.add(WorkhorseProtocolEvent.POWER_DOWN,   # <------the problem.
+        self._cmd_dict.add(WorkhorseProtocolEvent.POWER_DOWN,   # <------ TODO bubble this up to base class.
                            display_name="Power Down")
-
-    ########################################################################
-    # Private helpers.
-    ########################################################################
 
     def _got_chunk(self, chunk, timestamp):
         """
@@ -262,13 +258,17 @@ class WorkhorseProtocol(TeledyneProtocol):
         Pass it to extract_sample with the appropriate particle
         objects and REGEXes.
         """
-
         if (self._extract_sample(ADCP_COMPASS_CALIBRATION_DataParticle,
                                  ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_COMPASS_CALIBRATION_DataParticle")
 
+        if (self._extract_sample(ADCP_SYSTEM_CONFIGURATION_DataParticle,
+                                 ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
+                                 chunk,
+                                 timestamp)):
+            log.debug("_got_chunk - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
         if (self._extract_sample(ADCP_PD0_PARSED_DataParticle,
                                  ADCP_PD0_PARSED_REGEX_MATCHER,
                                  chunk,
@@ -279,13 +279,8 @@ class WorkhorseProtocol(TeledyneProtocol):
                     log.debug("FSM appears out of date.  Fixing it!")
                     self._protocol_fsm.on_event(WorkhorseProtocolEvent.RECOVER_AUTOSAMPLE)
                 return
-            log.debug("_got_chunk - successful match for ADCP_PD0_PARSED_DataParticle")
 
-        if (self._extract_sample(ADCP_SYSTEM_CONFIGURATION_DataParticle,
-                                 ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
-                                 chunk,
-                                 timestamp)):
-            log.debug("_got_chunk - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
+
 
     def _filter_capabilities(self, events):
         """
@@ -294,7 +289,6 @@ class WorkhorseProtocol(TeledyneProtocol):
         return [x for x in events if WorkhorseCapability.has(x)]
 
     def _handler_command_power_down(self):
-        pass
-
-    def _handler_command_restore_factory_params(self):
+        """
+        """
         pass

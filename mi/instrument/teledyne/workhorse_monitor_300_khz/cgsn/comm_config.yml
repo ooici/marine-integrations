@@ -1,0 +1,12 @@
+comm:
+  command_port: 6002
+  data_port: 6001
+  device_baud: 9600
+  device_data_bits: 8
+  device_flow_control: 0
+  device_os_port: /dev/tty_dgrp_mi_1
+  device_parity: 0
+  device_stop_bits: 1
+  host: localhost
+  method: serial
+  sniffer_port: 6003

@@ -254,7 +254,7 @@ class PortAgentClient(object):
     
     RECOVERY_SLEEP_TIME = 2
     HEARTBEAT_INTERVAL_COMMAND = "heartbeat_interval "
-    BREAK_COMMAND = "break"
+    BREAK_COMMAND = "break "
     
     def __init__(self, host, port, cmd_port, delim=None):
         """
@@ -472,11 +472,11 @@ class PortAgentClient(object):
         log.debug("Sending config parameter: %s" % (command))
         self._command_port_agent(command)
 
-    def send_break(self):
+    def send_break(self, duration):
         """
         Command the port agent to send a break
         """
-        self._command_port_agent(self.BREAK_COMMAND)
+        self._command_port_agent(self.BREAK_COMMAND + str(duration))
 
     def _command_port_agent(self, cmd):
         """
@@ -493,7 +493,7 @@ class PortAgentClient(object):
             sock.connect((self.host, self.cmd_port))
             log.info('PortAgentClient._command_port_agent(): connected to port agent at %s:%i.'
                      % (self.host, self.cmd_port))
-            self.send(cmd, sock) 
+            self.send(cmd, sock)
             sock.close()
         except Exception as e:
             log.error("send_break(): Exception occurred.", exc_info=True)
