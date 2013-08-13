@@ -75,6 +75,10 @@ DEFAULT_CMD_TIMEOUT = 120
 #LEVELING_TIMEOUT = 60
 LEVELING_TIMEOUT = 2
 
+DEFAULT_XTILT_TRIGGER = 300
+DEFAULT_YTILT_TRIGGER = 300
+DEFAULT_AUTO_RELEVEL = True  # default to be true
+
 promptbuf_mutex = threading.Lock()
 
 class ScheduledJob(BaseEnum):
@@ -136,12 +140,37 @@ class Parameter(DriverParameter):
     """
     Device specific parameters.
     """
+    AUTO_RELEVEL = "auto_relevel"   # Auto-relevel mode
+    XTILT_RELEVEL_TRIGGER = "xtilt_relevel_trigger"
+    YTILT_RELEVEL_TRIGGER = "ytilt_relevel_trigger"
 
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
     """
 
+class LevelingTriggers():
+    _xtilt_relevel_trigger = DEFAULT_XTILT_TRIGGER
+    _ytilt_relevel_trigger = DEFAULT_YTILT_TRIGGER
+    
+class AsyncEventSender():
+    _protocol_fsm = None
+    
+    @classmethod
+    def __my_init__(cls, protocol_fsm):
+        cls._protocol_fsm = protocol_fsm
+        
+    @classmethod    
+    def send_event(cls, event):
+        """
+        Start a separate thread that can block (without affecting this thread)
+        on the on_event() method.
+        """
+        async_event_thread = threading.Thread(
+            target = cls._protocol_fsm.on_event,
+            args=(event, ))
+        async_event_thread.start()
+        
 ###############################################################################
 # Command Response (not a particle but uses regex and chunker to parse command
 # responses rather than the normal get_response() method)
@@ -298,6 +327,19 @@ class LILYDataParticle(DataParticle):
     """
     _data_particle_type = DataParticleType.LILY_PARSED
 
+    #def __init__(self, auto_relevel):
+    #    log.error("!!!!!!!!!!!!!! TEMPTEMP auto_relevel = %r", auto_relevel)
+    #    self.auto_relevel = auto_relevel
+
+    def __init__(self, raw_data, auto_relevel,
+                 port_timestamp=None,
+                 internal_timestamp=None,
+                 preferred_timestamp=DataParticleKey.PORT_TIMESTAMP):
+
+        super(LILYDataParticle, self).__init__(raw_data,
+                                               port_timestamp,
+                                               internal_timestamp,
+                                               preferred_timestamp)    
     @staticmethod
     def regex():
         """
@@ -335,7 +377,9 @@ class LILYDataParticle(DataParticle):
         if not match:
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.raw_data)
-            
+        
+        log.error("_build_parsed_values")
+        
         try:
             lily_time = match.group(1)
             timestamp = time.strptime(lily_time, "%Y/%m/%d %H:%M:%S")
@@ -348,6 +392,26 @@ class LILYDataParticle(DataParticle):
             supply_volts = float(match.group(6))
             sn = str(match.group(7))
 
+            """
+            If AUTO_RELEVEL is on, test the x_tilt and y_tilt; we might have to 
+            initiate relevel.
+            """
+            #if self.auto_relevel:
+            if True:
+                if (abs(x_tilt) > LevelingTriggers._xtilt_relevel_trigger) \
+                    or (abs(y_tilt) > LevelingTriggers._ytilt_relevel_trigger):
+                #if (abs(x_tilt) > 400) \
+                #    or (abs(y_tilt) > 400):
+                    """
+                    initiate auto releveling
+                    """
+                    log.info("x_tilt: %f; y_tilt: %f.  Initiating relevel operation.", x_tilt, y_tilt)
+                    AsyncEventSender.send_event(ProtocolEvent.START_LEVELING)
+                else:
+                    log.info("NOT INITIATING RELEVEL: %d, %d", 
+                             LevelingTriggers._xtilt_relevel_trigger,
+                             LevelingTriggers._ytilt_relevel_trigger)
+                    
         except ValueError:
             raise SampleException("ValueError while converting data: [%s]" %
                                   self.raw_data)
@@ -725,7 +789,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         self.status_02_regex = LILYStatus_02_Particle.regex_compiled()
         self.leveling_regex = LILYLevelingParticle.regex_compiled()
 
+        self._auto_relevel = DEFAULT_AUTO_RELEVEL
+        self._xtilt_relevel_trigger = DEFAULT_XTILT_TRIGGER
+        self._ytilt_relevel_trigger = DEFAULT_YTILT_TRIGGER
+
         self.initialize_scheduler()
+        
+        # Initialize the AsyncEventSender object with the protocol_fsm
+        AsyncEventSender.__my_init__(self._protocol_fsm)
 
     @staticmethod
     def coarse_sieve_function(raw_data):
@@ -826,7 +897,33 @@ class Protocol(CommandResponseInstrumentProtocol):
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
-        pass
+        self._param_dict.add(Parameter.AUTO_RELEVEL,
+            r'Not used. This is just to satisfy the param_dict',
+            None,
+            None,
+            type=ParameterDictType.BOOL,
+            display_name="Automatically Re-level",
+            multi_match=False,
+            default_value = True,
+            visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.XTILT_RELEVEL_TRIGGER,
+            r'Not used. This is just to satisfy the param_dict',
+            None,
+            None,
+            type=ParameterDictType.FLOAT,
+            display_name="X-TILT Automatic Re-level Trigger",
+            multi_match=False,
+            default_value = 300.00,
+            visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.YTILT_RELEVEL_TRIGGER,
+            r'Not used. This is just to satisfy the param_dict',
+            None,
+            None,
+            type=ParameterDictType.FLOAT,
+            display_name="Y-TILT Automatic Re-level Trigger",
+            multi_match=False,
+            default_value = 300.00,
+            visibility=ParameterDictVisibility.READ_WRITE)
 
     def add_to_buffer(self, data):
         '''
@@ -954,7 +1051,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._my_add_to_buffer(chunk)
         else:
             log.error("chunk doesn't match cmd_rsp_regex or leveling_regex: %s", chunk)
-            if not self._extract_sample(LILYDataParticle,
+            if not self._extract_sample(LILYDataParticle(self._auto_relevel),
                                         self.data_regex, 
                                         chunk, timestamp):
                 raise InstrumentProtocolException("Unhandled chunk")
@@ -975,10 +1072,50 @@ class Protocol(CommandResponseInstrumentProtocol):
         or self.status_02_regex.match(chunk)):
             self._my_add_to_buffer(chunk)
         else:
+            log.error("!!!!!!!!!!!!! TEMPTEMPTEMP Calling _extract_sample !!!!!!!!!!")
+            #if not self._extract_sample(LILYDataParticle(self._auto_relevel),
             if not self._extract_sample(LILYDataParticle,
                                         self.data_regex, 
                                         chunk, timestamp):
                 raise InstrumentProtocolException("Unhandled chunk")
+
+
+    def _extract_sample(self, particle_class, regex, line, timestamp, publish=True):
+        """
+        Extract sample from a response line if present and publish
+        parsed particle
+
+        @param particle_class The class to instantiate for this specific
+            data particle. Parameterizing this allows for simple, standard
+            behavior from this routine
+        @param regex The regular expression that matches a data sample
+        @param line string to match for sample.
+        @param timestamp port agent timestamp to include with the particle
+        @param publish boolean to publish samples (default True). If True,
+               two different events are published: one to notify raw data and
+               the other to notify parsed data.
+
+        @retval dict of dicts {'parsed': parsed_sample, 'raw': raw_sample} if
+                the line can be parsed for a sample. Otherwise, None.
+        @todo Figure out how the agent wants the results for a single poll
+            and return them that way from here
+        """
+        sample = None
+        if regex.match(line):
+            log.error("DHE MATCH!!")
+        
+            particle = particle_class(line, self._auto_relevel, port_timestamp=timestamp)
+            parsed_sample = particle.generate()
+
+            if publish and self._driver_event:
+                self._driver_event(DriverAsyncEvent.SAMPLE, parsed_sample)
+    
+            sample = json.loads(parsed_sample)
+            
+        else:
+            log.error("DHE NO MATCH!!")
+
+        return sample
 
 
     def _build_command(self, cmd, *args, **kwargs):
@@ -1206,8 +1343,29 @@ class Protocol(CommandResponseInstrumentProtocol):
         Get parameter
         """
 
+        log.error("!!!!!!!!!!!! DHE TEMPTEMP: args: %r, kwargs: %r", args, kwargs)
+        
         next_state = None
         result = {}
+        
+        param_list = args[0]
+        if param_list == Parameter.ALL:
+            param_list = [Parameter.AUTO_RELEVEL, Parameter.XTILT_RELEVEL_TRIGGER, Parameter.YTILT_RELEVEL_TRIGGER]
+            
+        result = {}
+
+        log.error("_handler_command_get: AUTO_RELEVEL: %s, len(%d)", Parameter.AUTO_RELEVEL, len(Parameter.AUTO_RELEVEL))
+
+        for param in param_list:
+            if param == Parameter.AUTO_RELEVEL:
+                result[param] = self._auto_relevel
+            elif param == Parameter.XTILT_RELEVEL_TRIGGER:
+                result[param] = self._xtilt_relevel_trigger
+            elif param == Parameter.YTILT_RELEVEL_TRIGGER:
+                result[param] = self._ytilt_relevel_trigger
+            else:
+                log.error("_handler_command_get: Unknown parameter: %s", param)
+                raise InstrumentProtocolException("Unknown parameter: %s" % param)
 
         return (next_state, result)
 
@@ -1218,7 +1376,41 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        params = args[0]
+        param_list = args[0]
+
+        log.error("^^^^^^^^^^^^^^^^^^^^ GOT HERE ^^^^^^^^^^^^^^^^^^^^^")
+        log.error("param_list: %r", param_list)
+        
+        for param in param_list:
+            if param == Parameter.AUTO_RELEVEL:
+                new_auto_relevel = param_list[Parameter.AUTO_RELEVEL]
+                if new_auto_relevel != self._auto_relevel:
+                    log.info("BOTPT LILY Driver: setting auto_relevel from %d to %d", self._auto_relevel, new_auto_relevel)
+                    self._auto_relevel = new_auto_relevel 
+                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+                else:
+                    log.info("BOTPT LILY Driver: auto_relevel already %b; not changing.", new_auto_relevel)
+            elif param == Parameter.XTILT_RELEVEL_TRIGGER:
+                new_xtilt_relevel_trigger = param_list[Parameter.XTILT_RELEVEL_TRIGGER]
+                if new_xtilt_relevel_trigger != self._xtilt_relevel_trigger:
+                    log.info("BOTPT LILY Driver: setting xtilt_relevel_trigger from %d to %d", self._xtilt_relevel_trigger, new_xtilt_relevel_trigger)
+                    LevelingTriggers._xtilt_relevel_trigger = new_xtilt_relevel_trigger
+                    self._xtilt_relevel_trigger = new_xtilt_relevel_trigger 
+                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+                else:
+                    log.info("BOTPT LILY Driver: xtilt_relevel_trigger already %f; not changing.", new_xtilt_relevel_trigger)
+            elif param == Parameter.YTILT_RELEVEL_TRIGGER:
+                new_ytilt_relevel_trigger = param_list[Parameter.YTILT_RELEVEL_TRIGGER]
+                if new_ytilt_relevel_trigger != self._ytilt_relevel_trigger:
+                    log.info("BOTPT LILY Driver: setting ytilt_relevel_trigger from %d to %d", self._ytilt_relevel_trigger, new_ytilt_relevel_trigger)
+                    LevelingTriggers._ytilt_relevel_trigger = new_ytilt_relevel_trigger
+                    self._ytilt_relevel_trigger = new_ytilt_relevel_trigger 
+                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+                else:
+                    log.info("BOTPT LILY Driver: ytilt_relevel_trigger already %f; not changing.", new_ytilt_relevel_trigger)
+            else:
+                log.error("_handler_command_set: Unknown parameter: %s", param)
+                raise InstrumentProtocolException("Unknown parameter: %s" % param)
         
         return (next_state, result)
 

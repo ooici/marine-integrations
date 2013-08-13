@@ -71,6 +71,9 @@ from mi.instrument.noaa.lily.ooicore.driver import LILY_DUMP_01
 from mi.instrument.noaa.lily.ooicore.driver import LILY_DUMP_02
 from mi.instrument.noaa.lily.ooicore.driver import LILY_LEVEL_ON
 from mi.instrument.noaa.lily.ooicore.driver import LILY_LEVEL_OFF
+from mi.instrument.noaa.lily.ooicore.driver import DEFAULT_XTILT_TRIGGER
+from mi.instrument.noaa.lily.ooicore.driver import DEFAULT_YTILT_TRIGGER
+from mi.instrument.noaa.lily.ooicore.driver import AsyncEventSender
 
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
@@ -225,6 +228,7 @@ class LILYTestMixinSub(DriverTestMixin):
 
     _driver_parameters = {
         # Parameters defined in the IOS
+        Parameter.AUTO_RELEVEL : {TYPE: bool, READONLY: False, DA: False, STARTUP: False},
     }
     
     _sample_parameters_01 = {
@@ -371,6 +375,46 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self.assert_chunker_sample(chunker, DUMP_01_COMMAND_RESPONSE)
         self.assert_chunker_sample(chunker, DUMP_02_COMMAND_RESPONSE)
 
+    def test_get_handler(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        self.assert_initialize_driver(driver)
+
+        result = driver._protocol._handler_command_get()
+        dict_response = result[1]
+        get_auto_relevel_response = dict_response['auto_relevel']
+        log.debug("get_auto_relevel_response: %r", get_auto_relevel_response)
+        self.assertTrue(get_auto_relevel_response)
+
+    def test_event_sender(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        self.assert_initialize_driver(driver)
+
+        AsyncEventSender.send_event(ProtocolEvent.START_LEVELING)
+        
+    def test_set_handler(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        self.assert_initialize_driver(driver)
+
+        #dict = {}
+        #dict[Parameter.XTILT_RELEVEL_TRIGGER] = 10
+        
+        #driver._protocol._handler_command_set()
+        
     def test_combined_samples(self):
 
         chunker = StringChunker(Protocol.command_autosample_sieve_function)
@@ -1438,20 +1482,59 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_initialize_driver()
 
     def test_get(self):
-        #self.assert_initialize_driver()
-        #value = self.assert_get(Parameter.HEAT_DURATION)
-        pass
+        self.assert_initialize_driver()
+        value = self.assert_get(Parameter.AUTO_RELEVEL, True)
+        value = self.assert_get(Parameter.XTILT_RELEVEL_TRIGGER, DEFAULT_XTILT_TRIGGER)
+        value = self.assert_get(Parameter.YTILT_RELEVEL_TRIGGER, DEFAULT_YTILT_TRIGGER)
 
     def test_set(self):
         """
         Test all set commands. Verify all exception cases.
         """
-        #self.assert_initialize_driver()
+        self.assert_initialize_driver()
 
-        #self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
-        #value = self.assert_get(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
-        pass
+        self.assert_set(Parameter.AUTO_RELEVEL, False)
+        value = self.assert_get(Parameter.AUTO_RELEVEL, False)
 
+        self.assert_set(Parameter.AUTO_RELEVEL, True)
+        value = self.assert_get(Parameter.AUTO_RELEVEL, True)
+
+        self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 10)
+        value = self.assert_get(Parameter.XTILT_RELEVEL_TRIGGER, 10)
+
+        self.assert_set(Parameter.YTILT_RELEVEL_TRIGGER, 10)
+        value = self.assert_get(Parameter.YTILT_RELEVEL_TRIGGER, 10)
+
+    def test_auto_relevel(self):
+        """
+        @brief Test for turning data on
+        """
+        self.assert_initialize_driver()
+
+        """
+        Set the XTILT and YTILT to a low threshold so that the driver will
+        automatically start the releveling operation
+        """
+        self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 10)
+        self.assert_set(Parameter.YTILT_RELEVEL_TRIGGER, 10)
+
+        self.assert_state_change(ProtocolState.LEVELING, 60)
+
+        """
+        Now set the XTILT and YTILT back to normal so that the driver will not
+        automatically start the releveling operation
+        """
+        self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 300)
+        self.assert_set(Parameter.YTILT_RELEVEL_TRIGGER, 300)
+        
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
+
+        """
+        Need to set the leveling trigger back to normal otherwise it will start leveling
+        again.  (Could also turn auto-relevel off
+        """        
+        self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
+        
     def test_data_on(self):
         """
         @brief Test for turning data on
@@ -1466,6 +1549,9 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         
         log.debug("DATA_ON returned: %r", response)
 
+        # TEMPTEMP
+        time.sleep(30)
+        
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
         self.assertEqual(response[1], LILY_DATA_OFF)
         
