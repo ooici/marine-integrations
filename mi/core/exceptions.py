@@ -91,6 +91,9 @@ class SampleException(InstrumentException):
 class SchedulerException(InstrumentException):
     """ An error occurred in the scheduler """
 
+class DataSourceLocationException(InstrumentException):
+    """ A driver function is not implemented. """
+
 class UnexpectedError(InstrumentException):
     """ wrapper to send non-MI exceptions over zmq """
     def __init__ (self, msg=None):
