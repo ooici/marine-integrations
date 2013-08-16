@@ -1,0 +1,51 @@
+import sys
+import argparse
+from mi.core.instrument.zmq_driver_process import ZmqDriverProcess
+
+def run(event_port_file = None, command_port_file = None, ppid = None):
+    opts = parseArgs(event_port_file, command_port_file, ppid)
+
+    dp = ZmqDriverProcess("${driver_module}",
+                          "${driver_class}",
+                          opts.command,
+                          opts.event,
+                          opts.ppid);
+    dp.run()
+
+def parseArgs(event_port_file, command_port_file, ppid):
+    parser = argparse.ArgumentParser(description='start the driver.')
+
+    parser.add_argument("-c", "--command_port_file", dest='command', help="command port file" )
+    parser.add_argument("-e", "--event_port_file", dest='event', help="event port file" )
+    parser.add_argument("-p", "--ppid", dest='ppid', required=False, type=int, help="parent process id, if this PPID doesn't exist die" )
+
+    opts = parser.parse_args()
+
+    if(event_port_file or command_port_file or ppid):
+        opts.command = None
+        opts.event = None
+        opts.ppid = None
+
+    if(command_port_file): opts.command = command_port_file
+    if(event_port_file): opts.event = event_port_file
+    if(ppid): opts.ppid = ppid
+
+    if(not opts.event):
+        print "'event_port_file' is a required options"
+        sys.exit(1)
+
+    if(not opts.command):
+        print "'command_port_file' is a required options"
+        sys.exit(1)
+
+    if(opts.command == opts.event):
+        print "port files can not be the same"
+        sys.exit(1)
+
+    return opts
+
+
+if __name__ == '__main__':
+    run()
+
+

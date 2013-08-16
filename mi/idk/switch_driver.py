@@ -55,9 +55,7 @@ class SwitchDriver():
         self.fetch_metadata()
 
         if not exists(self.metadata.driver_dir()):
-            raise DriverDoesNotExist( "%s/%s/$%s" % (self.metadata.driver_make,
-                                                     self.metadata.driver_model,
-                                                     self.driver_name))
+            raise DriverDoesNotExist( "%s", self.metadata.driver_dir() )
         self.fetch_comm_config()
         self.metadata.link_current_metadata()
 

@@ -1,0 +1,26 @@
+from setuptools import setup, find_packages
+
+setup(
+    name='${name}',
+    version='${version}',
+    description='${description}',
+    author='${author}',
+    author_email='${email}',
+    url='${url}',
+    packages=find_packages(),
+    data_files=[('mi', ['res/config/mi-logging.yml'])],
+    entry_points = {
+        'setuptools.installation': [
+            'eggsecutable = mi.main:run',
+        ]
+    },
+    dependency_links = [
+        'https://github.com/ooici/utilities/tarball/master#egg=utilities-9999'
+    ],
+    install_requires = [
+        'pyzmq==2.2.0',
+        'pyyaml==3.1.0',
+        'ntplib',
+        'utilities'
+    ]
+)
