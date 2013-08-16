@@ -384,7 +384,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         self.assert_initialize_driver(driver)
 
-        result = driver._protocol._handler_command_get()
+        args = [Parameter.AUTO_RELEVEL] 
+        result = driver._protocol._handler_command_get(args)
         dict_response = result[1]
         get_auto_relevel_response = dict_response['auto_relevel']
         log.debug("get_auto_relevel_response: %r", get_auto_relevel_response)
@@ -504,7 +505,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         try:        
             #driver._protocol._raw_data = "test that SampleException works"
             raw_data = INVALID_SAMPLE
-            test_particle = LILYDataParticle(raw_data)
+            test_particle = LILYDataParticle(raw_data, False)
             test_particle._build_parsed_values()
             
         except SampleException as e:
@@ -518,7 +519,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         result = None
         try:
             raw_data = VALID_SAMPLE_01
-            test_particle = LILYDataParticle(raw_data)
+            test_particle = LILYDataParticle(raw_data, False)
             result = test_particle._build_parsed_values()
 
         except SampleException as e:
@@ -1529,10 +1530,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
 
-        """
-        Need to set the leveling trigger back to normal otherwise it will start leveling
-        again.  (Could also turn auto-relevel off
-        """        
         self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
         
     def test_data_on(self):
@@ -1593,17 +1590,19 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
         log.debug("START_LEVELING returned: %r", response)
         
-        time.sleep(10)
+        self.assert_state_change(ProtocolState.LEVELING, 60)
         
         """
-        Don't issue stop leveling command 
+        Issue stop leveling command 
         """
-        #response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
-        #log.debug("STOP_LEVELING returned: %r", response)
+        
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
+        log.debug("STOP_LEVELING returned: %r", response)
 
-        self.assert_state_change(ProtocolState.AUTOSAMPLE, 3700)
+        self.assert_state_change(ProtocolState.AUTOSAMPLE, 60)
 
         
+    @unittest.skip("Skipping because BOTPT doesn't level")    
     def test_leveling_complete(self):
         """
         @brief Test for leveling

@@ -18,6 +18,7 @@ import time
 import datetime
 import ntplib
 import threading
+import json
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -1057,7 +1058,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._my_add_to_buffer(chunk)
         else:
             log.error("chunk doesn't match cmd_rsp_regex or leveling_regex: %s", chunk)
-            if not self._extract_sample(LILYDataParticle(self._auto_relevel),
+            if not self._extract_sample(LILYDataParticle,
                                         self.data_regex, 
                                         chunk, timestamp):
                 raise InstrumentProtocolException("Unhandled chunk")
@@ -1088,7 +1089,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             self.async_send_event(ProtocolEvent.RESUME_LEVELING)
         else:
             log.error("!!!!!!!!!!!!! TEMPTEMPTEMP Calling _extract_sample !!!!!!!!!!")
-            #if not self._extract_sample(LILYDataParticle(self._auto_relevel),
             if not self._extract_sample(LILYDataParticle,
                                         self.data_regex, 
                                         chunk, timestamp):
