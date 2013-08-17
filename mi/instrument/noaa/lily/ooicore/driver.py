@@ -330,10 +330,6 @@ class LILYDataParticle(DataParticle):
     """
     _data_particle_type = DataParticleType.LILY_PARSED
 
-    #def __init__(self, auto_relevel):
-    #    log.error("!!!!!!!!!!!!!! TEMPTEMP auto_relevel = %r", auto_relevel)
-    #    self.auto_relevel = auto_relevel
-
     def __init__(self, raw_data, auto_relevel,
                  port_timestamp=None,
                  internal_timestamp=None,
@@ -1088,7 +1084,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                      ProtocolEvent.RESUME_LEVELING)
             self.async_send_event(ProtocolEvent.RESUME_LEVELING)
         else:
-            log.error("!!!!!!!!!!!!! TEMPTEMPTEMP Calling _extract_sample !!!!!!!!!!")
             if not self._extract_sample(LILYDataParticle,
                                         self.data_regex, 
                                         chunk, timestamp):
@@ -1117,8 +1112,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         sample = None
         if regex.match(line):
-            log.error("DHE MATCH!!")
-        
             particle = particle_class(line, self._auto_relevel, port_timestamp=timestamp)
             parsed_sample = particle.generate()
 
@@ -1128,7 +1121,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             sample = json.loads(parsed_sample)
             
         else:
-            log.error("DHE NO MATCH!!")
+            log.info("No regex match in extract_sample.")
 
         return sample
 
@@ -1365,7 +1358,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
 
         log.debug("_handler_command_get")
-        log.error("!!!!!!!!!!!! DHE TEMPTEMP: args: %r, kwargs: %r", args, kwargs)
         
         next_state = None
         result = {}

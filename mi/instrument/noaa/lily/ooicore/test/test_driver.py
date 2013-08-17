@@ -1546,7 +1546,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         
         log.debug("DATA_ON returned: %r", response)
 
-        # TEMPTEMP
         time.sleep(30)
         
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
