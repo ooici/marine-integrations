@@ -40,7 +40,6 @@ class Harvester(object):
 ## added here down the road
 
 class AdditiveSequentialFileHarvester(DirectoryPoller, Harvester):
-    """ polls directory for files that match wildcard, in order """
     def __init__(self, config, memento, file_callback, exception_callback):
         self.callback = file_callback
         self.last_file_completed = memento
@@ -50,6 +49,7 @@ class AdditiveSequentialFileHarvester(DirectoryPoller, Harvester):
                                  self.on_new_files,
                                  exception_callback,
                                  get_safe(config, 'frequency', 300))
+
     def on_new_files(self, files):
         for file in files:
             if file>self.last_file_completed:
