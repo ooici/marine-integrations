@@ -48,14 +48,37 @@ class TestExternalDatasetHarvester(MiUnitTest):
         """
         self.clean_directory(TESTDIR, CONFIG['pattern'])
 
+    def test_harvester_without_frequency(self):
+        """
+        Test that we can use a default frequency
+        """
+        config = {'directory': TESTDIR, 'pattern': CONFIG['pattern']}
+
+        # start the harvester from scratch
+        memento = None
+        file_harvester = AdditiveSequentialFileHarvester(config, memento,
+                                                         self.new_file_found_callback,
+                                                         self.file_exception_callback)
+        file_harvester.start()
+
+        # start a new event which will copy the first file and increase the
+        # file index into data directory with a delay in between
+        self.directory_filler = gevent.spawn(self.fill_directory_with_files,
+                                             CONFIG['directory'],
+                                             CONFIG['pattern'], 2)
+
+        # Wait for three sets of new files to be discovered
+        self.wait_for_file(0)
+        self.wait_for_file(self.found_file_count)
+        self.wait_for_file(self.found_file_count)
+
+        file_harvester.shutdown()
+
     def test_harvester_from_scratch(self):
         """
         Test that the harvester can find files as they are added to a directory,
         starting with just the base file in the directory
         """
-        # clean out all files in the directory
-        self.clean_directory(CONFIG['directory'], CONFIG['pattern'])
-        
         # start the harvester from scratch
         memento = None
         file_harvester = AdditiveSequentialFileHarvester(CONFIG, memento,
@@ -129,7 +152,18 @@ class TestExternalDatasetHarvester(MiUnitTest):
         self.wait_for_file(self.found_file_count)
          
         file_harvester.shutdown()
-    
+
+    def test_harvester_exception(self):
+        """
+        Verify exceptions
+        """
+        config = "blah"
+        self.assertRaises(TypeError, AdditiveSequentialFileHarvester,
+                                                        (config, None,
+                                                         self.new_file_found_callback,
+                                                         self.file_exception_callback))
+
+
     def wait_for_file(self, starting_count, delay=5, timeout=60):
         """
         Wait for a new round of files to be discovered

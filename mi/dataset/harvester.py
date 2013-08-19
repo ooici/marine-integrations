@@ -15,8 +15,6 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger ; log = get_logger()
 from ooi.poller import DirectoryPoller
 
-from pyon.util.containers import get_safe
-
 
 class Harvester(object):
     """ abstract class to show API needed for plugin poller objects """
@@ -41,6 +39,9 @@ class Harvester(object):
 
 class AdditiveSequentialFileHarvester(DirectoryPoller, Harvester):
     def __init__(self, config, memento, file_callback, exception_callback):
+        if not isinstance(config, dict):
+            raise TypeError("Config object must be a dict")
+
         self.callback = file_callback
         self.last_file_completed = memento
         DirectoryPoller.__init__(self,
@@ -48,7 +49,7 @@ class AdditiveSequentialFileHarvester(DirectoryPoller, Harvester):
                                  config['pattern'],
                                  self.on_new_files,
                                  exception_callback,
-                                 get_safe(config, 'frequency', 300))
+                                 config.get('frequency', 300))
 
     def on_new_files(self, files):
         for file in files:
