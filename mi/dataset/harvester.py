@@ -49,7 +49,7 @@ class AdditiveSequentialFileHarvester(DirectoryPoller, Harvester):
                                  config['pattern'],
                                  self.on_new_files,
                                  exception_callback,
-                                 config.get('frequency', 300))
+                                 config.get('frequency', 1))
 
     def on_new_files(self, files):
         for file in files:
