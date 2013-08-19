@@ -22,31 +22,43 @@ from mi.dataset.harvester import AdditiveSequentialFileHarvester
 # bin/nosetests -s -v --nologcapture mi.dataset.test.test_external_dataset_harvester
 
 TESTDIR = '/tmp/dsatest'
+CONFIG = {'directory': TESTDIR,
+          'pattern': '*.txt',
+          'frequency': 5}
 
 @attr('INT', group='eoi')
 class TestExternalDatasetHarvester(MiUnitTest):
+    found_file_count = 0
+
     def setUp(self):
+        """
+        reset counters and ensure we have test files in place
+        """
+        self.found_file_count = 0
+
+        # Create a file for testing
+        open(os.path.join(TESTDIR, "test_000.txt"), 'a').close()
+
         if(not os.path.exists(TESTDIR)):
             os.makedirs(TESTDIR)
 
-    CONFIG = {'directory': TESTDIR,
-              'pattern': '*.txt',
-              'frequency': 5}
-    found_file_count = 0
+    def tearDown(self):
+        """
+        Cleanup files we have created
+        """
+        self.clean_directory(TESTDIR, CONFIG['pattern'])
 
     def test_harvester_from_scratch(self):
         """
         Test that the harvester can find files as they are added to a directory,
         starting with just the base file in the directory
         """
-        # reset file found count
-        self.found_file_count = 0
         # clean out all files in the directory
-        self.clean_directory(self.CONFIG['directory'], self.CONFIG['pattern'])
+        self.clean_directory(CONFIG['directory'], CONFIG['pattern'])
         
         # start the harvester from scratch
         memento = None
-        file_harvester = AdditiveSequentialFileHarvester(self.CONFIG, memento,
+        file_harvester = AdditiveSequentialFileHarvester(CONFIG, memento,
                                                          self.new_file_found_callback,
                                                          self.file_exception_callback)
         file_harvester.start()
@@ -54,8 +66,8 @@ class TestExternalDatasetHarvester(MiUnitTest):
         # start a new event which will copy the first file and increase the
         # file index into data directory with a delay in between
         self.directory_filler = gevent.spawn(self.fill_directory_with_files,
-                                             self.CONFIG['directory'],
-                                             self.CONFIG['pattern'], 2)
+                                             CONFIG['directory'],
+                                             CONFIG['pattern'], 2)
         
         # Wait for three sets of new files to be discovered
         self.wait_for_file(0)
@@ -69,18 +81,13 @@ class TestExternalDatasetHarvester(MiUnitTest):
         Test that the harvester can find file as they are added to a directory,
         using a memento to start partway through the indices
         """
-        # reset file found count
-        self.found_file_count = 0
-        # clean out all files in the directory
-        self.clean_directory(self.CONFIG['directory'], self.CONFIG['pattern'])
-        
         # make sure we have 2 files already in the directory
-        self.fill_directory_with_files(self.CONFIG['directory'], self.CONFIG['pattern'], 2, 0)
+        self.fill_directory_with_files(CONFIG['directory'], CONFIG['pattern'], 2, 0)
         
         # start at index 2
-        dir_files = glob.glob(self.CONFIG['directory'] + '/' + self.CONFIG['pattern'])
+        dir_files = glob.glob(CONFIG['directory'] + '/' + CONFIG['pattern'])
         memento = self.replace_file_index(dir_files[0], 2)
-        file_harvester = AdditiveSequentialFileHarvester(self.CONFIG, memento,
+        file_harvester = AdditiveSequentialFileHarvester(CONFIG, memento,
                                                          self.new_file_found_callback,
                                                          self.file_exception_callback)
         file_harvester.start()
@@ -88,8 +95,8 @@ class TestExternalDatasetHarvester(MiUnitTest):
         # start a new event which will copy the first file and increase the
         # file index into data directory with a delay in between
         self.directory_filler = gevent.spawn(self.fill_directory_with_files,
-                                             self.CONFIG['directory'],
-                                             self.CONFIG['pattern'], 3)
+                                             CONFIG['directory'],
+                                             CONFIG['pattern'], 3)
         
         # Wait for three sets of new files to be discovered
         self.wait_for_file(0)
@@ -102,15 +109,9 @@ class TestExternalDatasetHarvester(MiUnitTest):
         """
         Set the timing so the harvester finds multiple new files at once
         """
-        
-        # reset file found count
-        self.found_file_count = 0
-        # clean out all files in the directory
-        self.clean_directory(self.CONFIG['directory'], self.CONFIG['pattern'])
-        
         # start the harvester from scratch
         memento = None
-        file_harvester = AdditiveSequentialFileHarvester(self.CONFIG, memento,
+        file_harvester = AdditiveSequentialFileHarvester(CONFIG, memento,
                                                          self.new_file_found_callback,
                                                          self.file_exception_callback)
         file_harvester.start()
@@ -119,8 +120,8 @@ class TestExternalDatasetHarvester(MiUnitTest):
         # meaning 3 files will appear in the 5 seconds between the
         # harvester checking
         self.directory_filler = gevent.spawn(self.fill_directory_with_files,
-                                             self.CONFIG['directory'],
-                                             self.CONFIG['pattern'], 9, 1.5)
+                                             CONFIG['directory'],
+                                             CONFIG['pattern'], 9, 1.5)
         
         # Wait for three sets of new files to be discovered
         self.wait_for_file(0)
@@ -182,6 +183,7 @@ class TestExternalDatasetHarvester(MiUnitTest):
         for i in range(0, num_files):
             time.sleep(delay)
             next_file = self.replace_file_index(dir_files[0], next_file_idx + i)
+            log.debug("Create next test file: %s", next_file)
             shutil.copy(dir_files[0], next_file)
             log.debug("Added file %s to directory", next_file)
             
