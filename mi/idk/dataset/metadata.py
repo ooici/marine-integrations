@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-@file coi-services/mi.idk/metadata.py
+@file coi-services/mi/idk/dataset/metadata.py
 @author Bill French
 @brief Gather and store metadata for driver creation
 """
@@ -17,18 +17,19 @@ import yaml
 
 from mi.core.log import get_logger ; log = get_logger()
 
-from mi.idk.config import Config
+import mi.idk.metadata
+
 from mi.idk import prompt
+from mi.idk.config import Config
 
 from mi.idk.exceptions import DriverParameterUndefined
 from mi.idk.exceptions import UnknownDriver
 from mi.idk.exceptions import InvalidParameters
 
-class Metadata():
+class Metadata(mi.idk.metadata.Metadata):
     """
     Gather and store metadata for the IDK driver creation process.  When the metadata is stored it also creates a link
-    to current
-    .yml in the config dir.  That symlink indicates which driver you are currently working on.
+    to current .yml in the config dir.  That symlink indicates which driver you are currently working on.
     """
 
     ###
@@ -39,21 +40,13 @@ class Metadata():
         @brief full path to the driver code
         @retval driver path
         """
-        if not self.driver_make:
-            raise DriverParameterUndefined("driver_make undefined in metadata")
-            
-        if not self.driver_model:
-            raise DriverParameterUndefined("driver_model undefined in metadata")
-            
-        if not self.driver_name:
-            raise DriverParameterUndefined("driver_name undefined in metadata")
-            
-        return os.path.join(Config().base_dir(),
-                            "mi", "instrument",
-                            self.driver_make.lower(),
-                            self.driver_model.lower(),
-                            self.driver_name.lower())
-        
+        if not self.driver_path:
+            raise DriverParameterUndefined("driver_path undefined in metadata")
+
+        return os.path.join(self.base_dir,
+                            "mi", "dataset", "driver",
+                            self.driver_path)
+
     def idk_dir(self):
         """
         @brief directory to store the idk driver configuration
@@ -80,7 +73,7 @@ class Metadata():
         @brief path to link the current metadata file
         @retval current metadata path
         """
-        return self.idk_dir() + "/current.yml"
+        return self.idk_dir() + "/current_dsa.yml"
 
     def set_driver_version(self, version):
         """
@@ -92,28 +85,28 @@ class Metadata():
     ###
     #   Private Methods
     ###
-    def __init__(self, driver_make = None, driver_model = None, driver_name = None):
+    def __init__(self, driver_path = None, base_dir = Config().base_dir()):
         """
         @brief Constructor
         """
         self.author = None
         self.email = None
-        self.driver_make = driver_make
-        self.driver_model = driver_model
-        self.driver_name = driver_name
+        self.driver_path = driver_path
+        self.driver_name = None
         self.notes = None
         self.version = 0
+        self.base_dir = base_dir
 
-        if(driver_make and driver_model and driver_name):
-            log.debug("Construct from parameters")
+        if(driver_path):
+            log.debug("Construct from parameters: %s", self.metadata_path())
             if(os.path.isfile(self.metadata_path())):
                 self.read_from_file(self.metadata_path())
             
-        elif(not(driver_make or driver_model or driver_name)):
+        elif(not(driver_path)):
             self.read_from_file()
             
         else:
-            raise InvalidParameters(msg="driver_make, driver_model, driver_name must all be specified")
+            raise InvalidParameters(msg="driver_path must all be specified")
 
 
     def _init_from_yaml(self, yamlInput):
@@ -121,10 +114,10 @@ class Metadata():
         @brief initialize the object from YAML data
         @param data structure with YAML input
         """
+        log.debug("YML Config: %s", yamlInput)
         self.author = yamlInput['driver_metadata'].get('author')
         self.email = yamlInput['driver_metadata'].get('email')
-        self.driver_make = yamlInput['driver_metadata'].get('driver_make')
-        self.driver_model = yamlInput['driver_metadata'].get('driver_model')
+        self.driver_path = yamlInput['driver_metadata'].get('driver_path')
         self.driver_name = yamlInput['driver_metadata'].get('driver_name')
         self.notes = yamlInput['driver_metadata'].get('release_notes')
         self.version = yamlInput['driver_metadata'].get('version', 0)
@@ -137,23 +130,12 @@ class Metadata():
         """
         @brief Pretty print the current metadata object to STDOUT
         """
-        print( "Driver Make: " + self.driver_make )
-        print( "Driver Model: " + self.driver_model )
+        print( "Driver Path: " + self.driver_path )
         print( "Driver Name: " + self.driver_name )
         print( "Author: " + self.author )
         print( "Email: " + self.email )
         print( "Release Notes: \n" + self.notes )
         print( "Driver Version: \n" + self.version )
-
-
-    def confirm_metadata(self):
-        """
-        @brief Confirm the metadata entered is correct.  Run from the console
-        @retval True if the user confirms otherwise False.
-        """
-        print ( "\nYou Have entered:\n " )
-        self.display_metadata();
-        return prompt.yes_no( "\nIs this metadata correct? (y/n)" )
 
 
     def serialize(self):
@@ -164,8 +146,7 @@ class Metadata():
         return yaml.dump( {'driver_metadata': {
                                 'author': self.author,
                                 'email': self.email,
-                                'driver_make': self.driver_make,
-                                'driver_model': self.driver_model,
+                                'driver_path': self.driver_path,
                                 'driver_name': self.driver_name,
                                 'release_notes': self.notes,
                                 'version': self.version
@@ -173,67 +154,12 @@ class Metadata():
         }, default_flow_style=False)
 
 
-    def store_to_file(self):
-        """
-        @brief Write YAML file with metadata.  Once the file is written it also creates a symlink to current.yml
-            indicating that this is the working metadata file.
-        """
-        outputFile = self.metadata_path()
-
-        if not os.path.exists(self.driver_dir()):
-            os.makedirs(self.driver_dir())
-            
-        if not os.path.exists(self.idk_dir()):
-            os.makedirs(self.idk_dir())
-
-        ofile = open( outputFile, 'w' )
-
-        ofile.write( self.serialize() )
-        ofile.close()
-        
-        self.link_current_metadata()
-
-    
-    def link_current_metadata(self):
-        try:
-            os.remove(self.current_metadata_path())
-        except OSError, e:
-            if e.errno != errno.ENOENT:
-                raise
-
-        os.symlink(self.metadata_path(), self.current_metadata_path())
-
-
-    def read_from_file(self,infile = None):
-        """
-        @brief Read a YAML metadata file and initialize the current object with that data.
-        @params infile filename to a YAML metadata file, default is to use the current.yml file
-        """
-        if( infile ):
-            inputFile = infile
-        else:
-            log.info("Read from metadata file: %s", self.current_metadata_path())
-            inputFile = self.current_metadata_path()
-
-        try:
-            fd = open( inputFile )
-        except IOError:
-            return True
-
-        input = yaml.load( fd )
-
-        if( input ):
-            self._init_from_yaml( input )
-            fd.close()
-
-
     def get_from_console(self):
         """
         @brief Read metadata from the console and initialize the object.  Continue to do this until we get valid input.
         """
-        self.driver_make = prompt.text( 'Driver Make', self.driver_make )
-        self.driver_model = prompt.text( 'Driver Model', self.driver_model )
-        self.driver_name = prompt.text( 'Driver Name', self.driver_name )
+        self.driver_path = prompt.text( 'Driver Path', self.driver_path )
+        self.driver_name = prompt.text( 'Driver Path', self.driver_name )
         self.version = prompt.text( 'Driver Version', self.version )
         self.author = prompt.text( 'Author', self.author )
         self.email = prompt.text( 'Email', self.email )

@@ -1,0 +1,7 @@
+driver_metadata:
+  author: Bill French
+  driver_path: hypm/ctd
+  driver_name: dsa_hypm_ctd
+  email: wfrench@ucsd.edu
+  release_notes: some note
+  version: 0.2.2

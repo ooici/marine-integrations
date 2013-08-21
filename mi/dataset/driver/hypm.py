@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.drivers.hypm SBE54 data set agent information
-@file mi/dataset/drivers/hypm.py
+@package mi.dataset.driver.hypm SBE54 data set agent information
+@file mi/dataset/driver/hypm.py
 @author Steve Foley
 @brief An HYPM mooring specific data set agent package
 """
