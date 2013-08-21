@@ -88,6 +88,9 @@ class ReadOnlyException(InstrumentException):
 class SampleException(InstrumentException):
     """ An expected sample could not be extracted. """
 
+class DatasetParserException(InstrumentException):
+    """ An dataset parser encountered trouble. """
+
 class SchedulerException(InstrumentException):
     """ An error occurred in the scheduler """
 

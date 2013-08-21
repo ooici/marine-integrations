@@ -12,7 +12,7 @@ __license__ = 'Apache 2.0'
 
 from mi.core.log import get_logger ; log = get_logger()
 
-from mi.dataset.parsers.sbe54 import SBE54Parser
+from mi.dataset.parser.sbe54 import SBE54Parser
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
 from mi.dataset.driver import DatasetDriver
 
