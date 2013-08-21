@@ -130,11 +130,9 @@ class CtdpfParser(Parser):
             return []
         try:
             while len(self._record_buffer) < num_records:
-                log.debug("*** loading buffer for %s record", num_records)
                 self._load_particle_buffer()        
         except EOFError:
-            log.debug("*** Caught EOFError!")
-            
+            pass            
         return self._yank_particles(num_records)
                 
     def _yank_particles(self, num_records):
@@ -150,11 +148,9 @@ class CtdpfParser(Parser):
             num_to_fetch = len(self._record_buffer)
         else:
             num_to_fetch = num_records
-        log.debug("*** Yanking %s records of %s requested",
+        log.trace("Yanking %s records of %s requested",
                   num_to_fetch,
                   num_records)
-
-        log.debug("*** record buffer: %s", self._record_buffer)
 
         return_list = []
         records_to_return = self._record_buffer[:num_to_fetch]
@@ -177,7 +173,6 @@ class CtdpfParser(Parser):
         """
         while self.get_block():            
             result = self.parse_chunks()
-            log.debug("*** Parsed records: %s", result)
             self._record_buffer.extend(result)
             
     def _increment_timestamp(self, increment=1):
@@ -199,7 +194,7 @@ class CtdpfParser(Parser):
         @param increment Number of bytes to increment the parser position.
         @param timestamp The timestamp completed up to that position
         """
-        log.debug("*** incrementing current state: %s with inc: %s, timestamp: %s",
+        log.trace("Incrementing current state: %s with inc: %s, timestamp: %s",
                   self._read_state, increment, timestamp)
         
         self._read_state[StateKey.POSITION] += increment
@@ -213,7 +208,7 @@ class CtdpfParser(Parser):
         number of bytes into the file, the timestamp is an NTP4 format timestamp.
         @throws DatasetParserException if there is a bad state structure
         """
-        log.debug("*** Attempting to set state to: %s", state_obj)
+        log.trace("Attempting to set state to: %s", state_obj)
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
         if not ((StateKey.POSITION in state_obj) and (StateKey.TIMESTAMP in state_obj)):
@@ -237,7 +232,6 @@ class CtdpfParser(Parser):
         """
         # read in some more data
         data = self._stream_handle.read(size)
-        log.debug("*** data: <%s>", data)
         if data:
             self._chunker.add_chunk(data, self._timestamp)
             return len(data)
@@ -271,7 +265,7 @@ class CtdpfParser(Parser):
             time_match = TIME_MATCHER.match(chunk)
             data_match = DATA_MATCHER.match(chunk)
             if time_match:
-                log.debug("*** Encountered timestamp in data stream: %s", time_match.group(0))
+                log.trace("Encountered timestamp in data stream: %s", time_match.group(0))
                 self._timestamp = self._convert_string_to_timestamp(time_match.group(0))
                 self._increment_state(end, self._timestamp)
             
@@ -279,11 +273,10 @@ class CtdpfParser(Parser):
                 if self._timestamp <= 1.0:
                     raise SampleException("No reasonable timestamp encountered at beginning of file!")
                 # particle-ize the data block received, return the record
-                log.debug("*** timestamp: %s", self._timestamp)
                 sample = self._extract_sample(CtdpfParserDataParticle, DATA_MATCHER, chunk, self._timestamp)
                 if sample:
                     # create particle
-                    log.debug("*** Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
+                    log.trace("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
                     self._increment_state(end, self._timestamp)    
                     self._increment_timestamp() # increment one samples worth of time
                     result_particles.append((sample, copy.copy(self._read_state)))
