@@ -11,6 +11,7 @@ __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
 import gevent
+import copy
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import DataSourceLocationException
@@ -217,7 +218,17 @@ class SimpleDataSetDriver(DataSetDriver):
         handle, name = file_tuple
         log.info("Detected new file, handle: %r, name: %s", handle, name)
 
+        # For some reason when adding the handle to the _new_file_queue the file
+        # handle is closed.  Haven't had a chance to investigate, but this hack
+        # re-opens the file.
+        handle = open(handle.name, handle.mode)
+
         parser = self._build_parser(self._parser_state, handle)
+
+        result = parser.get_records(1)
+        while(result):
+            log.trace("Record parsed: %r", result)
+            result = parser.get_records(1)
 
         # Once we have successfully imported the file reset the parser state
         # and store the harvester state.
@@ -236,6 +247,7 @@ class SimpleDataSetDriver(DataSetDriver):
         Callback to store the parser state in the driver object.
         @param state: Object used by the parser to indicate position
         """
+        log.trace("saving parser state: %r", state)
         self._parser_state = state
         self._save_driver_state()
 
@@ -246,6 +258,7 @@ class SimpleDataSetDriver(DataSetDriver):
         of the next file.
         @param filename: file name we successfully parsed and imported.
         """
+        log.debug("saving harvester state: %r", state)
         self._parser_state = None
         self._harvester_state = state
         self._save_driver_state()
@@ -278,4 +291,7 @@ class SimpleDataSetDriver(DataSetDriver):
         @param file_handle: file handle to the new found file.
         @param file_name: file name of the found file.
         """
+        index = len(self._new_file_queue)
+
+        log.debug("Add new file to the new file queue: handle: %r, name: %s", file_handle, file_name)
         self._new_file_queue.append((file_handle, file_name))
