@@ -111,10 +111,6 @@ INVALID_SAMPLE  = "This is an invalid sample; it had better cause an exception."
 VALID_SAMPLE_01 = "NANO,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
 VALID_SAMPLE_02 = "NANO,2013/05/29 00:25:36, -0.0885, -0.7517,28.49,N8642" + NEWLINE
 
-DATA_ON_COMMAND_RESPONSE = "NANO,2013/05/29 00:23:34," + NANO_COMMAND_STRING + NANO_DATA_ON + NEWLINE
-DATA_OFF_COMMAND_RESPONSE = "NANO,2013/05/29 00:23:34," + NANO_COMMAND_STRING + NANO_DATA_OFF + NEWLINE
-DUMP_COMMAND_RESPONSE = "NANO,2013/05/29 00:22:57," + NANO_COMMAND_STRING + NANO_DUMP_SETTINGS + NEWLINE
-
 BOTPT_FIREHOSE_01  = "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
 BOTPT_FIREHOSE_01  += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
 BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
@@ -286,10 +282,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         chunker = StringChunker(Protocol.sieve_function)
 
         self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
-        #self.assert_chunker_sample(chunker, SIGNON_STATUS)
-        self.assert_chunker_sample(chunker, SIGNON_STATUS + DUMP_STATUS)
         self.assert_chunker_sample(chunker, DUMP_STATUS)
-        self.assert_chunker_sample(chunker, DUMP_COMMAND_RESPONSE)
+        self.assert_chunker_sample(chunker, DUMP_STATUS)
 
 
     """
@@ -394,61 +388,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         finally:
             self.assertTrue(sampleException)
 
-        sampleException = False
-        try:
-            response = NANOCommandResponse(DATA_ON_COMMAND_RESPONSE)
-            retValue = response.check_command_response(NANO_DATA_ON)
-        
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sampleException = True
-            
-        finally:
-            self.assertFalse(sampleException)
-            self.assertTrue(retValue)
-
-        sampleException = False
-        try:
-            response = NANOCommandResponse(DATA_OFF_COMMAND_RESPONSE)
-            retValue = response.check_command_response(NANO_DATA_OFF)
-        
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sampleException = True
-            
-        finally:
-            self.assertFalse(sampleException)
-            self.assertTrue(retValue)
-
-        sampleException = False
-        try:
-            response = NANOCommandResponse(DUMP_COMMAND_RESPONSE)
-            retValue = response.check_command_response(NANO_DUMP_SETTINGS)
-        
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sampleException = True
-            
-        finally:
-            self.assertFalse(sampleException)
-            self.assertTrue(retValue)
-
-        """
-        Try it pass None as the expected response parameter
-        """
-        sampleException = False
-        try:
-            response = NANOCommandResponse(DUMP_COMMAND_RESPONSE)
-            retValue = response.check_command_response(None)
-        
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sampleException = True
-            
-        finally:
-            self.assertFalse(sampleException)
-            self.assertTrue(retValue)
-
     """
     Verify that the BOTPT NANO driver publishes its particles correctly
     """
@@ -477,106 +416,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
 
-    """
-    Verify that the driver correctly parses the DATA_ON response
-    """
-    def test_data_on_response(self):
-        """
-        """
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
-        ts = ntplib.system_to_ntp_time(time.time())
-
-        log.debug("DATA ON command response: %s", DATA_ON_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(DATA_ON_COMMAND_RESPONSE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
-        self.assertTrue(driver._protocol._get_response(expected_prompt = 
-                                                       NANO_DATA_ON))
-
-
-    """
-    Verify that the driver correctly parses the DATA_ON response works
-    when a data packet is right in front of it
-    """
-    def test_data_on_response_with_data(self):
-        """
-        """
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
-        ts = ntplib.system_to_ntp_time(time.time())
-
-        # Create a data packet and push to the driver
-        log.debug("VALID SAMPLE : %s", VALID_SAMPLE_01)
-        # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(VALID_SAMPLE_01)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
-        
-        log.debug("DATA ON command response: %s", DATA_ON_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(DATA_ON_COMMAND_RESPONSE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
-        self.assertTrue(driver._protocol._get_response(expected_prompt = 
-                                                       NANO_DATA_ON))
 
     """
     Verify that the driver correctly parses the DUMP-SETTINGS response
@@ -758,53 +597,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
 
     """
-    Verify that the driver correctly parses the DATA_OFF response
-    """
-    def test_data_off_response(self):
-        """
-        """
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
-        ts = ntplib.system_to_ntp_time(time.time())
-
-        log.debug("DATA OFF command response: %s", DATA_OFF_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(DATA_OFF_COMMAND_RESPONSE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
-        self.assertTrue(driver._protocol._get_response(expected_prompt = 
-                                                       NANO_DATA_OFF))
-
-
-    """
     Verify that the driver correctly parses the DUMP_SETTINGS response
     """
+    @unittest.skip("NANO doesn't send responses to commands")
     def test_dump_settings_response(self):
         """
         """
@@ -852,13 +647,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
     def test_start_autosample(self):
         mock_port_agent = Mock(spec=PortAgentClient)
         driver = InstrumentDriver(self._got_data_event_callback)
-
-        def my_send(data):
-            my_response = DATA_ON_COMMAND_RESPONSE
-            log.debug("my_send: data: %s, my_response: %s", data, my_response)
-            driver._protocol._promptbuf += my_response
-            return len(DATA_ON_COMMAND_RESPONSE)
-        mock_port_agent.send.side_effect = my_send
         
         # Put the driver into test mode
         driver.set_test_mode(True)
@@ -886,21 +674,10 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         result = driver._protocol._handler_command_start_autosample(timeout = 0)
         ts = ntplib.system_to_ntp_time(time.time())
-        result = driver._protocol._got_chunk(DATA_ON_COMMAND_RESPONSE, ts)
-
 
     def test_stop_autosample(self):
         mock_port_agent = Mock(spec=PortAgentClient)
         driver = InstrumentDriver(self._got_data_event_callback)
-
-        def my_send(data):
-            my_response = DATA_OFF_COMMAND_RESPONSE
-            log.debug("my_send: data: %s, my_response: %s", data, my_response)
-            driver._protocol._promptbuf += my_response
-            return len(DATA_OFF_COMMAND_RESPONSE)
-        mock_port_agent.send.side_effect = my_send
-        
-        #self.assert_initialize_driver(driver)
 
         # Put the driver into test mode
         driver.set_test_mode(True)
@@ -928,7 +705,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         result = driver._protocol._handler_autosample_stop_autosample()
         ts = ntplib.system_to_ntp_time(time.time())
-        result = driver._protocol._got_chunk(DATA_OFF_COMMAND_RESPONSE, ts)
 
 
     def test_status_01_handler(self):
@@ -967,10 +743,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         self.assert_force_state(driver, DriverProtocolState.AUTOSAMPLE)
 
         result = driver._protocol._handler_command_autosample_dump01(timeout = 0)
-        tuple1 = result[1]
-        status_string = tuple1[1]
-        log.debug("STATUS_01 response: %r", status_string)
-        self.assertTrue(status_string == DUMP_STATUS)
 
     def test_dump_01(self):
         mock_port_agent = Mock(spec=PortAgentClient)
@@ -1009,9 +781,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         # expose the two commands to run separately instead of one combined
         # acquire_status
         driver._protocol._got_chunk(DUMP_STATUS, ts)
-        driver._protocol._got_chunk(DUMP_COMMAND_RESPONSE, ts)
 
-        response = driver._protocol._get_response(timeout = 0)
+        response = driver._protocol._get_response(timeout = 0, expected_prompt = 'Test')
         self.assertTrue(isinstance(response[1], NANOStatus_01_Particle))
 
         
@@ -1073,14 +844,14 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         Set continuous data on 
         """
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
-        self.assertEqual(response[1], NANO_DATA_ON)
+        #self.assertEqual(response[1], NANO_DATA_ON)
         
-        log.debug("DATA_ON returned: %r", response)
+        #log.debug("DATA_ON returned: %r", response)
 
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-        self.assertEqual(response[1], NANO_DATA_OFF)
+        #self.assertEqual(response[1], NANO_DATA_OFF)
         
-        log.debug("DATA_OFF returned: %r", response)
+        #log.debug("DATA_OFF returned: %r", response)
 
     def test_dump_01(self):
         """

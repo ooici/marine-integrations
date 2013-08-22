@@ -594,15 +594,13 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _parse_data_on_off_resp(self, response, prompt):
         log.debug("_parse_data_on_off_resp: response: %r; prompt: %s", response, prompt)
-        return response.nano_command_response
+        #return response.nano_command_response
+        return
         
     def _parse_status_01_resp(self, response, prompt):
         log.debug("_parse_status_01_resp: response: %r; prompt: %s", response, prompt)
-        return response.nano_status_response
-        
-    def _parse_status_02_resp(self, response, prompt):
-        log.debug("_parse_status_02_resp: response: %r; prompt: %s", response, prompt)
-        return response.nano_status_response
+        #return response.nano_status_response
+        return 
         
     def _wakeup(self, timeout, delay=1):
         """
@@ -630,9 +628,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         response = None
         
         """
-        Spin around for <timeout> looking for the response to arrive
+        Spin around for <timeout> looking for the response to arrive, but not
+        if there is no expected prompt to look for.
         """
-        continuing = True
+        if None == expected_prompt:
+            continuing = False
+        else:
+            continuing = True
+            
         response = "no response"
         while continuing:
             if self.cmd_rsp_regex.match(self._promptbuf):
