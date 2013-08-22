@@ -36,11 +36,11 @@ class TestExternalDatasetHarvester(MiUnitTest):
         """
         self.found_file_count = 0
 
-        # Create a file for testing
-        open(os.path.join(TESTDIR, "test_000.txt"), 'a').close()
-
         if(not os.path.exists(TESTDIR)):
             os.makedirs(TESTDIR)
+
+        # Create a file for testing
+        open(os.path.join(TESTDIR, "test_000.txt"), 'a').close()
 
     def tearDown(self):
         """
