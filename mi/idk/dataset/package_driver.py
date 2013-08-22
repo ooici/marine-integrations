@@ -9,6 +9,7 @@ from mi.core.log import get_logger ; log = get_logger()
 import mi.idk.package_driver
 
 from mi.idk.dataset.metadata import Metadata
+from mi.idk.dataset.nose_test import NoseTest
 from mi.idk.dataset.driver_generator import DriverGenerator
 from mi.idk.dataset.egg_generator import EggGenerator
 
@@ -25,7 +26,6 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
         """
         @brief ctor
         """
-        log.info("In dsa package driver init")
         self.metadata = Metadata()
         self._zipfile = None
         self._manifest = None
@@ -34,6 +34,22 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
 
         # Set compression level
         self.zipfile_compression()
+        
+    def run_qualification_tests(self):
+        """
+        @brief Run all qualification tests for the driver and store the results for packaging
+        """
+        log.info("-- Running qualification tests")
+
+        test = NoseTest(self.metadata, log_file=self.log_path())
+        test.report_header()
+
+        if(test.run_qualification()):
+            log.info(" ++ Qualification tests passed")
+            return True
+        else:
+            log.error("Qualification tests have fail!  No package created.")
+            return False
         
     ###
     #   Private Methods

@@ -116,7 +116,9 @@ class CtdpfParser(Parser):
         self._timestamp = 0.0
         self._record_buffer = [] # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION:0, StateKey.TIMESTAMP:0.0}
-        self.set_state(state)
+
+        if state:
+            self.set_state(state)
     
     def get_records(self, num_records):
         """
