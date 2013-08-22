@@ -165,3 +165,16 @@ class QualificationTest(DataSetQualificationTestCase):
         # Start sampling again
         # Stop or let complete
         # Verify correct # of particles, no gaps in the middle.
+
+    def test_missing_directory(self):
+        """
+        Test starting the driver when the data directory doesn't exists.  This
+        should prevent the driver from going into streaming mode.  When the
+        directory is created then we should be able to transition into streaming.
+        """
+
+        # Verify test directory doesn't exist
+        # Initialize into command mode
+        # Try to go streaming and verify failure
+        # Create data directory
+        # Try to go streaming again and verify success
