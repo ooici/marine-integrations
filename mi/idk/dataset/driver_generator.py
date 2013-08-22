@@ -35,14 +35,7 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
     ###
     #    Configurations
     ###
-    
-    def driver_filename(self):
-        """
-        @brief file name of the new driver
-        @retval driver filename
-        """
-        return "dataset_driver.py"
-    
+        
     def driver_base_dir(self):
         """
         @brief full path to the driver make dir

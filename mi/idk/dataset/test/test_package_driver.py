@@ -83,20 +83,16 @@ class TestPackageDriver(MiUnitTest):
         if(not exists(full_driver_path)):
             os.makedirs(full_driver_path)
         
-        fake_driver_path = "%s/%s/%s/dataset_driver.py" % (Config().base_dir(), MI_BASE_DIR, DRIVER_DIR)
+        fake_driver_path = "%s/%s/%s/driver.py" % (Config().base_dir(), MI_BASE_DIR, DRIVER_DIR)
         
         # create a fake driver file
         if not exists(fake_driver_path):
             # write a make driver which just has the class constructor in it
             fake_driver_file = open(fake_driver_path, 'w')
             log.info("creating fake driver %s", fake_driver_path)
-            fake_driver_file.write("from mi.dataset.dataset_driver import DataSetDriver\n")
             fake_driver_file.write("from mi.core.log import get_logger ; log = get_logger()\n\n")
-            class_line = "class %s(DataSetDriver):\n\n" % CONSTRUCTOR 
+            class_line = "class %s(object):\n\n" % CONSTRUCTOR 
             fake_driver_file.write(class_line)
-            fake_driver_file.write("    def __init__(self):\n")
-            init_line = "        super(%s, self).__init__(None, None, None, None)\n\n" % CONSTRUCTOR
-            fake_driver_file.write(init_line)
             fake_driver_file.write("    def sayHello(self):\n")
             fake_driver_file.write("        log.info('Hello from Dataset Driver')\n")
             fake_driver_file.close()
@@ -140,10 +136,13 @@ class TestPackageDriver(MiUnitTest):
         else:
             log.info("fake test driver test already initialized")
         
-    def test_package_driver(self):
-        
+    #def test_package_driver(self):
+        """
         # make a metadata file is initialized, otherwise it might not exist 
         self.createMetadataFile()
+        
+        # create the metadata so we can use it for opening the egg 
+        metadata1 = Metadata()
         
         package_driver = PackageDriver()
         sys.argv[1] = '--no-test'
@@ -151,6 +150,9 @@ class TestPackageDriver(MiUnitTest):
         
         # overwrite the original metadata file for the same driver and change the version
         self.createMetadataFile("0.2.5")
+        
+        # create the metadata so we can use it for opening the egg 
+        metadata2 = Metadata()
         
         # run package driver again to create the new driver version
         package_driver = PackageDriver()
@@ -160,27 +162,68 @@ class TestPackageDriver(MiUnitTest):
         log.info("Both driver eggs created")
         
         # load the first driver
-        egg_name = "driver_%s-%s-py2.7.egg" % ("fake_driver_0_2_2", "0.2.2")
-        egg_cache_dir = "/tmp/driver_fake_driver_0_2_2/dist"
-        loaded_driver = self.load_egg(egg_name, egg_cache_dir)
-        log.info("driver %s loaded", egg_cache_dir + "/" + egg_name)
+        cotr1 = self.load_egg(metadata1)
+        loaded_driver = cotr1()
         loaded_driver.sayHello()
         log.info("First driver done saying hello")
         
         # load the second driver
-        egg_name = "driver_%s-%s-py2.7.egg" % ("fake_driver_0_2_5", "0.2.5")
-        egg_cache_dir = "/tmp/driver_fake_driver_0_2_5/dist"
-        loaded_driver2 = self.load_egg(egg_name, egg_cache_dir)
-        log.info("driver %s loaded", egg_cache_dir + "/" + egg_name)
+        cotr2 = self.load_egg(metadata2)
+        loaded_driver2 = cotr2()
         loaded_driver2.sayHello()
         log.info("Second driver done saying hello")
         
         # just print out some entry point info
         for x in pkg_resources.iter_entry_points('drivers.dataset.fake_driver'):
             log.info("entry point:%s", x)
+        """   
+    def test_package_driver_real(self):
+        """
+        Test with real hypm ctd driver code
+        """
+        
+        # link current metadata dsa file to a real driver, the ctd
+        current_dsa_path = Config().idk_config_dir() + "/current_dsa.yml"
+        ctd_md_path = "%s/%s/hypm/ctd/metadata.yml" % (Config().base_dir(), MI_BASE_DIR)
+        log.info("linking %s to %s", ctd_md_path, current_dsa_path)
+        # exists doesn't catch when this link is broken but still there,
+        # need to figure out how to find and delete
+        if exists(current_dsa_path):
+            os.remove(current_dsa_path)
+        
+        os.symlink(ctd_md_path, current_dsa_path)
+        
+        # create the metadata so we can use it for opening the egg 
+        metadata = Metadata()
+    
+        # create the egg with the package driver
+        package_driver = PackageDriver()
+        #sys.argv[1] = '--no-test'
+        package_driver.run()
+        
+        startup_config = {
+            'harvester':
+            {
+                'directory': '/tmp/dsatest',
+                'pattern': '*.txt',
+                'frequency': 1,
+            },
+            'parser': {}
+        }
+
+        
+        # load the driver
+        cotr = self.load_egg(metadata)
+        # need to load with the right number of arguments
+        egg_driver = cotr(startup_config, None, None, None, None)
+        log.info("driver loaded")
         
         
-    def load_egg(self, egg_name, egg_cache_dir):
+    def load_egg(self, metadata):
+        # use metadata to initialize egg name and location, but only the egg name
+        # should be used to figure out how to load the entry point
+        egg_name = "%s-%s-py2.7.egg" % (metadata.driver_name_versioned, metadata.version)
+        egg_cache_dir = "/tmp/%s/dist" % metadata.driver_name_versioned
         pkg_resources.working_set.add_entry(egg_cache_dir + '/' + egg_name)
         first_dash_idx = egg_name.find('-')
         second_dash_idx = egg_name[first_dash_idx+1:].find('-')
@@ -201,8 +244,7 @@ class TestPackageDriver(MiUnitTest):
         log.info("entry point %s, group_name %s", entry_point, group_name)
         cotr = pkg_resources.load_entry_point('driver_' + driver_name, group_name, entry_point)
         log.info("loaded entry point")
-        egg_driver = cotr()
-        return egg_driver
+        return cotr
         
     
         

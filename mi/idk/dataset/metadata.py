@@ -126,16 +126,16 @@ class Metadata(mi.idk.metadata.Metadata):
         self.driver_name = yamlInput['driver_metadata'].get('driver_name')
         self.notes = yamlInput['driver_metadata'].get('release_notes')
         self.version = yamlInput['driver_metadata'].get('version', 0)
-        # constructor must match driver class constructor name in dataset_driver.py
+        # constructor must match driver class constructor name in driver.py
         self.constructor = yamlInput['driver_metadata'].get('constructor')
         self.driver_name_versioned = 'driver_%s_%s' % (self.driver_name,
                                                        self.version.replace('.','_').replace('-','_'))
         self.entry_point_group = 'drivers.dataset.%s' % self.driver_name
-        # This assumes the name of the driver file is 'dataset_driver.py'
-        self.versioned_constructor = 'driver-%s = %s.mi.dataset.driver.%s.dataset_driver:%s' % (self.version,
-                                                                                                self.driver_name_versioned,
-                                                                                                self.driver_path.replace('/', '.'),
-                                                                                                self.constructor) 
+        # This assumes the name of the driver file is 'driver.py'
+        self.versioned_constructor = 'driver-%s = %s.mi.dataset.driver.%s.driver:%s' % (self.version,
+                                                                                        self.driver_name_versioned,
+                                                                                        self.driver_path.replace('/', '.'),
+                                                                                        self.constructor) 
 
     ###
     #   Public Methods

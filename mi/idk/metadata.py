@@ -151,6 +151,10 @@ class Metadata():
         @brief Confirm the metadata entered is correct.  Run from the console
         @retval True if the user confirms otherwise False.
         """
+        if self.driver_name.find('/') != -1 or self.driver_name.find('\\') != -1 or self.driver_name.find('\0') != -1 or self.driver_name.find(' ') != -1:
+            print ( "Driver names cannot contain '/', '\', space, or null chars" )
+            return False
+
         print ( "\nYou Have entered:\n " )
         self.display_metadata();
         return prompt.yes_no( "\nIs this metadata correct? (y/n)" )
@@ -182,7 +186,7 @@ class Metadata():
 
         if not os.path.exists(self.driver_dir()):
             os.makedirs(self.driver_dir())
-            
+
         if not os.path.exists(self.idk_dir()):
             os.makedirs(self.idk_dir())
 
