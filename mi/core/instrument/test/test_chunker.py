@@ -11,8 +11,9 @@ __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
 import unittest
-from mi.core.unit_test import MiUnitTest, MiUnitTestCase
 import re
+from functools import partial
+from mi.core.unit_test import MiUnitTest, MiUnitTestCase
 from nose.plugins.attrib import attr
 from pyon.util.unit_test import IonUnitTestCase
 from ooi.logging import log
@@ -82,6 +83,23 @@ class UnitTestStringChunker(MiUnitTestCase):
         self.assertEquals([(0,31), (33, 64)],
                           UnitTestStringChunker.sieve_function(self.MULTI_SAMPLE_1))
         
+    def test_regex_sieve(self):
+        """
+        Do a test of the regex based sieve to make sure it does what we want.
+        """
+        pattern = r'SATPAR(?P<sernum>\d{4}),(?P<timer>\d{1,7}.\d\d),(?P<counts>\d{10}),(?P<checksum>\d{1,3})'
+        regex = re.compile(pattern)
+
+        self._chunker = StringChunker(partial(self._chunker.regex_sieve_function, regex_list=[regex]))
+        
+        self.assertEquals([(0,31)],
+                          self._chunker.regex_sieve_function(self.SAMPLE_1, [regex]))
+        self.assertEquals([],
+                          self._chunker.regex_sieve_function(self.FRAGMENT_1, [regex]))
+        self.assertEquals([(0,31), (33, 64)],
+                          self._chunker.regex_sieve_function(self.MULTI_SAMPLE_1, [regex]))
+
+        
     def test_generate_data_lists(self):
         sample_string = "Foo%sBar%sBat" % (self.SAMPLE_1, self.SAMPLE_2)
         self._chunker.add_chunk(sample_string, self.TIMESTAMP_1)
@@ -131,7 +149,7 @@ class UnitTestStringChunker(MiUnitTestCase):
         (time, result) = self._chunker.get_next_non_data()
         self.assertEquals(time, None)
         self.assertEquals(result, None)
-        
+                
     def test_no_clean_data(self):
         """
         Test an add/get without cleaning
@@ -144,7 +162,7 @@ class UnitTestStringChunker(MiUnitTestCase):
         # It did NOT get cleared at the last fetch...
         (time, result) = self._chunker.get_next_data()
         self.assertEquals(result, self.SAMPLE_1)
-        self.assertEquals(time, self.TIMESTAMP_1)
+        self.assertEquals(time, self.TIMESTAMP_1)        
         
         # and now it did
         (time, result) = self._chunker.get_next_data()
@@ -194,6 +212,7 @@ class UnitTestStringChunker(MiUnitTestCase):
 
         (time, result) = self._chunker.get_next_data()
         self.assertEquals(result, self.SAMPLE_1)
+
         self.assertEquals(time, self.TIMESTAMP_2)
         (time, result) = self._chunker.get_next_non_data()
         self.assertEquals(result, "BarBat")
@@ -205,6 +224,25 @@ class UnitTestStringChunker(MiUnitTestCase):
         self.assertEquals(result, None)
         self.assertEquals(time, None)
     
+    def test_get_next_data_with_indices(self):
+        """
+        Get the next data point with indices
+        """
+        self._chunker.add_chunk("Foo", self.TIMESTAMP_1)
+        self.assertEquals(len(self._chunker.nondata_chunk_list), 1)
+        self.assertEquals(len(self._chunker.data_chunk_list), 0)
+        self._chunker.add_chunk(self.SAMPLE_1, self.TIMESTAMP_2)
+        self.assertEquals(len(self._chunker.nondata_chunk_list), 1)
+        self.assertEquals(len(self._chunker.data_chunk_list), 1)        
+        self._chunker.add_chunk("Bar", self.TIMESTAMP_2)
+        self._chunker.add_chunk("Bat", self.TIMESTAMP_3)
+
+        (time, result, start, end) = self._chunker.get_next_data_with_index()
+        self.assertEquals(result, self.SAMPLE_1)
+        self.assertEquals(start, 3)
+        self.assertEquals(end, 34)
+        
+        
     def test_add_get_fragment(self):
         """
         Add some fragments of a string, then verify that value is stitched together
