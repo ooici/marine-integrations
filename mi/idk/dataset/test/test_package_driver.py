@@ -79,6 +79,9 @@ class TestPackageDriver(MiUnitTest):
         """
         Write a fake driver
         """
+        full_driver_path = "%s/%s/%s" % (Config().base_dir(), MI_BASE_DIR, DRIVER_DIR)
+        if(not exists(full_driver_path)):
+            os.makedirs(full_driver_path)
         
         fake_driver_path = "%s/%s/%s/dataset_driver.py" % (Config().base_dir(), MI_BASE_DIR, DRIVER_DIR)
         
@@ -87,10 +90,13 @@ class TestPackageDriver(MiUnitTest):
             # write a make driver which just has the class constructor in it
             fake_driver_file = open(fake_driver_path, 'w')
             log.info("creating fake driver %s", fake_driver_path)
-            fake_driver_file.write("from mi.dataset.dataset_driver import DatasetDriver\n")
+            fake_driver_file.write("from mi.dataset.dataset_driver import DataSetDriver\n")
             fake_driver_file.write("from mi.core.log import get_logger ; log = get_logger()\n\n")
-            class_line = "class %s(DatasetDriver):\n\n" % CONSTRUCTOR 
+            class_line = "class %s(DataSetDriver):\n\n" % CONSTRUCTOR 
             fake_driver_file.write(class_line)
+            fake_driver_file.write("    def __init__(self):\n")
+            init_line = "        super(%s, self).__init__(None, None, None, None)\n\n" % CONSTRUCTOR
+            fake_driver_file.write(init_line)
             fake_driver_file.write("    def sayHello(self):\n")
             fake_driver_file.write("        log.info('Hello from Dataset Driver')\n")
             fake_driver_file.close()
@@ -126,10 +132,6 @@ class TestPackageDriver(MiUnitTest):
         if not exists(test_driver_path):
             fake_driver_test = open(test_driver_path, 'w')
             log.info("creating fake test driver %s", test_driver_path)
-            #import_line = "from mi.core.unit_test import MiUnitTestCase\n\n"
-            #class_line = "class %sTestCase(MiUnitTestCase):\n\t" % CONSTRUCTOR
-            #fake_driver_test.write(import_line)
-            #fake_driver_test.write(class_line)
             fake_driver_test.close()
             # make sure we have an __init__.py
             init_path = "%s/__init__.py" % test_dir_path
@@ -155,24 +157,27 @@ class TestPackageDriver(MiUnitTest):
         sys.argv[1] = '--no-test'
         package_driver.run()
         
-        log.debug("Both driver eggs created")
+        log.info("Both driver eggs created")
         
         # load the first driver
         egg_name = "driver_%s-%s-py2.7.egg" % ("fake_driver_0_2_2", "0.2.2")
         egg_cache_dir = "/tmp/driver_fake_driver_0_2_2/dist"
         loaded_driver = self.load_egg(egg_name, egg_cache_dir)
+        log.info("driver %s loaded", egg_cache_dir + "/" + egg_name)
         loaded_driver.sayHello()
-        log.debug("First driver done saying hello")
+        log.info("First driver done saying hello")
         
         # load the second driver
         egg_name = "driver_%s-%s-py2.7.egg" % ("fake_driver_0_2_5", "0.2.5")
         egg_cache_dir = "/tmp/driver_fake_driver_0_2_5/dist"
         loaded_driver2 = self.load_egg(egg_name, egg_cache_dir)
+        log.info("driver %s loaded", egg_cache_dir + "/" + egg_name)
         loaded_driver2.sayHello()
-        log.debug("Second driver done saying hello")
+        log.info("Second driver done saying hello")
         
+        # just print out some entry point info
         for x in pkg_resources.iter_entry_points('drivers.dataset.fake_driver'):
-            log.debug("entry point:%s", x)
+            log.info("entry point:%s", x)
         
         
     def load_egg(self, egg_name, egg_cache_dir):
@@ -193,8 +198,9 @@ class TestPackageDriver(MiUnitTest):
         log.debug("found version %s", version)
         entry_point = 'driver-' + version
         group_name = 'drivers.dataset.' + short_driver
-        log.debug("entry point %s, group_name %s", entry_point, group_name)
+        log.info("entry point %s, group_name %s", entry_point, group_name)
         cotr = pkg_resources.load_entry_point('driver_' + driver_name, group_name, entry_point)
+        log.info("loaded entry point")
         egg_driver = cotr()
         return egg_driver
         
