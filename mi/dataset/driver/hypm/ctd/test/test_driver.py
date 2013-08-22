@@ -61,7 +61,7 @@ DataSetTestCase.initialize(
 class IntegrationTest(DataSetIntegrationTestCase):
         
     def setUp(self):
-        self.create_test_data()
+        self.create_sample_data()
         log.debug("Created test data")
     
     def test_simple_get(self):

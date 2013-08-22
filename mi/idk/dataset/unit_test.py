@@ -180,7 +180,7 @@ GPS2:
         }
         return config
     
-    def create_test_data(self):
+    def create_sample_data(self):
         """
         Create some test data: Some files with some lines in them. Leave room
         for individual test cases to insert files at the beginning of the sequence
@@ -190,17 +190,17 @@ GPS2:
             os.makedirs(self.TESTDIR)
     
         log.debug("Creating test file: %s/DAT0003.txt", self.TESTDIR)
-        fh = open(os.path.join(self.TESTDIR, "DAT0003.txt"), 'a')
+        fh = open(os.path.join(self.TESTDIR, "DAT0003.txt"), 'w+')
         fh.write(self.TEST_DATA_1)
         fh.close()
         
         log.debug("Creating test file: %s/DAT0004.txt", self.TESTDIR)
-        fh = open(os.path.join(self.TESTDIR, "DAT0004.txt"), 'a')
+        fh = open(os.path.join(self.TESTDIR, "DAT0004.txt"), 'w+')
         fh.write(self.TEST_DATA_2)
         fh.close()
         
         log.debug("Creating test file: %s/DAT0005.txt", self.TESTDIR)
-        fh = open(os.path.join(self.TESTDIR, "DAT0005.txt"), 'a')
+        fh = open(os.path.join(self.TESTDIR, "DAT0005.txt"), 'w+')
         fh.write(self.TEST_DATA_LONG)
         fh.close()
 
