@@ -50,7 +50,7 @@ class Metadata(mi.idk.metadata.Metadata):
     def idk_dir(self):
         """
         @brief directory to store the idk driver configuration
-        @retval dir name
+        @retval dir name 
         """
         return Config().idk_config_dir()
 
@@ -96,6 +96,12 @@ class Metadata(mi.idk.metadata.Metadata):
         self.notes = None
         self.version = 0
         self.base_dir = base_dir
+        self.constructor = None
+        self.driver_name_versioned = None
+        self.entry_point_group = None
+        self.versioned_constructor = None
+        
+        log.debug("Constructing dataset metadata")
 
         if(driver_path):
             log.debug("Construct from parameters: %s", self.metadata_path())
@@ -108,20 +114,28 @@ class Metadata(mi.idk.metadata.Metadata):
         else:
             raise InvalidParameters(msg="driver_path must all be specified")
 
-
     def _init_from_yaml(self, yamlInput):
         """
         @brief initialize the object from YAML data
         @param data structure with YAML input
         """
-        log.debug("YML Config: %s", yamlInput)
+        log.info("YML Config: %s", yamlInput)
         self.author = yamlInput['driver_metadata'].get('author')
         self.email = yamlInput['driver_metadata'].get('email')
         self.driver_path = yamlInput['driver_metadata'].get('driver_path')
         self.driver_name = yamlInput['driver_metadata'].get('driver_name')
         self.notes = yamlInput['driver_metadata'].get('release_notes')
         self.version = yamlInput['driver_metadata'].get('version', 0)
-
+        # constructor must match driver class constructor name in dataset_driver.py
+        self.constructor = yamlInput['driver_metadata'].get('constructor')
+        self.driver_name_versioned = 'driver_%s_%s' % (self.driver_name,
+                                                       self.version.replace('.','_').replace('-','_'))
+        self.entry_point_group = 'drivers.dataset.%s' % self.driver_name
+        # This assumes the name of the driver file is 'dataset_driver.py'
+        self.versioned_constructor = 'driver-%s = %s.mi.dataset.driver.%s.dataset_driver:%s' % (self.version,
+                                                                                                self.driver_name_versioned,
+                                                                                                self.driver_path.replace('/', '.'),
+                                                                                                self.constructor) 
 
     ###
     #   Public Methods
@@ -136,7 +150,9 @@ class Metadata(mi.idk.metadata.Metadata):
         print( "Email: " + self.email )
         print( "Release Notes: \n" + self.notes )
         print( "Driver Version: \n" + self.version )
-
+        print( "Driver Constructor: \n" + self.constructor )
+        print( "Driver Entry Point Group: \n" + self.entry_point_group )
+        print( "Driver Versioned Constructor: \n" + self.versioned_constructor )
 
     def serialize(self):
         """
@@ -149,27 +165,28 @@ class Metadata(mi.idk.metadata.Metadata):
                                 'driver_path': self.driver_path,
                                 'driver_name': self.driver_name,
                                 'release_notes': self.notes,
-                                'version': self.version
+                                'version': self.version,
+                                'constructor': self.constructor
                           }
         }, default_flow_style=False)
-
 
     def get_from_console(self):
         """
         @brief Read metadata from the console and initialize the object.  Continue to do this until we get valid input.
         """
         self.driver_path = prompt.text( 'Driver Path', self.driver_path )
-        self.driver_name = prompt.text( 'Driver Path', self.driver_name )
+        self.driver_name = prompt.text( 'Driver Name', self.driver_name )
         self.version = prompt.text( 'Driver Version', self.version )
         self.author = prompt.text( 'Author', self.author )
         self.email = prompt.text( 'Email', self.email )
         self.notes = prompt.multiline( 'Release Notes', self.notes )
+        # constructor must match driver class constructor name in driver.py
+        self.constructor = prompt.text( 'Driver Constructor', self.constructor )
 
         if( self.confirm_metadata() ):
             self.store_to_file()
         else:
             return self.get_from_console()
-
 
 
 if __name__ == '__main__':

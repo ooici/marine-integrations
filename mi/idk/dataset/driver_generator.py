@@ -35,12 +35,21 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
     ###
     #    Configurations
     ###
+    
+    def driver_filename(self):
+        """
+        @brief file name of the new driver
+        @retval driver filename
+        """
+        return "dataset_driver.py"
+    
     def driver_base_dir(self):
         """
         @brief full path to the driver make dir
         @retval driver make path
         """
         if not self.metadata.driver_path:
+            log.info("metadata is %s", self.metadata)
             raise DriverParameterUndefined("driver_path undefined in metadata")
         
         return os.path.join(Config().base_dir(),
@@ -63,6 +72,20 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
         """
         return os.path.join(Config().template_dir(), 'dsa')
 
+    
+    ###
+    #   Private Methods
+    ###
+    def __init__(self, metadata, force = False):
+        """
+        @brief Constructor
+        @param metadata IDK Metadata object
+        """
+        mi.idk.driver_generator.DriverGenerator.__init__(self, metadata, force)
+        
+        self.metadata = metadata
+        self.force = force
+
     def _driver_template_data(self):
         """
         @brief dictionary containing a map of substitutions for the driver code generation
@@ -76,7 +99,6 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
             'driver_path': self.metadata.driver_path,
             'release_notes': self.metadata.notes,
         }
-
 
     def _test_template_data(self):
         """
