@@ -19,21 +19,21 @@ from mi.dataset.harvester import AdditiveSequentialFileHarvester
 
 
 class HypmCTDPFDataSetDriver(SimpleDataSetDriver):
-    def _build_parser(self, memento, infile):
+    def _build_parser(self, parser_state, infile):
         self._parser = CtdpfParser(
             self._parser_config,
-            memento,
+            parser_state,
             infile,
-            self._state_callback,
+            self._save_parser_state,
             self._data_callback
         )
 
         return self._parser
 
-    def _build_harvester(self, memento):
+    def _build_harvester(self, harvester_state):
         self._harvester = AdditiveSequentialFileHarvester(
             self._harvester_config,
-            memento,
+            harvester_state,
             self._new_file_callback,
             self._exception_callback
         )
