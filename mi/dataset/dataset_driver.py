@@ -148,8 +148,10 @@ class SimpleDataSetDriver(DataSetDriver):
     def __init__(self, config, memento, data_callback, state_callback, exception_callback):
         super(SimpleDataSetDriver, self).__init__(config, memento, data_callback, state_callback, exception_callback)
 
+        self._init_state(memento)
+
     def start_sampling(self):
-        self._harvester = self._build_harvester(self._memento)
+        self._harvester = self._build_harvester(self._harvester_state)
         self._harvester.start()
 
         self._start_publisher_thread()
@@ -215,7 +217,7 @@ class SimpleDataSetDriver(DataSetDriver):
         handle, name = file_tuple
         log.info("Detected new file, handle: %r, name: %s", handle, name)
 
-        parser = self._build_parser(self._memento)
+        parser = self._build_parser(self._parser_state)
 
         # Once we have successfully imported the file reset the parser state
         # and store the harvester state.
@@ -257,6 +259,14 @@ class SimpleDataSetDriver(DataSetDriver):
             DataSourceConfigKey.HARVESTER: self._harvester_state,
             DataSourceConfigKey.PARSER: self._parser_state
         }
+
+    def _init_state(self, memento):
+        """
+        Break apart a memento into parser and harvester state
+        @param memento: agent persisted memento containing both parser and harvester state
+        """
+        self._harvester_state = memento.get(DataSourceConfigKey.HARVESTER)
+        self._parser_state = memento.get(DataSourceConfigKey.PARSER)
 
     def _new_file_callback(self, file_handle, file_name):
         """

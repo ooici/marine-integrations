@@ -28,6 +28,7 @@ from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.parser.ctdpf import CtdpfParser
+from mi.dataset.parser.test.test_ctdpf import CtdpfParserUnitTestCase
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
 
 
@@ -133,6 +134,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
+    def setUp(self):
+        """
+        Ensure the data directory exists
+        """
+
+
     def test_initialize(self):
         """
         Test that we can start the container and initialize the dataset agent.
