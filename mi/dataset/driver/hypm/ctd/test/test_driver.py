@@ -1,6 +1,6 @@
 """
 @package mi.dataset.driver.hypm.ctd.test.test_driver
-@file marine-integrations/mi/dataset/driver/hypm/ctd/driver.py
+@file marine-integrations/mi/dataset/driver/hypm/ctd/test/test_driver.py
 @author Bill French
 @brief Test cases for hypm/ctd driver
 
@@ -42,24 +42,90 @@ DataSetTestCase.initialize(
     startup_config = {
         'harvester':
         {
-            'directory': '/tmp/ctdpf',
-            'pattern': '*.dat',
+            'directory': '/tmp/dsatest',
+            'pattern': '*.txt',
             'frequency': 1,
         },
         'parser': {}
     }
 )
+    
 
 ###############################################################################
-#                            QUALIFICATION TESTS                              #
-# Device specific qualification tests are for                                 #
+#                            INTEGRATION TESTS                                #
+# Device specific integration tests are for                                   #
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('INT', group='mi')
-class IntegrtaionTest(DataSetIntegrationTestCase):
-    pass
+class IntegrationTest(DataSetIntegrationTestCase):
+        
+    def setUp(self):
+        self.create_test_data()
+        log.debug("Created test data")
+    
+    def test_simple_get(self):
+        """
+        Test the simple happy path of having one file get opened by the
+        a harvester, handed to a parser, and confirm that particles are
+        published as they should.
+        """
+        self.fail()
+        # Set up driver
+        # Start a harvester going to get one file
+        # Fire off a poller for that file
+        # Count particles that are generated, assert correct
+        # Assert no errors on completion
 
+    def test_multiple_sources(self):
+        """
+        Test that data comes from multiple source files with the correct number
+        of particles being generated.
+        """
+        # Set up driver
+        # Start a harvester going to get at least 2 files
+        # Fire off a poller for each harvested file in order
+        # Count particles that are generated, assert correct
+        # Assert no errors on completion
 
+    def test_stop_resume(self):
+        """
+        Test the ability to stop and restart the process
+        """
+        # Set up driver
+        # Start a harvester going with a large file
+        # Fire off a poller
+        # Stop the harvester
+        # Verify state is reasonable at the driver level
+        # Restart data collection
+        # Verify the same stopped state is re-used
+        # Count total particles that are generated, assert correct, no dups
+
+    def test_parser_error(self):
+        """
+        Test for the correct response from a parser. Parser should
+        toss an exception at bad data.
+        """
+        # Setup a driver
+        # Insert a bad data file at the beginning of the sequence
+        # When parser starts, catch the exception of the bad data
+        
+    def test_harvester_error(self):
+        """
+        Test to make sure the harvester errors are appropriately caught
+        """
+        # Do something bad for the harvester (non-dict config raises an exception)
+        # Setup a driver
+        # Verify harvester error made it to the driver
+        
+    def test_bad_configuration(self):
+        """
+        Feed a bad configuration to the harvester (and driver if it takes one).
+        Parser doesnt error on a config right now, but it might some day.
+        """
+        # Create a bad, non-dict configuration for the harvester
+        # Verify that the Type Error is raised on instantiation 
+
+    
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -75,4 +141,27 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_stop_sampling()
         self.assert_reset()
 
+    def test_publish_path(self):
+        """
+        Setup an agent/driver/harvester/parser and verify that data is
+        published out the agent
+        """
+        # Create some test data
+        # Setup the agent (and thus driver, harvester, and parser)
+        # Start the driver going
+        # See some data get published
 
+    def test_stop_start(self):
+        """
+        Test the agents ability to start data flowing, stop, then restart
+        at the correct spot.
+        """
+        # Create some large enough test data
+        # Setup the agent
+        # Start sampling
+        # Wait a bit for some data to come in.
+        # Stop sampling
+        # Verify correct # of particles are PUBLISHED
+        # Start sampling again
+        # Stop or let complete
+        # Verify correct # of particles, no gaps in the middle.

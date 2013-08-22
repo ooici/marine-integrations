@@ -14,7 +14,7 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey
-
+from mi.core.exceptions import DatasetParserException
 
 class Parser(object):
     """ abstract class to show API needed for plugin poller objects """
@@ -46,8 +46,17 @@ class Parser(object):
         """
         Returns a list of particles (following the instrument driver structure).
         """
-        pass
+        raise DatasetParserException("get_records() not overridden!")
 
+    def set_state(self, state):
+        """
+        Set the state of the last published data block.
+        @param state The structure that indicates what state the parser should
+           be in for this state. This structure should look like what was
+           published for the last state.
+        """
+        raise DatasetParserException("get_records() not overridden!")
+    
     def _publish_sample(self, samples):
         """
         Publish the samples with the given publishing callback.

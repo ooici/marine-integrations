@@ -5,7 +5,7 @@
 @author Bill French
 @brief Base classes for data set agent tests.
 """
-
+import os
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.unit_test import MiIntTestCase
@@ -49,9 +49,92 @@ class DataSetTestCase(MiIntTestCase):
     """
     Base class for instrument driver tests
     """
-
     # configuration singleton
     test_config = DataSetTestConfig()
+
+    TEST_DATA_1 = """
+* Sea-Bird SBE52 MP Data File *
+
+*** Starting profile number 3 ***
+07/26/2013 21:01:03
+GPS1: 
+GPS2: 
+ 10.5914,  4.1870,  161.06,   2693.0
+ 11.5912,  4.1875,  161.06,   2709.0
+ 12.5912,  4.1870,  161.08,   2716.1
+ 13.5913,  4.1872,  161.09,   2723.5
+ 14.5912,  4.1869,  161.10,   2727.3
+ 15.5912,  4.1867,  161.10,   2731.8
+ 16.5914,  4.1870,  161.09,   2733.4
+ 17.5913,  4.1866,  161.08,   2738.1
+ 18.5914,  4.1863,  161.08,   2739.1
+ 19.5912,  4.1862,  161.06,   2740.1
+"""
+
+    TEST_DATA_2 = """
+* Sea-Bird SBE52 MP Data File *
+
+*** Starting profile number 3 ***
+07/26/2013 21:01:03
+GPS1: 
+GPS2: 
+ 20.5914,  4.1870,  161.06,   2693.0
+ 21.5912,  4.1875,  161.06,   2709.0
+ 22.5912,  4.1870,  161.08,   2716.1
+ 23.5913,  4.1872,  161.09,   2723.5
+ 24.5912,  4.1869,  161.10,   2727.3
+ 25.5912,  4.1867,  161.10,   2731.8
+ 26.5914,  4.1870,  161.09,   2733.4
+ 27.5913,  4.1866,  161.08,   2738.1
+"""
+
+    TEST_DATA_LONG = """
+* Sea-Bird SBE52 MP Data File *
+
+*** Starting profile number 3 ***
+07/26/2013 21:01:03
+GPS1: 
+GPS2: 
+ 300.5914,  4.1870,  161.06,   2693.0
+ 301.5912,  4.1875,  161.06,   2709.0
+ 302.5912,  4.1870,  161.08,   2716.1
+ 303.5913,  4.1872,  161.09,   2723.5
+ 304.5912,  4.1869,  161.10,   2727.3
+ 305.5912,  4.1867,  161.10,   2731.8
+ 306.5914,  4.1870,  161.09,   2733.4
+ 307.5913,  4.1866,  161.08,   2738.1
+ 308.5914,  4.1870,  161.06,   2693.0
+ 309.5912,  4.1875,  161.06,   2709.0
+ 310.5912,  4.1870,  161.08,   2716.1
+ 311.5913,  4.1872,  161.09,   2723.5
+ 312.5912,  4.1869,  161.10,   2727.3
+ 313.5912,  4.1867,  161.10,   2731.8
+ 314.5914,  4.1870,  161.09,   2733.4
+ 315.5913,  4.1866,  161.08,   2738.1
+ 316.5914,  4.1870,  161.06,   2693.0
+ 317.5912,  4.1875,  161.06,   2709.0
+ 318.5912,  4.1870,  161.08,   2716.1
+ 319.5913,  4.1872,  161.09,   2723.5
+ 320.5912,  4.1869,  161.10,   2727.3
+ 321.5912,  4.1867,  161.10,   2731.8
+ 322.5914,  4.1870,  161.09,   2733.4
+ 323.5913,  4.1866,  161.08,   2738.1
+ 324.5912,  4.1867,  161.10,   2731.8
+ 325.5914,  4.1870,  161.09,   2733.4
+ 326.5913,  4.1866,  161.08,   2738.1
+ 327.5912,  4.1867,  161.10,   2731.8
+ 328.5914,  4.1870,  161.09,   2733.4
+ 329.5913,  4.1866,  161.08,   2738.1
+ 330.5912,  4.1867,  161.10,   2731.8
+ 331.5914,  4.1870,  161.09,   2733.4
+ 332.5913,  4.1866,  161.08,   2738.1
+ 333.5912,  4.1867,  161.10,   2731.8
+ 334.5914,  4.1870,  161.09,   2733.4
+ 335.5913,  4.1866,  161.08,   2738.1
+"""
+
+    TESTDIR = '/tmp/dsatest'
+
 
     @classmethod
     def initialize(cls, *args, **kwargs):
@@ -59,6 +142,7 @@ class DataSetTestCase(MiIntTestCase):
         Initialize the test_configuration singleton
         """
         cls.test_config.initialize(*args,**kwargs)
+
 
     def setUp(self):
         """
@@ -73,6 +157,7 @@ class DataSetTestCase(MiIntTestCase):
         # Test to ensure we have initialized our test config
         if not self.test_config.initialized:
             return TestNotInitialized(msg="Tests non initialized. Missing DataSetTestCase.initialize(...)?")
+        
 
     def _driver_config(self):
         """
@@ -94,6 +179,31 @@ class DataSetTestCase(MiIntTestCase):
             'agent': {'resource_id': self.test_config.agent_resource_id}
         }
         return config
+    
+    def create_test_data(self):
+        """
+        Create some test data: Some files with some lines in them. Leave room
+        for individual test cases to insert files at the beginning of the sequence
+        """
+        log.debug("Creating test file directory: %s", self.TESTDIR)
+        if(not os.path.exists(self.TESTDIR)):
+            os.makedirs(self.TESTDIR)
+    
+        log.debug("Creating test file: %s/DAT0003.txt", self.TESTDIR)
+        fh = open(os.path.join(self.TESTDIR, "DAT0003.txt"), 'a')
+        fh.write(self.TEST_DATA_1)
+        fh.close()
+        
+        log.debug("Creating test file: %s/DAT0004.txt", self.TESTDIR)
+        fh = open(os.path.join(self.TESTDIR, "DAT0004.txt"), 'a')
+        fh.write(self.TEST_DATA_2)
+        fh.close()
+        
+        log.debug("Creating test file: %s/DAT0005.txt", self.TESTDIR)
+        fh = open(os.path.join(self.TESTDIR, "DAT0005.txt"), 'a')
+        fh.write(self.TEST_DATA_LONG)
+        fh.close()
+
 
 class DataSetUnitTestCase(DataSetTestCase):
     """
