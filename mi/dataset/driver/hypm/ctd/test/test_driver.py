@@ -16,6 +16,7 @@ __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
 import unittest
+import gevent
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -137,6 +138,8 @@ class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
         super(QualificationTest, self).setUp()
 
+        self.create_sample_data()
+
     def test_initialize(self):
         """
         Test that we can start the container and initialize the dataset agent.
@@ -145,12 +148,13 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_stop_sampling()
         self.assert_reset()
 
-    @unittest.skip("not implemented yet")
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
+        self.assert_initialize()
+        gevent.sleep(60)
         # Create some test data
         # Setup the agent (and thus driver, harvester, and parser)
         # Start the driver going
