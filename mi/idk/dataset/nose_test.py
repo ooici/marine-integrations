@@ -33,6 +33,16 @@ class NoseTest(mi.idk.nose_test.NoseTest):
     def __init__(self, metadata, testname = None, log_file=None, suppress_stdout = False, noseargs = None, launch_data_monitor=False):
         mi.idk.nose_test.NoseTest.__init__(self, metadata, testname, log_file, suppress_stdout, launch_data_monitor)
         
+    def _init_test(self, metadata):
+        """
+        initialize the test with driver metadata
+        """
+        self.metadata = metadata
+        if(not self.metadata.driver_name):
+            raise DriverNotStarted()
+
+        self._inspect_driver_module(self._driver_test_module())
+        
     def _driver_test_module(self):
         generator = DriverGenerator(self.metadata)
         return generator.test_modulename()
@@ -74,6 +84,18 @@ class NoseTest(mi.idk.nose_test.NoseTest):
         
         if(not self._int_test_class):
             raise IDKException("int test class not found")
+        
+    def report_header(self):
+        """
+        @brief Output report header containing system information.  i.e. metadata stored, comm config, etc.
+        @param message message to be outputted
+        """
+        self._log( "****************************************" )
+        self._log( "***   Starting Drive Test Process    ***" )
+        self._log( "****************************************\n" )
+
+        self._output_metadata()
+
 
 
 
