@@ -191,6 +191,20 @@ class DataSetQualificationTestCase(DataSetTestCase):
         if final_state == ResourceAgentState.STREAMING:
             self.assert_start_sampling()
 
+    def assert_stop_sampling(self):
+        '''
+        transition to command.  Must be called from streaming
+        '''
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.STREAMING)
+
+        log.debug("DataSet agent start sampling")
+        cmd = AgentCommand(command=DriverEvent.STOP_AUTOSAMPLE)
+        retval = self.instrument_agent_client.execute_resource(cmd)
+        state = self.instrument_agent_client.get_agent_state()
+        log.info("Sent START SAMPLING; DSA state = %s", state)
+        self.assertEqual(state, ResourceAgentState.COMMAND)
+
     def assert_start_sampling(self):
         '''
         transition to sampling.  Must be called from command

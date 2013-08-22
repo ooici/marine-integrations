@@ -40,14 +40,16 @@ cached_memento = None
 class TestDataSetDriver(DataSetDriver):
     _memento = None
 
-    def __init__(self, config, data_callback, state_callback, exception_callback):
-        super(TestDataSetDriver, self).__init__(config, data_callback, state_callback, exception_callback)
+    def __init__(self, config, memento, data_callback, state_callback, exception_callback):
+        super(TestDataSetDriver, self).__init__(config, memento, data_callback, state_callback, exception_callback)
         self._exception_callback(os.getpid())
 
     def start_sampling(self, memento):
-        super(TestDataSetDriver, self).start_sampling(memento)
         log.debug("start sampling, memento: %s", memento)
         cached_memento = memento
+
+    def stop_sampling(self):
+        log.debug("stop sampling")
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -89,4 +91,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # Verify the memento was stored on init and retrieved on start sampling
         #self.assertEqual(os.getpid(), cached_memento)
+
+        self.assert_stop_sampling()
+
         self.assert_reset()

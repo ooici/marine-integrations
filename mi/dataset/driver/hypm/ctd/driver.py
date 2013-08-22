@@ -11,8 +11,16 @@ initial release
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
-import string
-
 from mi.core.log import get_logger ; log = get_logger()
 
+from mi.dataset.dataset_driver import SimpleDataSetDriver
+from mi.dataset.parser.ctdpf import CtdpfParser
+from mi.dataset.harvester import AdditiveSequentialFileHarvester
 
+
+class HypmCTDPFDataSetDriver(SimpleDataSetDriver):
+    def _build_parser(self, memento):
+        pass
+
+    def _build_harvester(self, memento):
+        pass

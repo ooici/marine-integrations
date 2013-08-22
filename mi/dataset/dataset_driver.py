@@ -12,9 +12,10 @@ __license__ = 'Apache 2.0'
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import DataSourceLocationException
-from pyon.agent.agent import ResourceAgentState
-from ion.agents.instrument.exceptions import InstrumentStateException
+from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.exceptions import InstrumentStateException
+from mi.core.exceptions import NotImplementedException
 
 
 class DataSourceLocation(object):
@@ -27,7 +28,7 @@ class DataSourceLocation(object):
     def __init__(self, harvester_position=None, parser_position=None):
         self.harvester_position = harvester_position
         self.parser_position = parser_position
-        
+
     def update(self, parser_position=None, harvester_position=None):
         """
         Update the DataSourceLocation with a new harvester and/or parser
@@ -37,7 +38,7 @@ class DataSourceLocation(object):
         same file). Updating just the harvester shouldnt make sense...unless
         it involves zeroing out the parser_position, but in that case, supply
         both in the call.
-        
+
         @param parser_position The structure representing the position the
         parser needs to keep
         @param harvester_position The structure representing the position the
@@ -52,20 +53,34 @@ class DataSourceLocation(object):
             return
         if (harvester_position == None):
             self.parser_position = parser_position
-            return        
+            return
 
 class DataSetDriver(object):
-    def __init__(self, config, data_callback, state_callback, exception_callback):
+    """
+    Base class for data set drivers.  Provides:
+    - an interface via callback to publish data
+    - an interface via callback to persist driver state
+    - an interface via callback to handle exceptions
+    - an start and stop sampling
+    - a client interface for execute resource
+
+    Subclasses need to include harvesters and parsers and
+    be specialized to handle the interaction between the two.
+    """
+    def __init__(self, config, memento, data_callback, state_callback, exception_callback):
         self._config = config
         self._data_callback = data_callback
         self._state_callback = state_callback
         self._exception_callback = exception_callback
+        self._initial_memento = memento
+
+        self._verify_config()
 
     def start_sampling(self, memento):
-        pass
+        raise NotImplementedException('virtual methond needs to be specialized')
 
     def stop_sampling(self):
-        pass
+        raise NotImplementedException('virtual methond needs to be specialized')
 
     def cmd_dvr(self, cmd, *args, **kwargs):
         log.warn("DRIVER: cmd_dvr %s", cmd)
@@ -86,7 +101,52 @@ class DataSetDriver(object):
             return (ResourceAgentState.COMMAND, None)
 
         else:
-            raise InstrumentStateException("Unhandled resource command: %s", resource_cmd)
+            raise
+
+    def _verify_config(self):
+        """
+        virtual method to verify the supplied driver configuration is value.  Must
+        be overloaded in sub classes.
+
+        raises an ConfigurationException when a configuration error is detected.
+        """
+        raise NotImplementedException('virtual methond needs to be specialized')
 
 
-        
+class SimpleDataSetDriver(DataSetDriver):
+    """
+    Simple data set driver handles cases where we are watching a single file and pushing the
+    content into a single parser.  The hope is this class can be used for 80% of the drivers
+    we implement.
+    """
+    _harvester = None
+    _parser = None
+
+    def __init__(self, config, memento, data_callback, state_callback, exception_callback):
+        super(SimpleDataSetDriver, self).__init__(config, memento, data_callback, state_callback, exception_callback)
+
+        self._harvester = self._build_harvester(self._initial_memento)
+
+    def start_sampling(self, memento):
+        pass
+
+    def stop_sampling(self):
+        pass
+
+    ####
+    ##    Helpers
+    ####
+    def _build_parser(self, memento):
+        raise NotImplementedException('virtual methond needs to be specialized')
+
+    def _build_harvester(self, memento):
+        raise NotImplementedException('virtual methond needs to be specialized')
+
+    def _verify_config(self):
+        """
+        Verify we have good configurations for the parser and harvester.
+        @raise: ConfigurationException if configuration is invalid
+        """
+        pass
+        #raise ConfigurationException()
+

@@ -27,15 +27,27 @@ from mi.idk.dataset.unit_test import DataSetTestConfig
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
+from mi.dataset.parser.ctdpf import CtdpfParser
+from mi.dataset.harvester import AdditiveSequentialFileHarvester
+
 
 DataSetTestCase.initialize(
-    driver_module='mi.driver.hypm.ctd.driver',
-    driver_class="DataSetDriverDriver",
+    driver_module='mi.dataset.driver.hypm.ctd.driver',
+    driver_class="HypmCTDPFDataSetDriver",
 
     agent_preload_id = 'EDA_NOSE_CTD',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = ['foo']
+    agent_packet_config = ['foo'],
+    startup_config = {
+        'harvester':
+        {
+            'directory': '/tmp/ctdpf',
+            'pattern': '*.dat',
+            'frequency': 1,
+        },
+        'parser': {}
+    }
 )
 
 ###############################################################################
@@ -60,4 +72,6 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         Test that we can start the container and initialize the dataset agent.
         """
-        pass
+        self.assert_initialize()
+        self.assert_stop_sampling()
+        self.assert_reset()

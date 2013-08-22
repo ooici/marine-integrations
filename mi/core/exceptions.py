@@ -94,6 +94,9 @@ class DatasetParserException(InstrumentException):
 class SchedulerException(InstrumentException):
     """ An error occurred in the scheduler """
 
+class ConfigurationException(InstrumentException):
+    """ A driver configuration is missing parameters or has invalid values. """
+
 class DataSourceLocationException(InstrumentException):
     """ A driver function is not implemented. """
 
