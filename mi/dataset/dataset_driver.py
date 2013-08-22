@@ -12,11 +12,16 @@ __license__ = 'Apache 2.0'
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import DataSourceLocationException
+from mi.core.exceptions import ConfigurationException
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import NotImplementedException
+from mi.core.common import BaseEnum
 
+class DataSourceConfigKey(BaseEnum):
+    HARVESTER = 'harvester'
+    PARSER = 'parser'
 
 class DataSourceLocation(object):
     """
@@ -128,10 +133,11 @@ class SimpleDataSetDriver(DataSetDriver):
         self._harvester = self._build_harvester(self._initial_memento)
 
     def start_sampling(self, memento):
-        pass
+        log.debug("start sampling: %r", self._harvester)
+        self._harvester.start()
 
     def stop_sampling(self):
-        pass
+        self._harvester.stop()
 
     ####
     ##    Helpers
@@ -147,6 +153,25 @@ class SimpleDataSetDriver(DataSetDriver):
         Verify we have good configurations for the parser and harvester.
         @raise: ConfigurationException if configuration is invalid
         """
-        pass
-        #raise ConfigurationException()
+        errors = []
 
+        harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
+
+        if harvester_config:
+            if not harvester_config.get('directory'): errors.append("harvester config missing 'directory")
+            if not harvester_config.get('pattern'): errors.append("harvester config missing 'pattern")
+        else:
+            errors.append("missing 'harvester' config")
+
+        if errors:
+            log.error("Driver configuration error: %r", errors)
+            raise ConfigurationException("driver configuration errors: %r", errors)
+
+        def _nextfile_callback(self):
+            pass
+
+        self._harvester_config = harvester_config
+        self._parser_config = self._config.get(DataSourceConfigKey.PARSER)
+
+    def _new_file_callback(self):
+        pass

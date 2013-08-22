@@ -197,9 +197,8 @@ class InstrumentDriverTestConfig(Singleton):
         if kwargs.get('driver_process_type'):
             self.driver_process_type = kwargs.get('driver_process_type')
 
-        if kwargs.get('driver_startup_config'):
-            self.driver_startup_config = kwargs.get('driver_startup_config')
-   
+        self.driver_startup_config = get_dict_value(kwargs, ['startup_config', 'driver_startup_config'])
+
         log.info("Startup Config: %s", self.driver_startup_config)
         log.info("Preload Startup Config: %s", self.config_for_preload(self.driver_startup_config))
 
@@ -2114,9 +2113,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.container = self.instrument_agent_manager.container
 
-        log.debug("Packet Config: %s", self.test_config.agent_packet_config)
+        log.debug("Packet Config: %s", self.test_config.instrument_agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
-            packet_config=self.test_config.agent_packet_config,
+            packet_config=self.test_config.instrument_agent_packet_config,
         )
         self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.agent_resource_id)
 
@@ -2165,9 +2164,9 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # Start instrument agent client.
         self.instrument_agent_manager.start_client(
-            name=self.test_config.agent_name,
-            module=self.test_config.agent_module,
-            cls=self.test_config.agent_class,
+            name=self.test_config.instrument_agent_name,
+            module=self.test_config.instrument_agent_module,
+            cls=self.test_config.instrument_agent_class,
             config=agent_config,
             resource_id=self.test_config.agent_resource_id,
             deploy_file=self.test_config.container_deploy_file
@@ -3226,9 +3225,9 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
 
         self.container = self.instrument_agent_manager.container
 
-        log.debug("Packet Config: %s", self.test_config.agent_packet_config)
+        log.debug("Packet Config: %s", self.test_config.instrument_agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
-            packet_config=self.test_config.agent_packet_config,
+            packet_config=self.test_config.instrument_agent_packet_config,
             use_default_stream=False
         )
         self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.agent_resource_id)
@@ -3321,7 +3320,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
 
         # Start instrument agent client.
         self.instrument_agent_manager.start_client(
-            name=self.test_config.agent_name,
+            name=self.test_config.instrument_agent_name,
             module=self.test_config.data_instrument_agent_module,
             cls=self.test_config.data_instrument_agent_class,
             config=agent_config,

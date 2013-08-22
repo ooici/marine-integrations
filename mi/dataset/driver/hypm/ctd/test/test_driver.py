@@ -67,7 +67,6 @@ class IntegrtaionTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-
     def test_initialize(self):
         """
         Test that we can start the container and initialize the dataset agent.
@@ -75,3 +74,5 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
         self.assert_stop_sampling()
         self.assert_reset()
+
+
