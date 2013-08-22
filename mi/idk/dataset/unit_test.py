@@ -180,7 +180,7 @@ GPS2:
         }
         return config
     
-    def create_test_data(self):
+    def create_sample_data(self):
         """
         Create some test data: Some files with some lines in them. Leave room
         for individual test cases to insert files at the beginning of the sequence

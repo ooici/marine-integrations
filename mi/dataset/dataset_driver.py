@@ -165,7 +165,7 @@ class SimpleDataSetDriver(DataSetDriver):
     ####
     ##    Helpers
     ####
-    def _build_parser(self, memento):
+    def _build_parser(self, memento, infile):
         raise NotImplementedException('virtual methond needs to be specialized')
 
     def _build_harvester(self, memento):
@@ -217,7 +217,7 @@ class SimpleDataSetDriver(DataSetDriver):
         handle, name = file_tuple
         log.info("Detected new file, handle: %r, name: %s", handle, name)
 
-        parser = self._build_parser(self._parser_state)
+        parser = self._build_parser(self._parser_state, handle)
 
         # Once we have successfully imported the file reset the parser state
         # and store the harvester state.
@@ -265,8 +265,11 @@ class SimpleDataSetDriver(DataSetDriver):
         Break apart a memento into parser and harvester state
         @param memento: agent persisted memento containing both parser and harvester state
         """
-        self._harvester_state = memento.get(DataSourceConfigKey.HARVESTER)
-        self._parser_state = memento.get(DataSourceConfigKey.PARSER)
+        if memento != None:
+            if not isinstance(memento, dict): raise TypeError("memento must be a dict.")
+
+            self._harvester_state = memento.get(DataSourceConfigKey.HARVESTER)
+            self._parser_state = memento.get(DataSourceConfigKey.PARSER)
 
     def _new_file_callback(self, file_handle, file_name):
         """

@@ -61,7 +61,7 @@ DataSetTestCase.initialize(
 class IntegrationTest(DataSetIntegrationTestCase):
         
     def setUp(self):
-        self.create_test_data()
+        self.create_sample_data()
         log.debug("Created test data")
     
     def test_simple_get(self):
@@ -135,10 +135,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
-        """
-        Ensure the data directory exists
-        """
-
+        super(QualificationTest, self).setUp()
 
     def test_initialize(self):
         """
@@ -148,6 +145,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_stop_sampling()
         self.assert_reset()
 
+    @unittest.skip("not implemented yet")
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
@@ -158,6 +156,7 @@ class QualificationTest(DataSetQualificationTestCase):
         # Start the driver going
         # See some data get published
 
+    @unittest.skip("not implemented yet")
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
@@ -173,6 +172,7 @@ class QualificationTest(DataSetQualificationTestCase):
         # Stop or let complete
         # Verify correct # of particles, no gaps in the middle.
 
+    @unittest.skip("not implemented yet")
     def test_missing_directory(self):
         """
         Test starting the driver when the data directory doesn't exists.  This
