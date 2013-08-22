@@ -58,6 +58,7 @@ from interface.objects import AgentCommandResult
 from interface.objects import AgentCommand
 
 from mi.idk.util import convert_enum_to_dict
+from mi.idk.util import get_dict_value
 from mi.idk.comm_config import CommConfig
 from mi.idk.comm_config import ConfigTypes
 from mi.idk.config import Config
@@ -153,15 +154,15 @@ class InstrumentDriverTestConfig(Singleton):
     logger_timeout = 15
 
     driver_process_type = DriverProcessType.PYTHON_MODULE
-    instrument_agent_resource_id = None
-    instrument_agent_name = None
-    instrument_agent_module = 'mi.idk.instrument_agent'
-    instrument_agent_class = 'InstrumentAgent'
+    agent_resource_id = None
+    agent_name = None
+    agent_module = 'mi.idk.instrument_agent'
+    agent_class = 'InstrumentAgent'
     data_instrument_agent_module = 'mi.idk.instrument_agent'
     data_instrument_agent_class = 'PublisherInstrumentAgent'
-    instrument_agent_packet_config = None
-    instrument_agent_stream_encoding = 'ION R2'
-    instrument_agent_stream_definition = None
+    agent_packet_config = None
+    agent_stream_encoding = 'ION R2'
+    agent_stream_definition = None
 
     driver_startup_config = {}
 
@@ -178,26 +179,23 @@ class InstrumentDriverTestConfig(Singleton):
         if kwargs.get('delimeter'):
             self.delimeter = kwargs.get('delimeter')
 
-        self.instrument_agent_preload_id = kwargs.get('instrument_agent_preload_id')
-        self.instrument_agent_resource_id = kwargs.get('instrument_agent_resource_id')
-        self.instrument_agent_name = kwargs.get('instrument_agent_name')
-        self.instrument_agent_packet_config = self._build_packet_config(kwargs.get('instrument_agent_packet_config'))
-        self.instrument_agent_stream_definition = kwargs.get('instrument_agent_stream_definition')
-        if kwargs.get('instrument_agent_module'):
-            self.instrument_agent_module = kwargs.get('instrument_agent_module')
-        if kwargs.get('instrument_agent_class'):
-            self.instrument_agent_class = kwargs.get('instrument_agent_class')
-        if kwargs.get('instrument_agent_stream_encoding'):
-            self.instrument_agent_stream_encoding = kwargs.get('instrument_agent_stream_encoding')
+        self.agent_preload_id = get_dict_value(kwargs, ['instrument_agent_preload_id', 'agent_preload_id'])
+        self.agent_resource_id = get_dict_value(kwargs, ['instrument_agent_resource_id', 'agent_resource_id'], self.agent_resource_id)
+        self.agent_name = get_dict_value(kwargs, ['instrument_agent_name', 'agent_name'], self.agent_name)
+        self.agent_packet_config = self._build_packet_config(get_dict_value(kwargs, ['instrument_agent_packet_config','agent_packet_config']))
+        self.agent_stream_definition = get_dict_value(kwargs, ['instrument_agent_stream_definition', 'agent_stream_definition'])
+        self.agent_module = get_dict_value(kwargs, ['instrument_agent_module', 'agent_module'], self.agent_module)
+        self.agent_class = get_dict_value(kwargs, ['instrument_agent_class', 'agent_class'], self.agent_class)
+        self.agent_stream_encoding = get_dict_value(kwargs, ['instrument_agent_stream_encoding', 'agent_stream_encoding'], self.agent_stream_encoding)
 
         if kwargs.get('container_deploy_file'):
             self.container_deploy_file = kwargs.get('container_deploy_file')
 
         if kwargs.get('logger_timeout'):
-            self.container_deploy_file = kwargs.get('logger_timeout')
+            self.logger_timeout = kwargs.get('logger_timeout')
 
         if kwargs.get('driver_process_type'):
-            self.container_deploy_file = kwargs.get('driver_process_type')
+            self.driver_process_type = kwargs.get('driver_process_type')
 
         if kwargs.get('driver_startup_config'):
             self.driver_startup_config = kwargs.get('driver_startup_config')
@@ -2116,11 +2114,11 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         self.container = self.instrument_agent_manager.container
 
-        log.debug("Packet Config: %s", self.test_config.instrument_agent_packet_config)
+        log.debug("Packet Config: %s", self.test_config.agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
-            packet_config=self.test_config.instrument_agent_packet_config,
+            packet_config=self.test_config.agent_packet_config,
         )
-        self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.instrument_agent_resource_id)
+        self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.agent_resource_id)
 
         self.init_instrument_agent_client()
 
@@ -2158,7 +2156,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         agent_config = {
             'driver_config' : driver_config,
             'stream_config' : self.data_subscribers.stream_config,
-            'agent'         : {'resource_id': self.test_config.instrument_agent_resource_id},
+            'agent'         : {'resource_id': self.test_config.agent_resource_id},
             'test_mode' : True  ## Enable a poison pill. If the spawning process dies
             ## shutdown the daemon process.
         }
@@ -2167,11 +2165,11 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
 
         # Start instrument agent client.
         self.instrument_agent_manager.start_client(
-            name=self.test_config.instrument_agent_name,
-            module=self.test_config.instrument_agent_module,
-            cls=self.test_config.instrument_agent_class,
+            name=self.test_config.agent_name,
+            module=self.test_config.agent_module,
+            cls=self.test_config.agent_class,
             config=agent_config,
-            resource_id=self.test_config.instrument_agent_resource_id,
+            resource_id=self.test_config.agent_resource_id,
             deploy_file=self.test_config.container_deploy_file
         )
 
@@ -3213,7 +3211,7 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
 
         # Override some preload values
         config = {
-            'idk_agent': self.test_config.instrument_agent_preload_id,
+            'idk_agent': self.test_config.agent_preload_id,
             'idk_comms_method': 'ethernet',
             'idk_server_address': LOCALHOST,
             'idk_comms_device_address': pa_config.get('device_addr'),
@@ -3228,12 +3226,12 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
 
         self.container = self.instrument_agent_manager.container
 
-        log.debug("Packet Config: %s", self.test_config.instrument_agent_packet_config)
+        log.debug("Packet Config: %s", self.test_config.agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
-            packet_config=self.test_config.instrument_agent_packet_config,
+            packet_config=self.test_config.agent_packet_config,
             use_default_stream=False
         )
-        self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.instrument_agent_resource_id)
+        self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.agent_resource_id)
 
         self.init_instrument_agent_client()
 
@@ -3316,18 +3314,18 @@ class InstrumentDriverPublicationTestCase(InstrumentDriverTestCase):
         agent_config = {
             'driver_config' : driver_config,
             'stream_config' : self.data_subscribers.stream_config,
-            'agent'         : {'resource_id': self.test_config.instrument_agent_resource_id},
+            'agent'         : {'resource_id': self.test_config.agent_resource_id},
             'test_mode' : True  ## Enable a poison pill. If the spawning process dies
             ## shutdown the daemon process.
         }
 
         # Start instrument agent client.
         self.instrument_agent_manager.start_client(
-            name=self.test_config.instrument_agent_name,
+            name=self.test_config.agent_name,
             module=self.test_config.data_instrument_agent_module,
             cls=self.test_config.data_instrument_agent_class,
             config=agent_config,
-            resource_id=self.test_config.instrument_agent_resource_id,
+            resource_id=self.test_config.agent_resource_id,
             deploy_file=self.test_config.container_deploy_file
         )
 

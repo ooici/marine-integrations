@@ -12,6 +12,9 @@ __license__ = 'Apache 2.0'
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import DataSourceLocationException
+from pyon.agent.agent import ResourceAgentState
+from ion.agents.instrument.exceptions import InstrumentStateException
+from mi.core.instrument.instrument_driver import DriverEvent
 
 
 class DataSourceLocation(object):
@@ -51,26 +54,39 @@ class DataSourceLocation(object):
             self.parser_position = parser_position
             return        
 
-class DatasetDriver(object):
-    
-    def __init__(self):
-        self.parsers = []
-        self.harvesters = []
-        self.parser_callbacks = []
-        self.parser_errbacks = []
-        self.harvester_callbacks = []
-        self.harvester_errbacks = []
-        
-    def start(self):
-        """
-        Start collecting data from the data source
-        """
+class DataSetDriver(object):
+    def __init__(self, config, data_callback, state_callback, exception_callback):
+        self._config = config
+        self._data_callback = data_callback
+        self._state_callback = state_callback
+        self._exception_callback = exception_callback
+
+    def start_sampling(self, memento):
         pass
-    
-    def stop(self):
-        """
-        Stop collecting data from the data source
-        """
-        pass    
-    
+
+    def stop_sampling(self):
+        pass
+
+    def cmd_dvr(self, cmd, *args, **kwargs):
+        log.warn("DRIVER: cmd_dvr %s", cmd)
+
+        if cmd != 'execute_resource':
+            raise InstrumentStateException("Unhandled command: %s", cmd)
+
+        resource_cmd = args[0]
+
+        if resource_cmd == DriverEvent.START_AUTOSAMPLE:
+            log.debug("start autosample")
+            #self.start_sampling()
+            return (ResourceAgentState.STREAMING, None)
+
+        elif resource_cmd == DriverEvent.STOP_AUTOSAMPLE:
+            log.debug("stop autosample")
+            #self.stop_sampling()
+            return (ResourceAgentState.COMMAND, None)
+
+        else:
+            raise InstrumentStateException("Unhandled resource command: %s", resource_cmd)
+
+
         

@@ -38,3 +38,24 @@ def launch_data_monitor(filename, launch_options = ''):
     log.debug("run cmd: %s" % cmd)
     return process
 
+def get_dict_value(dictobj, keys, default=None):
+    """
+    search dict for defined value. use an array to define keys to search for and
+    first defined is returned.
+    @param dictobj dict object to search
+    @param key string or array with keys to search for
+    @param default if no match return this
+    @return found value or default
+    """
+    if not isinstance(dictobj, dict):
+        raise TypeError("dictobj must be a dict")
+
+    if not isinstance(keys, list):
+        keys = [keys]
+
+    for k in keys:
+        if dictobj.has_key(k):
+            return dictobj[k]
+
+    return default
+

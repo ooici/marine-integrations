@@ -15,7 +15,6 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger ; log = get_logger()
 from ooi.poller import DirectoryPoller
 
-
 class Harvester(object):
     """ abstract class to show API needed for plugin poller objects """
     def __init__(self, config, memento, data_callback, exception_callback):  
