@@ -1,0 +1,10 @@
+comm:
+  method: ethernet 
+  host: None
+  device_port: 6000
+  device_addr: None
+  data_port: 6000
+  command_port: 6002
+  sniffer_port: 6001
+  sniffer_prefix: None
+  sniffer_suffix: None

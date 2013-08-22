@@ -96,10 +96,7 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
         
     def _setup_template_path(self):
         return os.path.join(Config().template_dir(), 'dsa', 'setup.tmpl' )
-    
-    def _main_path(self):
-        return os.path.join(self._versioned_dir(), 'mi/main.py' )
-    
+        
     def _generate_setup_file(self):
         if not os.path.exists(self._build_dir()):
             os.makedirs(self._build_dir())
@@ -169,7 +166,6 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
             self._verify_ready()
             self._stage_files(files)
             self._generate_setup_file()
-            self._generate_main_file()
 
             cmd = "cd %s; python setup.py bdist_egg" % self._build_dir()
             log.info("CMD: %s" % cmd)
