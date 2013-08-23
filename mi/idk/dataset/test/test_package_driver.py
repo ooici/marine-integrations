@@ -145,7 +145,6 @@ class TestPackageDriver(MiUnitTest):
         metadata1 = Metadata()
         
         package_driver = PackageDriver()
-        sys.argv[1] = '--no-test'
         package_driver.run()
         
         # overwrite the original metadata file for the same driver and change the version
@@ -156,7 +155,6 @@ class TestPackageDriver(MiUnitTest):
         
         # run package driver again to create the new driver version
         package_driver = PackageDriver()
-        sys.argv[1] = '--no-test'
         package_driver.run()
         
         log.info("Both driver eggs created")
@@ -198,7 +196,6 @@ class TestPackageDriver(MiUnitTest):
     
         # create the egg with the package driver
         package_driver = PackageDriver()
-        #sys.argv[1] = '--no-test'
         package_driver.run()
         
         startup_config = {
@@ -211,7 +208,6 @@ class TestPackageDriver(MiUnitTest):
             'parser': {}
         }
 
-        
         # load the driver
         cotr = self.load_egg(metadata)
         # need to load with the right number of arguments
