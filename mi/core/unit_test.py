@@ -14,7 +14,7 @@ integrate with the common ION test case.
 import unittest
 from pyon.util.unit_test import IonUnitTestCase
 from pyon.util.unit_test import PyonTestCase
-from pyon.util.int_test import IonIntegrationTestCase
+from pyon.util.int_test  import IonIntegrationTestCase
 
 
 class MiUnitTest(unittest.TestCase):

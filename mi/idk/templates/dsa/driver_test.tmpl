@@ -1,0 +1,25 @@
+"""
+@package ${test_module}
+@file ${file}
+@author ${author}
+@brief Test cases for ${driver_name} driver
+
+USAGE:
+ Make tests verbose and provide stdout
+   * From the IDK
+       $$ bin/test_driver
+       $$ bin/test_driver -i [-t testname]
+       $$ bin/test_driver -q [-t testname]
+"""
+
+__author__ = '${author}'
+__license__ = 'Apache 2.0'
+
+import unittest
+
+from nose.plugins.attrib import attr
+from mock import Mock
+
+from mi.core.log import get_logger ; log = get_logger()
+
+

@@ -122,7 +122,7 @@ class Chunker(object):
         From some starting place in the raw data buffer, go through and
         find the blocks of data and non-data in the list.
         
-        @param timestamp The timestamp to use if an empty non_cata_chunk list
+        @param timestamp The timestamp to use if an empty non_data_chunk list
             is encountered. Essentially the timestamp to use for a fragment or
             other non-data chunk that is being entered for the first time.
         @param start_index The beginning index to start generating lists from.
@@ -224,16 +224,32 @@ class Chunker(object):
     def get_next_data(self, clean=True):
         """
         Get the next chunk of data from the buffer. By default, it clears all
-        that comes before it.
+        that comes before it. This method does not return the start and end indices in
+        the resulting tuple.
         
         @param clean If set to false, do not clear the buffer when fetching the
             data, but simply return the data block and make no further changes.
         @return A tuple of (timestamp, data_chunk) where timestamp is in NTP4
-            float format and data chunk is a (start, end) tuple. If no data,
-            returns (None, None)
+            float format and data chunk is a section of buffer with indices
+            between (start, end). If no data, returns (None, None)
+        """
+        (time, result, start, end) = self.get_next_data_with_index(clean)
+        return (time, result)
+        
+    def get_next_data_with_index(self, clean=True):
+        """
+        Get the next chunk of data from the buffer. By default, it clears all
+        that comes before it. This method returns the start and end indices in
+        the resulting tuple.
+        
+        @param clean If set to false, do not clear the buffer when fetching the
+            data, but simply return the data block and make no further changes.
+        @return A tuple of (timestamp, data_chunk, start_index, end_index) where timestamp is in NTP4
+            float format and data chunk is a section of buffer with indices
+            between (start, end). If no data, returns (None, None, None, None)
         """
         if self.data_chunk_list == []:
-            return (None, None)
+            return (None, None, None, None)
 
         if clean:    
             (next_start, next_end, timestamp) = self.data_chunk_list.pop(0)
@@ -251,7 +267,7 @@ class Chunker(object):
             self.nondata_chunk_list = self._clean_chunk_list(self.nondata_chunk_list,
                                                              next_end)
                 
-        return (timestamp, next_block)
+        return (timestamp, next_block, next_start, next_end)
     
     def _clean_chunk_list(self, list, end_index):
         """
@@ -382,6 +398,31 @@ class Chunker(object):
                                                              next_end)
 
         return (next_time, next_block)
+
+    @staticmethod
+    def regex_sieve_function(raw_data, regex_list=[]):
+        """
+        Simple method to take a list of regexes to use in a sieve and run the
+        incoming data through them. Use this with functools.partial() to
+        pre-complete the regex list and make this look like a normal sieve
+        function interface. For example, create a chunker like so:
+        StringChunker(partial(self._chunker.regex_sieve_function, regex_list=[regex]))
+        @param raw_data The raw data to run through this regex sieve
+        @param regex_list a list of pre-compiled regexes that will identify some
+        flavor of a pattern in the raw data for matching.
+        @retval A list of (start, end) tuples for each match the regexs find
+        @use
+        """
+        return_list = []
+    
+        sieve_matchers = regex_list
+        
+        for matcher in sieve_matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
+    
+        return return_list
+
     
 class StringChunker(Chunker):
     """
