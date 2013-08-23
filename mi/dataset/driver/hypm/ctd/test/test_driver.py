@@ -32,6 +32,8 @@ from mi.dataset.parser.ctdpf import CtdpfParser
 from mi.dataset.parser.test.test_ctdpf import CtdpfParserUnitTestCase
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
 
+from ion.services.dm.utility.granule_utils import RecordDictionaryTool
+
 
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.hypm.ctd.driver',
@@ -40,7 +42,7 @@ DataSetTestCase.initialize(
     agent_preload_id = 'EDA_NOSE_CTD',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = ['foo'],
+    agent_packet_config = ['nose_ctd_external'],
     startup_config = {
         'harvester':
         {
@@ -138,8 +140,6 @@ class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
         super(QualificationTest, self).setUp()
 
-        self.create_sample_data()
-
     def test_initialize(self):
         """
         Test that we can start the container and initialize the dataset agent.
@@ -153,8 +153,15 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
+        self.create_sample_data()
         self.assert_initialize()
-        gevent.sleep(60)
+
+        # Verify we get one sample
+        result = self.data_subscribers.get_samples('nose_ctd_external')
+
+        # Verify the sample was correct
+        #self.assertGranule(result.pop())
+
         # Create some test data
         # Setup the agent (and thus driver, harvester, and parser)
         # Start the driver going
