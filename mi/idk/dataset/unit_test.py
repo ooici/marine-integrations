@@ -213,7 +213,7 @@ class DataSetUnitTestCase(DataSetTestCase):
         """
         super(DataSetUnitTestCase, self).setUp()
 
-class DataSetIntegrationTestCase(DataSetTestCase):
+class DataSetIntegrationTestCase(DataSetTestCase, ParticleTestMixin):
     """
     Base class for instrument driver unit tests
     """

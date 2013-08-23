@@ -50,7 +50,11 @@ DataSetTestCase.initialize(
             'pattern': '*.txt',
             'frequency': 1,
         },
-        'parser': {}
+        'parser':
+        {
+            'particle_module': 'mi.dataset.parser.ctdpf',
+            'particle_class': 'CtdpfParserDataParticle'
+        }
     }
 )
     
@@ -63,10 +67,36 @@ DataSetTestCase.initialize(
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
         
+    STREAM_NAME = ""
+
+    def state_callback(self, state):
+        self.state_callback_result.append(state)
+    
+    def data_callback(self, data):
+        self.data_callback_result.append(data)
+
+    def exception_callback(self, ex):
+        self.exception_callback_result.append(ex)
+    
     def setUp(self):
         self.create_sample_data()
         log.debug("Created test data")
-    
+
+        self.state_callback_result = []
+        self.data_callback_result = []
+        self.exception_callback_result = []
+        
+        self.memento = {DataSourceConfigKey.HARVESTER: {},
+                        DataSourceConfigKey.PARSER: {}}
+        self.driver = HypmCTDPFDataSetDriver(config,
+                                             self.memento,
+                                             self.data_callback,
+                                             self.state_callback,
+                                             self.exception_callback)
+    def test_config(self):
+        self.assert_data_particle_keys()
+        
+        
     def test_simple_get(self):
         """
         Test the simple happy path of having one file get opened by the
@@ -74,12 +104,30 @@ class IntegrationTest(DataSetIntegrationTestCase):
         published as they should.
         """
         self.fail()
-        # Set up driver
-        # Start a harvester going to get one file
-        # Fire off a poller for that file
+        # Start a harvester going to get one file, start parser, too
+        self.driver.start_sampling()
+        gevent.sleep(5)
         # Count particles that are generated, assert correct
-        # Assert no errors on completion
-
+        self.assertEqual(len(self.data_callback_result), 53)
+        self.assertEqual(len(self.state_callback_result), 53)
+        
+        for particle in self.data_callback_result:
+            self.assert_data_particle_header(particle, STREAM_NAME)
+        
+        # check the first value 10.5914,  4.1870,  161.06,   2693.0
+        particle_dict = self.get_data_particle_values_as_dict(self.data_callback_result[0])
+        self.assert(particle_dict[CtdpfParserDataParticleKey.TEMPERATURE], 10.5941)
+        self.assert(particle_dict[CtdpfParserDataParticleKey.CONDUCTIVITY], 4.1870)
+        self.assert(particle_dict[CtdpfParserDataParticleKey.PRESSURE], 161.06)
+        self.assert(particle_dict[CtdpfParserDataParticleKey.OXYGEN], 2693.0)
+        
+        # Check the last value 335.5913,  4.1866,  161.08,   2738.1
+        particle_dict = self.get_data_particle_values_as_dict(self.data_callback_result[-1])
+        self.assert(particle_dict[CtdpfParserDataParticleKey.TEMPERATURE], 335.5913)
+        self.assert(particle_dict[CtdpfParserDataParticleKey.CONDUCTIVITY], 4.1866)
+        self.assert(particle_dict[CtdpfParserDataParticleKey.PRESSURE], 161.08)
+        self.assert(particle_dict[CtdpfParserDataParticleKey.OXYGEN], 2738.1)
+        
     def test_multiple_sources(self):
         """
         Test that data comes from multiple source files with the correct number
