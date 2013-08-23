@@ -32,8 +32,9 @@ TIME_MATCHER = re.compile(TIME_REGEX, re.DOTALL)
 DATA_REGEX = r' (\d*\.\d*),\s*(\d*\.\d*),\s*(\d*\.\d*),\s*(\d*\.\d)*'
 DATA_MATCHER = re.compile(DATA_REGEX, re.DOTALL)
 
+# TODO: This should be passed in as a parameter so the driver can define the particle name.
 class DataParticleType(BaseEnum):
-    SAMPLE = 'ctdpf_sample'
+    SAMPLE = 'nose_ctd_external'
     
 class CtdpfParserDataParticleKey(BaseEnum):
     TEMPERATURE = "temperature"

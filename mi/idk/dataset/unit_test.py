@@ -57,8 +57,8 @@ class DataSetTestCase(MiIntTestCase):
 
 *** Starting profile number 3 ***
 07/26/2013 21:01:03
-GPS1: 
-GPS2: 
+GPS1:
+GPS2:
  10.5914,  4.1870,  161.06,   2693.0
  11.5912,  4.1875,  161.06,   2709.0
  12.5912,  4.1870,  161.08,   2716.1
@@ -76,8 +76,8 @@ GPS2:
 
 *** Starting profile number 3 ***
 07/26/2013 21:01:03
-GPS1: 
-GPS2: 
+GPS1:
+GPS2:
  20.5914,  4.1870,  161.06,   2693.0
  21.5912,  4.1875,  161.06,   2709.0
  22.5912,  4.1870,  161.08,   2716.1
@@ -93,8 +93,8 @@ GPS2:
 
 *** Starting profile number 3 ***
 07/26/2013 21:01:03
-GPS1: 
-GPS2: 
+GPS1:
+GPS2:
  300.5914,  4.1870,  161.06,   2693.0
  301.5912,  4.1875,  161.06,   2709.0
  302.5912,  4.1870,  161.08,   2716.1
@@ -135,14 +135,12 @@ GPS2:
 
     TESTDIR = '/tmp/dsatest'
 
-
     @classmethod
     def initialize(cls, *args, **kwargs):
         """
         Initialize the test_configuration singleton
         """
         cls.test_config.initialize(*args,**kwargs)
-
 
     def setUp(self):
         """
@@ -157,7 +155,6 @@ GPS2:
         # Test to ensure we have initialized our test config
         if not self.test_config.initialized:
             return TestNotInitialized(msg="Tests non initialized. Missing DataSetTestCase.initialize(...)?")
-        
 
     def _driver_config(self):
         """
@@ -176,6 +173,7 @@ GPS2:
         """
         config = {
             'driver_config': self._driver_config(),
+            'stream_config' : self.data_subscribers.stream_config,
             'agent': {'resource_id': self.test_config.agent_resource_id}
         }
         return config
@@ -241,15 +239,16 @@ class DataSetQualificationTestCase(DataSetTestCase):
 
         self.container = self.instrument_agent_manager.container
 
-        #log.debug("Packet Config: %s", self.test_config.agent_packet_config)
-        #self.data_subscribers = InstrumentAgentDataSubscribers(
-        #    packet_config=self.test_config.agent_packet_config,
-        #)
+        log.debug("Packet Config: %s", self.test_config.agent_packet_config)
+        self.data_subscribers = InstrumentAgentDataSubscribers(
+            packet_config=self.test_config.agent_packet_config,
+        )
+        self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.agent_resource_id)
 
         self.init_dataset_agent_client()
 
-        #self.event_subscribers.events_received = []
-        #self.data_subscribers.start_data_subscribers()
+        self.event_subscribers.events_received = []
+        self.data_subscribers.start_data_subscribers()
 
         log.debug("********* setUp complete.  Begin Testing *********")
 
