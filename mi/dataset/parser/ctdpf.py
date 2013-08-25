@@ -34,7 +34,7 @@ DATA_MATCHER = re.compile(DATA_REGEX, re.DOTALL)
 
 # TODO: This should be passed in as a parameter so the driver can define the particle name.
 class DataParticleType(BaseEnum):
-    SAMPLE = 'nose_ctd_external'
+    SAMPLE = 'ctdpf_parsed'
     
 class CtdpfParserDataParticleKey(BaseEnum):
     TEMPERATURE = "temperature"

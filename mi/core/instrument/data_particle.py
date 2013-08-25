@@ -93,7 +93,15 @@ class DataParticle(object):
             DataParticleKey.QUALITY_FLAG: quality_flag
         }
         self.raw_data = raw_data
- 
+
+    @classmethod
+    def type(cls):
+        """
+        return the data particle type
+        @return: data particle type
+        """
+        return cls._data_particle_type
+
     def set_internal_timestamp(self, timestamp=None, unix_time=None):
         """
         Set the internal timestamp
