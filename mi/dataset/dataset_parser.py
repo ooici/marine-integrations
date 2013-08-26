@@ -46,10 +46,6 @@ class Parser(object):
         self._particle_module = __import__(config.get("particle_module"), fromlist = [config.get("particle_class")])
         self._particle_class = getattr(self._particle_module, config.get("particle_class"))
 
-        if state:
-            self.set_state(self._state)
-
-
     def get_records(self, max_count):
         """
         Returns a list of particles (following the instrument driver structure).

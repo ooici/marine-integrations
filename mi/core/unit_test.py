@@ -54,7 +54,7 @@ class MiIntTestCase(IonIntegrationTestCase):
     def shortDescription(self):
         return None
 
-class ParticleTestMixin(MiUnitTest):
+class ParticleTestMixin(object):
     """
     A class with some methods to test data particles. Intended to be mixed
     into test classes so that particles can be tested in different areas of

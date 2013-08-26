@@ -28,9 +28,11 @@ from mi.idk.dataset.unit_test import DataSetTestConfig
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
+from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.parser.ctdpf import CtdpfParser
 from mi.dataset.parser.test.test_ctdpf import CtdpfParserUnitTestCase
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
+from mi.dataset.driver.hypm.ctd.driver import HypmCTDPFDataSetDriver
 
 from ion.services.dm.utility.granule_utils import RecordDictionaryTool
 
@@ -55,7 +57,7 @@ DataSetTestCase.initialize(
             'particle_module': 'mi.dataset.parser.ctdpf',
             'particle_class': 'CtdpfParserDataParticle'
         }
-    }
+    },
 )
     
 
@@ -81,19 +83,18 @@ class IntegrationTest(DataSetIntegrationTestCase):
     def setUp(self):
         self.create_sample_data()
         log.debug("Created test data")
-
         self.state_callback_result = []
         self.data_callback_result = []
         self.exception_callback_result = []
         
         self.memento = {DataSourceConfigKey.HARVESTER: {},
                         DataSourceConfigKey.PARSER: {}}
-        self.driver = HypmCTDPFDataSetDriver(config,
+        self.driver = HypmCTDPFDataSetDriver(self.test_config.startup_config,
                                              self.memento,
                                              self.data_callback,
                                              self.state_callback,
                                              self.exception_callback)
-    def test_config(self):
+    def test_configuration(self):
         self.assert_data_particle_keys()
         
         
@@ -116,17 +117,17 @@ class IntegrationTest(DataSetIntegrationTestCase):
         
         # check the first value 10.5914,  4.1870,  161.06,   2693.0
         particle_dict = self.get_data_particle_values_as_dict(self.data_callback_result[0])
-        self.assert(particle_dict[CtdpfParserDataParticleKey.TEMPERATURE], 10.5941)
-        self.assert(particle_dict[CtdpfParserDataParticleKey.CONDUCTIVITY], 4.1870)
-        self.assert(particle_dict[CtdpfParserDataParticleKey.PRESSURE], 161.06)
-        self.assert(particle_dict[CtdpfParserDataParticleKey.OXYGEN], 2693.0)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.TEMPERATURE], 10.5941)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.CONDUCTIVITY], 4.1870)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.PRESSURE], 161.06)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.OXYGEN], 2693.0)
         
         # Check the last value 335.5913,  4.1866,  161.08,   2738.1
         particle_dict = self.get_data_particle_values_as_dict(self.data_callback_result[-1])
-        self.assert(particle_dict[CtdpfParserDataParticleKey.TEMPERATURE], 335.5913)
-        self.assert(particle_dict[CtdpfParserDataParticleKey.CONDUCTIVITY], 4.1866)
-        self.assert(particle_dict[CtdpfParserDataParticleKey.PRESSURE], 161.08)
-        self.assert(particle_dict[CtdpfParserDataParticleKey.OXYGEN], 2738.1)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.TEMPERATURE], 335.5913)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.CONDUCTIVITY], 4.1866)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.PRESSURE], 161.08)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.OXYGEN], 2738.1)
         
     def test_multiple_sources(self):
         """

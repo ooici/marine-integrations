@@ -9,6 +9,7 @@ import os
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.unit_test import MiIntTestCase
+from mi.core.unit_test import ParticleTestMixin
 
 from mi.idk.unit_test import InstrumentDriverTestConfig
 from mi.idk.exceptions import TestNotInitialized
