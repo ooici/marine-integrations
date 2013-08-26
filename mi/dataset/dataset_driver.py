@@ -98,11 +98,7 @@ class DataSetDriver(object):
             'pattern': '*.txt',
             'frequency': 1,
         },
-        'parser':
-        {
-            'particle_module': 'mi.dataset.parser.ctdpf',
-            'particle_class': 'CtdpfParserDataParticle'
-        }
+        'parser': {}
     }
     """
     def __init__(self, config, memento, data_callback, state_callback, exception_callback):

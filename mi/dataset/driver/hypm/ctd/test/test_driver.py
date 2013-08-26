@@ -43,7 +43,7 @@ DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.hypm.ctd.driver',
     driver_class="HypmCTDPFDataSetDriver",
 
-    agent_preload_id = 'EDA_NOSE_CTD',
+    agent_preload_id = 'EDA1',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
     agent_packet_config = HypmCTDPFDataSetDriver.stream_config(),

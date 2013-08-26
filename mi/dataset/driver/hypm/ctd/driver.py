@@ -25,7 +25,7 @@ class HypmCTDPFDataSetDriver(SimpleDataSetDriver):
         return [CtdpfParserDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
-        config = self._harvester_config
+        config = self._parser_config
         config.update({
             'particle_module': 'mi.dataset.parser.ctdpf',
             'particle_class': 'CtdpfParserDataParticle'
