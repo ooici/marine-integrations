@@ -23,6 +23,8 @@ from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
 
+from exceptions import Exception
+
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetTestConfig
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
@@ -44,7 +46,7 @@ DataSetTestCase.initialize(
     agent_preload_id = 'EDA_NOSE_CTD',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = ['nose_ctd_external'],
+    agent_packet_config = HypmCTDPFDataSetDriver.stream_config(),
     startup_config = {
         'harvester':
         {
@@ -52,12 +54,8 @@ DataSetTestCase.initialize(
             'pattern': '*.txt',
             'frequency': 1,
         },
-        'parser':
-        {
-            'particle_module': 'mi.dataset.parser.ctdpf',
-            'particle_class': 'CtdpfParserDataParticle'
-        }
-    },
+        'parser': {}
+    }
 )
     
 
@@ -206,7 +204,11 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         # Verify we get one sample
-        result = self.data_subscribers.get_samples('nose_ctd_external')
+        try:
+            result = self.data_subscribers.get_samples('ctdpf_parsed')
+        except Exception as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
 
         # Verify the sample was correct
         #self.assertGranule(result.pop())

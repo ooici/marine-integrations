@@ -259,7 +259,8 @@ class InstrumentDriverTestConfig(Singleton):
         return result
 
 
-class DriverTestMixin(MiUnitTest, ParticleTestMixin):
+#class DriverTestMixin(MiUnitTest, ParticleTestMixin):
+class DriverTestMixin(MiUnitTest):
     """
     Base class for data particle mixin.  Used for data particle validation.
     """
