@@ -195,10 +195,8 @@ class DataParticleType(BaseEnum):
 
 class NANODataParticleKey(BaseEnum):
     TIME = "nano_time"
-    X_TILT = "nano_x_tilt"
-    Y_TILT = "nano_y_tilt"
+    PRESSURE = "pressure"
     TEMP = "temperature"
-    SN = "serial_number"
 
 class NANODataParticle(DataParticle):
     """
@@ -206,8 +204,7 @@ class NANODataParticle(DataParticle):
     the building of values, and the rest should come along for free.
 
     Sample:
-       NANO,2013/05/29 00:25:36, -0.0885, -0.7517,28.49,N8642
-       NANO,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642       
+       NANO,V,2013/08/22 22:48:36.013,13.888533,26.147947328
     Format:
        IIII,YYYY/MM/DD hh:mm:ss,x.xxxx,y.yyyy,tt.tt,sn
 
@@ -219,10 +216,8 @@ class NANODataParticle(DataParticle):
         Minutes = mm
         Seconds = ss
         NOTE: The above time expression is all grouped into one string.
-        X_TILT = x.xxxx (float degrees)
-        Y_TILT = y.yyyy (float degrees)
+        Pressure = x.xxxx (float degrees)
         Temp = tt.tt (float degrees C)
-        Serial Number = sn
     """
     _data_particle_type = DataParticleType.NANO_PARSED
 
@@ -233,11 +228,11 @@ class NANODataParticle(DataParticle):
         @return: regex string
         """
         pattern = r'NANO,' # pattern starts with NANO '
-        pattern += r'(.*),' # 1 time
-        pattern += r'( -*[.0-9]+),' # 2 x-tilt
-        pattern += r'( -*[.0-9]+),' # 3 y-tilt
-        pattern += r'(.*),' # 4 temp
-        pattern += r'(.*)' # 5 serial number
+        pattern += r'(V|P),' # 1 time-sync (PPS or lost)
+        pattern += r'(.*),' # 2 time
+        pattern += r'(-*[.0-9]+),' # 3 pressure (PSIA)
+        pattern += r'(-*[.0-9]+)' # 4 temperature (degrees)
+        pattern += r'.*' 
         pattern += NEWLINE
         return pattern
 
@@ -263,14 +258,13 @@ class NANODataParticle(DataParticle):
                                   self.raw_data)
             
         try:
-            nano_time = match.group(1)
-            timestamp = time.strptime(nano_time, "%Y/%m/%d %H:%M:%S")
+            nano_time = match.group(2)
+            nano_time = "2013/08/22 23:13:36.000"
+            timestamp = time.strptime(nano_time, "%Y/%m/%d %H:%M:%S.%f")
             self.set_internal_timestamp(unix_time=time.mktime(timestamp))
             ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
-            x_tilt = float(match.group(2))
-            y_tilt = float(match.group(3))
+            pressure = float(match.group(3))
             temperature = float(match.group(4))
-            sn = str(match.group(5))
 
         except ValueError:
             raise SampleException("ValueError while converting data: [%s]" %
@@ -279,14 +273,10 @@ class NANODataParticle(DataParticle):
         result = [
                   {DataParticleKey.VALUE_ID: NANODataParticleKey.TIME,
                    DataParticleKey.VALUE: ntp_timestamp},
-                  {DataParticleKey.VALUE_ID: NANODataParticleKey.X_TILT,
-                   DataParticleKey.VALUE: x_tilt},
-                  {DataParticleKey.VALUE_ID: NANODataParticleKey.Y_TILT,
-                   DataParticleKey.VALUE: y_tilt},
+                  {DataParticleKey.VALUE_ID: NANODataParticleKey.PRESSURE,
+                   DataParticleKey.VALUE: pressure},
                   {DataParticleKey.VALUE_ID: NANODataParticleKey.TEMP,
-                   DataParticleKey.VALUE: temperature},
-                  {DataParticleKey.VALUE_ID: NANODataParticleKey.SN,
-                   DataParticleKey.VALUE: sn}
+                   DataParticleKey.VALUE: temperature}
                   ]
         
         return result
