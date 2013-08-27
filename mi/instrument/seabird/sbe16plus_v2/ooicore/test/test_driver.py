@@ -51,7 +51,7 @@ InstrumentDriverTestCase.initialize(
 #         Unit tests test the method calls and parameters using Mock.         #
 ###############################################################################
 @attr('UNIT', group='mi')
-class UnitFromIDK(SBEUnitTestCase, SeaBird16plusMixin, Sbe16PlusV2UnitTestBase):
+class UnitFromIDK(SBEUnitTestCase, SeaBird16plusMixin):
     pass
 
 ###############################################################################
