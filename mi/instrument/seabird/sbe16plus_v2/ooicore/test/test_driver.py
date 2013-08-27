@@ -36,7 +36,8 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_preload_id = 'IA5',
     instrument_agent_resource_id = '123xyz',
     instrument_agent_name = 'Agent007',
-    instrument_agent_packet_config = DataParticleType()
+    instrument_agent_packet_config = DataParticleType(),
+    startup_config = {}
 )
 
 ###############################################################################
