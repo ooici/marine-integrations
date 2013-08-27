@@ -199,9 +199,9 @@ class NANOTestMixinSub(DriverTestMixin):
     }
 
     _sample_parameters_02 = {
-        NANODataParticleKey.TIME: {TYPE: float, VALUE: 3578801136.0, REQUIRED: True },
-        NANODataParticleKey.PRESSURE: {TYPE: float, VALUE: -0.7517, REQUIRED: True },
-        NANODataParticleKey.TEMP: {TYPE: float, VALUE: 28.49, REQUIRED: True },
+        NANODataParticleKey.TIME: {TYPE: float, VALUE: 3586227216.0, REQUIRED: True },
+        NANODataParticleKey.PRESSURE: {TYPE: float, VALUE: 13.884067, REQUIRED: True },
+        NANODataParticleKey.TEMP: {TYPE: float, VALUE: 26.172926006, REQUIRED: True },
     }
 
     def assert_particle_sample_01(self, data_particle, verify_values = False):
