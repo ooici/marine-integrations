@@ -73,7 +73,7 @@ cd3e3c2f53616d706c65446174613e0d0a3c45786563757465642f3e0d0a03014354313233373230
     
         log.debug("Creating test file: %s/gp03flma_atm_test_20130722.000", self.TESTDIR)
         fh = open(os.path.join(self.TESTDIR, "gp03flma_atm_test_20130722.000"), 'wb')
-        fh.write(binascii.unhexlify(self.TEST_DATA_1))
+        fh.write(binascii.unhexlify(self.TEST_DATA_1.replace('/n', '')))
         fh.close()
 
         
