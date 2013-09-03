@@ -1562,7 +1562,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
             ResourceAgentEvent.GO_DIRECT_ACCESS
         ]
 
-        agt_pars_all = ['aggstatus', 'alerts', 'example', 'pubrate', 'streams']
+        agt_pars_all = ['example', 'streams', 'pubrate', 'alerts', 'driver_pid', 'aggstatus']
 
         res_cmds_all =[
             SBE37ProtocolEvent.ACQUIRE_STATUS,
@@ -1613,6 +1613,8 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         agt_cmds_uninitialized = [
             ResourceAgentEvent.INITIALIZE
         ]
+
+        log.debug("agt_pars: %r, agt_pars_all: %r", agt_pars, agt_pars_all)
         self.assertItemsEqual(agt_cmds, agt_cmds_uninitialized)
         self.assertItemsEqual(agt_pars, agt_pars_all)
         self.assertItemsEqual(res_cmds, [])
