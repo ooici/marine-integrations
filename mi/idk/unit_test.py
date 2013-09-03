@@ -208,7 +208,7 @@ class InstrumentDriverTestConfig(Singleton):
     def config_for_preload(self,adict):
         def helper(prefix, dict):
             buffer = ""
-            if 0 == len(dict):
+            if dict is None or 0 == len(dict):
                 return "%s: {}," % ".".join(prefix)
     
             newprefix = prefix[:]
