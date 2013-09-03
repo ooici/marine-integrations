@@ -14,6 +14,7 @@ from nose.plugins.attrib import attr
 
 from mi.core.exceptions import SampleException
 from mi.dataset.test.test_parser import ParserUnitTestCase
+from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.parser.ctdpf import CtdpfParser, CtdpfParserDataParticle, StateKey
 
 # Add a mixin here if needed
@@ -134,7 +135,11 @@ GPS2:
     
     def setUp(self):
         ParserUnitTestCase.setUp(self)
-        self.config = {}
+        self.config = {
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdpf',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'CtdpfParserDataParticle'
+            }
+        
         # not a DataSourceLocation...its just the parser
         self.position = {StateKey.POSITION:0, StateKey.TIMESTAMP:0.0}
         

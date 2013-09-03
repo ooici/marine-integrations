@@ -51,6 +51,23 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
             log.error("Qualification tests have fail!  No package created.")
             return False
         
+        
+    def run(self):
+        print "*** Starting Driver Packaging Process***"
+        
+        # for now comment out the test option until test are more stable,
+        # just build the package driver
+        #if len(sys.argv) == 2 and (sys.argv[1] == "--no-test"):
+            # clear the log file so it exists
+            #f = open(self.log_path(), "w")
+            #f.write("Tests manually bypassed with --no-test option\n")
+            #f.close()
+        self.package_driver()
+        #else:
+        #    if(self.run_qualification_tests()):
+        #        self.package_driver()
+
+        print "Package Created: " + self.archive_path()
     ###
     #   Private Methods
     ###

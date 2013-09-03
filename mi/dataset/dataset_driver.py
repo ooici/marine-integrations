@@ -63,6 +63,19 @@ class DataSourceLocation(object):
             self.parser_position = parser_position
             return
 
+class DataSetDriverConfigKeys(BaseEnum):
+    PARTICLE_MODULE = "particle_module"
+    PARTICLE_CLASS = "particle_class"
+    DIRECTORY = "directory"
+    PATTERN = "pattern"
+    FREQUENCY = "frequency"
+    HARVESTER = "harvester"
+    PARSER = "parser"
+    MODULE = "module"
+    CLASS = "class"
+    URI = "uri"
+    CLASS_ARGS = "class_args"
+    
 class DataSetDriver(object):
     """
     Base class for data set drivers.  Provides:
@@ -74,6 +87,19 @@ class DataSetDriver(object):
 
     Subclasses need to include harvesters and parsers and
     be specialized to handle the interaction between the two.
+    
+    Configurations should contain keys from the DataSetDriverConfigKey class
+    and should look something like this example (more full documentation in the
+    "Dataset Agent Architecture" page on the OOI wiki):
+    {
+        'harvester':
+        {
+            'directory': '/tmp/dsatest',
+            'pattern': '*.txt',
+            'frequency': 1,
+        },
+        'parser': {}
+    }
     """
     def __init__(self, config, memento, data_callback, state_callback, exception_callback):
         self._config = config

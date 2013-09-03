@@ -43,7 +43,7 @@ class Metadata(mi.idk.metadata.Metadata):
         if not self.driver_path:
             raise DriverParameterUndefined("driver_path undefined in metadata")
 
-        return os.path.join(self.base_dir,
+        return os.path.join(Config().base_dir(),
                             "mi", "dataset", "driver",
                             self.driver_path)
 
@@ -128,6 +128,12 @@ class Metadata(mi.idk.metadata.Metadata):
         self.version = yamlInput['driver_metadata'].get('version', 0)
         # constructor must match driver class constructor name in driver.py
         self.constructor = yamlInput['driver_metadata'].get('constructor')
+        self._generate_versioned_metadata()
+
+    def _generate_versioned_metadata(self):
+        """
+        Generate a set of versioned metadata variables which combine other entered variables
+        """
         self.driver_name_versioned = 'driver_%s_%s' % (self.driver_name,
                                                        self.version.replace('.','_').replace('-','_'))
         self.entry_point_group = 'drivers.dataset.%s' % self.driver_name
@@ -135,7 +141,7 @@ class Metadata(mi.idk.metadata.Metadata):
         self.versioned_constructor = 'driver-%s = %s.mi.dataset.driver.%s.driver:%s' % (self.version,
                                                                                         self.driver_name_versioned,
                                                                                         self.driver_path.replace('/', '.'),
-                                                                                        self.constructor) 
+                                                                                        self.constructor)
 
     ###
     #   Public Methods
@@ -182,7 +188,8 @@ class Metadata(mi.idk.metadata.Metadata):
         self.notes = prompt.multiline( 'Release Notes', self.notes )
         # constructor must match driver class constructor name in driver.py
         self.constructor = prompt.text( 'Driver Constructor', self.constructor )
-
+        self._generate_versioned_metadata()
+        
         if( self.confirm_metadata() ):
             self.store_to_file()
         else:
