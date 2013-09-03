@@ -11,10 +11,17 @@ integrate with the common ION test case.
 """
 
 
+from mi.core.log import get_logger ; log = get_logger()
+
 import unittest
+import json 
+
 from pyon.util.unit_test import IonUnitTestCase
 from pyon.util.unit_test import PyonTestCase
 from pyon.util.int_test  import IonIntegrationTestCase
+from mi.core.instrument.data_particle import DataParticle
+from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import DataParticleValue
 
 
 class MiUnitTest(unittest.TestCase):
