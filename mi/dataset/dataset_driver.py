@@ -11,7 +11,6 @@ __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
 import gevent
-import copy
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import DataSourceLocationException
@@ -234,7 +233,7 @@ class SimpleDataSetDriver(DataSetDriver):
             if(len(self._new_file_queue) > 0):
                 self._got_file(self._new_file_queue.pop(0))
 
-            gevent.sleep(1)
+            gevent.sleep(30)
 
     def _got_file(self, file_tuple):
         """
