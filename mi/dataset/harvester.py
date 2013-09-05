@@ -136,10 +136,81 @@ class SingleFileHarvester(FilePoller, Harvester):
         if fullfile:
             filesize = os.path.getsize(fullfile)
             with open(fullfile, 'rb') as f:
-                # If there is a last offset, seek to the last offset so we are
-                # starting where we left off last time in the file
-                if self.last_offset:
-                    log.debug("Seeking to last offset %d", self.last_offset)
-                    f.seek(self.last_offset)
                 self.callback(f, filesize)
-            self.last_offset = filesize
+
+
+class SortingDirectoryPoller(ConditionPoller):
+    """
+    poll for new files added to a directory that match a wildcard pattern.
+    expects files to be added which can have several separate IDs separated with underscores
+    these will be sorted from left to right as integers (not ascii)
+    """
+    def __init__(self, directory, wildcard, callback, exception_callback=None, interval=1):
+        try:
+            if not os.path.isdir(directory):
+                raise ValueError('%s is not a directory'%directory)
+            self._path = directory + '/' + wildcard
+            self._last_filename = None
+            super(DirectoryPoller,self).__init__(self._check_for_files, callback, exception_callback, interval)
+        except:
+            log.error('failed init?', exc_info=True)
+            
+    def _check_for_files(self):
+        unsorted_filenames = glob.glob(self._path)
+        filenames = self._sort_files(unsorted_filenames)
+        # files, but no change since last time
+        if self._last_filename and filenames and filenames[-1]==self._last_filename:
+            return None
+        # no files yet, just like last time
+        if not self._last_filename and not filenames:
+            return None
+        if self._last_filename:
+            position = filenames.index(self._last_filename) # raises ValueError if file was removed
+            out = filenames[position+1:]
+        else:
+            out = filenames
+        self._last_filename = filenames[-1]
+        log.trace('found files: %r', out)
+        return out
+    
+    def _sort_files(self, filenames):
+        """
+        Sorts files which have multiple indices separated by underscores in a file name.
+        Ascii sorting will sort '16' less than '6', so separate by underscores, turn into
+        integers, then sort
+        """
+        # this assumes all files have the same extension
+        file_extension = filenames[0].split('.')
+        
+        split_names = ()
+        for fn in filenames:
+            # remove file extension and split by underscores
+            split_name = fn.replace('.' + file_extension, '').split('_')
+            for i in range(0, len(split_name)):
+                # if this part of the filename can be turned into an int, do it
+                try:
+                    int_val = int(split_name[i])
+                    split_name[i] = int_val
+                except ValueError:
+                    # ignore error
+            
+            # append this split up name as a tuple
+            split_names = split_names + (split_name, )
+        # now sort all the int formatted names
+        split_names.sort()
+        # put the filenames back to string format
+        sorted_filenames = []
+        i = 0
+        for fn in split_names:
+            # recombine files with underscores
+            this_file = ''
+            for item in fn:
+                this_file = this_file + str(item) + '_'
+            # remove the last underscore, and add the file extension back in
+            sorted_filenames[i] = this_file[:-1] + '.' + file_extension
+            i++
+            
+        return sorted_filenames
+        
+        
+    

@@ -27,6 +27,7 @@ CONFIG = {'directory': TESTDIR,
 @attr('INT', group='eoi')
 class TestExternalDatasetHarvester(MiUnitTest):
     data_found = False
+    current_offset = 0
     
     def setUp(self):
         """
@@ -34,6 +35,7 @@ class TestExternalDatasetHarvester(MiUnitTest):
         """
         log.info('*** Starting test %s ***', self._testMethodName)
         self.data_found = False
+        self.current_offset = 0
 
         if(not os.path.exists(TESTDIR)):
             os.makedirs(TESTDIR)
@@ -106,6 +108,7 @@ class TestExternalDatasetHarvester(MiUnitTest):
         self.fill_file_with_data(CONFIG['directory'], CONFIG['filename'], 2, 0)
         
         # start the harvester at the end of the current data
+        self.current_offset = 32
         file_offset = 32
         file_harvester = SingleFileHarvester(CONFIG, file_offset,
                                              self.new_data_found_callback,
@@ -162,12 +165,13 @@ class TestExternalDatasetHarvester(MiUnitTest):
         Callback when a new file is found by the harvester.  This should pass the file
         to the parser, but from this test we don't have the parser, so just close the file. 
         """
-        current_idx = file_handle.tell()
-        bytes_to_read = file_size - current_idx
+
+        bytes_to_read = file_size - self.current_offset
         data = file_handle.read(bytes_to_read)
         file_handle.close()
         self.data_found = True
-        log.info("Read new data from %d to %d: %s", current_idx, file_size, data)
+        log.info("Read new data from %d to %d: %s", self.current_offset, file_size, data)
+        self.current_offset = file_size
     
     def harvester_exception_callback(self, exception):
         """
