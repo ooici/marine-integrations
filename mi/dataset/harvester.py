@@ -13,6 +13,7 @@ __author__ = 'Christopher Mueller, Jonathan Newbrough, Steve Foley'
 __license__ = 'Apache 2.0'
 
 import os
+import glob
 
 from mi.core.log import get_logger ; log = get_logger()
 from ooi.poller import DirectoryPoller, ConditionPoller
@@ -141,9 +142,9 @@ class SingleFileHarvester(FilePoller, Harvester):
 
 class SortingDirectoryPoller(ConditionPoller):
     """
-    poll for new files added to a directory that match a wildcard pattern.
+    poll for new files added to a single directory that match a wildcard pattern.
     expects files to be added which can have several separate IDs separated with underscores
-    these will be sorted from left to right as integers (not ascii)
+    these will be sorted from left to right as integers instead of ascii.
     """
     def __init__(self, directory, wildcard, callback, exception_callback=None, interval=1):
         try:
@@ -151,13 +152,13 @@ class SortingDirectoryPoller(ConditionPoller):
                 raise ValueError('%s is not a directory'%directory)
             self._path = directory + '/' + wildcard
             self._last_filename = None
-            super(DirectoryPoller,self).__init__(self._check_for_files, callback, exception_callback, interval)
+            super(SortingDirectoryPoller,self).__init__(self._check_for_files, callback, exception_callback, interval)
         except:
             log.error('failed init?', exc_info=True)
             
     def _check_for_files(self):
-        unsorted_filenames = glob.glob(self._path)
-        filenames = self._sort_files(unsorted_filenames)
+        unsorted_filenames = glob.glob(self._path)      
+        filenames = self.sort_files(unsorted_filenames)
         # files, but no change since last time
         if self._last_filename and filenames and filenames[-1]==self._last_filename:
             return None
@@ -165,52 +166,104 @@ class SortingDirectoryPoller(ConditionPoller):
         if not self._last_filename and not filenames:
             return None
         if self._last_filename:
-            position = filenames.index(self._last_filename) # raises ValueError if file was removed
-            out = filenames[position+1:]
+            # if the last filename has been deleted, who knows where we are, just return all the files
+            try:
+                position = filenames.index(self._last_filename) # raises ValueError if file was removed
+                out = filenames[position+1:]
+            except ValueError:
+                log.debug("Lost previous last filename %s", self._last_filename)
+                out = filenames
         else:
             out = filenames
         self._last_filename = filenames[-1]
         log.trace('found files: %r', out)
         return out
     
-    def _sort_files(self, filenames):
+    def sort_files(self, filenames):
         """
         Sorts files which have multiple indices separated by underscores in a file name.
         Ascii sorting will sort '16' less than '6', so separate by underscores, turn into
         integers, then sort
         """
+        # no sorting needed if 0 or 1 files
+        if filenames and len(filenames) < 2:
+            return filenames
         # this assumes all files have the same extension
         file_extension = filenames[0].split('.')
-        
         split_names = ()
         for fn in filenames:
-            # remove file extension and split by underscores
-            split_name = fn.replace('.' + file_extension, '').split('_')
-            for i in range(0, len(split_name)):
-                # if this part of the filename can be turned into an int, do it
-                try:
-                    int_val = int(split_name[i])
-                    split_name[i] = int_val
-                except ValueError:
-                    # ignore error
-            
+            split_name = self.ascii_to_int_list(fn)
             # append this split up name as a tuple
-            split_names = split_names + (split_name, )
+            split_names = split_names + (split_name, ) 
         # now sort all the int formatted names
-        split_names.sort()
+        sorted_tuple = sorted(split_names)
         # put the filenames back to string format
         sorted_filenames = []
         i = 0
-        for fn in split_names:
+        for fn in sorted_tuple:
             # recombine files with underscores
             this_file = ''
             for item in fn:
                 this_file = this_file + str(item) + '_'
             # remove the last underscore, and add the file extension back in
-            sorted_filenames[i] = this_file[:-1] + '.' + file_extension
-            i++
+            sorted_filenames.append(this_file[:-1] + '.' + file_extension[1])
+            i += 1
             
+        log.trace("sorted %s", sorted_filenames)    
         return sorted_filenames
+    
+    @staticmethod
+    def ascii_to_int_list(filename):
+        # remove file extension and split by underscores
+        file_extension = filename.split('.')
+        split_name = filename.replace('.' + file_extension[1], '').split('_')
+        for i in range(0, len(split_name)):
+            # if this part of the filename can be turned into an int, do it
+            try:
+                int_val = int(split_name[i])
+                split_name[i] = int_val
+            except ValueError:
+                # ignore error
+                pass
+        return split_name
+    
+    
+class SortingDirectoryHarvester(SortingDirectoryPoller, Harvester):
+    """
+    Poll a single directory looking for new files with the directory poller.
+    """
+    def __init__(self, config, memento, file_callback, exception_callback):
+        if not isinstance(config, dict):
+            raise TypeError("Config object must be a dict")
+
+        self.callback = file_callback
+        self.last_file_completed = memento
+        SortingDirectoryPoller.__init__(self,
+                                 config['directory'],
+                                 config['pattern'],
+                                 self.on_new_files,
+                                 exception_callback,
+                                 config.get('frequency', 1))
+
+    def on_new_files(self, files):
+        """
+        New files have been found, open each file and process it in the callback
+        """
+        for fn in files:
+            
+            if self.last_file_completed:
+                # sort the last file and new file into int list form so they will
+                # evalulate > not as ascii strings but as integers
+                fn_int_list = SortingDirectoryPoller.ascii_to_int_list(fn)
+                last_file_int_list = SortingDirectoryPoller.ascii_to_int_list(self.last_file_completed)
+                if fn_int_list > last_file_int_list:
+                    with open(fn,'rb') as f:
+                        self.callback(f, fn)
+            else:
+                # there is no last file completed, so this file must be new, return it
+                with open(fn,'rb') as f:
+                    self.callback(f, fn)
+
         
         
     

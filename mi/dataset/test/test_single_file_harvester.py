@@ -16,7 +16,7 @@ from nose.plugins.attrib import attr
 from mi.core.unit_test import MiUnitTest
 from mi.dataset.harvester import SingleFileHarvester
 
-#bin/nosetests -x -v mi.dataset.test.test_single_file_harvester
+#bin/nosetests -x -v mi/dataset/test/test_single_file_harvester
 TESTDIR = '/tmp/dsatest'
 FILENAME = 'testfile.txt'
 CONFIG = {'directory': TESTDIR,
