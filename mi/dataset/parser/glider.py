@@ -8,24 +8,41 @@
 __author__ = 'Stuart Pearce & Chris Wingard'
 __license__ = 'Apache 2.0'
 
+import re
 import numpy as np
-from math import copysign
 
+from math import copysign
 from functools import partial
 
 from mi.core.log import get_logger
-log = get_logger()
-
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, DatasetParserException
+from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.dataset.dataset_parser import BufferLoadingParser
 
+# start the logger
+log = get_logger()
 
+# grumble, mumble, grumble
+ROW_REGEX = r'^(.*)$'  # just give me the whole effing row.
+ROW_MATCHER = re.compile(ROW_REGEX)
+
+
+# Only statekey used herein is position
 class StateKey(BaseEnum):
     POSITION = "position"
 
 
+###############################################################################
+# Define the Particle Classes for Global and Coastal Gliders, both the delayed
+# (delivered over Iridium network) and the recovered (downloaded from a glider
+# upon recovery) data sets.
+#
+# [TODO: Build Particle classes for global recovered datasets and for all
+# coastal glider data (delayed and recoverd)]
+#
+###############################################################################
 class DataParticleType(BaseEnum):
     # Data particle types for the Open Ocean (aka Global) and Coastal gliders
     ### Global Gliders (GGLDR).
@@ -48,9 +65,7 @@ class DataParticleType(BaseEnum):
     CGLDR_PARAD_RECOVERED = 'cgldr_parad_recovered'
     CGLDR_GLDR_ENG_DELAYED = 'cgldr_eng_delayed'
     CGLDR_GLDR_ENG_RECOVERED = 'cgldr_eng_recovered'
-    # ADCPA data will parsed by a different parser
-
-# [TODO: Build Particle classes for global recovered datasets and for all coastal glider data (delayed and recoverd)]
+    # ADCPA data will parsed by a different parser (adcpa.py)
 
 
 class GgldrCtdgvDelayedParticleKey(DataParticleKey):
@@ -81,7 +96,8 @@ class GgldrCtdgvDelayedDataParticle(DataParticle):
         @param result A returned list with sub dictionaries of the data
         """
         if not isinstance(gpd, GliderParser):
-            raise SampleException("GGLDR_CTDGV_DELAYED: Object Instance is not a Glider Parsed Data object")
+            raise SampleException("GGLDR_CTDGV_DELAYED: Object Instance is not \
+                                  a Glider Parsed Data object")
 
         result = []
         for iRecord in range(0, gpd.num_records):
@@ -102,7 +118,7 @@ class GgldrCtdgvDelayedDataParticle(DataParticle):
                     # check to see if this is a lat/longitude string
                     if '_lat' in key or '_lon' in key:
                         # convert latitiude/longitude strings to decimal degrees
-                        value = self._string_to_ddegrees(value)
+                        value = GliderParser._string_to_ddegrees(value)
                     else:
                         # otherwise store the values as floats
                         value = float(value)
@@ -112,8 +128,9 @@ class GgldrCtdgvDelayedDataParticle(DataParticle):
                                    DataParticleKey.VALUE: value})
 
                 else:
-                    log.warn("GGLDR_CTDGV_DELAYED: The defined particle, %s, is not \
-                             present in the current data set", key)
+                    log.warn("GGLDR_CTDGV_DELAYED: The particle defined in the \
+                             ParticleKey, %s, is not present in the current \
+                             data set", key)
 
             # add the record to total results
             result.append(record)
@@ -148,7 +165,8 @@ class GgldrDostaDelayedDataParticle(DataParticle):
         @param result A returned list with sub dictionaries of the data
         """
         if not isinstance(gpd, GliderParser):
-            raise SampleException("GGLDR_DOSTA_DELAYED: Object Instance is not a GliderParser object")
+            raise SampleException("GGLDR_DOSTA_DELAYED: Object Instance is not \
+                                  a GliderParser object")
 
         result = []
         for iRecord in range(0, gpd.num_records):
@@ -169,7 +187,7 @@ class GgldrDostaDelayedDataParticle(DataParticle):
                     # check to see if this is a lat/longitude string
                     if '_lat' in key or '_lon' in key:
                         # convert latitiude/longitude strings to decimal degrees
-                        value = self._string_to_ddegrees(value)
+                        value = GliderParser._string_to_ddegrees(value)
                     else:
                         # otherwise store the values as floats
                         value = float(value)
@@ -179,8 +197,9 @@ class GgldrDostaDelayedDataParticle(DataParticle):
                                    DataParticleKey.VALUE: value})
 
                 else:
-                    log.warn("GGLDR_DOSTA_DELAYED: The defined particle, %s, is not \
-                             present in the current data set", key)
+                    log.warn("GGLDR_DOSTA_DELAYED: The particle defined in the \
+                             ParticleKey, %s, is not present in the current \
+                             data set", key)
 
             # add the record to total results
             result.append(record)
@@ -215,7 +234,8 @@ class GgldrFlordDelayedDataParticle(DataParticle):
         @param result A returned list with sub dictionaries of the data
         """
         if not isinstance(gpd, GliderParser):
-            raise SampleException("GGLDR_FLORD_DELAYED: Object Instance is not a GliderParser object")
+            raise SampleException("GGLDR_FLORD_DELAYED: Object Instance is not \
+                                  a GliderParser object")
 
         result = []
         for iRecord in range(0, gpd.num_records):
@@ -236,7 +256,7 @@ class GgldrFlordDelayedDataParticle(DataParticle):
                     # check to see if this is a lat/longitude string
                     if '_lat' in key or '_lon' in key:
                         # convert latitiude/longitude strings to decimal degrees
-                        value = self._string_to_ddegrees(value)
+                        value = GliderParser._string_to_ddegrees(value)
                     else:
                         # otherwise store the values as floats
                         value = float(value)
@@ -246,8 +266,9 @@ class GgldrFlordDelayedDataParticle(DataParticle):
                                    DataParticleKey.VALUE: value})
 
                 else:
-                    log.warn("GGLDR_FLORD_DELAYED: The defined particle, %s, is not \
-                             present in the current data set", key)
+                    log.warn("GGLDR_FLORD_DELAYED: The particle defined in the \
+                             ParticleKey, %s, is not present in the current \
+                             data set", key)
 
             # add the record to total results
             result.append(record)
@@ -294,7 +315,8 @@ class GgldrEngDelayedDataParticle(DataParticle):
         @param result A returned list with sub dictionaries of the data
         """
         if not isinstance(gpd, GliderParser):
-            raise SampleException("GGLDR_ENG_DELAYED: Object Instance is not a GliderParser object")
+            raise SampleException("GGLDR_ENG_DELAYED: Object Instance is not \
+                                  a GliderParser object")
 
         result = []
         for iRecord in range(0, gpd.num_records):
@@ -312,10 +334,10 @@ class GgldrEngDelayedDataParticle(DataParticle):
                     if key == 'm_present_time':
                         self.set_internal_timestamp(float(value))
 
-                    # check to see if this is a lat/longitude string
+                    # check to see if this is a latitude/longitude string
                     if '_lat' in key or '_lon' in key:
                         # convert latitiude/longitude strings to decimal degrees
-                        value = self._string_to_ddegrees(value)
+                        value = GliderParser._string_to_ddegrees(value)
                     else:
                         # otherwise store the values as floats
                         value = float(value)
@@ -325,8 +347,9 @@ class GgldrEngDelayedDataParticle(DataParticle):
                                    DataParticleKey.VALUE: value})
 
                 else:
-                    log.warn("GGLDR_ENG_DELAYED: The defined particle, %s, is not \
-                             present in the current data set", key)
+                    log.warn("GGLDR_ENG_DELAYED: The particle defined in the \
+                             ParticleKey, %s, is not present in the current \
+                             data set", key)
 
             # add the record to total results
             result.append(record)
@@ -342,7 +365,6 @@ class GliderParser(BufferLoadingParser):
     dictionary and the data in a data dictionary using the column labels as the
     dictionary keys. These dictionaries are used to build the particles.
     """
-
     def __init__(self,
                  config,
                  state,
@@ -350,20 +372,19 @@ class GliderParser(BufferLoadingParser):
                  state_callback,
                  publish_callback,
                  *args, **kwargs):
-        super(CtdpfParser, self).__init__(config,
-                                          stream_handle,
-                                          state,
-                                          partial(StringChunker.regex_sieve_function,
-                                                  regex_list=[DATA_MATCHER,
-                                                              TIME_MATCHER]),
-                                          state_callback,
-                                          publish_callback,
-                                          *args,
-                                          **kwargs)
+        super(GliderParser, self).__init__(config,
+                                           stream_handle,
+                                           state,
+                                           partial(StringChunker.regex_sieve_function,
+                                                   regex_list=[ROW_MATCHER]),
+                                           state_callback,
+                                           publish_callback,
+                                           *args,
+                                           **kwargs)
         self._timestamp = 0.0
-        self._record_buffer = [] # holds tuples of (record, state)
+        self._record_buffer = []  # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION:0, StateKey.TIMESTAMP:0.0}
-                
+
         if state:
             self.set_state(self._state)
 
@@ -378,9 +399,11 @@ class GliderParser(BufferLoadingParser):
         log.trace("Attempting to set state to: %s", state_obj)
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
-        if not StateKey.POSITION in state_obj:
-            raise DatasetParserException("Invalid state key")
+        if not ((StateKey.POSITION in state_obj) and (StateKey.TIMESTAMP in state_obj)):
+            raise DatasetParserException("Invalid state keys")
 
+        self._timestamp = state_obj[StateKey.TIMESTAMP]
+        self._timestamp += 1
         self._record_buffer = []
         self._state = state_obj
         self._read_state = state_obj
@@ -388,19 +411,34 @@ class GliderParser(BufferLoadingParser):
         # seek to it
         self._stream_handle.seek(state_obj[StateKey.POSITION])
 
-    def _increment_state(self, increment):
+    def _increment_timestamp(self, increment=1):
+        """
+        Increment timestamp by a certain amount in seconds. By default this
+        dataset definition takes one sample per minute between lines. This method
+        is designed to be called with each sample line collected. Override this
+        as needed in subclasses
+        @param increment Number of seconds in increment the timestamp.
+        """
+        self._timestamp += increment
+
+    def _increment_state(self, increment, timestamp):
         """
         Increment the parser position by a certain amount in bytes. This
         indicates what has been READ from the file, not what has been published.
+        The increment takes into account a timestamp of WHEN in the data the
+        position corresponds to. This allows a reload of both timestamp and the
+        position.
 
         This is a base implementation, override as needed.
 
         @param increment Number of bytes to increment the parser position.
+        @param timestamp The timestamp completed up to that position
         """
-        log.trace("Incrementing current state: %s with inc: %s",
-                  self._read_state, increment)
+        log.trace("Incrementing current state: %s with inc: %s, timestamp: %s",
+                  self._read_state, increment, timestamp)
 
         self._read_state[StateKey.POSITION] += increment
+        self._read_state[StateKey.TIMESTAMP] = timestamp
 
     def _read_header(self):
         """
@@ -459,38 +497,10 @@ class GliderParser(BufferLoadingParser):
 
     def parse_chunks(self):
         """
-        Parse out any pending data chunks in the chunker. If it is a valid data
-        piece, build a particle amd update the position. Go until the chunker
-        has no more valid data.
-        @retval a list of tuples with sample particles encountered in this
-            parsing, plus the state.
+        Break python's fileIO to fit the stream/chunker framework...sigh
         """
 
         result_particles = []
-        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-        # sieve looks for timestamp, update and increment position
-        while (chunk is not None):
-            time_match = TIME_MATCHER.match(chunk)
-            data_match = DATA_MATCHER.match(chunk)
-            if time_match:
-                log.trace("Encountered timestamp in data stream: %s", time_match.group(0))
-                self._timestamp = self._convert_string_to_timestamp(time_match.group(0))
-                self._increment_state(end, self._timestamp)
-
-            elif data_match:
-                if self._timestamp <= 1.0:
-                    raise SampleException("No reasonable timestamp encountered at beginning of file!")
-                # particle-ize the data block received, return the record
-                sample = self._extract_sample(self._particle_class, DATA_MATCHER, chunk, self._timestamp)
-                if sample:
-                    # create particle
-                    log.trace("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
-                    self._increment_state(end, self._timestamp)    
-                    self._increment_timestamp() # increment one samples worth of time
-                    result_particles.append((sample, copy.copy(self._read_state)))
-            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-                       
-        return result_particles
 
     @staticmethod
     def _string_to_ddegrees(pos_str):
@@ -498,9 +508,9 @@ class GliderParser(BufferLoadingParser):
         Converts the given string from this data stream into a more
         standard latitude/longitude value in decimal degrees.
         @param pos_str The position (latitude or longitude) string in the
-        format "DDMM.MMMM" for latitude and "DDDMM.MMMM" for longitude. A
-        positive or negative sign to the string indicates north/south or
-        east/west, respectively.
+            format "DDMM.MMMM" for latitude and "DDDMM.MMMM" for longitude. A
+            positive or negative sign to the string indicates north/south or
+            east/west, respectively.
         @retval The position in decimal degrees
         """
         minutes = float(pos_str[-7:])
