@@ -11,13 +11,19 @@ __license__ = 'Apache 2.0'
 import numpy as np
 from math import copysign
 
+from functools import partial
+
 from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, DatasetParserException
-from mi.core.instrument.data_particle import DataParticle
-from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+from mi.dataset.dataset_parser import BufferLoadingParser
+
+
+class StateKey(BaseEnum):
+    POSITION = "position"
 
 
 class DataParticleType(BaseEnum):
@@ -42,8 +48,10 @@ class DataParticleType(BaseEnum):
     CGLDR_PARAD_RECOVERED = 'cgldr_parad_recovered'
     CGLDR_GLDR_ENG_DELAYED = 'cgldr_eng_delayed'
     CGLDR_GLDR_ENG_RECOVERED = 'cgldr_eng_recovered'
+    # ADCPA data will parsed by a different parser
 
 # [TODO: Build Particle classes for global recovered datasets and for all coastal glider data (delayed and recoverd)]
+
 
 class GgldrCtdgvDelayedParticleKey(DataParticleKey):
     KEY_LIST = [
@@ -326,48 +334,73 @@ class GgldrEngDelayedDataParticle(DataParticle):
         return result
 
 
-class GliderParser(object):
+class GliderParser(BufferLoadingParser):
     """
-    A class that parses a glider data file and holds the resultant data in
-    dictionaries.
-
     GliderParser parses a Slocum Electric Glider data file that has been
     converted to ASCII from binary and merged with it's corresponding flight or
     science data file, and holds the self describing header data in a header
     dictionary and the data in a data dictionary using the column labels as the
-    dictionary keys.
-
-    Construct an instance of GliderParser using the filename of the
-    ASCII file containing the glider data. For example:
-
-        gdata = GliderParser('glider_data_file.mrg')
-
-    * gdata.hdr_dict holds the header dictionary with the self
-    describing ASCII tags from the file as keys.
-    * gdata.data_dict holds a data dictionary with the variable names (column
-    labels) as keys (gdata.data_keys) and the number of data records to parse
-    (gdata.num_records).
-
-    A sub-dictionary holds the name of the variable (same as the key),
-    the data units, the number of binary bytes used to store each
-    variable type, the name of the variable, and the data using the
-    keys:
-        'Name'
-        'Units'
-        'Number_of_Bytes'
-        'Data'
-
-    To retrieve the data for the variable 'vname':
-        data = gdata.data_dict['vname]['Data']
+    dictionary keys. These dictionaries are used to build the particles.
     """
 
-    def __init__(self, filename):
-        self._fid = open(filename, 'r')
-        self.hdr_dict = {}
-        self.data_dict = {}
-        self._read_header()
-        self._read_data()
-        self._fid.close()
+    def __init__(self,
+                 config,
+                 state,
+                 stream_handle,
+                 state_callback,
+                 publish_callback,
+                 *args, **kwargs):
+        super(CtdpfParser, self).__init__(config,
+                                          stream_handle,
+                                          state,
+                                          partial(StringChunker.regex_sieve_function,
+                                                  regex_list=[DATA_MATCHER,
+                                                              TIME_MATCHER]),
+                                          state_callback,
+                                          publish_callback,
+                                          *args,
+                                          **kwargs)
+        self._timestamp = 0.0
+        self._record_buffer = [] # holds tuples of (record, state)
+        self._read_state = {StateKey.POSITION:0, StateKey.TIMESTAMP:0.0}
+                
+        if state:
+            self.set_state(self._state)
+
+    def set_state(self, state_obj):
+        """
+        Set the value of the state object for this parser
+        @param state_obj The object to set the state to. Should be a list with
+        a StateKey.POSITION value and StateKey.TIMESTAMP value. The position is
+        number of bytes into the file, the timestamp is an NTP4 format timestamp.
+        @throws DatasetParserException if there is a bad state structure
+        """
+        log.trace("Attempting to set state to: %s", state_obj)
+        if not isinstance(state_obj, dict):
+            raise DatasetParserException("Invalid state structure")
+        if not StateKey.POSITION in state_obj:
+            raise DatasetParserException("Invalid state key")
+
+        self._record_buffer = []
+        self._state = state_obj
+        self._read_state = state_obj
+
+        # seek to it
+        self._stream_handle.seek(state_obj[StateKey.POSITION])
+
+    def _increment_state(self, increment):
+        """
+        Increment the parser position by a certain amount in bytes. This
+        indicates what has been READ from the file, not what has been published.
+
+        This is a base implementation, override as needed.
+
+        @param increment Number of bytes to increment the parser position.
+        """
+        log.trace("Incrementing current state: %s with inc: %s",
+                  self._read_state, increment)
+
+        self._read_state[StateKey.POSITION] += increment
 
     def _read_header(self):
         """
@@ -385,6 +418,8 @@ class GliderParser(object):
                 num_hdr_lines = int(split_line[1])
             self.hdr_dict[split_line[0][:-1]] = split_line[1]
             hdr_line += 1
+
+        # Thomas, my monkey of a son wanted this inserted in the code.
 
     def _read_data(self):
         """
@@ -421,6 +456,41 @@ class GliderParser(object):
             }
         self.data_keys = column_labels
         self.num_records = data_array.shape[0]
+
+    def parse_chunks(self):
+        """
+        Parse out any pending data chunks in the chunker. If it is a valid data
+        piece, build a particle amd update the position. Go until the chunker
+        has no more valid data.
+        @retval a list of tuples with sample particles encountered in this
+            parsing, plus the state.
+        """
+
+        result_particles = []
+        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+        # sieve looks for timestamp, update and increment position
+        while (chunk is not None):
+            time_match = TIME_MATCHER.match(chunk)
+            data_match = DATA_MATCHER.match(chunk)
+            if time_match:
+                log.trace("Encountered timestamp in data stream: %s", time_match.group(0))
+                self._timestamp = self._convert_string_to_timestamp(time_match.group(0))
+                self._increment_state(end, self._timestamp)
+
+            elif data_match:
+                if self._timestamp <= 1.0:
+                    raise SampleException("No reasonable timestamp encountered at beginning of file!")
+                # particle-ize the data block received, return the record
+                sample = self._extract_sample(self._particle_class, DATA_MATCHER, chunk, self._timestamp)
+                if sample:
+                    # create particle
+                    log.trace("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
+                    self._increment_state(end, self._timestamp)    
+                    self._increment_timestamp() # increment one samples worth of time
+                    result_particles.append((sample, copy.copy(self._read_state)))
+            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+                       
+        return result_particles
 
     @staticmethod
     def _string_to_ddegrees(pos_str):
