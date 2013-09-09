@@ -193,7 +193,6 @@ class TeledyneCapability(BaseEnum):
     RUN_TEST_200 = TeledyneProtocolEvent.RUN_TEST_200
     #POWER_DOWN = TeledyneProtocolEvent.POWER_DOWN
 
-
 class TeledyneScheduledJob(BaseEnum):
     """
     Complete this last.
@@ -237,15 +236,15 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
-        
+
         self.last_wakeup = 0
-        
+
         # Construct protocol superclass.
         log.trace("IN TeledyneProtocol.__init__")
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         self.last_wakeup = 0
-        
+
         # Build ADCPT protocol state machine.
         self._protocol_fsm = InstrumentFSM(TeledyneProtocolState, TeledyneProtocolEvent,
                             TeledyneProtocolEvent.ENTER, TeledyneProtocolEvent.EXIT)
@@ -257,7 +256,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.EXIT, self._handler_command_exit)
-        
+
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.INIT_PARAMS, self._handler_command_init_params)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
