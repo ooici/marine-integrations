@@ -24,14 +24,15 @@ from mi.dataset.dataset_parser import BufferLoadingParser
 # start the logger
 log = get_logger()
 
-# grumble, mumble, grumble
-ROW_REGEX = r'^(.*)$'  # just give me the whole effing row.
+# regex
+ROW_REGEX = r'^(.*)$'  # just give me the whole effing row and get out of my way.
 ROW_MATCHER = re.compile(ROW_REGEX)
 
 
-# Only statekey used herein is position
+# statekey
 class StateKey(BaseEnum):
-    POSITION = "position"
+    POSITION = 'position'
+    TIMESTAMP = 'timestamp'
 
 
 ###############################################################################
@@ -89,8 +90,8 @@ class GgldrCtdgvDelayedDataParticle(DataParticle):
 
     def build_parsed_values(self, gpd):
         """
-        Takes a GliderParser object and extracts CTD data from the
-        data dictionary and puts the data into a CTD Data Particle.
+        Takes a GliderParser object and extracts CTDGV data from the
+        data dictionary and puts the data into a CTDGV Data Particle.
 
         @param gpd A GliderParser class instance.
         @param result A returned list with sub dictionaries of the data
@@ -158,8 +159,8 @@ class GgldrDostaDelayedDataParticle(DataParticle):
 
     def build_parsed_values(self, gpd):
         """
-        Takes a GliderParser object and extracts CTD data from the
-        data dictionary and puts the data into a CTD Data Particle.
+        Takes a GliderParser object and extracts DOSTA data from the
+        data dictionary and puts the data into a DOSTA Data Particle.
 
         @param gpd A GliderParser class instance.
         @param result A returned list with sub dictionaries of the data
@@ -383,7 +384,7 @@ class GliderParser(BufferLoadingParser):
                                            **kwargs)
         self._timestamp = 0.0
         self._record_buffer = []  # holds tuples of (record, state)
-        self._read_state = {StateKey.POSITION:0, StateKey.TIMESTAMP:0.0}
+        self._read_state = {StateKey.POSITION: 0, StateKey.TIMESTAMP: 0.0}
 
         if state:
             self.set_state(self._state)
@@ -439,50 +440,30 @@ class GliderParser(BufferLoadingParser):
 
         self._read_state[StateKey.POSITION] += increment
         self._read_state[StateKey.TIMESTAMP] = timestamp
+        # Thomas, my monkey of a son, wanted this inserted in the code.
 
-    def _read_header(self):
-        """
-        Read in the self describing header lines of an ASCII glider data
-        file.
-        """
-        # There are usually 14 header lines, start with 14,
-        # and check the 'num_ascii_tags' line.
-        num_hdr_lines = 14
-        hdr_line = 1
-        while hdr_line <= num_hdr_lines:
-            line = self._fid.readline()
-            split_line = line.split()
-            if 'num_ascii_tags' in split_line:
-                num_hdr_lines = int(split_line[1])
-            self.hdr_dict[split_line[0][:-1]] = split_line[1]
-            hdr_line += 1
-
-        # Thomas, my monkey of a son wanted this inserted in the code.
-
-    def _read_data(self):
+    def _read_data(data):
         """
         Read in the column labels, data type, number of bytes of each
         data type, and the data from an ASCII glider data file.
         """
-        column_labels = self._fid.readline().split()
-        column_type = self._fid.readline().split()
-        column_num_bytes = self._fid.readline().split()
+        # read the column labels, data types and number of bytes of each data
+        # type from the first three data rows.
+        column_labels = data[0].split()
+        column_type = data[1].split()
+        column_num_bytes = data[2].split()
 
-        # read each row of data & use np.array's ability to grab a
-        # column of an array
-        data = []
-        for line in self._fid.readlines():
-            data.append(line.split())
-        data_array = np.array(data)  # NOTE: this is an array of strings
+        # use np.array's ability to grab the columns of an array
+        data_array = np.array(data[3:])  # NOTE: this is an array of strings
 
         # warn if # of described data rows != to amount read in.
         num_columns = int(self.hdr_dict['sensors_per_cycle'])
         if num_columns != data_array.shape[1]:
-            log.warn('Glider data file does not have the same' +
-                     'number of columns as described in the header.\n' +
-                     'Described: %d, Actual: %d' % (num_columns,
-                                                    data_array.shape[1])
-                     )
+            raise DatasetParserException('Glider data file does not have the ' +
+                                         'same number of columns as described ' +
+                                         'in the header.\n' +
+                                         'Described: %d, Actual: %d' %
+                                         (num_columns, data_array.shape[1]))
 
         # extract data to dictionary
         for ii in range(num_columns):
@@ -492,15 +473,58 @@ class GliderParser(BufferLoadingParser):
                 'Number_of_Bytes': int(column_num_bytes[ii]),
                 'Data': data_array[:, ii]
             }
+
+        # set additional output values
         self.data_keys = column_labels
         self.num_records = data_array.shape[0]
 
     def parse_chunks(self):
         """
-        Break python's fileIO to fit the stream/chunker framework...sigh
+        @retval a list of tuples with sample particles encountered in this
+            parsing, plus the state. An empty list is returned if nothing was
+            parsed.
         """
-
+        # set defaults
         result_particles = []
+        data = []
+        num_hdr_lines = 14
+        row_count = 0
+
+        # collect the data from the file
+        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+        while chunk is not None:
+            position = end
+            row_match = ROW_MATCHER.match(chunk)
+            if row_match:
+                # process the header and data rows
+                row_count += 1
+                if row_count <= num_hdr_lines:
+                    # Read in the self describing header lines of an ASCII
+                    # glider data file.
+                    split_line = chunk.split()
+                    if 'num_ascii_tags' in split_line:
+                        num_hdr_lines = int(split_line[1])
+                    self.hdr_dict[split_line[0][:-1]] = split_line[1]
+                else:  # otherwise its data
+                    data.append(chunk.split())
+            # process the next chunk, all the way through the file.
+            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+
+        if row_count > num_hdr_lines + 3:
+            # create the data dictionaries
+            self._read_header(hdr)
+            self._read_data(data)
+
+            # particlize the dictionaries
+            self._timestamp = self._string_to_timestamp(hdr_dict['fileopen_time'])
+            self._increment_state(position, self._timestamp)
+            result_particles = _extract_sample(self._particle_class, ROW_MATCHER,
+                                               chunk, self._timestamp)
+        else:
+            log.warn("This file is empty")
+
+        # publish the results
+        return result_particles
 
     @staticmethod
     def _string_to_ddegrees(pos_str):
@@ -517,3 +541,18 @@ class GliderParser(BufferLoadingParser):
         degrees = float(pos_str[0:-7])
         ddegrees = copysign((abs(degrees) + minutes / 60), degrees)
         return ddegrees
+
+    @staticmethod
+    def _string_to_timestamp(ts_str):
+        """
+        Converts the given string from this data stream's format into an NTP
+        timestamp. This is very likely instrument specific.
+        @param ts_str The timestamp string in the format "mm/dd/yyyy hh:mm:ss"
+        @retval The NTP4 timestamp
+        """
+        tstr = re.sub(r"__", "_0", ts_str)
+        systime = time.strptime(tstr, "%a_%b_%d_%H:%M:%S_%Y")
+        ntptime = ntplib.system_to_ntp_time(time.mktime(systime))
+        log.trace("Converted time \"%s\" into %s", ts_str, ntptime)
+        return ntptime
+
