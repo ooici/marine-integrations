@@ -43,12 +43,14 @@ class StateKey(BaseEnum):
 # [TODO: Build Particle classes for global recovered datasets and for all
 # coastal glider data (delayed and recoverd)]
 #
+# [TODO: Do we need to add a particle for the file header information?]
+#
 ###############################################################################
 class DataParticleType(BaseEnum):
     # Data particle types for the Open Ocean (aka Global) and Coastal gliders
     ### Global Gliders (GGLDR).
-    GGLDR_CTDGV_DELAYED = 'ggldr_ctdpf_delyaed'
-    GGLDR_CTDGV_RECOVERED = 'ggldr_ctdpf_recovered'
+    GGLDR_CTDGV_DELAYED = 'ggldr_ctdgv_delayed'
+    GGLDR_CTDGV_RECOVERED = 'ggldr_ctdgv_recovered'
     GGLDR_FLORD_DELAYED = 'ggldr_flord_delayed'
     GGLDR_FLORD_RECOVERED = 'ggldr_flord_recovered'
     GGLDR_DOSTA_DELAYED = 'ggldr_dosta_delayed'
@@ -56,10 +58,10 @@ class DataParticleType(BaseEnum):
     GGLDR_GLDR_ENG_DELAYED = 'ggldr_eng_delayed'
     GGLDR_GLDR_ENG_RECOVERED = 'ggldr_eng_recovered'
     ### Coastal Gliders (CGLDR).
-    CGLDR_CTDGV_DELAYED = 'cgldr_ctdpf_delyaed'
-    CGLDR_CTDGV_RECOVERED = 'cgldr_ctdpf_recovered'
-    CGLDR_FLORD_DELAYED = 'cgldr_flort_delayed'
-    CGLDR_FLORD_RECOVERED = 'cgldr_flort_recovered'
+    CGLDR_CTDGV_DELAYED = 'cgldr_ctdgv_delayed'
+    CGLDR_CTDGV_RECOVERED = 'cgldr_ctdgv_recovered'
+    CGLDR_FLORT_DELAYED = 'cgldr_flort_delayed'
+    CGLDR_FLORT_RECOVERED = 'cgldr_flort_recovered'
     CGLDR_DOSTA_DELAYED = 'cgldr_dosta_delayed'
     CGLDR_DOSTA_RECOVERED = 'cgldr_dosta_recovered'
     CGLDR_PARAD_DELAYED = 'cgldr_parad_delayed'
@@ -404,23 +406,12 @@ class GliderParser(BufferLoadingParser):
             raise DatasetParserException("Invalid state keys")
 
         self._timestamp = state_obj[StateKey.TIMESTAMP]
-        self._timestamp += 1
         self._record_buffer = []
         self._state = state_obj
         self._read_state = state_obj
 
         # seek to it
         self._stream_handle.seek(state_obj[StateKey.POSITION])
-
-    def _increment_timestamp(self, increment=1):
-        """
-        Increment timestamp by a certain amount in seconds. By default this
-        dataset definition takes one sample per minute between lines. This method
-        is designed to be called with each sample line collected. Override this
-        as needed in subclasses
-        @param increment Number of seconds in increment the timestamp.
-        """
-        self._timestamp += increment
 
     def _increment_state(self, increment, timestamp):
         """
@@ -477,6 +468,8 @@ class GliderParser(BufferLoadingParser):
         # set additional output values
         self.data_keys = column_labels
         self.num_records = data_array.shape[0]
+        
+        return 
 
     def parse_chunks(self):
         """
@@ -512,14 +505,15 @@ class GliderParser(BufferLoadingParser):
 
         if row_count > num_hdr_lines + 3:
             # create the data dictionaries
-            self._read_header(hdr)
-            self._read_data(data)
+            gpd = self._read_data(data)
+
+            # [TODO: How do we get gpd from _read_data and how to we pass it to _extract_sample below]
 
             # particlize the dictionaries
             self._timestamp = self._string_to_timestamp(hdr_dict['fileopen_time'])
             self._increment_state(position, self._timestamp)
             result_particles = _extract_sample(self._particle_class, ROW_MATCHER,
-                                               chunk, self._timestamp)
+                                               gpd, self._timestamp)
         else:
             log.warn("This file is empty")
 
