@@ -24,7 +24,7 @@ from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, DatasetParserException
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.dataset.dataset_parser import Parser
+from mi.dataset.dataset_parser import BufferLoadingParser
 
 TIME_REGEX = r'\d{1,2}/\d{1,2}/\d{4}\s*\d{1,2}:\d{1,2}:\d{1,2}'
 TIME_MATCHER = re.compile(TIME_REGEX, re.DOTALL)
@@ -34,7 +34,7 @@ DATA_MATCHER = re.compile(DATA_REGEX, re.DOTALL)
 
 # TODO: This should be passed in as a parameter so the driver can define the particle name.
 class DataParticleType(BaseEnum):
-    SAMPLE = 'nose_ctd_external'
+    SAMPLE = 'ctdpf_parsed'
     
 class CtdpfParserDataParticleKey(BaseEnum):
     TEMPERATURE = "temperature"
@@ -65,8 +65,8 @@ class CtdpfParserDataParticle(DataParticle):
             raise SampleException("CtdParserDataParticle: No regex match of \
                                   parsed sample data: [%s]", self.raw_data)
         try:
-            temp = float(match.group(1))
-            cond = float(match.group(2))
+            temp = float(match.group(2))
+            cond = float(match.group(1))
             press = float(match.group(3))
             o2 = float(match.group(4))
         except (ValueError, TypeError, IndexError) as ex:
@@ -95,7 +95,7 @@ class CtdpfParserDataParticle(DataParticle):
         else:
             return False
     
-class CtdpfParser(Parser):
+class CtdpfParser(BufferLoadingParser):
     
     def __init__(self,
                  config,
@@ -117,92 +117,10 @@ class CtdpfParser(Parser):
         self._timestamp = 0.0
         self._record_buffer = [] # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION:0, StateKey.TIMESTAMP:0.0}
-
+                
         if state:
-            self.set_state(state)
-    
-    def get_records(self, num_records):
-        """
-        Go ahead and execute the data parsing loop up to a point. This involves
-        getting data from the file, stuffing it in to the chunker, then parsing
-        it and publishing.
-        @param num_records The number of records to gather
-        @retval Return the list of particles requested, [] if none available
-        """
-        if num_records <= 0:
-            return []
-        try:
-            while len(self._record_buffer) < num_records:
-                self._load_particle_buffer()        
-        except EOFError:
-            pass            
-        return self._yank_particles(num_records)
-                
-    def _yank_particles(self, num_records):
-        """
-        Get particles out of the buffer and publish them. Update the state
-        of what has been published, too.
-        @param num_records The number of particles to remove from the buffer
-        @retval A list with num_records elements from the buffer. If num_records
-        cannot be collected (perhaps due to an EOF), the list will have the
-        elements it was able to collect.
-        """
-        if len(self._record_buffer) < num_records:
-            num_to_fetch = len(self._record_buffer)
-        else:
-            num_to_fetch = num_records
-        log.trace("Yanking %s records of %s requested",
-                  num_to_fetch,
-                  num_records)
+            self.set_state(self._state)
 
-        return_list = []
-        records_to_return = self._record_buffer[:num_to_fetch]
-        self._record_buffer = self._record_buffer[num_to_fetch:]
-        if len(records_to_return) > 0:
-            self._state = records_to_return[-1][1] # state side of tuple of last entry
-            # strip the state info off of them now that we have what we need
-            for item in records_to_return:
-                return_list.append(item[0])
-            self._publish_sample(return_list)
-            log.trace("Sending parser state [%s] to driver", self._state)
-            self._state_callback(self._state) # push new state to driver
-
-        return return_list
-        
-    def _load_particle_buffer(self):
-        """
-        Load up the internal record buffer with some particles based on a
-        gather from the get_block method.
-        """
-        while self.get_block():            
-            result = self.parse_chunks()
-            self._record_buffer.extend(result)
-            
-    def _increment_timestamp(self, increment=1):
-        """
-        Increment timestamp by a certain amount in seconds. By default this
-        dataset definition takes one sample per minute between lines. This method
-        is designed to be called with each sample line collected
-        @param increment Number of seconds in increment the timestamp.
-        """
-        self._timestamp += increment
-
-    def _increment_state(self, increment, timestamp):
-        """
-        Increment the parser position by a certain amount in bytes. This
-        indicates what has been READ from the file, not what has been published.
-        The increment takes into account a timestamp of WHEN in the data the
-        position corresponds to. This allows a reload of both timestamp and the
-        position.
-        @param increment Number of bytes to increment the parser position.
-        @param timestamp The timestamp completed up to that position
-        """
-        log.trace("Incrementing current state: %s with inc: %s, timestamp: %s",
-                  self._read_state, increment, timestamp)
-        
-        self._read_state[StateKey.POSITION] += increment
-        self._read_state[StateKey.TIMESTAMP] = timestamp
-                
     def set_state(self, state_obj):
         """
         Set the value of the state object for this parser
@@ -226,25 +144,11 @@ class CtdpfParser(Parser):
         # seek to it
         self._stream_handle.seek(state_obj[StateKey.POSITION])
         
-    def get_block(self, size=1024):
-        """
-        Get a block of characters for processing
-        @param size The size of the block to try to read
-        @retval The length of data retreived
-        @throws EOFError when the end of the file is reached
-        """
-        # read in some more data
-        data = self._stream_handle.read(size)
-        if data:
-            self._chunker.add_chunk(data, self._timestamp)
-            return len(data)
-        else: # EOF
-            raise EOFError
-    
     @staticmethod
     def _convert_string_to_timestamp(ts_str):
         """
-        Converts the given string in matched format into an NTP timestamp.
+        Converts the given string from this data stream's format into an NTP
+        timestamp. This is very likely instrument specific.
         @param ts_str The timestamp string in the format "mm/dd/yyyy hh:mm:ss"
         @retval The NTP4 timestamp
         """
@@ -252,6 +156,35 @@ class CtdpfParser(Parser):
         ntptime = ntplib.system_to_ntp_time(time.mktime(systime))
         log.trace("Converted time \"%s\" into %s", ts_str, ntptime) 
         return ntptime
+        
+    def _increment_timestamp(self, increment=1):
+        """
+        Increment timestamp by a certain amount in seconds. By default this
+        dataset definition takes one sample per minute between lines. This method
+        is designed to be called with each sample line collected. Override this
+        as needed in subclasses
+        @param increment Number of seconds in increment the timestamp.
+        """
+        self._timestamp += increment
+
+    def _increment_state(self, increment, timestamp):
+        """
+        Increment the parser position by a certain amount in bytes. This
+        indicates what has been READ from the file, not what has been published.
+        The increment takes into account a timestamp of WHEN in the data the
+        position corresponds to. This allows a reload of both timestamp and the
+        position.
+        
+        This is a base implementation, override as needed.
+        
+        @param increment Number of bytes to increment the parser position.
+        @param timestamp The timestamp completed up to that position
+        """
+        log.trace("Incrementing current state: %s with inc: %s, timestamp: %s",
+                  self._read_state, increment, timestamp)
+        
+        self._read_state[StateKey.POSITION] += increment
+        self._read_state[StateKey.TIMESTAMP] = timestamp
         
     def parse_chunks(self):
         """
@@ -276,7 +209,7 @@ class CtdpfParser(Parser):
                 if self._timestamp <= 1.0:
                     raise SampleException("No reasonable timestamp encountered at beginning of file!")
                 # particle-ize the data block received, return the record
-                sample = self._extract_sample(CtdpfParserDataParticle, DATA_MATCHER, chunk, self._timestamp)
+                sample = self._extract_sample(self._particle_class, DATA_MATCHER, chunk, self._timestamp)
                 if sample:
                     # create particle
                     log.trace("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
@@ -287,3 +220,4 @@ class CtdpfParser(Parser):
                        
         return result_particles
    
+

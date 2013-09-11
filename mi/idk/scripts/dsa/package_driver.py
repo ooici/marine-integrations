@@ -1,6 +1,6 @@
 __author__ = 'Bill French'
 
-from mi.idk.package_driver import PackageDriver
+from mi.idk.dataset.package_driver import PackageDriver
 
 def run():
     app = PackageDriver()

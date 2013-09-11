@@ -9,6 +9,7 @@ import os
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.unit_test import MiIntTestCase
+from mi.core.unit_test import ParticleTestMixin
 
 from mi.idk.unit_test import InstrumentDriverTestConfig
 from mi.idk.exceptions import TestNotInitialized
@@ -51,6 +52,16 @@ class DataSetTestCase(MiIntTestCase):
     """
     # configuration singleton
     test_config = DataSetTestConfig()
+
+    TEST_DATA_0 = """
+* Sea-Bird SBE52 MP Data File *
+
+*** Starting profile number 3 ***
+07/26/2013 21:01:03
+GPS1:
+GPS2:
+ 10.5914,  4.1870,  161.06,   2693.0
+"""
 
     TEST_DATA_1 = """
 * Sea-Bird SBE52 MP Data File *
@@ -186,21 +197,26 @@ GPS2:
         log.debug("Creating test file directory: %s", self.TESTDIR)
         if(not os.path.exists(self.TESTDIR)):
             os.makedirs(self.TESTDIR)
-    
+
         log.debug("Creating test file: %s/DAT0003.txt", self.TESTDIR)
         fh = open(os.path.join(self.TESTDIR, "DAT0003.txt"), 'w+')
-        fh.write(self.TEST_DATA_1)
+        fh.write(self.TEST_DATA_0)
         fh.close()
+
+        #log.debug("Creating test file: %s/DAT0003.txt", self.TESTDIR)
+        #fh = open(os.path.join(self.TESTDIR, "DAT0003.txt"), 'w+')
+        #fh.write(self.TEST_DATA_1)
+        #fh.close()
         
-        log.debug("Creating test file: %s/DAT0004.txt", self.TESTDIR)
-        fh = open(os.path.join(self.TESTDIR, "DAT0004.txt"), 'w+')
-        fh.write(self.TEST_DATA_2)
-        fh.close()
+        #log.debug("Creating test file: %s/DAT0004.txt", self.TESTDIR)
+        #fh = open(os.path.join(self.TESTDIR, "DAT0004.txt"), 'w+')
+        #fh.write(self.TEST_DATA_2)
+        #fh.close()
         
-        log.debug("Creating test file: %s/DAT0005.txt", self.TESTDIR)
-        fh = open(os.path.join(self.TESTDIR, "DAT0005.txt"), 'w+')
-        fh.write(self.TEST_DATA_LONG)
-        fh.close()
+        #log.debug("Creating test file: %s/DAT0005.txt", self.TESTDIR)
+        #fh = open(os.path.join(self.TESTDIR, "DAT0005.txt"), 'w+')
+        #fh.write(self.TEST_DATA_LONG)
+        #fh.close()
 
 
 class DataSetUnitTestCase(DataSetTestCase):
@@ -213,6 +229,7 @@ class DataSetUnitTestCase(DataSetTestCase):
         """
         super(DataSetUnitTestCase, self).setUp()
 
+#class DataSetIntegrationTestCase(DataSetTestCase, ParticleTestMixin):
 class DataSetIntegrationTestCase(DataSetTestCase):
     """
     Base class for instrument driver unit tests
