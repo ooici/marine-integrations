@@ -7,9 +7,9 @@
 USAGE:
  Make tests verbose and provide stdout
    * From the IDK
-       $$ bin/test_driver
-       $$ bin/test_driver -i [-t testname]
-       $$ bin/test_driver -q [-t testname]
+       $$ bin/dsa/test_driver
+       $$ bin/dsa/test_driver -i [-t testname]
+       $$ bin/dsa/test_driver -q [-t testname]
 """
 
 __author__ = '${author}'
@@ -22,4 +22,35 @@ from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
 
+from mi.idk.dataset.unit_test import DataSetTestCase
+from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
+from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
+###############################################################################
+#                            INTEGRATION TESTS                                #
+# Device specific integration tests are for                                   #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('INT', group='mi')
+class IntegrationTest(DataSetIntegrationTestCase):
+        
+    def setUp(self):
+        pass
+
+###############################################################################
+#                            QUALIFICATION TESTS                              #
+# Device specific qualification tests are for                                 #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('QUAL', group='mi')
+class QualificationTest(DataSetQualificationTestCase):
+    def setUp(self):
+        super(QualificationTest, self).setUp()
+
+    def test_initialize(self):
+        """
+        Test that we can start the container and initialize the dataset agent.
+        """
+        self.assert_initialize()
+        self.assert_stop_sampling()
+        self.assert_reset()
