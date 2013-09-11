@@ -512,8 +512,8 @@ class GliderParser(BufferLoadingParser):
             # particlize the dictionaries
             self._timestamp = self._string_to_timestamp(hdr_dict['fileopen_time'])
             self._increment_state(position, self._timestamp)
-            result_particles = _extract_sample(self._particle_class, ROW_MATCHER,
-                                               gpd, self._timestamp)
+            result_particles = self._extract_sample(self._particle_class, ROW_MATCHER,
+                                                    gpd, self._timestamp)
         else:
             log.warn("This file is empty")
 
