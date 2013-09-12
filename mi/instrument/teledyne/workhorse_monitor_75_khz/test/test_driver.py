@@ -41,7 +41,6 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import TeledyneProto
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import WorkhorseParameter
 
 from mi.instrument.teledyne.driver import TeledyneScheduledJob
-from mi.instrument.teledyne.test.test_driver import TeledyneParameterAltValue
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import TeledynePrompt
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
 
@@ -85,7 +84,7 @@ from mi.idk.unit_test import EXECUTE_TIMEOUT
 #                                                                             #
 ###############################################################################
 
-class WorkhorseParameterAltValue(TeledyneParameterAltValue):
+class WorkhorseParameterAltValue():
     # Values that are valid, but not the ones we want to use,
     # used for testing to verify that we are setting good values.
     #
