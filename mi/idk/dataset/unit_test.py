@@ -32,8 +32,8 @@ class DataSetTestConfig(InstrumentDriverTestConfig):
     """
     Singleton driver test config object.
     """
-    agent_module = 'ion.agents.data.dataset_agent'
-    agent_class = 'DataSetAgent'
+    agent_module = 'mi.idk.instrument_agent'
+    agent_class = 'DatasetAgent'
 
     container_deploy_file = 'deploy/r2qual.yml'
     publisher_deploy_file = 'deploy/r2pub.yml'
