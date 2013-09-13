@@ -65,8 +65,8 @@ class CtdpfParserDataParticle(DataParticle):
             raise SampleException("CtdParserDataParticle: No regex match of \
                                   parsed sample data: [%s]", self.raw_data)
         try:
-            temp = float(match.group(1))
-            cond = float(match.group(2))
+            temp = float(match.group(2))
+            cond = float(match.group(1))
             press = float(match.group(3))
             o2 = float(match.group(4))
         except (ValueError, TypeError, IndexError) as ex:

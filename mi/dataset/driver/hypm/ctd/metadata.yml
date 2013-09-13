@@ -3,6 +3,6 @@ driver_metadata:
   driver_name: hypm_ctd
   driver_path: hypm/ctd
   email: wfrench@ucsd.edu
-  release_notes: initial release
-  version: 0.0.1
+  release_notes: correct column order
+  version: 0.0.2
   constructor: HypmCTDPFDataSetDriver
