@@ -55,8 +55,8 @@ class DataParticleType(BaseEnum):
     GGLDR_FLORD_RECOVERED = 'ggldr_flord_recovered'
     GGLDR_DOSTA_DELAYED = 'ggldr_dosta_delayed'
     GGLDR_DOSTA_RECOVERED = 'ggldr_dosta_recovered'
-    GGLDR_GLDR_ENG_DELAYED = 'ggldr_eng_delayed'
-    GGLDR_GLDR_ENG_RECOVERED = 'ggldr_eng_recovered'
+    GGLDR_ENG_DELAYED = 'ggldr_eng_delayed'
+    GGLDR_ENG_RECOVERED = 'ggldr_eng_recovered'
     ### Coastal Gliders (CGLDR).
     CGLDR_CTDGV_DELAYED = 'cgldr_ctdgv_delayed'
     CGLDR_CTDGV_RECOVERED = 'cgldr_ctdgv_recovered'
@@ -66,8 +66,8 @@ class DataParticleType(BaseEnum):
     CGLDR_DOSTA_RECOVERED = 'cgldr_dosta_recovered'
     CGLDR_PARAD_DELAYED = 'cgldr_parad_delayed'
     CGLDR_PARAD_RECOVERED = 'cgldr_parad_recovered'
-    CGLDR_GLDR_ENG_DELAYED = 'cgldr_eng_delayed'
-    CGLDR_GLDR_ENG_RECOVERED = 'cgldr_eng_recovered'
+    CGLDR_ENG_DELAYED = 'cgldr_eng_delayed'
+    CGLDR_ENG_RECOVERED = 'cgldr_eng_recovered'
     # ADCPA data will parsed by a different parser (adcpa.py)
 
 
@@ -468,8 +468,8 @@ class GliderParser(BufferLoadingParser):
         # set additional output values
         self.data_keys = column_labels
         self.num_records = data_array.shape[0]
-        
-        return 
+
+        return
 
     def parse_chunks(self):
         """
