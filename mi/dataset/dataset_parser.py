@@ -154,7 +154,7 @@ class BufferLoadingParser(Parser):
         Load up the internal record buffer with some particles based on a
         gather from the get_block method.
         """
-        while self.get_block():            
+        while self.get_block():
             result = self.parse_chunks()
             self._record_buffer.extend(result)
 

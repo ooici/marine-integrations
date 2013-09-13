@@ -29,7 +29,7 @@ from mi.dataset.dataset_parser import BufferLoadingParser
 TIME_REGEX = r'\d{1,2}/\d{1,2}/\d{4}\s*\d{1,2}:\d{1,2}:\d{1,2}'
 TIME_MATCHER = re.compile(TIME_REGEX, re.DOTALL)
 
-DATA_REGEX = r' (\d*\.\d*),\s*(\d*\.\d*),\s*(\d*\.\d*),\s*(\d*\.\d)*'
+DATA_REGEX = r' (\d*\.\d*),\s*(\d*\.\d*),\s*(\d*\.\d*),\s*(\d*\.\d)'
 DATA_MATCHER = re.compile(DATA_REGEX, re.DOTALL)
 
 # TODO: This should be passed in as a parameter so the driver can define the particle name.
