@@ -87,7 +87,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         
         self.memento = {DataSourceConfigKey.HARVESTER: {},
                         DataSourceConfigKey.PARSER: {}}
-        self.driver = HypmCTDPFDataSetDriver(self.test_config.startup_config,
+        self.driver = HypmCTDPFDataSetDriver(self._driver_config()['startup_config'],
                                              self.memento,
                                              self.data_callback,
                                              self.state_callback,
@@ -95,7 +95,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
     def test_configuration(self):
         self.assert_data_particle_keys()
         
-        
+
+    @unittest.skip("Not complete")
     def test_simple_get(self):
         """
         Test the simple happy path of having one file get opened by the
@@ -206,6 +207,7 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             result = self.data_subscribers.get_samples('ctdpf_parsed')
+            log.debug("RESULT: %s", result)
         except Exception as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
