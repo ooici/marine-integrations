@@ -6,6 +6,8 @@
 @brief Base classes for data set agent tests.
 """
 import os
+import time
+import gevent
 import shutil
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -17,6 +19,7 @@ from mi.idk.unit_test import InstrumentDriverTestConfig
 from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import IDKConfigMissing
 from mi.idk.exceptions import IDKException
+from mi.idk.exceptions import SampleTimeout
 
 from mi.idk.dataset.metadata import Metadata
 from mi.idk.instrument_agent_client import InstrumentAgentClient
@@ -228,7 +231,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
         log.debug("Packet Config: %s", self.test_config.agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.agent_packet_config,
-        )
+            )
         self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.agent_resource_id)
 
         self.init_dataset_agent_client()
@@ -252,6 +255,43 @@ class DataSetQualificationTestCase(DataSetTestCase):
         )
 
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
+
+    def get_samples(self, stream_name, sample_count = 1, timeout = 10):
+        """
+        listen on a stream until 'sample_count' samples are read and return
+        a list of all samples read.  If the required number of samples aren't
+        read then throw an exception.
+
+        Note that this method does not clear the sample queue for the stream.
+        This should be done explicitly by the caller.  However, samples that
+        are consumed by this method are removed.
+
+        @raise SampleTimeout - if the required number of samples aren't read
+        """
+        result = []
+        start_time = time.time()
+        i = 1
+
+        log.debug("Fetch %d sample(s) from stream '%s'" % (sample_count, stream_name))
+        while(len(result) < sample_count):
+            if(self.data_subscribers.samples_received.has_key(stream_name) and
+               len(self.data_subscribers.samples_received.get(stream_name))):
+                log.trace("get_samples() received sample #%d!", i)
+                result.append(self.data_subscribers.samples_received[stream_name].pop())
+                i += 1
+
+            # Check for timeout
+            if(start_time + timeout < time.time()):
+                raise SampleTimeout()
+
+            if(not self.data_subscribers.samples_received.has_key(stream_name) or
+               len(self.data_subscribers.samples_received.get(stream_name)) == 0):
+                log.debug("No samples in the queue, sleep for a bit to let the queue fill up")
+                gevent.sleep(1)
+
+        log.debug("get_samples() complete.  returning %d records", sample_count)
+        return result
+
 
     def assert_initialize(self, final_state = ResourceAgentState.STREAMING):
         '''

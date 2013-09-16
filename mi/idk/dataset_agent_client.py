@@ -441,7 +441,9 @@ class InstrumentAgentDataSubscribers(object):
             if(start_time + timeout < time.time()):
                 raise SampleTimeout()
 
-            if(len(result) < sample_count):
+            if(not self.samples_received.has_key(stream_name) or
+               len(self.samples_received.get(stream_name)) == 0):
+                log.debug("No samples in the queue, sleep for a bit to let the queue fill up")
                 gevent.sleep(1)
 
         return result
