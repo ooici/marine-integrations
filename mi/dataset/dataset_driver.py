@@ -203,6 +203,7 @@ class SimpleDataSetDriver(DataSetDriver):
         @raise: ConfigurationException if configuration is invalid
         """
         errors = []
+        log.debug("Driver Config: %s", self._config)
 
         harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
 

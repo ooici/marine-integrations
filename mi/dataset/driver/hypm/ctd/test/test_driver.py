@@ -79,23 +79,24 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.exception_callback_result.append(ex)
     
     def setUp(self):
-        self.create_sample_data()
-        log.debug("Created test data")
+        super(IntegrationTest, self).setUp()
         self.state_callback_result = []
         self.data_callback_result = []
         self.exception_callback_result = []
         
         self.memento = {DataSourceConfigKey.HARVESTER: {},
                         DataSourceConfigKey.PARSER: {}}
-        self.driver = HypmCTDPFDataSetDriver(self.test_config.startup_config,
+        self.driver = HypmCTDPFDataSetDriver(self._driver_config()['startup_config'],
                                              self.memento,
                                              self.data_callback,
                                              self.state_callback,
                                              self.exception_callback)
+    @unittest.skip("Not complete")
     def test_configuration(self):
         self.assert_data_particle_keys()
         
-        
+
+    @unittest.skip("Not complete")
     def test_simple_get(self):
         """
         Test the simple happy path of having one file get opened by the
@@ -126,7 +127,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assertEqual(particle_dict[CtdpfParserDataParticleKey.CONDUCTIVITY], 4.1866)
         self.assertEqual(particle_dict[CtdpfParserDataParticleKey.PRESSURE], 161.08)
         self.assertEqual(particle_dict[CtdpfParserDataParticleKey.OXYGEN], 2738.1)
-        
+
+    @unittest.skip("Not complete")
     def test_multiple_sources(self):
         """
         Test that data comes from multiple source files with the correct number
@@ -138,6 +140,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Count particles that are generated, assert correct
         # Assert no errors on completion
 
+    @unittest.skip("Not complete")
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
@@ -151,6 +154,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Verify the same stopped state is re-used
         # Count total particles that are generated, assert correct, no dups
 
+    @unittest.skip("Not complete")
     def test_parser_error(self):
         """
         Test for the correct response from a parser. Parser should
@@ -160,6 +164,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Insert a bad data file at the beginning of the sequence
         # When parser starts, catch the exception of the bad data
         
+    @unittest.skip("Not complete")
     def test_harvester_error(self):
         """
         Test to make sure the harvester errors are appropriately caught
@@ -168,6 +173,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Setup a driver
         # Verify harvester error made it to the driver
         
+    @unittest.skip("Not complete")
     def test_bad_configuration(self):
         """
         Feed a bad configuration to the harvester (and driver if it takes one).
@@ -200,12 +206,13 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        self.create_sample_data()
+        self.create_sample_data('test_data_1.txt', 'DATA001.txt')
         self.assert_initialize()
 
         # Verify we get one sample
         try:
             result = self.data_subscribers.get_samples('ctdpf_parsed')
+            log.debug("RESULT: %s", result)
         except Exception as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
@@ -241,7 +248,6 @@ class QualificationTest(DataSetQualificationTestCase):
         should prevent the driver from going into streaming mode.  When the
         directory is created then we should be able to transition into streaming.
         """
-
         # Verify test directory doesn't exist
         # Initialize into command mode
         # Try to go streaming and verify failure
