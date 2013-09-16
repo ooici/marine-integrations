@@ -110,9 +110,21 @@ class DataSetDriver(object):
         self._verify_config()
 
     def start_sampling(self):
-        raise NotImplementedException('virtual methond needs to be specialized')
+        """
+        Start a new thread to monitor for data
+        """
+        self._sampling_thread = gevent.spawn(self._start_sampling)
 
     def stop_sampling(self):
+        """
+        Stop the sampling thread
+        """
+        self._sampling_thread.kill()
+
+    def _start_sampling(self):
+        raise NotImplementedException('virtual methond needs to be specialized')
+
+    def _stop_sampling(self):
         raise NotImplementedException('virtual methond needs to be specialized')
 
     def cmd_dvr(self, cmd, *args, **kwargs):
@@ -176,13 +188,13 @@ class SimpleDataSetDriver(DataSetDriver):
 
         self._init_state(memento)
 
-    def start_sampling(self):
+    def _start_sampling(self):
         self._harvester = self._build_harvester(self._harvester_state)
         self._harvester.start()
 
         self._start_publisher_thread()
 
-    def stop_sampling(self):
+    def _stop_sampling(self):
         self._harvester.shutdown()
         self._harvester = None
 
@@ -203,6 +215,7 @@ class SimpleDataSetDriver(DataSetDriver):
         @raise: ConfigurationException if configuration is invalid
         """
         errors = []
+        log.debug("Driver Config: %s", self._config)
 
         harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
 

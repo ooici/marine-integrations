@@ -4,6 +4,7 @@
 @brief Utility functions for the IDK
 """
 
+import os
 import shlex
 import subprocess
 
@@ -59,3 +60,18 @@ def get_dict_value(dictobj, keys, default=None):
 
     return default
 
+def remove_all_files(dir_name):
+    """
+    Remove all files from a directory.  Raise an exception if the directory contains something
+    other than files.
+    @param dir_name directory path to remove files.
+    @raise RuntimeError if the directory contains anything except files.
+    """
+    for file_name in os.listdir(dir_name):
+        file_path = os.path.join(dir_name, file_name)
+        if not os.path.isfile(file_path):
+            raise RuntimeError("%s is not a file", file_path)
+
+    for file_name in os.listdir(dir_name):
+        file_path = os.path.join(dir_name, file_name)
+        os.unlink(file_path)
