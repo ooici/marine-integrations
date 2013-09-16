@@ -79,8 +79,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.exception_callback_result.append(ex)
     
     def setUp(self):
-        self.create_sample_data()
-        log.debug("Created test data")
+        super(IntegrationTest, self).setUp()
         self.state_callback_result = []
         self.data_callback_result = []
         self.exception_callback_result = []
@@ -129,7 +128,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assertEqual(particle_dict[CtdpfParserDataParticleKey.PRESSURE], 161.08)
         self.assertEqual(particle_dict[CtdpfParserDataParticleKey.OXYGEN], 2738.1)
 
-    @unittest.skip("Not complete")        
+    @unittest.skip("Not complete")
     def test_multiple_sources(self):
         """
         Test that data comes from multiple source files with the correct number
@@ -207,7 +206,7 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        self.create_sample_data()
+        self.create_sample_data('test_data_1.txt', 'DATA001.txt')
         self.assert_initialize()
 
         # Verify we get one sample
