@@ -55,6 +55,7 @@ NANO_COMMAND_STRING = '*0100'
 NANO_DATA_ON = 'E4' # turns on continuous data
 NANO_DATA_OFF = 'E3' # turns off continuous data
 NANO_DUMP_SETTINGS = '1F' # outputs current settings
+NANO_SET_TIME = 'TS' # Tells the CPU to set the NANO time
 
 # default timeout.
 TIMEOUT = 10
@@ -75,6 +76,7 @@ class ProtocolState(BaseEnum):
 
 class ExportedInstrumentCommand(BaseEnum):
     DUMP_SETTINGS = "EXPORTED_INSTRUMENT_DUMP_SETTINGS"
+    SET_TIME = "EXPORTED_INSTRUMENT_SET_TIME"
 
 class ProtocolEvent(BaseEnum):
     """
@@ -88,6 +90,7 @@ class ProtocolEvent(BaseEnum):
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     DISCOVER = DriverEvent.DISCOVER
     DUMP_SETTINGS = ExportedInstrumentCommand.DUMP_SETTINGS
+    SET_TIME = ExportedInstrumentCommand.SET_TIME
 
 class Capability(BaseEnum):
     """
@@ -98,6 +101,7 @@ class Capability(BaseEnum):
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     DUMP_SETTINGS = ProtocolEvent.DUMP_SETTINGS
+    SET_TIME = ProtocolEvent.SET_TIME
     
 class Parameter(DriverParameter):
     """
@@ -121,6 +125,7 @@ class InstrumentCommand(BaseEnum):
     DATA_ON  = NANO_STRING + NANO_COMMAND_STRING + NANO_DATA_ON + NEWLINE # turns on continuous data 
     DATA_OFF = NANO_STRING + NANO_COMMAND_STRING + NANO_DATA_OFF + NEWLINE  # turns off continuous data 
     DUMP_SETTINGS  = NANO_STRING + NANO_COMMAND_STRING + NANO_DUMP_SETTINGS + NEWLINE   # outputs current settings 
+    SET_TIME  = NANO_STRING + NANO_SET_TIME + NEWLINE   # outputs current settings 
 
 class NANOCommandResponse():
 
@@ -137,12 +142,13 @@ class NANOCommandResponse():
     def regex():
         """
         Regular expression to match a sample pattern
+        Example command response to set-time:
+        NANO,*0001GR=08/28/13 18:15:15
         @return: regex string
         """
         pattern = r'NANO,' # pattern starts with NANO '
-        pattern += r'(.*),' # group 1: time
-        pattern += r'\*9900XY' # generic part of NANO command
-        pattern += r'(.*)' # group 2: echoed command
+        pattern += r'\*0001GR=' # generic part of NANO command
+        pattern += r'(.*)' # group 1: time
         pattern += NEWLINE
         return pattern
 
@@ -160,6 +166,9 @@ class NANOCommandResponse():
         is passed in as a parameter; that is used to check 
         whether the response from the sensor is valid (positive)
         or not.
+        
+        Note: The NANO doesn't always echo responses so
+        not using expected_response at this time.
         """
         retValue = False
 
@@ -170,11 +179,8 @@ class NANOCommandResponse():
                                   self.raw_data)
         try:
             resp_time = match.group(1)
-            timestamp = time.strptime(resp_time, "%Y/%m/%d %H:%M:%S")
-            self.nano_command_response = match.group(2)
-            if expected_response is not None:
-                if self.nano_command_response == expected_response:
-                    retValue = True
+            if resp_time:
+                retValue = True
             else:
                 retValue = True  
 
@@ -432,12 +438,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.DUMP_SETTINGS, self._handler_command_autosample_dump01)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SET_TIME, self._handler_command_autosample_set_time)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.DUMP_SETTINGS, self._handler_command_autosample_dump01)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET_TIME, self._handler_command_autosample_set_time)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
 
         # Construct the parameter dictionary containing device parameters,
@@ -448,6 +456,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCommand.DATA_ON, self._build_command)
         self._add_build_handler(InstrumentCommand.DATA_OFF, self._build_command)
         self._add_build_handler(InstrumentCommand.DUMP_SETTINGS, self._build_command)
+        self._add_build_handler(InstrumentCommand.SET_TIME, self._build_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCommand.DATA_ON, self._parse_data_on_off_resp)
@@ -766,22 +775,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Handlers common to Command and Autosample States.
     ########################################################################
 
-    def _handler_command_autosample_acquire_status(self, *args, **kwargs):
-        """
-        Get device status
-        """
-        next_state = None
-        next_agent_state = None
-        result = None
-        log.debug("_handler_command_autosample_acquire_status")
-
-        result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS)
-
-        log.debug("DUMP_SETTINGS response: %s", result)
-
-        return (next_state, (next_agent_state, result))
-
-
     def _handler_command_autosample_dump01(self, *args, **kwargs):
         """
         Get device status
@@ -802,4 +795,24 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
+
+    def _handler_command_autosample_set_time(self, *args, **kwargs):
+        """
+        Get device status
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+        log.debug("_handler_command_autosample_set_time")
+
+        timeout = kwargs.get('timeout')
+
+        if timeout is None:
+            result = self._do_cmd_resp(InstrumentCommand.SET_TIME)
+        else:
+            result = self._do_cmd_resp(InstrumentCommand.SET_TIME, timeout = timeout)
+
+        log.debug("SET_TIME response: %s", result)
+
+        return (next_state, (next_agent_state, result))
 

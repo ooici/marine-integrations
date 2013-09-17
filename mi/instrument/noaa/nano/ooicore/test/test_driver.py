@@ -119,8 +119,7 @@ BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 BOTPT_FIREHOSE_01  += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
 BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 
-SIGNON_STATUS = \
-        "NANO,2013/06/12 18:03:44,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N8642 ID01" + NEWLINE
+SET_TIME_RESPONSE = "NANO,*0001GR=08/28/13 18:15:15" + NEWLINE
 
 DUMP_STATUS = \
     "NANO,*--------------------------------------------------------------" + NEWLINE + \
@@ -383,6 +382,105 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
             
         finally:
             self.assertTrue(sampleException)
+
+    """
+    Verify that set_time response is handled
+    """
+    def test_set_time_response(self):
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        sampleException = False
+        try:
+            response = NANOCommandResponse(SET_TIME_RESPONSE)
+            retValue = response.check_command_response(NANO_DATA_ON)
+        
+        except SampleException as e:
+            log.debug('SampleException caught: %s.', e)
+            sampleException = True
+            
+        finally:
+            #self.assertTrue(sampleException)
+            self.assertTrue(retValue)
+
+    def test_get_response_set_time_response(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        ts = ntplib.system_to_ntp_time(time.time())
+
+        # DHE: need to return the status as a string; so, right now we check
+        # the command response to the dump commands (which is totally bogus 
+        # because it just echos exactly what we send, even if it's wrong)
+        # but we really want to return the status as a string.  Might have to
+        # expose the two commands to run separately instead of one combined
+        # acquire_status
+        driver._protocol._got_chunk(SET_TIME_RESPONSE, ts)
+
+        response = driver._protocol._get_response(timeout = 0, expected_prompt = 'Test')
+
+        # Force the instrument into command mode
+        self.assert_force_state(driver, DriverProtocolState.AUTOSAMPLE)
+
+        ts = ntplib.system_to_ntp_time(time.time())
+
+        driver._protocol._got_chunk(SET_TIME_RESPONSE, ts)
+
+        response = driver._protocol._get_response(timeout = 0, expected_prompt = 'Test')
+
+    def test_handler_set_time_response(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+        
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into a known state
+        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+
+        result = driver._protocol._handler_command_autosample_set_time(timeout = 0)
+        #result = driver._protocol._handler_command_autosample_set_time(timeout = 0)
+        ts = ntplib.system_to_ntp_time(time.time())
+
 
     """
     Verify that the BOTPT NANO driver publishes its particles correctly
