@@ -196,7 +196,7 @@ class Metadata(mi.idk.metadata.Metadata):
         # constructor must match driver class constructor name in driver.py
         self.constructor = prompt.text( 'Driver Constructor', self.constructor )
         self._generate_versioned_metadata()
-        
+
         if( self.confirm_metadata() ):
             self.store_to_file()
         else:

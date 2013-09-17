@@ -11,6 +11,8 @@ __license__ = 'Apache 2.0'
 
 from mi.core.log import get_logger ; log = get_logger()
 
+import string
+import re
 import os
 import shutil
 from os.path import exists, dirname
@@ -132,6 +134,13 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
         }
         
     def _stage_files(self, files):
+        """
+        Copy files from the original directory into two levels of versioned
+        directories within a staging directory, and replace the mi namespace
+        with the versioned driver name.mi to account for the new directory
+        (only the lower versioned dir is included in the egg)
+        @param files - a list of files to copy into the staging directory
+        """
         # make two levels of versioned file directories, i.e.
         #     driverA_0_1 (= build_dir)
         #         driverA_0_1
@@ -143,23 +152,47 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
         
         # we need to make sure an init file is in the versioned dir so
         # that find_packages() will look in here
-        init_path = self._versioned_dir() +"/__init__.py"
+        init_path = self._versioned_dir() + "/__init__.py"
         if not os.path.exists(init_path):
-            touch = open(init_path, "w")
-            touch.close()
-
+            init_file = open(init_path, "w")
+            init_file.close()
+        
         for filename in files:
-            # remove the first directories since we want to start from the driver platform dir
+            # get the paths to the source and destination files
             dest = os.path.join(self._versioned_dir(), filename)
             destdir = dirname(dest)
             source = os.path.join(self._repo_dir(), filename)
 
             log.debug(" Copy %s => %s" % (source, dest))
-
+            # make sure the destination directory exists, if it doesn't make it
             if not os.path.exists(destdir):
                 os.makedirs(destdir)
-
+            
+            # copy the file
             shutil.copy(source, dest)
+            
+            # replace mi in the copied files with the versioned driver module.mi
+            # this is necessary because the top namespace in the versioned files starts
+            # with the versioned driver name directory, not mi
+            driver_file = open(dest, "r")
+            contents = driver_file.read()
+            driver_file.close()
+            new_contents = re.sub(r'(^import |^from |\'|= )mi\.',
+                                  self._mi_replace,
+                                  contents,
+                                  count=0,
+                                  flags=re.MULTILINE)
+            driver_file = open(dest, "w")
+            driver_file.write(new_contents)
+            driver_file.close()
+            
+    def _mi_replace(self, matchobj):
+        """
+        This function is used in regex sub to replace mi with the versioned
+        driver name followed by mi
+        @param matchobj - the match object from re.sub
+        """
+        return matchobj.group(1) + self.metadata.driver_name_versioned + '.mi.'
 
     def _build_egg(self, files):
         try:
