@@ -2,9 +2,9 @@ __author__ = 'Bill French'
 
 import argparse
 
-from mi.idk.nose_test import NoseTest
+from mi.idk.dataset.nose_test import NoseTest
 from mi.idk.nose_test import BUILDBOT_DRIVER_FILE
-from mi.idk.metadata import Metadata
+from mi.idk.dataset.metadata import Metadata
 from mi.core.log import get_logger ; log = get_logger()
 
 import yaml

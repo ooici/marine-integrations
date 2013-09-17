@@ -26,6 +26,7 @@ from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
+
 # Fill in the blanks to initialize data set test case
 DataSetTestCase.initialize(
     driver_module=''
@@ -44,7 +45,8 @@ DataSetTestCase.initialize(
         },
         'parser': {}
     }
-)
+}
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -53,7 +55,9 @@ DataSetTestCase.initialize(
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
-
+        
+    def setUp(self):
+        pass
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -72,5 +76,3 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
         self.assert_stop_sampling()
         self.assert_reset()
-
-
