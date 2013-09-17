@@ -225,6 +225,23 @@ class QualificationTest(DataSetQualificationTestCase):
         # Start the driver going
         # See some data get published
 
+    def test_large_import(self):
+        """
+        There is a bug when activating an instrument go_active times out and
+        there was speculation this was due to blocking behavior in the agent.
+        https://jira.oceanobservatories.org/tasks/browse/OOIION-1284
+        """
+        self.create_sample_data('DATA003.txt')
+        self.assert_initialize()
+
+        log.debug("Sample Count: %d", len(self.data_subscribers.samples_received['ctdpf_parsed']))
+        result = self.get_samples('ctdpf_parsed',436,120)
+        log.debug("Sample Count: %d", len(self.data_subscribers.samples_received['ctdpf_parsed']))
+
+        #for i in range(1, 437):
+        #    result = self.data_subscribers.get_samples('ctdpf_parsed',437,120)
+        #    log.debug("RESULT %d: %s", i, result)
+
     @unittest.skip("not implemented yet")
     def test_stop_start(self):
         """
