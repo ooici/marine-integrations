@@ -12,6 +12,8 @@ import gevent
 from StringIO import StringIO
 from nose.plugins.attrib import attr
 
+from mi.core.log import get_logger ; log = get_logger()
+
 from mi.core.exceptions import SampleException
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
@@ -27,7 +29,7 @@ class CtdpfParserUnitTestCase(ParserUnitTestCase):
     TEST_DATA = """
 * Sea-Bird SBE52 MP Data File *
 
-** Starting profile number 42 **
+*** Starting profile number 42 ***
 10/01/2011 03:16:01
 GPS1:
 GPS2:
@@ -40,7 +42,7 @@ GPS2:
     MID_TIMESTAMP_DATA = """
 * Sea-Bird SBE52 MP Data File *
 
-** Starting profile number 42 **
+*** Starting profile number 42 ***
 10/01/2011 03:16:01
 GPS1:
 GPS2:
@@ -52,7 +54,7 @@ GPS2:
     LONG_DATA = """
 * Sea-Bird SBE52 MP Data File *
 
-** Starting profile number 42 **
+*** Starting profile number 42 ***
 10/01/2011 03:16:01
 GPS1:
 GPS2:
@@ -104,7 +106,7 @@ GPS2:
     BAD_TEST_DATA = """
 * Sea-Bird SBE52 MP Data File *
 
-** Starting profile number 42 **
+*** Starting profile number 42 ***
 10/01/2011 03:16:01
 GPS1:
 GPS2:
@@ -117,7 +119,7 @@ GPS2:
     NO_TIME_TEST_DATA = """
 * Sea-Bird SBE52 MP Data File *
 
-** Starting profile number 42 **
+*** Starting profile number 42 ***
 GPS1:
 GPS2:
  42.2095, 13.4344,  143.63,   2830.2
@@ -181,19 +183,19 @@ GPS2:
                                   self.pos_callback, self.pub_callback) # last one is the link to the data source
 
         result = self.parser.get_records(1)
-        self.assert_result(result, 135, self.base_timestamp, self.particle_a)
+        self.assert_result(result, 137, self.base_timestamp, self.particle_a)
         result = self.parser.get_records(1)
-        self.assert_result(result, 172, self.base_timestamp+1, self.particle_b)
+        self.assert_result(result, 174, self.base_timestamp+1, self.particle_b)
         result = self.parser.get_records(1)
-        self.assert_result(result, 209, self.base_timestamp+2, self.particle_c)
+        self.assert_result(result, 211, self.base_timestamp+2, self.particle_c)
         result = self.parser.get_records(1)
-        self.assert_result(result, 246, self.base_timestamp+3, self.particle_d)
+        self.assert_result(result, 248, self.base_timestamp+3, self.particle_d)
 
         # no data left, dont move the position
         result = self.parser.get_records(1)
         self.assertEqual(result, [])
-        self.assertEqual(self.parser._state[StateKey.POSITION], 246)
-        self.assertEqual(self.position_callback_value[StateKey.POSITION], 246)
+        self.assertEqual(self.parser._state[StateKey.POSITION], 248)
+        self.assertEqual(self.position_callback_value[StateKey.POSITION], 248)
         self.assertEqual(self.position_callback_value[StateKey.TIMESTAMP],
                          self.base_timestamp+3)
         self.assert_(isinstance(self.publish_callback_value, list))        
@@ -206,8 +208,8 @@ GPS2:
 
         result = self.parser.get_records(2)
         self.assertEqual(result, [self.particle_a, self.particle_b])
-        self.assertEqual(self.parser._state[StateKey.POSITION], 172)
-        self.assertEqual(self.position_callback_value[StateKey.POSITION], 172)
+        self.assertEqual(self.parser._state[StateKey.POSITION], 174)
+        self.assertEqual(self.position_callback_value[StateKey.POSITION], 174)
         self.assertEqual(self.position_callback_value[StateKey.TIMESTAMP],
                          self.base_timestamp+1)
         self.assertEqual(self.publish_callback_value[0], self.particle_a)
@@ -220,7 +222,7 @@ GPS2:
                                   self.pos_callback, self.pub_callback) # last one is the link to the data source
 
         result = self.parser.get_records(1)
-        self.assert_result(result, 135, self.base_timestamp, self.particle_a)
+        self.assert_result(result, 137, self.base_timestamp, self.particle_a)
         
     def test_no_timestamp(self):
         """ There's no timestamp in the data! Ack! """
@@ -238,34 +240,33 @@ GPS2:
 
         result = self.parser.get_records(44)
         self.assertEqual(result[-1], self.particle_z)
-        self.assertEqual(self.parser._state[StateKey.POSITION], 1726)
-        self.assertEqual(self.position_callback_value[StateKey.POSITION], 1726)
+        self.assertEqual(self.parser._state[StateKey.POSITION], 1728)
+        self.assertEqual(self.position_callback_value[StateKey.POSITION], 1728)
         self.assertEqual(self.position_callback_value[StateKey.TIMESTAMP],
                          self.base_timestamp+43)
         self.assertEqual(self.publish_callback_value[-1], self.particle_z)
 
     def test_mid_state_start(self):
-        new_state = {StateKey.POSITION:209, StateKey.TIMESTAMP:self.base_timestamp+2}
+        new_state = {StateKey.POSITION:211, StateKey.TIMESTAMP:self.base_timestamp+2}
         self.stream_handle = StringIO(CtdpfParserUnitTestCase.TEST_DATA)
         self.parser = CtdpfParser(self.config, new_state, self.stream_handle,
                                   self.pos_callback, self.pub_callback) # last one is the link to the data source
         result = self.parser.get_records(1)
-        self.assert_result(result, 246, self.base_timestamp+3, self.particle_d)
+        self.assert_result(result, 248, self.base_timestamp+3, self.particle_d)
 
     def test_set_state(self):
-        new_state = {StateKey.POSITION:172, StateKey.TIMESTAMP:self.base_timestamp+1}
+        new_state = {StateKey.POSITION:174, StateKey.TIMESTAMP:self.base_timestamp+1}
         self.stream_handle = StringIO(CtdpfParserUnitTestCase.TEST_DATA)
         self.parser = CtdpfParser(self.config, self.position, self.stream_handle,
                                   self.pos_callback, self.pub_callback) # last one is the link to the data source
         result = self.parser.get_records(1)
-        self.assert_result(result, 135, self.base_timestamp, self.particle_a)
+        self.assert_result(result, 137, self.base_timestamp, self.particle_a)
 
         self.parser.set_state(new_state)
         result = self.parser.get_records(1)
-        self.assert_result(result, 210, self.base_timestamp+2, self.particle_c)
+        self.assert_result(result, 212, self.base_timestamp+2, self.particle_c)
         result = self.parser.get_records(1)
-        self.assert_result(result, 247, self.base_timestamp+3, self.particle_d)
-
+        self.assert_result(result, 249, self.base_timestamp+3, self.particle_d)
         
     def test_mid_timestamp(self):
         self.stream_handle = StringIO(CtdpfParserUnitTestCase.MID_TIMESTAMP_DATA)
@@ -273,8 +274,7 @@ GPS2:
                                   self.pos_callback, self.pub_callback) # last one is the link to the data source
 
         result = self.parser.get_records(1)
-        self.assert_result(result, 135, self.base_timestamp, self.particle_a)
+        self.assert_result(result, 137, self.base_timestamp, self.particle_a)
 
         result = self.parser.get_records(1)
-        self.assert_result(result, 192, self.base_timestamp+60, self.particle_e)
-
+        self.assert_result(result, 194, self.base_timestamp+60, self.particle_e)
