@@ -16,7 +16,6 @@ import string
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
-from mi.dataset.harvester import AdditiveSequentialFileHarvester
 
 class ${constructor}(SimpleDataSetDriver):
     def _build_parser(self, parser_state, infile):
@@ -31,11 +30,6 @@ class ${constructor}(SimpleDataSetDriver):
         """
         Build and return the harvester
         """
-        self._harvester = AdditiveSequentialFileHarvester(
-            self._harvester_config, 
-            harvester_state,
-            self._new_file_callback,
-            self._exception_callback
-        )
-       
+        # *** Replace the following with harvester initialization ***
+        self._harvester = None     
         return self._harvester
