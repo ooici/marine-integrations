@@ -5,4 +5,4 @@ driver_metadata:
   email: spearce@coas.oregonstate.edu
   release_notes: initial release
   version: 0.0.1
-  constructor: HypmCTDPFDataSetDriver
+  constructor: CTDGVDataSetDriver
