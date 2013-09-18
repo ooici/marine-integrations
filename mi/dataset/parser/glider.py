@@ -25,7 +25,7 @@ from mi.dataset.dataset_parser import BufferLoadingParser
 log = get_logger()
 
 # regex
-ROW_REGEX = r'^(.*)$'  # just give me the whole effing row and get out of my way.
+ROW_REGEX = r'^(.*)\n'  # just give me the whole effing row and get out of my way.
 ROW_MATCHER = re.compile(ROW_REGEX)
 
 
@@ -55,8 +55,8 @@ class DataParticleType(BaseEnum):
     GGLDR_FLORD_RECOVERED = 'ggldr_flord_recovered'
     GGLDR_DOSTA_DELAYED = 'ggldr_dosta_delayed'
     GGLDR_DOSTA_RECOVERED = 'ggldr_dosta_recovered'
-    GGLDR_GLDR_ENG_DELAYED = 'ggldr_eng_delayed'
-    GGLDR_GLDR_ENG_RECOVERED = 'ggldr_eng_recovered'
+    GGLDR_ENG_DELAYED = 'ggldr_eng_delayed'
+    GGLDR_ENG_RECOVERED = 'ggldr_eng_recovered'
     ### Coastal Gliders (CGLDR).
     CGLDR_CTDGV_DELAYED = 'cgldr_ctdgv_delayed'
     CGLDR_CTDGV_RECOVERED = 'cgldr_ctdgv_recovered'
@@ -66,8 +66,8 @@ class DataParticleType(BaseEnum):
     CGLDR_DOSTA_RECOVERED = 'cgldr_dosta_recovered'
     CGLDR_PARAD_DELAYED = 'cgldr_parad_delayed'
     CGLDR_PARAD_RECOVERED = 'cgldr_parad_recovered'
-    CGLDR_GLDR_ENG_DELAYED = 'cgldr_eng_delayed'
-    CGLDR_GLDR_ENG_RECOVERED = 'cgldr_eng_recovered'
+    CGLDR_ENG_DELAYED = 'cgldr_eng_delayed'
+    CGLDR_ENG_RECOVERED = 'cgldr_eng_recovered'
     # ADCPA data will parsed by a different parser (adcpa.py)
 
 
@@ -83,7 +83,8 @@ class GgldrCtdgvDelayedParticleKey(DataParticleKey):
         'm_lon',
         'sci_water_cond',
         'sci_water_pressure',
-        'sci_water_temp'
+        'sci_water_temp',
+        'sci_ctd41cp_timestamp'
     ]
 
 
@@ -387,14 +388,41 @@ class GliderParser(BufferLoadingParser):
         self._timestamp = 0.0
         self._record_buffer = []  # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION: 0, StateKey.TIMESTAMP: 0.0}
-
+        self._read_header()
         if state:
             self.set_state(self._state)
+
+    def _read_header(self):
+        self._header_dict = {}
+        # should be 14 header lines, will double check in self
+        # describing header info.
+        num_hdr_lines = 14
+        row_count = 1
+        while row_count <= num_hdr_lines:
+            line = self._stream_handle.readline()
+            split_line = line.split()
+            # update num_hdr_lines based on the header info.
+            if 'num_ascii_tags' in split_line:
+                num_hdr_lines = int(split_line[1])
+            # remove a ':' from the key string below using :-1
+            self._header_dict[split_line[0][:-1]] = split_line[1]
+            row_count += 1
+        column_labels = self._stream_handle.readline().split()
+        self._header_dict['labels'] = column_labels
+        column_type = self._stream_handle.readline().split()
+        self._header_dict['data_types'] = column_type
+        column_num_bytes = self._stream_handle.readline().split()
+        self._header_dict['num_of_bytes'] = column_num_bytes
+
+        # What file position are we now?
+        file_position = self._stream_handle.tell()
+        # TODO: Need to figure out what to insert here for timestamp
+        self.set_state({StateKey.POSITION: file_position, StateKey.TIMESTAMP: 1.0})
 
     def set_state(self, state_obj):
         """
         Set the value of the state object for this parser
-        @param state_obj The object to set the state to. Should be a list with
+        @param state_obj The object to set the state to. Should be a dict with
         a StateKey.POSITION value and StateKey.TIMESTAMP value. The position is
         number of bytes into the file, the timestamp is an NTP4 format timestamp.
         @throws DatasetParserException if there is a bad state structure
@@ -440,9 +468,9 @@ class GliderParser(BufferLoadingParser):
         """
         # read the column labels, data types and number of bytes of each data
         # type from the first three data rows.
-        column_labels = data[0].split()
-        column_type = data[1].split()
-        column_num_bytes = data[2].split()
+        #column_labels = data[0].split()
+        #column_type = data[1].split()
+        #column_num_bytes = data[2].split()
 
         # use np.array's ability to grab the columns of an array
         data_array = np.array(data[3:])  # NOTE: this is an array of strings
@@ -468,8 +496,8 @@ class GliderParser(BufferLoadingParser):
         # set additional output values
         self.data_keys = column_labels
         self.num_records = data_array.shape[0]
-        
-        return 
+
+        return
 
     def parse_chunks(self):
         """

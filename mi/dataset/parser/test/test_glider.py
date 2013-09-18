@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.test.test_ctdpf Base dataset parser test code
-@file mi/dataset/parser/test/test_ctdpf.py
-@author Steve Foley
-@brief Test code for a CTDPF data parser. There may be different flavors which
-would lead to different subclasses of the test suites
+@package mi.dataset.parser.test.test_glider Base dataset parser test code
+@file mi/dataset/parser/test/test_glider.py
+@author Chris Wingard & Stuart Pearce
+@brief Test code for a Glider data parser.
 """
 
 import gevent
