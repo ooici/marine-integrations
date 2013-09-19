@@ -11,7 +11,7 @@ from mi.core.log import get_logger ; log = get_logger()
 
 import mi.idk.package_driver
 from mi.idk.exceptions import InvalidParameters
-
+from mi.idk import prompt
 from mi.idk.dataset.metadata import Metadata
 from mi.idk.dataset.nose_test import NoseTest
 from mi.idk.dataset.driver_generator import DriverGenerator

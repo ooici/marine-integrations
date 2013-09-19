@@ -7,6 +7,7 @@
 import sys
 import os.path
 import zipfile
+import subprocess
 
 import yaml
 
@@ -209,9 +210,11 @@ class PackageDriver(object):
             # commit the changed file to git
             cmd = 'git commit ' + str(self.metadata.metadata_path()) + ' -m \'Updated metadata driver version\''
             os.system(cmd)
-            if prompt.yes_no('It is recommended that you push your changes to git now.  Do you want to \'git push\' now?'):
+            if prompt.yes_no('Local commited changes not pushed to remote will be lost.  Do you want to \'git push\' now?'):
                 cmd = 'git push'
-                os.system(cmd)
+                output = subprocess.check_output(cmd, shell=True)
+                if len(output) > 0:
+                    log.debug('git push returned: %s', output)
 
     ###
     #   Private Methods
