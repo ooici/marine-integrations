@@ -547,6 +547,7 @@ class TestUnitCommandInstrumentProtocol(MiUnitTestCase):
         
         result = self.protocol._do_cmd_resp(self.TestEvent.TEST, expected_prompt=">-")
         self.assertEqual(result, self._parse_test_response(self._build_simple_command(None)+" >-", ">-"))
+
         # Should time out looking for a bad prompt
         self.assertRaises(InstrumentTimeoutException,
                           self.protocol._do_cmd_resp,
@@ -557,10 +558,13 @@ class TestUnitCommandInstrumentProtocol(MiUnitTestCase):
         self.assertEqual(result, self._parse_test_response("do it", ""))
         result = self.protocol._do_cmd_resp(self.TestEvent.TEST, response_regex=regex3)
         self.assertEqual(result, self._parse_test_response("doit", ""))
-        result = self.protocol._do_cmd_resp(self.TestEvent.TEST, response_regex=regex2)
-        self.assertEqual(result, self._parse_test_response("", ""))
         result = self.protocol._do_cmd_resp(self.TestEvent.TEST, response_regex=regex4)
         self.assertEqual(result, self._parse_test_response("", ""))
+
+        # Should time out looking for a bad regex
+        self.assertRaises(InstrumentTimeoutException,
+                          self.protocol._do_cmd_resp,
+                          self.TestEvent.TEST, response_regex=regex2)
                           
         # combo case
         self.assertRaises(InstrumentProtocolException,
