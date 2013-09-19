@@ -91,6 +91,7 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
             'driver_name': self.metadata.driver_name,
             'driver_path': self.metadata.driver_path,
             'release_notes': self.metadata.notes,
+            'constructor': self.metadata.constructor,
         }
 
     def _test_template_data(self):

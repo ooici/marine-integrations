@@ -23,14 +23,18 @@ from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
 
+from exceptions import Exception
+
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetTestConfig
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
+from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.parser.ctdpf import CtdpfParser
 from mi.dataset.parser.test.test_ctdpf import CtdpfParserUnitTestCase
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
+from mi.dataset.driver.hypm.ctd.driver import HypmCTDPFDataSetDriver
 
 from ion.services.dm.utility.granule_utils import RecordDictionaryTool
 
@@ -39,10 +43,10 @@ DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.hypm.ctd.driver',
     driver_class="HypmCTDPFDataSetDriver",
 
-    agent_preload_id = 'EDA_NOSE_CTD',
+    agent_preload_id = 'EDA1',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = ['nose_ctd_external'],
+    agent_packet_config = HypmCTDPFDataSetDriver.stream_config(),
     startup_config = {
         'harvester':
         {
@@ -63,10 +67,36 @@ DataSetTestCase.initialize(
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
         
-    def setUp(self):
-        self.create_sample_data()
-        log.debug("Created test data")
+    STREAM_NAME = ""
+
+    def state_callback(self, state):
+        self.state_callback_result.append(state)
     
+    def data_callback(self, data):
+        self.data_callback_result.append(data)
+
+    def exception_callback(self, ex):
+        self.exception_callback_result.append(ex)
+    
+    def setUp(self):
+        super(IntegrationTest, self).setUp()
+        self.state_callback_result = []
+        self.data_callback_result = []
+        self.exception_callback_result = []
+        
+        self.memento = {DataSourceConfigKey.HARVESTER: {},
+                        DataSourceConfigKey.PARSER: {}}
+        self.driver = HypmCTDPFDataSetDriver(self._driver_config()['startup_config'],
+                                             self.memento,
+                                             self.data_callback,
+                                             self.state_callback,
+                                             self.exception_callback)
+    @unittest.skip("Not complete")
+    def test_configuration(self):
+        self.assert_data_particle_keys()
+        
+
+    @unittest.skip("Not complete")
     def test_simple_get(self):
         """
         Test the simple happy path of having one file get opened by the
@@ -74,12 +104,31 @@ class IntegrationTest(DataSetIntegrationTestCase):
         published as they should.
         """
         self.fail()
-        # Set up driver
-        # Start a harvester going to get one file
-        # Fire off a poller for that file
+        # Start a harvester going to get one file, start parser, too
+        self.driver.start_sampling()
+        gevent.sleep(5)
         # Count particles that are generated, assert correct
-        # Assert no errors on completion
+        self.assertEqual(len(self.data_callback_result), 53)
+        self.assertEqual(len(self.state_callback_result), 53)
+        
+        for particle in self.data_callback_result:
+            self.assert_data_particle_header(particle, STREAM_NAME)
+        
+        # check the first value 10.5914,  4.1870,  161.06,   2693.0
+        particle_dict = self.get_data_particle_values_as_dict(self.data_callback_result[0])
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.TEMPERATURE], 10.5941)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.CONDUCTIVITY], 4.1870)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.PRESSURE], 161.06)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.OXYGEN], 2693.0)
+        
+        # Check the last value 335.5913,  4.1866,  161.08,   2738.1
+        particle_dict = self.get_data_particle_values_as_dict(self.data_callback_result[-1])
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.TEMPERATURE], 335.5913)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.CONDUCTIVITY], 4.1866)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.PRESSURE], 161.08)
+        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.OXYGEN], 2738.1)
 
+    @unittest.skip("Not complete")
     def test_multiple_sources(self):
         """
         Test that data comes from multiple source files with the correct number
@@ -91,6 +140,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Count particles that are generated, assert correct
         # Assert no errors on completion
 
+    @unittest.skip("Not complete")
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
@@ -104,6 +154,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Verify the same stopped state is re-used
         # Count total particles that are generated, assert correct, no dups
 
+    @unittest.skip("Not complete")
     def test_parser_error(self):
         """
         Test for the correct response from a parser. Parser should
@@ -113,6 +164,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Insert a bad data file at the beginning of the sequence
         # When parser starts, catch the exception of the bad data
         
+    @unittest.skip("Not complete")
     def test_harvester_error(self):
         """
         Test to make sure the harvester errors are appropriately caught
@@ -121,6 +173,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Setup a driver
         # Verify harvester error made it to the driver
         
+    @unittest.skip("Not complete")
     def test_bad_configuration(self):
         """
         Feed a bad configuration to the harvester (and driver if it takes one).
@@ -153,11 +206,16 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        self.create_sample_data()
+        self.create_sample_data('test_data_1.txt', 'DATA001.txt')
         self.assert_initialize()
 
         # Verify we get one sample
-        result = self.data_subscribers.get_samples('nose_ctd_external')
+        try:
+            result = self.data_subscribers.get_samples('ctdpf_parsed')
+            log.debug("RESULT: %s", result)
+        except Exception as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
 
         # Verify the sample was correct
         #self.assertGranule(result.pop())
@@ -166,6 +224,23 @@ class QualificationTest(DataSetQualificationTestCase):
         # Setup the agent (and thus driver, harvester, and parser)
         # Start the driver going
         # See some data get published
+
+    def test_large_import(self):
+        """
+        There is a bug when activating an instrument go_active times out and
+        there was speculation this was due to blocking behavior in the agent.
+        https://jira.oceanobservatories.org/tasks/browse/OOIION-1284
+        """
+        self.create_sample_data('DATA003.txt')
+        self.assert_initialize()
+
+        log.debug("Sample Count: %d", len(self.data_subscribers.samples_received['ctdpf_parsed']))
+        result = self.get_samples('ctdpf_parsed',436,120)
+        log.debug("Sample Count: %d", len(self.data_subscribers.samples_received['ctdpf_parsed']))
+
+        #for i in range(1, 437):
+        #    result = self.data_subscribers.get_samples('ctdpf_parsed',437,120)
+        #    log.debug("RESULT %d: %s", i, result)
 
     @unittest.skip("not implemented yet")
     def test_stop_start(self):
@@ -190,7 +265,6 @@ class QualificationTest(DataSetQualificationTestCase):
         should prevent the driver from going into streaming mode.  When the
         directory is created then we should be able to transition into streaming.
         """
-
         # Verify test directory doesn't exist
         # Initialize into command mode
         # Try to go streaming and verify failure

@@ -11,7 +11,7 @@ from nose.plugins.attrib import attr
 
 from mi.core.unit_test import MiUnitTestCase
 from mi.core.exceptions import DataSourceLocationException
-from mi.dataset.driver import DataSourceLocation
+from mi.dataset.dataset_driver import DataSourceLocation
 
 @attr('UNIT', group='mi')
 class DataSourceLocationUnitTestCase(MiUnitTestCase):

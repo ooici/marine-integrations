@@ -11,7 +11,6 @@ __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
 import gevent
-import copy
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import DataSourceLocationException
@@ -63,6 +62,19 @@ class DataSourceLocation(object):
             self.parser_position = parser_position
             return
 
+class DataSetDriverConfigKeys(BaseEnum):
+    PARTICLE_MODULE = "particle_module"
+    PARTICLE_CLASS = "particle_class"
+    DIRECTORY = "directory"
+    PATTERN = "pattern"
+    FREQUENCY = "frequency"
+    HARVESTER = "harvester"
+    PARSER = "parser"
+    MODULE = "module"
+    CLASS = "class"
+    URI = "uri"
+    CLASS_ARGS = "class_args"
+    
 class DataSetDriver(object):
     """
     Base class for data set drivers.  Provides:
@@ -74,6 +86,19 @@ class DataSetDriver(object):
 
     Subclasses need to include harvesters and parsers and
     be specialized to handle the interaction between the two.
+    
+    Configurations should contain keys from the DataSetDriverConfigKey class
+    and should look something like this example (more full documentation in the
+    "Dataset Agent Architecture" page on the OOI wiki):
+    {
+        'harvester':
+        {
+            'directory': '/tmp/dsatest',
+            'pattern': '*.txt',
+            'frequency': 1,
+        },
+        'parser': {}
+    }
     """
     def __init__(self, config, memento, data_callback, state_callback, exception_callback):
         self._config = config
@@ -85,9 +110,21 @@ class DataSetDriver(object):
         self._verify_config()
 
     def start_sampling(self):
-        raise NotImplementedException('virtual methond needs to be specialized')
+        """
+        Start a new thread to monitor for data
+        """
+        self._sampling_thread = gevent.spawn(self._start_sampling)
 
     def stop_sampling(self):
+        """
+        Stop the sampling thread
+        """
+        self._sampling_thread.kill()
+
+    def _start_sampling(self):
+        raise NotImplementedException('virtual methond needs to be specialized')
+
+    def _stop_sampling(self):
         raise NotImplementedException('virtual methond needs to be specialized')
 
     def cmd_dvr(self, cmd, *args, **kwargs):
@@ -151,13 +188,13 @@ class SimpleDataSetDriver(DataSetDriver):
 
         self._init_state(memento)
 
-    def start_sampling(self):
+    def _start_sampling(self):
         self._harvester = self._build_harvester(self._harvester_state)
         self._harvester.start()
 
         self._start_publisher_thread()
 
-    def stop_sampling(self):
+    def _stop_sampling(self):
         self._harvester.shutdown()
         self._harvester = None
 
@@ -178,6 +215,7 @@ class SimpleDataSetDriver(DataSetDriver):
         @raise: ConfigurationException if configuration is invalid
         """
         errors = []
+        log.debug("Driver Config: %s", self._config)
 
         harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
 
@@ -208,7 +246,7 @@ class SimpleDataSetDriver(DataSetDriver):
             if(len(self._new_file_queue) > 0):
                 self._got_file(self._new_file_queue.pop(0))
 
-            gevent.sleep(1)
+            gevent.sleep(30)
 
     def _got_file(self, file_tuple):
         """

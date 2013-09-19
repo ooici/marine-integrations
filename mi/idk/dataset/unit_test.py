@@ -6,13 +6,22 @@
 @brief Base classes for data set agent tests.
 """
 import os
+import time
+import gevent
+import shutil
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.unit_test import MiIntTestCase
+from mi.core.unit_test import ParticleTestMixin
 
+from mi.idk.util import remove_all_files
 from mi.idk.unit_test import InstrumentDriverTestConfig
 from mi.idk.exceptions import TestNotInitialized
+from mi.idk.exceptions import IDKConfigMissing
+from mi.idk.exceptions import IDKException
+from mi.idk.exceptions import SampleTimeout
 
+from mi.idk.dataset.metadata import Metadata
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
 from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
@@ -31,8 +40,8 @@ class DataSetTestConfig(InstrumentDriverTestConfig):
     """
     Singleton driver test config object.
     """
-    agent_module = 'ion.agents.data.dataset_agent'
-    agent_class = 'DataSetAgent'
+    agent_module = 'mi.idk.instrument_agent'
+    agent_class = 'DatasetAgent'
 
     container_deploy_file = 'deploy/r2qual.yml'
     publisher_deploy_file = 'deploy/r2pub.yml'
@@ -51,89 +60,6 @@ class DataSetTestCase(MiIntTestCase):
     """
     # configuration singleton
     test_config = DataSetTestConfig()
-
-    TEST_DATA_1 = """
-* Sea-Bird SBE52 MP Data File *
-
-*** Starting profile number 3 ***
-07/26/2013 21:01:03
-GPS1:
-GPS2:
- 10.5914,  4.1870,  161.06,   2693.0
- 11.5912,  4.1875,  161.06,   2709.0
- 12.5912,  4.1870,  161.08,   2716.1
- 13.5913,  4.1872,  161.09,   2723.5
- 14.5912,  4.1869,  161.10,   2727.3
- 15.5912,  4.1867,  161.10,   2731.8
- 16.5914,  4.1870,  161.09,   2733.4
- 17.5913,  4.1866,  161.08,   2738.1
- 18.5914,  4.1863,  161.08,   2739.1
- 19.5912,  4.1862,  161.06,   2740.1
-"""
-
-    TEST_DATA_2 = """
-* Sea-Bird SBE52 MP Data File *
-
-*** Starting profile number 3 ***
-07/26/2013 21:01:03
-GPS1:
-GPS2:
- 20.5914,  4.1870,  161.06,   2693.0
- 21.5912,  4.1875,  161.06,   2709.0
- 22.5912,  4.1870,  161.08,   2716.1
- 23.5913,  4.1872,  161.09,   2723.5
- 24.5912,  4.1869,  161.10,   2727.3
- 25.5912,  4.1867,  161.10,   2731.8
- 26.5914,  4.1870,  161.09,   2733.4
- 27.5913,  4.1866,  161.08,   2738.1
-"""
-
-    TEST_DATA_LONG = """
-* Sea-Bird SBE52 MP Data File *
-
-*** Starting profile number 3 ***
-07/26/2013 21:01:03
-GPS1:
-GPS2:
- 300.5914,  4.1870,  161.06,   2693.0
- 301.5912,  4.1875,  161.06,   2709.0
- 302.5912,  4.1870,  161.08,   2716.1
- 303.5913,  4.1872,  161.09,   2723.5
- 304.5912,  4.1869,  161.10,   2727.3
- 305.5912,  4.1867,  161.10,   2731.8
- 306.5914,  4.1870,  161.09,   2733.4
- 307.5913,  4.1866,  161.08,   2738.1
- 308.5914,  4.1870,  161.06,   2693.0
- 309.5912,  4.1875,  161.06,   2709.0
- 310.5912,  4.1870,  161.08,   2716.1
- 311.5913,  4.1872,  161.09,   2723.5
- 312.5912,  4.1869,  161.10,   2727.3
- 313.5912,  4.1867,  161.10,   2731.8
- 314.5914,  4.1870,  161.09,   2733.4
- 315.5913,  4.1866,  161.08,   2738.1
- 316.5914,  4.1870,  161.06,   2693.0
- 317.5912,  4.1875,  161.06,   2709.0
- 318.5912,  4.1870,  161.08,   2716.1
- 319.5913,  4.1872,  161.09,   2723.5
- 320.5912,  4.1869,  161.10,   2727.3
- 321.5912,  4.1867,  161.10,   2731.8
- 322.5914,  4.1870,  161.09,   2733.4
- 323.5913,  4.1866,  161.08,   2738.1
- 324.5912,  4.1867,  161.10,   2731.8
- 325.5914,  4.1870,  161.09,   2733.4
- 326.5913,  4.1866,  161.08,   2738.1
- 327.5912,  4.1867,  161.10,   2731.8
- 328.5914,  4.1870,  161.09,   2733.4
- 329.5913,  4.1866,  161.08,   2738.1
- 330.5912,  4.1867,  161.10,   2731.8
- 331.5914,  4.1870,  161.09,   2733.4
- 332.5913,  4.1866,  161.08,   2738.1
- 333.5912,  4.1867,  161.10,   2731.8
- 334.5914,  4.1870,  161.09,   2733.4
- 335.5913,  4.1866,  161.08,   2738.1
-"""
-
-    TESTDIR = '/tmp/dsatest'
 
     @classmethod
     def initialize(cls, *args, **kwargs):
@@ -156,6 +82,8 @@ GPS2:
         if not self.test_config.initialized:
             return TestNotInitialized(msg="Tests non initialized. Missing DataSetTestCase.initialize(...)?")
 
+        self.clear_sample_data()
+
     def _driver_config(self):
         """
         Build the driver configuration and return it
@@ -177,31 +105,92 @@ GPS2:
             'agent': {'resource_id': self.test_config.agent_resource_id}
         }
         return config
-    
-    def create_sample_data(self):
-        """
-        Create some test data: Some files with some lines in them. Leave room
-        for individual test cases to insert files at the beginning of the sequence
-        """
-        log.debug("Creating test file directory: %s", self.TESTDIR)
-        if(not os.path.exists(self.TESTDIR)):
-            os.makedirs(self.TESTDIR)
-    
-        log.debug("Creating test file: %s/DAT0003.txt", self.TESTDIR)
-        fh = open(os.path.join(self.TESTDIR, "DAT0003.txt"), 'w+')
-        fh.write(self.TEST_DATA_1)
-        fh.close()
-        
-        log.debug("Creating test file: %s/DAT0004.txt", self.TESTDIR)
-        fh = open(os.path.join(self.TESTDIR, "DAT0004.txt"), 'w+')
-        fh.write(self.TEST_DATA_2)
-        fh.close()
-        
-        log.debug("Creating test file: %s/DAT0005.txt", self.TESTDIR)
-        fh = open(os.path.join(self.TESTDIR, "DAT0005.txt"), 'w+')
-        fh.write(self.TEST_DATA_LONG)
-        fh.close()
 
+    def _get_source_data_file(self, filename):
+        """
+        Search for a sample data file, first check the driver resource directory
+        then just use the filename as a path.  If the file doesn't exists
+        raise an exception
+        @param filename name or path of the file to search for
+        @return full path to the found data file
+        @raise IDKException if the file isn't found
+        """
+        resource_dir = Metadata().resource_dir()
+
+        source_path = os.path.join(resource_dir, filename)
+
+        log.debug("Search for resource file (%s) in %s", filename, resource_dir)
+        if os.path.isfile(source_path):
+            log.debug("Found %s in resource directory", filename)
+            return source_path
+
+        log.debug("Search for resource file (%s) in current directory", filename)
+        if os.path.isfile(filename):
+            log.debug("Found %s in the current directory", filename)
+            return filename
+
+        raise IDKException("Data file %s does not exist", filename)
+
+    def create_data_dir(self):
+        """
+        Verify the test data directory is created and exists.  Return the path to
+        the directory.
+        @return: path to data directory
+        @raise: IDKConfigMissing no harvester config
+        @raise: IDKException if data_dir exists, but not a directory
+        """
+        startup_config = self._driver_config().get('startup_config')
+        if not startup_config:
+            raise IDKConfigMissing("Driver config missing 'startup_config'")
+
+        harvester_config = startup_config.get('harvester')
+        if not harvester_config:
+            raise IDKConfigMissing("Startup config missing 'harvester' config")
+
+        data_dir = harvester_config.get("directory")
+        if not data_dir:
+            raise IDKConfigMissing("Harvester config missing 'directory'")
+
+        if not os.path.exists(data_dir):
+            log.debug("Creating data dir: %s", data_dir)
+            os.makedirs(data_dir)
+
+        elif not os.path.isdir(data_dir):
+            raise IDKException("'data_dir' is not a directory")
+
+        return data_dir
+
+    def clear_sample_data(self):
+        """
+        Remove all files from the sample data directory
+        """
+        data_dir = self.create_data_dir()
+
+        log.debug("Clean all data from %s", data_dir)
+        remove_all_files(data_dir)
+
+    def create_sample_data(self, filename, dest_filename=None):
+        """
+        Search for a data file in the driver resource directory and if the file
+        is not found there then search using the filename directly.  Then copy
+        the file to the test data directory.
+
+        If a dest_filename is supplied it will be renamed in the destination
+        directory.
+        @param: filename - filename or path to a data file to copy
+        @param: dest_filename - name of the file when copied. default to filename
+        """
+        data_dir = self.create_data_dir()
+        source_path = self._get_source_data_file(filename)
+
+        log.debug("DIR: %s", data_dir)
+        if dest_filename is None:
+            dest_path = os.path.join(data_dir, os.path.basename(source_path))
+        else:
+            dest_path = os.path.join(data_dir, dest_filename)
+
+        log.debug("Creating data file src: %s, dest: %s", source_path, dest_path)
+        shutil.copy2(source_path, dest_path)
 
 class DataSetUnitTestCase(DataSetTestCase):
     """
@@ -213,6 +202,7 @@ class DataSetUnitTestCase(DataSetTestCase):
         """
         super(DataSetUnitTestCase, self).setUp()
 
+#class DataSetIntegrationTestCase(DataSetTestCase, ParticleTestMixin):
 class DataSetIntegrationTestCase(DataSetTestCase):
     """
     Base class for instrument driver unit tests
@@ -222,7 +212,6 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         Startup the container and start the agent.
         """
         super(DataSetIntegrationTestCase, self).setUp()
-
 
 class DataSetQualificationTestCase(DataSetTestCase):
     """
@@ -242,7 +231,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
         log.debug("Packet Config: %s", self.test_config.agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.agent_packet_config,
-        )
+            )
         self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.agent_resource_id)
 
         self.init_dataset_agent_client()
@@ -266,6 +255,43 @@ class DataSetQualificationTestCase(DataSetTestCase):
         )
 
         self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
+
+    def get_samples(self, stream_name, sample_count = 1, timeout = 10):
+        """
+        listen on a stream until 'sample_count' samples are read and return
+        a list of all samples read.  If the required number of samples aren't
+        read then throw an exception.
+
+        Note that this method does not clear the sample queue for the stream.
+        This should be done explicitly by the caller.  However, samples that
+        are consumed by this method are removed.
+
+        @raise SampleTimeout - if the required number of samples aren't read
+        """
+        result = []
+        start_time = time.time()
+        i = 1
+
+        log.debug("Fetch %d sample(s) from stream '%s'" % (sample_count, stream_name))
+        while(len(result) < sample_count):
+            if(self.data_subscribers.samples_received.has_key(stream_name) and
+               len(self.data_subscribers.samples_received.get(stream_name))):
+                log.trace("get_samples() received sample #%d!", i)
+                result.append(self.data_subscribers.samples_received[stream_name].pop())
+                i += 1
+
+            # Check for timeout
+            if(start_time + timeout < time.time()):
+                raise SampleTimeout()
+
+            if(not self.data_subscribers.samples_received.has_key(stream_name) or
+               len(self.data_subscribers.samples_received.get(stream_name)) == 0):
+                log.debug("No samples in the queue, sleep for a bit to let the queue fill up")
+                gevent.sleep(1)
+
+        log.debug("get_samples() complete.  returning %d records", sample_count)
+        return result
+
 
     def assert_initialize(self, final_state = ResourceAgentState.STREAMING):
         '''

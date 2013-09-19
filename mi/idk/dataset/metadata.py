@@ -47,6 +47,13 @@ class Metadata(mi.idk.metadata.Metadata):
                             "mi", "dataset", "driver",
                             self.driver_path)
 
+    def resource_dir(self):
+        """
+        @brief full path to the driver resource directory
+        @retval resource path
+        """
+        return os.path.join(self.driver_dir(), 'resource')
+
     def idk_dir(self):
         """
         @brief directory to store the idk driver configuration

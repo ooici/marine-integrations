@@ -18,6 +18,7 @@ __license__ = 'Apache 2.0'
 
 # ION imports.
 import ion.agents.instrument.instrument_agent
+import ion.agents.data.dataset_agent
 from ion.agents.agent_stream_publisher import AgentStreamPublisher
 
 from pyon.public import log
@@ -87,6 +88,50 @@ class InstrumentAgent(ion.agents.instrument.instrument_agent.InstrumentAgent):
 
         except Exception as e:
             log.error('Instrument agent %s could not publish data. Exception caught was %s',
+                      self._proc_name, e)
+
+    def _construct_packet_factories(self):
+        '''
+        We don't need the packet factories because we just pass the data particles through.
+        Overloading this method clears some factory creation error messages.
+        '''
+        pass
+
+class DatasetAgent(ion.agents.data.dataset_agent.DataSetAgent):
+    """
+    This instrument agent is used in qualification tests.  It overrides the
+    default publishing mechanism so the agent publishes data particles.
+    """
+    def __init__(self, *args, **kwargs):
+        ion.agents.data.dataset_agent.DataSetAgent.__init__(self, *args, **kwargs)
+
+    def on_init(self):
+        """
+        overloaded so we can change the stream publisher object
+        """
+        super(DatasetAgent, self).on_init()
+
+        # Set up streams.
+        self._asp = IDKAgentStreamPublisher(self)
+
+    def _async_driver_event_sample(self, val, ts):
+        '''
+        Overload this method to change what is published.  For driver tests we will verify that
+        Data particles are built to spec so we just pass through data particles here.
+        '''
+        # If the sample event is encoded, load it back to a dict.
+        if isinstance(val, str):
+            val = json.loads(val)
+        try:
+            stream_name = val['stream_name']
+
+            self._asp.on_sample(val)
+
+            log.debug('Dataset agent %s published data particle on stream %s.' % (self._proc_name, stream_name))
+            log.trace('Published value: %s' % str(val))
+
+        except Exception as e:
+            log.error('Dataset agent %s could not publish data. Exception caught was %s',
                       self._proc_name, e)
 
     def _construct_packet_factories(self):
