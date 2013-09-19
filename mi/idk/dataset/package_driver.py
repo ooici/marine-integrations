@@ -99,7 +99,7 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
         if len(output) > 0:
             log.debug('tag create returned: %s', output)
         log.debug('create new tag %s', name)
-        
+               
     def run(self):
         print "*** Starting Driver Packaging Process ***"
         
@@ -110,6 +110,8 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
             self.package_driver()
         else:
             self.update_version()
+            # re-read the metadata since metadata.yml may change in update version
+            self.metadata = Metadata()
             self.make_branch()
             self.package_driver()
         #if len(sys.argv) == 2 and (sys.argv[1] == "--no-test"):
