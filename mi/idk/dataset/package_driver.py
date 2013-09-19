@@ -62,7 +62,7 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
         # suggest the current driver version as default
         repkg_version = prompt.text( 'Driver Version to re-package', self.metadata.version )
         # check to make sure this driver version exists
-        tag_name = self.metadata.driver_name + '_' + repkg_version
+        tag_name = 'driver_' + self.metadata.driver_name + '_' + repkg_version.replace('.','_')
         cmd = 'git tag -l ' + tag_name 
         # find out if this tag name exists
         output = subprocess.check_output(cmd, shell=True)
