@@ -3,20 +3,22 @@
 @file marine-integrations/mi/dataset/parser/adcpa.py
 @author Christopher Wingard, using Teledyne ADCP instrument particles developed
     by Roger Unwin.
-@brief Dataset code for the Coastal Slocum Glider mounted Teledyne ExplorerDVL
+@brief Dataset code for the Coastal Slocum Adcpa mounted Teledyne ExplorerDVL
     (ADCPA) particles
 
 Release notes:
     There are small differences between the PD0 formatted data files for the
     Teledyne RDI Workhorse series of ADCPs and the ExplorerDVL. The set of
     particles defined herein, will only work with the ExplorerDVL data files
-    downloaded from TWR Coastal Slocum Glider. If the planned for AUVs also use
+    downloaded from TWR Coastal Slocum Adcpa. If the planned for AUVs also use
     the RDI ExplorerDVL, then these particles should apply to that instrument
     as well.
 
     Note, all binary data produced by the ExplorerDVL (and all other Teledyne
     RDI ADCPs) is little-endian.
 """
+__author__ = 'Christopher Wingard'
+__license__ = 'Apache 2.0'
 
 import re
 from struct import unpack
@@ -24,26 +26,28 @@ from calendar import timegm
 import datetime as dt
 
 from mi.core.log import get_logger
+from mi.core.common import BaseEnum
+from mi.core.exceptions import SampleException, DatasetParserException
+from mi.core.instrument.chunker import StringChunker
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+from mi.dataset.dataset_parser import BufferLoadingParser
+
+# start the logger
 log = get_logger()
 
-from mi.core.common import BaseEnum
-from mi.core.exceptions import SampleException
-
-from mi.dataset.parser import FilteringParser
-
-from mi.core.instrument.data_particle import DataParticle
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.data_particle import CommonDataParticleType
-
-###############################################################################
-# Data Particles
-###############################################################################
 # Regex set to find the start of PD0 packet (first 6 bytes of the header data).
 # This is more explicit than just the 0x7f7f marker the manual specifies. Using
 # this regex helps avoid cases where the marker could actually be in the data
 # string, thus giving a false positive data record marker.
 ADCPA_PD0_PARSED_REGEX = b'(\x7f\x7f)([\x00-\xFF]{2})(\x00)(\x06|\x07)'
 ADCPA_PD0_PARSED_REGEX_MATCHER = re.compile(ADCPA_PD0_PARSED_REGEX, re.DOTALL)
+
+
+###############################################################################
+# Data Particles
+###############################################################################
+class StateKey(BaseEnum):
+    POSITION = "position"
 
 
 class DataParticleType(BaseEnum):
@@ -54,10 +58,6 @@ class ADCPA_PD0_PARSED_KEY(BaseEnum):
     """
     Data particles for the Teledyne RDI ExplorerDVL PD0 formatted data files
     """
-    # ION defined timestamp. Not produced by Explorer DVL, but instead derived
-    # from the ExplorerDVLs internal clock.
-    INTERNAL_TIMESTAMP = DataParticleKey.INTERNAL_TIMESTAMP
-
     # Header Data
     HEADER_ID = 'header_id'
     DATA_SOURCE_ID = 'data_source_id'
@@ -197,7 +197,7 @@ class ADCPA_PD0_PARSED_KEY(BaseEnum):
     PERCENT_BAD_BEAMS = 'percent_bad_beams'
     PERCENT_GOOD_4BEAM = 'percent_good_4beam'
 
-    # Bottom Track Data (only produced if glider is in less than 65 m of water)
+    # Bottom Track Data (only produced if Adcpa is in less than 65 m of water)
     BOTTOM_TRACK_ID = 'bottom_track_id'
     BT_PINGS_PER_ENSEMBLE = 'bt_pings_per_ensemble'
     BT_DELAY_BEFORE_REACQUIRE = 'bt_delay_before_reacquire'
@@ -545,16 +545,15 @@ class ADCPA_PD0_PARSED_DataParticle(DataParticle):
         # convention
         dts = dt.datetime(2000 + rtc['year'], rtc['month'], rtc['day'],
                           rtc['hour'], rtc['minute'], rtc['second'])
-        epts = timegm(dts.timetuple()) + (rtc['hundredths'] / 100.0)  # seconds since 1970-01-01 in UTC
-        ntpts = epts + 2208988800
+        epoch_ts = timegm(dts.timetuple()) + (rtc['hundredths'] / 100.0)  # seconds since 1970-01-01 in UTC
+        ntp_ts = epts + 2208988800
+        self.set_internal_timestamp(ntp_ts)
 
         self.final_result.append({DataParticleKey.VALUE_ID: ADCPA_PD0_PARSED_KEY.REAL_TIME_CLOCK,
                                  DataParticleKey.VALUE: [rtc['year'], rtc['month'], rtc['day'],
                                                          rtc['hour'], rtc['minute'], rtc['second'], rtc['hundredths']]})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCPA_PD0_PARSED_KEY.ENSEMBLE_START_TIME,
-                                 DataParticleKey.VALUE: ntpts})
-        self.final_result.append({DataParticleKey.VALUE_ID: ADCPA_PD0_PARSED_KEY.INTERNAL_TIMESTAMP,
-                                 DataParticleKey.VALUE: ntpts})
+                                 DataParticleKey.VALUE: epoch_ts})
 
         self.final_result.append({DataParticleKey.VALUE_ID: ADCPA_PD0_PARSED_KEY.BIT_RESULT_DEMOD_1,
                                   DataParticleKey.VALUE: 1 if error_bit_field & 0b00001000 else 0})
@@ -940,24 +939,105 @@ class ADCPA_PD0_PARSED_DataParticle(DataParticle):
                                   DataParticleKey.VALUE: beam4_bt_range_msb})
 
 
-class AdcpaParser(infile):
-    #[todo: needs to be mapped to mi framework]
-    with open(infile, 'rb') as f:
+class AdcpaParser(BufferLoadingParser):
+    """
+    AdcpaParser parses a TRDI ExplorerDVL (ADCPA) PD0 formatted data file that
+    has been logged on the TWR Slocum Coastal Electric Glider.
+    """
+    def __init__(self,
+                 config,
+                 state,
+                 stream_handle,
+                 state_callback,
+                 publish_callback,
+                 *args, **kwargs):
+        super(AdcpaParser, self).__init__(config,
+                                          stream_handle,
+                                          state,
+                                          state_callback,
+                                          publish_callback,
+                                          *args,
+                                          **kwargs)
+        self._record_buffer = []  # holds tuples of (record, state)
+        self._read_state = {StateKey.POSITION: 0}
+        if state:
+            self.set_state(self._state)
+
+    def set_state(self, state_obj):
+        """
+        Set the value of the state object for this parser
+        @param state_obj The object to set the state to. Should be a dict with
+            a StateKey.POSITION value. The position is the number of bytes into
+            the file.
+        @throws DatasetParserException if there is a bad state structure
+        """
+        log.trace("Attempting to set state to: %s", state_obj)
+        if not isinstance(state_obj, dict):
+            raise DatasetParserException("Invalid state structure")
+        if not StateKey.POSITION in state_obj:
+            raise DatasetParserException("Invalid state keys")
+
+        self._record_buffer = []
+        self._state = state_obj
+        self._read_state = state_obj
+
+        # seek to it
+        self._stream_handle.seek(state_obj[StateKey.POSITION])
+
+    def _increment_state(self, increment):
+        """
+        Increment the parser position by a certain amount in bytes. This
+        indicates what has been READ from the file, not what has been published.
+
+        This is a base implementation, override as needed.
+
+        @param increment Number of bytes to increment the parser position.
+        """
+        log.trace("Incrementing current state: %s with increment: %s",
+                  self._read_state, increment)
+
+        self._read_state[StateKey.POSITION] += increment
+
+    def parse_chunks(self):
+        """
+        @retval a list of tuples with sample particles encountered in this
+            parsing, plus the state. An empty list is returned if nothing was
+            parsed.
+        """
         # read in the pd0 data file and find the indexes to the record markers
-        data = f.read()
+        data = self._stream_handle.read()
         n = [m.span() for m in re.finditer(ADCPA_PD0_PARSED_REGEX_MATCHER, data)]
 
         result_particles = []
-        # now parse the file, ensemble by ensemble
+        # now parse the file, ensemble by ensemble, publishing the results as we go.
         for i in range(0, len(n)):
-            # particalize the data block received and return the results
+            # start at the first ensemble header
             strt = n[i][0]
+
+            # use information in the ensemble to get the number of bytes --
+            # this is variable depending on the presence or absence of the
+            # bottom tracking data. Also, pilots may change the ExplorerDVL
+            # settings mid-deployment in order to conserve battery life or for
+            # other reasons. Allowing the ensemble to self define, means the
+            # code should be robust in the face of such changes.
             numBytes = unpack("<H", data[strt+2:strt+4])[0]
-            ensemble = data[strt:strt+numBytes+2]
+            end = strt + numBytes + 2
+            ensemble = data[strt:end]
 
-            sample = FilteringParser._extract_sample(ADCPA_PD0_PARSED_DataParticle,
-                                                     ADCPA_PD0_PARSED_REGEX_MATCHER,
-                                                     ensemble)
-            result_particles.append(sample)
+            # create a new regex for this ensemble given the full number of
+            # bytes (number of bytes + 2 byte checksum) with the number of
+            # header bytes in the earlier regex string removed.
+            plusBytes = (numBytes + 2) - 6
+            ensemble_regex = re.compile((ADCPA_PD0_PARSED_REGEX + '([\x00-\xFF]{%s})'.format(plusBytes+2)), re.DOTALL)
 
-    return result_particles
+            # particleize the data block received and return the record -- the
+            # internal time stamp is set in the DataParticle.
+            sample = self._extract_sample(self._particle_class, ensemble_regex, ensemble, None)
+
+            if sample:
+                # valid sample received, create the particle
+                self._increment_state(numBytes + 2)
+                result_particles.append((sample, copy.copy(self._read_state)))
+
+        # save the results
+        return result_particles
