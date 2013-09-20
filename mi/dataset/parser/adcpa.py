@@ -20,10 +20,12 @@ Release notes:
 __author__ = 'Christopher Wingard'
 __license__ = 'Apache 2.0'
 
-import re
-from struct import unpack
-from calendar import timegm
+import copy
 import datetime as dt
+import re
+from calendar import timegm
+from functools import partial
+from struct import unpack
 
 from mi.core.log import get_logger
 from mi.core.common import BaseEnum
@@ -965,12 +967,12 @@ class AdcpaParser(BufferLoadingParser):
                                           stream_handle,
                                           state,
                                           partial(StringChunker.regex_sieve_function,
-                                                  regex_list=ADCPA_PD0_PARSED_MATCHER),
+                                                  regex_list=[ADCPA_PD0_PARSED_MATCHER]),
                                           state_callback,
                                           publish_callback,
                                           *args,
                                           **kwargs)
-        self._timestamp = None
+        self._timestamp = 0.0
         self._record_buffer = []  # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION: 0}
         if state:
@@ -1011,6 +1013,21 @@ class AdcpaParser(BufferLoadingParser):
 
         self._read_state[StateKey.POSITION] += increment
 
+    def get_block(self):
+        """
+        Overwrites get_block method in dataset_parser.py to simply read the
+        entire file rather than break it into chunks.
+        @retval The length of data retreived
+        @throws EOFError when the end of the file is reached
+        """
+        # read in some more data
+        data = self._stream_handle.read()
+        if data:
+            self._chunker.add_chunk(data, self._timestamp)
+            return len(data)
+        else:  # EOF
+            raise EOFError
+
     def parse_chunks(self):
         """
         @retval a list of tuples with sample particles encountered in this
@@ -1021,11 +1038,13 @@ class AdcpaParser(BufferLoadingParser):
         result_particles = []
 
         # now parse the file, ensemble by ensemble, publishing the results as we go.
-        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(True)
         while chunk is not None:
             ensemble = ADCPA_PD0_PARSED_MATCHER.match(chunk)
+            print timestamp, start, end
             # particleize the data block received and return the record.
             if ensemble:
+                print "we have a particle"
                 # create the particle
                 particle = self._particle_class(
                     ensemble, internal_timestamp=self._timestamp,
@@ -1034,10 +1053,13 @@ class AdcpaParser(BufferLoadingParser):
 
                 # set the state and append particle
                 if particle:
+                    print 'Well Hello!'
+                    print particle
                     log.trace("Particle creation succeeded at position: %d to %d bytes", start, end)
                     self._increment_state(end)
                     result_particles.append((particle, copy.copy(self._read_state)))
                 else:
+                    print 'Help!'
                     log.trace("Particle creation failed at position: %d to %d bytes", start, end)
 
             # keep consuming the file
