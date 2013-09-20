@@ -145,8 +145,6 @@ class PackageDriver(object):
     def run(self):
         print "*** Starting Driver Packaging Process***"
         
-        self.update_version()
-        
         if len(sys.argv) == 2 and (sys.argv[1] == "--no-test"):
             # clear the log file so it exists
             f = open(self.log_path(), "w")
@@ -194,27 +192,6 @@ class PackageDriver(object):
             self._manifest = PackageManifest(self.metadata)
 
         return self._manifest
-    
-    def update_version(self):
-        """
-        Update the driver version for this package.  By default increment by one.
-        After updating the metadata file, commit the change to git. 
-        """
-        last_dot = self.metadata.version.rfind('.')
-        last_version = int(self.metadata.version[last_dot+1:])
-        suggest_version = self.metadata.version[:last_dot+1] + str(last_version + 1)
-        new_version = prompt.text( 'Update Driver Version', suggest_version )
-        if new_version != self.metadata.version:
-            # set the new driver version in the metadata
-            self.metadata.set_driver_version(new_version)
-            # commit the changed file to git
-            cmd = 'git commit ' + str(self.metadata.metadata_path()) + ' -m \'Updated metadata driver version\''
-            os.system(cmd)
-            if prompt.yes_no('Local commited changes not pushed to remote will be lost.  Do you want to \'git push\' now?'):
-                cmd = 'git push'
-                output = subprocess.check_output(cmd, shell=True)
-                if len(output) > 0:
-                    log.debug('git push returned: %s', output)
 
     ###
     #   Private Methods
