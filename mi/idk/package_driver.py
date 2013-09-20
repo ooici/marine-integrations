@@ -7,6 +7,7 @@
 import sys
 import os.path
 import zipfile
+import subprocess
 
 import yaml
 
@@ -191,7 +192,6 @@ class PackageDriver(object):
             self._manifest = PackageManifest(self.metadata)
 
         return self._manifest
-
 
     ###
     #   Private Methods
