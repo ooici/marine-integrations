@@ -1429,6 +1429,7 @@ class Protocol(SeaBirdProtocol):
         next_agent_state = ResourceAgentState.STREAMING
         result = None
 
+        log.debug("_handler_command_recover_autosample: recovery state change")
         self._async_agent_state_change(ResourceAgentState.STREAMING)
 
         return (next_state, next_agent_state)
@@ -1966,7 +1967,8 @@ class Protocol(SeaBirdProtocol):
             log.debug("Sample record detected, publish a sample")
             if(self._protocol_fsm.get_current_state() == ProtocolState.COMMAND):
                 log.debug("FSM appears out of date.  Fixing it!")
-                self._protocol_fsm.on_event(ProtocolEvent.RECOVER_AUTOSAMPLE)
+                #self._protocol_fsm.on_event(ProtocolEvent.RECOVER_AUTOSAMPLE)
+                self._async_raise_fsm_event(ProtocolEvent.RECOVER_AUTOSAMPLE)
             return
 
         if(self._extract_sample(SBE54tpsStatusDataParticle, STATUS_DATA_REGEX_MATCHER, chunk, timestamp)) : return

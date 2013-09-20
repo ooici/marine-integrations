@@ -1,0 +1,35 @@
+"""
+@package ${driver_module}
+@file ${file}
+@author ${author}
+@brief Driver for the ${driver_name}
+Release notes:
+
+${release_notes}
+"""
+
+__author__ = '${author}'
+__license__ = 'Apache 2.0'
+
+import string
+
+from mi.core.log import get_logger ; log = get_logger()
+
+from mi.dataset.dataset_driver import SimpleDataSetDriver
+
+class ${constructor}(SimpleDataSetDriver):
+    def _build_parser(self, parser_state, infile):
+        """
+        Build and return the parser
+        """
+        # *** Replace the following with parser initialization ***
+        self._parser = None
+        return self._parser
+
+    def _build_harvester(self, harvester_state):
+        """
+        Build and return the harvester
+        """
+        # *** Replace the following with harvester initialization ***
+        self._harvester = None     
+        return self._harvester

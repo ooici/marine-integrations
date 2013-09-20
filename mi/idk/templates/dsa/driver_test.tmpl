@@ -1,0 +1,78 @@
+"""
+@package ${test_module}
+@file ${file}
+@author ${author}
+@brief Test cases for ${driver_name} driver
+
+USAGE:
+ Make tests verbose and provide stdout
+   * From the IDK
+       $$ bin/dsa/test_driver
+       $$ bin/dsa/test_driver -i [-t testname]
+       $$ bin/dsa/test_driver -q [-t testname]
+"""
+
+__author__ = '${author}'
+__license__ = 'Apache 2.0'
+
+import unittest
+
+from nose.plugins.attrib import attr
+from mock import Mock
+
+from mi.core.log import get_logger ; log = get_logger()
+
+from mi.idk.dataset.unit_test import DataSetTestCase
+from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
+from mi.idk.dataset.unit_test import DataSetQualificationTestCase
+
+
+# Fill in the blanks to initialize data set test case
+DataSetTestCase.initialize(
+    driver_module=''
+    driver_class=''
+
+    agent_preload_id = '',
+    agent_resource_id = '',
+    agent_name = '',
+    agent_packet_config = [''],
+    startup_config = {
+        'harvester':
+        {
+            'directory': '/tmp/dsatest',
+            'pattern': '',
+            'frequency': 1,
+        },
+        'parser': {}
+    }
+}
+
+
+###############################################################################
+#                            INTEGRATION TESTS                                #
+# Device specific integration tests are for                                   #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('INT', group='mi')
+class IntegrationTest(DataSetIntegrationTestCase):
+        
+    def setUp(self):
+        pass
+
+###############################################################################
+#                            QUALIFICATION TESTS                              #
+# Device specific qualification tests are for                                 #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('QUAL', group='mi')
+class QualificationTest(DataSetQualificationTestCase):
+    def setUp(self):
+        super(QualificationTest, self).setUp()
+
+    def test_initialize(self):
+        """
+        Test that we can start the container and initialize the dataset agent.
+        """
+        self.assert_initialize()
+        self.assert_stop_sampling()
+        self.assert_reset()

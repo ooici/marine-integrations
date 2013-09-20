@@ -29,14 +29,24 @@ from ion.agents.port.port_agent_process import PortAgentProcess
 from ion.agents.port.port_agent_process import PortAgentProcessType
 
 from mi.core.tcp_client import TcpClient
+from mi.core.port_agent_simulator import TCPSimulatorServer
+
 from mi.core.unit_test import MiUnitTest
 from mi.core.unit_test import MiIntTestCase
-from mi.core.port_agent_simulator import TCPSimulatorServer
+
 from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
+
 from mi.core.instrument.port_agent_client import PortAgentClient, PortAgentPacket, Listener
 from mi.core.instrument.port_agent_client import HEADER_SIZE
+from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverProtocolState
+
 from mi.core.exceptions import InstrumentConnectionException
+
+from mi.instrument.seabird.sbe37smb.ooicore.driver import SBE37Driver
+
 
 # MI logger
 from mi.core.log import get_logger ; log = get_logger()
@@ -45,12 +55,26 @@ SYSTEM_EPOCH = datetime.date(*time.gmtime(0)[0:3])
 NTP_EPOCH = datetime.date(1900, 1, 1)
 NTP_DELTA = (SYSTEM_EPOCH - NTP_EPOCH).days * 24 * 3600
 
+## Initialize the test parameters
+## Use the SBE37 here because this is a generic port_agent_client test not 
+## necessarily associated with any driver.
+InstrumentDriverTestCase.initialize(
+    driver_module='mi.instrument.seabird.sbe37smb.ooicore.driver',
+    driver_class="SBE37Driver",
+
+    instrument_agent_resource_id = '123xyz',
+    instrument_agent_preload_id = 'IA2',
+    instrument_agent_name = 'Agent007',
+    driver_startup_config = {}
+)
+
 @attr('UNIT', group='mi')
-class PAClientUnitTestCase(MiUnitTest):
+class PAClientUnitTestCase(InstrumentDriverUnitTestCase):
     def setUp(self):
         self.ipaddr = "localhost"
         self.cmd_port = 9001
         self.data_port  = 9002
+        self.device_port = 9003
     
     def resetTestVars(self):
         self.rawCallbackCalled = False
@@ -271,6 +295,45 @@ class PAClientUnitTestCase(MiUnitTest):
         test_heartbeat = paListener.MAX_HEARTBEAT_INTERVAL + 1
         retValue = paListener.set_heartbeat(test_heartbeat)
         self.assertFalse(retValue)
+        
+    def test_connect_failure(self):
+        """
+        Test that when the the port agent client cannot initially connect, it 
+        raises an InstrumentConnectionException
+        """
+        exceptionRaised = False
+        driver = SBE37Driver(self._got_data_event_callback)
+        
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        config = {'addr' : self.ipaddr, 'port' : self.data_port, 'cmd_port' : self.cmd_port}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        """
+        Try to connect: it should not because there is no port agent running.  
+        The state should remain DISCONNECTED, and an 
+        InstrumentConnectionException should be caught.
+        """
+        try:
+            driver.connect()
+            current_state = driver.get_resource_state()
+            self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+        except InstrumentConnectionException as e:
+            exceptionRaised = True
+            
+        """
+        Give it some time to retry
+        """
+        time.sleep(4)
+
+        self.assertTrue(exceptionRaised)
+        
+
+        
 
 @attr('UNIT', group='mi')
 class PAClientTestPortAgentPacket(MiUnitTest):
@@ -499,6 +562,8 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         when the port agent closes the connection gracefully because it has
         another client connected.
         """
+        
+        exceptionRaised = False
         self.resetTestVars()
         
         self.init_instrument_simulator()
@@ -514,14 +579,19 @@ class PAClientIntTestCase(InstrumentDriverTestCase):
         time.sleep(2)
 
         paClient = PortAgentClient(self.ipaddr, self.data_port, self.cmd_port)
-        paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotListenerError, self.myGotError)
+        
+        try:
+            paClient.init_comms(self.myGotData, self.myGotRaw, self.myGotListenerError, self.myGotError)
+        except InstrumentConnectionException as e:
+            exceptionRaised = True
+            
 
         """
         Give it some time to retry
         """
         time.sleep(4)
 
-        self.assertTrue(self.errorCallbackCalled)
+        self.assertTrue(exceptionRaised)
         
 
     def test_paClient_rx_heartbeat(self):

@@ -7,6 +7,7 @@
 import sys
 import os.path
 import zipfile
+import subprocess
 
 import yaml
 
@@ -192,7 +193,6 @@ class PackageDriver(object):
 
         return self._manifest
 
-
     ###
     #   Private Methods
     ###
@@ -214,8 +214,9 @@ class PackageDriver(object):
         self._add_file(self.log_path(), description = 'qualification tests results')
 
         # Store parameter/command string description file
-        self._add_file("%s/%s" % (self.generator.resource_dir(), self.string_file()),
-                       'resource', 'driver string file')
+        str_path = "%s/%s" % (self.generator.resource_dir(), self.string_file())
+        if os.path.exists(str_path):
+            self._add_file(str_path, 'resource', 'driver string file')
         
         # Store additional resource files
         self._store_resource_files()

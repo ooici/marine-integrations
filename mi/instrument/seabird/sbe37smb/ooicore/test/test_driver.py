@@ -13,14 +13,15 @@ __license__ = 'Apache 2.0'
 # Ensure the test class is monkey patched for gevent
 
 
-from mock import patch
-from pyon.core.bootstrap import CFG
-
-from gevent import monkey; monkey.patch_all()
 import gevent
 import re
 import json
 import copy
+
+from mock import patch, Mock
+from pyon.core.bootstrap import CFG
+
+from gevent import monkey; monkey.patch_all()
 from pprint import PrettyPrinter
 
 # Standard lib imports
@@ -484,12 +485,37 @@ class SBEUnitTestCase(SeaBirdUnitTest, SBEMixin):
         """
         driver = SBE37Driver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
-
+        
         self.assertIsNotNone(driver._protocol._is_logging(SAMPLE_DS))
         self.assertFalse(driver._protocol._is_logging(SAMPLE_DS))
+        
+        # mock up the "second opinion" response for the method under test
+        driver._protocol._do_cmd_resp = Mock(return_value="Something\nlogging data\nsomething else")
         self.assertTrue(driver._protocol._is_logging("Something\nlogging data\nsomething else"))
+        
+        # mock up the "second opinion" response for the method under test
+        driver._protocol._do_cmd_resp = Mock(return_value="bad data")
         self.assertIsNone(driver._protocol._is_logging("bad data"))
 
+        sample_and_ds = """
+#61.1459,24.45520, 356.906,   23.0652, 1506.848, 18 Jul 2013, 15:08:45
+SBE37-SMP V 2.6 SERIAL NO. 2165   18 Jul 2013  15:08:45
+logging data
+sample interval = 5 seconds
+samplenumber = 0, free = 200000
+transmit real-time data
+do not output salinity with each sample
+do not output sound velocity with each sample
+do not store time with each sample
+number of samples to average = 1
+reference pressure = 0.0 db
+serial sync mode disabled
+wait time after serial sync sampling = 0 seconds
+internal pump is installed
+temperature = 7.54 deg C
+WARNING: LOW BATTERY VOLTAGE!!
+"""
+        self.assertTrue(driver._protocol._is_logging(sample_and_ds))
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -1307,7 +1333,6 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         self.tcp_client.disconnect()
         self.assert_state_change(ResourceAgentState.COMMAND, SBE37ProtocolState.COMMAND, 30)
 
-
     def test_direct_access_telnet_mode_autosample(self):
         """
         @brief Same as the previous DA test except in this test
@@ -1334,44 +1359,11 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         gevent.sleep(3)
         log.debug("DA Parameter Sample Interval Updated")
 
-        self.assert_direct_access_stop_telnet(timeout=30)
+        self.assert_direct_access_stop_telnet(timeout=60)
 
         # verify the setting got restored.
         self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 10)
         self.assert_get_parameter(SBE37Parameter.INTERVAL, 10)
-
-        ###
-        # Test direct access inactivity timeout
-        #
-        # We have to call start now after the assert because the assert
-        # puts the instrument in command mode first.  you can not start DA from
-        # autosample.
-        ###
-        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
-        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
-        gevent.sleep(3)
-        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 60)
-
-        ###
-        # Test session timeout without activity
-        ###
-        self.assert_direct_access_start_telnet(inactivity_timeout=120, session_timeout=30)
-        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
-        gevent.sleep(3)
-        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 60)
-
-        ###
-        # Test direct access session timeout with activity
-        ###
-        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=60)
-        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
-        # Send some activity every 30 seconds to keep DA alive.
-        for i in range(1, 2, 3):
-            self.tcp_client.send_data(NEWLINE)
-            log.debug("Sending a little keep alive communication, sleeping for 15 seconds")
-            gevent.sleep(15)
-
-        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 45)
 
         ###
         # Test direct access disconnect
@@ -1383,7 +1375,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         log.debug("DA server autosample started")
         self.tcp_client.disconnect()
         log.debug("DA server tcp client disconnected")
-        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 60)
+        self.assert_state_change(ResourceAgentState.STREAMING, SBE37ProtocolState.AUTOSAMPLE, 90)
 
 
     @unittest.skip("Do not include until a good method is devised")
@@ -1570,7 +1562,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
             ResourceAgentEvent.GO_DIRECT_ACCESS
         ]
 
-        agt_pars_all = ['aggstatus', 'alerts', 'example', 'pubrate', 'streams']
+        agt_pars_all = ['example', 'streams', 'pubrate', 'alerts', 'driver_pid', 'aggstatus']
 
         res_cmds_all =[
             SBE37ProtocolEvent.ACQUIRE_STATUS,
@@ -1621,6 +1613,8 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         agt_cmds_uninitialized = [
             ResourceAgentEvent.INITIALIZE
         ]
+
+        log.debug("agt_pars: %r, agt_pars_all: %r", agt_pars, agt_pars_all)
         self.assertItemsEqual(agt_cmds, agt_cmds_uninitialized)
         self.assertItemsEqual(agt_pars, agt_pars_all)
         self.assertItemsEqual(res_cmds, [])

@@ -1,52 +1,82 @@
 """
-@package mi.instrument.teledyne.workhorse_monitor_75_khz.driver
+@package mi.instrument.teledyne.workhorse_monitor_150_khz.driver
 @file marine-integrations/mi/instrument/teledyne/workhorse_monitor_150_khz/driver.py
 @author Roger Unwin
-@brief Driver for the 75khz family
+@brief Driver for the 150khz family
 Release notes:
+
+ADCPT-F
 """
 
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.instrument.teledyne.driver import TeledyneInstrumentDriver
-from mi.instrument.teledyne.driver import TeledyneProtocol
-from mi.instrument.teledyne.driver import Prompt
-from mi.instrument.teledyne.driver import ProtocolEvent as TeledyneProtocolEvent
-from mi.instrument.teledyne.driver import InstrumentCmds as TeledyneInstrumentCmds
-from mi.instrument.teledyne.driver import Parameter as TeledyneParameter
-from mi.instrument.teledyne.driver import ProtocolState
-from mi.instrument.teledyne.driver import Capability as TeledyneCapability
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.particles import *
+
+
+from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_driver import DriverEvent
+from mi.instrument.teledyne.driver import TeledyneProtocol
+from mi.instrument.teledyne.driver import TeledynePrompt
+from mi.instrument.teledyne.driver import TeledyneParameter
+from mi.instrument.teledyne.driver import TeledyneInstrumentCmds
+from mi.instrument.teledyne.driver import TeledyneProtocolEvent
+from mi.instrument.teledyne.driver import TeledyneProtocolState
+from mi.instrument.teledyne.driver import TeledyneCapability
+from mi.instrument.teledyne.driver import TeledyneInstrumentDriver
+from mi.instrument.teledyne.driver import TeledyneScheduledJob
+
+from mi.instrument.teledyne.workhorse_monitor_150_khz.particles import *
 
 from mi.core.instrument.chunker import StringChunker
 
 
-class Parameter(TeledyneParameter):
+class WorkhorsePrompt(TeledynePrompt):
+    pass
+
+
+class WorkhorseParameter(TeledyneParameter):
     """
+    Device parameters
     """
+
+    SERIAL_FLOW_CONTROL = 'CF'
+    BANNER = 'CH'
+    SLEEP_ENABLE = 'CL'
+    SAVE_NVRAM_TO_RECORDER = 'CN'
+    POLLED_MODE = 'CP'
+    HEADING_ALIGNMENT = 'EA'
     TIME_PER_BURST = 'TB'
     ENSEMBLES_PER_BURST = 'TC'
-    BUFFER_OUTPUT_PERIOD = 'TP'
+    BUFFER_OUTPUT_PERIOD = 'TX'
 
 
-class InstrumentCmds(TeledyneInstrumentCmds):
+class WorkhorseInstrumentCmds(TeledyneInstrumentCmds):
     """
     """
+    RESTORE_FACTORY_PARAMS = 'CR1'
     POWER_DOWN = 'CZ'
 
 
-class ProtocolEvent(TeledyneProtocolEvent):
+class WorkhorseProtocolEvent(TeledyneProtocolEvent):
     """
     """
-    POWER_DOWN = "PROTOCOL_EVENT_POWER_DOWN"
+    pass
 
 
-class Capability(TeledyneCapability):
+class WorkhorseProtocolState(TeledyneProtocolState):
+    pass
+
+
+class WorkhorseCapability(TeledyneCapability):
     """
     """
-    ProtocolEvent.POWER_DOWN
+    RESTORE_FACTORY_PARAMS = TeledyneProtocolEvent.RESTORE_FACTORY_PARAMS
+    POWER_DOWN = WorkhorseProtocolEvent.POWER_DOWN
+
+
+class WorkhorseScheduledJob(TeledyneScheduledJob):
+    pass
+
 
 ###############################################################################
 # Driver
@@ -74,7 +104,7 @@ class WorkhorseInstrumentDriver(TeledyneInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = WorkhorseProtocol(Prompt, NEWLINE, self._driver_event)
+        self._protocol = WorkhorseProtocol(TeledynePrompt, NEWLINE, self._driver_event)
 
 ###########################################################################
 # Protocol
@@ -130,14 +160,30 @@ class WorkhorseProtocol(TeledyneProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
-
         log.debug("IN WorkhorseProtocol.__init__")
         # Construct protocol superclass.
         TeledyneProtocol.__init__(self, prompts, newline, driver_event)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND,
-                                       ProtocolEvent.POWER_DOWN,
+
+        self._protocol_fsm.add_handler(WorkhorseProtocolState.COMMAND,
+                                       WorkhorseProtocolEvent.POWER_DOWN,
                                        self._handler_command_power_down)
+        self._protocol_fsm.add_handler(WorkhorseProtocolState.COMMAND,
+                                       WorkhorseProtocolEvent.RESTORE_FACTORY_PARAMS,
+                                       self._handler_command_restore_factory_params)
+
+        self._add_build_handler(WorkhorseInstrumentCmds.RESTORE_FACTORY_PARAMS, self._build_simple_command)
+        self._add_response_handler(WorkhorseInstrumentCmds.RESTORE_FACTORY_PARAMS, self._parse_restore_factory_params_response)
+
         self._chunker = StringChunker(WorkhorseProtocol.sieve_function)
+
+    def _get_params(self):
+        return dir(WorkhorseParameter)
+
+    def _getattr_key(self, attr):
+        return getattr(WorkhorseParameter, attr)
+
+    def _has_parameter(self, param):
+        return WorkhorseParameter.has(param)
 
     def _build_command_dict(self):
         """
@@ -171,37 +217,39 @@ class WorkhorseProtocol(TeledyneProtocol):
 
         """
 
-        self._cmd_dict.add(Capability.START_AUTOSAMPLE,
+        self._cmd_dict.add(WorkhorseCapability.START_AUTOSAMPLE,
                            timeout=300,
                            display_name="start autosample",
                            description="Place the instrument into autosample mode")
-        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE,
+        self._cmd_dict.add(WorkhorseCapability.STOP_AUTOSAMPLE,
                            display_name="stop autosample",
                            description="Exit autosample mode and return to command mode")
-        self._cmd_dict.add(Capability.CLOCK_SYNC,
+        self._cmd_dict.add(WorkhorseCapability.CLOCK_SYNC,
                            display_name="sync clock")
-        self._cmd_dict.add(Capability.GET_CALIBRATION,
+        self._cmd_dict.add(WorkhorseCapability.GET_CALIBRATION,
                            display_name="get calibration")
-        self._cmd_dict.add(Capability.GET_CONFIGURATION,
+        self._cmd_dict.add(WorkhorseCapability.GET_CONFIGURATION,
                            timeout=300,
                            display_name="get configuration")
-        self._cmd_dict.add(Capability.GET_INSTRUMENT_TRANSFORM_MATRIX,
+        self._cmd_dict.add(WorkhorseCapability.GET_INSTRUMENT_TRANSFORM_MATRIX,
                            display_name="get instrument transform matrix")
-        self._cmd_dict.add(Capability.SAVE_SETUP_TO_RAM,
+        self._cmd_dict.add(WorkhorseCapability.SAVE_SETUP_TO_RAM,
                            display_name="save setup to ram")
-        self._cmd_dict.add(Capability.SEND_LAST_SAMPLE,
+        self._cmd_dict.add(WorkhorseCapability.SEND_LAST_SAMPLE,
                            display_name="send last sample")
-        self._cmd_dict.add(Capability.GET_ERROR_STATUS_WORD,
+        self._cmd_dict.add(WorkhorseCapability.GET_ERROR_STATUS_WORD,
                            display_name="get error status word")
-        self._cmd_dict.add(Capability.CLEAR_ERROR_STATUS_WORD,
+        self._cmd_dict.add(WorkhorseCapability.CLEAR_ERROR_STATUS_WORD,
                            display_name="clear error status word")
-        self._cmd_dict.add(Capability.GET_FAULT_LOG,
+        self._cmd_dict.add(WorkhorseCapability.GET_FAULT_LOG,
                            display_name="get fault log")
-        self._cmd_dict.add(Capability.CLEAR_FAULT_LOG,
+        self._cmd_dict.add(WorkhorseCapability.CLEAR_FAULT_LOG,
                            display_name="clear fault log")
-        self._cmd_dict.add(Capability.RUN_TEST_200,
+        self._cmd_dict.add(WorkhorseCapability.RUN_TEST_200,
                            display_name="run test 200")
-        self._cmd_dict.add(Capability.POWER_DOWN,
+        self._cmd_dict.add(WorkhorseCapability.RESTORE_FACTORY_PARAMS,
+                           display_name="restore factory paramaters")
+        self._cmd_dict.add(WorkhorseProtocolEvent.POWER_DOWN,   # <------the problem.
                            display_name="Power Down")
 
     ########################################################################
@@ -226,6 +274,12 @@ class WorkhorseProtocol(TeledyneProtocol):
                                  chunk,
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_PD0_PARSED_DataParticle")
+            if self.disable_autosample_recover != True:
+                if (self._protocol_fsm.get_current_state() == WorkhorseProtocolState.COMMAND):
+                    log.debug("FSM appears out of date.  Fixing it!")
+                    self._protocol_fsm.on_event(WorkhorseProtocolEvent.RECOVER_AUTOSAMPLE)
+                return
+            log.debug("_got_chunk - successful match for ADCP_PD0_PARSED_DataParticle")
 
         if (self._extract_sample(ADCP_SYSTEM_CONFIGURATION_DataParticle,
                                  ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
@@ -233,4 +287,14 @@ class WorkhorseProtocol(TeledyneProtocol):
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_SYSTEM_CONFIGURATION_DataParticle")
 
+    def _filter_capabilities(self, events):
+        """
+        Return a list of currently available capabilities.
+        """
+        return [x for x in events if WorkhorseCapability.has(x)]
 
+    def _handler_command_power_down(self):
+        pass
+
+    def _handler_command_restore_factory_params(self):
+        pass

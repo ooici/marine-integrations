@@ -1,5 +1,5 @@
 """
-@package mi.instrument.teledyne.workhorse_monitor_75_khz.cgsn.test.test_driver
+@package mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.test.test_driver
 @author Roger Unwin
 @brief Test cases for InstrumentDriver
 
@@ -23,82 +23,83 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.log import get_logger; log = get_logger()
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import WorkhorseDriverUnitTest
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import WorkhorseDriverIntegrationTest
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import WorkhorseDriverQualificationTest
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import WorkhorseDriverPublicationTest
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_driver import DataParticleType
+
 from mi.idk.unit_test import InstrumentDriverTestCase
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CG_SAMPLE_RAW_DATA 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CG_CALIBRATION_RAW_DATA
-from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import CG_PS0_RAW_DATA
 
 from mi.idk.unit_test import DriverTestMixin
 
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import DriverStartupConfigKey
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolEvent
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
-from mi.instrument.teledyne.driver import ScheduledJob
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Capability
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import InstrumentCmds
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import NEWLINE
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import Parameter
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import Prompt
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import ProtocolEvent
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import ProtocolState
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import ScheduledJob
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import InstrumentCmds
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import Capability
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import InstrumentDriver
+from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import Protocol
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_KEY
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_DataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_DataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_KEY
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_PD0_PARSED_KEY
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_PD0_PARSED_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_CONFIGURATION_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_COMPASS_CALIBRATION_KEY
+from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_COMPASS_CALIBRATION_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA1
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA2
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA3
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA4
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import CALIBRATION_RAW_DATA
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import PS0_RAW_DATA
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import InstrumentDriver
-from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import Protocol
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import WorkhorseDriverUnitTest
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import WorkhorseDriverIntegrationTest
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import WorkhorseDriverQualificationTest
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import WorkhorseDriverPublicationTest
+from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_driver import DataParticleType
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolState
+
 ###
 #   Driver parameters for tests
 ###
 
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver',
+    driver_module='mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver',
     driver_class="InstrumentDriver",
     instrument_agent_resource_id = 'HTWZMW',
     instrument_agent_preload_id = 'IA7',
-    instrument_agent_name = 'teledyne_workhorse_monitor_75_khz_cgsn',
+    instrument_agent_name = 'teledyne_workhorse_monitor_150_khz_cgsn',
     instrument_agent_packet_config = DataParticleType(),
 
+    # STARTUP SYNCED WITH T-F IOS
     driver_startup_config = {
         DriverStartupConfigKey.PARAMETERS: {
-            Parameter.SERIAL_FLOW_CONTROL: '11110',
-            Parameter.BANNER: False,
+            Parameter.SLEEP_ENABLE: 1,
             Parameter.INSTRUMENT_ID: 0,
-            Parameter.SLEEP_ENABLE: 0,
-            Parameter.SAVE_NVRAM_TO_RECORDER: True,
             Parameter.POLLED_MODE: False,
             Parameter.XMIT_POWER: 255,
-            Parameter.SPEED_OF_SOUND: 1485,
-            Parameter.PITCH: 0,
-            Parameter.ROLL: 0,
+            Parameter.HEADING_ALIGNMENT: 0,
+            Parameter.SPEED_OF_SOUND: 1500,
+            Parameter.TRANSDUCER_DEPTH: 0,
             Parameter.SALINITY: 35,
-
-            # first 2 bits represent beam vs earth
             Parameter.COORDINATE_TRANSFORMATION: '11111',
-            Parameter.TIME_PER_ENSEMBLE: '00:00:00.00',
-            Parameter.TIME_PER_PING: '00:01.00',
+            Parameter.SENSOR_SOURCE: "1010101",
+            Parameter.TIME_PER_BURST: '00:00:00.00',
+            Parameter.ENSEMBLES_PER_BURST: 0,
+            Parameter.TIME_PER_ENSEMBLE: '01:00:00.00',
+            Parameter.TIME_PER_PING: '01:20.00',
+            Parameter.BUFFER_OUTPUT_PERIOD: '00:00:00',
             Parameter.FALSE_TARGET_THRESHOLD: '050,001',
-            Parameter.BANDWIDTH_CONTROL: 0,
             Parameter.CORRELATION_THRESHOLD: 64,
-            Parameter.SERIAL_OUT_FW_SWITCHES: '111100000',
             Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
-            Parameter.BLANK_AFTER_TRANSMIT: 704,
             Parameter.CLIP_DATA_PAST_BOTTOM: 0,
             Parameter.RECEIVER_GAIN_SELECT: 1,
             Parameter.WATER_REFERENCE_LAYER: '001,005',
-            Parameter.WATER_PROFILING_MODE: 1,
-            Parameter.NUMBER_OF_DEPTH_CELLS: 100,
-            Parameter.PINGS_PER_ENSEMBLE: 1,
+            Parameter.NUMBER_OF_DEPTH_CELLS: 30,
+            Parameter.PINGS_PER_ENSEMBLE: 45,
             Parameter.DEPTH_CELL_SIZE: 800,
             Parameter.TRANSMIT_LENGTH: 0,
             Parameter.PING_WEIGHT: 0,
@@ -129,6 +130,9 @@ InstrumentDriverTestCase.initialize(
 # methods for validating data particles.
 ###############################################################################
 
+#class ParameterAltValue(WorkhorseParameterAltValue):
+#    pass
+
 
 class ADCPTMixin(DriverTestMixin):
     '''
@@ -140,103 +144,106 @@ class ADCPTMixin(DriverTestMixin):
     READONLY  = ParameterTestConfigKey.READONLY
     STARTUP   = ParameterTestConfigKey.STARTUP
     DA        = ParameterTestConfigKey.DIRECT_ACCESS
-    VALUE     = ParameterTestConfigKey.VALUE
     REQUIRED  = ParameterTestConfigKey.REQUIRED
     DEFAULT   = ParameterTestConfigKey.DEFAULT
     STATES    = ParameterTestConfigKey.STATES 
+    VALUE     = ParameterTestConfigKey.VALUE
+    OFF_VALUE = 'off_value'
 
     ###
     # Parameter and Type Definitions
     ###
-    # Is DEFAULT the DEFAULT STARTUP VALUE?
-    _driver_parameters = {
-        Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
-        Parameter.SERIAL_FLOW_CONTROL: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '11110'},
-        Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: True, VALUE: True},
-        Parameter.TIME: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False},
-        Parameter.SERIAL_OUT_FW_SWITCHES: {TYPE: str, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: '111100000'},
-        Parameter.WATER_PROFILING_MODE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
 
-        Parameter.BANNER: {TYPE: bool, READONLY: True, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
-        Parameter.INSTRUMENT_ID: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.SLEEP_ENABLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.POLLED_MODE: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: False},
-        Parameter.XMIT_POWER: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 255, VALUE: 255},
-        Parameter.SPEED_OF_SOUND: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 1485, VALUE: 1485},
-        Parameter.PITCH: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.ROLL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 0, VALUE: 0},
-        Parameter.SALINITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: 35, VALUE: 35},
-        Parameter.COORDINATE_TRANSFORMATION: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '11111', VALUE: '11111'},
-        Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1010101"}, # "1111101"
-        Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
-        Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
-        Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:01.00'},
-        Parameter.FALSE_TARGET_THRESHOLD: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '050,001'},
-        Parameter.BANDWIDTH_CONTROL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
-        Parameter.CORRELATION_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 64},
-        Parameter.ERROR_VELOCITY_THRESHOLD: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 2000},
-        Parameter.BLANK_AFTER_TRANSMIT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 704},
-        Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
-        Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
-        Parameter.WATER_REFERENCE_LAYER: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '001,005'},
-        Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 100},
-        Parameter.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 1},
-        Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 800},
-        Parameter.TRANSMIT_LENGTH: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
-        Parameter.PING_WEIGHT: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
-        Parameter.AMBIGUITY_VELOCITY: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 175}
+    # Values sync'ed with T-F IOS
+    _driver_parameters = {
+        # TODO: verify DEFAULT IS USED RIGHT.
+        Parameter.SERIAL_DATA_OUT:           {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: "000 000 000",VALUE: "000 000 000",OFF_VALUE: "000 000 001"},
+        Parameter.SERIAL_FLOW_CONTROL:       {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: '11110', VALUE: '11110',      OFF_VALUE: '10110'},
+        Parameter.BANNER:                    {TYPE: bool, READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: False,        OFF_VALUE: True},
+        Parameter.SLEEP_ENABLE:              {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 1,       VALUE: 1,            OFF_VALUE: 0},
+        Parameter.INSTRUMENT_ID:             {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
+        Parameter.SAVE_NVRAM_TO_RECORDER:    {TYPE: bool, READONLY: False, DA: False, STARTUP: True,  DEFAULT: True,    VALUE: True,         OFF_VALUE: False},
+        Parameter.POLLED_MODE:               {TYPE: bool, READONLY: False, DA: False, STARTUP: True,  DEFAULT: False,   VALUE: False,        OFF_VALUE: True},
+        Parameter.XMIT_POWER:                {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 255,     VALUE: 255,          OFF_VALUE: 250},
+        Parameter.HEADING_ALIGNMENT:         {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
+        Parameter.SPEED_OF_SOUND:            {TYPE: int,  READONLY: False, DA: True,  STARTUP: True,  DEFAULT: 1500,    VALUE: 1500,         OFF_VALUE: 1480},
+        Parameter.TRANSDUCER_DEPTH:          {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 32767},
+        Parameter.SALINITY:                  {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 35,      VALUE: 35,           OFF_VALUE: 36},
+        Parameter.COORDINATE_TRANSFORMATION: {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '11111', VALUE: '11111',      OFF_VALUE: '00111'},
+        Parameter.SENSOR_SOURCE:             {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: "1010101",VALUE: "1010101",   OFF_VALUE: '0000000'},
+        Parameter.TIME_PER_BURST:            {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '00:00:00.00',VALUE: '00:00:00.00',OFF_VALUE: '00:55:00.00'},
+        Parameter.ENSEMBLES_PER_BURST:       {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 999},
+        Parameter.TIME_PER_ENSEMBLE:         {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '01:00:00.00',VALUE: '01:00:00.00',OFF_VALUE: '00:00:01.00'},
+        Parameter.TIME_OF_FIRST_PING:        {TYPE: str,  READONLY: True,  DA: False, STARTUP: False}, 
+        Parameter.TIME_PER_PING:             {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '01:20.00',VALUE: '01:20.00',   OFF_VALUE: '00:02.00'},
+        Parameter.TIME:                      {TYPE: str,  READONLY: True,  DA: False, STARTUP: False},
+        Parameter.BUFFER_OUTPUT_PERIOD:      {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '00:00:00', VALUE: '00:00:00',   OFF_VALUE: '00:55:00'},
+        Parameter.FALSE_TARGET_THRESHOLD:    {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '050,001', VALUE: '050,001',    OFF_VALUE: '049,002'},
+        Parameter.BANDWIDTH_CONTROL:         {TYPE: int,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 1,   VALUE: 1,            OFF_VALUE: 0},
+        Parameter.CORRELATION_THRESHOLD:     {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 64,   VALUE: 64,           OFF_VALUE: 63},
+        Parameter.SERIAL_OUT_FW_SWITCHES:    {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: '111100000', VALUE: '111100000',  OFF_VALUE: '111100001'},
+        Parameter.ERROR_VELOCITY_THRESHOLD:  {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 2000,    VALUE: 2000,         OFF_VALUE: 1999},
+        Parameter.BLANK_AFTER_TRANSMIT:      {TYPE: int,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 352,     VALUE: 352,          OFF_VALUE: 342},
+        Parameter.CLIP_DATA_PAST_BOTTOM:     {TYPE: bool, READONLY: False, DA: False, STARTUP: True,  DEFAULT: False,   VALUE: False,        OFF_VALUE: True},
+        Parameter.RECEIVER_GAIN_SELECT:      {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 1,       VALUE: 1,            OFF_VALUE: 0},
+        Parameter.WATER_REFERENCE_LAYER:     {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '001,005', VALUE: '001,005',    OFF_VALUE: '002,006'},
+        Parameter.WATER_PROFILING_MODE:      {TYPE: int,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 1,       VALUE: 1,            OFF_VALUE: 0},
+        Parameter.NUMBER_OF_DEPTH_CELLS:     {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 30,      VALUE: 30,           OFF_VALUE: 90},
+        Parameter.PINGS_PER_ENSEMBLE:        {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 45,      VALUE: 45,           OFF_VALUE: 2},
+        Parameter.DEPTH_CELL_SIZE:           {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 800,     VALUE: 800,          OFF_VALUE: 790},
+        Parameter.TRANSMIT_LENGTH:           {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
+        Parameter.PING_WEIGHT:               {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
+        Parameter.AMBIGUITY_VELOCITY:        {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 175,     VALUE: 175,          OFF_VALUE: 176},
     }
 
     _driver_capabilities = {
         # capabilities defined in the IOS
-        Capability.START_AUTOSAMPLE: { STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
-        Capability.STOP_AUTOSAMPLE: { STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.START_AUTOSAMPLE: { STATES: [ProtocolState.COMMAND]}, # , ProtocolState.AUTOSAMPLE
+        Capability.STOP_AUTOSAMPLE: { STATES: [ ProtocolState.AUTOSAMPLE]}, #ProtocolState.COMMAND,
         Capability.CLOCK_SYNC: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_CALIBRATION: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_CONFIGURATION: { STATES: [ProtocolState.COMMAND]},
-        Capability.SAVE_SETUP_TO_RAM: { STATES: [ProtocolState.COMMAND]},
         Capability.SEND_LAST_SAMPLE: { STATES: [ProtocolState.COMMAND]},
+        Capability.SAVE_SETUP_TO_RAM: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_ERROR_STATUS_WORD: { STATES: [ProtocolState.COMMAND]},
         Capability.CLEAR_ERROR_STATUS_WORD: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_FAULT_LOG: { STATES: [ProtocolState.COMMAND]},
         Capability.CLEAR_FAULT_LOG: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_INSTRUMENT_TRANSFORM_MATRIX: { STATES: [ProtocolState.COMMAND]},
+        Capability.RESTORE_FACTORY_PARAMS: { STATES: [ProtocolState.COMMAND]},          # PROBLEM HERE
         Capability.RUN_TEST_200: { STATES: [ProtocolState.COMMAND]},
+        Capability.POWER_DOWN: { STATES: [ProtocolState.COMMAND]},
     }
 
     #name, type done, value pending
     EF_CHAR = '\xef'
     _calibration_data_parameters = {
-        ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP: {'type': float, 'value': 1355526119.0 },
-        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX: {'type': list, 'value': [0.45971, -0.43188, 0.025594, -0.0064585] },
-        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY: {'type': list, 'value': [-0.030328, 0.030124, -0.040265, 0.60791] },
-        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ: {'type': list, 'value': [0.23864, 0.22808, 0.32896, 0.024285]     },
-        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR: {'type': list, 'value': [0.50144, 0.49284, -0.70207, -0.045907] },
-        ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET: {'type': list, 'value': [34143.0, 33943.0, 34059.0, 33528.0] },
-        ADCP_COMPASS_CALIBRATION_KEY.ELECTRICAL_NULL: {'type': float, 'value': 34441.0 },
-        ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP: {'type': float, 'value': 1355525719.0 },
-        ADCP_COMPASS_CALIBRATION_KEY.CALIBRATION_TEMP: {'type': float, 'value': 23.3 },
-        ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN: {'type': list, 'value': [-3.7232e-08, -2.8741e-05, -1.0957e-08, 3.0921e-05] },
-        ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN: {'type': list, 'value': [-2.8553e-05, 1.2566e-07, -3.1241e-05, -4.9307e-08] },
-        ADCP_COMPASS_CALIBRATION_KEY.OFFSET_UP_DOWN: {'type': list, 'value': [33216.0, 33314.0, 33685.0, 32469.0] },
-        ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL: {'type': float, 'value': 33459.0 }
+        ADCP_COMPASS_CALIBRATION_KEY.FLUXGATE_CALIBRATION_TIMESTAMP: {'type': float, 'value': -1785800539.0 },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BX: {'type': list, 'value': [3.8774e-01, 4.7391e-01, -2.5109e-02, -1.4835e-02] },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BY: {'type': list, 'value': [-8.2932e-03, 1.8434e-02, -5.2666e-02, 5.8153e-01] },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_BZ: {'type': list, 'value': [2.2218e-01, -1.7820e-01, 2.9168e-01, 1.6125e-02] },
+        ADCP_COMPASS_CALIBRATION_KEY.S_INVERSE_ERR: {'type': list, 'value': [-5.3909e-01, 4.7951e-01, 7.0135e-01, 4.0629e-02] },
+        ADCP_COMPASS_CALIBRATION_KEY.COIL_OFFSET: {'type': list, 'value': [3.8310e+04, 3.4872e+04, 3.7008e+04, 3.4458e+04] },
+        ADCP_COMPASS_CALIBRATION_KEY.ELECTRICAL_NULL: {'type': float, 'value': 34159 },
+        ADCP_COMPASS_CALIBRATION_KEY.TILT_CALIBRATION_TIMESTAMP: {'type': float, 'value': 1348176909.0 },
+        ADCP_COMPASS_CALIBRATION_KEY.CALIBRATION_TEMP: {'type': float, 'value': 24.9 },
+        ADCP_COMPASS_CALIBRATION_KEY.ROLL_UP_DOWN: {'type': list, 'value': [3.5167e-07, -1.4728e-05, -3.5240e-07,  1.5687e-05] },
+        ADCP_COMPASS_CALIBRATION_KEY.PITCH_UP_DOWN: {'type': list, 'value': [-1.4773e-05, 2.9804e-23, -1.5654e-05, -1.2675e-07] },
+        ADCP_COMPASS_CALIBRATION_KEY.OFFSET_UP_DOWN: {'type': list, 'value': [3.2170e+04, 3.3840e+04, 3.4094e+04, 3.3028e+04] },
+        ADCP_COMPASS_CALIBRATION_KEY.TILT_NULL: {'type': float, 'value': 33296 }
     }
 
     #name, type done, value pending
     _system_configuration_data_parameters = {
-        ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER: {'type': unicode, 'value': "18919" },
-        ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY: {'type': int, 'value': 76800 }, 
+        ADCP_SYSTEM_CONFIGURATION_KEY.SERIAL_NUMBER: {'type': unicode, 'value': "18493" },
+        ADCP_SYSTEM_CONFIGURATION_KEY.TRANSDUCER_FREQUENCY: {'type': int, 'value': 307200 }, 
         ADCP_SYSTEM_CONFIGURATION_KEY.CONFIGURATION: {'type': unicode, 'value': "4 BEAM, JANUS" },
         ADCP_SYSTEM_CONFIGURATION_KEY.MATCH_LAYER: {'type': unicode, 'value': "10" },
         ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_ANGLE: {'type': int, 'value': 20 },
         ADCP_SYSTEM_CONFIGURATION_KEY.BEAM_PATTERN: {'type': unicode, 'value': "CONVEX" },
         ADCP_SYSTEM_CONFIGURATION_KEY.ORIENTATION: {'type': unicode, 'value': "UP" },
-        ADCP_SYSTEM_CONFIGURATION_KEY.SENSORS: {'type': unicode, 'value': "HEADING  TILT 1  TILT 2  DEPTH  TEMPERATURE  PRESSURE" },
-        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c3: {'type': float, 'value': +4.074753E-12 },
-        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c2: {'type': float, 'value': +8.083932E-07 },
-        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_c1: {'type': float, 'value': +1.241627E+00 },
-        ADCP_SYSTEM_CONFIGURATION_KEY.PRESSURE_COEFF_OFFSET: {'type': float, 'value': +3.805579E+00 },
-        ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET: {'type': float, 'value': -0.08 },
+        ADCP_SYSTEM_CONFIGURATION_KEY.SENSORS: {'type': unicode, 'value': "HEADING  TILT 1  TILT 2  TEMPERATURE" },
+        ADCP_SYSTEM_CONFIGURATION_KEY.TEMPERATURE_SENSOR_OFFSET: {'type': float, 'value': -0.02 },
         ADCP_SYSTEM_CONFIGURATION_KEY.CPU_FIRMWARE: {'type': unicode, 'value': "50.40 [0]" },
         ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_REQUIRED: {'type': unicode, 'value': "1.16" }, 
         ADCP_SYSTEM_CONFIGURATION_KEY.BOOT_CODE_ACTUAL: {'type': unicode, 'value': "1.16" }, 
@@ -246,12 +253,7 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_SYSTEM_CONFIGURATION_KEY.DEMOD_2_TYPE: {'type': unicode, 'value': "1f" }, 
         ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_VERSION: {'type': unicode, 'value': "85d3" }, 
         ADCP_SYSTEM_CONFIGURATION_KEY.POWER_TIMING_TYPE: {'type': unicode, 'value': "7" }, 
-        ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS: {'type': unicode, 'value': u'B3  00 00 06 FF 2A 00  09 DSP727-2001-06H\n' + \
-                                                                                        '2D  00 00 06 F6 17 D8  09 TUN727-1005-06X\n' + \
-                                                                                        '2E  00 00 06 FF 25 54  09 CPU727-2011-00E\n' + \
-                                                                                        '3C  00 00 06 FF 2E 3C  09 HPA727-3009-00B \n' + \
-                                                                                        'C2  00 00 06 FF 09 46  09 HPI727-3007-00A\n' + \
-                                                                                        'D5  00 00 06 FF 06 E9  09 REC727-1004-06A'}
+        ADCP_SYSTEM_CONFIGURATION_KEY.BOARD_SERIAL_NUMBERS: {'type': unicode, 'value': u'2F  00 00 06 FF 25 D1  09 CPU727-2011-00E\n16  00 00 06 F5 E5 D1  09 DSP727-2001-04H\n27  00 00 06 FF 29 31  09 PIO727-3000-00G\n91  00 00 06 F6 17 A7  09 REC727-1000-04E'}
         }
 
     #name, type done, value pending
@@ -312,7 +314,7 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_PD0_PARSED_KEY.CPU_BOARD_SERIAL_NUMBER: {'type': long, 'value': 9367487254980977929L },
         ADCP_PD0_PARSED_KEY.SYSTEM_BANDWIDTH: {'type': int, 'value': 0 },
         ADCP_PD0_PARSED_KEY.SYSTEM_POWER: {'type': int, 'value': 255 },
-        ADCP_PD0_PARSED_KEY.SERIAL_NUMBER: {'type': int, 'value': 206045184 },
+        ADCP_PD0_PARSED_KEY.SERIAL_NUMBER: {'type': long, 'value': 206045184 },
         ADCP_PD0_PARSED_KEY.BEAM_ANGLE: {'type': int, 'value': 20 },
         ADCP_PD0_PARSED_KEY.VARIABLE_LEADER_ID: {'type': int, 'value': 128 },
         ADCP_PD0_PARSED_KEY.ENSEMBLE_NUMBER: {'type': int, 'value': 5 },
@@ -379,17 +381,6 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_PD0_PARSED_KEY.CHECKSUM: {'type': int, 'value': 8239 }
     }
 
-    #CG?
-    """
-    SAMPLEDICT: {'quality_flag': 'ok', 'preferred_timestamp': 'port_timestamp', 'stream_name': 'adcp_pd0_earth_parsed', 'port_timestamp': 3577202162.3577204, 'pkt_format_id': 'JSON_Data', 'pkt_version': 1, 'values': [{'value_id': 'checksum', 'value': 16167}, {'value_id': 'header_id', 'value': 127}, {'value_id': 'data_source_id', 'value': 127}, {'value_id': 'num_bytes', 'value': 26632}, {'value_id': 'num_data_types', 'value': 6}, {'value_id': 'offset_data_types', 'value': [18, 77, 142, 944, 1346, 1748, 2150]}, {'value_id': 'fixed_leader_id', 'value': 0}, {'value_id': 'firmware_version', 'value': 50}, {'value_id': 'firmware_revision', 'value': 40}, {'value_id': 'sysconfig_frequency', 'value': 150}, {'value_id': 'sysconfig_beam_pattern', 'value': 0}, {'value_id': 'sysconfig_sensor_config', 'value': 1}, {'value_id': 'sysconfig_head_attached', 'value': 1}, {'value_id': 'sysconfig_vertical_orientation', 'value': 0}, {'value_id': 'data_flag', 'value': 0}, {'value_id': 'lag_length', 'value': 53}, {'value_id': 'num_beams', 'value': 4}, {'value_id': 'num_cells', 'value': 100}, {'value_id': 'pings_per_ensemble', 'value': 256}, {'value_id': 'depth_cell_length', 'value': 8195}, {'value_id': 'blank_after_transmit', 'value': 49154}, {'value_id': 'signal_processing_mode', 'value': 1}, {'value_id': 'low_corr_threshold', 'value': 64}, {'value_id': 'num_code_repetitions', 'value': 5}, {'value_id': 'percent_good_min', 'value': 0}, {'value_id': 'error_vel_threshold', 'value': 53255}, {'value_id': 'time_per_ping_minutes', 'value': 0}, {'value_id': 'time_per_ping_seconds', 'value': 1.0}, {'value_id': 'coord_transform_type', 'value': 3}, {'value_id': 'coord_transform_tilts', 'value': 1}, {'value_id': 'coord_transform_beams', 'value': 0}, {'value_id': 'coord_transform_mapping', 'value': 1}, {'value_id': 'heading_alignment', 'value': 0}, {'value_id': 'heading_bias', 'value': 0}, {'value_id': 'sensor_source_speed', 'value': 1}, {'value_id': 'sensor_source_depth', 'value': 1}, {'value_id': 'sensor_source_heading', 'value': 1}, {'value_id': 'sensor_source_pitch', 'value': 1}, {'value_id': 'sensor_source_roll', 'value': 1}, {'value_id': 'sensor_source_conductivity', 'value': 0}, {'value_id': 'sensor_source_temperature', 'value': 1}, {'value_id': 'sensor_available_depth', 'value': 1}, {'value_id': 'sensor_available_heading', 'value': 1}, {'value_id': 'sensor_available_pitch', 'value': 1}, {'value_id': 'sensor_available_roll', 'value': 1}, {'value_id': 'sensor_available_conductivity', 'value': 0}, {'value_id': 'sensor_available_temperature', 'value': 1}, {'value_id': 'bin_1_distance', 'value': 39942}, {'value_id': 'transmit_pulse_length', 'value': 53763}, {'value_id': 'reference_layer_start', 'value': 1}, {'value_id': 'reference_layer_stop', 'value': 5}, {'value_id': 'false_target_threshold', 'value': 50}, {'value_id': 'low_latency_trigger', 'value': 0}, {'value_id': 'transmit_lag_distance', 'value': 50944}, {'value_id': 'cpu_board_serial_number', 'value': 3314649355795125257L}, {'value_id': 'system_bandwidth', 'value': 0}, {'value_id': 'system_power', 'value': 255}, {'value_id': 'serial_number', 'value': 3880321024}, {'value_id': 'beam_angle', 'value': 20}, {'value_id': 'variable_leader_id', 'value': 128}, {'value_id': 'ensemble_number', 'value': 1}, {'value_id': 'ensemble_number_increment', 'value': 0}, {'value_id': 'bit_result_demod_1', 'value': 0}, {'value_id': 'bit_result_demod_2', 'value': 0}, {'value_id': 'bit_result_timing', 'value': 0}, {'value_id': 'speed_of_sound', 'value': 1529}, {'value_id': 'transducer_depth', 'value': 0}, {'value_id': 'heading', 'value': 29160}, {'value_id': 'pitch', 'value': -4282}, {'value_id': 'roll', 'value': 4361}, {'value_id': 'salinity', 'value': 35}, {'value_id': 'temperature', 'value': 2272}, {'value_id': 'mpt_minutes', 'value': 0}, {'value_id': 'mpt_seconds', 'value': 0.0}, {'value_id': 'heading_stdev', 'value': 0}, {'value_id': 'pitch_stdev', 'value': 0}, {'value_id': 'roll_stdev', 'value': 0}, {'value_id': 'adc_transmit_current', 'value': 255}, {'value_id': 'adc_transmit_voltage', 'value': 0}, {'value_id': 'adc_ambient_temp', 'value': 0}, {'value_id': 'adc_pressure_plus', 'value': 0}, {'value_id': 'adc_pressure_minus', 'value': 0}, {'value_id': 'adc_attitude_temp', 'value': 0}, {'value_id': 'adc_attitiude', 'value': 0}, {'value_id': 'adc_contamination_sensor', 'value': 0}, {'value_id': 'bus_error_exception', 'value': 0}, {'value_id': 'address_error_exception', 'value': 0}, {'value_id': 'illegal_instruction_exception', 'value': 0}, {'value_id': 'zero_divide_instruction', 'value': 0}, {'value_id': 'emulator_exception', 'value': 0}, {'value_id': 'unassigned_exception', 'value': 0}, {'value_id': 'watchdog_restart_occurred', 'value': 0}, {'value_id': 'battery_saver_power', 'value': 0}, {'value_id': 'pinging', 'value': 0}, {'value_id': 'cold_wakeup_occurred', 'value': 0}, {'value_id': 'unknown_wakeup_occurred', 'value': 0}, {'value_id': 'clock_read_error', 'value': 0}, {'value_id': 'unexpected_alarm', 'value': 0}, {'value_id': 'clock_jump_forward', 'value': 0}, {'value_id': 'clock_jump_backward', 'value': 0}, {'value_id': 'power_fail', 'value': 0}, {'value_id': 'spurious_dsp_interrupt', 'value': 0}, {'value_id': 'spurious_uart_interrupt', 'value': 0}, {'value_id': 'spurious_clock_interrupt', 'value': 0}, {'value_id': 'level_7_interrupt', 'value': 0}, {'value_id': 'pressure', 'value': 4294966733}, {'value_id': 'pressure_variance', 'value': 0}, {'value_id': 'internal_timestamp', 'value': 1368238559.59}, {'value_id': 'velocity_data_id', 'value': 1}, {'value_id': 'water_velocity_east', 'value': [128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128]}, {'value_id': 'water_velocity_north', 'value': [128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128]}, {'value_id': 'water_velocity_up', 'value': [128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128]}, {'value_id': 'error_velocity', 'value': [128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128]}, {'value_id': 'beam_1_velocity', 'value': []}, {'value_id': 'beam_2_velocity', 'value': []}, {'value_id': 'beam_3_velocity', 'value': []}, {'value_id': 'beam_4_velocity', 'value': []}, {'value_id': 'correlation_magnitude_id', 'value': 2}, {'value_id': 'correlation_magnitude_beam1', 'value': [33819, 2836, 2830, 3340, 4108, 1546, 3596, 5895, 3589, 1549, 3085, 3590, 5389, 1308, 5392, 2838, 4099, 4868, 2053, 6933, 11, 12, 15, 7, 9, 4, 6, 19, 3, 12, 9, 26, 10, 17, 14, 6, 8, 13, 16, 14, 7, 0, 0, 0, 0, 0, 0, 0, 0]}, {'value_id': 'correlation_magnitude_beam2', 'value': [9267, 775, 4104, 2825, 3598, 4114, 2315, 5390, 4369, 4363, 2819, 3342, 2835, 1543, 4107, 2059, 5904, 3336, 1547, 2827, 17, 11, 11, 16, 13, 11, 16, 9, 9, 10, 10, 22, 4, 11, 15, 9, 1, 15, 9, 11, 12, 0, 0, 0, 0, 0, 0, 0, 0]}, {'value_id': 'correlation_magnitude_beam3', 'value': [2821, 2312, 3364, 3336, 2318, 2827, 2057, 519, 2060, 3083, 1288, 2062, 4105, 3599, 6665, 2061, 2056, 2823, 1810, 3348, 9, 11, 18, 14, 8, 9, 16, 11, 4, 3, 12, 20, 5, 9, 12, 13, 12, 13, 17, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {'value_id': 'correlation_magnitude_beam4', 'value': [2066, 3347, 1284, 3080, 3089, 4880, 2057, 3095, 3595, 2315, 2314, 2057, 3847, 4626, 3088, 4117, 4621, 3076, 3594, 4381, 8, 14, 17, 10, 18, 13, 11, 14, 6, 24, 10, 5, 14, 26, 8, 11, 14, 6, 8, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {'value_id': 'echo_intensity_id', 'value': 3}, {'value_id': 'echo_intesity_beam1', 'value': [6944, 5404, 5148, 5404, 5148, 5404, 5404, 5404, 5404, 5147, 5404, 5147, 5147, 5404, 5404, 5404, 5404, 5404, 5404, 5404, 5404, 5404, 5404, 5403, 5661, 5404, 5404, 5403, 5149, 5403, 5404, 5660, 5404, 5404, 5405, 5148, 5404, 5148, 5404, 5403, 5147, 5148, 5148, 5148, 5147, 5148, 5403, 5404, 5148]}, {'value_id': 'echo_intesity_beam2', 'value': [6431, 5915, 5915, 6170, 6171, 6427, 6170, 5914, 6683, 5914, 6171, 6171, 5659, 6427, 6170, 6426, 5659, 5914, 6171, 5915, 6171, 6171, 6171, 6171, 6171, 6171, 5915, 5915, 6427, 5914, 5914, 5660, 6170, 6171, 5914, 6171, 6170, 6426, 6170, 6171, 6427, 6170, 6170, 6426, 5916, 6170, 6170, 6171, 5915]}, {'value_id': 'echo_intesity_beam3', 'value': [5661, 5403, 5404, 5403, 5659, 5148, 5404, 5403, 5660, 5404, 5404, 5403, 5148, 5404, 5403, 5148, 5404, 5404, 5404, 5147, 5404, 5147, 5404, 5404, 5403, 5148, 5148, 5659, 5403, 5148, 5660, 5403, 5148, 5403, 5404, 5404, 5148, 5404, 5405, 5147, 5404, 5147, 5404, 5148, 5404, 5660, 5404, 5404, 5147]}, {'value_id': 'echo_intesity_beam4', 'value': [6172, 5915, 6171, 5659, 6171, 5916, 5915, 5915, 5915, 5659, 6171, 5914, 6171, 5915, 6427, 5915, 5914, 6170, 5915, 6170, 6171, 5915, 6171, 6427, 6171, 6171, 5914, 5915, 6426, 6171, 6170, 6171, 6427, 6171, 6171, 6426, 6426, 6171, 5915, 6426, 5914, 6171, 5915, 5914, 6170, 5915, 6171, 5658, 5914]}, {'value_id': 'percent_good_id', 'value': 4}, {'value_id': 'percent_good_3beam', 'value': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {'value_id': 'percent_transforms_reject', 'value': [25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600]}, {'value_id': 'percent_bad_beams', 'value': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}, {'value_id': 'percent_good_4beam', 'value': [25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600, 25600]}, {'value_id': 'percent_good_beam1', 'value': []}, {'value_id': 'percent_good_beam2', 'value': []}, {'value_id': 'percent_good_beam3', 'value': []}, {'value_id': 'percent_good_beam4', 'value': []}], 'driver_timestamp': 3577202164.788333}
-    2013-05-10 12:16:05,749 INFO     mi.idk.unit_test Sample Keys: ['ensemble_number', 'num_beams', 'adc_pressure_plus', 'percent_bad_beams', 'sysconfig_head_attached', 'sensor_available_heading', 'pitch', 'header_id', 'time_per_ping_seconds', 'correlation_magnitude_beam1', 'watchdog_restart_occurred', 'percent_good_beam1', 'percent_good_beam3', 'percent_good_beam2', 'percent_good_beam4', 'coord_transform_beams', 'reference_layer_stop', 'clock_jump_backward', 'sensor_available_pitch', 'cpu_board_serial_number', 'depth_cell_length', 'adc_attitude_temp', 'unexpected_alarm', 'percent_transforms_reject', 'sensor_source_speed', 'echo_intesity_beam1', 'spurious_uart_interrupt', 'battery_saver_power', 'sensor_source_roll', 'reference_layer_start', 'bit_result_demod_2', 'echo_intesity_beam3', 'bit_result_demod_1', 'sensor_available_roll', 'echo_intesity_beam4', 'num_bytes', 'coord_transform_type', 'correlation_magnitude_beam4', 'correlation_magnitude_beam2', 'correlation_magnitude_beam3', 'spurious_dsp_interrupt', 'sensor_available_conductivity', 'mpt_minutes', 'heading', 'adc_ambient_temp', 'time_per_ping_minutes', 'transducer_depth', 'beam_2_velocity', 'power_fail', 'address_error_exception', 'error_vel_threshold', 'beam_3_velocity', 'data_flag', 'bus_error_exception', 'sensor_source_heading', 'bit_result_timing', 'pressure_variance', 'lag_length', 'sensor_source_pitch', 'sensor_source_depth', 'illegal_instruction_exception', 'adc_transmit_voltage', 'adc_attitiude', 'emulator_exception', 'transmit_pulse_length', 'heading_alignment', 'adc_pressure_minus', 'pings_per_ensemble', 'adc_transmit_current', 'pressure', 'checksum', 'low_corr_threshold', 'zero_divide_instruction', 'blank_after_transmit', 'system_bandwidth', 'sysconfig_beam_pattern', 'transmit_lag_distance', 'water_velocity_east', 'system_power', 'percent_good_min', 'beam_angle', 'water_velocity_north', 'beam_1_velocity', 'false_target_threshold', 'spurious_clock_interrupt', 'roll_stdev', 'temperature', 'unassigned_exception', 'percent_good_id', 'water_velocity_up', 'internal_timestamp', 'adc_contamination_sensor', 'serial_number', 'echo_intensity_id', 'sysconfig_vertical_orientation', 'correlation_magnitude_id', 'mpt_seconds', 'heading_bias', 'num_cells', 'low_latency_trigger', 'error_velocity', 'clock_read_error', 'sensor_available_temperature', 'echo_intesity_beam2', 'sysconfig_sensor_config', 'firmware_revision', 'percent_good_4beam', 'firmware_version', 'coord_transform_mapping', 'velocity_data_id', 'speed_of_sound', 'percent_good_3beam', 'pitch_stdev', 'offset_data_types', 'level_7_interrupt', 'coord_transform_tilts', 'ensemble_number_increment', 'roll', 'data_source_id', 'sensor_source_temperature', 'beam_4_velocity', 'variable_leader_id', 'sensor_source_conductivity', 'num_code_repetitions', 'num_data_types', 'unknown_wakeup_occurred', 'pinging', 'cold_wakeup_occurred', 'sysconfig_frequency', 'sensor_available_depth', 'salinity', 'clock_jump_forward', 'signal_processing_mode', 'fixed_leader_id', 'heading_stdev', 'bin_1_distance']
-    2013-05-10 12:16:05,749 INFO     mi.idk.unit_test Required Keys: ['ensemble_number', 'num_beams', 'adc_pressure_plus', 'percent_bad_beams', 'percent_transforms_reject', 'sensor_available_heading', 'ensemble_number_increment', 'pitch', 'header_id', 'time_per_ping_seconds', 'correlation_magnitude_beam1', 'watchdog_restart_occurred', 'percent_good_beam1', 'percent_good_beam3', 'percent_good_beam2', 'percent_good_beam4', 'coord_transform_beams', 'reference_layer_stop', 'clock_jump_backward', 'low_latency_trigger', 'cpu_board_serial_number', 'depth_cell_length', 'adc_attitude_temp', 'beam_angle', 'sensor_source_speed', 'echo_intesity_beam1', 'spurious_uart_interrupt', 'battery_saver_power', 'sensor_source_roll', 'sensor_available_roll', 'bit_result_demod_2', 'echo_intesity_beam3', 'bit_result_demod_1', 'reference_layer_start', 'echo_intesity_beam4', 'num_bytes', 'coord_transform_type', 'correlation_magnitude_beam4', 'correlation_magnitude_beam2', 'correlation_magnitude_beam3', 'spurious_dsp_interrupt', 'sensor_available_conductivity', 'mpt_minutes', 'heading', 'adc_ambient_temp', 'time_per_ping_minutes', 'transducer_depth', 'power_fail', 'address_error_exception', 'error_vel_threshold', 'sensor_source_temperature', 'beam_3_velocity', 'data_flag', 'bus_error_exception', 'sensor_source_heading', 'bit_result_timing', 'pressure_variance', 'lag_length', 'sensor_source_pitch', 'sensor_source_depth', 'beam_2_velocity', 'adc_transmit_voltage', 'adc_attitiude', 'emulator_exception', 'transmit_pulse_length', 'heading_alignment', 'adc_pressure_minus', 'pings_per_ensemble', 'adc_transmit_current', 'pressure', 'checksum', 'low_corr_threshold', 'zero_divide_instruction', 'blank_after_transmit', 'sysconfig_beam_pattern', 'sysconfig_sensor_config', 'water_velocity_east', 'system_power', 'percent_good_min', 'unexpected_alarm', 'water_velocity_north', 'beam_1_velocity', 'false_target_threshold', 'spurious_clock_interrupt', 'roll_stdev', 'temperature', 'unassigned_exception', 'percent_good_id', 'water_velocity_up', 'internal_timestamp', 'adc_contamination_sensor', 'serial_number', 'echo_intensity_id', 'sysconfig_vertical_orientation', 'correlation_magnitude_id', 'mpt_seconds', 'heading_bias', 'num_cells', 'sensor_available_pitch', 'error_velocity', 'clock_read_error', 'sensor_available_temperature', 'echo_intesity_beam2', 'transmit_lag_distance', 'firmware_revision', 'sysconfig_frequency', 'percent_good_4beam', 'firmware_version', 'coord_transform_mapping', 'velocity_data_id', 'speed_of_sound', 'percent_good_3beam', 'pitch_stdev', 'offset_data_types', 'level_7_interrupt', 'coord_transform_tilts', 'illegal_instruction_exception', 'roll', 'data_source_id', 'system_bandwidth', 'beam_4_velocity', 'variable_leader_id', 'sensor_source_conductivity', 'num_code_repetitions', 'num_data_types', 'unknown_wakeup_occurred', 'pinging', 'cold_wakeup_occurred', 'sysconfig_head_attached', 'sensor_available_depth', 'salinity', 'clock_jump_forward', 'signal_processing_mode', 'fixed_leader_id', 'heading_stdev', 'bin_1_distance']
-    
-    
-    """
-
-
-
     # red
     _coordinate_transformation_earth_parameters = {
         # Earth Coordinates
@@ -414,7 +405,6 @@ class ADCPTMixin(DriverTestMixin):
         ADCP_PD0_PARSED_KEY.BEAM_2_VELOCITY: {'type': list, 'value': [62719, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128] },
         ADCP_PD0_PARSED_KEY.BEAM_3_VELOCITY: {'type': list, 'value': [45824, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128] },
         ADCP_PD0_PARSED_KEY.BEAM_4_VELOCITY  : {'type': list, 'value': [19712, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128] },
-        
     }
 
     _pd0_parameters = dict(_pd0_parameters_base.items() +
@@ -427,7 +417,8 @@ class ADCPTMixin(DriverTestMixin):
         @param current_parameters: driver parameters read from the driver instance
         @param verify_values: should we verify values against definition?
         """
-        log.debug("assert_driver_parameters current_parameters = " + str(current_parameters))
+        log.debug("assert_driver_parameters current_parameters = " + repr(current_parameters))
+        
         self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
 
     ###
@@ -489,23 +480,55 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
     def setUp(self):
         WorkhorseDriverUnitTest.setUp(self)
 
+    @staticmethod
+    def _get_key_from_value(d, search_val):
+        for k, v in d.iteritems():
+            if v == search_val:
+                return k
+        return None
+
+    def test_paramater_off_value_complete(self):
+        fail = False
+        wanted = {}
+        param_dict = Parameter.dict()
+        for k in self._driver_parameters.keys():
+            log.debug("PROCESSING: " + str(self._get_key_from_value(param_dict, k)) + "/" + k)
+            if self._driver_parameters[k][ADCPTMixin.READONLY] == False:
+                if ADCPTMixin.OFF_VALUE not in self._driver_parameters[k].keys():
+                    log.error("_driver_parameters " + str(self._get_key_from_value(param_dict, k)) + " has no OFF_VALUE\n\n")
+                    fail = True
+                else:
+                    log.debug("TESTINV VALUES " + str(self._driver_parameters[k][ADCPTMixin.OFF_VALUE]) + "?=" + str(self._driver_parameters[k][ADCPTMixin.VALUE]))
+                    if self._driver_parameters[k][ADCPTMixin.OFF_VALUE] == self._driver_parameters[k][ADCPTMixin.VALUE]:
+                        log.error("_driver_parameters " + str(self._get_key_from_value(param_dict, k)) + " OFF_VALUE == VALUE\n\n")
+                        fail = True
+            else:
+                log.debug("^^^ READONLY")
+
+        self.assertFalse(fail, "See above for parameters lacking off values..")
+
+    def test_sanity(self):
+        my_event_callback = Mock(spec="MOCK evt_callback")
+        driver = InstrumentDriver(self._got_data_event_callback)
+        protocol = Protocol(Prompt, NEWLINE, my_event_callback)
+
     def test_send_break(self):
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         self.protocol = Protocol(Prompt, NEWLINE, my_event_callback)
-        def fake_send_break1_cmd():
+        def fake_send_break1_cmd(delay):
             log.error("IN fake_send_break1_cmd")
-            self.protocol._linebuf =  "[BREAK Wakeup A]\n" + \
+            self.protocol._linebuf = "[BREAK Wakeup A]\n" + \
                                      "  Polled Mode is OFF -- Battery Saver is ONWorkHorse Broadband ADCP Version 50.40\n" + \
                                      "Teledyne RD Instruments (c) 1996-2010\n" + \
                                      "All Rights Reserved."
 
-        def fake_send_break2_cmd():
+        def fake_send_break2_cmd(delay):
             log.error("IN fake_send_break2_cmd")
             self.protocol._linebuf = "[BREAK Wakeup A]" + NEWLINE + \
                                     "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
                                     "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
                                     "All Rights Reserved."
-                                    
+
         self.protocol._send_break_cmd = fake_send_break1_cmd
 
         self.assertTrue(self.protocol._send_break())
@@ -514,11 +537,11 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         self.assertTrue(self.protocol._send_break())
 
-
     def test_driver_schema(self):
         """
         get the driver schema and verify it is configured properly
         """
+        self.maxDiff = None
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
@@ -534,9 +557,13 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         # Start validating data particles
 
-        self.assert_particle_published(driver, CG_CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
-        self.assert_particle_published(driver, CG_PS0_RAW_DATA, self.assert_particle_system_configuration, True)
-        self.assert_particle_published(driver, CG_SAMPLE_RAW_DATA, self.assert_particle_pd0_data, True)
+        self.assert_particle_published(driver, CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
+        self.assert_particle_published(driver, PS0_RAW_DATA, self.assert_particle_system_configuration, True)
+
+        self.assert_particle_published(driver, SAMPLE_RAW_DATA1, self.assert_particle_pd0_data, True)
+        self.assert_particle_published(driver, SAMPLE_RAW_DATA2, self.assert_particle_pd0_data, True)
+        self.assert_particle_published(driver, SAMPLE_RAW_DATA3, self.assert_particle_pd0_data, True)
+        self.assert_particle_published(driver, SAMPLE_RAW_DATA4, self.assert_particle_pd0_data, True)
 
     def test_driver_parameters(self):
         """
@@ -565,6 +592,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
             ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
             ProtocolState.COMMAND: ['DRIVER_EVENT_CLOCK_SYNC',
                                     'DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_INIT_PARAMS',
                                     'DRIVER_EVENT_SET',
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
@@ -575,12 +603,17 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     'PROTOCOL_EVENT_GET_ERROR_STATUS_WORD',
                                     'PROTOCOL_EVENT_GET_FAULT_LOG',
                                     'PROTOCOL_EVENT_GET_INSTRUMENT_TRANSFORM_MATRIX',
+                                    'PROTOCOL_EVENT_POWER_DOWN',
+                                    'PROTOCOL_EVENT_RECOVER_AUTOSAMPLE',
+                                    'PROTOCOL_EVENT_RESTORE_FACTORY_PARAMS',
                                     'PROTOCOL_EVENT_RUN_TEST_200',
                                     'PROTOCOL_EVENT_SAVE_SETUP_TO_RAM',
                                     'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
                                     'PROTOCOL_EVENT_SEND_LAST_SAMPLE'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
                                     'DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_INIT_PARAMS',
+                                    'DRIVER_EVENT_DISCOVER',
                                     'PROTOCOL_EVENT_GET_CALIBRATION',
                                     'PROTOCOL_EVENT_GET_CONFIGURATION',
                                     'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
@@ -589,7 +622,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
-
 
     def test_driver_enums(self):
         """
@@ -607,27 +639,26 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
-    # FAILS
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
         """
         chunker = StringChunker(Protocol.sieve_function)
 
-        self.assert_chunker_sample(chunker, CG_SAMPLE_RAW_DATA)
-        self.assert_chunker_sample_with_noise(chunker, CG_SAMPLE_RAW_DATA)
-        self.assert_chunker_fragmented_sample(chunker, CG_SAMPLE_RAW_DATA, 32)
-        self.assert_chunker_combined_sample(chunker, CG_SAMPLE_RAW_DATA)
+        self.assert_chunker_sample(chunker, SAMPLE_RAW_DATA1)
+        self.assert_chunker_sample_with_noise(chunker, SAMPLE_RAW_DATA1)
+        self.assert_chunker_fragmented_sample(chunker, SAMPLE_RAW_DATA1, 32)
+        self.assert_chunker_combined_sample(chunker, SAMPLE_RAW_DATA1)
 
-        self.assert_chunker_sample(chunker, CG_PS0_RAW_DATA)
-        self.assert_chunker_sample_with_noise(chunker, CG_PS0_RAW_DATA)
-        self.assert_chunker_fragmented_sample(chunker, CG_PS0_RAW_DATA, 32)
-        self.assert_chunker_combined_sample(chunker, CG_PS0_RAW_DATA)
+        self.assert_chunker_sample(chunker, PS0_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, PS0_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, PS0_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, PS0_RAW_DATA)
 
-        self.assert_chunker_sample(chunker, CG_CALIBRATION_RAW_DATA)
-        self.assert_chunker_sample_with_noise(chunker, CG_CALIBRATION_RAW_DATA)
-        self.assert_chunker_fragmented_sample(chunker, CG_CALIBRATION_RAW_DATA, 32)
-        self.assert_chunker_combined_sample(chunker, CG_CALIBRATION_RAW_DATA)
+        self.assert_chunker_sample(chunker, CALIBRATION_RAW_DATA)
+        self.assert_chunker_sample_with_noise(chunker, CALIBRATION_RAW_DATA)
+        self.assert_chunker_fragmented_sample(chunker, CALIBRATION_RAW_DATA, 32)
+        self.assert_chunker_combined_sample(chunker, CALIBRATION_RAW_DATA)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -639,7 +670,6 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         protocol = Protocol(Prompt, NEWLINE, my_event_callback)
         driver_capabilities = Capability().list()
         test_capabilities = Capability().list()
-
         # Add a bogus capability that will be filtered out.
         test_capabilities.append("BOGUS_CAPABILITY")
 
@@ -656,46 +686,225 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 ###############################################################################
 @attr('INT', group='mi')
 class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
+
     def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample
         """
+        log.error("IN test_autosample_particle_generation")
         self.assert_initialize_driver()
 
-        params = {
+        # lets set things to do faster pinging so the test is runable in our time scales.
+        self.assert_set_bulk({Parameter.PINGS_PER_ENSEMBLE: 5,
+                              Parameter.TIME_PER_PING: "00:10.00",
+                              Parameter.TIME_PER_ENSEMBLE: "00:01:00.00"})
+
+
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+
+        self.assert_async_particle_generation(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=200)
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=50)
+
+    def test_set_ranges(self):
+        log.error("IN test_set_ranges")
+        self.assert_initialize_driver()
+        self._test_set_heading_alignment()
+        self._test_set_buffer_output_period()
+        self._test_set_time_per_burst()
+        self._test_set_ensembles_per_burst()
+        self._test_set_instrument_id()
+        self._test_set_sleep_enable()
+        self._test_set_save_nvram_to_recorder()
+        self._test_set_polled_mode()
+        self._test_set_xmit_power()
+        self._test_set_speed_of_sound()
+        self._test_set_transducer_depth()
+        self._test_set_salinity()
+        self._test_set_sensor_source()
+        self._test_set_time_per_ensemble()
+        self._test_set_time_of_first_ping_readonly()
+        self._test_set_time_per_ping()
+        self._test_set_false_target_threshold()
+        self._test_set_correlation_threshold()
+        self._test_set_error_velocity_threshold()
+        self._test_set_blank_after_transmit_readonly()
+        self._test_set_clip_data_past_bottom()
+        self._test_set_receiver_gain_select()
+        self._test_set_water_reference_layer()
+        self._test_set_number_of_depth_cells()
+        self._test_set_pings_per_ensemble()
+        self._test_set_depth_cell_size()
+        self._test_set_transmit_length()
+        self._test_set_ping_weight()
+        self._test_set_ambiguity_velocity()
+        self._test_set_coordinate_transformation()
+        self._test_set_bandwidth_control_readonly()
+        self._test_set_serial_data_out_readonly()
+        self._test_set_serial_flow_control_readonly()
+        self._test_set_water_profiling_mode_readonly()
+        self._test_set_serial_out_fw_switches_readonly()
+        self._test_set_banner_readonly()
+        self._test_set_blank_after_transmit_readonly()
+        fail = False
+        log.error("self._tested = " + repr(self._tested))
+        for k in self._tested.keys():
+            if k not in self._driver_parameters.keys():
+                log.error("*WARNING* " + k + " was tested but is not in _driver_parameters")
+                #fail = True
+
+        for k in self._driver_parameters.keys():
+            if k not in [Parameter.TIME_OF_FIRST_PING, Parameter.TIME] + self._tested.keys():
+                log.error("*ERROR* " + k + " is in _driver_parameters but was not tested.")
+                fail = True
+
+        self.assertFalse(fail, "See above for un-exercized parameters.")
+
+    def test_set_bulk(self):
+        """
+        Test all set commands. Verify all exception cases.
+        """
+        log.error("IN test_set_bulk")
+        self.assert_initialize_driver()
+
+        params = {}
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if self._driver_parameters[k][self.READONLY] == False:
+                    params[k] = self._driver_parameters[k][self.VALUE]
+        # Set all parameters to a known ground state
+        self.assert_set_bulk(params)
+
+        ###
+        #   Instrument Parameteres
+        ###
+
+        # set to off_values so we get a config change
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if False == self._driver_parameters[k][self.READONLY]:
+                    self.assert_set(k, self._driver_parameters[k][self.OFF_VALUE])
+                    log.debug("WANT PARAM CHANGE EVENT, SETTING " + k + " to " + str(self._driver_parameters[k][self.VALUE]))
+                if True == self._driver_parameters[k][self.READONLY]:
+                    self.assert_set_readonly(k)
+
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if False == self._driver_parameters[k][self.READONLY]:
+                    self.assert_set(k, self._driver_parameters[k][self.VALUE])
+                    log.debug("WANT PARAM CHANGE EVENT, SETTING " + k + " to " + str(self._driver_parameters[k][self.VALUE]))
+                if True == self._driver_parameters[k][self.READONLY]:
+                    self.assert_set_exception(k, self._driver_parameters[k][self.VALUE])
+                    log.debug("WANT EXCEPTION SETTING " + k + " to " + str(self._driver_parameters[k][self.VALUE]))
+
+    def test_startup_params(self):
+        """
+        Verify that startup parameters are applied correctly. Generally this
+        happens in the driver discovery method.
+
+        since nose orders the tests by ascii value this should run first.
+        """
+        log.error("IN test_startup_params")
+        self.assert_initialize_driver()
+
+        # Updated to reflect T-F startup params.
+        get_values = {
+            Parameter.SLEEP_ENABLE: 1,
             Parameter.INSTRUMENT_ID: 0,
-            Parameter.SLEEP_ENABLE: 0,
             Parameter.POLLED_MODE: False,
             Parameter.XMIT_POWER: 255,
-            Parameter.SPEED_OF_SOUND: 1485,
-            Parameter.PITCH: 0,
-            Parameter.ROLL: 0,
+            Parameter.HEADING_ALIGNMENT: 0,
+            Parameter.SPEED_OF_SOUND: 1500,
+            Parameter.TRANSDUCER_DEPTH: 0,
             Parameter.SALINITY: 35,
-            Parameter.TIME_PER_ENSEMBLE: '00:00:20.00',
-            Parameter.TIME_PER_PING: '00:01.00',
+            Parameter.COORDINATE_TRANSFORMATION: '11111',
+            Parameter.SENSOR_SOURCE: "1010101",
+            Parameter.TIME_PER_BURST: '00:00:00.00',
+            Parameter.ENSEMBLES_PER_BURST: 0,
+            Parameter.TIME_PER_ENSEMBLE: '01:00:00.00',
+            Parameter.TIME_PER_PING: '01:20.00',
+            Parameter.BUFFER_OUTPUT_PERIOD: '00:00:00',
             Parameter.FALSE_TARGET_THRESHOLD: '050,001',
-            Parameter.BANDWIDTH_CONTROL: 0,
             Parameter.CORRELATION_THRESHOLD: 64,
             Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
-            Parameter.BLANK_AFTER_TRANSMIT: 704,
             Parameter.CLIP_DATA_PAST_BOTTOM: 0,
             Parameter.RECEIVER_GAIN_SELECT: 1,
             Parameter.WATER_REFERENCE_LAYER: '001,005',
-            Parameter.NUMBER_OF_DEPTH_CELLS: 100,
-            Parameter.PINGS_PER_ENSEMBLE: 1,
+            Parameter.NUMBER_OF_DEPTH_CELLS: 30,
+            Parameter.PINGS_PER_ENSEMBLE: 45,
             Parameter.DEPTH_CELL_SIZE: 800,
             Parameter.TRANSMIT_LENGTH: 0,
             Parameter.PING_WEIGHT: 0,
             Parameter.AMBIGUITY_VELOCITY: 175,
         }
-        self.assert_set_bulk(params)
 
-        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        # Change the values of these parameters to something before the
+        # driver is reinitalized.  They should be blown away on reinit.
+        new_values = {}
 
-        self.assert_async_particle_generation(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=40)
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if False == self._driver_parameters[k][self.READONLY]:
+                    new_values[k] = self._driver_parameters[k][self.OFF_VALUE]
 
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
+        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
+    def _test_set_heading_alignment(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for HEADING_ALIGNMENT ======")
+        # HEADING_ALIGNMENT:  -- -17999 to 18000
+        self.assert_set(Parameter.HEADING_ALIGNMENT, -17999)
+        self.assert_set(Parameter.HEADING_ALIGNMENT, 0)
+        self.assert_set(Parameter.HEADING_ALIGNMENT, 18000)
+
+        self.assert_set_exception(Parameter.HEADING_ALIGNMENT, -18000)
+        self.assert_set_exception(Parameter.HEADING_ALIGNMENT, 18001)
+
+        self.assert_set(Parameter.HEADING_ALIGNMENT, self._driver_parameters[Parameter.HEADING_ALIGNMENT][self.VALUE])
+        self._tested[Parameter.HEADING_ALIGNMENT] = True
+
+    def _test_set_transducer_depth(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for TRANSDUCER_DEPTH ======")
+        # HEADING_ALIGNMENT:  -- -17999 to 18000
+        self.assert_set(Parameter.TRANSDUCER_DEPTH, 0)
+        self.assert_set(Parameter.TRANSDUCER_DEPTH, 32767)
+        self.assert_set(Parameter.TRANSDUCER_DEPTH, 65535)
+
+        self.assert_set_exception(Parameter.TRANSDUCER_DEPTH, -1)
+        self.assert_set_exception(Parameter.TRANSDUCER_DEPTH, 65536)
+        self.assert_set_exception(Parameter.TIME_PER_BURST, "LEROY JENKINS")
+        self.assert_set_exception(Parameter.TIME_PER_BURST, 3.1415926)
+
+        self.assert_set(Parameter.TRANSDUCER_DEPTH, self._driver_parameters[Parameter.TRANSDUCER_DEPTH][self.VALUE])
+        self._tested[Parameter.TRANSDUCER_DEPTH] = True
+
+    # Override existing function, this instrument has a different range maxing out at 40 - 3200
+    def _test_set_depth_cell_size(self):
+        ###
+        #   test get set of a variety of parameter ranges
+        ###
+        log.debug("====== Testing ranges for DEPTH_CELL_SIZE ======")
+
+        # DEPTH_CELL_SIZE: int 20 - 1600
+        self.assert_set(Parameter.DEPTH_CELL_SIZE, 20)
+        self.assert_set(Parameter.DEPTH_CELL_SIZE, 1600)
+
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, 1601)
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, -1)
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, 19)
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, 3.1415926)
+        self.assert_set_exception(Parameter.DEPTH_CELL_SIZE, "LEROY JENKINS")
+        #
+        # Reset to good value.
+        #
+        #self.assert_set(TeledyneParameter.DEPTH_CELL_SIZE, self._driver_parameter_defaults[TeledyneParameter.DEPTH_CELL_SIZE])
+        self.assert_set(Parameter.DEPTH_CELL_SIZE, self._driver_parameters[Parameter.DEPTH_CELL_SIZE][self.VALUE])
+        self._tested[Parameter.DEPTH_CELL_SIZE] = True
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -709,9 +918,13 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         Verify autosample works and data particles are created
         """
         self.assert_enter_command_mode()
-        self.assert_start_autosample()
 
-        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=50) # ADCP_PD0_PARSED_BEAM
+        self.assert_set_parameter(Parameter.TIME_PER_ENSEMBLE, '00:01:00.00', True)
+        self.assert_set_parameter(Parameter.TIME_PER_PING, '00:30.00', True)
+        self.assert_set_parameter(Parameter.PINGS_PER_ENSEMBLE, 1, True)
+
+        self.assert_start_autosample()
+        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=100) 
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1, timeout=50)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1, timeout=50)
 
@@ -725,6 +938,10 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         self.assert_sample_autosample(self.assert_particle_pd0_data, DataParticleType.ADCP_PD0_PARSED_EARTH)
 
     def assert_cycle(self):
+        self.assert_set_parameter(Parameter.TIME_PER_ENSEMBLE, '00:01:00.00', True)
+        self.assert_set_parameter(Parameter.TIME_PER_PING, '00:30.00', True)
+        self.assert_set_parameter(Parameter.PINGS_PER_ENSEMBLE, 1, True)
+        
         self.assert_start_autosample()
 
         self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=200)

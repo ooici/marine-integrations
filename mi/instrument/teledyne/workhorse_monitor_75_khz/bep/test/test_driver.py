@@ -32,13 +32,13 @@ from mi.idk.unit_test import DriverTestMixin
 
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import DriverStartupConfigKey
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolEvent
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import Parameter
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import Prompt
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import ProtocolEvent
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
-from mi.instrument.teledyne.driver import ScheduledJob
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Capability
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import InstrumentCmds
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import ScheduledJob
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import Capability, TeledyneProtocolEvent
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import InstrumentCmds
 
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_KEY
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_DataParticle
@@ -50,7 +50,7 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_
 from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import InstrumentDriver
 from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import Protocol
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolState
+from mi.instrument.teledyne.workhorse_monitor_75_khz.bep.driver import ProtocolState
 ###
 #   Driver parameters for tests
 ###
@@ -406,7 +406,9 @@ class ADCPTMixin(DriverTestMixin):
         @param current_parameters: driver parameters read from the driver instance
         @param verify_values: should we verify values against definition?
         """
+        log.debug(" ")
         log.debug("assert_driver_parameters current_parameters = " + str(current_parameters))
+        log.debug(" ")
         self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
 
     ###
@@ -457,7 +459,16 @@ class ADCPTMixin(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_EARTH)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
 
-
+    def setUp(self):
+        DriverTestMixin.setUp(self)
+        """
+        self._driver_parameter_defaults = {}
+        for label in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[label]:
+                self._driver_parameter_defaults[label] = self._driver_parameters[label][self.VALUE]
+            else:
+                self._driver_parameter_defaults[label] = None
+        """
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
@@ -471,14 +482,14 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
         self.protocol = Protocol(Prompt, NEWLINE, my_event_callback)
 
-        def fake_send_break1_cmd():
+        def fake_send_break1_cmd(delay):
             log.debug("IN fake_send_break1_cmd")
             self.protocol._linebuf =  "[BREAK Wakeup A]\n" + \
                                      "  Polled Mode is OFF -- Battery Saver is ONWorkHorse Broadband ADCP Version 50.40\n" + \
                                      "Teledyne RD Instruments (c) 1996-2010\n" + \
                                      "All Rights Reserved."
 
-        def fake_send_break2_cmd():
+        def fake_send_break2_cmd(delay):
             log.debug("IN fake_send_break2_cmd")
             self.protocol._linebuf = "[BREAK Wakeup A]" + NEWLINE + \
                                     "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
@@ -487,11 +498,11 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         self.protocol._send_break_cmd = fake_send_break1_cmd
 
-        self.assertTrue(self.protocol._send_break())
+        self.assertTrue(self.protocol._send_break(500))
 
         self.protocol._send_break_cmd = fake_send_break2_cmd
 
-        self.assertTrue(self.protocol._send_break())
+        self.assertTrue(self.protocol._send_break(500))
 
     def test_driver_schema(self):
         """
@@ -543,6 +554,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
             ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
             ProtocolState.COMMAND: ['DRIVER_EVENT_CLOCK_SYNC',
                                     'DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_INIT_PARAMS',
                                     'DRIVER_EVENT_SET',
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
@@ -553,15 +565,18 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     'PROTOCOL_EVENT_GET_ERROR_STATUS_WORD',
                                     'PROTOCOL_EVENT_GET_FAULT_LOG',
                                     'PROTOCOL_EVENT_GET_INSTRUMENT_TRANSFORM_MATRIX',
+                                    'PROTOCOL_EVENT_RECOVER_AUTOSAMPLE',
                                     'PROTOCOL_EVENT_RUN_TEST_200',
                                     'PROTOCOL_EVENT_SAVE_SETUP_TO_RAM',
                                     'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
                                     'PROTOCOL_EVENT_SEND_LAST_SAMPLE'],
-            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                    'DRIVER_EVENT_GET',
-                                    'PROTOCOL_EVENT_GET_CALIBRATION',
-                                    'PROTOCOL_EVENT_GET_CONFIGURATION',
-                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_DISCOVER',
+                                       'DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                       'DRIVER_EVENT_GET',
+                                       'DRIVER_EVENT_INIT_PARAMS',
+                                       'PROTOCOL_EVENT_GET_CALIBRATION',
+                                       'PROTOCOL_EVENT_GET_CONFIGURATION',
+                                       'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
 
@@ -637,40 +652,143 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         Test that we can generate particles when in autosample
         """
         self.assert_initialize_driver()
-        
-        params = {
-            Parameter.INSTRUMENT_ID: 0,
-            Parameter.SLEEP_ENABLE: 0,
-            Parameter.POLLED_MODE: False,
-            Parameter.XMIT_POWER: 255,
-            Parameter.SPEED_OF_SOUND: 1485,
-            Parameter.PITCH: 0,
-            Parameter.ROLL: 0,
-            Parameter.SALINITY: 35,
-            Parameter.TIME_PER_ENSEMBLE: '00:00:20.00',
-            Parameter.TIME_PER_PING: '00:01.00',
-            Parameter.FALSE_TARGET_THRESHOLD: '050,001',
-            Parameter.BANDWIDTH_CONTROL: 0,
-            Parameter.CORRELATION_THRESHOLD: 64,
-            Parameter.ERROR_VELOCITY_THRESHOLD: 2000,
-            Parameter.BLANK_AFTER_TRANSMIT: 704,
-            Parameter.CLIP_DATA_PAST_BOTTOM: 0,
-            Parameter.RECEIVER_GAIN_SELECT: 1,
-            Parameter.WATER_REFERENCE_LAYER: '001,005',
-            Parameter.NUMBER_OF_DEPTH_CELLS: 100,
-            Parameter.PINGS_PER_ENSEMBLE: 1,
-            Parameter.DEPTH_CELL_SIZE: 800,
-            Parameter.TRANSMIT_LENGTH: 0,
-            Parameter.PING_WEIGHT: 0,
-            Parameter.AMBIGUITY_VELOCITY: 175,
-        }
-        self.assert_set_bulk(params)
 
+        """
+        # redundant, to set these params...
+        params = {}
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if self._driver_parameters[k][self.READONLY] == False:
+                    params[k] = self._driver_parameters[k][self.VALUE]
+        self.assert_set_bulk(params)
+        """
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
 
         self.assert_async_particle_generation(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data, timeout=40)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
+
+    def test_set_ranges(self):
+        self.assert_initialize_driver()
+
+        self._test_set_instrument_id()
+        self._test_set_sleep_enable()
+        self._test_set_polled_mode()
+        self._test_set_xmit_power()
+        self._test_set_speed_of_sound()
+        self._test_set_pitch()
+        self._test_set_roll()
+        self._test_set_salinity()
+        self._test_set_sensor_source()
+        self._test_set_time_per_ensemble()
+
+        # self._test_set_time_of_first_ping() # EVIL COMMAND
+
+        self._test_set_time_per_ping()
+        self._test_set_false_target_threshold()
+        self._test_set_bandwidth_control()
+        self._test_set_correlation_threshold()
+        self._test_set_error_velocity_threshold()
+        self._test_set_blank_after_transmit()
+        self._test_set_clip_data_past_bottom()
+        self._test_set_receiver_gain_select()
+        self._test_set_water_reference_layer()
+        self._test_set_number_of_depth_cells()
+        self._test_set_pings_per_ensemble()
+        self._test_set_depth_cell_size()
+        self._test_set_transmit_length()
+        self._test_set_ping_weight()
+        self._test_set_ambiguity_velocity()
+        self._test_set_coordinate_transformation()
+
+        self._test_set_serial_data_out_readonly()
+        self._test_set_serial_flow_control_readonly()
+        self._test_set_save_nvram_to_recorder_readonly()
+        self._test_set_water_profiling_mode_readonly()
+        self._test_set_serial_out_fw_switches_readonly()
+        self._test_set_banner_readonly()
+
+
+        #self._test_set_blank_after_transmit_readonly()
+        #self._test_set_bandwidth_control_readonly()
+
+        fail = False
+
+        for k in self._tested.keys():
+            if k not in self._driver_parameters.keys():
+                log.error("*WARNING* " + k + " was tested but is not in _driver_parameters")
+                #fail = True
+
+        for k in self._driver_parameters.keys():
+            if k not in [Parameter.TIME_OF_FIRST_PING, Parameter.TIME] + self._tested.keys():
+                log.error("*ERROR* " + k + " is in _driver_parameters but was not tested.")
+                fail = True
+
+        self.assertFalse(fail, "See above for un-exercized parameters.")
+
+
+    def test_set_bulk(self):
+        """
+        Test all set commands. Verify all exception cases.
+        """
+        self.assert_initialize_driver()
+
+        params = {}
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if self._driver_parameters[k][self.READONLY] == False:
+                    params[k] = self._driver_parameters[k][self.VALUE]
+        # Set all parameters to a known ground state
+        self.assert_set_bulk(params)
+
+        ###
+        #   Instrument Parameteres
+        ###
+
+        self.assert_set_readonly(Parameter.SERIAL_DATA_OUT)
+        self.assert_set_readonly(Parameter.SERIAL_FLOW_CONTROL)
+        self.assert_set_readonly(Parameter.SAVE_NVRAM_TO_RECORDER)
+        self.assert_set_readonly(Parameter.WATER_PROFILING_MODE)
+        self.assert_set_readonly(Parameter.SERIAL_OUT_FW_SWITCHES)
+        self.assert_set_readonly(Parameter.BANNER)
+
+        # TeledyneParameterAltValue
+        # set to new values so we get a config change
+        self.assert_set(Parameter.CORRELATION_THRESHOLD, 60)
+        self.assert_set(Parameter.TIME_PER_ENSEMBLE, '00:00:11.00')
+        self.assert_set(Parameter.INSTRUMENT_ID, 5)
+        self.assert_set(Parameter.SLEEP_ENABLE, 1)
+        self.assert_set(Parameter.POLLED_MODE, True)
+        self.assert_set(Parameter.XMIT_POWER, 250)
+        self.assert_set(Parameter.SPEED_OF_SOUND, 1480)
+        self.assert_set(Parameter.PITCH, 1)
+        self.assert_set(Parameter.ROLL, 1)
+        self.assert_set(Parameter.SALINITY, 36)
+        self.assert_set(Parameter.SENSOR_SOURCE, "1101101")
+        self.assert_set(Parameter.TIME_PER_PING, '00:04.00')
+        self.assert_set(Parameter.FALSE_TARGET_THRESHOLD, '053,002')
+        self.assert_set(Parameter.BANDWIDTH_CONTROL, 1)
+        self.assert_set(Parameter.ERROR_VELOCITY_THRESHOLD, 2005)
+        self.assert_set(Parameter.BLANK_AFTER_TRANSMIT, 705)
+        self.assert_set(Parameter.CLIP_DATA_PAST_BOTTOM, True)
+        self.assert_set(Parameter.RECEIVER_GAIN_SELECT, 0)
+        self.assert_set(Parameter.WATER_REFERENCE_LAYER, '002,004')
+        self.assert_set(Parameter.NUMBER_OF_DEPTH_CELLS, 90)
+        self.assert_set(Parameter.PINGS_PER_ENSEMBLE, 2)
+        self.assert_set(Parameter.DEPTH_CELL_SIZE, 700)
+        self.assert_set(Parameter.TRANSMIT_LENGTH, 1)
+        self.assert_set(Parameter.PING_WEIGHT, 1)
+        self.assert_set(Parameter.AMBIGUITY_VELOCITY, 180)
+
+        for k in self._driver_parameters.keys():
+            if self.VALUE in self._driver_parameters[k]:
+                if False == self._driver_parameters[k][self.READONLY]:
+                    self.assert_set(k, self._driver_parameters[k][self.VALUE])
+                    log.debug("WANT PARAM CHANGE EVENT, SETTING " + k + " to " + str(self._driver_parameters[k][self.VALUE]))
+                if True == self._driver_parameters[k][self.READONLY]:
+                    self.assert_set_exception(k, self._driver_parameters[k][self.VALUE])
+                    log.debug("WANT EXCEPTION SETTING " + k + " to " + str(self._driver_parameters[k][self.VALUE]))
+        
 
 
 ###############################################################################
@@ -693,7 +811,7 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
         today_plus_1month = (dt.datetime.utcnow() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
 
         self.tcp_client.send_data("%sTG%s%s" % (NEWLINE, today_plus_1month, NEWLINE))
-        #self.tcp_client.send_data("%sTG?%s" % (NEWLINE, NEWLINE))
+
         self.tcp_client.expect(Prompt.COMMAND)
 
         self.assert_direct_access_stop_telnet()
@@ -746,6 +864,8 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
 
         self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
+
+
 
 ###############################################################################
 #                             PUBLICATION TESTS                               #

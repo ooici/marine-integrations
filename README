@@ -34,8 +34,9 @@ INSTALL prequisite software for COI-services
        . /usr/local/share/python/virtualenvwrapper.sh
 - setup a virtual environment to work in.
     mkvirtualenv --no-site-packages --python=python2.7 ooi
-    workon ooi
-    pip install numpy==1.6.2
+    pip install -U setuptools==0.8
+    pip install numpy==1.7.1
+
 
 INSTALL
 =======
@@ -55,7 +56,8 @@ $ cd marine-integrations
 $ git submodule update --init
 
 # Buildout the environment
-$ python bootstrap.py
+$ workon ooi
+$ python bootstrap.py -v 2.2.0
 $ bin/buildout
 $ bin/generate_interfaces
 

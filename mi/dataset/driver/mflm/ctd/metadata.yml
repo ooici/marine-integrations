@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Emily Hahn
+  constructor: MflmCTDMODataSetDriver
+  driver_name: mflm_ctd
+  driver_path: mflm/ctd
+  email: ehahn@bbn.com
+  release_notes: initial release
+  version: 0.0.1

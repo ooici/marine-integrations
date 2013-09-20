@@ -164,6 +164,7 @@ class SBE37Prompt(BaseEnum):
     COMMAND = 'S>'
     BAD_COMMAND = '?cmd S>'
     AUTOSAMPLE = 'S>\r\n'
+    START_NOW = 'start now'
 
 # SBE37 newline.
 NEWLINE = '\r\n'
@@ -818,10 +819,12 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         if(logging == True):
             return (SBE37ProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING)
-        elif(logging == False):
-            return (SBE37ProtocolState.COMMAND, ResourceAgentState.COMMAND)
         else:
-            return (SBE37ProtocolState.UNKNOWN, ResourceAgentState.ACTIVE_UNKNOWN)
+            return (SBE37ProtocolState.COMMAND, ResourceAgentState.COMMAND)
+        #elif(logging == False):
+        #    return (SBE37ProtocolState.COMMAND, ResourceAgentState.COMMAND)
+        #else: # when will this ever be called?
+        #    return (SBE37ProtocolState.UNKNOWN, ResourceAgentState.ACTIVE_UNKNOWN)
 
     def _is_logging(self, ds_result=None):
         """
@@ -834,15 +837,17 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         """
         if(ds_result == None):
             log.debug("Running DS command")
-            ds_result = self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, expected_prompt=SBE37Prompt.COMMAND)
+            ds_result = self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, response_regex=STATUS_DATA_REGEX_MATCHER)
+            #ds_result = self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, expected_prompt=SBE37Prompt.COMMAND)
             log.debug("DS command result: %s", ds_result)
 
         log.debug("_is_logging: DS result: %s", ds_result)
 
-        match = STATUS_DATA_REGEX_MATCHER.match(ds_result)
+        match = STATUS_DATA_REGEX_MATCHER.search(ds_result)
         if(not match):
             log.debug("Failed to get status, trying again")
-            ds_result = self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, expected_prompt=SBE37Prompt.COMMAND)
+            ds_result = self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, response_regex=STATUS_DATA_REGEX_MATCHER)
+            #ds_result = self._do_cmd_resp(InstrumentCmds.DISPLAY_STATUS, expected_prompt=SBE37Prompt.COMMAND)
             log.debug("DS command result: %s", ds_result)
 
 
@@ -962,10 +967,20 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         # Issue start command and switch to autosample if successful.
         self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, *args, **kwargs)
-
-        next_state = SBE37ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
         
+        if self._is_logging():
+            log.debug("SBE confirmed in logging mode!")
+            next_state = SBE37ProtocolState.AUTOSAMPLE
+            next_agent_state = ResourceAgentState.STREAMING
+        else:
+            log.debug("Trying again to send %s command", InstrumentCmds.START_LOGGING)
+            self._do_cmd_no_resp(InstrumentCmds.START_LOGGING, *args, **kwargs)
+            
+            if self._is_logging():
+                log.debug("SBE confirmed in logging mode!")
+                next_state = SBE37ProtocolState.AUTOSAMPLE
+                next_agent_state = ResourceAgentState.STREAMING
+            
         return (next_state, (next_agent_state, result))
 
     def _handler_command_test(self, *args, **kwargs):
@@ -1208,7 +1223,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
 
         log.debug("_handler_direct_access_stop_direct: starting discover")
         (next_state, next_agent_state) = self._discover()
-        log.debug("_handler_direct_access_stop_direct: next agent state: %s", next_agent_state)
+        log.debug("_handler_direct_access_stop_direct: next_state: %s, next agent state: %s",
+                  next_state, next_agent_state)
 
         return (next_state, (next_agent_state, result))
 
@@ -1340,8 +1356,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if dsdc command misunderstood.
         """
-        log.debug("DS Response: %s", response)
-        if prompt.strip() != SBE37Prompt.COMMAND:
+        log.debug("DS Response: %s, prompt: %s", response, prompt)
+        if (prompt.strip() != SBE37Prompt.COMMAND) and (prompt.strip() != ""):
             raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
 
         for line in response.split(NEWLINE):

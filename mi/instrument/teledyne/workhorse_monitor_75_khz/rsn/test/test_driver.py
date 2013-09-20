@@ -8,6 +8,7 @@ __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
 import unittest
+import datetime as dt
 from nose.plugins.attrib import attr
 from mock import Mock
 from mi.core.instrument.chunker import StringChunker
@@ -29,13 +30,13 @@ from mi.idk.unit_test import DriverTestMixin
 
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import DriverStartupConfigKey
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Parameter
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Prompt
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolEvent
+from mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.driver import Parameter
+from mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.driver import Prompt
+from mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.driver import ProtocolEvent
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
-from mi.instrument.teledyne.driver import ScheduledJob
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import Capability
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import InstrumentCmds
+from mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.driver import ScheduledJob
+from mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.driver import Capability
+from mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.driver import InstrumentCmds
 
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_KEY
 from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_PD0_PARSED_DataParticle
@@ -47,7 +48,7 @@ from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_
 from mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.driver import InstrumentDriver
 from mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.driver import Protocol
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ProtocolState
+from mi.instrument.teledyne.workhorse_monitor_75_khz.rsn.driver import ProtocolState
 ###
 #   Driver parameters for tests
 ###
@@ -157,7 +158,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.COORDINATE_TRANSFORMATION: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00111', VALUE: '00111'},
         Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False, VALUE: "1111101"},
         Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
-        Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
+        Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
         Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:01.00'},
         Parameter.FALSE_TARGET_THRESHOLD: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '050,001'},
         Parameter.BANDWIDTH_CONTROL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
@@ -508,10 +509,12 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         Verify the FSM reports capabilities as expected.  All states defined in this dict must
         also be defined in the protocol FSM.
         """
+
         capabilities = {
             ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
             ProtocolState.COMMAND: ['DRIVER_EVENT_CLOCK_SYNC',
                                     'DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_INIT_PARAMS',
                                     'DRIVER_EVENT_SET',
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
@@ -522,18 +525,20 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     'PROTOCOL_EVENT_GET_ERROR_STATUS_WORD',
                                     'PROTOCOL_EVENT_GET_FAULT_LOG',
                                     'PROTOCOL_EVENT_GET_INSTRUMENT_TRANSFORM_MATRIX',
+                                    'PROTOCOL_EVENT_RECOVER_AUTOSAMPLE',
                                     'PROTOCOL_EVENT_RUN_TEST_200',
                                     'PROTOCOL_EVENT_SAVE_SETUP_TO_RAM',
                                     'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
                                     'PROTOCOL_EVENT_SEND_LAST_SAMPLE'],
-            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                    'DRIVER_EVENT_GET',
-                                    'PROTOCOL_EVENT_GET_CALIBRATION',
-                                    'PROTOCOL_EVENT_GET_CONFIGURATION',
-                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_DISCOVER',
+                                       'DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                       'DRIVER_EVENT_GET',
+                                       'DRIVER_EVENT_INIT_PARAMS',
+                                       'PROTOCOL_EVENT_GET_CALIBRATION',
+                                       'PROTOCOL_EVENT_GET_CONFIGURATION',
+                                       'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
-
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
@@ -637,10 +642,62 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_set_bulk(params)
 
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        log.error("GOT HERE ROGER 00 = BEAM moe.")
         self.assert_async_particle_generation(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data, timeout=40)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=10)
+
+    def test_set_ranges(self):
+        self.assert_initialize_driver()
+
+        self._test_set_instrument_id()
+        self._test_set_sleep_enable()
+        self._test_set_polled_mode()
+        self._test_set_xmit_power()
+        self._test_set_speed_of_sound()
+        self._test_set_pitch()
+        self._test_set_roll()
+        self._test_set_salinity()
+        self._test_set_coordinate_transformation()
+        self._test_set_sensor_source()
+        self._test_set_time_per_ensemble()
+        # self._test_set_time_of_first_ping() # EVIL COMMAND
+        self._test_set_time_per_ping()
+        self._test_set_false_target_threshold()
+        self._test_set_bandwidth_control()
+        self._test_set_correlation_threshold()
+        self._test_set_error_velocity_threshold()
+        self._test_set_blank_after_transmit()
+        self._test_set_clip_data_past_bottom()
+        self._test_set_receiver_gain_select()
+        self._test_set_water_reference_layer()
+        self._test_set_number_of_depth_cells()
+        self._test_set_pings_per_ensemble()
+        self._test_set_depth_cell_size()
+        self._test_set_transmit_length()
+        self._test_set_ping_weight()
+        self._test_set_ambiguity_velocity()
+
+        self._test_set_serial_data_out_readonly()
+        self._test_set_serial_flow_control_readonly()
+        self._test_set_banner_readonly()
+        self._test_set_save_nvram_to_recorder_readonly()
+        self._test_set_serial_out_fw_switches_readonly()
+        self._test_set_water_profiling_mode_readonly()
+
+        fail = False
+
+        for k in self._tested.keys():
+            if k not in self._driver_parameters.keys():
+                log.error("*WARNING* " + k + " was tested but is not in _driver_parameters")
+                #fail = True
+
+        for k in self._driver_parameters.keys():
+            if k not in [Parameter.TIME_OF_FIRST_PING, Parameter.TIME] + self._tested.keys():
+                log.error("*ERROR* " + k + " is in _driver_parameters but was not tested.")
+                fail = True
+
+        self.assertFalse(fail, "See above for un-exercized parameters.")
+
 
 
 ###############################################################################
@@ -650,6 +707,29 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
+
+    def test_recover_from_TG(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        """
+
+        self.assert_enter_command_mode()
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet(timeout=600)
+        today_plus_1month = (dt.datetime.utcnow() + dt.timedelta(days=31)).strftime("%Y/%m/%d,%H:%m:%S")
+
+        self.tcp_client.send_data("%sTG%s%s" % (NEWLINE, today_plus_1month, NEWLINE))
+
+        self.tcp_client.expect(Prompt.COMMAND)
+
+        self.assert_direct_access_stop_telnet()
+
+        # verify the setting got restored.
+        self.assert_enter_command_mode()
+
+        self.assert_get_parameter(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
+
     def test_autosample(self):
         """
         Verify autosample works and data particles are created

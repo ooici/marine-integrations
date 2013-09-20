@@ -1,0 +1,8 @@
+driver_metadata:
+  version: 0.0.4
+  author: Bill French
+  constructor: HypmCTDPFDataSetDriver
+  driver_name: hypm_ctd
+  driver_path: hypm/ctd
+  release_notes: correct column order
+  email: wfrench@ucsd.edu

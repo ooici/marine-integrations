@@ -88,8 +88,17 @@ class ReadOnlyException(InstrumentException):
 class SampleException(InstrumentException):
     """ An expected sample could not be extracted. """
 
+class DatasetParserException(InstrumentException):
+    """ An dataset parser encountered trouble. """
+
 class SchedulerException(InstrumentException):
     """ An error occurred in the scheduler """
+
+class ConfigurationException(InstrumentException):
+    """ A driver configuration is missing parameters or has invalid values. """
+
+class DataSourceLocationException(InstrumentException):
+    """ A driver function is not implemented. """
 
 class UnexpectedError(InstrumentException):
     """ wrapper to send non-MI exceptions over zmq """
