@@ -11,6 +11,9 @@ __license__ = 'Apache 2.0'
 import re
 import numpy as np
 import ntplib
+import time
+import copy
+import pdb
 
 from math import copysign
 from functools import partial
@@ -27,7 +30,7 @@ from mi.dataset.dataset_parser import BufferLoadingParser
 log = get_logger()
 
 # regex
-ROW_REGEX = r'^(.*)\n'  # just give me the whole effing row and get out of my way.
+ROW_REGEX = r'^(.+)\n'  # just give me the whole effing row and get out of my way.
 ROW_MATCHER = re.compile(ROW_REGEX)
 
 
@@ -91,7 +94,7 @@ class GliderParticle(DataParticle):
     def __init__(self, data_dict,
                  port_timestamp=None,
                  internal_timestamp=None,
-                 preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
+                 preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP,
                  quality_flag=DataParticleValue.OK):
         """ Build a particle seeded with appropriate information
 
@@ -134,7 +137,7 @@ class GgldrCtdgvDelayedParticleKey(DataParticleKey):
 class GgldrCtdgvDelayedDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GGLDR_CTDGV_DELAYED
 
-    def build_parsed_values(self):
+    def _build_parsed_values(self):
         """
         Extracts CTDGV data from the glider data dictionary intiallized with
         the particle class and puts the data into a CTDGV Data Particle.
@@ -183,7 +186,7 @@ class GgldrDostaDelayedParticleKey(DataParticleKey):
 class GgldrDostaDelayedDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GGLDR_DOSTA_DELAYED
 
-    def build_parsed_values(self):
+    def _build_parsed_values(self):
         """
         Takes a GliderParser object and extracts DOSTA data from the
         data dictionary and puts the data into a DOSTA Data Particle.
@@ -237,7 +240,7 @@ class GgldrFlordDelayedParticleKey(DataParticleKey):
 class GgldrFlordDelayedDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GGLDR_FLORD_DELAYED
 
-    def build_parsed_values(self):
+    def _build_parsed_values(self):
         """
         Takes a GliderParser object and extracts FLORD data from the
         data dictionary and puts the data into a FLORD Data Particle.
@@ -304,7 +307,7 @@ class GgldrEngDelayedParticleKey(DataParticleKey):
 class GgldrEngDelayedDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GGLDR_ENG_DELAYED
 
-    def build_parsed_values(self):
+    def _build_parsed_values(self):
         """
         Takes a GliderParser object and extracts engineering data from the
         data dictionary and puts the data into a engineering Data Particle.
@@ -369,7 +372,8 @@ class GliderParser(BufferLoadingParser):
         self._record_buffer = []  # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION: 0}
         self._read_header()
-        if state:
+        if state and not(state[StateKey.POSITION] == 0):
+        #if state:
             self.set_state(self._state)
 
     def _read_header(self):
@@ -384,6 +388,7 @@ class GliderParser(BufferLoadingParser):
             line = self._stream_handle.readline()
             split_line = line.split()
             # update num_hdr_lines based on the header info.
+            #pdb.set_trace()
             if 'num_ascii_tags' in split_line:
                 num_hdr_lines = int(split_line[1])
             # remove a ':' from the key string below using :-1
@@ -393,12 +398,15 @@ class GliderParser(BufferLoadingParser):
         # read the next 3 rows that describe each column of data
         self._header_dict['labels'] = self._stream_handle.readline().split()
         self._header_dict['data_units'] = self._stream_handle.readline().split()
-        self._header_dict['num_of_bytes'] = self._stream_handle.readline().split()
+        num_of_bytes = self._stream_handle.readline().split()
+        num_of_bytes = map(int, num_of_bytes)
+        self._header_dict['num_of_bytes'] = num_of_bytes
 
         # unlikely to ever happen, but if 'num_label_lines' is greater than the
         # 3 read lines just above, then read the extras into the dictionary
-        if self._header_dict['num_label_lines'] > 3:
-            num_label_lines = self._header_dict['num_label_lines']
+        #pdb.set_trace()
+        num_label_lines = int(self._header_dict['num_label_lines'])
+        if num_label_lines > 3:
             for ii in range(num_label_lines-3):
                 key_str = 'unknown_label%d' % ii+1
                 self._header_dict[key_str] = self._stream_handle.readline().split()
@@ -438,11 +446,11 @@ class GliderParser(BufferLoadingParser):
         """
         log.trace("Incrementing current state: %s with inc: %s",
                   self._read_state, increment)
-
+        #pdb.set_trace()
         self._read_state[StateKey.POSITION] += increment
         # Thomas, my monkey of a son, wanted this inserted in the code. -CW
 
-    def _read_data(self, chunk):
+    def _read_data(self, data_record):
         """
         Read in the column labels, data type, number of bytes of each
         data type, and the data from an ASCII glider data file.
@@ -452,7 +460,7 @@ class GliderParser(BufferLoadingParser):
         data_labels = self._header_dict['labels']
         #data_units = self._header_dict['data_units']
         num_bytes = self._header_dict['num_of_bytes']
-        data = chunk.split()
+        data = data_record.split()
         if num_columns != len(data):
             raise DatasetParserException('Glider data file does not have the ' +
                                          'same number of columns as described ' +
@@ -472,8 +480,9 @@ class GliderParser(BufferLoadingParser):
             # check to see if this is a latitude/longitude string
             if ('_lat' in data_labels[ii]) or ('_lon' in data_labels[ii]):
                 # convert latitiude/longitude strings to decimal degrees
+                #pdb.set_trace()
                 value = self._string_to_ddegrees(data[ii])
-                value = str2data(val)
+                value = str2data(value)
             else:
                 value = str2data(data[ii])
 
@@ -497,26 +506,28 @@ class GliderParser(BufferLoadingParser):
 
         # collect the data from the file
         (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
+        #pdb.set_trace()
         while data_record is not None:
             row_match = ROW_MATCHER.match(data_record)
             if row_match:
                 # parse the data record into a data dictionary to pass to the
                 # particle class
+                #pdb.set_trace()
                 data_dict = self._read_data(data_record)
 
                 # from the parsed data, m_present_time is the unix timestamp
-                timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time'])
+                timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
 
                 # create the particle
                 particle = self._particle_class(
                     data_dict, internal_timestamp=timestamp,
                     preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP)
-                result_particle.append(particle)
-
                 self._increment_state(end)
-            # process the next chunk, all the way through the file.
-            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+                result_particles.append((particle, copy.copy(self._read_state)))
+                self._timestamp += 1
 
+            # process the next chunk, all the way through the file.
+            (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
         # TODO: figure out where to log a warning that the file was empty
             #log.warn("This file is empty")
@@ -534,9 +545,13 @@ class GliderParser(BufferLoadingParser):
             or eastern/western hemispheres, respectively.
         @retval The position in decimal degrees
         """
+        if np.isnan(float(pos_str)):
+            return pos_str
         regex = r'(-*\d{2,3})(\d{2}.\d+)'
         regex_matcher = re.compile(regex)
         latlon_match = regex_matcher.match(pos_str)
+        if latlon_match is None:
+            print pos_str, latlon_match
         degrees = np.float64(latlon_match.group(1))
         minutes = np.float64(latlon_match.group(2))
         ddegrees = copysign((abs(degrees) + minutes / 60.), degrees)
