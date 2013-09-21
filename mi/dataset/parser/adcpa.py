@@ -20,10 +20,12 @@ Release notes:
 __author__ = 'Christopher Wingard'
 __license__ = 'Apache 2.0'
 
-import re
-from struct import unpack
-from calendar import timegm
+import copy
 import datetime as dt
+import re
+from calendar import timegm
+from functools import partial
+from struct import unpack
 
 from mi.core.log import get_logger
 from mi.core.common import BaseEnum
@@ -35,12 +37,22 @@ from mi.dataset.dataset_parser import BufferLoadingParser
 # start the logger
 log = get_logger()
 
-# Regex set to find the start of PD0 packet (first 6 bytes of the header data).
-# This is more explicit than just the 0x7f7f marker the manual specifies. Using
-# this regex helps avoid cases where the marker could actually be in the data
-# string, thus giving a false positive data record marker.
-ADCPA_PD0_PARSED_REGEX = b'(\x7f\x7f)([\x00-\xFF]{2})(\x00)(\x06|\x07)'
-ADCPA_PD0_PARSED_REGEX_MATCHER = re.compile(ADCPA_PD0_PARSED_REGEX, re.DOTALL)
+# Regex set to find each ensemble in the PD0 packet. It starts by specifying the
+# first 6 bytes of the header data (this is more explicit than just the 0x7f7f
+# marker the manual specifies, helping to avoid cases where the marker could
+# actually be in the data string, thus giving a false positive data record
+# marker), followed by the remaining N bytes in the ensemble. It stops, without
+# consuming bytes, at the beginning of the next ensemble (again using the first
+# 6 bytes of the header) or the end of the file. This dynamic regex is required
+# since the ensemble sizes will vary during the course of a deployment as
+# bottom-tracking is automatically turned on and off. This also allows the
+# glider pilots the flexibility to change the sampling characteristics of the
+# ADCPA without impacting the parser code.
+ADCPA_PD0_PARSED_REGEX = (
+    b'(\x7f\x7f[\x00-\xFF]{2}\x00[\x06|\x07]{1}[\x00-\xFF]+?)' +  # find the header bytes plus the rest of the ensemble
+    '(?=(\x7f\x7f[\x00-\xFF]{2}\x00[\x06|\x07]{1})|\Z)'  # find the start of the next ensemble, of the EOF
+)
+ADCPA_PD0_PARSED_MATCHER = re.compile(ADCPA_PD0_PARSED_REGEX, re.DOTALL)
 
 
 ###############################################################################
@@ -954,10 +966,13 @@ class AdcpaParser(BufferLoadingParser):
         super(AdcpaParser, self).__init__(config,
                                           stream_handle,
                                           state,
+                                          partial(StringChunker.regex_sieve_function,
+                                                  regex_list=[ADCPA_PD0_PARSED_MATCHER]),
                                           state_callback,
                                           publish_callback,
                                           *args,
                                           **kwargs)
+        self._timestamp = 0.0
         self._record_buffer = []  # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION: 0}
         if state:
@@ -998,46 +1013,57 @@ class AdcpaParser(BufferLoadingParser):
 
         self._read_state[StateKey.POSITION] += increment
 
+    def get_block(self):
+        """
+        Overwrites get_block method in dataset_parser.py to simply read the
+        entire file rather than break it into chunks.
+        @retval The length of data retreived
+        @throws EOFError when the end of the file is reached
+        """
+        # read in some more data
+        data = self._stream_handle.read()
+        if data:
+            self._chunker.add_chunk(data, self._timestamp)
+            return len(data)
+        else:  # EOF
+            raise EOFError
+
     def parse_chunks(self):
         """
         @retval a list of tuples with sample particles encountered in this
             parsing, plus the state. An empty list is returned if nothing was
             parsed.
         """
-        # read in the pd0 data file and find the indexes to the record markers
-        data = self._stream_handle.read()
-        n = [m.span() for m in re.finditer(ADCPA_PD0_PARSED_REGEX_MATCHER, data)]
-
+        # set default empty list
         result_particles = []
+
         # now parse the file, ensemble by ensemble, publishing the results as we go.
-        for i in range(0, len(n)):
-            # start at the first ensemble header
-            strt = n[i][0]
+        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(True)
+        while chunk is not None:
+            ensemble = ADCPA_PD0_PARSED_MATCHER.match(chunk)
+            print timestamp, start, end
+            # particleize the data block received and return the record.
+            if ensemble:
+                print "we have a particle"
+                # create the particle
+                particle = self._particle_class(
+                    ensemble, internal_timestamp=self._timestamp,
+                    preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP
+                )
 
-            # use information in the ensemble to get the number of bytes --
-            # this is variable depending on the presence or absence of the
-            # bottom tracking data. Also, pilots may change the ExplorerDVL
-            # settings mid-deployment in order to conserve battery life or for
-            # other reasons. Allowing the ensemble to self define, means the
-            # code should be robust in the face of such changes.
-            numBytes = unpack("<H", data[strt+2:strt+4])[0]
-            end = strt + numBytes + 2
-            ensemble = data[strt:end]
+                # set the state and append particle
+                if particle:
+                    print 'Well Hello!'
+                    print particle
+                    log.trace("Particle creation succeeded at position: %d to %d bytes", start, end)
+                    self._increment_state(end)
+                    result_particles.append((particle, copy.copy(self._read_state)))
+                else:
+                    print 'Help!'
+                    log.trace("Particle creation failed at position: %d to %d bytes", start, end)
 
-            # create a new regex for this ensemble given the full number of
-            # bytes (number of bytes + 2 byte checksum) with the number of
-            # header bytes in the earlier regex string removed.
-            plusBytes = (numBytes + 2) - 6
-            ensemble_regex = re.compile((ADCPA_PD0_PARSED_REGEX + '([\x00-\xFF]{%s})'.format(plusBytes+2)), re.DOTALL)
-
-            # particleize the data block received and return the record -- the
-            # internal time stamp is set in the DataParticle.
-            sample = self._extract_sample(self._particle_class, ensemble_regex, ensemble, None)
-
-            if sample:
-                # valid sample received, create the particle
-                self._increment_state(numBytes + 2)
-                result_particles.append((sample, copy.copy(self._read_state)))
+            # keep consuming the file
+            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
 
         # save the results
         return result_particles
