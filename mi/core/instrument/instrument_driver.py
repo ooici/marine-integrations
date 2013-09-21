@@ -21,6 +21,7 @@ from mi.core.exceptions import TestModeException
 from mi.core.exceptions import NotImplementedException
 from mi.core.exceptions import InstrumentException
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import InstrumentConnectionException
 from mi.core.instrument.instrument_fsm import InstrumentFSM, ThreadSafeFSM
 from mi.core.instrument.port_agent_client import PortAgentClient
 
@@ -898,12 +899,18 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         next_state = None
         result = None
         self._build_protocol()
-        self._connection.init_comms(self._protocol.got_data, 
-                                    self._protocol.got_raw,
-                                    self._got_exception,
-                                    self._lost_connection_callback)
-        self._protocol._connection = self._connection
-        next_state = DriverConnectionState.CONNECTED
+        try:
+            self._connection.init_comms(self._protocol.got_data, 
+                                        self._protocol.got_raw,
+                                        self._got_exception,
+                                        self._lost_connection_callback)
+            self._protocol._connection = self._connection
+            next_state = DriverConnectionState.CONNECTED
+        except InstrumentConnectionException as e:
+            log.error("Connection Exception: %s", e)
+            log.error("Instrument Driver remaining in disconnected state.")
+            # Re-raise the exception
+            raise
         
         return (next_state, result)
 
