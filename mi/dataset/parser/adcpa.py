@@ -49,8 +49,8 @@ log = get_logger()
 # glider pilots the flexibility to change the sampling characteristics of the
 # ADCPA without impacting the parser code.
 ADCPA_PD0_PARSED_REGEX = (
-    b'(\x7f\x7f[\x00-\xFF]{2}\x00[\x06|\x07]{1}[\x00-\xFF]+?)' +  # find the header bytes plus the rest of the ensemble
-    '(?=(\x7f\x7f[\x00-\xFF]{2}\x00[\x06|\x07]{1})|\Z)'  # find the start of the next ensemble, of the EOF
+    b'(\x7f\x7f[\x00-\xFF]{2}\x00[\x06|\x07]{1}[\x00-\xFF]+?)' +  # header bytes plus rest of ensemble
+    '(?=(\x7f\x7f[\x00-\xFF]{2}\x00[\x06|\x07]{1})|\Z)'  # start of the next ensemble, or EOF
 )
 ADCPA_PD0_PARSED_MATCHER = re.compile(ADCPA_PD0_PARSED_REGEX, re.DOTALL)
 
@@ -558,7 +558,7 @@ class ADCPA_PD0_PARSED_DataParticle(DataParticle):
         dts = dt.datetime(2000 + rtc['year'], rtc['month'], rtc['day'],
                           rtc['hour'], rtc['minute'], rtc['second'])
         epoch_ts = timegm(dts.timetuple()) + (rtc['hundredths'] / 100.0)  # seconds since 1970-01-01 in UTC
-        ntp_ts = epts + 2208988800
+        ntp_ts = epoch_ts + 2208988800
         self.set_internal_timestamp(ntp_ts)
 
         self.final_result.append({DataParticleKey.VALUE_ID: ADCPA_PD0_PARSED_KEY.REAL_TIME_CLOCK,
@@ -1040,27 +1040,17 @@ class AdcpaParser(BufferLoadingParser):
         # now parse the file, ensemble by ensemble, publishing the results as we go.
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(True)
         while chunk is not None:
-            ensemble = ADCPA_PD0_PARSED_MATCHER.match(chunk)
-            print timestamp, start, end
-            # particleize the data block received and return the record.
-            if ensemble:
-                print "we have a particle"
-                # create the particle
-                particle = self._particle_class(
-                    ensemble, internal_timestamp=self._timestamp,
-                    preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP
-                )
+            # particleize the data block received.
+            particle = self._extract_sample(self._particle_class, ADCPA_PD0_PARSED_MATCHER,
+                                            chunk, self._timestamp)
 
-                # set the state and append particle
-                if particle:
-                    print 'Well Hello!'
-                    print particle
-                    log.trace("Particle creation succeeded at position: %d to %d bytes", start, end)
-                    self._increment_state(end)
-                    result_particles.append((particle, copy.copy(self._read_state)))
-                else:
-                    print 'Help!'
-                    log.trace("Particle creation failed at position: %d to %d bytes", start, end)
+            # if the particle is good, set the state and append particle
+            if particle:
+                log.trace("Particle creation succeeded at position: %d to %d bytes", start, end)
+                self._increment_state(end)
+                result_particles.append((particle, copy.copy(self._read_state)))
+            else:
+                log.trace("Particle creation failed at position: %d to %d bytes", start, end)
 
             # keep consuming the file
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
