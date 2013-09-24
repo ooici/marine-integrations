@@ -71,11 +71,15 @@ from mi.instrument.noaa.lily.ooicore.driver import LILY_DUMP_01
 from mi.instrument.noaa.lily.ooicore.driver import LILY_DUMP_02
 from mi.instrument.noaa.lily.ooicore.driver import LILY_LEVEL_ON
 from mi.instrument.noaa.lily.ooicore.driver import LILY_LEVEL_OFF
+from mi.instrument.noaa.lily.ooicore.driver import DEFAULT_XTILT_TRIGGER
+from mi.instrument.noaa.lily.ooicore.driver import DEFAULT_YTILT_TRIGGER
+from mi.instrument.noaa.lily.ooicore.driver import AsyncEventSender
 
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentStateException
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
+from pyon.agent.common import BaseEnum
 from pyon.core.exception import Conflict
 
 ###
@@ -114,6 +118,8 @@ GO_ACTIVE_TIMEOUT=180
 INVALID_SAMPLE  = "This is an invalid sample; it had better cause an exception." + NEWLINE
 VALID_SAMPLE_01 = "LILY,2013/06/24 23:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NEWLINE
 VALID_SAMPLE_02 = "LILY,2013/06/24 23:36:04,-235.349,  26.082,194.26, 26.04,11.96,N9655" + NEWLINE
+#                 "LILY,2013/07/24 20:36:27,*  14.667,  81.642,185.21, 33.67,11.59,N9651" + NEWLINE
+
 
 DATA_ON_COMMAND_RESPONSE = "LILY,2013/05/29 00:23:34," + LILY_COMMAND_STRING + LILY_DATA_ON + NEWLINE
 DATA_OFF_COMMAND_RESPONSE = "LILY,2013/05/29 00:23:34," + LILY_COMMAND_STRING + LILY_DATA_OFF + NEWLINE
@@ -128,6 +134,14 @@ BOTPT_FIREHOSE_01  += "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" +
 BOTPT_FIREHOSE_01  += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
 BOTPT_FIREHOSE_01  += "LILY,2013/06/24 23:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NEWLINE
 BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
+
+BOTPT_FIREHOSE_02  = "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
+BOTPT_FIREHOSE_02  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
+BOTPT_FIREHOSE_02  += "LILY,2013/06/24 22:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NEWLINE
+BOTPT_FIREHOSE_02  += "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
+BOTPT_FIREHOSE_02  += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
+BOTPT_FIREHOSE_02  += "LILY,2013/06/24 23:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NEWLINE
+BOTPT_FIREHOSE_02  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 
 SIGNON_STATUS = \
         "LILY,2013/06/24 23:35:41,*APPLIED GEOMECHANICS LILY Firmware V2.1 SN-N9655 ID01" + NEWLINE
@@ -179,6 +193,9 @@ DUMP_02_STATUS = \
         "LILY,2013/06/24 23:36:06,*01: Auto Power-Off Recovery Mode: Off" + NEWLINE + \
         "LILY,2013/06/24 23:36:06,*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No" + NEWLINE
         
+LEVELING_STATUS = \
+        "LILY,2013/07/24 20:36:27,*  14.667,  81.642,185.21, 33.67,11.59,N9651" + NEWLINE
+
 LEVELED_STATUS = \
         "LILY,2013/06/28 17:29:21,*  -2.277,  -2.165,190.81, 25.69,,Leveled!11.87,N9651" + NEWLINE
 
@@ -211,6 +228,7 @@ class LILYTestMixinSub(DriverTestMixin):
 
     _driver_parameters = {
         # Parameters defined in the IOS
+        Parameter.AUTO_RELEVEL : {TYPE: bool, READONLY: False, DA: False, STARTUP: False},
     }
     
     _sample_parameters_01 = {
@@ -284,6 +302,45 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
+    def test_async_send_event(self):
+        class TestStates(BaseEnum):
+            test_state = 'TEST_STATE'
+            
+        class TestEvents(BaseEnum):
+            test_event = 'TEST_EVENT'
+            
+        # Create and initialize the instrument driver
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+        
+        """
+        Patch the fsm's states and events variables to our own test states and
+        events; need to do this because the test wouldn't work for all drivers
+        unless we new a common event and state that they all have, and that
+        haven't already had a handler associated with them.
+        """
+        driver._protocol._protocol_fsm.states = TestStates
+        driver._protocol._protocol_fsm.events = TestEvents
+        
+        self.my_handler_entered = False
+
+        """
+        Define a test handler for the fsm to call that will set a variable that
+        we can then test to make sure the handler was called.
+        """
+        def _my_handler_test(*args, **kwargs):
+            next_state = None
+            result = None
+            
+            self.my_handler_entered = True
+            return (next_state, result)
+            
+        driver._protocol._protocol_fsm.add_handler(TestStates.test_state, TestEvents.test_event, _my_handler_test)
+        self.assert_force_state(driver, TestStates.test_state)
+        driver._protocol._protocol_fsm.on_event(TestEvents.test_event)
+
+        self.assertTrue(self.my_handler_entered)
+
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -304,8 +361,12 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         """
         Test the chunker and verify the particles created.
         """
-        chunker = StringChunker(Protocol.sieve_function)
-
+        chunker = StringChunker(Protocol.leveling_sieve_function)
+        self.assert_chunker_sample(chunker, LEVELED_STATUS)
+        self.assert_chunker_sample(chunker, START_LEVELING_COMMAND_RESPONSE)
+        self.assert_chunker_sample(chunker, STOP_LEVELING_COMMAND_RESPONSE)
+        
+        chunker = StringChunker(Protocol.command_autosample_sieve_function)
         self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
         #self.assert_chunker_sample(chunker, SIGNON_STATUS)
         self.assert_chunker_sample(chunker, SIGNON_STATUS + DUMP_01_STATUS)
@@ -313,8 +374,84 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self.assert_chunker_sample(chunker, DUMP_02_STATUS)
         self.assert_chunker_sample(chunker, DUMP_01_COMMAND_RESPONSE)
         self.assert_chunker_sample(chunker, DUMP_02_COMMAND_RESPONSE)
-        self.assert_chunker_sample(chunker, LEVELED_STATUS)
 
+    def test_get_handler(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        self.assert_initialize_driver(driver)
+
+        args = [Parameter.AUTO_RELEVEL] 
+        result = driver._protocol._handler_command_get(args)
+        dict_response = result[1]
+        get_auto_relevel_response = dict_response['auto_relevel']
+        log.debug("get_auto_relevel_response: %r", get_auto_relevel_response)
+        self.assertTrue(get_auto_relevel_response)
+
+    def test_event_sender(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        self.assert_initialize_driver(driver)
+
+        AsyncEventSender.send_event(ProtocolEvent.START_LEVELING)
+        
+    def test_set_handler(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        self.assert_initialize_driver(driver)
+
+        #dict = {}
+        #dict[Parameter.XTILT_RELEVEL_TRIGGER] = 10
+        
+        #driver._protocol._handler_command_set()
+        
+    def test_combined_samples(self):
+
+        chunker = StringChunker(Protocol.command_autosample_sieve_function)
+
+        sample = BOTPT_FIREHOSE_02
+        
+        ts = self.get_ntp_timestamp()
+        chunker.add_chunk(sample, ts)
+
+        (timestamp, result) = chunker.get_next_data()
+        self.assertTrue(result in sample)
+        self.assertEqual(timestamp, ts)
+
+        (timestamp, result) = chunker.get_next_data()
+        self.assertTrue(result in sample)
+        self.assertEqual(timestamp, ts)
+
+        (timestamp, result) = chunker.get_next_data()
+        self.assertEqual(result, None)
+
+    def test_leveling_status(self):
+
+        chunker = StringChunker(Protocol.leveling_sieve_function)
+
+        #sample = VALID_SAMPLE_01
+        sample = LEVELING_STATUS
+        
+        ts = self.get_ntp_timestamp()
+        chunker.add_chunk(sample, ts)
+
+        (timestamp, result) = chunker.get_next_data()
+        self.assertEqual(result, sample)
+        self.assertEqual(timestamp, ts)
+
+        (timestamp, result) = chunker.get_next_data()
+        self.assertEqual(result, None)
 
     """
     Test the connection to the BOTPT
@@ -368,7 +505,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         try:        
             #driver._protocol._raw_data = "test that SampleException works"
             raw_data = INVALID_SAMPLE
-            test_particle = LILYDataParticle(raw_data)
+            test_particle = LILYDataParticle(raw_data, False)
             test_particle._build_parsed_values()
             
         except SampleException as e:
@@ -382,7 +519,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         result = None
         try:
             raw_data = VALID_SAMPLE_01
-            test_particle = LILYDataParticle(raw_data)
+            test_particle = LILYDataParticle(raw_data, False)
             result = test_particle._build_parsed_values()
 
         except SampleException as e:
@@ -1007,7 +1144,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         result = driver._protocol._handler_command_start_autosample(timeout = 0)
         ts = ntplib.system_to_ntp_time(time.time())
-        result = driver._protocol._got_chunk(DATA_ON_COMMAND_RESPONSE, ts)
+        result = driver._protocol._got_coarse_chunk(DATA_ON_COMMAND_RESPONSE, ts)
 
 
     def test_stop_autosample(self):
@@ -1049,7 +1186,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         result = driver._protocol._handler_autosample_stop_autosample()
         ts = ntplib.system_to_ntp_time(time.time())
-        result = driver._protocol._got_chunk(DATA_OFF_COMMAND_RESPONSE, ts)
+        result = driver._protocol._got_coarse_chunk(DATA_OFF_COMMAND_RESPONSE, ts)
 
 
     def test_status_01_handler(self):
@@ -1170,8 +1307,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         # but we really want to return the status as a string.  Might have to
         # expose the two commands to run separately instead of one combined
         # acquire_status
-        driver._protocol._got_chunk(DUMP_01_STATUS, ts)
-        driver._protocol._got_chunk(DUMP_01_COMMAND_RESPONSE, ts)
+        driver._protocol._got_coarse_chunk(DUMP_01_STATUS, ts)
+        driver._protocol._got_coarse_chunk(DUMP_01_COMMAND_RESPONSE, ts)
 
         response = driver._protocol._get_response(timeout = 0)
         self.assertTrue(isinstance(response[1], LILYStatus_01_Particle))
@@ -1213,13 +1350,46 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         # but we really want to return the status as a string.  Might have to
         # expose the two commands to run separately instead of one combined
         # acquire_status
-        result = driver._protocol._got_chunk(DUMP_02_STATUS, ts)
-        result = driver._protocol._got_chunk(DUMP_02_COMMAND_RESPONSE, ts)
+        result = driver._protocol._got_coarse_chunk(DUMP_02_STATUS, ts)
+        result = driver._protocol._got_coarse_chunk(DUMP_02_COMMAND_RESPONSE, ts)
 
         response = driver._protocol._get_response(timeout = 0)
         self.assertTrue(isinstance(response[1], LILYStatus_02_Particle))
 
-    @unittest.skip("Skipping because need distinct states to test")    
+    @unittest.skip("Skipping for now because time is too long")    
+    def test_leveling_timeout(self):
+        mock_port_agent = Mock(spec=PortAgentClient)
+        driver = InstrumentDriver(self._got_data_event_callback)
+
+        # Put the driver into test mode
+        driver.set_test_mode(True)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to that state
+        config = {'mock_port_agent' : mock_port_agent}
+        driver.configure(config = config)
+
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
+
+        # Invoke the connect method of the driver: should connect to mock
+        # port agent.  Verify that the connection FSM transitions to CONNECTED,
+        # (which means that the FSM should now be reporting the ProtocolState).
+        driver.connect()
+        current_state = driver.get_resource_state()
+        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+
+        # Force the instrument into a known state
+        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+
+        result = driver._protocol._handler_leveling_enter()
+        
+        time.sleep(120)
+
+
     def test_leveling_complete(self):
         mock_port_agent = Mock(spec=PortAgentClient)
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -1250,16 +1420,32 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         ts = ntplib.system_to_ntp_time(time.time())
 
-        result = driver._protocol._got_chunk(LEVELED_STATUS, ts)
+        result = driver._protocol._got_coarse_chunk(LEVELED_STATUS, ts)
+        ts = ntplib.system_to_ntp_time(time.time())
+        result = driver._protocol._got_coarse_chunk(STOP_LEVELING_COMMAND_RESPONSE, ts)
+        
+        time.sleep(1)
 
         #
         # Because the driver will send a DATA_ON message and look for the response,
         # we need to feed it a simulated response
         #
         ts = ntplib.system_to_ntp_time(time.time())
-        result = driver._protocol._got_chunk(DATA_ON_COMMAND_RESPONSE, ts)
+        result = driver._protocol._got_coarse_chunk(DATA_ON_COMMAND_RESPONSE, ts)
 
-        current_state = driver._protocol._protocol_fsm.get_current_state()
+
+        timeout = 10
+        target_state = ProtocolState.AUTOSAMPLE 
+        end_time = time.time() + timeout
+
+        while (time.time() <= end_time):
+            current_state = driver._protocol._protocol_fsm.get_current_state()
+            if (current_state == target_state):
+                break
+            else:
+                log.debug("state mismatch %s != %s, sleep for a bit", current_state, target_state)
+                time.sleep(2)
+
         self.assertTrue(ProtocolState.AUTOSAMPLE == current_state)
 
 
@@ -1297,20 +1483,55 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_initialize_driver()
 
     def test_get(self):
-        #self.assert_initialize_driver()
-        #value = self.assert_get(Parameter.HEAT_DURATION)
-        pass
+        self.assert_initialize_driver()
+        value = self.assert_get(Parameter.AUTO_RELEVEL, True)
+        value = self.assert_get(Parameter.XTILT_RELEVEL_TRIGGER, DEFAULT_XTILT_TRIGGER)
+        value = self.assert_get(Parameter.YTILT_RELEVEL_TRIGGER, DEFAULT_YTILT_TRIGGER)
 
     def test_set(self):
         """
         Test all set commands. Verify all exception cases.
         """
-        #self.assert_initialize_driver()
+        self.assert_initialize_driver()
 
-        #self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
-        #value = self.assert_get(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
-        pass
+        self.assert_set(Parameter.AUTO_RELEVEL, False)
+        value = self.assert_get(Parameter.AUTO_RELEVEL, False)
 
+        self.assert_set(Parameter.AUTO_RELEVEL, True)
+        value = self.assert_get(Parameter.AUTO_RELEVEL, True)
+
+        self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 10)
+        value = self.assert_get(Parameter.XTILT_RELEVEL_TRIGGER, 10)
+
+        self.assert_set(Parameter.YTILT_RELEVEL_TRIGGER, 10)
+        value = self.assert_get(Parameter.YTILT_RELEVEL_TRIGGER, 10)
+
+    def test_auto_relevel(self):
+        """
+        @brief Test for turning data on
+        """
+        self.assert_initialize_driver()
+
+        """
+        Set the XTILT and YTILT to a low threshold so that the driver will
+        automatically start the releveling operation
+        """
+        self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 10)
+        self.assert_set(Parameter.YTILT_RELEVEL_TRIGGER, 10)
+
+        self.assert_state_change(ProtocolState.LEVELING, 60)
+
+        """
+        Now set the XTILT and YTILT back to normal so that the driver will not
+        automatically start the releveling operation
+        """
+        self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 300)
+        self.assert_set(Parameter.YTILT_RELEVEL_TRIGGER, 300)
+        
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
+
+        self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
+        
     def test_data_on(self):
         """
         @brief Test for turning data on
@@ -1325,6 +1546,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         
         log.debug("DATA_ON returned: %r", response)
 
+        time.sleep(30)
+        
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
         self.assertEqual(response[1], LILY_DATA_OFF)
         
@@ -1366,17 +1589,19 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
         log.debug("START_LEVELING returned: %r", response)
         
-        time.sleep(10)
+        self.assert_state_change(ProtocolState.LEVELING, 60)
         
         """
-        Don't issue stop leveling command 
+        Issue stop leveling command 
         """
-        #response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
-        #log.debug("STOP_LEVELING returned: %r", response)
+        
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
+        log.debug("STOP_LEVELING returned: %r", response)
 
-        self.assert_state_change(ProtocolState.AUTOSAMPLE, 1000)
+        self.assert_state_change(ProtocolState.AUTOSAMPLE, 60)
 
         
+    @unittest.skip("Skipping because BOTPT doesn't level")    
     def test_leveling_complete(self):
         """
         @brief Test for leveling
