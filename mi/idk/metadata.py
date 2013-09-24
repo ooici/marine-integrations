@@ -48,7 +48,7 @@ class Metadata():
         if not self.driver_name:
             raise DriverParameterUndefined("driver_name undefined in metadata")
             
-        return os.path.join(Config().base_dir(),
+        return os.path.join(self.base_dir,
                             "mi", "instrument",
                             self.driver_make.lower(),
                             self.driver_model.lower(),
@@ -92,7 +92,7 @@ class Metadata():
     ###
     #   Private Methods
     ###
-    def __init__(self, driver_make = None, driver_model = None, driver_name = None):
+    def __init__(self, driver_make = None, driver_model = None, driver_name = None, base_dir = Config().base_dir()):
         """
         @brief Constructor
         """
@@ -103,6 +103,7 @@ class Metadata():
         self.driver_name = driver_name
         self.notes = None
         self.version = 0
+        self.base_dir = base_dir
 
         if(driver_make and driver_model and driver_name):
             log.debug("Construct from parameters")

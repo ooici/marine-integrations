@@ -8,6 +8,8 @@ import sys
 import os.path
 import zipfile
 import subprocess
+import shutil
+import re
 
 import yaml
 
@@ -17,6 +19,9 @@ from mi.idk.metadata import Metadata
 from mi.idk.nose_test import NoseTest
 from mi.idk.driver_generator import DriverGenerator
 from mi.idk.egg_generator import EggGenerator
+from mi.idk.exceptions import ValidationFailure
+
+REPODIR = '/tmp/repoclone'
 
 class PackageManifest(object):
     """
@@ -95,14 +100,19 @@ class PackageDriver(object):
     def log_path(self):
         return "%s/%s" % (self.metadata.idk_dir(), self.log_file())
 
+    def build_name(self):
+        return "%s_%s_%s" % (self.metadata.driver_make,
+                            self.metadata.driver_model,
+                            self.metadata.driver_name)
+
     def archive_file(self):
-        return "%s_%s_%s-%s-driver.zip" % (self.metadata.driver_make,
-                                                      self.metadata.driver_model,
-                                                      self.metadata.driver_name,
-                                                      self.metadata.version)
+        return "%s-%s-driver.zip" % (self.build_name(),
+                                     self.metadata.version)
+
     def archive_path(self):
         return os.path.join(os.path.expanduser("~"),self.archive_file())
-    
+
+
     ###
     #   Public Methods
     ###
@@ -110,11 +120,9 @@ class PackageDriver(object):
         """
         @brief ctor
         """
-        self.metadata = Metadata()
         self._zipfile = None
         self._manifest = None
         self._compression = None
-        self.generator = DriverGenerator(self.metadata)
 
         # Set compression level
         self.zipfile_compression()
@@ -135,6 +143,93 @@ class PackageDriver(object):
             log.error("Qualification tests have fail!  No package created.")
             return False
 
+    def clone_repo(self):
+        """
+        clone the ooici repository into a temp location and navigate to it
+        """
+        # make a temp dir to put the clone in
+        if not os.path.exists(REPODIR):
+            os.mkdir(REPODIR)
+        os.chdir(REPODIR)
+        # remove an old clone if one exists, start clean
+        if os.path.exists(REPODIR + '/marine-integrations'):
+            shutil.rmtree(REPODIR + '/marine-integrations')
+
+        # clone the ooici repository into a temporary location
+        # ************** TODO, GO BACK TO OOICI 
+        os.system('git clone git@github.com:emilyhahn/marine-integrations.git')
+        #os.system('git clone git@github.com:ooici/marine-integrations.git')
+        log.debug('cloned repository')
+
+        # if the directory doesn't exist, something went wrong with cloning
+        if not os.path.exists(REPODIR + '/marine-integrations'):
+            raise InvalidParameters('Error creating ooici repository clone')
+        # navigate into the cloned repository
+        os.chdir(REPODIR + '/marine-integrations')
+        log.debug('in cloned repository')
+
+    def get_repackage_version(self, tag_base):
+        """
+        Get the driver version the user wants to repackage
+        """
+        # suggest the current driver version as default
+        repkg_version = prompt.text( 'Driver Version to re-package', self.metadata.version )
+        # confirm this version has the correct format
+        self._verify_version(new_version)
+        # check to make sure this driver version exists
+        tag_name = tag_base + '_' + repkg_version.replace('.', '_')
+        cmd = 'git tag -l ' + tag_name
+        # find out if this tag name exists
+        output = subprocess.check_output(cmd, shell=True)
+        if len(output) > 0:
+            # this tag exists, check it out
+            os.system('git checkout tags/' + tag_name)
+        else:
+            log.error('No driver version %s found', tag_name)
+            raise InvalidParameters('No driver version %s found', tag_name)
+
+    def make_branch(self, name):
+        """
+        Make a new branch for this release and tag it with the same name so we
+        can get back to it
+        """
+        # create a new branch name and check it out
+        cmd = 'git checkout -b ' + name
+        output = subprocess.check_output(cmd, shell=True)
+        log.debug('created new branch %s: %s', name, output)
+        # tag the initial branch so that we can get back to it later
+        cmd = 'git tag ' + name
+        output = subprocess.check_output(cmd, shell=True)
+        log.debug('created new tag %s: %s', name, output)
+
+    def update_version(self):
+        """
+        Update the driver version for this package.  By default increment by one.
+        After updating the metadata file, commit the change to git.
+        """
+        last_dot = self.metadata.version.rfind('.')
+        last_version = int(self.metadata.version[last_dot+1:])
+        suggest_version = self.metadata.version[:last_dot+1] + str(last_version + 1)
+        new_version = prompt.text('Update Driver Version', suggest_version )
+        # confirm this version has the correct format
+        self._verify_version(new_version)
+        if new_version != self.metadata.version:
+            # search for the tag for this version, find out if it already exists
+            cmd = 'git tag -l ' + self.build_name() + '_' + new_version.replace('.', '_')
+            # find out if this tag name exists
+            output = subprocess.check_output(cmd, shell=True)
+            if len(output) > 0:
+                # this tag already exists and we are not repackaging
+                raise InvalidParameters("Version %s already exists.  To repackage, run package driver with the --repackage option", new_version)
+
+            # set the new driver version in the metadata
+            self.metadata.set_driver_version(new_version)
+            # commit the changed file to git
+            cmd = 'git commit ' + str(self.metadata.metadata_path()) + ' -m \'Updated metadata driver version\''
+            os.system(cmd)
+
+        return new_version
+
     def package_driver(self):
         """
         @brief Store driver files in a zip package
@@ -145,8 +240,29 @@ class PackageDriver(object):
     def run(self):
         print "*** Starting Driver Packaging Process***"
         
-        if len(sys.argv) == 2 and (sys.argv[1] == "--no-test"):
-            # clear the log file so it exists
+        # store the original directory since we will be navigating away from it
+        original_dir = os.getcwd()
+
+        # first create a temporary clone of ooici to work with
+        self.clone_repo()
+        
+        # get which dataset agent is selected from the current metadata, use
+        # this to get metadata from the cloned repo
+        tmp_metadata = Metadata()
+        # read metadata from the cloned repo
+        self.metadata = Metadata(tmp_metadata.driver_make,
+                                 tmp_metadata.driver_model,
+                                 tmp_metadata.driver_name,
+                                 REPODIR + '/marine-integrations')
+        
+        if "--repackage" in sys.argv:
+            self.get_repackage_version(self.build_name())
+        else:
+            new_version = self.update_version()
+            branch_name = self.build_name() + '_' + new_version.replace('.', '_')
+            self.make_branch(branch_name)
+
+        if "--no-test" in sys.argv:
             f = open(self.log_path(), "w")
             f.write("Tests manually bypassed with --no-test option\n")
             f.close()
@@ -154,6 +270,15 @@ class PackageDriver(object):
         else:
             if(self.run_qualification_tests()):
                 self.package_driver()
+                
+        #if not "--no-push" in sys.argv and not "--repackage" in sys.argv:
+        #    cmd = 'git push'
+        #    output = subprocess.check_output(cmd, shell=True)
+        #    if len(output) > 0:
+        #        log.debug('git push returned: %s', output)
+
+        # go back to the original directory
+        os.chdir(original_dir)
 
         print "Package Created: " + self.archive_path()
 
@@ -200,7 +325,13 @@ class PackageDriver(object):
         """
         @brief Store all files in zip archive and add them to the manifest file
         """
-
+        # make sure metadata is up to date
+        self.metadata = Metadata(self.metadata.driver_make,
+                                 self.metadata.driver_model,
+                                 self.metadata.driver_name,
+                                 REPODIR + '/marine-integrations')
+        
+        self.generator = DriverGenerator(self.metadata)
         egg_generator = EggGenerator(self.metadata)
         egg_file = egg_generator.save()
 
@@ -256,6 +387,20 @@ class PackageDriver(object):
 
         self.manifest().add_file(dest, description);
         self.zipfile().write(source, dest, self.zipfile_compression())
+        
+    def _verify_version(self, version = None):
+        """
+        Ensure we have a good version number and that it has not already been packaged and published
+        """
+        if version == None:
+            version = self.metadata.version
+
+        if not version:
+            raise ValidationFailure("Driver version required in metadata")
+
+        p = re.compile("^\d+\.\d+\.\d+$")
+        if not p.findall("%s" % version):
+            raise ValidationFailure("Version format incorrect '%s', should be x.x.x" % version)
 
 
 if __name__ == '__main__':

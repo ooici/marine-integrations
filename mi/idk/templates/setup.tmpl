@@ -8,11 +8,12 @@ setup(
     author_email='${email}',
     url='${url}',
     packages=find_packages(),
-    data_files=[('mi', ['res/config/mi-logging.yml'])],
+    data_files=[('mi', ['${name}/res/config/mi-logging.yml'])],
     entry_points = {
         'setuptools.installation': [
-            'eggsecutable = mi.main:run',
-        ]
+            'eggsecutable = ${name}.mi.main:run',
+        ],
+        #'${entry_point_group}': '${versioned_constructor}'
     },
     dependency_links = [
         'https://github.com/ooici/utilities/tarball/master#egg=utilities-9999'

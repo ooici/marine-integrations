@@ -17,7 +17,7 @@ import os
 import shutil
 from os.path import exists, dirname
 from shutil import copytree
-
+from mi.idk import prompt
 import mi.idk.egg_generator
 from mi.idk.egg_generator import DependencyList
 
@@ -77,35 +77,23 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
 
     def _build_name(self):
         return self.metadata.driver_name_versioned
-    
-    def _generate_build_dir(self):
-        build_dir = os.path.join(self._tmp_dir(), self._build_name())
-        # clean out an old build if it exists
-        if exists(build_dir):
-            shutil.rmtree(build_dir)
-        return build_dir
-    
+
     def _driver_dir(self):
         (driver_dir, driver_fname) = os.path.split(self.metadata.driver_path)
         return driver_dir
-    
-    def _versioned_dir(self):
-        return os.path.join(self._build_dir(),
-                            self.metadata.driver_name_versioned)
-    
+
     def _setup_path(self):
         return os.path.join(self._build_dir(), 'setup.py' )
-        
+
     def _setup_template_path(self):
         return os.path.join(Config().template_dir(), 'dsa', 'setup.tmpl' )
-        
+
     def _generate_setup_file(self):
         if not os.path.exists(self._build_dir()):
             os.makedirs(self._build_dir())
 
         if not os.path.exists(self._build_dir()):
             raise IDKException("failed to create build dir: %s" % self._build_dir())
-
 
         setup_file = self._setup_path()
         setup_template = self._get_template(self._setup_template_path())
@@ -127,8 +115,6 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
            'author': self.metadata.author,
            'email': self.metadata.email,
            'url': 'http://www.oceanobservatories.org',
-           'driver_module': self._driver_module(),
-           'driver_class': self._driver_class(),
            'entry_point_group': self.metadata.entry_point_group,
            'versioned_constructor': self.metadata.versioned_constructor
         }
@@ -167,10 +153,10 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
             # make sure the destination directory exists, if it doesn't make it
             if not os.path.exists(destdir):
                 os.makedirs(destdir)
-            
+
             # copy the file
             shutil.copy(source, dest)
-            
+
             # replace mi in the copied files with the versioned driver module.mi
             # this is necessary because the top namespace in the versioned files starts
             # with the versioned driver name directory, not mi
@@ -185,7 +171,20 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
             driver_file = open(dest, "w")
             driver_file.write(new_contents)
             driver_file.close()
-            
+
+        # need to add mi-logging.yml special because it is not in cloned repo, only in local repository
+        milog = "res/config/mi-logging.yml"
+        dest = os.path.join(self._versioned_dir(), milog)
+        destdir = dirname(dest)
+        source = os.path.join(Config().base_dir(), milog)
+
+        log.debug(" Copy %s => %s" % (source, dest))
+        # make sure the destination directory exists, if it doesn't make it
+        if not os.path.exists(destdir):
+            os.makedirs(destdir)
+
+        shutil.copy(source, dest)
+
     def _mi_replace(self, matchobj):
         """
         This function is used in regex sub to replace mi with the versioned
@@ -223,7 +222,9 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
         return egg_file
     
     def save(self):
-        filelist = DriverFileList(self.metadata, self._repo_dir())
+        driver_file = self.metadata.driver_dir() + '/' + DriverGenerator(self.metadata).driver_filename()
+        driver_test_file = self.metadata.driver_dir() + '/test/' + DriverGenerator(self.metadata).driver_test_filename()
+        filelist = DriverFileList(self.metadata, self._repo_dir(), driver_file, driver_test_file)
         return self._build_egg(filelist.files())
 
 

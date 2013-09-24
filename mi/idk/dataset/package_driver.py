@@ -6,7 +6,6 @@
 import os
 import sys
 import subprocess
-import shutil
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -55,70 +54,6 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
         else:
             log.error("Qualification tests have fail!  No package created.")
             return False
-        
-    def clone_repo(self):
-        """
-        clone the ooici repository into a temp location and navigate to it
-        """
-        # make a temp dir to put the clone in
-        if not os.path.exists(REPODIR):
-            os.mkdir(REPODIR)
-        os.chdir(REPODIR)
-        # remove an old clone if one exists, start clean
-        if os.path.exists(REPODIR + '/marine-integrations'):
-            shutil.rmtree(REPODIR + '/marine-integrations')
-
-        # clone the ooici repository into a temporary location
-        os.system('git clone git@github.com:ooici/marine-integrations.git')
-        log.debug('cloned repository')
-
-        # if the directory doesn't exist, something went wrong with cloning
-        if not os.path.exists(REPODIR + '/marine-integrations'):
-            raise InvalidParameters('Error creating ooici repository clone')
-        # navigate into the cloned repository
-        os.chdir(REPODIR + '/marine-integrations')
-        log.debug('in cloned repository')
-
-        # get which dataset agent is selected from the current metadata, use
-        # this to get metadata from the cloned repo
-        tmp_metadata = Metadata()
-        # read metadata from the cloned repo
-        self.metadata = Metadata(tmp_metadata.driver_path, REPODIR + '/marine-integrations')
-
-    def get_repackage_version(self):
-        """
-        Get the driver version the user wants to repackage
-        """
-        # suggest the current driver version as default
-        repkg_version = prompt.text( 'Driver Version to re-package', self.metadata.version )
-        # check to make sure this driver version exists
-        tag_name = 'driver_' + self.metadata.driver_name + '_' + repkg_version.replace('.','_')
-        cmd = 'git tag -l ' + tag_name 
-        # find out if this tag name exists
-        output = subprocess.check_output(cmd, shell=True)
-        if len(output) > 0:
-            # this tag exists, check it out
-            os.system('git checkout tags/' + tag_name)
-            # re-read the metadata since version may have changed in metadata.yml file
-            self.metadata = Metadata(self.metadata.driver_path, REPODIR + '/marine-integrations')
-        else:
-            log.error('No driver version %s found', tag_name)
-            raise InvalidParameters('No driver version %s found', tag_name)
-
-    def make_branch(self):
-        """
-        Make a new branch for this release and tag it with the same name so we
-        can get back to it
-        """
-        name = self.metadata.driver_name_versioned
-        # create a new branch name and check it out
-        cmd = 'git checkout -b ' + name
-        output = subprocess.check_output(cmd, shell=True)
-        log.debug('created new branch %s: %s', name, output)
-        # tag the initial branch so that we can get back to it later
-        cmd = 'git tag ' + name
-        output = subprocess.check_output(cmd, shell=True)
-        log.debug('created new tag %s: %s', name, output)
 
     def update_version(self):
         """
@@ -129,39 +64,55 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
         last_version = int(self.metadata.version[last_dot+1:])
         suggest_version = self.metadata.version[:last_dot+1] + str(last_version + 1)
         new_version = prompt.text('Update Driver Version', suggest_version )
+        # make sure the entered version has the correct format
+        self._verify_version(new_version)
         if new_version != self.metadata.version:
+            # search for the tag for this version, find out if it already exists
+            cmd = 'git tag -l ' + 'driver_' + self.metadata.driver_name + '_' + new_version.replace('.', '_')
+            # find out if this tag name exists
+            output = subprocess.check_output(cmd, shell=True)
+            if len(output) > 0:
+                # this tag already exists and we are not repackaging
+                raise InvalidParameters("Version %s already exists.  To repackage, run package driver with the --repackage option", new_version)
+
             # set the new driver version in the metadata
             self.metadata.set_driver_version(new_version)
             # commit the changed file to git
             cmd = 'git commit ' + str(self.metadata.metadata_path()) + ' -m \'Updated metadata driver version\''
             os.system(cmd)
-            # read metadata again to update the version in our metadata
-            self.metadata = Metadata(self.metadata.driver_path, REPODIR + '/marine-integrations')
+
+        return new_version
 
     def run(self):
         print "*** Starting Driver Packaging Process ***"
-        
+
         # store the original directory since we will be navigating away from it
         original_dir = os.getcwd()
 
         # first create a temporary clone of ooici to work with
         self.clone_repo()
 
-        # for now comment out the test option until test are more stable,
+        # get which dataset agent is selected from the current metadata, use
+        # this to get metadata from the cloned repo
+        tmp_metadata = Metadata()
+        # read metadata from the cloned repo
+        self.metadata = Metadata(tmp_metadata.driver_path, REPODIR + '/marine-integrations')
+
+        # for now leave out the test option until test are more stable,
         # just build the package driver
         if len(sys.argv) == 2 and (sys.argv[1] == "--repackage"):
-            self.get_repackage_version()
+            self.get_repackage_version('driver_' + self.metadata.driver_name)
             self.package_driver()
         else:
-            self.update_version()
-            self.make_branch()
+            new_version = self.update_version()
+            self.make_branch('driver_' + self.metadata.driver_name + '_' + new_version.replace('.', '_'))
             self.package_driver()
 
-            if prompt.yes_no('Do you want to push the new release branch to ooici?'):
-                cmd = 'git push'
-                output = subprocess.check_output(cmd, shell=True)
-                if len(output) > 0:
-                    log.debug('git push returned: %s', output)
+            #if not "--no-push" in sys.argv:
+            #    cmd = 'git push'
+            #    output = subprocess.check_output(cmd, shell=True)
+            #    if len(output) > 0:
+            #        log.debug('git push returned: %s', output)
 
         # go back to the original directory
         os.chdir(original_dir)
@@ -175,6 +126,7 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
         """
         @brief Store all files in zip archive and add them to the manifest file
         """
+        self.metadata = Metadata(self.metadata.driver_path, REPODIR + '/marine-integrations')
         self.generator = DriverGenerator(self.metadata)
         egg_generator = EggGenerator(self.metadata)
         egg_file = egg_generator.save()
