@@ -8,7 +8,7 @@ setup(
     author_email='${email}',
     url='${url}',
     packages=find_packages(),
-    data_files=[('mi', ['${name}/res/config/mi-logging.yml'])],
+    data_files=[('${name}/mi', ['${name}/res/config/mi-logging.yml'])],
     entry_points = {
         'setuptools.installation': [
             'eggsecutable = ${name}.mi.main:run',

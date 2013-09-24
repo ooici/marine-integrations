@@ -525,7 +525,7 @@ class EggGenerator:
             driver_file = open(dest, "r")
             contents = driver_file.read()
             driver_file.close()
-            new_contents = re.sub(r'(^import |^from |\'|= )mi\.',
+            new_contents = re.sub(r'(^import |^from |\'|= )mi\.|res/config/mi-logging|\'mi\'',
                                   self._mi_replace,
                                   contents,
                                   count=0,
@@ -553,7 +553,12 @@ class EggGenerator:
         driver name followed by mi
         @param matchobj - the match object from re.sub
         """
-        return matchobj.group(1) + self._build_name() + '.mi.'
+        if matchobj.group(0) == 'res/config/mi-logging':
+            return self._build_name() + '/' + matchobj.group(0)
+        elif matchobj.group(0) == '\'mi\'':
+            return '\'' + self._build_name() + '.mi\''
+        else:
+            return matchobj.group(1) + self._build_name() + '.mi.'   
 
     def _get_template(self, template_file):
         """
