@@ -19,6 +19,7 @@ from os.path import basename, dirname
 from operator import itemgetter
 from string import Template
 
+from mi.idk import prompt
 from mi.idk.config import Config
 from mi.idk.metadata import Metadata
 from mi.idk.driver_generator import DriverGenerator
@@ -603,6 +604,7 @@ class EggGenerator:
             'url': 'http://www.oceanobservatories.org',
             'driver_module': self._driver_module(),
             'driver_class': self._driver_class(),
+            'driver_path': self.metadata.driver_path,
         }
 
     def _generate_main_file(self):
