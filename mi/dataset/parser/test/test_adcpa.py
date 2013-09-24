@@ -9,6 +9,7 @@ would lead to different subclasses of the test suites
 """
 
 import gevent
+import json
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger
@@ -26,16 +27,14 @@ class AdcpaParserUnitTestCase(ParserUnitTestCase):
     """
     ADCPA Parser unit test suite
     """
-    def pos_callback(self, pos):
-        """ Call back method to watch what comes in via the position callback """
-        self.position_callback_value = pos
-
-    def pub_callback(self, pub):
-        """ Call back method to watch what comes in via the publish callback """
-        self.publish_callback_value = pub
-
-    def setUp(self):
+    def setUpModule(self):
         ParserUnitTestCase.setUp(self)
+
+        # Set the source of the test data to a known file that has been opened
+        # and parsed with the Teledyne RDI WinADCP application. Comparisons of
+        # certain parameters between the results of this parser and the vendor
+        # provided utiltiy will be used to validate the parser.
+        self.stream_handle = open(AdcpaParserUnitTestCase.TEST_DATA)
 
         # configure parser for testing
         self.config = {
@@ -43,19 +42,29 @@ class AdcpaParserUnitTestCase(ParserUnitTestCase):
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'ADCPA_PD0_PARSED_DataParticle'
         }
         self.position = {StateKey.POSITION: 0}
-        self.stream_handle = StringIO(AdcpaParserUnitTestCase.TEST_DATA)
         self.parser = AdcpaParser(self.config, self.position, self.stream_handle,
                                   self.pos_callback, self.pub_callback)
 
         self.position_callback_value = None
         self.publish_callback_value = None
 
-        # set known values for key elements of the particle to validate parsing against
-        rt_clock
-        velocity
-        correlation
-        percent_good
-        position
+        # set known values for key elements of the particle to validate against
+        self.rt_clock
+        self.water_velocity_east
+        self.correlation
+        self.percent_good_4beam
+        self.position
+
+    def tearDownModule(self):
+        self.stream_handle.close()
+
+    def pos_callback(self, pos):
+        """ Call back method to watch what comes in via the position callback """
+        self.position_callback_value = pos
+
+    def pub_callback(self, pub):
+        """ Call back method to watch what comes in via the publish callback """
+        self.publish_callback_value = pub
 
     def assert_result(self, result, position, values):
         self.assertEqual(result, [particle])
@@ -96,8 +105,8 @@ class AdcpaParserUnitTestCase(ParserUnitTestCase):
     def test_set_state(self):
         """
         Test that the parser will start up at some mid-point in the file, and
-        read the data from a file, returning valid particles and values within
-        the particles.
+        continue reading data from a file, returning valid particles and values
+        within the particles.
 
         This tests the ability to set the POSITION state and have the parser
         pick up from there.
