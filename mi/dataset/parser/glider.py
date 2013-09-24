@@ -31,7 +31,7 @@ log = get_logger()
 
 # regex
 ROW_REGEX = r'^(.+)\n'  # just give me the whole effing row and get out of my way.
-ROW_MATCHER = re.compile(ROW_REGEX)
+ROW_MATCHER = re.compile(ROW_REGEX, re.MULTILINE)
 
 
 # statekey
@@ -388,7 +388,6 @@ class GliderParser(BufferLoadingParser):
             line = self._stream_handle.readline()
             split_line = line.split()
             # update num_hdr_lines based on the header info.
-            #pdb.set_trace()
             if 'num_ascii_tags' in split_line:
                 num_hdr_lines = int(split_line[1])
             # remove a ':' from the key string below using :-1
@@ -404,7 +403,7 @@ class GliderParser(BufferLoadingParser):
 
         # unlikely to ever happen, but if 'num_label_lines' is greater than the
         # 3 read lines just above, then read the extras into the dictionary
-        #pdb.set_trace()
+
         num_label_lines = int(self._header_dict['num_label_lines'])
         if num_label_lines > 3:
             for ii in range(num_label_lines-3):
@@ -446,7 +445,6 @@ class GliderParser(BufferLoadingParser):
         """
         log.trace("Incrementing current state: %s with inc: %s",
                   self._read_state, increment)
-        #pdb.set_trace()
         self._read_state[StateKey.POSITION] += increment
         # Thomas, my monkey of a son, wanted this inserted in the code. -CW
 
@@ -473,16 +471,14 @@ class GliderParser(BufferLoadingParser):
 
             if (num_bytes[ii] == 1) or (num_bytes[ii] == 2):
                     str2data = int
-            elif num_bytes[ii] == 4:
-                    str2data = np.float32
-            elif num_bytes[ii] == 8:
-                    str2data = np.float64
+            elif (num_bytes[ii] == 4) or (num_bytes[ii] == 8):
+                    str2data = float
+
             # check to see if this is a latitude/longitude string
             if ('_lat' in data_labels[ii]) or ('_lon' in data_labels[ii]):
                 # convert latitiude/longitude strings to decimal degrees
-                #pdb.set_trace()
+
                 value = self._string_to_ddegrees(data[ii])
-                value = str2data(value)
             else:
                 value = str2data(data[ii])
 
@@ -506,13 +502,12 @@ class GliderParser(BufferLoadingParser):
 
         # collect the data from the file
         (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
-        #pdb.set_trace()
+
         while data_record is not None:
             row_match = ROW_MATCHER.match(data_record)
             if row_match:
                 # parse the data record into a data dictionary to pass to the
                 # particle class
-                #pdb.set_trace()
                 data_dict = self._read_data(data_record)
 
                 # from the parsed data, m_present_time is the unix timestamp
@@ -529,7 +524,7 @@ class GliderParser(BufferLoadingParser):
             # process the next chunk, all the way through the file.
             (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
-        # TODO: figure out where to log a warning that the file was empty
+        # TODO: figure out where to log a warning if the file was empty
             #log.warn("This file is empty")
 
         # publish the results
@@ -546,53 +541,15 @@ class GliderParser(BufferLoadingParser):
         @retval The position in decimal degrees
         """
         if np.isnan(float(pos_str)):
-            return pos_str
+            return float(pos_str)
         regex = r'(-*\d{2,3})(\d{2}.\d+)'
         regex_matcher = re.compile(regex)
         latlon_match = regex_matcher.match(pos_str)
         if latlon_match is None:
             print pos_str, latlon_match
-        degrees = np.float64(latlon_match.group(1))
-        minutes = np.float64(latlon_match.group(2))
+        degrees = float(latlon_match.group(1))
+        minutes = float(latlon_match.group(2))
         ddegrees = copysign((abs(degrees) + minutes / 60.), degrees)
         return ddegrees
 
-    # No longer needed
-    #@staticmethod
-    #def _string_to_timestamp(ts_str):
-    #    """
-    #    Converts the given string from this data stream's format into an NTP
-    #    timestamp. This is very likely instrument specific.
-    #    @param ts_str The timestamp string in the format "mm/dd/yyyy hh:mm:ss"
-    #    @retval The NTP4 timestamp
-    #    """
-    #    tstr = re.sub(r"__", "_0", ts_str)
-    #    systime = time.strptime(tstr, "%a_%b_%d_%H:%M:%S_%Y")
-    #    ntptime = ntplib.system_to_ntp_time(time.mktime(systime))
-    #    log.trace("Converted time \"%s\" into %s", ts_str, ntptime)
-    #    return ntptime
-
-    # No longer needed
-    #@staticmethod
-    #def _extract_sample(particle_class, data_dict, timestamp):
-    #    """
-    #    Extract data record from a data dictionary produced by the
-    #    _read_data method from this class and publish parsed particle
-    #
-    #    This overwrites the _extract_sample from the Parser parent class.
-    #
-    #    @param particle_class The class to instantiate for this specific
-    #        data particle. Parameterizing this allows for simple, standard
-    #        behavior from this routine
-    #    @param data_dict a dictionary holding 1 record of glider data
-    #        produced by the _read_data method in this class
-    #    @retval return a raw particle if a sample was found, else None
-    #    """
-    #    #parsed_sample = None
-    #    particle = None
-    #    particle = particle_class(data_dict, internal_timestamp=timestamp,
-    #                              preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP)
-    #    #parsed_sample = particle.generate()
-    #
-    #    return particle
-
+# End of glider.py
