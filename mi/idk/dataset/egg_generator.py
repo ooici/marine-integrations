@@ -163,7 +163,7 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
             driver_file = open(dest, "r")
             contents = driver_file.read()
             driver_file.close()
-            new_contents = re.sub(r'(^import |^from |\'|= )mi\.',
+            new_contents = re.sub(r'(^import |^from |\'|= )mi\.|res/config/mi-logging|\'mi\'',
                                   self._mi_replace,
                                   contents,
                                   count=0,
@@ -191,7 +191,12 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
         driver name followed by mi
         @param matchobj - the match object from re.sub
         """
-        return matchobj.group(1) + self.metadata.driver_name_versioned + '.mi.'
+        if matchobj.group(0) == 'res/config/mi-logging':
+            return self.metadata.driver_name_versioned + '/' + matchobj.group(0)
+        elif matchobj.group(0) == '\'mi\'':
+            return '\'' + self.metadata.driver_name_versioned + '.mi\''
+        else:
+            return matchobj.group(1) + self.metadata.driver_name_versioned + '.mi.'
 
     def _build_egg(self, files):
         try:
