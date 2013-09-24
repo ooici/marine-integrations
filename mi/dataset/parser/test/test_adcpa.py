@@ -27,14 +27,18 @@ class AdcpaParserUnitTestCase(ParserUnitTestCase):
     """
     ADCPA Parser unit test suite
     """
+
+    # Set the source of the test data to a known file that has been opened and
+    # parsed with the Teledyne RDI WinADCP application. Comparisons of certain
+    # parameters between the results of this parser and the vendor provided
+    # utiltiy will be used to validate the parser. Use a data file collected
+    # during the PVT testing off the Oregon coast in 2011. This file contains
+    # both regular ensembles and bottom-tracking data (starts about 2/3 of the
+    # way through the file).
+    TEST_DATA = '/tmp/dsatest/adcpa/LA101636.PD0'
+
     def setUpModule(self):
         ParserUnitTestCase.setUp(self)
-
-        # Set the source of the test data to a known file that has been opened
-        # and parsed with the Teledyne RDI WinADCP application. Comparisons of
-        # certain parameters between the results of this parser and the vendor
-        # provided utiltiy will be used to validate the parser.
-        self.stream_handle = open(AdcpaParserUnitTestCase.TEST_DATA)
 
         # configure parser for testing
         self.config = {
@@ -42,21 +46,22 @@ class AdcpaParserUnitTestCase(ParserUnitTestCase):
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'ADCPA_PD0_PARSED_DataParticle'
         }
         self.position = {StateKey.POSITION: 0}
-        self.parser = AdcpaParser(self.config, self.position, self.stream_handle,
-                                  self.pos_callback, self.pub_callback)
 
         self.position_callback_value = None
         self.publish_callback_value = None
 
         # set known values for key elements of the particle to validate against
-        self.rt_clock
-        self.water_velocity_east
-        self.correlation
-        self.percent_good_4beam
-        self.position
-
-    def tearDownModule(self):
-        self.stream_handle.close()
+        ### Test 1, Read first
+        self.internal_timestamp = []
+        self.ensemble_start_time = []
+        self.offset_data_types = []
+        self.echo_intensity_beam1 = []
+        self.correlation_magnitude_beam1 = []
+        self.percent_bad_beams = []
+        self.water_velocity_east = []
+        self.water_velocity_north = []
+        self.water_velocity_up = []
+        self.error_velocity = []
 
     def pos_callback(self, pos):
         """ Call back method to watch what comes in via the position callback """
@@ -78,29 +83,19 @@ class AdcpaParserUnitTestCase(ParserUnitTestCase):
         Test that the parser will read the data from a file and return valid
         particles and values within the particles.
         """
-        # grab 1 particle at a time
-        result = self.parser.get_records(1)
-        self.assert_result(result, 137, self.particle_a)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 174, self.particle_b)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 211, self.particle_c)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 248, self.particle_d)
+        with open(AdcpaParserUnitTestCase.TEST_DATA, 'rb') as self.stream_handle:
 
-        self.assertEqual(result, [particle])
-        self.assertEqual(self.parser._state[StateKey.POSITION], position)
-        self.assertEqual(self.position_callback_value[StateKey.POSITION], position)
-        self.assert_(isinstance(self.publish_callback_value, list))
-        self.assertEqual(self.publish_callback_value[0], particle)
+            self.parser = AdcpaParser(self.config, self.position, self.stream_handle,
+                                      self.pos_callback, self.pub_callback)
 
-        # grab multiple particles at once
-        result = self.parser.get_records(2)
-        self.assertEqual(result, [self.particle_a, self.particle_b])
-        self.assertEqual(self.parser._state[StateKey.POSITION], 174)
-        self.assertEqual(self.position_callback_value[StateKey.POSITION], 174)
-        self.assertEqual(self.publish_callback_value[0], self.particle_a)
-        self.assertEqual(self.publish_callback_value[1], self.particle_b)
+            # grab 1 particle at a time -- repeated 5 times
+            i = 1
+            while i <= 5:
+                result = self.parser.get_records(1)
+                print result.generate_dict()
+                print self.position_callback_value
+                print self.publish_callback_value
+                i += 1
 
     def test_set_state(self):
         """
@@ -111,9 +106,4 @@ class AdcpaParserUnitTestCase(ParserUnitTestCase):
         This tests the ability to set the POSITION state and have the parser
         pick up from there.
         """
-        new_state = {StateKey.POSITION: 211}
-        self.stream_handle = StringIO(AdcpaParserUnitTestCase.TEST_DATA)
-        self.parser = AdcpaParser(self.config, new_state, self.stream_handle,
-                                  self.pos_callback, self.pub_callback)
-        result = self.parser.get_records(1)
-        self.assert_result(result, 248, self.base_timestamp+3, self.particle_d)
+        pass

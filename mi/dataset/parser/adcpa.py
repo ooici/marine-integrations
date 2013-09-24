@@ -1048,7 +1048,8 @@ class AdcpaParser(BufferLoadingParser):
             if particle:
                 log.trace("Particle creation succeeded at position: %d to %d bytes", start, end)
                 self._increment_state(end)
-                result_particles.append((particle, copy.copy(self._read_state)))
+                print self._read_state[StateKey.POSITION]
+                result_particles.append((particle, copy.copy(self._read_state[StateKey.POSITION])))
             else:
                 log.trace("Particle creation failed at position: %d to %d bytes", start, end)
 
