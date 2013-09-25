@@ -43,8 +43,13 @@ class Metadata(mi.idk.metadata.Metadata):
         if not self.driver_path:
             raise DriverParameterUndefined("driver_path undefined in metadata")
 
-        return os.path.join(self.base_dir,
-                            "mi", "dataset", "driver",
+        return os.path.join(self.base_dir, self.relative_driver_path())
+
+    def relative_driver_path(self):
+        """
+        @brief return driver path relative to mi
+        """
+        return os.path.join("mi", "dataset", "driver",
                             self.driver_path)
 
     def resource_dir(self):

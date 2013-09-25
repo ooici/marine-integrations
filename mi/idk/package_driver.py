@@ -105,10 +105,6 @@ class PackageDriver(object):
                             self.metadata.driver_model,
                             self.metadata.driver_name)
 
-    def driver_dir(self):
-        return os.path.join("mi", "instrument", self.metadata.driver_make,
-                       self.metadata.driver_model, self.metadata.driver_name)
-
     def archive_file(self):
         return "%s-%s-driver.zip" % (self.build_name(),
                                      self.metadata.version)
@@ -365,7 +361,7 @@ class PackageDriver(object):
         @brief Store additional files added by the driver developer.  These
         files live in the driver resource dir.
         """
-        resource_dir = os.path.join(self.driver_dir(), "resource")
+        resource_dir = os.path.join(self.metadata.relative_driver_path(), "resource")
         log.debug(" -- Searching for developer added resource files in dir: %s",
                   resource_dir)
         stringfile = self.string_file()

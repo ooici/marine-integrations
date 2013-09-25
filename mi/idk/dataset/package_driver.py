@@ -24,7 +24,7 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
     def archive_file(self):
         return "%s-%s-driver.zip" % (self.metadata.driver_name,
                                      self.metadata.version)
-    
+
     ###
     #   Public Methods
     ###
@@ -149,6 +149,24 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
 
         # Finally save the manifest file.  This must be last of course
         self._add_file(self.manifest().manifest_path(), description = 'package manifest file')
+
+    def _store_resource_files(self):
+        """
+        @brief Store additional files added by the driver developer.  These
+        files live in the driver resource dir.
+        """
+        resource_dir = os.path.join(self.metadata.relative_driver_path(), "resource")
+        log.debug(" -- Searching for developer added resource files in dir: %s",
+                  resource_dir)
+        stringfile = self.string_file()
+        if os.path.exists(resource_dir):
+            for file in os.listdir(resource_dir):
+                if file != stringfile:
+                    log.debug("    ++ found: " + file)
+                    desc = prompt.text('Describe ' + file)
+                    self._add_file(resource_dir + "/" + file, 'resource', desc)
+        else:
+            log.debug(" --- No resource directory found, skipping...")
     
 if __name__ == '__main__':
     app = PackageDriver()
