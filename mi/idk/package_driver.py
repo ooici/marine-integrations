@@ -156,9 +156,7 @@ class PackageDriver(object):
             shutil.rmtree(REPODIR + '/marine-integrations')
 
         # clone the ooici repository into a temporary location
-        # ************** TODO, GO BACK TO OOICI 
-        os.system('git clone git@github.com:emilyhahn/marine-integrations.git')
-        #os.system('git clone git@github.com:ooici/marine-integrations.git')
+        os.system('git clone git@github.com:ooici/marine-integrations.git')
         log.debug('cloned repository')
 
         # if the directory doesn't exist, something went wrong with cloning
@@ -175,7 +173,7 @@ class PackageDriver(object):
         # suggest the current driver version as default
         repkg_version = prompt.text( 'Driver Version to re-package', self.metadata.version )
         # confirm this version has the correct format
-        self._verify_version(new_version)
+        self._verify_version(repkg_version)
         # check to make sure this driver version exists
         tag_name = tag_base + '_' + repkg_version.replace('.', '_')
         cmd = 'git tag -l ' + tag_name
@@ -271,11 +269,11 @@ class PackageDriver(object):
             if(self.run_qualification_tests()):
                 self.package_driver()
                 
-        #if not "--no-push" in sys.argv and not "--repackage" in sys.argv:
-        #    cmd = 'git push'
-        #    output = subprocess.check_output(cmd, shell=True)
-        #    if len(output) > 0:
-        #        log.debug('git push returned: %s', output)
+        if not "--no-push" in sys.argv and not "--repackage" in sys.argv:
+            cmd = 'git push'
+            output = subprocess.check_output(cmd, shell=True)
+            if len(output) > 0:
+                log.debug('git push returned: %s', output)
 
         # go back to the original directory
         os.chdir(original_dir)

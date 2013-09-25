@@ -671,7 +671,7 @@ class EggGenerator:
             os.system(cmd)
 
             egg_file = "%s/dist/%s-%s-py2.7.egg" % (self._build_dir(),
-                                                    self._build_name(),
+                                                    self.metadata.relative_driver_path().replace('/', '_'),
                                                     self.metadata.version)
 
             # Remove all pyc files from the egg.  There was a jira case that suggested

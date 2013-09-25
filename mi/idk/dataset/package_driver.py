@@ -100,7 +100,7 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
 
         # for now leave out the test option until test are more stable,
         # just build the package driver
-        if len(sys.argv) == 2 and (sys.argv[1] == "--repackage"):
+        if "--repackage" in sys.argv:
             self.get_repackage_version('driver_' + self.metadata.driver_name)
             self.package_driver()
         else:
@@ -108,11 +108,11 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
             self.make_branch('driver_' + self.metadata.driver_name + '_' + new_version.replace('.', '_'))
             self.package_driver()
 
-            #if not "--no-push" in sys.argv:
-            #    cmd = 'git push'
-            #    output = subprocess.check_output(cmd, shell=True)
-            #    if len(output) > 0:
-            #        log.debug('git push returned: %s', output)
+            if not "--no-push" in sys.argv:
+                cmd = 'git push'
+                output = subprocess.check_output(cmd, shell=True)
+                if len(output) > 0:
+                    log.debug('git push returned: %s', output)
 
         # go back to the original directory
         os.chdir(original_dir)
