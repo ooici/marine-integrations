@@ -605,6 +605,7 @@ class EggGenerator:
             'driver_module': self._driver_module(),
             'driver_class': self._driver_class(),
             'driver_path': self.metadata.relative_driver_path(),
+            'short_name': self.metadata.relative_driver_path().replace('/', '_')
         }
 
     def _generate_main_file(self):
