@@ -5,9 +5,10 @@ from setuptools import setup, find_packages
 resource_dir = '${name}/mi/instrument/${driver_path}/resource'
 data_tuple = ()
 for f in glob.glob(resource_dir + '/*'):
-    data_tuple = data_tuple + ((resource_dir, [f]))
+    data_tuple = data_tuple + (resource_dir, [f])
 data_tuple = data_tuple + ('${name}/mi', ['${name}/res/config/mi-logging.yml'])
 data_tuple = data_tuple + ('${name}/mi/instrument/${driver_path}', ['${name}/mi/instrument/${driver_path}/metadata.yml'])
+print data_tuple
 
 setup(
     name='${name}',
