@@ -41,19 +41,22 @@ class Metadata():
         """
         if not self.driver_make:
             raise DriverParameterUndefined("driver_make undefined in metadata")
-            
+
         if not self.driver_model:
             raise DriverParameterUndefined("driver_model undefined in metadata")
-            
+
         if not self.driver_name:
             raise DriverParameterUndefined("driver_name undefined in metadata")
-            
+
         return os.path.join(self.base_dir,
                             "mi", "instrument",
-                            self.driver_make.lower(),
+                            self.relative_driver_path())
+
+    def relative_driver_path(self):
+        return os.path.join(self.driver_make.lower(),
                             self.driver_model.lower(),
                             self.driver_name.lower())
-        
+
     def idk_dir(self):
         """
         @brief directory to store the idk driver configuration

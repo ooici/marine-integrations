@@ -604,7 +604,7 @@ class EggGenerator:
             'url': 'http://www.oceanobservatories.org',
             'driver_module': self._driver_module(),
             'driver_class': self._driver_class(),
-            'driver_path': self.metadata.driver_path,
+            'driver_path': self.metadata.relative_driver_path(),
         }
 
     def _generate_main_file(self):
