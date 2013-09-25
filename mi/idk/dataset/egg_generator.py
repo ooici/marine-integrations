@@ -116,7 +116,8 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
            'email': self.metadata.email,
            'url': 'http://www.oceanobservatories.org',
            'entry_point_group': self.metadata.entry_point_group,
-           'versioned_constructor': self.metadata.versioned_constructor
+           'versioned_constructor': self.metadata.versioned_constructor,
+           'driver_path': self.metadata.driver_path
         }
         
     def _stage_files(self, files):

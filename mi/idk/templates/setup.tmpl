@@ -1,5 +1,4 @@
 import glob
-import os
 from setuptools import setup, find_packages
 
 resource_dir = '${name}/mi/instrument/${driver_path}/resource'
@@ -8,7 +7,6 @@ for f in glob.glob(resource_dir + '/*'):
     data_list.append((resource_dir, [f]))
 data_list.append(('${name}/mi', ['${name}/res/config/mi-logging.yml']))
 data_list.append(('${name}/mi/instrument/${driver_path}', ['${name}/mi/instrument/${driver_path}/metadata.yml']))
-print data_list
 
 setup(
     name='${name}',
