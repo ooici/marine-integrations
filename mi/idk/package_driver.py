@@ -156,7 +156,8 @@ class PackageDriver(object):
             shutil.rmtree(REPODIR + '/marine-integrations')
 
         # clone the ooici repository into a temporary location
-        os.system('git clone git@github.com:ooici/marine-integrations.git')
+        os.system('git clone git@github.com:emilyhahn/marine-integrations.git')
+        #os.system('git clone git@github.com:ooici/marine-integrations.git')
         log.debug('cloned repository')
 
         # if the directory doesn't exist, something went wrong with cloning
@@ -175,7 +176,7 @@ class PackageDriver(object):
         # confirm this version has the correct format
         self._verify_version(repkg_version)
         # check to make sure this driver version exists
-        tag_name = tag_base + '_' + repkg_version.replace('.', '_')
+        tag_name = tag_base + '_' + repkg_version
         cmd = 'git tag -l ' + tag_name
         # find out if this tag name exists
         output = subprocess.check_output(cmd, shell=True)
@@ -186,19 +187,22 @@ class PackageDriver(object):
             log.error('No driver version %s found', tag_name)
             raise InvalidParameters('No driver version %s found', tag_name)
 
-    def make_branch(self, name):
+    def make_branch(self, tag_name):
         """
         Make a new branch for this release and tag it with the same name so we
         can get back to it
+        @param tag_name - the tag name for this instrument.  The tag should have the form:
+        '<driver_name>_<driver_version>, where the version has the format X.X.X.  The branch
+        name will convert this to underscores, so the version will be X_X_X in the branch.
         """
         # create a new branch name and check it out
-        cmd = 'git checkout -b ' + name
+        cmd = 'git checkout -b ' + tag_name.replace('.', '_')
         output = subprocess.check_output(cmd, shell=True)
-        log.debug('created new branch %s: %s', name, output)
+        log.debug('created new branch %s: %s', tag_name.replace('.', '_'), output)
         # tag the initial branch so that we can get back to it later
-        cmd = 'git tag ' + name
+        cmd = 'git tag ' + tag_name
         output = subprocess.check_output(cmd, shell=True)
-        log.debug('created new tag %s: %s', name, output)
+        log.debug('created new tag %s: %s', tag_name, output)
 
     def update_version(self):
         """
@@ -213,7 +217,7 @@ class PackageDriver(object):
         self._verify_version(new_version)
         if new_version != self.metadata.version:
             # search for the tag for this version, find out if it already exists
-            cmd = 'git tag -l ' + self.build_name() + '_' + new_version.replace('.', '_')
+            cmd = 'git tag -l ' + self.build_name() + '_' + new_version
             # find out if this tag name exists
             output = subprocess.check_output(cmd, shell=True)
             if len(output) > 0:
@@ -257,8 +261,8 @@ class PackageDriver(object):
             self.get_repackage_version(self.build_name())
         else:
             new_version = self.update_version()
-            branch_name = self.build_name() + '_' + new_version.replace('.', '_')
-            self.make_branch(branch_name)
+            tag_name = self.build_name() + '_' + new_version
+            self.make_branch(tag_name)
 
         if "--no-test" in sys.argv:
             f = open(self.log_path(), "w")

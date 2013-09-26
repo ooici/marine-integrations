@@ -68,7 +68,7 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
         self._verify_version(new_version)
         if new_version != self.metadata.version:
             # search for the tag for this version, find out if it already exists
-            cmd = 'git tag -l ' + 'driver_' + self.metadata.driver_name + '_' + new_version.replace('.', '_')
+            cmd = 'git tag -l ' + 'driver_' + self.metadata.driver_name + '_' + new_version
             # find out if this tag name exists
             output = subprocess.check_output(cmd, shell=True)
             if len(output) > 0:
@@ -105,7 +105,7 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
             self.package_driver()
         else:
             new_version = self.update_version()
-            self.make_branch('driver_' + self.metadata.driver_name + '_' + new_version.replace('.', '_'))
+            self.make_branch('driver_' + self.metadata.driver_name + '_' + new_version)
             self.package_driver()
 
             if not "--no-push" in sys.argv:

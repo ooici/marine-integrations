@@ -4,6 +4,7 @@
 @brief Main script class for running the switch_driver process
 """
 import re
+import subprocess
 
 from os.path import exists, join, isdir
 from os import listdir
@@ -64,13 +65,14 @@ class SwitchDriver():
             tag_name = '%s_%s_%s_%s' % (self.driver_make,
                                         self.driver_model,
                                         self.driver_name,
-                                        self.driver_version.replace('.', '_'))
+                                        self.driver_version)
             cmd = 'git tag -l ' + tag_name
             output = subprocess.check_output(cmd, shell=True)
             if len(output) > 0:
                 # this tag exists, check out the branch
-                #(tag and branch have the same name, checkout the branch so changes can be saved)
-                cmd = 'git checkout ' + tag_name
+                #(tag and branch have the same name but the branch version is separated by underscores rather than dots)
+                # checkout the branch so changes can be saved
+                cmd = 'git checkout ' + tag_name.replace('.', '_')
                 output = subprocess.check_output(cmd, shell=True)
                 # re-read metadata file since it has changed
                 self.metadata = Metadata(self.driver_make, self.driver_model, self.driver_name)
@@ -124,9 +126,9 @@ class SwitchDriver():
         output = subprocess.check_output(cmd, shell=True)
         version_list = []
         if len(output) > 0:
-            tag_regex = re.compile(r'[a-z0-9_]+(\d+_\d+_\d+)')
+            tag_regex = re.compile(r'[a-z0-9_]+(\d+.\d+.\d+)')
             tag_iter = tag_regex.finditer(output)
             for tag_match in tag_iter:
-                version_list.append(tag_match.group(1).replace('_', '.'))
+                version_list.append(tag_match.group(1))
         return version_list
 
