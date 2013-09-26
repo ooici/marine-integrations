@@ -146,8 +146,8 @@ class Metadata(mi.idk.metadata.Metadata):
         """
         Generate a set of versioned metadata variables which combine other entered variables
         """
-        self.driver_name_versioned = 'driver_%s_%s' % (self.driver_name,
-                                                       self.version.replace('.','_').replace('-','_'))
+        self.driver_name_versioned = 'dsd_%s_%s' % (self.driver_name,
+                                                    self.version.replace('.','_').replace('-','_'))
         self.entry_point_group = 'drivers.dataset.%s' % self.driver_name
         # This assumes the name of the driver file is 'driver.py'
         self.versioned_constructor = 'driver-%s = %s.mi.dataset.driver.%s.driver:%s' % (self.version,

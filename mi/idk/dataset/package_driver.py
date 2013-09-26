@@ -68,7 +68,7 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
         self._verify_version(new_version)
         if new_version != self.metadata.version:
             # search for the tag for this version, find out if it already exists
-            cmd = 'git tag -l ' + 'driver_' + self.metadata.driver_name + '_' + new_version
+            cmd = 'git tag -l ' + 'release_dsd_' + self.metadata.driver_name + '_' + new_version.replace('.', '_')
             # find out if this tag name exists
             output = subprocess.check_output(cmd, shell=True)
             if len(output) > 0:
@@ -101,11 +101,11 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
         # for now leave out the test option until test are more stable,
         # just build the package driver
         if "--repackage" in sys.argv:
-            self.get_repackage_version('driver_' + self.metadata.driver_name)
+            self.get_repackage_version('dsd_' + self.metadata.driver_name)
             self.package_driver()
         else:
             new_version = self.update_version()
-            self.make_branch('driver_' + self.metadata.driver_name + '_' + new_version)
+            self.make_branch('dsd_' + self.metadata.driver_name + '_' + new_version.replace('.', '_'))
             self.package_driver()
 
             if not "--no-push" in sys.argv:

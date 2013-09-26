@@ -118,7 +118,7 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
            'entry_point_group': self.metadata.entry_point_group,
            'versioned_constructor': self.metadata.versioned_constructor,
            'driver_path': self.metadata.driver_path,
-           'short_name': 'driver_' + self.metadata.driver_name
+           'short_name': 'dsd_' + self.metadata.driver_name
         }
         
     def _stage_files(self, files):
@@ -210,9 +210,9 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
             log.info("CMD: %s" % cmd)
             os.system(cmd)
 
-            egg_file = "%s/dist/driver_%s-%s-py2.7.egg" % (self._build_dir(),
-                                                    self.metadata.driver_name,
-                                                    self.metadata.version)
+            egg_file = "%s/dist/dsd_%s-%s-py2.7.egg" % (self._build_dir(),
+                                                        self.metadata.driver_name,
+                                                        self.metadata.version)
             
             # Remove all pyc files from the egg.  There was a jira case that suggested
             # including the compiled py files caused the drivers to run slower.
