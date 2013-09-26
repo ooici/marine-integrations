@@ -3,6 +3,7 @@
 @author Bill French
 @brief Main script class for running the switch_driver process
 """
+import re
 
 from os.path import exists, join, isdir
 from os import listdir
@@ -37,6 +38,7 @@ class SwitchDriver():
             self.driver_name = prompt.text( 'Driver Name', self.driver_name )
 
         self.metadata = Metadata(self.driver_make, self.driver_model, self.driver_name)
+        self.driver_version = prompt.text('Driver Version', self.metadata.version)
 
     def fetch_comm_config(self):
         """
@@ -56,6 +58,24 @@ class SwitchDriver():
 
         if not exists(self.metadata.driver_dir()):
             raise DriverDoesNotExist( "%s", self.metadata.driver_dir() )
+        # if this version does not match the requested one, make sure the version exists,
+        # then checkout the branch with that version
+        if self.driver_version != self.metadata.version:
+            tag_name = '%s_%s_%s_%s' % (self.driver_make,
+                                        self.driver_model,
+                                        self.driver_name,
+                                        self.driver_version.replace('.', '_'))
+            cmd = 'git tag -l ' + tag_name
+            output = subprocess.check_output(cmd, shell=True)
+            if len(output) > 0:
+                # this tag exists, check out the branch
+                #(tag and branch have the same name, checkout the branch so changes can be saved)
+                cmd = 'git checkout ' + tag_name
+                output = subprocess.check_output(cmd, shell=True)
+                # re-read metadata file since it has changed
+                self.metadata = Metadata(self.driver_make, self.driver_model, self.driver_name)
+            else:
+                raise DriverDoesNotExist("Driver version %s does not exist", self.driver_version)
         self.fetch_comm_config()
         self.metadata.link_current_metadata()
 
@@ -98,5 +118,15 @@ class SwitchDriver():
 
     @staticmethod
     def get_versions(make, model, name):
-        return ['master']
+        full_name = '%s_%s_%s' % (make, model, name)
+        # get all tags that start with this instrument
+        cmd = 'git tag -l ' + full_name + '*'
+        output = subprocess.check_output(cmd, shell=True)
+        version_list = []
+        if len(output) > 0:
+            tag_regex = re.compile(r'[a-z0-9_]+(\d+_\d+_\d+)')
+            tag_iter = tag_regex.finditer(output)
+            for tag_match in tag_iter:
+                version_list.append(tag_match.group(1).replace('_', '.'))
+        return version_list
 
