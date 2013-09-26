@@ -49,6 +49,9 @@ class SwitchDriver(mi.idk.switch_driver.SwitchDriver):
         pass
 
     def checkout_version(self):
+        """
+        @brief Checkout the driver version from the repository
+        """
         base_name = 'dsd_%s_%s' % (self.driver_path.replace('/', '_'),
                                    self.driver_version.replace('.', '_'))
         cmd = 'git tag -l ' + 'release_' + base_name
@@ -66,6 +69,9 @@ class SwitchDriver(mi.idk.switch_driver.SwitchDriver):
 
     @staticmethod
     def list_drivers():
+        """
+        @brief Print a list of all the different drivers and their versions
+        """
         drivers = SwitchDriver.get_drivers()
 
         for driver in sorted(drivers.keys()):
@@ -74,6 +80,9 @@ class SwitchDriver(mi.idk.switch_driver.SwitchDriver):
 
     @staticmethod
     def get_drivers():
+        """
+        @brief Get a list of all the different drivers and their versions
+        """
         result = {}
         driver_dir = join(Config().get("working_repo"), 'mi', 'dataset', 'driver')
         log.debug("Driver Dir: %s", driver_dir)
@@ -94,6 +103,10 @@ class SwitchDriver(mi.idk.switch_driver.SwitchDriver):
 
     @staticmethod
     def get_versions(path):
+        """
+        @brief Get all versions for this driver from the tags
+        @param path - the driver path 
+        """
         # get all tags that start with this instrument
         cmd = 'git tag -l ' + 'release_dsd_' + path.replace('/', '_') + '*'
         output = subprocess.check_output(cmd, shell=True)

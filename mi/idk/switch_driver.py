@@ -50,6 +50,9 @@ class SwitchDriver():
         self.comm_config.get_from_console()
 
     def checkout_version(self):
+        """
+        @brief Check out this driver version from the repository if it exists
+        """
         base_name = '%s_%s_%s_%s' % (self.driver_make,
                                             self.driver_model,
                                             self.driver_name,
@@ -86,6 +89,9 @@ class SwitchDriver():
 
     @staticmethod
     def list_drivers():
+        """
+        @brief Print a list of all the drivers and their versions
+        """
         driver_dir = join(Config().get("working_repo"), 'mi', 'instrument')
         log.debug("Driver Dir: %s", driver_dir)
 
@@ -99,6 +105,9 @@ class SwitchDriver():
 
     @staticmethod
     def get_drivers():
+        """
+        @brief Get a list of all drivers and their versions
+        """
         driver_dir = join(Config().get("working_repo"), 'mi', 'instrument')
         log.debug("Driver Dir: %s", driver_dir)
 
@@ -122,6 +131,12 @@ class SwitchDriver():
 
     @staticmethod
     def get_versions(make, model, name):
+        """
+        @brief Get the version for this instrument driver from the tags
+        @param make
+        @param model
+        @param name
+        """
         full_name = 'release_%s_%s_%s' % (make, model, name)
         # get all tags that start with this instrument
         cmd = 'git tag -l ' + full_name + '*'

@@ -156,8 +156,7 @@ class PackageDriver(object):
             shutil.rmtree(REPODIR + '/marine-integrations')
 
         # clone the ooici repository into a temporary location
-        os.system('git clone git@github.com:emilyhahn/marine-integrations.git')
-        #os.system('git clone git@github.com:ooici/marine-integrations.git')
+        os.system('git clone git@github.com:ooici/marine-integrations.git')
         log.debug('cloned repository')
 
         # if the directory doesn't exist, something went wrong with cloning
