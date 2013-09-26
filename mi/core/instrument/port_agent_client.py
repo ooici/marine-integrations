@@ -803,16 +803,19 @@ class Listener(threading.Thread):
                         else:
                             raise
 
-                paPacket = PortAgentPacket()
-                paPacket.unpack_header(str(header))
-                data_size = paPacket.get_data_length()
-                bytes_left = data_size
-
-                log.debug('Expecting DATA BYTES %d' % data_size)
-
-                data = bytearray(data_size)
-                dataview = memoryview(data)
-
+                """
+                Only do this if we've received the whole header, otherwise (ex. during shutdown)
+                we can have a completely invalid header, resulting in negative count exceptions.
+                """
+                if (bytes_left == 0):
+                    paPacket = PortAgentPacket()
+                    paPacket.unpack_header(str(header))
+                    data_size = paPacket.get_data_length()
+                    bytes_left = data_size
+                    data = bytearray(data_size)
+                    dataview = memoryview(data)
+                    log.debug('Expecting DATA BYTES %d' % data_size)
+                    
                 while bytes_left and not self._done:
                     try:
                         bytesrx = self.sock.recv_into(dataview[data_size - bytes_left:], bytes_left)
@@ -827,12 +830,11 @@ class Listener(threading.Thread):
                         else:
                             raise
 
-                paPacket.attach_data(str(data))
-
                 if not self._done:
                     """
                     Should have complete port agent packet.
                     """
+                    paPacket.attach_data(str(data))
                     log.debug("HANDLE PACKET")
                     self.handle_packet(paPacket)
 
@@ -866,7 +868,6 @@ class Listener(threading.Thread):
                 self.default_callback_error(e)
 
         log.info('Port_agent_client thread done listening; going away.')
-
 
     def _invoke_error_callback(self, recovery_attempt, error_string = "No error string passed."):
         """
