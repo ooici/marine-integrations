@@ -117,12 +117,8 @@ class GliderParticle(DataParticle):
         self.data_dict = data_dict
 
 
-class GgldrCtdgvDelayedParticleKey(DataParticleKey):
+class GldrCtdgvParticleKey(DataParticleKey):
     KEY_LIST = [
-        'm_present_time',
-        'm_present_secs_into_mission',
-        'sci_m_present_time',
-        'sci_m_present_secs_into_mission',
         'm_gps_lat',
         'm_gps_lon',
         'm_lat',
@@ -131,6 +127,12 @@ class GgldrCtdgvDelayedParticleKey(DataParticleKey):
         'sci_water_pressure',
         'sci_water_temp',
         'sci_ctd41cp_timestamp'
+    ]
+    TIMESTAMP_LIST = [
+        'm_present_time',  # you need the m_ timestamps for lats & lons
+        'm_present_secs_into_mission',
+        'sci_m_present_time',
+        'sci_m_present_secs_into_mission'
     ]
 
 
@@ -144,9 +146,11 @@ class GgldrCtdgvDelayedDataParticle(GliderParticle):
 
         @param result A returned list with sub dictionaries of the data
         """
-
         result = []
-        for key in GgldrCtdgvDelayedParticleKey.KEY_LIST:
+
+        # find if any of the variables from the particle key list are in
+        # the data_dict and keep it
+        for key in GldrCtdgvParticleKey.KEY_LIST:
             if key in self.data_dict:
                 # read the value from the gpd dictionary
                 value = self.data_dict[key]['Data']
@@ -166,21 +170,40 @@ class GgldrCtdgvDelayedDataParticle(GliderParticle):
                          non-standard *bdlist on the glider, or that the \
                          master data list in OOIN needs an update", key)
 
+        # timestamps are done separately here so that they are only
+        # added to the particle if data from the particle key list is
+        # put into result. Otherwise there could be particles that only
+        # have timestamps and no data.
+        if result:
+            for timestamp in GldrCtdgvParticleKey.TIMESTAMP_LIST:
+                # read the value from the gpd dictionary
+                value = self.data_dict[timestamp]['Data']
+
+                # check to see that the value is not a 'NaN'
+                if np.isnan(value):
+                    continue
+
+                # add the value to the record
+                result.append({DataParticleKey.VALUE_ID: timestamp,
+                               DataParticleKey.VALUE: value})
+
         return result
 
 
-class GgldrDostaDelayedParticleKey(DataParticleKey):
+class GldrDostaParticleKey(DataParticleKey):
     KEY_LIST = [
-        'm_present_time',
-        'm_present_secs_into_mission',
-        'sci_m_present_time',
-        'sci_m_present_secs_into_mission',
         'm_gps_lat',
         'm_gps_lon',
         'm_lat',
         'm_lon',
         'sci_oxy4_oxygen',
         'sci_oxy4_saturation']
+    TIMESTAMP_LIST = [
+        'm_present_time',  # need the m_ timestamps for lats & lons
+        'm_present_secs_into_mission',
+        'sci_m_present_time',
+        'sci_m_present_secs_into_mission'
+    ]
 
 
 class GgldrDostaDelayedDataParticle(GliderParticle):
@@ -199,7 +222,7 @@ class GgldrDostaDelayedDataParticle(GliderParticle):
                                   a GliderParser object")
 
         result = []
-        for key in GgldrDostaDelayedParticleKey.KEY_LIST:
+        for key in GldrDostaParticleKey.KEY_LIST:
             if key in self.data_dict:
                 # read the value from the gpd dictionary
                 value = self.data_dict[key]['Data']
@@ -219,21 +242,46 @@ class GgldrDostaDelayedDataParticle(GliderParticle):
                          non-standard *bdlist on the glider, or that the \
                          master data list in OOIN needs an update", key)
 
+        # timestamps are done separately here so that they are only
+        # added to the particle if data from the particle key list is
+        # put into result. Otherwise there could be particles that only
+        # have timestamps and no data.
+        if result:
+            for timestamp in GldrDostaParticleKey.TIMESTAMP_LIST:
+                # read the value from the gpd dictionary
+                value = self.data_dict[timestamp]['Data']
+
+                # check to see that the value is not a 'NaN'
+                if np.isnan(value):
+                    continue
+
+                # add the value to the record
+                result.append({DataParticleKey.VALUE_ID: timestamp,
+                               DataParticleKey.VALUE: value})
+
         return result
 
 
-class GgldrFlordDelayedParticleKey(DataParticleKey):
+class GldrFlordParticleKey(DataParticleKey):
     KEY_LIST = [
-        'm_present_time',
-        'm_present_secs_into_mission',
-        'sci_m_present_time',
-        'sci_m_present_secs_into_mission',
+        # you get all of the timestamps for free anytime one of the
+        # other variables below are present
+        #'m_present_time',
+        #'m_present_secs_into_mission',
+        #'sci_m_present_time',
+        #'sci_m_present_secs_into_mission',
         'm_gps_lat',
         'm_gps_lon',
         'm_lat',
         'm_lon',
         'sci_flbb_bb_units',
         'sci_flbb_chlor_units',
+    ]
+    TIMESTAMP_LIST = [
+        'm_present_time',
+        'm_present_secs_into_mission',
+        'sci_m_present_time',
+        'sci_m_present_secs_into_mission'
     ]
 
 
@@ -254,7 +302,7 @@ class GgldrFlordDelayedDataParticle(GliderParticle):
                                   a Glider data dictionary")
 
         result = []
-        for key in GgldrFlordDelayedParticleKey.KEY_LIST:
+        for key in GldrFlordParticleKey.KEY_LIST:
             if key in self.data_dict:
                 # read the value from the gpd dictionary
                 value = self.data_dict[key]['Data']
@@ -273,6 +321,23 @@ class GgldrFlordDelayedDataParticle(GliderParticle):
                          data set.  This represents the possibility of a\
                          non-standard *bdlist on the glider, or that the \
                          master data list in OOIN needs an update", key)
+
+        # timestamps are done separately here so that they are only
+        # added to the particle if data from the particle key list is
+        # put into result. Otherwise there could be particles that only
+        # have timestamps and no data.
+        if result:
+            for timestamp in GldrFlordParticleKey.TIMESTAMP_LIST:
+                # read the value from the gpd dictionary
+                value = self.data_dict[timestamp]['Data']
+
+                # check to see that the value is not a 'NaN'
+                if np.isnan(value):
+                    continue
+
+                # add the value to the record
+                result.append({DataParticleKey.VALUE_ID: timestamp,
+                               DataParticleKey.VALUE: value})
 
         return result
 
@@ -293,14 +358,14 @@ class GgldrEngDelayedParticleKey(DataParticleKey):
         'm_lon',
         'm_heading',
         'm_pitch',
-        'm_present_time',
-        'm_present_secs_into_mission',
         'm_speed',
         'm_water_vx',
         'm_water_vy',
-        'sci_m_present_time',
-        'sci_m_present_secs_into_mission',
         'x_low_power_status',
+    ]
+    TIMESTAMP_LIST = [
+        'm_present_time',
+        'm_present_secs_into_mission',
     ]
 
 
@@ -340,6 +405,23 @@ class GgldrEngDelayedDataParticle(GliderParticle):
                          data set.  This represents the possibility of a\
                          non-standard *bdlist on the glider, or that the \
                          master data list in OOIN needs an update", key)
+
+        # timestamps are done separately here so that they are only
+        # added to the particle if data from the particle KEY_LIST is
+        # put into result. Otherwise there could be particles that only
+        # have timestamps and no data.
+        if result:
+            for timestamp in GgldrEngDelayedParticleKey.TIMESTAMP_LIST:
+                # read the value from the gpd dictionary
+                value = self.data_dict[timestamp]['Data']
+
+                # check to see that the value is not a 'NaN'
+                if np.isnan(value):
+                    continue
+
+                # add the value to the record
+                result.append({DataParticleKey.VALUE_ID: timestamp,
+                               DataParticleKey.VALUE: value})
 
         return result
 
