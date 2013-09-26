@@ -680,7 +680,7 @@ class ADCPA_PD0_PARSED_DataParticle(DataParticle):
         water_velocity_north = []
         water_velocity_up = []
         error_velocity = []
-        for row in range(1, N):
+        for row in range(0, N):
             (a, b, c, d) = unpack('<hhhh', chunk[offset + 2: offset + 10])
             water_velocity_east.append(a)
             water_velocity_north.append(b)
@@ -716,7 +716,7 @@ class ADCPA_PD0_PARSED_DataParticle(DataParticle):
         correlation_magnitude_beam2 = []
         correlation_magnitude_beam3 = []
         correlation_magnitude_beam4 = []
-        for row in range(1, N):
+        for row in range(0, N):
             (a, b, c, d) = unpack('<BBBB', chunk[offset + 2: offset + 6])
             correlation_magnitude_beam1.append(a)
             correlation_magnitude_beam2.append(b)
@@ -752,7 +752,7 @@ class ADCPA_PD0_PARSED_DataParticle(DataParticle):
         echo_intesity_beam2 = []
         echo_intesity_beam3 = []
         echo_intesity_beam4 = []
-        for row in range(1, N):
+        for row in range(0, N):
             (a, b, c, d) = unpack('<BBBB', chunk[offset + 2: offset + 6])
             echo_intesity_beam1.append(a)
             echo_intesity_beam2.append(b)
@@ -789,7 +789,7 @@ class ADCPA_PD0_PARSED_DataParticle(DataParticle):
         percent_transforms_reject = []
         percent_bad_beams = []
         percent_good_4beam = []
-        for row in range(1, N):
+        for row in range(0, N):
             (a, b, c, d) = unpack('<BBBB', chunk[offset + 2: offset + 6])
             percent_good_3beam.append(a)
             percent_transforms_reject.append(b)
