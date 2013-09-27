@@ -385,6 +385,14 @@ class DataSetQualificationTestCase(DataSetTestCase):
         log.debug("get_samples() complete.  returning %d records", sample_count)
         return result
 
+    def assert_data_values(self, particles, dataset_definition_file):
+        """
+        Verify particles match the particles defined in the definition file
+        """
+        rs_file = self._get_source_data_file(dataset_definition_file)
+        rs = ResultSet(rs_file)
+
+        self.assertTrue(rs.verify(particles))
 
     def assert_initialize(self, final_state = ResourceAgentState.STREAMING):
         '''

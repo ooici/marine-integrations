@@ -230,6 +230,9 @@ class ResultSet(object):
         Verify that the object is a DataParticle and is the
         correct type.
         """
+        if isinstance(particle, dict):
+            return True
+
         expected = self._result_set_header['particle_object']
         cls = particle.__class__.__name__
 
@@ -249,7 +252,7 @@ class ResultSet(object):
         - Internal timestamp
         """
         errors = []
-        particle_dict = particle.generate_dict()
+        particle_dict = self._particle_as_dict(particle)
         particle_timestamp = particle_dict.get('internal_timestamp')
         expected_time = particle_def.get('internal_timestamp')
 
@@ -280,9 +283,10 @@ class ResultSet(object):
         expected value
         """
         errors = []
-        log.debug("Particle to test: %s", particle.generate())
+        particle_dict = self._particle_as_dict(particle)
+        log.debug("Particle to test: %s", particle_dict)
         log.debug("Particle definition: %s", particle_def)
-        particle_values = particle.generate_dict()['values']
+        particle_values = particle_dict['values']
 
         expected_keys = []
         for (key, value) in particle_def.items():
@@ -334,3 +338,9 @@ class ResultSet(object):
             raise IOError('Value %s could not be formatted to a date.' % str(datestr))
 
         return timestamp
+
+    def _particle_as_dict(self, particle):
+        if isinstance(particle, dict):
+            return particle
+
+        return particle.generate_dict()

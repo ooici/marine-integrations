@@ -127,26 +127,6 @@ class UnitTest(DataSetUnitTestCase):
         # At this point the harvester thread is dead.  The agent
         # exception handler should handle this case.
 
-    @unittest.skip("need to figure out how to have the parser raise an exception")
-    def test_parser_exception(self):
-        """
-        Test an exception raised by the parser
-        """
-        self.clear_sample_data()
-
-        # create the file so that it is unreadable
-        self.create_sample_data('test_data_2.txt', 'DATA001.txt', 0644)
-
-        # Start sampling and watch for an exception
-        self.driver.start_sampling()
-
-        self.assert_data(CtdpfParserDataParticle, 10)
-        #self.assert_exception(SampleException)
-        log.debug("Sample: %s", self.data_callback_result[-1].generate_dict())
-
-        # At this point the harvester thread is dead.  The agent
-        # exception handler should handle this case.
-
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
@@ -202,17 +182,12 @@ class QualificationTest(DataSetQualificationTestCase):
         try:
             result = self.data_subscribers.get_samples('ctdpf_parsed')
             log.debug("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'test_data_1.txt.result.yml')
         except Exception as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
-
-        # Verify the sample was correct
-        #self.assertGranule(result.pop())
-
-        # Create some test data
-        # Setup the agent (and thus driver, harvester, and parser)
-        # Start the driver going
-        # See some data get published
 
     def test_large_import(self):
         """

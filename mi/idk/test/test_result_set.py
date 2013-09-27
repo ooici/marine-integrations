@@ -138,3 +138,30 @@ class TestResultSet(MiUnitTest):
         self.assertIsNotNone(rs.report())
 
 
+    def test_simple_result_set_as_dict(self):
+        """
+        Try the first result set with a single record from dict.
+        """
+        rs = ResultSet(self._get_result_set_file("record_set_files/test_data_1.txt.result.yml"))
+
+        # Test the happy path
+        base_timestamp = 3583886463.0
+        particle_a = CtdpfParserDataParticle("10.5914,  4.1870,  161.06,   2693.0",
+                                             internal_timestamp=base_timestamp).generate_dict()
+        particle_b = CtdpfParserDataParticle("10.5915,  4.1871,  161.07,   2693.1",
+                                             internal_timestamp=base_timestamp+1).generate_dict()
+
+        self.assertTrue(rs.verify([particle_a, particle_b]))
+        self.assertIsNone(rs.report())
+
+        # test record count mismatch
+        self.assertFalse(rs.verify([particle_a]))
+        self.assertIsNotNone(rs.report())
+
+        # test out of order record
+        self.assertFalse(rs.verify([particle_b, particle_a]))
+        self.assertIsNotNone(rs.report())
+
+        # test bad data record
+        self.assertFalse(rs.verify([particle_a, particle_a]))
+        self.assertIsNotNone(rs.report())
