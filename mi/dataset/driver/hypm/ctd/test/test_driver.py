@@ -29,7 +29,7 @@ from exceptions import Exception
 
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetTestConfig
-from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
+from mi.idk.dataset.unit_test import DataSetUnitTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.core.exceptions import ConfigurationException
@@ -40,8 +40,6 @@ from mi.dataset.parser.ctdpf import CtdpfParser
 from mi.dataset.parser.test.test_ctdpf import CtdpfParserUnitTestCase
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
 from mi.dataset.driver.hypm.ctd.driver import HypmCTDPFDataSetDriver
-
-from ion.services.dm.utility.granule_utils import RecordDictionaryTool
 
 from mi.dataset.parser.ctdpf import CtdpfParserDataParticle
 
@@ -63,14 +61,13 @@ DataSetTestCase.initialize(
     }
 )
     
-
 ###############################################################################
-#                            INTEGRATION TESTS                                #
-# Device specific integration tests are for                                   #
+#                                UNIT TESTS                                   #
+# Device specific unit tests are for                                          #
 # testing device specific capabilities                                        #
 ###############################################################################
-@attr('INT', group='mi')
-class IntegrationTest(DataSetIntegrationTestCase):
+@attr('UNIT', group='mi')
+class UnitTest(DataSetUnitTestCase):
     def test_get(self):
         """
         Test that we can get data from files.  Verify that the driver sampling
@@ -83,11 +80,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('test_data_1.txt', "DATA001.txt")
-        self.assert_data(CtdpfParserDataParticle, count=1, timeout=10)
+        self.assert_data(CtdpfParserDataParticle, 'test_data_1.txt.result.yml', count=1, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('test_data_3.txt', "DATA002.txt")
-        self.assert_data(CtdpfParserDataParticle, count=8, timeout=10)
+        self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.result.yml', count=8, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('DATA003.txt')
@@ -150,66 +147,31 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # At this point the harvester thread is dead.  The agent
         # exception handler should handle this case.
 
-    @unittest.skip("Not complete")
-    def test_configuration(self):
-        self.assert_data_particle_keys()
-
-    @unittest.skip("Not complete")
-    def test_simple_get(self):
-        """
-        Test the simple happy path of having one file get opened by the
-        a harvester, handed to a parser, and confirm that particles are
-        published as they should.
-        """
-        self.fail()
-        # Start a harvester going to get one file, start parser, too
-        self.driver.start_sampling()
-        gevent.sleep(5)
-        # Count particles that are generated, assert correct
-        self.assertEqual(len(self.data_callback_result), 53)
-        self.assertEqual(len(self.state_callback_result), 53)
-        
-        for particle in self.data_callback_result:
-            self.assert_data_particle_header(particle, STREAM_NAME)
-        
-        # check the first value 10.5914,  4.1870,  161.06,   2693.0
-        particle_dict = self.get_data_particle_values_as_dict(self.data_callback_result[0])
-        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.TEMPERATURE], 10.5941)
-        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.CONDUCTIVITY], 4.1870)
-        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.PRESSURE], 161.06)
-        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.OXYGEN], 2693.0)
-        
-        # Check the last value 335.5913,  4.1866,  161.08,   2738.1
-        particle_dict = self.get_data_particle_values_as_dict(self.data_callback_result[-1])
-        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.TEMPERATURE], 335.5913)
-        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.CONDUCTIVITY], 4.1866)
-        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.PRESSURE], 161.08)
-        self.assertEqual(particle_dict[CtdpfParserDataParticleKey.OXYGEN], 2738.1)
-
-    @unittest.skip("Not complete")
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
         """
-        # Set up driver
-        # Start a harvester going with a large file
-        # Fire off a poller
-        # Stop the harvester
-        # Verify state is reasonable at the driver level
-        # Restart data collection
-        # Verify the same stopped state is re-used
-        # Count total particles that are generated, assert correct, no dups
+        # Create and store the new driver state
+        self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.txt',
+                        DataSourceConfigKey.PARSER: {'position': 209, 'timestamp': 3583886465.0}}
+        self.driver = HypmCTDPFDataSetDriver(
+            self._driver_config()['startup_config'],
+            self.memento,
+            self.data_callback,
+            self.state_callback,
+            self.exception_callback)
 
-    @unittest.skip("Not complete")
-    def test_bad_configuration(self):
-        """
-        Feed a bad configuration to the harvester (and driver if it takes one).
-        Parser doesnt error on a config right now, but it might some day.
-        """
-        # Create a bad, non-dict configuration for the harvester
-        # Verify that the Type Error is raised on instantiation 
+        # create some data to parse
+        self.clear_async_data()
+        self.create_sample_data('test_data_1.txt', "DATA001.txt")
+        self.create_sample_data('test_data_3.txt', "DATA002.txt")
 
-    
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.partial_results.yml', count=5, timeout=10)
+
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #

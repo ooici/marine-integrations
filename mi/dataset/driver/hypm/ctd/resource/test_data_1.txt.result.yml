@@ -1,11 +1,11 @@
 # Result data after parsing test_data_1.txt 
 
 header:
-  particle_type: CtdpfParserDataParticleKey
+  particle_object: CtdpfParserDataParticle
+  particle_type: ctdpf_parsed
 
 data:
-  record:
-    _index: 1
+  - _index: 1
     internal_timestamp: 07/26/2013 21:01:03
     temperature: 4.1870
     conductivity: 10.5914

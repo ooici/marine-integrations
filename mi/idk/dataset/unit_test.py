@@ -22,6 +22,7 @@ from mi.idk.exceptions import IDKConfigMissing
 from mi.idk.exceptions import IDKException
 from mi.idk.exceptions import SampleTimeout
 
+from mi.idk.result_set import ResultSet
 from mi.idk.dataset.metadata import Metadata
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
@@ -202,18 +203,6 @@ class DataSetUnitTestCase(DataSetTestCase):
     """
     Base class for instrument driver unit tests
     """
-    def setUp(self):
-        """
-        Startup the container and start the agent.
-        """
-        super(DataSetUnitTestCase, self).setUp()
-
-#class DataSetIntegrationTestCase(DataSetTestCase, ParticleTestMixin):
-class DataSetIntegrationTestCase(DataSetTestCase):
-    """
-    Base class for instrument driver unit tests
-    """
-
     def state_callback(self, state):
         log.debug("State callback: %s", state)
         self.state_callback_result.append(state)
@@ -230,7 +219,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         self.exception_callback_result.append(ex)
 
     def setUp(self):
-        super(DataSetIntegrationTestCase, self).setUp()
+        super(DataSetUnitTestCase, self).setUp()
         self.state_callback_result = []
         self.data_callback_result = []
         self.exception_callback_result = []
@@ -278,9 +267,13 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         finally:
             to.cancel()
 
-    def assert_data(self, particle_class, count=1, timeout=10):
+    def assert_data(self, particle_class, result_set_file=None, count=1, timeout=10):
         """
         Wait for a data particle in the data callback queue
+        @param particle_class, class of the expected data particles
+        @param result_set_file, filename containing definition of the resulting dataset
+        @param count, how many records to wait for
+        @param timeout, how long to wait for the records.
         """
         to = gevent.Timeout(timeout)
         to.start()
@@ -304,6 +297,14 @@ class DataSetIntegrationTestCase(DataSetTestCase):
             self.fail("particle detection failed.")
         finally:
             to.cancel()
+
+        # Verify the data against the result data set definition
+        if result_set_file:
+            rs_file = self._get_source_data_file(result_set_file)
+            rs = ResultSet(rs_file)
+
+            self.assertTrue(rs.verify(self.data_callback_result))
+
 
 class DataSetQualificationTestCase(DataSetTestCase):
     """
