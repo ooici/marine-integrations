@@ -201,7 +201,7 @@ class DataSetTestCase(MiIntTestCase):
 
 class DataSetUnitTestCase(DataSetTestCase):
     """
-    Base class for instrument driver unit tests
+    Base class for dataset driver unit tests
     """
     def state_callback(self, state):
         log.debug("State callback: %s", state)
@@ -305,10 +305,16 @@ class DataSetUnitTestCase(DataSetTestCase):
 
             self.assertTrue(rs.verify(self.data_callback_result))
 
+class DataSetIntegrationTestCase(DataSetTestCase):
+    """
+    Base class for dataset driver integration unit tests
+    """
+    def setUp(self):
+        super(DataSetIntegrationTestCase, self).setUp()
 
 class DataSetQualificationTestCase(DataSetTestCase):
     """
-    Base class for instrument driver unit tests
+    Base class for dataset driver unit tests
     """
     def setUp(self):
         """
@@ -335,7 +341,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
         log.debug("********* setUp complete.  Begin Testing *********")
 
     def init_dataset_agent_client(self):
-        log.info("Start Instrument Agent Client")
+        log.info("Start Dataset Agent Client")
 
         # Start instrument agent client.
         self.instrument_agent_manager.start_client(
