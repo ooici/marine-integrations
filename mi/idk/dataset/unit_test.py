@@ -385,6 +385,16 @@ class DataSetQualificationTestCase(DataSetTestCase):
         log.debug("get_samples() complete.  returning %d records", sample_count)
         return result
 
+    def assert_sample_queue_size(self, stream_name, size):
+        """
+        Verify that a queue has size samples in it.
+        """
+        if(not self.data_subscribers.samples_received.has_key(stream_name) and size == 0):
+            return
+
+        self.assertTrue(self.data_subscribers.samples_received.has_key(stream_name), msg="Sample queue does not exists")
+        self.assertEqual(len(self.data_subscribers.samples_received.get(stream_name)), size)
+
     def assert_data_values(self, particles, dataset_definition_file):
         """
         Verify particles match the particles defined in the definition file

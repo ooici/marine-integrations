@@ -156,7 +156,7 @@ class DataSetDriver(object):
     def cmd_dvr(self, cmd, *args, **kwargs):
         log.warn("DRIVER: cmd_dvr %s", cmd)
 
-        if not cmd in ['execute_resource', 'get_resource_capabilities']:
+        if not cmd in ['execute_resource', 'get_resource_capabilities', 'set_resource', 'get_resource']:
             log.error("Unhandled command: %s", cmd)
             raise InstrumentStateException("Unhandled command: %s" % cmd)
 
@@ -185,6 +185,12 @@ class DataSetDriver(object):
         elif cmd == 'get_resource_capabilities':
             return self.get_resource_capabilities()
 
+        elif cmd == 'set_resource':
+            return self.set_resource(*args, **kwargs)
+
+        elif cmd == 'get_resource':
+            return self.get_resource(*args, **kwargs)
+
     def get_resource_capabilities(self, current_state=True, *args, **kwargs):
         """
         Return driver commands and parameters.
@@ -201,12 +207,13 @@ class DataSetDriver(object):
         """
         Set the driver parameter
         """
-        startup = False
+        log.trace("start set_resource")
         try:
             params = args[0]
         except IndexError:
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
+        log.trace("set_resource: iterate through params: %s", params)
         for (key, val) in params.iteritems():
             if key in [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.RECORDS_PER_SECOND]:
                 if not isinstance(val, int): raise InstrumentParameterException("%s must be an integer" % key)
@@ -219,10 +226,9 @@ class DataSetDriver(object):
             self._param_dict.set_value(key, val)
 
         # Set the driver parameters
-        res = self.get_resource(DriverParameter.ALL)
-        self._generate_particle_count = res[DriverParameter.BATCHED_PARTICLE_COUNT]
-        self._particle_count_per_second = res[DriverParameter.RECORDS_PER_SECOND]
-        self._polling_interval = res[DriverParameter.HARVESTER_POLLING_INTERVAL]
+        self._generate_particle_count = self._param_dict.get(DriverParameter.BATCHED_PARTICLE_COUNT)
+        self._particle_count_per_second = self._param_dict.get(DriverParameter.RECORDS_PER_SECOND)
+        self._polling_interval = self._param_dict.get(DriverParameter.HARVESTER_POLLING_INTERVAL)
         log.trace("Driver Parameters: %s, %s, %s", self._polling_interval, self._particle_count_per_second, self._generate_particle_count)
 
     def get_resource(self, *args, **kwargs):
@@ -234,7 +240,7 @@ class DataSetDriver(object):
         try:
             params = args[0]
         except IndexError:
-            raise InstrumentParameterException('Set command requires a parameter dict.')
+            raise InstrumentParameterException('Set command requires a parameter list.')
 
         # If all params requested, retrieve config.
         if params == DriverParameter.ALL:

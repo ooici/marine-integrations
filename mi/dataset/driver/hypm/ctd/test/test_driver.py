@@ -35,6 +35,7 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.core.exceptions import ConfigurationException
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentParameterException
+from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
@@ -44,6 +45,10 @@ from mi.dataset.harvester import AdditiveSequentialFileHarvester
 from mi.dataset.driver.hypm.ctd.driver import HypmCTDPFDataSetDriver
 
 from mi.dataset.parser.ctdpf import CtdpfParserDataParticle
+from pyon.agent.agent import ResourceAgentState
+
+from interface.objects import CapabilityType
+from interface.objects import AgentCapability
 
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.hypm.ctd.driver',
@@ -294,28 +299,95 @@ class QualificationTest(DataSetQualificationTestCase):
 
         result = self.get_samples('ctdpf_parsed',436,120)
 
-    def test_get_capabilities(self):
+    def test_resource_parameters(self):
         """
+        verify we can get a resource parameter lists and get/set parameters.
         """
-        self.assert_initialize()
+        def sort_capabilities(caps_list):
+            '''
+            sort a return value into capability buckets.
+            @retval agt_cmds, agt_pars, res_cmds, res_iface, res_pars
+            '''
+            agt_cmds = []
+            agt_pars = []
+            res_cmds = []
+            res_iface = []
+            res_pars = []
+
+            if len(caps_list)>0 and isinstance(caps_list[0], AgentCapability):
+                agt_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_CMD]
+                agt_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_PAR]
+                res_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_CMD]
+                #res_iface = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_IFACE]
+                res_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_PAR]
+
+            elif len(caps_list)>0 and isinstance(caps_list[0], dict):
+                agt_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_CMD]
+                agt_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_PAR]
+                res_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_CMD]
+                #res_iface = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_IFACE]
+                res_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_PAR]
+
+            agt_cmds.sort()
+            agt_pars.sort()
+            res_cmds.sort()
+            res_iface.sort()
+            res_pars.sort()
+
+            return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
+
+        log.debug("Initialize the agent")
+        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.HARVESTER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        log.debug("Call get capabilities")
         retval = self.dataset_agent_client.get_capabilities()
         log.debug("Capabilities: %s", retval)
+        agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
+        self.assertEqual(sorted(res_pars), sorted(expected_params))
 
-    @unittest.skip("not implemented yet")
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 20})
+        reply = self.dataset_agent_client.get_resource(DriverParameter.ALL)
+        log.debug("Get Resource Result: %s", reply)
+
+
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        # Create some large enough test data
-        # Setup the agent
-        # Start sampling
-        # Wait a bit for some data to come in.
-        # Stop sampling
-        # Verify correct # of particles are PUBLISHED
-        # Start sampling again
-        # Stop or let complete
-        # Verify correct # of particles, no gaps in the middle.
+        self.create_sample_data('test_data_1.txt', 'DATA001.txt')
+        self.create_sample_data('test_data_3.txt', 'DATA003.txt')
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # Verify we get one sample
+        try:
+            # Read the first file and verify the data
+            result = self.get_samples('ctdpf_parsed')
+            log.debug("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'test_data_1.txt.result.yml')
+
+            # Now read the first three records of the second file then stop
+            result = self.get_samples('ctdpf_parsed', 3)
+            self.assert_stop_sampling()
+            self.assert_sample_queue_size('ctdpf_parsed', 0)
+
+            # Restart sampling and ensure we get the last 5 records of the file
+            self.assert_start_sampling()
+            result = self.get_samples('ctdpf_parsed', 5)
+            self.assert_data_values(result, 'test_data_3.txt.partial_results.yml')
+
+            self.assert_sample_queue_size('ctdpf_parsed', 0)
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
 
     @unittest.skip("not implemented yet")
     def test_missing_directory(self):
