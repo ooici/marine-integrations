@@ -659,7 +659,7 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
             return self._protocol.get_resource_capabilities(current_state)
         
         else:
-            return [[], []]
+            return [['foobb'], ['fooaa']]
 
                 
     def get_resource_state(self, *args, **kwargs):

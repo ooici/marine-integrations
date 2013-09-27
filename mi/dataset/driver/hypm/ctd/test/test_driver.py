@@ -34,8 +34,10 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.core.exceptions import ConfigurationException
 from mi.core.exceptions import SampleException
+from mi.core.exceptions import InstrumentParameterException
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+from mi.dataset.dataset_driver import DriverParameter
 from mi.dataset.parser.ctdpf import CtdpfParser
 from mi.dataset.parser.test.test_ctdpf import CtdpfParserUnitTestCase
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
@@ -125,7 +127,7 @@ class UnitTest(DataSetUnitTestCase):
         self.assert_exception(IOError)
 
         # At this point the harvester thread is dead.  The agent
-        # exception handler should handle this case.
+        # exception handle should handle this case.
 
     def test_stop_resume(self):
         """
@@ -151,6 +153,98 @@ class UnitTest(DataSetUnitTestCase):
         # verify data is produced
         self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.partial_results.yml', count=5, timeout=10)
 
+    def test_parameters(self):
+        """
+        Verify that we can get, set, and report all driver parameters.
+        """
+        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.HARVESTER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
+        (res_cmds, res_params) = self.driver.get_resource_capabilities()
+
+        # Ensure capabilities are as expected
+        self.assertEqual(len(res_cmds), 0)
+        self.assertEqual(len(res_params), len(expected_params))
+        self.assertEqual(sorted(res_params), sorted(expected_params))
+
+        # Verify default values are as expected.
+        params = self.driver.get_resource(DriverParameter.ALL)
+        log.debug("Get Resources Result: %s", params)
+        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
+        self.assertEqual(params[DriverParameter.HARVESTER_POLLING_INTERVAL], 1)
+        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
+
+        # Try set resource individually
+        self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 2})
+        self.driver.set_resource({DriverParameter.HARVESTER_POLLING_INTERVAL: 2})
+        self.driver.set_resource({DriverParameter.RECORDS_PER_SECOND: 59})
+
+        params = self.driver.get_resource(DriverParameter.ALL)
+        log.debug("Get Resources Result: %s", params)
+        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 2)
+        self.assertEqual(params[DriverParameter.HARVESTER_POLLING_INTERVAL], 2)
+        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 59)
+
+        # Try set resource in bulk
+        self.driver.set_resource(
+            {DriverParameter.BATCHED_PARTICLE_COUNT: 1,
+             DriverParameter.HARVESTER_POLLING_INTERVAL: .1,
+             DriverParameter.RECORDS_PER_SECOND: 60})
+
+        params = self.driver.get_resource(DriverParameter.ALL)
+        log.debug("Get Resources Result: %s", params)
+        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
+        self.assertEqual(params[DriverParameter.HARVESTER_POLLING_INTERVAL], .1)
+        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
+
+        # Set with some bad values
+        with self.assertRaises(InstrumentParameterException):
+            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 'a'})
+        with self.assertRaises(InstrumentParameterException):
+            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: -1})
+        with self.assertRaises(InstrumentParameterException):
+            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 0})
+
+        # Try to configure with the driver startup config
+        driver_config = self._driver_config()['startup_config']
+        cfg = {
+            DataSourceConfigKey.HARVESTER: driver_config.get(DataSourceConfigKey.HARVESTER),
+            DataSourceConfigKey.PARSER: driver_config.get(DataSourceConfigKey.PARSER),
+            DataSourceConfigKey.DRIVER: {
+                DriverParameter.HARVESTER_POLLING_INTERVAL: .2,
+                DriverParameter.RECORDS_PER_SECOND: 3,
+                DriverParameter.BATCHED_PARTICLE_COUNT: 3,
+            }
+        }
+        self.driver = HypmCTDPFDataSetDriver(
+            cfg,
+            self.memento,
+            self.data_callback,
+            self.state_callback,
+            self.exception_callback)
+
+        params = self.driver.get_resource(DriverParameter.ALL)
+        log.debug("Get Resources Result: %s", params)
+        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 3)
+        self.assertEqual(params[DriverParameter.HARVESTER_POLLING_INTERVAL], .2)
+        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 3)
+
+        # Finally verify we get a KeyError when sending in bad config keys
+        cfg[DataSourceConfigKey.DRIVER] = {
+            DriverParameter.HARVESTER_POLLING_INTERVAL: .2,
+            DriverParameter.RECORDS_PER_SECOND: 3,
+            DriverParameter.BATCHED_PARTICLE_COUNT: 3,
+            'something_extra': 1
+        }
+
+        with self.assertRaises(KeyError):
+            self.driver = HypmCTDPFDataSetDriver(
+                cfg,
+                self.memento,
+                self.data_callback,
+                self.state_callback,
+                self.exception_callback)
+
+
+###############################################################################
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -199,6 +293,13 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         result = self.get_samples('ctdpf_parsed',436,120)
+
+    def test_get_capabilities(self):
+        """
+        """
+        self.assert_initialize()
+        retval = self.dataset_agent_client.get_capabilities()
+        log.debug("Capabilities: %s", retval)
 
     @unittest.skip("not implemented yet")
     def test_stop_start(self):

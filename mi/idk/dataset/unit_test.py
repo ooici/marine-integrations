@@ -347,7 +347,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
             deploy_file=self.test_config.container_deploy_file
         )
 
-        self.instrument_agent_client = self.instrument_agent_manager.instrument_agent_client
+        self.dataset_agent_client = self.instrument_agent_manager.instrument_agent_client
 
     def get_samples(self, stream_name, sample_count = 1, timeout = 10):
         """
@@ -398,29 +398,29 @@ class DataSetQualificationTestCase(DataSetTestCase):
         '''
         Walk through DSA states to get to streaming mode from uninitialized
         '''
-        state = self.instrument_agent_client.get_agent_state()
+        state = self.dataset_agent_client.get_agent_state()
 
         with self.assertRaises(Conflict):
-            res_state = self.instrument_agent_client.get_resource_state()
+            res_state = self.dataset_agent_client.get_resource_state()
 
         log.debug("Initialize DataSet agent")
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
+        retval = self.dataset_agent_client.execute_agent(cmd)
+        state = self.dataset_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.INACTIVE)
         log.info("Sent INITIALIZE; DSA state = %s", state)
 
         log.debug("DataSet agent go active")
         cmd = AgentCommand(command=ResourceAgentEvent.GO_ACTIVE)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
+        retval = self.dataset_agent_client.execute_agent(cmd)
+        state = self.dataset_agent_client.get_agent_state()
         log.info("Sent GO_ACTIVE; DSA state = %s", state)
         self.assertEqual(state, ResourceAgentState.IDLE)
 
         log.debug("DataSet agent run")
         cmd = AgentCommand(command=ResourceAgentEvent.RUN)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
+        retval = self.dataset_agent_client.execute_agent(cmd)
+        state = self.dataset_agent_client.get_agent_state()
         log.info("Sent RUN; DSA state = %s", state)
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
@@ -431,13 +431,13 @@ class DataSetQualificationTestCase(DataSetTestCase):
         '''
         transition to command.  Must be called from streaming
         '''
-        state = self.instrument_agent_client.get_agent_state()
+        state = self.dataset_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.STREAMING)
 
         log.debug("DataSet agent start sampling")
         cmd = AgentCommand(command=DriverEvent.STOP_AUTOSAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd)
-        state = self.instrument_agent_client.get_agent_state()
+        retval = self.dataset_agent_client.execute_resource(cmd)
+        state = self.dataset_agent_client.get_agent_state()
         log.info("Sent START SAMPLING; DSA state = %s", state)
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
@@ -445,13 +445,13 @@ class DataSetQualificationTestCase(DataSetTestCase):
         '''
         transition to sampling.  Must be called from command
         '''
-        state = self.instrument_agent_client.get_agent_state()
+        state = self.dataset_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
         log.debug("DataSet agent start sampling")
         cmd = AgentCommand(command=DriverEvent.START_AUTOSAMPLE)
-        retval = self.instrument_agent_client.execute_resource(cmd)
-        state = self.instrument_agent_client.get_agent_state()
+        retval = self.dataset_agent_client.execute_resource(cmd)
+        state = self.dataset_agent_client.get_agent_state()
         log.info("Sent START SAMPLING; DSA state = %s", state)
         self.assertEqual(state, ResourceAgentState.STREAMING)
 
@@ -460,8 +460,8 @@ class DataSetQualificationTestCase(DataSetTestCase):
         Put the instrument back in uninitialized
         '''
         cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        state = self.instrument_agent_client.get_agent_state()
+        retval = self.dataset_agent_client.execute_agent(cmd)
+        state = self.dataset_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
 
 
