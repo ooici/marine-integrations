@@ -14,6 +14,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.unit_test import MiIntTestCase
 from mi.core.unit_test import ParticleTestMixin
 
+from ooi.reflection import EggCache
 from mi.idk.util import remove_all_files
 from mi.idk.unit_test import InstrumentDriverTestConfig
 from mi.idk.exceptions import TestNotInitialized
@@ -21,11 +22,12 @@ from mi.idk.exceptions import IDKConfigMissing
 from mi.idk.exceptions import IDKException
 from mi.idk.exceptions import SampleTimeout
 
+from mi.idk.result_set import ResultSet
 from mi.idk.dataset.metadata import Metadata
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
 from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
-
+from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.core.instrument.instrument_driver import DriverEvent
 
 from pyon.core.exception import Conflict
@@ -169,7 +171,7 @@ class DataSetTestCase(MiIntTestCase):
         log.debug("Clean all data from %s", data_dir)
         remove_all_files(data_dir)
 
-    def create_sample_data(self, filename, dest_filename=None):
+    def create_sample_data(self, filename, dest_filename=None, mode=0644):
         """
         Search for a data file in the driver resource directory and if the file
         is not found there then search using the filename directly.  Then copy
@@ -179,6 +181,8 @@ class DataSetTestCase(MiIntTestCase):
         directory.
         @param: filename - filename or path to a data file to copy
         @param: dest_filename - name of the file when copied. default to filename
+        @param: file mode
+        @return: path to file created
         """
         data_dir = self.create_data_dir()
         source_path = self._get_source_data_file(filename)
@@ -191,27 +195,116 @@ class DataSetTestCase(MiIntTestCase):
 
         log.debug("Creating data file src: %s, dest: %s", source_path, dest_path)
         shutil.copy2(source_path, dest_path)
+        os.chmod(dest_path, mode)
+
+        return dest_path
 
 class DataSetUnitTestCase(DataSetTestCase):
     """
     Base class for instrument driver unit tests
     """
-    def setUp(self):
-        """
-        Startup the container and start the agent.
-        """
-        super(DataSetUnitTestCase, self).setUp()
+    def state_callback(self, state):
+        log.debug("State callback: %s", state)
+        self.state_callback_result.append(state)
 
-#class DataSetIntegrationTestCase(DataSetTestCase, ParticleTestMixin):
-class DataSetIntegrationTestCase(DataSetTestCase):
-    """
-    Base class for instrument driver unit tests
-    """
+    def data_callback(self, data):
+        log.debug("Data callback: %s", data)
+        if not isinstance(data, list):
+            data = [data]
+        for d in data:
+            self.data_callback_result.append(d)
+
+    def exception_callback(self, ex):
+        log.debug("Exception callback: %s", ex)
+        self.exception_callback_result.append(ex)
+
     def setUp(self):
+        super(DataSetUnitTestCase, self).setUp()
+        self.state_callback_result = []
+        self.data_callback_result = []
+        self.exception_callback_result = []
+
+        self.memento = {DataSourceConfigKey.HARVESTER: {},
+                        DataSourceConfigKey.PARSER: {}}
+
+        module_object = __import__(self.test_config.driver_module, fromlist=[self.test_config.driver_class])
+        class_object = getattr(module_object, self.test_config.driver_class)
+        self.driver = class_object(
+            self._driver_config()['startup_config'],
+            self.memento,
+            self.data_callback,
+            self.state_callback,
+            self.exception_callback)
+
+    def clear_async_data(self):
+        self.state_callback_result = []
+        self.data_callback_result = []
+        self.exception_callback_result = []
+
+    def assert_exception(self, exception_class, timeout=10):
         """
-        Startup the container and start the agent.
+        Wait for an exception in the exception callback queue
         """
-        super(DataSetIntegrationTestCase, self).setUp()
+        to = gevent.Timeout(timeout)
+        to.start()
+        done = False
+
+        try:
+            while not done:
+                for exp in self.exception_callback_result:
+                    if isinstance(exp, exception_class):
+                        log.info("Expected exception detected: %s", exp)
+                        done = True
+
+                if not done:
+                    log.debug("No exception detected yet, sleep for a bit")
+                    gevent.sleep(1)
+
+        except Timeout:
+            log.error("Failed to detect exception %s", exception_class)
+            self.fail("Exception detection failed.")
+
+        finally:
+            to.cancel()
+
+    def assert_data(self, particle_class, result_set_file=None, count=1, timeout=10):
+        """
+        Wait for a data particle in the data callback queue
+        @param particle_class, class of the expected data particles
+        @param result_set_file, filename containing definition of the resulting dataset
+        @param count, how many records to wait for
+        @param timeout, how long to wait for the records.
+        """
+        to = gevent.Timeout(timeout)
+        to.start()
+        done = False
+
+        try:
+            while(not done):
+                found = 0
+                for data in self.data_callback_result:
+                    if isinstance(data, particle_class):
+                        found += 1
+
+                    if found == count:
+                        done = True
+
+                if not done:
+                    log.debug("No particle detected yet, sleep for a bit")
+                    gevent.sleep(1)
+        except Timeout:
+            log.error("Failed to detect particle %s", particle_class)
+            self.fail("particle detection failed.")
+        finally:
+            to.cancel()
+
+        # Verify the data against the result data set definition
+        if result_set_file:
+            rs_file = self._get_source_data_file(result_set_file)
+            rs = ResultSet(rs_file)
+
+            self.assertTrue(rs.verify(self.data_callback_result))
+
 
 class DataSetQualificationTestCase(DataSetTestCase):
     """
@@ -292,6 +385,14 @@ class DataSetQualificationTestCase(DataSetTestCase):
         log.debug("get_samples() complete.  returning %d records", sample_count)
         return result
 
+    def assert_data_values(self, particles, dataset_definition_file):
+        """
+        Verify particles match the particles defined in the definition file
+        """
+        rs_file = self._get_source_data_file(dataset_definition_file)
+        rs = ResultSet(rs_file)
+
+        self.assertTrue(rs.verify(particles))
 
     def assert_initialize(self, final_state = ResourceAgentState.STREAMING):
         '''

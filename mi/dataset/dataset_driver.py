@@ -106,6 +106,9 @@ class DataSetDriver(object):
         self._state_callback = state_callback
         self._exception_callback = exception_callback
         self._memento = memento
+        self._polling_interval = 1
+        self._generate_particle_count = 1
+        self._particle_count_per_second = 60
 
         self._verify_config()
 
@@ -113,13 +116,14 @@ class DataSetDriver(object):
         """
         Start a new thread to monitor for data
         """
-        self._sampling_thread = gevent.spawn(self._start_sampling)
+        self._start_sampling()
+        self._start_publisher_thread()
 
     def stop_sampling(self):
         """
         Stop the sampling thread
         """
-        self._sampling_thread.kill()
+        self._stop_publisher_thread()
 
     def _start_sampling(self):
         raise NotImplementedException('virtual methond needs to be specialized')
@@ -171,6 +175,9 @@ class DataSetDriver(object):
     def _poll(self):
         raise NotImplementedException('virtual methond needs to be specialized')
 
+    def _new_file_exception(self):
+        raise NotImplementedException('virtual methond needs to be specialized')
+
 
 class SimpleDataSetDriver(DataSetDriver):
     """
@@ -189,16 +196,14 @@ class SimpleDataSetDriver(DataSetDriver):
         self._init_state(memento)
 
     def _start_sampling(self):
+        # just a little nap before we start working.  Giving the agent time
+        # to respond.
         self._harvester = self._build_harvester(self._harvester_state)
         self._harvester.start()
-
-        self._start_publisher_thread()
 
     def _stop_sampling(self):
         self._harvester.shutdown()
         self._harvester = None
-
-        self._stop_publisher_thread()
 
     ####
     ##    Helpers
@@ -241,12 +246,18 @@ class SimpleDataSetDriver(DataSetDriver):
         """
         log.info("Starting main publishing loop")
 
-        while(True):
-            # If we have files, grab the first and process it.
-            if(len(self._new_file_queue) > 0):
-                self._got_file(self._new_file_queue.pop(0))
+        try:
+            while(True):
+                # If we have files, grab the first and process it.
+                count = len(self._new_file_queue)
+                log.trace("Checking for new files in queue, count: %d", count)
+                if(count > 0):
+                    self._got_file(self._new_file_queue.pop(0))
 
-            gevent.sleep(30)
+                gevent.sleep(self._polling_interval)
+        except Exception as e:
+            log.error("Exception in publisher thread: %s", e)
+            self._exception_callback(e)
 
     def _got_file(self, file_tuple):
         """
@@ -255,6 +266,15 @@ class SimpleDataSetDriver(DataSetDriver):
         """
         handle, name = file_tuple
         log.info("Detected new file, handle: %r, name: %s", handle, name)
+        count = 1
+        delay = None
+
+        # Calulate the delay between grabbing records to publish.
+        if self._generate_particle_count:
+            delay = float(1) / float(self._particle_count_per_second) * float(self._generate_particle_count)
+
+        if self._generate_particle_count:
+            count = self._generate_particle_count
 
         # For some reason when adding the handle to the _new_file_queue the file
         # handle is closed.  Haven't had a chance to investigate, but this hack
@@ -263,10 +283,14 @@ class SimpleDataSetDriver(DataSetDriver):
 
         parser = self._build_parser(self._parser_state, handle)
 
-        result = parser.get_records(1)
-        while(result):
-            log.trace("Record parsed: %r", result)
-            result = parser.get_records(1)
+        while(True):
+            result = parser.get_records(count)
+            if result:
+                log.trace("Record parsed: %r delay: %f", result, delay)
+                if delay:
+                    gevent.sleep(delay)
+            else:
+                break
 
         # Once we have successfully imported the file reset the parser state
         # and store the harvester state.
@@ -331,5 +355,8 @@ class SimpleDataSetDriver(DataSetDriver):
         """
         index = len(self._new_file_queue)
 
-        log.debug("Add new file to the new file queue: handle: %r, name: %s", file_handle, file_name)
+        log.trace("Add new file to the new file queue: handle: %r, name: %s", file_handle, file_name)
         self._new_file_queue.append((file_handle, file_name))
+
+        count = len(self._new_file_queue)
+        log.trace("Current new file queue length: %d", count)
