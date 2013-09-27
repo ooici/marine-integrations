@@ -47,11 +47,15 @@ class AdditiveSequentialFileHarvester(DirectoryPoller, Harvester):
         if not isinstance(config, dict):
             raise TypeError("Config object must be a dict")
 
+        directory = config.get('directory')
+        pattern = config.get('pattern')
+
+        log.debug("Start directory poller path: %s, pattern: %s", directory, pattern)
         self.callback = file_callback
         self.last_file_completed = memento
         DirectoryPoller.__init__(self,
-                                 config['directory'],
-                                 config['pattern'],
+                                 directory,
+                                 pattern,
                                  self.on_new_files,
                                  exception_callback,
                                  config.get('frequency', 1))
@@ -61,7 +65,10 @@ class AdditiveSequentialFileHarvester(DirectoryPoller, Harvester):
         New files have been found, open each file and process it in the callback
         """
         for file in files:
+            log.debug("Found new file: %s", file)
             if file>self.last_file_completed:
+                log.debug("Found new file and state verified: %s", file)
+                log.debug("File callback: %s", self.callback)
                 with open(file,'rb') as f:
                     self.callback(f, file)
                     
