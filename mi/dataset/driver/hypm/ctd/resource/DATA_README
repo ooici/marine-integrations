@@ -1,7 +1,7 @@
 -- Data file descriptions
 
 test_data_1.txt: Single record
-test_data_2.txt: 
+test_data_2.txt: Record with bad data
 test_data_3.txt:
 test_data_4.txt:
 

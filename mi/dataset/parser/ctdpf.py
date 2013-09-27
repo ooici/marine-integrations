@@ -59,7 +59,6 @@ class CtdpfParserDataParticle(DataParticle):
         a particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-        
         match = DATA_MATCHER.match(self.raw_data)
         if not match:
             raise SampleException("CtdParserDataParticle: No regex match of \
@@ -89,7 +88,7 @@ class CtdpfParserDataParticle(DataParticle):
         Quick equality check for testing purposes. If they have the same raw
         data and timestamp, they are the same enough for this particle
         """
-        if ((self.raw_data == arg.raw_data) and \
+        if ((self.raw_data == arg.raw_data) and
             (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
             return True
         else:
