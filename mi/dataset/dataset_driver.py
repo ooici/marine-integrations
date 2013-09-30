@@ -13,17 +13,29 @@ __license__ = 'Apache 2.0'
 import gevent
 
 from mi.core.log import get_logger ; log = get_logger()
+from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import DataSourceLocationException
 from mi.core.exceptions import ConfigurationException
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import NotImplementedException
+from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.instrument.protocol_param_dict import ParameterDictType
+from mi.core.instrument.protocol_param_dict import Parameter
 from mi.core.common import BaseEnum
 
 class DataSourceConfigKey(BaseEnum):
     HARVESTER = 'harvester'
     PARSER = 'parser'
+    DRIVER = 'driver'
+
+# Driver parameters.
+class DriverParameter(BaseEnum):
+    ALL = 'ALL'
+    RECORDS_PER_SECOND = 'records_per_second'
+    HARVESTER_POLLING_INTERVAL = 'harvester_polling_interval'
+    BATCHED_PARTICLE_COUNT = 'batched_particle_count'
 
 class DataSourceLocation(object):
     """
@@ -98,6 +110,11 @@ class DataSetDriver(object):
             'frequency': 1,
         },
         'parser': {}
+        'driver': {
+            'records_per_second'
+            'harvester_polling_interval'
+            'batched_particle_count'
+        }
     }
     """
     def __init__(self, config, memento, data_callback, state_callback, exception_callback):
@@ -106,11 +123,16 @@ class DataSetDriver(object):
         self._state_callback = state_callback
         self._exception_callback = exception_callback
         self._memento = memento
-        self._polling_interval = 1
-        self._generate_particle_count = 1
-        self._particle_count_per_second = 60
 
         self._verify_config()
+        self._param_dict = ProtocolParameterDict()
+
+        # Updated my set_resource, defaults defined in build_param_dict
+        self._polling_interval = None
+        self._generate_particle_count = None
+        self._particle_count_per_second = None
+
+        self._build_param_dict()
 
     def start_sampling(self):
         """
@@ -134,28 +156,112 @@ class DataSetDriver(object):
     def cmd_dvr(self, cmd, *args, **kwargs):
         log.warn("DRIVER: cmd_dvr %s", cmd)
 
-        if cmd != 'execute_resource':
-            raise InstrumentStateException("Unhandled command: %s", cmd)
+        if not cmd in ['execute_resource', 'get_resource_capabilities', 'set_resource', 'get_resource']:
+            log.error("Unhandled command: %s", cmd)
+            raise InstrumentStateException("Unhandled command: %s" % cmd)
 
         resource_cmd = args[0]
 
-        if resource_cmd == DriverEvent.START_AUTOSAMPLE:
-            try:
-                log.debug("start autosample")
-                self.start_sampling()
-            except:
-                log.error("Failed to start sampling", exc_info=True)
+        if cmd == 'execute_resource':
+            if resource_cmd == DriverEvent.START_AUTOSAMPLE:
+                try:
+                    log.debug("start autosample")
+                    self.start_sampling()
+                except:
+                    log.error("Failed to start sampling", exc_info=True)
+                    raise
+
+                return (ResourceAgentState.STREAMING, None)
+
+            elif resource_cmd == DriverEvent.STOP_AUTOSAMPLE:
+                log.debug("stop autosample")
+                self.stop_sampling()
+                return (ResourceAgentState.COMMAND, None)
+
+            else:
+                log.error("Unhandled resource command: %s", resource_cmd)
                 raise
 
-            return (ResourceAgentState.STREAMING, None)
+        elif cmd == 'get_resource_capabilities':
+            return self.get_resource_capabilities()
 
-        elif resource_cmd == DriverEvent.STOP_AUTOSAMPLE:
-            log.debug("stop autosample")
-            self.stop_sampling()
-            return (ResourceAgentState.COMMAND, None)
+        elif cmd == 'set_resource':
+            return self.set_resource(*args, **kwargs)
 
+        elif cmd == 'get_resource':
+            return self.get_resource(*args, **kwargs)
+
+    def get_resource_capabilities(self, current_state=True, *args, **kwargs):
+        """
+        Return driver commands and parameters.
+        @param current_state True to retrieve commands available in current
+        state, otherwise reutrn all commands.
+        @retval list of AgentCapability objects representing the drivers
+        capabilities.
+        @raises NotImplementedException if not implemented by subclass.
+        """
+        res_params = self._param_dict.get_keys()
+        return [[], res_params]
+
+    def set_resource(self, *args, **kwargs):
+        """
+        Set the driver parameter
+        """
+        log.trace("start set_resource")
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        log.trace("set_resource: iterate through params: %s", params)
+        for (key, val) in params.iteritems():
+            if key in [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.RECORDS_PER_SECOND]:
+                if not isinstance(val, int): raise InstrumentParameterException("%s must be an integer" % key)
+            if key in [DriverParameter.HARVESTER_POLLING_INTERVAL]:
+                if not isinstance(val, (int, float)): raise InstrumentParameterException("%s must be an float" % key)
+
+            if val <= 0:
+                raise InstrumentParameterException("%s must be > 0" % key)
+
+            self._param_dict.set_value(key, val)
+
+        # Set the driver parameters
+        self._generate_particle_count = self._param_dict.get(DriverParameter.BATCHED_PARTICLE_COUNT)
+        self._particle_count_per_second = self._param_dict.get(DriverParameter.RECORDS_PER_SECOND)
+        self._polling_interval = self._param_dict.get(DriverParameter.HARVESTER_POLLING_INTERVAL)
+        log.trace("Driver Parameters: %s, %s, %s", self._polling_interval, self._particle_count_per_second, self._generate_particle_count)
+
+    def get_resource(self, *args, **kwargs):
+        """
+        Get driver parameter
+        """
+        result = {}
+
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter list.')
+
+        # If all params requested, retrieve config.
+        if params == DriverParameter.ALL:
+            result = self._param_dict.get_config()
+
+        # If not all params, confirm a list or tuple of params to retrieve.
+        # Raise if not a list or tuple.
+        # Retrieve each key in the list, raise if any are invalid.
         else:
-            raise
+            if not isinstance(params, (list, tuple)):
+                raise InstrumentParameterException('Get argument not a list or tuple.')
+            result = {}
+            for key in params:
+                try:
+                    val = self._param_dict.get(key)
+                    result[key] = val
+
+                except KeyError:
+                    raise InstrumentParameterException(('%s is not a valid parameter.' % key))
+
+        return result
 
     def _verify_config(self):
         """
@@ -165,6 +271,44 @@ class DataSetDriver(object):
         raises an ConfigurationException when a configuration error is detected.
         """
         raise NotImplementedException('virtual methond needs to be specialized')
+
+    def _build_param_dict(self):
+        """
+        Setup three common driver parameters
+        """
+        self._param_dict.add_parameter(
+            Parameter(
+                DriverParameter.RECORDS_PER_SECOND,
+                int,
+                value=60,
+                type=ParameterDictType.INT,
+                display_name="Records Per Second",
+                description="Number of records to process per second")
+        )
+
+        self._param_dict.add_parameter(
+            Parameter(
+                DriverParameter.HARVESTER_POLLING_INTERVAL,
+                float,
+                value=1,
+                type=ParameterDictType.FLOAT,
+                display_name="Harvester Polling Interval",
+                description="Duration in minutes to wait before checking for new files.")
+        )
+
+        self._param_dict.add_parameter(
+            Parameter(
+                DriverParameter.BATCHED_PARTICLE_COUNT,
+                int,
+                value=1,
+                type=ParameterDictType.INT,
+                display_name="Batched Particle Count",
+                description="Number of particles to batch before sending to the agent")
+        )
+
+        config = self._config.get(DataSourceConfigKey.DRIVER, {})
+        log.debug("set_resource on startup with: %s", config)
+        self.set_resource(config)
 
     def _start_publisher_thread(self):
         self._publisher_thread = gevent.spawn(self._poll)
