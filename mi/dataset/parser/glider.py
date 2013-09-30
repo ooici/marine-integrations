@@ -126,9 +126,7 @@ class GldrCtdgvParticleKey(DataParticleKey):
         'sci_water_cond',
         'sci_water_pressure',
         'sci_water_temp',
-        'sci_ctd41cp_timestamp'
-    ]
-    TIMESTAMP_LIST = [
+        'sci_ctd41cp_timestamp',
         'm_present_time',  # you need the m_ timestamps for lats & lons
         'm_present_secs_into_mission',
         'sci_m_present_time',
@@ -164,28 +162,11 @@ class GgldrCtdgvDelayedDataParticle(GliderParticle):
                                DataParticleKey.VALUE: value})
 
             else:
-                log.warn("GGLDR_CTDGV_DELAYED: The particle defined in the \
-                         ParticleKey, %s, is not present in the current \
-                         data set.  This represents the possibility of a\
-                         non-standard *bdlist on the glider, or that the \
-                         master data list in OOIN needs an update", key)
-
-        # timestamps are done separately here so that they are only
-        # added to the particle if data from the particle key list is
-        # put into result. Otherwise there could be particles that only
-        # have timestamps and no data.
-        if result:
-            for timestamp in GldrCtdgvParticleKey.TIMESTAMP_LIST:
-                # read the value from the gpd dictionary
-                value = self.data_dict[timestamp]['Data']
-
-                # check to see that the value is not a 'NaN'
-                if np.isnan(value):
-                    continue
-
-                # add the value to the record
-                result.append({DataParticleKey.VALUE_ID: timestamp,
-                               DataParticleKey.VALUE: value})
+                log.warn("GGLDR_CTDGV_DELAYED: The particle defined in the" +
+                         "ParticleKey, %s, is not present in the current" % key +
+                         "data set.  Check that the m, s, or tbdlist of " +
+                         "the glider are the same as the standard lists, " +
+                         "or check the Particle Keys")
 
         return result
 
@@ -197,13 +178,15 @@ class GldrDostaParticleKey(DataParticleKey):
         'm_lat',
         'm_lon',
         'sci_oxy4_oxygen',
-        'sci_oxy4_saturation']
-    TIMESTAMP_LIST = [
+        'sci_oxy4_saturation',
         'm_present_time',  # need the m_ timestamps for lats & lons
         'm_present_secs_into_mission',
         'sci_m_present_time',
-        'sci_m_present_secs_into_mission'
-    ]
+        'sci_m_present_secs_into_mission',
+        # need the CTD variables too for salinity corrections
+        'sci_water_cond',
+        'sci_water_temp',
+        'sci_water_pressure']
 
 
 class GgldrDostaDelayedDataParticle(GliderParticle):
@@ -217,9 +200,6 @@ class GgldrDostaDelayedDataParticle(GliderParticle):
         @param gpd A GliderParser class instance.
         @param result A returned list with sub dictionaries of the data
         """
-        if not isinstance(self.data_dict, dict):
-            raise SampleException("GGLDR_DOSTA_DELAYED: Object Instance is not \
-                                  a GliderParser object")
 
         result = []
         for key in GldrDostaParticleKey.KEY_LIST:
@@ -236,49 +216,24 @@ class GgldrDostaDelayedDataParticle(GliderParticle):
                                DataParticleKey.VALUE: value})
 
             else:
-                log.warn("GGLDR_DOSTA_DELAYED: The particle defined in the \
-                         ParticleKey, %s, is not present in the current \
-                         data set.  This represents the possibility of a\
-                         non-standard *bdlist on the glider, or that the \
-                         master data list in OOIN needs an update", key)
-
-        # timestamps are done separately here so that they are only
-        # added to the particle if data from the particle key list is
-        # put into result. Otherwise there could be particles that only
-        # have timestamps and no data.
-        if result:
-            for timestamp in GldrDostaParticleKey.TIMESTAMP_LIST:
-                # read the value from the gpd dictionary
-                value = self.data_dict[timestamp]['Data']
-
-                # check to see that the value is not a 'NaN'
-                if np.isnan(value):
-                    continue
-
-                # add the value to the record
-                result.append({DataParticleKey.VALUE_ID: timestamp,
-                               DataParticleKey.VALUE: value})
+                log.warn("GGLDR_DOSTA_DELAYED: The particle defined in the" +
+                         "ParticleKey, %s, is not present in the current" % key +
+                         "data set.  Check that the m, s, or tbdlist of " +
+                         "the glider are the same as the standard lists, " +
+                         "or check the Particle Keys")
 
         return result
 
 
 class GldrFlordParticleKey(DataParticleKey):
     KEY_LIST = [
-        # you get all of the timestamps for free anytime one of the
-        # other variables below are present
-        #'m_present_time',
-        #'m_present_secs_into_mission',
-        #'sci_m_present_time',
-        #'sci_m_present_secs_into_mission',
         'm_gps_lat',
         'm_gps_lon',
         'm_lat',
         'm_lon',
         'sci_flbb_bb_units',
         'sci_flbb_chlor_units',
-    ]
-    TIMESTAMP_LIST = [
-        'm_present_time',
+        'm_present_time',  # need m_ timestamps for lats & lons
         'm_present_secs_into_mission',
         'sci_m_present_time',
         'sci_m_present_secs_into_mission'
@@ -297,9 +252,6 @@ class GgldrFlordDelayedDataParticle(GliderParticle):
         @throws SampleException if the data is not a glider data dictionary
             produced by GliderParser._read_data
         """
-        if not isinstance(self.data_dict, dict):
-            raise SampleException("GGLDR_FLORD_DELAYED: Object Instance is not \
-                                  a Glider data dictionary")
 
         result = []
         for key in GldrFlordParticleKey.KEY_LIST:
@@ -316,28 +268,41 @@ class GgldrFlordDelayedDataParticle(GliderParticle):
                                DataParticleKey.VALUE: value})
 
             else:
-                log.warn("GGLDR_FLORD_DELAYED: The particle defined in the \
-                         ParticleKey, %s, is not present in the current \
-                         data set.  This represents the possibility of a\
-                         non-standard *bdlist on the glider, or that the \
-                         master data list in OOIN needs an update", key)
+                log.warn("GGLDR_FLORD_DELAYED: The particle defined in the" +
+                         "ParticleKey, %s, is not present in the current" % key +
+                         "data set.  Check that the m, s, or tbdlist of " +
+                         "the glider are the same as the standard lists, " +
+                         "or check the Particle Keys")
 
-        # timestamps are done separately here so that they are only
-        # added to the particle if data from the particle key list is
-        # put into result. Otherwise there could be particles that only
-        # have timestamps and no data.
-        if result:
-            for timestamp in GldrFlordParticleKey.TIMESTAMP_LIST:
-                # read the value from the gpd dictionary
-                value = self.data_dict[timestamp]['Data']
+            # sci_m_present_time is the proper timestamp to use with
+            # science variables. However, when no scientific data is published
+            # (but glider flight data IS published), sci_m_present_time fills
+            # with NaNs. Glider flight data (e.g. lat & lon) is paired with the
+            # m_present_time timestamp when published. Unlike
+            # sci_m_present_time, m_present_time will always have a value for
+            # each record even if no flight data is published.
+            # For example:
+            # gps_lat       m_present_time      sci_m_present_time     temp
+            # 5002.9419     1376510710.50647    NaN                    NaN
+            # NaN           1376510712.36099    1376510712.36099       4.01713
+            #
+            # Unfortunately, m_present_time and sci_m_present_time may not
+            # always be equal. So if we were to set the internal_timestamp to
+            # the type associated with the relevant data for each record (both
+            # types are needed in the science particles), it could cause the
+            # internal_timestamp to be non-linear, non-monotonic, or corrupt.
+            # To avoid this we will always set the internal_timestamp to the
+            # m_present_time timestamp (which is usually close enough for
+            # plotting since the timestamps are adjusted during GPS fixes) and
+            # users should be aware if downloading data, that
+            # sci_m_present_timestamp is the proper timestamp to use with any
+            # science variables (i.e. any data handled by the onboard science
+            # computer)
 
-                # check to see that the value is not a 'NaN'
-                if np.isnan(value):
-                    continue
-
-                # add the value to the record
-                result.append({DataParticleKey.VALUE_ID: timestamp,
-                               DataParticleKey.VALUE: value})
+            ## Set internal timestamp with sci_m_present_time if available
+            #if key is 'sci_m_present_time':
+            #    timestamp = ntplib.system_to_ntp_time(self.data_dict[key]['Data'])
+            #    self.set_internal_timestamp(timestamp=timestamp)
 
         return result
 
@@ -358,14 +323,12 @@ class GgldrEngDelayedParticleKey(DataParticleKey):
         'm_lon',
         'm_heading',
         'm_pitch',
+        'm_present_time',
+        'm_present_secs_into_mission',
         'm_speed',
         'm_water_vx',
         'm_water_vy',
         'x_low_power_status',
-    ]
-    TIMESTAMP_LIST = [
-        'm_present_time',
-        'm_present_secs_into_mission',
     ]
 
 
@@ -381,9 +344,6 @@ class GgldrEngDelayedDataParticle(GliderParticle):
         @throws SampleException if the data is not a glider data dictionary
             produced by GliderParser._read_data
         """
-        if not isinstance(self.data_dict, dict):
-            raise SampleException("GGLDR_ENG_DELAYED: Object Instance is not \
-                                  a Glider data dictionary")
 
         result = []
         for key in GgldrEngDelayedParticleKey.KEY_LIST:
@@ -400,28 +360,11 @@ class GgldrEngDelayedDataParticle(GliderParticle):
                                DataParticleKey.VALUE: value})
 
             else:
-                log.warn("GGLDR_ENG_DELAYED: The particle defined in the \
-                         ParticleKey, %s, is not present in the current \
-                         data set.  This represents the possibility of a\
-                         non-standard *bdlist on the glider, or that the \
-                         master data list in OOIN needs an update", key)
-
-        # timestamps are done separately here so that they are only
-        # added to the particle if data from the particle KEY_LIST is
-        # put into result. Otherwise there could be particles that only
-        # have timestamps and no data.
-        if result:
-            for timestamp in GgldrEngDelayedParticleKey.TIMESTAMP_LIST:
-                # read the value from the gpd dictionary
-                value = self.data_dict[timestamp]['Data']
-
-                # check to see that the value is not a 'NaN'
-                if np.isnan(value):
-                    continue
-
-                # add the value to the record
-                result.append({DataParticleKey.VALUE_ID: timestamp,
-                               DataParticleKey.VALUE: value})
+                log.warn("GGLDR_ENG_DELAYED: The particle defined in the" +
+                         "ParticleKey, %s, is not present in the current" % key +
+                         "data set.  Check that the m, s, or tbdlist of " +
+                         "the glider are the same as the standard lists, " +
+                         "or check the Particle Keys")
 
         return result
 
