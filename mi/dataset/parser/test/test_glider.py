@@ -63,13 +63,6 @@ class GliderParserUnitTestCase(ParserUnitTestCase):
         self.position_callback_value = None
         self.publish_callback_value = None
 
-    def assert_result(self, result, position, timestamp, particle):
-        self.assertEqual(result, [particle])
-        self.assertEqual(self.parser._state[StateKey.POSITION], position)
-        self.assertEqual(self.position_callback_value[StateKey.POSITION], position)
-        self.assert_(isinstance(self.publish_callback_value, list))
-        self.assertEqual(self.publish_callback_value[0], particle)
-
     def reset_parser(self):
         self.test_file.seek(0)
         self.position_callback_value = None
@@ -160,7 +153,7 @@ class GliderParserUnitTestCase(ParserUnitTestCase):
         self.generic_particle_parse(particle_type, 5)
         self.generic_particle_parse(particle_type, 12)
 
-    def test_state(self):
+    def test_set_state(self):
         self.config[DataSetDriverConfigKeys.PARTICLE_CLASS] = 'GgldrCtdgvDelayedDataParticle'
         particle_type = DataParticleType.GGLDR_CTDGV_DELAYED
         index = 3

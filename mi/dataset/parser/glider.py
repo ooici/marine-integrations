@@ -34,24 +34,27 @@ ROW_REGEX = r'^(.+)\n'  # just give me the whole effing row and get out of my wa
 ROW_MATCHER = re.compile(ROW_REGEX, re.MULTILINE)
 
 
-# statekey
-class StateKey(BaseEnum):
-    POSITION = 'position'
-
-
 ###############################################################################
 # Define the Particle Classes for Global and Coastal Gliders, both the delayed
 # (delivered over Iridium network) and the recovered (downloaded from a glider
 # upon recovery) data sets.
 #
-# [TODO: Build Particle classes for global recovered datasets and for all
-# coastal glider data (delayed and recoverd)]
+# [TODO: Confirm parameter lists with Project Scientist and System Engineers]
 #
-# [TODO: Do we need to add a particle for the file header information?]
+# [TODO: Build Particle classes for recovered datasets]
+#
+# [TODO: Determine method for adding a different suite of O2 values for Glider
+# ooi_247. This glider uses a different O2 sensor that has a different set of
+# parameters than all other OOI gliders]
 #
 ###############################################################################
+class StateKey(BaseEnum):
+    POSITION = 'position'
+
+
 class DataParticleType(BaseEnum):
-    # Data particle types for the Open Ocean (aka Global) and Coastal gliders
+    # Data particle types for the Open Ocean (aka Global) and Coastal gliders.
+    # ADCPA data will parsed by a different parser (adcpa.py)
     ### Global Gliders (GGLDR).
     GGLDR_CTDGV_DELAYED = 'ggldr_ctdgv_delayed'
     GGLDR_CTDGV_RECOVERED = 'ggldr_ctdgv_recovered'
@@ -72,7 +75,6 @@ class DataParticleType(BaseEnum):
     CGLDR_PARAD_RECOVERED = 'cgldr_parad_recovered'
     CGLDR_ENG_DELAYED = 'cgldr_eng_delayed'
     CGLDR_ENG_RECOVERED = 'cgldr_eng_recovered'
-    # ADCPA data will parsed by a different parser (adcpa.py)
 
 
 class GliderParticle(DataParticle):
@@ -117,16 +119,16 @@ class GliderParticle(DataParticle):
         self.data_dict = data_dict
 
 
-class GldrCtdgvParticleKey(DataParticleKey):
+class CtdgvParticleKey(DataParticleKey):
     KEY_LIST = [
         'm_gps_lat',
         'm_gps_lon',
         'm_lat',
         'm_lon',
+        'sci_ctd41cp_timestamp',  # not expected in delayed data sets
         'sci_water_cond',
         'sci_water_pressure',
         'sci_water_temp',
-        'sci_ctd41cp_timestamp',
         'm_present_time',  # you need the m_ timestamps for lats & lons
         'm_present_secs_into_mission',
         'sci_m_present_time',
@@ -148,7 +150,7 @@ class GgldrCtdgvDelayedDataParticle(GliderParticle):
 
         # find if any of the variables from the particle key list are in
         # the data_dict and keep it
-        for key in GldrCtdgvParticleKey.KEY_LIST:
+        for key in CtdgvParticleKey.KEY_LIST:
             if key in self.data_dict:
                 # read the value from the gpd dictionary
                 value = self.data_dict[key]['Data']
@@ -164,14 +166,51 @@ class GgldrCtdgvDelayedDataParticle(GliderParticle):
             else:
                 log.warn("GGLDR_CTDGV_DELAYED: The particle defined in the" +
                          "ParticleKey, %s, is not present in the current" % key +
-                         "data set.  Check that the m, s, or tbdlist of " +
-                         "the glider are the same as the standard lists, " +
-                         "or check the Particle Keys")
+                         "data set. Confirm by checking the m, s, or tbdlist of " +
+                         "the glider to insure this is expected, or check the " +
+                         "standard lists and/or Particle Keys")
 
         return result
 
 
-class GldrDostaParticleKey(DataParticleKey):
+class CgldrCtdgvDelayedDataParticle(GliderParticle):
+    _data_particle_type = DataParticleType.CGLDR_CTDGV_DELAYED
+
+    def _build_parsed_values(self):
+        """
+        Extracts CTDGV data from the glider data dictionary intiallized with
+        the particle class and puts the data into a CTDGV Data Particle.
+
+        @param result A returned list with sub dictionaries of the data
+        """
+        result = []
+
+        # find if any of the variables from the particle key list are in
+        # the data_dict and keep it
+        for key in CtdgvParticleKey.KEY_LIST:
+            if key in self.data_dict:
+                # read the value from the gpd dictionary
+                value = self.data_dict[key]['Data']
+
+                # check to see that the value is not a 'NaN'
+                if np.isnan(value):
+                    continue
+
+                # add the value to the record
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: value})
+
+            else:
+                log.warn("CGLDR_CTDGV_DELAYED: The particle defined in the" +
+                         "ParticleKey, %s, is not present in the current" % key +
+                         "data set. Confirm by checking the m, s, or tbdlist of " +
+                         "the glider to insure this is expected, or check the " +
+                         "standard lists, or Particle Keys")
+
+        return result
+
+
+class DostaParticleKey(DataParticleKey):
     KEY_LIST = [
         'm_gps_lat',
         'm_gps_lon',
@@ -186,7 +225,8 @@ class GldrDostaParticleKey(DataParticleKey):
         # need the CTD variables too for salinity corrections
         'sci_water_cond',
         'sci_water_temp',
-        'sci_water_pressure']
+        'sci_water_pressure'
+    ]
 
 
 class GgldrDostaDelayedDataParticle(GliderParticle):
@@ -202,7 +242,7 @@ class GgldrDostaDelayedDataParticle(GliderParticle):
         """
 
         result = []
-        for key in GldrDostaParticleKey.KEY_LIST:
+        for key in DostaParticleKey.KEY_LIST:
             if key in self.data_dict:
                 # read the value from the gpd dictionary
                 value = self.data_dict[key]['Data']
@@ -218,14 +258,50 @@ class GgldrDostaDelayedDataParticle(GliderParticle):
             else:
                 log.warn("GGLDR_DOSTA_DELAYED: The particle defined in the" +
                          "ParticleKey, %s, is not present in the current" % key +
-                         "data set.  Check that the m, s, or tbdlist of " +
-                         "the glider are the same as the standard lists, " +
-                         "or check the Particle Keys")
+                         "data set. Confirm by checking the m, s, or tbdlist of " +
+                         "the glider to insure this is expected, or check the " +
+                         "standard lists, or Particle Keys")
 
         return result
 
 
-class GldrFlordParticleKey(DataParticleKey):
+class CgldrDostaDelayedDataParticle(GliderParticle):
+    _data_particle_type = DataParticleType.CGLDR_DOSTA_DELAYED
+
+    def _build_parsed_values(self):
+        """
+        Takes a GliderParser object and extracts DOSTA data from the
+        data dictionary and puts the data into a DOSTA Data Particle.
+
+        @param gpd A GliderParser class instance.
+        @param result A returned list with sub dictionaries of the data
+        """
+
+        result = []
+        for key in DostaParticleKey.KEY_LIST:
+            if key in self.data_dict:
+                # read the value from the gpd dictionary
+                value = self.data_dict[key]['Data']
+
+                # check to see that the value is not a 'NaN'
+                if np.isnan(value):
+                    continue
+
+                # add the value to the record
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: value})
+
+            else:
+                log.warn("CGLDR_DOSTA_DELAYED: The particle defined in the" +
+                         "ParticleKey, %s, is not present in the current" % key +
+                         "data set. Confirm by checking the m, s, or tbdlist of " +
+                         "the glider to insure this is expected, or check the " +
+                         "standard lists, or Particle Keys")
+
+        return result
+
+
+class FlordParticleKey(DataParticleKey):
     KEY_LIST = [
         'm_gps_lat',
         'm_gps_lon',
@@ -254,7 +330,7 @@ class GgldrFlordDelayedDataParticle(GliderParticle):
         """
 
         result = []
-        for key in GldrFlordParticleKey.KEY_LIST:
+        for key in FlordParticleKey.KEY_LIST:
             if key in self.data_dict:
                 # read the value from the gpd dictionary
                 value = self.data_dict[key]['Data']
@@ -270,9 +346,9 @@ class GgldrFlordDelayedDataParticle(GliderParticle):
             else:
                 log.warn("GGLDR_FLORD_DELAYED: The particle defined in the" +
                          "ParticleKey, %s, is not present in the current" % key +
-                         "data set.  Check that the m, s, or tbdlist of " +
-                         "the glider are the same as the standard lists, " +
-                         "or check the Particle Keys")
+                         "data set. Confirm by checking the m, s, or tbdlist of " +
+                         "the glider to insure this is expected, or check the " +
+                         "standard lists, or Particle Keys")
 
             # sci_m_present_time is the proper timestamp to use with
             # science variables. However, when no scientific data is published
@@ -307,7 +383,61 @@ class GgldrFlordDelayedDataParticle(GliderParticle):
         return result
 
 
-class GgldrEngDelayedParticleKey(DataParticleKey):
+class FlortParticleKey(DataParticleKey):
+    KEY_LIST = [
+        'm_gps_lat',
+        'm_gps_lon',
+        'm_lat',
+        'm_lon',
+        'sci_flbbcd_bb_units',
+        'sci_flbbcd_cdom_units'
+        'sci_flbbcd_chlor_units',
+        'm_present_time',  # need m_ timestamps for lats & lons
+        'm_present_secs_into_mission',
+        'sci_m_present_time',
+        'sci_m_present_secs_into_mission'
+    ]
+
+
+class CgldrFlortDelayedDataParticle(GliderParticle):
+    _data_particle_type = DataParticleType.CGLDR_FLORT_DELAYED
+
+    def _build_parsed_values(self):
+        """
+        Takes a GliderParser object and extracts FLORD data from the
+        data dictionary and puts the data into a FLORD Data Particle.
+
+        @param result A returned list with sub dictionaries of the data
+        @throws SampleException if the data is not a glider data dictionary
+            produced by GliderParser._read_data
+        """
+
+        result = []
+        for key in FlortParticleKey.KEY_LIST:
+            if key in self.data_dict:
+                # read the value from the gpd dictionary
+                value = self.data_dict[key]['Data']
+
+                # check to see that the value is not a 'NaN'
+                if np.isnan(value):
+                    continue
+
+                # add the value to the record
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: value})
+
+            else:
+                log.warn("CGLDR_FLORT_DELAYED: The particle defined in the" +
+                         "ParticleKey, %s, is not present in the current" % key +
+                         "data set. Confirm by checking the m, s, or tbdlist of " +
+                         "the glider to insure this is expected, or check the " +
+                         "standard lists, or Particle Keys")
+
+        return result
+
+
+class EngineeringParticleKey(DataParticleKey):
+    # [TODO: This key list will need to be adjusted once confirmation is received from PS/SE]
     KEY_LIST = [
         'c_battpos',
         'c_wpt_lat',
@@ -328,7 +458,7 @@ class GgldrEngDelayedParticleKey(DataParticleKey):
         'm_speed',
         'm_water_vx',
         'm_water_vy',
-        'x_low_power_status',
+        'x_low_power_status'
     ]
 
 
@@ -346,7 +476,7 @@ class GgldrEngDelayedDataParticle(GliderParticle):
         """
 
         result = []
-        for key in GgldrEngDelayedParticleKey.KEY_LIST:
+        for key in EngineeringParticleKey.KEY_LIST:
             if key in self.data_dict:
                 # read the value from the gpd dictionary
                 value = self.data_dict[key]['Data']
@@ -362,9 +492,97 @@ class GgldrEngDelayedDataParticle(GliderParticle):
             else:
                 log.warn("GGLDR_ENG_DELAYED: The particle defined in the" +
                          "ParticleKey, %s, is not present in the current" % key +
-                         "data set.  Check that the m, s, or tbdlist of " +
-                         "the glider are the same as the standard lists, " +
-                         "or check the Particle Keys")
+                         "data set. Confirm by checking the m, s, or tbdlist of " +
+                         "the glider to insure this is expected, or check the " +
+                         "standard lists, or Particle Keys")
+
+        return result
+
+
+class CgldrEngDelayedDataParticle(GliderParticle):
+    _data_particle_type = DataParticleType.CGLDR_ENG_DELAYED
+
+    def _build_parsed_values(self):
+        """
+        Takes a GliderParser object and extracts engineering data from the
+        data dictionary and puts the data into a engineering Data Particle.
+
+        @param result A returned list with sub dictionaries of the data
+        @throws SampleException if the data is not a glider data dictionary
+            produced by GliderParser._read_data
+        """
+
+        result = []
+        for key in EngineeringParticleKey.KEY_LIST:
+            if key in self.data_dict:
+                # read the value from the gpd dictionary
+                value = self.data_dict[key]['Data']
+
+                # check to see that the value is not a 'NaN'
+                if np.isnan(value):
+                    continue
+
+                # add the value to the record
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: value})
+
+            else:
+                log.warn("CGLDR_ENG_DELAYED: The particle defined in the" +
+                         "ParticleKey, %s, is not present in the current" % key +
+                         "data set. Confirm by checking the m, s, or tbdlist of " +
+                         "the glider to insure this is expected, or check the " +
+                         "standard lists, or Particle Keys")
+
+        return result
+
+
+class ParadParticleKey(DataParticleKey):
+    KEY_LIST = [
+        'm_present_time',  # need m_ timestamps for lats & lons
+        'm_present_secs_into_mission',
+        'sci_m_present_time',
+        'sci_m_present_secs_into_mission'
+        'm_gps_lat',
+        'm_gps_lon',
+        'm_lat',
+        'm_lon',
+        'sci_bsipar_par'
+    ]
+
+
+class CgldrParadDelayedDataParticle(GliderParticle):
+    _data_particle_type = DataParticleType.CGLDR_PARAD_DELAYED
+
+    def _build_parsed_values(self):
+        """
+        Takes a GliderParser object and extracts engineering data from the
+        data dictionary and puts the data into a engineering Data Particle.
+
+        @param result A returned list with sub dictionaries of the data
+        @throws SampleException if the data is not a glider data dictionary
+            produced by GliderParser._read_data
+        """
+
+        result = []
+        for key in ParadParticleKey.KEY_LIST:
+            if key in self.data_dict:
+                # read the value from the gpd dictionary
+                value = self.data_dict[key]['Data']
+
+                # check to see that the value is not a 'NaN'
+                if np.isnan(value):
+                    continue
+
+                # add the value to the record
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: value})
+
+            else:
+                log.warn("CGLDR_PARAD_DELAYED: The particle defined in the" +
+                         "ParticleKey, %s, is not present in the current" % key +
+                         "data set. Confirm by checking the m, s, or tbdlist of " +
+                         "the glider to insure this is expected, or check the " +
+                         "standard lists, or Particle Keys")
 
         return result
 
@@ -471,7 +689,7 @@ class GliderParser(BufferLoadingParser):
         log.trace("Incrementing current state: %s with inc: %s",
                   self._read_state, increment)
         self._read_state[StateKey.POSITION] += increment
-        # Thomas, my monkey of a son, wanted this inserted in the code. -CW
+        # Thomas, my monkey of a son, wanted this comment inserted in the code. -CW
 
     def _read_data(self, data_record):
         """
