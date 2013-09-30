@@ -1,8 +1,8 @@
 driver_metadata:
-  author: Bill French
-  driver_name: hypm_ctd
-  driver_path: hypm/ctd
-  email: wfrench@ucsd.edu
+  author: Stuart Pearce & Chris Wingard
+  driver_name: glider_flort
+  driver_path: moas/gl/flort
+  email: spearce@coas.oregonstate.edu
   release_notes: initial release
   version: 0.0.1
-  constructor: HypmCTDPFDataSetDriver
+  constructor: FLORTDataSetDriver
