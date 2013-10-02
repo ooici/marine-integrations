@@ -123,6 +123,7 @@ class DataSetDriver(object):
         self._state_callback = state_callback
         self._exception_callback = exception_callback
         self._memento = memento
+        self._publisher_thread = None
 
         self._verify_config()
         self._param_dict = ProtocolParameterDict()
@@ -133,6 +134,9 @@ class DataSetDriver(object):
         self._particle_count_per_second = None
 
         self._build_param_dict()
+
+    def shutdown(self):
+        self.stop_sampling()
 
     def start_sampling(self):
         """
@@ -145,6 +149,9 @@ class DataSetDriver(object):
         """
         Stop the sampling thread
         """
+        log.debug("Stopping driver now")
+
+        self._stop_sampling()
         self._stop_publisher_thread()
 
     def _start_sampling(self):
@@ -164,18 +171,9 @@ class DataSetDriver(object):
 
         if cmd == 'execute_resource':
             if resource_cmd == DriverEvent.START_AUTOSAMPLE:
-                try:
-                    log.debug("start autosample")
-                    self.start_sampling()
-                except:
-                    log.error("Failed to start sampling", exc_info=True)
-                    raise
-
                 return (ResourceAgentState.STREAMING, None)
 
             elif resource_cmd == DriverEvent.STOP_AUTOSAMPLE:
-                log.debug("stop autosample")
-                self.stop_sampling()
                 return (ResourceAgentState.COMMAND, None)
 
             else:
@@ -312,9 +310,14 @@ class DataSetDriver(object):
 
     def _start_publisher_thread(self):
         self._publisher_thread = gevent.spawn(self._poll)
+        self._publisher_shutdown = False
 
     def _stop_publisher_thread(self):
-        self._publisher_thread.kill()
+        log.debug("Signal shutdown")
+        self._publisher_shutdown = True
+        if self._publisher_thread:
+            self._publisher_thread.join(timeout=self._polling_interval*2)
+        log.debug("shutdown complete")
 
     def _poll(self):
         raise NotImplementedException('virtual methond needs to be specialized')
@@ -346,8 +349,10 @@ class SimpleDataSetDriver(DataSetDriver):
         self._harvester.start()
 
     def _stop_sampling(self):
-        self._harvester.shutdown()
-        self._harvester = None
+        log.debug("Shutting down harvester")
+        if self._harvester:
+            self._harvester.shutdown()
+            self._harvester = None
 
     ####
     ##    Helpers
@@ -391,7 +396,7 @@ class SimpleDataSetDriver(DataSetDriver):
         log.info("Starting main publishing loop")
 
         try:
-            while(True):
+            while(not self._publisher_shutdown):
                 # If we have files, grab the first and process it.
                 count = len(self._new_file_queue)
                 log.trace("Checking for new files in queue, count: %d", count)
@@ -402,6 +407,8 @@ class SimpleDataSetDriver(DataSetDriver):
         except Exception as e:
             log.error("Exception in publisher thread: %s", e)
             self._exception_callback(e)
+
+        log.debug("publisher thread detected shutdown request")
 
     def _got_file(self, file_tuple):
         """

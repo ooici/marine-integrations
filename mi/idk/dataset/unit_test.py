@@ -162,6 +162,14 @@ class DataSetTestCase(MiIntTestCase):
 
         return data_dir
 
+    def remove_sample_dir(self):
+        """
+        Remove the sample dir and all files
+        """
+        data_dir = self.create_data_dir()
+        self.clear_sample_data()
+        os.rmdir(data_dir)
+
     def clear_sample_data(self):
         """
         Remove all files from the sample data directory
@@ -235,6 +243,12 @@ class DataSetUnitTestCase(DataSetTestCase):
             self.data_callback,
             self.state_callback,
             self.exception_callback)
+
+        self.addCleanup(self._stop_driver)
+
+    def _stop_driver(self):
+        if self.driver:
+            self.driver.shutdown()
 
     def clear_async_data(self):
         self.state_callback_result = []
@@ -321,11 +335,14 @@ class DataSetQualificationTestCase(DataSetTestCase):
 
         self.container = self.instrument_agent_manager.container
 
+        gevent.sleep(5)
         log.debug("Packet Config: %s", self.test_config.agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.agent_packet_config,
             )
+        log.debug("FIT HERE!")
         self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.agent_resource_id)
+        log.debug("FIT THERE!")
 
         self.init_dataset_agent_client()
 
@@ -334,8 +351,21 @@ class DataSetQualificationTestCase(DataSetTestCase):
 
         log.debug("********* setUp complete.  Begin Testing *********")
 
+        self.addCleanup(self._end_test)
+
+    def _end_test(self):
+        """
+        Cleanup after the test completes or fails
+        """
+        self.assert_reset()
+        self.event_subscribers.stop()
+        self.data_subscribers.stop_data_subscribers()
+        self.instrument_agent_manager.stop_container()
+
+        log.debug("Test complete and all cleaned up.")
+
     def init_dataset_agent_client(self):
-        log.info("Start Instrument Agent Client")
+        log.info("Start Dataset Agent Client")
 
         # Start instrument agent client.
         self.instrument_agent_manager.start_client(
@@ -344,7 +374,8 @@ class DataSetQualificationTestCase(DataSetTestCase):
             cls=self.test_config.agent_class,
             config=self._agent_config(),
             resource_id=self.test_config.agent_resource_id,
-            deploy_file=self.test_config.container_deploy_file
+            deploy_file=self.test_config.container_deploy_file,
+            bootmode='reset'
         )
 
         self.dataset_agent_client = self.instrument_agent_manager.instrument_agent_client
@@ -380,7 +411,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
             if(not self.data_subscribers.samples_received.has_key(stream_name) or
                len(self.data_subscribers.samples_received.get(stream_name)) == 0):
                 log.debug("No samples in the queue, sleep for a bit to let the queue fill up")
-                gevent.sleep(1)
+                gevent.sleep(.2)
 
         log.debug("get_samples() complete.  returning %d records", sample_count)
         return result
@@ -408,11 +439,6 @@ class DataSetQualificationTestCase(DataSetTestCase):
         '''
         Walk through DSA states to get to streaming mode from uninitialized
         '''
-        state = self.dataset_agent_client.get_agent_state()
-
-        with self.assertRaises(Conflict):
-            res_state = self.dataset_agent_client.get_resource_state()
-
         log.debug("Initialize DataSet agent")
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.dataset_agent_client.execute_agent(cmd)
@@ -469,9 +495,67 @@ class DataSetQualificationTestCase(DataSetTestCase):
         '''
         Put the instrument back in uninitialized
         '''
-        cmd = AgentCommand(command=ResourceAgentEvent.RESET)
-        retval = self.dataset_agent_client.execute_agent(cmd)
+        agent_state = self.dataset_agent_client.get_agent_state()
+
+        if agent_state != ResourceAgentState.UNINITIALIZED:
+            cmd = AgentCommand(command=ResourceAgentEvent.RESET)
+            retval = self.dataset_agent_client.execute_agent(cmd)
+            state = self.dataset_agent_client.get_agent_state()
+            self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+
+    def assert_agent_state(self, target_state):
+        """
+        Verify the current agent state
+        @param target_state: What we expect the agent state to be
+        """
         state = self.dataset_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+        self.assertEqual(state, target_state)
 
+    def assert_agent_command(self, command, args=None, timeout=None):
+        """
+        Verify an agent command
+        @param command: driver command to execute
+        @param args: kwargs to pass to the agent command object
+        """
+        cmd = AgentCommand(command=command, kwargs=args)
+        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
 
+    def assert_resource_command(self, command, args=None, timeout=None):
+        """
+        Verify a resource command
+        @param command: driver command to execute
+        @param args: kwargs to pass to the agent command object
+        """
+        cmd = AgentCommand(command=command, kwargs=args)
+        retval = self.dataset_agent_client.execute_resource(cmd)
+
+    def assert_state_change(self, target_agent_state, timeout=10):
+        """
+        Verify the agent and resource states change as expected within the timeout
+        Fail if the state doesn't change to the expected state.
+        @param target_agent_state: State we expect the agent to be in
+        @param timeout: how long to wait for the driver to change states
+        """
+        to = gevent.Timeout(timeout)
+        to.start()
+        done = False
+        agent_state = None
+
+        try:
+            while(not done):
+
+                agent_state = self.dataset_agent_client.get_agent_state()
+                log.error("Current agent state: %s", agent_state)
+
+                if(agent_state == target_agent_state):
+                    log.debug("Current state match: %s", agent_state)
+                    done = True
+
+                if not done:
+                    log.debug("state mismatch, waiting for state to transition.")
+                    gevent.sleep(1)
+        except Timeout:
+            log.error("Failed to transition agent state to %s, current state: %s", target_agent_state, agent_state)
+            self.fail("Failed to transition state.")
+        finally:
+            to.cancel()

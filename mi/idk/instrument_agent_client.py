@@ -24,6 +24,8 @@ from mi.core.log import get_logger ; log = get_logger()
 from pyon.core import bootstrap
 bootstrap.testing = False
 
+from copy import deepcopy
+
 from mi.core.common import BaseEnum
 from mi.idk.config import Config
 
@@ -70,22 +72,26 @@ class InstrumentAgentClient(object):
     """
     container = Container.instance
 
-    def start_client(self, name, module, cls, config, resource_id, deploy_file = DEFAULT_DEPLOY, message_headers=None):
+    def start_client(self, name, module, cls, config, resource_id, deploy_file = DEFAULT_DEPLOY, message_headers=None, bootmode=None):
         """
         @brief Start up the instrument agent client
         """
         self.start_container(deploy_file=deploy_file)
 
         # Start instrument agent.
-        log.debug("Starting Instrument Agent Client")
+        log.debug("Starting Agent Client")
         container_client = ContainerAgentClient(node=self.container.node,
             to_name=self.container.name)
 
+        agent_config = deepcopy(config)
+        agent_config['bootmode'] = bootmode
+
+        log.debug("Agent config: %s", agent_config)
         instrument_agent_pid = container_client.spawn_process(
             name=name,
             module=module,
             cls=cls,
-            config=config,
+            config=agent_config,
             headers=message_headers)
         log.info('Agent pid=%s.', instrument_agent_pid)
 
@@ -102,7 +108,7 @@ class InstrumentAgentClient(object):
         @param deploy_file Deployment file to use to start the container
         @param container_config container parameters that we want to overload
         """
-        log.info("Startup Instrument Agent")
+        log.info("Startup the capability container")
 
         if Config().get("start_couch"):
             self.start_couchdb()
@@ -374,6 +380,8 @@ class InstrumentAgentDataSubscribers(object):
             except Exception as e:
                 log.error("stream publisher exception: %s", e)
 
+            log.debug("Stream config setup complete.")
+
     def start_data_subscribers(self):
         """
         """        
@@ -516,8 +524,5 @@ class InstrumentAgentEventSubscribers(object):
             log.warn("Failed to stop event subscriber gracefully (%s)" % ex)
 
         self.event_subscribers = []
-
-
-
 
 
