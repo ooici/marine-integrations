@@ -3,65 +3,31 @@
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
-from os.path import basename, dirname
-from os import makedirs
-from os.path import exists
-import sys
-
 from mi.core.log import get_logger ; log = get_logger()
 
 from nose.plugins.attrib import attr
-from mi.core.time import *
-import unittest
 from mi.core.unit_test import MiUnitTest
-import datetime
-import time as system_time
-from mi.idk.exceptions import InvalidParameters
+from mi.core.sequencer import Sequencer
 
 @attr('UNIT', group='mi')
-class TestTime(MiUnitTest):
-    """
-    Test the time functions
-    """    
-    def setUp(self):
-        """
-        Setup the test case
-        """
-
+class TestSequencer(MiUnitTest):
     def test_timestamp(self):
         """
         Test the creation of a timestamp string but generation
         """
-        stamp = get_timestamp("%H:%M:%S")
-        self.assertTrue(stamp)
+        sequencer = Sequencer()
+        current = sequencer.get_sequence_id()
 
+        log.debug("current seq_id: %s", sequencer.get_sequence_id())
+        self.assertIsNotNone(current)
 
-    def test_delayed_timestamp(self):
-        """
-        Test the creation of a timestamp string but generation is
-        delayed to the edge of a second.
-        """
-        stamp = get_timestamp_delayed("%H:%M:%S")
-        now = datetime.datetime.utcnow()
-        self.assertLess(now.microsecond, 200);
+        self.assertEqual(sequencer.increment_sequence_index(), 0)
+        self.assertEqual(sequencer.increment_sequence_index(), 1)
+        self.assertEqual(sequencer.increment_sequence_index(), 2)
+        self.assertEqual(sequencer.increment_sequence_index(), 3)
+        self.assertEqual(sequencer.get_sequence_id(), current)
 
-        # test for an empty format string
-        raised = False
-        try:
-            stamp = get_timestamp_delayed(None)
-        except ValueError as e:
-            raised = True
-        self.assertTrue(raised)
+        sequencer.reset_sequence_id()
+        log.debug("current seq_id: %s", sequencer.get_sequence_id())
+        self.assertNotEqual(sequencer.get_sequence_id(), current)
 
-
-    @unittest.skip("This test fails regularly on the buildbot system, gevent maybe?")
-    def test_extended_delayed_timestamp(self):
-        """
-        Test the creation of a timestamp string but generation is
-        delayed to the edge of a second.  Run multiple tests.
-        """
-        for x in range(0, 20):
-            stamp = get_timestamp_delayed("%H:%M:%S")
-            now = datetime.datetime.utcnow()
-            self.assertLess(now.microsecond, 100)
-            system_time.sleep(0.1)
