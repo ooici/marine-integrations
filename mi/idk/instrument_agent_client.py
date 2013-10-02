@@ -517,6 +517,12 @@ class InstrumentAgentEventSubscribers(object):
         self.event_subscribers._ready_event.wait(timeout=5)
 
 
+    def clear_events(self):
+        """
+        Reset event counter
+        """
+        self._events_received = []
+
     def stop(self):
         try:
             self.event_subscribers.stop()

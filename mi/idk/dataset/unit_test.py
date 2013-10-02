@@ -340,9 +340,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.agent_packet_config,
             )
-        log.debug("FIT HERE!")
         self.event_subscribers = InstrumentAgentEventSubscribers(instrument_agent_resource_id=self.test_config.agent_resource_id)
-        log.debug("FIT THERE!")
 
         self.init_dataset_agent_client()
 
@@ -470,7 +468,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
         state = self.dataset_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.STREAMING)
 
-        log.debug("DataSet agent start sampling")
+        log.debug("DataSet agent stop sampling")
         cmd = AgentCommand(command=DriverEvent.STOP_AUTOSAMPLE)
         retval = self.dataset_agent_client.execute_resource(cmd)
         state = self.dataset_agent_client.get_agent_state()
@@ -559,3 +557,33 @@ class DataSetQualificationTestCase(DataSetTestCase):
             self.fail("Failed to transition state.")
         finally:
             to.cancel()
+
+    def assert_event_received(self, event_object_type, timeout=10):
+        """
+        Verify an event has been received of a sepecific type
+        @param event_object_type: Event object we are looking for
+        @param timeout: how long to wait
+        """
+        to = gevent.Timeout(timeout)
+        to.start()
+        done = False
+
+        try:
+            while(not done):
+                for event in self.event_subscribers.events_received:
+                    log.debug("Event: %s", event)
+
+                    if isinstance(event, event_object_type):
+                        done = True
+
+                if not done:
+                    log.debug("target event not detected, sleep a bit to let events happen")
+                    gevent.sleep(1)
+        except Timeout:
+            log.error("Failed to find event in queue: %s", event_object_type)
+            log.error("Current event queue: %s", self.event_subscribers._events_received)
+            self.fail("%s event not detected")
+        finally:
+            to.cancel()
+
+        log.info("Expected event detected: %s", event)

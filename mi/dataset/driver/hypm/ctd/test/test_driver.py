@@ -50,6 +50,8 @@ from pyon.agent.agent import ResourceAgentState
 
 from interface.objects import CapabilityType
 from interface.objects import AgentCapability
+from interface.objects import ResourceAgentErrorEvent
+from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.hypm.ctd.driver',
@@ -358,7 +360,6 @@ class QualificationTest(DataSetQualificationTestCase):
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        return
         log.error("CONFIG: %s", self._agent_config())
         self.create_sample_data('test_data_1.txt', 'DATA001.txt')
 
@@ -381,8 +382,11 @@ class QualificationTest(DataSetQualificationTestCase):
             self.create_sample_data('test_data_3.txt', 'DATA003.txt')
             # Now read the first three records of the second file then stop
             result = self.get_samples(SAMPLE_STREAM, 3)
+            log.debug("AAAAAAAAA")
             self.assert_stop_sampling()
+            log.debug("BBBBBBBBB")
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            log.debug("CCCCCCCCC")
 
             # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()
@@ -403,10 +407,11 @@ class QualificationTest(DataSetQualificationTestCase):
         self.remove_sample_dir()
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
+        self.event_subscribers.clear_events()
         self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
 
         self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 60)
-        # TODO Ensure event raised
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
 
         self.create_data_dir()
 
@@ -425,16 +430,16 @@ class QualificationTest(DataSetQualificationTestCase):
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
+        self.event_subscribers.clear_events()
         self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
         self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 60)
-        # TODO Ensure event raised
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
 
         self.clear_sample_data()
         self.create_sample_data('DATA003.txt')
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 60)
-        # TODO Ensure event raised
 
     def test_parser_exception(self):
         """
@@ -446,19 +451,10 @@ class QualificationTest(DataSetQualificationTestCase):
 
         self.assert_initialize()
 
+        self.event_subscribers.clear_events()
         result = self.get_samples(SAMPLE_STREAM, 9)
         self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
         # Verify an event was raised and we are in our retry state
-        # TODO Ensure event raised
-        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 60)
-
-        # Now "correct" the file and want the state change
-        self.create_sample_data('test_data_2.corrected.txt', 'DATA002.txt')
-        self.assert_state_change(ResourceAgentState.STREAMING, 60)
-
-        result = self.get_samples(SAMPLE_STREAM, 1)
-        self.assert_sample_queue_size(SAMPLE_STREAM, 0)
-
-
-
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_state_change(ResourceAgentState.STREAMING, 10)
