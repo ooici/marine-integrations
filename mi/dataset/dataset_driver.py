@@ -230,11 +230,6 @@ class DataSetDriver(object):
         self._polling_interval = self._param_dict.get(DriverParameter.HARVESTER_POLLING_INTERVAL)
         log.trace("Driver Parameters: %s, %s, %s", self._polling_interval, self._particle_count_per_second, self._generate_particle_count)
 
-        # If we want to batch to the agent then we need to do a little work with sequence id and indexes.  it's going
-        # to be a somewhat complex and requires extensive testing when implemented.
-        if(self._generate_particle_count > 1):
-            raise ValueError("Currently only particle count of 1 support.")
-
     def get_resource(self, *args, **kwargs):
         """
         Get driver parameter
