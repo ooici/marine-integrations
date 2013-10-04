@@ -34,7 +34,7 @@ class DataSourceConfigKey(BaseEnum):
 class DriverParameter(BaseEnum):
     ALL = 'ALL'
     RECORDS_PER_SECOND = 'records_per_second'
-    HARVESTER_POLLING_INTERVAL = 'harvester_polling_interval'
+    PUBLISHER_POLLING_INTERVAL = 'publisher_polling_interval'
     BATCHED_PARTICLE_COUNT = 'batched_particle_count'
 
 class DataSourceLocation(object):
@@ -216,7 +216,7 @@ class DataSetDriver(object):
         for (key, val) in params.iteritems():
             if key in [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.RECORDS_PER_SECOND]:
                 if not isinstance(val, int): raise InstrumentParameterException("%s must be an integer" % key)
-            if key in [DriverParameter.HARVESTER_POLLING_INTERVAL]:
+            if key in [DriverParameter.PUBLISHER_POLLING_INTERVAL]:
                 if not isinstance(val, (int, float)): raise InstrumentParameterException("%s must be an float" % key)
 
             if val <= 0:
@@ -227,7 +227,7 @@ class DataSetDriver(object):
         # Set the driver parameters
         self._generate_particle_count = self._param_dict.get(DriverParameter.BATCHED_PARTICLE_COUNT)
         self._particle_count_per_second = self._param_dict.get(DriverParameter.RECORDS_PER_SECOND)
-        self._polling_interval = self._param_dict.get(DriverParameter.HARVESTER_POLLING_INTERVAL)
+        self._polling_interval = self._param_dict.get(DriverParameter.PUBLISHER_POLLING_INTERVAL)
         log.trace("Driver Parameters: %s, %s, %s", self._polling_interval, self._particle_count_per_second, self._generate_particle_count)
 
     def get_resource(self, *args, **kwargs):
@@ -287,7 +287,7 @@ class DataSetDriver(object):
 
         self._param_dict.add_parameter(
             Parameter(
-                DriverParameter.HARVESTER_POLLING_INTERVAL,
+                DriverParameter.PUBLISHER_POLLING_INTERVAL,
                 float,
                 value=1,
                 type=ParameterDictType.FLOAT,

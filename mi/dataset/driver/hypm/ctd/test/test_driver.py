@@ -167,7 +167,7 @@ class UnitTest(DataSetUnitTestCase):
         """
         Verify that we can get, set, and report all driver parameters.
         """
-        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.HARVESTER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
+        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
         (res_cmds, res_params) = self.driver.get_resource_capabilities()
 
         # Ensure capabilities are as expected
@@ -179,30 +179,30 @@ class UnitTest(DataSetUnitTestCase):
         params = self.driver.get_resource(DriverParameter.ALL)
         log.debug("Get Resources Result: %s", params)
         self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
-        self.assertEqual(params[DriverParameter.HARVESTER_POLLING_INTERVAL], 1)
+        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 1)
         self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
 
         # Try set resource individually
         self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 2})
-        self.driver.set_resource({DriverParameter.HARVESTER_POLLING_INTERVAL: 2})
+        self.driver.set_resource({DriverParameter.PUBLISHER_POLLING_INTERVAL: 2})
         self.driver.set_resource({DriverParameter.RECORDS_PER_SECOND: 59})
 
         params = self.driver.get_resource(DriverParameter.ALL)
         log.debug("Get Resources Result: %s", params)
         self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 2)
-        self.assertEqual(params[DriverParameter.HARVESTER_POLLING_INTERVAL], 2)
+        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 2)
         self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 59)
 
         # Try set resource in bulk
         self.driver.set_resource(
             {DriverParameter.BATCHED_PARTICLE_COUNT: 1,
-             DriverParameter.HARVESTER_POLLING_INTERVAL: .1,
+             DriverParameter.PUBLISHER_POLLING_INTERVAL: .1,
              DriverParameter.RECORDS_PER_SECOND: 60})
 
         params = self.driver.get_resource(DriverParameter.ALL)
         log.debug("Get Resources Result: %s", params)
         self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
-        self.assertEqual(params[DriverParameter.HARVESTER_POLLING_INTERVAL], .1)
+        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .1)
         self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
 
         # Set with some bad values
@@ -219,7 +219,7 @@ class UnitTest(DataSetUnitTestCase):
             DataSourceConfigKey.HARVESTER: driver_config.get(DataSourceConfigKey.HARVESTER),
             DataSourceConfigKey.PARSER: driver_config.get(DataSourceConfigKey.PARSER),
             DataSourceConfigKey.DRIVER: {
-                DriverParameter.HARVESTER_POLLING_INTERVAL: .2,
+                DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
                 DriverParameter.RECORDS_PER_SECOND: 3,
                 DriverParameter.BATCHED_PARTICLE_COUNT: 3,
             }
@@ -234,12 +234,12 @@ class UnitTest(DataSetUnitTestCase):
         params = self.driver.get_resource(DriverParameter.ALL)
         log.debug("Get Resources Result: %s", params)
         self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 3)
-        self.assertEqual(params[DriverParameter.HARVESTER_POLLING_INTERVAL], .2)
+        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .2)
         self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 3)
 
         # Finally verify we get a KeyError when sending in bad config keys
         cfg[DataSourceConfigKey.DRIVER] = {
-            DriverParameter.HARVESTER_POLLING_INTERVAL: .2,
+            DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
             DriverParameter.RECORDS_PER_SECOND: 3,
             DriverParameter.BATCHED_PARTICLE_COUNT: 3,
             'something_extra': 1
@@ -372,7 +372,7 @@ class QualificationTest(DataSetQualificationTestCase):
             return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
 
         log.debug("Initialize the agent")
-        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.HARVESTER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
+        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         log.debug("Call get capabilities")
@@ -412,11 +412,8 @@ class QualificationTest(DataSetQualificationTestCase):
             self.create_sample_data('test_data_3.txt', 'DATA003.txt')
             # Now read the first three records of the second file then stop
             result = self.get_samples(SAMPLE_STREAM, 3)
-            log.debug("AAAAAAAAA")
             self.assert_stop_sampling()
-            log.debug("BBBBBBBBB")
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
-            log.debug("CCCCCCCCC")
 
             # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()
@@ -440,13 +437,13 @@ class QualificationTest(DataSetQualificationTestCase):
         self.event_subscribers.clear_events()
         self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
 
-        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 60)
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
         self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
 
         self.create_data_dir()
 
         # Should automatically retry connect and transition to streaming
-        self.assert_state_change(ResourceAgentState.STREAMING, 60)
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
 
     def test_harvester_new_file_exception(self):
         """
@@ -462,14 +459,14 @@ class QualificationTest(DataSetQualificationTestCase):
 
         self.event_subscribers.clear_events()
         self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
-        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 60)
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
         self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
 
         self.clear_sample_data()
         self.create_sample_data('DATA003.txt')
 
         # Should automatically retry connect and transition to streaming
-        self.assert_state_change(ResourceAgentState.STREAMING, 60)
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
 
     def test_parser_exception(self):
         """
