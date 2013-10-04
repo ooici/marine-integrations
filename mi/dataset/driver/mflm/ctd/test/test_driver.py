@@ -25,6 +25,7 @@ from mock import Mock
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.idk.dataset.unit_test import DataSetTestCase
+from mi.idk.dataset.unit_test import DataSetUnitTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
@@ -76,6 +77,18 @@ cd3e3c2f53616d706c65446174613e0d0a3c45786563757465642f3e0d0a03014354313233373230
         fh.write(binascii.unhexlify(self.TEST_DATA_1.replace('/n', '')))
         fh.close()
 
+
+###############################################################################
+#                            UNIT TESTS                                #
+# Device specific integration tests are for                                   #
+# testing device specific capabilities                                        #
+###############################################################################
+@attr('UNIT', group='mi')
+class UnitTest(DataSetUnitTestCase):
+    def setUp(self):
+        sample_data = SampleData(self.test_config.driver_startup_config.harvester.directory)
+        sample_data.create_sample_data()
+        log.debug("Created test data")
         
 
 ###############################################################################

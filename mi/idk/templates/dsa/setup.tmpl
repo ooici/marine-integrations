@@ -1,14 +1,22 @@
+import glob
 from setuptools import setup, find_packages
 
+resource_dir = '${name}/mi/dataset/driver/${driver_path}/resource'
+data_list = []
+for f in glob.glob(resource_dir + '/*'):
+    data_list.append((resource_dir, [f]))
+data_list.append(('${name}/mi', ['${name}/res/config/mi-logging.yml']))
+data_list.append(('${name}/mi/dataset/driver/${driver_path}', ['${name}/mi/dataset/driver/${driver_path}/metadata.yml']))
+
 setup(
-    name='${name}',
+    name='${short_name}',
     version='${version}',
     description='${description}',
     author='${author}',
     author_email='${email}',
     url='${url}',
     packages=find_packages(),
-    data_files=[('mi', ['${name}/res/config/mi-logging.yml'])],
+    data_files=data_list,
     entry_points = {
         '${entry_point_group}': '${versioned_constructor}'
     },

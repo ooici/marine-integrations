@@ -1,18 +1,26 @@
+import glob
 from setuptools import setup, find_packages
 
+resource_dir = '${name}/mi/instrument/${driver_path}/resource'
+data_list = []
+for f in glob.glob(resource_dir + '/*'):
+    data_list.append((resource_dir, [f]))
+data_list.append(('${name}/mi', ['${name}/res/config/mi-logging.yml']))
+data_list.append(('${name}/mi/instrument/${driver_path}', ['${name}/mi/instrument/${driver_path}/metadata.yml']))
+
 setup(
-    name='${name}',
+    name='${short_name}',
     version='${version}',
     description='${description}',
     author='${author}',
     author_email='${email}',
     url='${url}',
     packages=find_packages(),
-    data_files=[('mi', ['res/config/mi-logging.yml'])],
+    data_files=data_list,
     entry_points = {
         'setuptools.installation': [
-            'eggsecutable = mi.main:run',
-        ]
+            'eggsecutable = ${name}.mi.main:run',
+        ],
     },
     dependency_links = [
         'https://github.com/ooici/utilities/tarball/master#egg=utilities-9999'

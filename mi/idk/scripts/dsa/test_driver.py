@@ -3,23 +3,20 @@ __author__ = 'Bill French'
 import argparse
 
 from mi.idk.dataset.nose_test import NoseTest
-from mi.idk.nose_test import BUILDBOT_DRIVER_FILE
 from mi.idk.dataset.metadata import Metadata
 from mi.core.log import get_logger ; log = get_logger()
 
 import yaml
 import os
+import re
+from glob import glob
 from mi.idk.config import Config
-from mi.idk.nose_test import BuildBotConfig
-
-BUILDBOT_DRIVER_FILE = "config/buildbot.yml"
 
 
 def run():
     """
-    Run tests for one or more drivers.  If -b is passed then
-    we read driver list from the build bot configuration, otherwise
-    we use the current IDK driver.
+    Run tests for one or more dataset drivers.  If -b is passed then
+    we build all drivers, otherwise we use the current IDK driver.
     @return: If any test fails return false, otherwise true
     """
 
@@ -27,7 +24,10 @@ def run():
     failure = False
 
     for metadata in get_metadata(opts):
-        app = NoseTest(metadata, testname=opts.testname, suppress_stdout=opts.suppress_stdout, noseargs=opts.noseargs)
+        app = NoseTest(metadata,
+                       testname=opts.testname,
+                       suppress_stdout=opts.suppress_stdout,
+                       noseargs=opts.noseargs)
 
         app.report_header()
 
@@ -37,8 +37,6 @@ def run():
             success = app.run_integration()
         elif( opts.qualification ):
             success = app.run_qualification()
-        elif( opts.publication ):
-            success = app.run_publication()
         else:
             success = app.run()
 
@@ -49,23 +47,18 @@ def run():
 def get_metadata(opts):
     """
     return a list of metadata objects that we would like to
-    run test for.  If buildbot option is set then we read
-    from the config file, otherwise we return the current
-    IDK driver metadata
+    run test for.  If buildall option is set then we search
+    the working directory tree for drivers, otherwise we
+    return the current IDK driver metadata
     @param opts: command line options dictionary.
     @return: list of all metadata data objects we would
              like to run tests for.
     """
     result = []
-    if(opts.buildbot):
-        devices = read_buildbot_config()
-        ret = True
-        for (key, config) in devices:
-            make = config.get(BuildBotConfig.MAKE)
-            model = config.get(BuildBotConfig.MODEL)
-            flavor =config.get(BuildBotConfig.FLAVOR)
-            metadata = Metadata(make, model, flavor)
-            result.append(metadata)
+    if(opts.buildall):
+        paths = get_driver_paths()
+        for path in paths:
+            result.append(Metadata(path))
         pass
     else:
         result.append(Metadata())
@@ -82,42 +75,37 @@ def parseArgs():
                         help="only run integration tests" )
     parser.add_argument("-q", dest='qualification', action="store_true",
                         help="only run qualification tests" )
-    parser.add_argument("-p", dest='publication', action="store_true",
-        help="only run publication tests" )
-    parser.add_argument("-b", dest='buildbot', action="store_true",
-        help="run all tests for drivers listed in %s" % BUILDBOT_DRIVER_FILE)
+    parser.add_argument("-b", dest='buildall', action="store_true",
+                        help="run all tests for all drivers")
     parser.add_argument("-t", dest='testname',
                         help="test function name to run (all if not set)" )
     parser.add_argument("-n", dest='noseargs',
-        help="extra nosetest args, use '+' for '-'" )
+                        help="extra nosetest args, use '+' for '-'" )
     #parser.add_argument("-m", dest='launch_monitor', action="store_true",
     #                    help="Launch data file monitor" )
     return parser.parse_args()
 
-def read_buildbot_config():
+def get_driver_paths():
     """
-    Read the buildbot driver config and return a list of tuples with driver configs.
-    We read the entire config file first so we can raise an exception before we run
-    any tests.
-    @return: list of tuples containing driver configs.
-    @raise IDKConfigMissing if a driver config is missing a parameter
+    @brief Get a list of all the different dataset driver paths in the working
+    directory
     """
-    config_file = os.path.join(Config().base_dir(), BUILDBOT_DRIVER_FILE)
-    drivers = yaml.load(file(config_file))
-
-    log.error("Read drivers from %s" % config_file)
-    log.error("Yaml load result: %s" % drivers)
-
     result = []
+    driver_dir = os.path.join(Config().get("working_repo"), 'mi', 'dataset', 'driver')
+    log.debug("Driver Dir: %s", driver_dir)
 
-    # verify we have everything we need in the config
-    for (key, config) in drivers.items():
-        if(not config.get(BuildBotConfig.MAKE)
-           or not config.get(BuildBotConfig.MODEL)
-           or not config.get(BuildBotConfig.FLAVOR)):
-            raise IDKConfigMissing("%s missing configuration" % key)
+    files = []
+    for dirname,_,_ in os.walk(driver_dir):
+        files.extend(glob(os.path.join(dirname,"metadata.yml")))
 
-    return drivers.items()
+    log.debug("Files: %s", files)
+
+    for f in files:
+        matcher = re.compile( "%s/(.*)/metadata.yml" % driver_dir )
+        match = matcher.match(f)
+        result.append(match.group(1))
+
+    return result
 
 if __name__ == '__main__':
     run()
