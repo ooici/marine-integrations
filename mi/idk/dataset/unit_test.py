@@ -320,6 +320,12 @@ class DataSetUnitTestCase(DataSetTestCase):
             self.assertTrue(rs.verify(self.data_callback_result))
 
 
+class DataSetIntegrationTestCase(DataSetTestCase):
+    """
+    Base class for instrument driver unit tests
+    """
+
+
 class DataSetQualificationTestCase(DataSetTestCase):
     """
     Base class for instrument driver unit tests

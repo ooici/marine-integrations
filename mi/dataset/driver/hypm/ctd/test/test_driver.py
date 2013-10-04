@@ -260,15 +260,26 @@ class UnitTest(DataSetUnitTestCase):
 
         ###
         #   One file, no breaks, should only have 1 new sequence flag
-        ###
-
-        ###
         #   New sequence flag when a new file is read
         ###
+        self.clear_sample_data()
+
+        self.driver.start_sampling()
+
+        self.clear_async_data()
+        self.create_sample_data('test_data_1.txt', "DATA001.txt")
+        self.assert_data(CtdpfParserDataParticle, 'test_data_1.txt.result.yml', count=1, timeout=10)
+
+        self.clear_async_data()
+        self.create_sample_data('test_data_3.txt', "DATA002.txt")
+        self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.result.yml', count=8, timeout=10)
 
         ###
         #   New sequence flag when noise if detected between records
         ###
+        self.clear_async_data()
+        self.create_sample_data('test_data_4.txt', "DATA004.txt")
+        self.assert_data(CtdpfParserDataParticle, 'test_data_4.txt.result.yml', count=8, timeout=10)
 
         ###  Exceptions in the publisher are handled in the agent
 

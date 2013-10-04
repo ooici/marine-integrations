@@ -195,6 +195,8 @@ class CtdpfParser(BufferLoadingParser):
         """            
         result_particles = []
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+        non_data = None
+
         # sieve looks for timestamp, update and increment position
         while (chunk != None):
             time_match = TIME_MATCHER.match(chunk)
@@ -207,6 +209,7 @@ class CtdpfParser(BufferLoadingParser):
             elif data_match:
                 if self._timestamp <= 1.0:
                     raise SampleException("No reasonable timestamp encountered at beginning of file!")
+
                 # particle-ize the data block received, return the record
                 sample = self._extract_sample(self._particle_class, DATA_MATCHER, chunk, self._timestamp)
                 if sample:
@@ -215,8 +218,17 @@ class CtdpfParser(BufferLoadingParser):
                     self._increment_state(end, self._timestamp)    
                     self._increment_timestamp() # increment one samples worth of time
                     result_particles.append((sample, copy.copy(self._read_state)))
+
+                # Check for noise between records, but ignore newline.  This is detecting noise following
+                # the last successful chunk read which is why it is post sample generation.
+                if non_data is not None and non_data != "\n":
+                    log.info("Gap in datafile detected.")
+                    log.trace("Noise detected: %s", non_data)
+                    self.start_new_sequence()
+
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-                       
+            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
+
         return result_particles
    
 
