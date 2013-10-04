@@ -253,6 +253,25 @@ class UnitTest(DataSetUnitTestCase):
                 self.state_callback,
                 self.exception_callback)
 
+    def test_sequences(self):
+        """
+        Test new sequence flags are set correctly
+        """
+
+        ###
+        #   One file, no breaks, should only have 1 new sequence flag
+        ###
+
+        ###
+        #   New sequence flag when a new file is read
+        ###
+
+        ###
+        #   New sequence flag when noise if detected between records
+        ###
+
+        ###  Exceptions in the publisher are handled in the agent
+
 
 ###############################################################################
 

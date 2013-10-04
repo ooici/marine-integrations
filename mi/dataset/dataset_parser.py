@@ -41,10 +41,17 @@ class Parser(object):
         self._state_callback = state_callback
         self._publish_callback = publish_callback
         self._config = config
+        self._new_sequence = True
         
         #build class from module and class name, then set the state
         self._particle_module = __import__(config.get("particle_module"), fromlist = [config.get("particle_class")])
         self._particle_class = getattr(self._particle_module, config.get("particle_class"))
+
+    def start_new_sequence(self):
+        """
+        Reset the seqeunce flag to true
+        """
+        self._new_sequence = True
 
     def get_records(self, max_count):
         """
@@ -71,8 +78,7 @@ class Parser(object):
         else:
             self._publish_callback([samples])
         
-    @staticmethod
-    def _extract_sample(particle_class, regex, line, timestamp):
+    def _extract_sample(self, particle_class, regex, line, timestamp):
         """
         Extract sample from a response line if present and publish
         parsed particle
@@ -84,13 +90,14 @@ class Parser(object):
         @param line string to match for sample.
         @retval return a raw particle if a sample was found, else None
         """
-        #parsed_sample = None
         particle = None
         if regex.match(line):
             particle = particle_class(line, internal_timestamp=timestamp,
-                                      preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP)
-            #parsed_sample = particle.generate()
-        
+                                      preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP, new_sequence=self._new_sequence)
+
+            if self._new_sequence:
+                self._new_sequence = False
+
         return particle
     
 class BufferLoadingParser(Parser):

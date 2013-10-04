@@ -86,7 +86,7 @@ class DataSetDriverConfigKeys(BaseEnum):
     CLASS = "class"
     URI = "uri"
     CLASS_ARGS = "class_args"
-    
+
 class DataSetDriver(object):
     """
     Base class for data set drivers.  Provides:
@@ -310,7 +310,7 @@ class DataSetDriver(object):
         self.set_resource(config)
 
     def _start_publisher_thread(self):
-        self._publisher_thread = gevent.spawn(self._poll)
+        self._publisher_thread = gevent.spawn(self._publisher_loop)
         self._publisher_shutdown = False
 
     def _stop_publisher_thread(self):
@@ -319,6 +319,22 @@ class DataSetDriver(object):
         if self._publisher_thread:
             self._publisher_thread.kill(block=False)
         log.debug("shutdown complete")
+
+    def _publisher_loop(self):
+        """
+        Main loop to listen for new files to parse.  Parse them and move on.
+        """
+        log.info("Starting main publishing loop")
+
+        try:
+            while(not self._publisher_shutdown):
+                self._poll()
+                gevent.sleep(self._polling_interval)
+        except Exception as e:
+            log.error("Exception in publisher thread: %s", e)
+            self._exception_callback(e)
+
+        log.debug("publisher thread detected shutdown request")
 
     def _poll(self):
         raise NotImplementedException('virtual methond needs to be specialized')
@@ -394,22 +410,11 @@ class SimpleDataSetDriver(DataSetDriver):
         """
         Main loop to listen for new files to parse.  Parse them and move on.
         """
-        log.info("Starting main publishing loop")
-
-        try:
-            while(not self._publisher_shutdown):
-                # If we have files, grab the first and process it.
-                count = len(self._new_file_queue)
-                log.trace("Checking for new files in queue, count: %d", count)
-                if(count > 0):
-                    self._got_file(self._new_file_queue.pop(0))
-
-                gevent.sleep(self._polling_interval)
-        except Exception as e:
-            log.error("Exception in publisher thread: %s", e)
-            self._exception_callback(e)
-
-        log.debug("publisher thread detected shutdown request")
+        # If we have files, grab the first and process it.
+        count = len(self._new_file_queue)
+        log.trace("Checking for new files in queue, count: %d", count)
+        if(count > 0):
+            self._got_file(self._new_file_queue.pop(0))
 
     def _got_file(self, file_tuple):
         """
