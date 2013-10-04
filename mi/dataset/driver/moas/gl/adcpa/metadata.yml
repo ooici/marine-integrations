@@ -1,0 +1,9 @@
+driver_metadata:
+  author: Stuart Pearce & Chris Wingard
+  driver_name: glider_adcpa
+  driver_path: moas/gl/adcpa
+  email: cwingard@coas.oregonstate.edu
+  release_notes: initial release
+  version: 0.0.1
+  constructor: ADCPADataSetDriver
+

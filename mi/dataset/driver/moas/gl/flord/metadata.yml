@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Stuart Pearce & Chris Wingard
+  driver_name: glider_flord
+  driver_path: moas/gl/flord
+  email: spearce@coas.oregonstate.edu
+  release_notes: initial release
+  version: 0.0.1
+  constructor: FLORDDataSetDriver
