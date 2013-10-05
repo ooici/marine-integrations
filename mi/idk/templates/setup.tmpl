@@ -1,13 +1,4 @@
-import glob
 from setuptools import setup, find_packages
-
-resource_dir = '${name}/mi/instrument/${driver_path}/resource'
-data_list = []
-for f in glob.glob(resource_dir + '/*'):
-    data_list.append((resource_dir, [f]))
-data_list.append(('${name}/mi', ['${name}/res/config/mi-logging.yml']))
-data_list.append(('${name}/mi/instrument/${driver_path}', ['${name}/mi/instrument/${driver_path}/metadata.yml']))
-
 setup(
     name='${short_name}',
     version='${version}',
@@ -16,7 +7,7 @@ setup(
     author_email='${email}',
     url='${url}',
     packages=find_packages(),
-    data_files=data_list,
+    package_data={'': ['*.yml']},
     entry_points = {
         'setuptools.installation': [
             'eggsecutable = ${name}.mi.main:run',

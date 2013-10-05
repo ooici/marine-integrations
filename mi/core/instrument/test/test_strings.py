@@ -88,6 +88,7 @@ class TestUnitStringsDict(MiUnitTestCase):
     def test_metadata_load_default(self):
         # if you dont have an argument, you only have a chance of looking in an egg
         result = self.param_dict.load_strings()
-        self.assertFalse(result)
+        # should have an egg-like location handy in the dev environment
+        self.assertTrue(result)
 
 
