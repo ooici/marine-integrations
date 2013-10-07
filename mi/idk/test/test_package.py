@@ -475,10 +475,10 @@ class TestDriverEggGenerator(IDKPackageNose):
 
         build_dir = self._generator._generate_build_dir()
 
-        rmtree(build_dir_orig)
+        rmtree(build_dir_orig, True)
         self.assertFalse(exists(build_dir_orig))
 
-        self.assertEqual(build_dir, "%s.001" % build_dir_orig)
+        self.assertEqual(build_dir, build_dir_orig)
 
 
     def test_version_verify(self):
