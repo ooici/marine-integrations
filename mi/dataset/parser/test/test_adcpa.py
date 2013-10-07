@@ -11,6 +11,7 @@ would lead to different subclasses of the test suites
 import collections
 import gevent
 import numpy as np
+import os
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger
@@ -33,7 +34,8 @@ class AdcpaParserUnitTestCase(ParserUnitTestCase):
     # testing off the Oregon coast in 2011). This file contains both regular
     # ensembles and bottom-tracking data (starts about 2/3 of the way through
     # the file).
-    TEST_DATA = '/tmp/dsatest/adcpa/LA101636.PD0'
+    TEST_DIR = os.path.dirname(__file__)
+    TEST_DATA = os.path.join(TEST_DIR, 'LA101636.PD0')
 
     def setUp(self):
         ParserUnitTestCase.setUp(self)
