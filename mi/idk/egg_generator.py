@@ -403,6 +403,9 @@ class DriverFileList:
                 if not p.search(filename):
                     result.append("%s/%s" % (root, filename))
                 
+        # Add the resources directory __init__.py file, too. Without a .py file,
+        # it can get forgotten by dependencies
+        result.append(os.path.join(dirname(self.driver_file), "resource/__init__.py"))
         return result
     
 class EggGenerator:
@@ -440,6 +443,12 @@ class EggGenerator:
 
     def _repo_dir(self):
         return '/tmp/repoclone/marine-integrations'
+    
+    def _res_dir(self):
+        return os.path.join(self._versioned_dir(), '../res')
+    
+    def _res_config_dir(self):
+        return os.path.join(self._res_dir(), 'config' )
 
     def _tmp_dir(self):
         return Config().get('tmp_dir')
@@ -503,15 +512,17 @@ class EggGenerator:
 
         # we need to make sure an init file is in the versioned dir so
         # that find_packages() will look in here
-        init_path = self._versioned_dir() + "/__init__.py"
-        if not os.path.exists(init_path):
-            init_file = open(init_path, "w")
-            init_file.close()
+        self.touch(os.path.join(self._versioned_dir(), "__init__.py"))
 
         for file in files:
             dest = os.path.join(self._versioned_dir(), file)
             destdir = dirname(dest)
             source = os.path.join(self._repo_dir(), file)
+
+            # this one goes elsewhere so the InstrumentDict can find it
+            if basename(file) == 'strings.yml':
+                dest = os.path.join(self._res_config_dir(), basename(file))
+                destdir = dirname(dest)
 
             log.debug(" Copy %s => %s" % (source, dest))
             # make sure the destination directory exists, if it doesn't make it
@@ -535,18 +546,27 @@ class EggGenerator:
             driver_file.write(new_contents)
             driver_file.close()
 
+            
         # need to add mi-logging.yml special because it is not in cloned repo, only in local repository
-        milog = "res/config/mi-logging.yml"
-        dest = os.path.join(self._versioned_dir(), milog)
+        milog = "mi-logging.yml"
+        dest = os.path.join(self._res_config_dir(), milog)
         destdir = dirname(dest)
-        source = os.path.join(Config().base_dir(), milog)
+        source = os.path.join(Config().base_dir(), "res/config/" + milog)
 
         log.debug(" Copy %s => %s" % (source, dest))
         # make sure the destination directory exists, if it doesn't make it
         if not os.path.exists(destdir):
             os.makedirs(destdir)
+        # Now that it exists, make the package scanner find it           
+        self.touch(os.path.join(self._res_dir(), "__init__.py"))
+        self.touch(os.path.join(self._res_config_dir(), "__init__.py"))        
 
         shutil.copy(source, dest)
+
+    @staticmethod
+    def touch(file):
+        fd = os.open(file, os.O_CREAT)
+        os.close(fd)
 
     def _mi_replace(self, matchobj):
         """
@@ -585,12 +605,14 @@ class EggGenerator:
         setup_file = self._setup_path()
         setup_template = self._get_template(self._setup_template_path())
 
-        log.debug("Create setup.py file: %s" % setup_file )
-        log.debug("setup.py template file: %s" % self._setup_template_path())
-        log.debug("setup.py template date: %s" % self._setup_template_data())
+        log.debug("Create setup.py file: %s", setup_file )
+        log.debug("setup.py template file: %s", self._setup_template_path())
+        log.debug("setup.py template date: %s", self._setup_template_data())
+        log.debug("setup.py template: %s", setup_template)
 
         ofile = open(setup_file, 'w')
         code = setup_template.substitute(self._setup_template_data())
+        log.debug("CODE: %s", code)
         ofile.write(code)
         ofile.close()
 

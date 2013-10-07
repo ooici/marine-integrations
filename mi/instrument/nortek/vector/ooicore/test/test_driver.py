@@ -263,6 +263,7 @@ class UnitFromIDK(NortekUnitTest):
  
         # construct the expected particle
         expected_particle = {
+            DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
             DataParticleKey.STREAM_NAME: DataParticleType.VELOCITY_HEADER,
@@ -290,6 +291,7 @@ class UnitFromIDK(NortekUnitTest):
 
         # construct the expected particle
         expected_particle = {
+            DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
             DataParticleKey.STREAM_NAME: DataParticleType.VELOCITY,
@@ -318,6 +320,7 @@ class UnitFromIDK(NortekUnitTest):
 
         # construct the expected particle
         expected_particle = {
+            DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
             DataParticleKey.STREAM_NAME: DataParticleType.SYSTEM,
