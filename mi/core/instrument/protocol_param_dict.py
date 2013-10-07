@@ -913,7 +913,8 @@ class ProtocolParameterDict(InstrumentDict):
         as desired (complete path recommended)
         @retval True if something could be loaded, False otherwise
         """
-        log.debug("Loading parameter dictionary strings, filename is %s", filename)
+        log.debug("Loading parameter dictionary strings, dev path is %s, filename is %s",
+                  devel_path, filename)
         # if the file is in the default spot of the working path or egg, get that one
         try:
             metadata = self.get_metadata_from_source(devel_path, filename)
