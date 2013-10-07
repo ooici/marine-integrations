@@ -20,6 +20,7 @@ from mi.idk.nose_test import NoseTest
 from mi.idk.driver_generator import DriverGenerator
 from mi.idk.egg_generator import EggGenerator
 from mi.idk.exceptions import ValidationFailure
+from mi.idk.exceptions import InvalidParameters
 
 REPODIR = '/tmp/repoclone'
 
