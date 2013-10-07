@@ -211,6 +211,14 @@ class DataSetUnitTestCase(DataSetTestCase):
     """
     Base class for dataset driver unit tests
     """
+    def setUp(self):
+        super(DataSetUnitTestCase, self).setUp()
+
+
+class DataSetIntegrationTestCase(DataSetTestCase):
+    """
+    Base class for dataset driver integration unit tests
+    """
     def state_callback(self, state):
         log.debug("State callback: %s", state)
         self.state_callback_result.append(state)
@@ -227,7 +235,7 @@ class DataSetUnitTestCase(DataSetTestCase):
         self.exception_callback_result.append(ex)
 
     def setUp(self):
-        super(DataSetUnitTestCase, self).setUp()
+        super(DataSetIntegrationTestCase, self).setUp()
         self.state_callback_result = []
         self.data_callback_result = []
         self.exception_callback_result = []
@@ -325,11 +333,6 @@ class DataSetIntegrationTestCase(DataSetTestCase):
     """
     def setUp(self):
         super(DataSetIntegrationTestCase, self).setUp()
-
-class DataSetIntegrationTestCase(DataSetTestCase):
-    """
-    Base class for instrument driver unit tests
-    """
 
 
 class DataSetQualificationTestCase(DataSetTestCase):

@@ -78,8 +78,8 @@ SAMPLE_STREAM='ctdpf_parsed'
 # Device specific unit tests are for                                          #
 # testing device specific capabilities                                        #
 ###############################################################################
-@attr('UNIT', group='mi')
-class UnitTest(DataSetUnitTestCase):
+@attr('INT', group='mi')
+class IntegrationTest(DataSetUnitTestCase):
     def test_get(self):
         """
         Test that we can get data from files.  Verify that the driver sampling
