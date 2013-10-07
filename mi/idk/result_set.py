@@ -294,6 +294,8 @@ class ResultSet(object):
 
         expected_new_sequence = particle_dict.get("new_sequence", False)
         particle_new_sequence = particle_def.get("_new_sequence", False)
+        if expected_new_sequence is None: expected_new_sequence = False
+        if particle_new_sequence is None: particle_new_sequence = False
 
         if expected_new_sequence != particle_new_sequence:
             errors.append("New sequence flag mismatch, expected: %s, received: %s" %
