@@ -30,6 +30,7 @@ from exceptions import Exception
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetTestConfig
 from mi.idk.dataset.unit_test import DataSetUnitTestCase
+from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.core.exceptions import ConfigurationException
@@ -79,7 +80,7 @@ SAMPLE_STREAM='ctdpf_parsed'
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('INT', group='mi')
-class IntegrationTest(DataSetUnitTestCase):
+class IntegrationTest(DataSetIntegrationTestCase):
     def test_get(self):
         """
         Test that we can get data from files.  Verify that the driver sampling

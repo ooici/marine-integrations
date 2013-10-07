@@ -327,14 +327,6 @@ class DataSetIntegrationTestCase(DataSetTestCase):
 
             self.assertTrue(rs.verify(self.data_callback_result))
 
-class DataSetIntegrationTestCase(DataSetTestCase):
-    """
-    Base class for dataset driver integration unit tests
-    """
-    def setUp(self):
-        super(DataSetIntegrationTestCase, self).setUp()
-
-
 class DataSetQualificationTestCase(DataSetTestCase):
     """
     Base class for dataset driver unit tests
