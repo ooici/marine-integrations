@@ -222,9 +222,12 @@ class CtdpfParser(BufferLoadingParser):
                 # Check for noise between records, but ignore newline.  This is detecting noise following
                 # the last successful chunk read which is why it is post sample generation.
                 if non_data is not None and non_data != "\n":
-                    log.info("Gap in datafile detected.")
-                    log.trace("Noise detected: %s", non_data)
-                    self.start_new_sequence()
+                        log.info("Gap in datafile detected.")
+                        log.trace("Noise detected: %s", non_data)
+                        self.start_new_sequence()
+
+            if non_data is not None:
+                self._increment_state(len(non_data), self._timestamp)
 
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
             (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
