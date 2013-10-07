@@ -72,6 +72,7 @@ class NoseTest(mi.idk.nose_test.NoseTest):
         self._int_test_class = None
         self._qual_test_class = None
 
+        log.debug("Loading test module: %s", test_module)
         __import__(test_module)
         module = sys.modules.get(test_module)
         classes = inspect.getmembers(module, inspect.isclass)
