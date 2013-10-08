@@ -1967,7 +1967,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # should be the 6 byte response ending with two ACKs
         if (len(response) != 8):
             log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read clock response. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read clock response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_clock_response: response=%s", response.encode('hex')) 
         time = BinaryProtocolParameterDict.convert_time(response)   
         return time
@@ -1997,7 +1997,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         if (len(response) != 4):
             log.warn("_parse_read_battery_voltage_response: Bad read battery voltage response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read battery voltage response. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read battery voltage response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_battery_voltage_response: response=%s", response.encode('hex')) 
         return BinaryProtocolParameterDict.convert_word_to_int(response[0:2])
         
@@ -2011,7 +2011,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         if (len(response) != 16):
             log.warn("_handler_command_read_id: Bad read ID response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read ID response. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read ID response. (%s)" % response.encode('hex'))
         log.debug("_handler_command_read_id: response=%s", response.encode('hex')) 
         return response[0:14]
         
@@ -2025,7 +2025,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         if not self._check_configuration(self._promptbuf, HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN):                    
             log.warn("_parse_read_hw_config: Bad read hw response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read hw response. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read hw response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_hw_config: response=%s", response.encode('hex'))
         parsed = {} 
         parsed['SerialNo'] = response[4:18]  
@@ -2048,7 +2048,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         if not self._check_configuration(self._promptbuf, HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN):                    
             log.warn("_parse_read_head_config: Bad read head response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read head response. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read head response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_head_config: response=%s", response.encode('hex')) 
         parsed = {} 
         parsed['Config'] = BinaryProtocolParameterDict.convert_word_to_int(response[4:6])  

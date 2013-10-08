@@ -2488,7 +2488,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # should be the 6 byte response ending with two ACKs
         if (len(response) != 8):
             log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read clock response. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read clock response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_clock_response: response=%s", response.encode('hex')) 
         time = NortekProtocolParameterDict.convert_time(response)
         return time
@@ -2503,7 +2503,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         if (len(response) != 4):
             log.warn("_parse_what_mode_response: Bad what mode response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid what mode response. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid what mode response. (%s)" % response.encode('hex'))
         log.debug("_parse_what_mode_response: response=%s", response.encode('hex')) 
         return NortekProtocolParameterDict.convert_word_to_int(response[0:2])
         
@@ -2518,7 +2518,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         if (len(response) != 4):
             log.warn("_parse_read_battery_voltage_response: Bad read battery voltage response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read battery voltage response. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read battery voltage response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_battery_voltage_response: response=%s", response.encode('hex')) 
         
         return NortekProtocolParameterDict.convert_word_to_int(response[0:2])
@@ -2550,7 +2550,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         if not self._check_configuration(self._promptbuf, HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN):                    
             log.warn("_parse_read_hw_config: Bad read hw response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read hw response. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read hw response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_hw_config: response=%s", response.encode('hex'))
         
         return hw_config_to_dict(response)
@@ -2567,7 +2567,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         if not self._check_configuration(self._promptbuf, HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN):                    
             log.warn("_parse_read_head_config: Bad read head response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read head response. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read head response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_head_config: response=%s", response.encode('hex'))
 
         return head_config_to_dict(response)
@@ -2583,7 +2583,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         if not self._check_configuration(self._promptbuf, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):                    
             log.warn("_parse_read_user_config: Bad read user response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read user response. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read user response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_user_config: response=%s", response.encode('hex'))
 
         #return response
