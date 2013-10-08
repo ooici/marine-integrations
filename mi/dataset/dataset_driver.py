@@ -34,7 +34,7 @@ class DataSourceConfigKey(BaseEnum):
 class DriverParameter(BaseEnum):
     ALL = 'ALL'
     RECORDS_PER_SECOND = 'records_per_second'
-    HARVESTER_POLLING_INTERVAL = 'harvester_polling_interval'
+    PUBLISHER_POLLING_INTERVAL = 'publisher_polling_interval'
     BATCHED_PARTICLE_COUNT = 'batched_particle_count'
 
 class DataSourceLocation(object):
@@ -86,7 +86,7 @@ class DataSetDriverConfigKeys(BaseEnum):
     CLASS = "class"
     URI = "uri"
     CLASS_ARGS = "class_args"
-    
+
 class DataSetDriver(object):
     """
     Base class for data set drivers.  Provides:
@@ -123,6 +123,7 @@ class DataSetDriver(object):
         self._state_callback = state_callback
         self._exception_callback = exception_callback
         self._memento = memento
+        self._publisher_thread = None
 
         self._verify_config()
         self._param_dict = ProtocolParameterDict()
@@ -133,6 +134,9 @@ class DataSetDriver(object):
         self._particle_count_per_second = None
 
         self._build_param_dict()
+
+    def shutdown(self):
+        self.stop_sampling()
 
     def start_sampling(self):
         """
@@ -145,6 +149,9 @@ class DataSetDriver(object):
         """
         Stop the sampling thread
         """
+        log.debug("Stopping driver now")
+
+        self._stop_sampling()
         self._stop_publisher_thread()
 
     def _start_sampling(self):
@@ -164,17 +171,9 @@ class DataSetDriver(object):
 
         if cmd == 'execute_resource':
             if resource_cmd == DriverEvent.START_AUTOSAMPLE:
-                try:
-                    log.debug("start autosample")
-                    self.start_sampling()
-                except:
-                    log.error("Failed to start sampling", exc_info=True)
-                    raise
-
                 return (ResourceAgentState.STREAMING, None)
 
             elif resource_cmd == DriverEvent.STOP_AUTOSAMPLE:
-                log.debug("stop autosample")
                 self.stop_sampling()
                 return (ResourceAgentState.COMMAND, None)
 
@@ -217,7 +216,7 @@ class DataSetDriver(object):
         for (key, val) in params.iteritems():
             if key in [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.RECORDS_PER_SECOND]:
                 if not isinstance(val, int): raise InstrumentParameterException("%s must be an integer" % key)
-            if key in [DriverParameter.HARVESTER_POLLING_INTERVAL]:
+            if key in [DriverParameter.PUBLISHER_POLLING_INTERVAL]:
                 if not isinstance(val, (int, float)): raise InstrumentParameterException("%s must be an float" % key)
 
             if val <= 0:
@@ -228,7 +227,7 @@ class DataSetDriver(object):
         # Set the driver parameters
         self._generate_particle_count = self._param_dict.get(DriverParameter.BATCHED_PARTICLE_COUNT)
         self._particle_count_per_second = self._param_dict.get(DriverParameter.RECORDS_PER_SECOND)
-        self._polling_interval = self._param_dict.get(DriverParameter.HARVESTER_POLLING_INTERVAL)
+        self._polling_interval = self._param_dict.get(DriverParameter.PUBLISHER_POLLING_INTERVAL)
         log.trace("Driver Parameters: %s, %s, %s", self._polling_interval, self._particle_count_per_second, self._generate_particle_count)
 
     def get_resource(self, *args, **kwargs):
@@ -288,7 +287,7 @@ class DataSetDriver(object):
 
         self._param_dict.add_parameter(
             Parameter(
-                DriverParameter.HARVESTER_POLLING_INTERVAL,
+                DriverParameter.PUBLISHER_POLLING_INTERVAL,
                 float,
                 value=1,
                 type=ParameterDictType.FLOAT,
@@ -311,10 +310,31 @@ class DataSetDriver(object):
         self.set_resource(config)
 
     def _start_publisher_thread(self):
-        self._publisher_thread = gevent.spawn(self._poll)
+        self._publisher_thread = gevent.spawn(self._publisher_loop)
+        self._publisher_shutdown = False
 
     def _stop_publisher_thread(self):
-        self._publisher_thread.kill()
+        log.debug("Signal shutdown")
+        self._publisher_shutdown = True
+        if self._publisher_thread:
+            self._publisher_thread.kill(block=False)
+        log.debug("shutdown complete")
+
+    def _publisher_loop(self):
+        """
+        Main loop to listen for new files to parse.  Parse them and move on.
+        """
+        log.info("Starting main publishing loop")
+
+        try:
+            while(not self._publisher_shutdown):
+                self._poll()
+                gevent.sleep(self._polling_interval)
+        except Exception as e:
+            log.error("Exception in publisher thread: %s", e)
+            self._exception_callback(e)
+
+        log.debug("publisher thread detected shutdown request")
 
     def _poll(self):
         raise NotImplementedException('virtual methond needs to be specialized')
@@ -346,8 +366,10 @@ class SimpleDataSetDriver(DataSetDriver):
         self._harvester.start()
 
     def _stop_sampling(self):
-        self._harvester.shutdown()
-        self._harvester = None
+        log.debug("Shutting down harvester")
+        if self._harvester:
+            self._harvester.shutdown()
+            self._harvester = None
 
     ####
     ##    Helpers
@@ -388,20 +410,11 @@ class SimpleDataSetDriver(DataSetDriver):
         """
         Main loop to listen for new files to parse.  Parse them and move on.
         """
-        log.info("Starting main publishing loop")
-
-        try:
-            while(True):
-                # If we have files, grab the first and process it.
-                count = len(self._new_file_queue)
-                log.trace("Checking for new files in queue, count: %d", count)
-                if(count > 0):
-                    self._got_file(self._new_file_queue.pop(0))
-
-                gevent.sleep(self._polling_interval)
-        except Exception as e:
-            log.error("Exception in publisher thread: %s", e)
-            self._exception_callback(e)
+        # If we have files, grab the first and process it.
+        count = len(self._new_file_queue)
+        log.trace("Checking for new files in queue, count: %d", count)
+        if(count > 0):
+            self._got_file(self._new_file_queue.pop(0))
 
     def _got_file(self, file_tuple):
         """

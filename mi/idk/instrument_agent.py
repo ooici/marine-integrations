@@ -105,6 +105,10 @@ class DatasetAgent(ion.agents.data.dataset_agent.DataSetAgent):
     def __init__(self, *args, **kwargs):
         ion.agents.data.dataset_agent.DataSetAgent.__init__(self, *args, **kwargs)
 
+        # Reset persisted state, we don't want to maintain agent state between tests
+        log.debug("Resetting persisted agent state to {}")
+        self._set_state(ion.agents.data.dataset_agent.DSA_STATE_KEY, {})
+
     def on_init(self):
         """
         overloaded so we can change the stream publisher object

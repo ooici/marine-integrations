@@ -32,6 +32,7 @@ header:
 
 data:
   -  _index: 1
+     _new_sequence: True
      internal_timestamp: 07/26/2013 21:01:03
      temperature: 4.1870
      conductivity: 10.5914
@@ -43,6 +44,9 @@ data:
      conductivity: 10.5414
      pressure: 161.16
      oxygen: 2693.1
+
+New sequence flag indicates that we are at the beginning of a new sequence of
+contiguous records.
 """
 
 __author__ = 'Bill French'
@@ -288,9 +292,18 @@ class ResultSet(object):
         log.debug("Particle definition: %s", particle_def)
         particle_values = particle_dict['values']
 
+        expected_new_sequence = particle_dict.get("new_sequence", False)
+        particle_new_sequence = particle_def.get("_new_sequence", False)
+        if expected_new_sequence is None: expected_new_sequence = False
+        if particle_new_sequence is None: particle_new_sequence = False
+
+        if expected_new_sequence != particle_new_sequence:
+            errors.append("New sequence flag mismatch, expected: %s, received: %s" %
+                          (expected_new_sequence, particle_new_sequence))
+
         expected_keys = []
         for (key, value) in particle_def.items():
-            if(key not in ['_index', 'internal_timestamp']):
+            if(key not in ['_index', '_new_sequence', 'internal_timestamp']):
                 expected_keys.append(key)
 
         particle_keys = []
@@ -312,6 +325,8 @@ class ResultSet(object):
                 particle_value = pv[key]
                 if expected_value != particle_value:
                     errors.append("%s value mismatch, %s != %s" % (key, expected_value, particle_value))
+
+
 
         return errors
 

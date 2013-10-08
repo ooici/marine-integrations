@@ -47,6 +47,7 @@ class DataParticleKey(BaseEnum):
     VALUE_ID = "value_id"
     VALUE = "value"
     BINARY = "binary"
+    NEW_SEQUENCE = "new_sequence"
 
 class DataParticleValue(BaseEnum):
     JSON_DATA = "JSON_Data"
@@ -78,11 +79,15 @@ class DataParticle(object):
                  port_timestamp=None,
                  internal_timestamp=None,
                  preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
-                 quality_flag=DataParticleValue.OK):
+                 quality_flag=DataParticleValue.OK,
+                 new_sequence=None):
         """ Build a particle seeded with appropriate information
         
         @param raw_data The raw data used in the particle
         """
+        if new_sequence is not None and not isinstance(new_sequence, bool):
+            raise TypeError("new_sequence is not a bool")
+
         self.contents = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
@@ -90,8 +95,10 @@ class DataParticle(object):
             DataParticleKey.INTERNAL_TIMESTAMP: internal_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: ntplib.system_to_ntp_time(time.time()),
             DataParticleKey.PREFERRED_TIMESTAMP: preferred_timestamp,
-            DataParticleKey.QUALITY_FLAG: quality_flag
+            DataParticleKey.QUALITY_FLAG: quality_flag,
+            DataParticleKey.NEW_SEQUENCE: new_sequence
         }
+
         self.raw_data = raw_data
 
     @classmethod

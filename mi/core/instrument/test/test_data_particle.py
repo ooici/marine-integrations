@@ -81,6 +81,7 @@ class TestUnitDataParticle(MiUnitTestCase):
                                 DataParticleKey.STREAM_NAME: TEST_PARTICLE_TYPE,
                                 DataParticleKey.PORT_TIMESTAMP: self.sample_port_timestamp,
                                 DataParticleKey.DRIVER_TIMESTAMP: self.sample_driver_timestamp,
+                                DataParticleKey.NEW_SEQUENCE: None,
                                 DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.DRIVER_TIMESTAMP,
                                 DataParticleKey.QUALITY_FLAG: DataParticleValue.INVALID,
                                 DataParticleKey.VALUES: [
@@ -108,6 +109,7 @@ class TestUnitDataParticle(MiUnitTestCase):
                                DataParticleKey.INTERNAL_TIMESTAMP: self.sample_internal_timestamp,
                                DataParticleKey.PORT_TIMESTAMP: self.sample_port_timestamp,
                                DataParticleKey.DRIVER_TIMESTAMP: self.sample_driver_timestamp,
+                               DataParticleKey.NEW_SEQUENCE: None,
                                DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
                                DataParticleKey.QUALITY_FLAG: "ok",
                                DataParticleKey.VALUES: [
@@ -144,6 +146,43 @@ class TestUnitDataParticle(MiUnitTestCase):
         # run it through json so unicode and everything lines up
         standard = json.dumps(self.sample_parsed_particle, sort_keys=True)
         self.assertEqual(parsed_result, standard)
+
+    def test_new_sequence_flag(self):
+        """
+        Verify that we can set the new sequence flag
+        """
+        # Verify we can set the new sequence flag
+        particle = self.TestDataParticle(self.sample_raw_data,
+                                         port_timestamp=self.sample_port_timestamp,
+                                         quality_flag=DataParticleValue.INVALID,
+                                         preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP,
+                                         new_sequence=True)
+        dict_result = particle.generate_dict()
+        self.assertFalse(hasattr(dict_result, DataParticleKey.NEW_SEQUENCE))
+
+        particle = self.TestDataParticle(self.sample_raw_data,
+                                         port_timestamp=self.sample_port_timestamp,
+                                         quality_flag=DataParticleValue.INVALID,
+                                         preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP,
+                                         new_sequence=True)
+        dict_result = particle.generate_dict()
+        self.assertTrue(dict_result[DataParticleKey.NEW_SEQUENCE])
+
+        particle = self.TestDataParticle(self.sample_raw_data,
+                                         port_timestamp=self.sample_port_timestamp,
+                                         quality_flag=DataParticleValue.INVALID,
+                                         preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP,
+                                         new_sequence=False)
+        dict_result = particle.generate_dict()
+        self.assertFalse(dict_result[DataParticleKey.NEW_SEQUENCE])
+
+        with self.assertRaises(TypeError):
+            particle = self.TestDataParticle(self.sample_raw_data,
+                                             port_timestamp=self.sample_port_timestamp,
+                                             quality_flag=DataParticleValue.INVALID,
+                                             preferred_timestamp=DataParticleKey.DRIVER_TIMESTAMP,
+                                             new_sequence='a')
+
 
     def test_raw_generate(self):
         """

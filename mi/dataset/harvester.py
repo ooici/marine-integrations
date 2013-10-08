@@ -16,7 +16,7 @@ import os
 import glob
 
 from mi.core.log import get_logger ; log = get_logger()
-from ooi.poller import DirectoryPoller, ConditionPoller
+from mi.core.poller import DirectoryPoller, ConditionPoller
 
 class Harvester(object):
     """ abstract class to show API needed for plugin poller objects """

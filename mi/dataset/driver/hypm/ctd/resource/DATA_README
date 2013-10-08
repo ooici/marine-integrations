@@ -2,8 +2,9 @@
 
 test_data_1.txt: Single record
 test_data_2.txt: Record with bad data
-test_data_3.txt:
-test_data_4.txt:
+test_data_2.corrected.txt: Repaired file with bad value replaced
+test_data_3.txt: Small record set, but more than one
+test_data_4.txt: Data file with some noise between records
 
 DATA003.txt: Full data file directly from HYPM 
 

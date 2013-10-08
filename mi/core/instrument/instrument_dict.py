@@ -13,13 +13,15 @@ __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
 import yaml
+import sys
 import pkg_resources
 from mi.core.common import BaseEnum
 from mi.core.exceptions import InstrumentParameterException
 
 from mi.core.log import get_logger ; log = get_logger()
 
-EGG_PATH = "resource"
+MODULE = "res"
+EGG_PATH = "config"
 DEFAULT_FILENAME = "strings.yml"
 
 class InstrumentDict(object):
@@ -38,12 +40,19 @@ class InstrumentDict(object):
         
     @staticmethod
     def load_metadata_from_egg():
-        resource_name = "../%s/%s" % (EGG_PATH, DEFAULT_FILENAME)
-        resource_base = "mi"
-        log.debug("Attempting to load instrument dictionary metadata from egg with path %s",
-                  resource_name)
+        try:
+            import res
+        except ImportError:
+            return False
+        
+        resource_name = "%s/%s" % (EGG_PATH, DEFAULT_FILENAME)
+        resource_base = "res"
+        log.debug("Attempting to load instrument dictionary metadata from egg with path %s, base %s",
+                  resource_name, resource_base)
         if pkg_resources.resource_exists(resource_base, resource_name):
             yml = pkg_resources.resource_string(resource_base, resource_name)
+            log.debug("Found resource in the %s, %s base",
+                      resource_base, resource_name)
             return yaml.load(yml)
         else:
             return False
@@ -66,15 +75,15 @@ class InstrumentDict(object):
         """
         if filename:
             return InstrumentDict.load_metadata_from_file(filename)     
-
-        result = InstrumentDict.load_metadata_from_egg()     
-        if result:
-            return result
             
         if devel_path:
             result = InstrumentDict.load_metadata_from_file(devel_path)
             if result:
                 return result        
+
+        result = InstrumentDict.load_metadata_from_egg()     
+        if result:
+            return result
                             
         log.debug("No external instrument dictionary metadata found, using hard coded values.")
         return None

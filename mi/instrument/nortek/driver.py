@@ -217,8 +217,7 @@ class Capability(BaseEnum):
 class Parameter(DriverParameter):
     """
     Device parameters
-    """
-    """
+
     # these are read only and not included for now
     # hardware configuration
     HW_SERIAL_NUMBER = "HardwareSerialNumber"

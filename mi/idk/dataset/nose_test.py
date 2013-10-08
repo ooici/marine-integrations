@@ -72,6 +72,7 @@ class NoseTest(mi.idk.nose_test.NoseTest):
         self._int_test_class = None
         self._qual_test_class = None
 
+        log.debug("Loading test module: %s", test_module)
         __import__(test_module)
         module = sys.modules.get(test_module)
         classes = inspect.getmembers(module, inspect.isclass)
@@ -88,18 +89,18 @@ class NoseTest(mi.idk.nose_test.NoseTest):
                 if(issubclass(clsobj, DSATestClasses.QUAL)):
                     self._qual_test_class = name
 
-        if not(self._unit_test_class):
-            raise IDKException("unit test class not found")
+        if not(self._int_test_class):
+            raise IDKException("integration test class not found")
 
         if(not self._qual_test_class):
             raise IDKException("qualification test class not found")
 
-        # store a marker so we can either run or not run integration tests,
+        # store a marker so we can either run or not run unit tests,
         # since missing integration tests is not an error
-        self.has_integration = True
-        if(not self._int_test_class):
-            self._log("No integration test class found")
-            self.has_integration = False
+        self.has_unit = True
+        if(not self._unit_test_class):
+            self._log("No unit test class found")
+            self.has_unit = False
 
     def report_header(self):
         """
@@ -112,20 +113,20 @@ class NoseTest(mi.idk.nose_test.NoseTest):
 
         self._output_metadata()
 
-    def run_integration(self):
+    def run_unit(self):
         """
         @brief Run integration tests for a driver
         """
-        if self.has_integration:
-            self._log("*** Starting Integration Tests ***")
+        if self.has_unit:
+            self._log("*** Starting Unit Tests ***")
             self._log(" ==> module: " + self._driver_test_module())
             args=[sys.argv[0]]
-            args += [self._int_test_module_param()]
+            args += [self._unit_test_module_param()]
             module = "%s" % (self._driver_test_module())
 
             return self._run_nose(module, args)
         else:
-            self._log("No integration tests to run")
+            self._log("No unit tests to run")
             return True
 
 
