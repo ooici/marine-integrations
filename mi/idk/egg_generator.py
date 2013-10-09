@@ -445,7 +445,7 @@ class EggGenerator:
         return '/tmp/repoclone/marine-integrations'
     
     def _res_dir(self):
-        return os.path.join(self._versioned_dir(), '..', 'res')
+        return os.path.join(self._versioned_dir(), 'res')
     
     def _res_config_dir(self):
         return os.path.join(self._res_dir(), 'config' )
@@ -556,8 +556,8 @@ class EggGenerator:
         if not os.path.exists(destdir):
             os.makedirs(destdir)
         # Now that it exists, make the package scanner find it           
-        self.touch(os.path.join(self._res_dir(), "__init__.py"))
-        self.touch(os.path.join(self._res_config_dir(), "__init__.py"))        
+        self._create_file(os.path.join(self._res_dir(), "__init__.py"))
+        self._create_file(os.path.join(self._res_config_dir(), "__init__.py"))        
 
         shutil.copy(source, dest)
 
@@ -567,10 +567,17 @@ class EggGenerator:
                           os.path.join(self._versioned_dir(), "res", "__init__.py"),
                           os.path.join(self._versioned_dir(), "res", "config", "__init__.py")]
         for file in init_file_list:
-            if not os.path.exists(file):
-                init_file = open(file, "w")
-                init_file.close()
-
+            self._create_file(file)
+            
+    @staticmethod
+    def _create_file(file):
+        """
+        Create a file if it isnt there already
+        """
+        if not os.path.exists(file):
+            init_file = open(file, "w")
+            init_file.close()
+        
     def _mi_replace(self, matchobj):
         """
         This function is used in regex sub to replace mi with the versioned
