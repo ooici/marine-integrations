@@ -30,7 +30,7 @@ from mi.dataset.dataset_parser import BufferLoadingParser
 log = get_logger()
 
 # regex
-ROW_REGEX = r'^(.+)\n'  # just give me the whole effing row and get out of my way.
+ROW_REGEX = r'^(.+)\n?'  # just give me the whole effing row and get out of my way.
 ROW_MATCHER = re.compile(ROW_REGEX, re.MULTILINE)
 
 
@@ -76,68 +76,82 @@ class DataParticleType(BaseEnum):
     CGLDR_ENG_DELAYED = 'cgldr_eng_delayed'
     CGLDR_ENG_RECOVERED = 'cgldr_eng_recovered'
 
+class GliderParticleKey(BaseEnum):
+    """
+    Common glider particle parameters
+    """
+    M_GPS_LAT = 'm_gps_lat'
+    M_GPS_LON = 'm_gps_lon'
+    M_LAT = 'm_lat'
+    M_LON = 'm_lon'
+    M_PRESENT_SECS_INTO_MISSION = 'm_present_secs_into_mission'
+    M_PRESENT_TIME = 'm_present_time'  # you need the m_ timestamps for lats & lons
+    SCI_M_PRESENT_TIME = 'sci_m_present_time'
+    SCI_M_PRESENT_SECS_INTO_MISSION = 'sci_m_present_secs_into_mission'
+
 
 class GliderParticle(DataParticle):
-    """Child class to Data Particle to overwrite the __init__ method so
-    that it will accept a data dictionary that holds a data record for
+    """
+    Base particle for glider data.  Glider files are
     publishing as a particle rather than a raw data string.  This is in
     part to solve the dynamic nature of a glider file and not having to
     hard code >2000 variables in a regex.
 
     This class should be a parent class to all the data particle classes
     associated with the glider.
-
-    Admittedly the original __init__ in the DataParticle class could
-    have still been used only using the self.raw_data attribute to hold
-    the dictionary as it is only used in the child particles (so long as
-    the child particles use it as a dictionary). However, this was still
-    overwritten for the sake of style and unambiguity.
     """
-    def __init__(self, data_dict,
-                 port_timestamp=None,
-                 internal_timestamp=None,
-                 preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP,
-                 quality_flag=DataParticleValue.OK):
-        """ Build a particle seeded with appropriate information
 
-        @param raw_data The raw data used in the particle
-        @throws SampleException if data_dict is not a glider data dictionary
-        """
-        self.contents = {
-            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
-            DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
-            DataParticleKey.INTERNAL_TIMESTAMP: internal_timestamp,
-            DataParticleKey.DRIVER_TIMESTAMP: ntplib.system_to_ntp_time(time.time()),
-            DataParticleKey.PREFERRED_TIMESTAMP: preferred_timestamp,
-            DataParticleKey.QUALITY_FLAG: quality_flag
-        }
-        if not isinstance(data_dict, dict):
+    # It is possible that record could be parsed, but they don't
+    # contain actual science data for this instrument.  This flag
+    # will be set to true if we have found data when parsed.
+    common_parameters = GliderParticleKey.list()
+
+    def _parsed_values(self, key_list):
+        log.debug("Build a particle with keys: %s", key_list)
+        if not isinstance(self.raw_data, dict):
             raise SampleException(
                 "%s: Object Instance is not a Glider Parsed Data \
                 dictionary" % self._data_particle_type)
-        self.data_dict = data_dict
 
+        result = []
 
-class CtdgvParticleKey(DataParticleKey):
-    KEY_LIST = [
-        'm_gps_lat',
-        'm_gps_lon',
-        'm_lat',
-        'm_lon',
-        'sci_ctd41cp_timestamp',  # not expected in delayed data sets
-        'sci_water_cond',
-        'sci_water_pressure',
-        'sci_water_temp',
-        'm_present_time',  # you need the m_ timestamps for lats & lons
-        'm_present_secs_into_mission',
-        'sci_m_present_time',
-        'sci_m_present_secs_into_mission'
-    ]
+        # find if any of the variables from the particle key list are in
+        # the data_dict and keep it
+        for key in key_list:
+            if key in self.raw_data:
+                # read the value from the gpd dictionary
+                value = self.raw_data[key]['Data']
+
+                # check to see that the value is not a 'NaN'
+                if np.isnan(value):
+                    log.trace("NaN Value: %s", key)
+                    continue
+
+                # add the value to the record
+                result.append({DataParticleKey.VALUE_ID: key,
+                               DataParticleKey.VALUE: value})
+                log.trace("Key: %s, value: %s", key, value)
+
+            else:
+                #log.warn("The particle defined in the" +
+                #         "ParticleKey, %s, is not present in the current" % key +
+                #         "data set. Confirm by checking the m, s, or tbdlist of " +
+                #         "the glider to insure this is expected, or check the " +
+                #         "standard lists and/or Particle Keys")
+                SampleException("%s column missing from datafile, row ignored", key)
+
+        return result
+
+class CtdgvParticleKey(GliderParticleKey):
+    SCI_CTD41CP_TIMESTAMP = 'sci_ctd41cp_timestamp' # not expected in delayed data sets
+    SCI_WATER_COND = 'sci_water_cond'
+    SCI_WATER_PRESSURE = 'sci_water_pressure'
+    SCI_WATER_TEMP = 'sci_water_temp'
 
 
 class GgldrCtdgvDelayedDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GGLDR_CTDGV_DELAYED
+    science_parameters = CtdgvParticleKey.list()
 
     def _build_parsed_values(self):
         """
@@ -146,31 +160,7 @@ class GgldrCtdgvDelayedDataParticle(GliderParticle):
 
         @param result A returned list with sub dictionaries of the data
         """
-        result = []
-
-        # find if any of the variables from the particle key list are in
-        # the data_dict and keep it
-        for key in CtdgvParticleKey.KEY_LIST:
-            if key in self.data_dict:
-                # read the value from the gpd dictionary
-                value = self.data_dict[key]['Data']
-
-                # check to see that the value is not a 'NaN'
-                if np.isnan(value):
-                    continue
-
-                # add the value to the record
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: value})
-
-            else:
-                log.warn("GGLDR_CTDGV_DELAYED: The particle defined in the" +
-                         "ParticleKey, %s, is not present in the current" % key +
-                         "data set. Confirm by checking the m, s, or tbdlist of " +
-                         "the glider to insure this is expected, or check the " +
-                         "standard lists and/or Particle Keys")
-
-        return result
+        return self._parsed_values(CtdgvParticleKey.list())
 
 
 class CgldrCtdgvDelayedDataParticle(GliderParticle):
@@ -183,31 +173,7 @@ class CgldrCtdgvDelayedDataParticle(GliderParticle):
 
         @param result A returned list with sub dictionaries of the data
         """
-        result = []
-
-        # find if any of the variables from the particle key list are in
-        # the data_dict and keep it
-        for key in CtdgvParticleKey.KEY_LIST:
-            if key in self.data_dict:
-                # read the value from the gpd dictionary
-                value = self.data_dict[key]['Data']
-
-                # check to see that the value is not a 'NaN'
-                if np.isnan(value):
-                    continue
-
-                # add the value to the record
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: value})
-
-            else:
-                log.warn("CGLDR_CTDGV_DELAYED: The particle defined in the" +
-                         "ParticleKey, %s, is not present in the current" % key +
-                         "data set. Confirm by checking the m, s, or tbdlist of " +
-                         "the glider to insure this is expected, or check the " +
-                         "standard lists, or Particle Keys")
-
-        return result
+        return self._parsed_values(CtdgvParticleKey.KEY_LIST)
 
 
 class DostaParticleKey(DataParticleKey):
@@ -240,29 +206,7 @@ class GgldrDostaDelayedDataParticle(GliderParticle):
         @param gpd A GliderParser class instance.
         @param result A returned list with sub dictionaries of the data
         """
-
-        result = []
-        for key in DostaParticleKey.KEY_LIST:
-            if key in self.data_dict:
-                # read the value from the gpd dictionary
-                value = self.data_dict[key]['Data']
-
-                # check to see that the value is not a 'NaN'
-                if np.isnan(value):
-                    continue
-
-                # add the value to the record
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: value})
-
-            else:
-                log.warn("GGLDR_DOSTA_DELAYED: The particle defined in the" +
-                         "ParticleKey, %s, is not present in the current" % key +
-                         "data set. Confirm by checking the m, s, or tbdlist of " +
-                         "the glider to insure this is expected, or check the " +
-                         "standard lists, or Particle Keys")
-
-        return result
+        return self._parsed_values(DostaParticleKey.KEY_LIST)
 
 
 class CgldrDostaDelayedDataParticle(GliderParticle):
@@ -276,29 +220,7 @@ class CgldrDostaDelayedDataParticle(GliderParticle):
         @param gpd A GliderParser class instance.
         @param result A returned list with sub dictionaries of the data
         """
-
-        result = []
-        for key in DostaParticleKey.KEY_LIST:
-            if key in self.data_dict:
-                # read the value from the gpd dictionary
-                value = self.data_dict[key]['Data']
-
-                # check to see that the value is not a 'NaN'
-                if np.isnan(value):
-                    continue
-
-                # add the value to the record
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: value})
-
-            else:
-                log.warn("CGLDR_DOSTA_DELAYED: The particle defined in the" +
-                         "ParticleKey, %s, is not present in the current" % key +
-                         "data set. Confirm by checking the m, s, or tbdlist of " +
-                         "the glider to insure this is expected, or check the " +
-                         "standard lists, or Particle Keys")
-
-        return result
+        return self._parsed_values(DostaParticleKey.KEY_LIST)
 
 
 class FlordParticleKey(DataParticleKey):
@@ -328,59 +250,7 @@ class GgldrFlordDelayedDataParticle(GliderParticle):
         @throws SampleException if the data is not a glider data dictionary
             produced by GliderParser._read_data
         """
-
-        result = []
-        for key in FlordParticleKey.KEY_LIST:
-            if key in self.data_dict:
-                # read the value from the gpd dictionary
-                value = self.data_dict[key]['Data']
-
-                # check to see that the value is not a 'NaN'
-                if np.isnan(value):
-                    continue
-
-                # add the value to the record
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: value})
-
-            else:
-                log.warn("GGLDR_FLORD_DELAYED: The particle defined in the" +
-                         "ParticleKey, %s, is not present in the current" % key +
-                         "data set. Confirm by checking the m, s, or tbdlist of " +
-                         "the glider to insure this is expected, or check the " +
-                         "standard lists, or Particle Keys")
-
-            # sci_m_present_time is the proper timestamp to use with
-            # science variables. However, when no scientific data is published
-            # (but glider flight data IS published), sci_m_present_time fills
-            # with NaNs. Glider flight data (e.g. lat & lon) is paired with the
-            # m_present_time timestamp when published. Unlike
-            # sci_m_present_time, m_present_time will always have a value for
-            # each record even if no flight data is published.
-            # For example:
-            # gps_lat       m_present_time      sci_m_present_time     temp
-            # 5002.9419     1376510710.50647    NaN                    NaN
-            # NaN           1376510712.36099    1376510712.36099       4.01713
-            #
-            # Unfortunately, m_present_time and sci_m_present_time may not
-            # always be equal. So if we were to set the internal_timestamp to
-            # the type associated with the relevant data for each record (both
-            # types are needed in the science particles), it could cause the
-            # internal_timestamp to be non-linear, non-monotonic, or corrupt.
-            # To avoid this we will always set the internal_timestamp to the
-            # m_present_time timestamp (which is usually close enough for
-            # plotting since the timestamps are adjusted during GPS fixes) and
-            # users should be aware if downloading data, that
-            # sci_m_present_timestamp is the proper timestamp to use with any
-            # science variables (i.e. any data handled by the onboard science
-            # computer)
-
-            ## Set internal timestamp with sci_m_present_time if available
-            #if key is 'sci_m_present_time':
-            #    timestamp = ntplib.system_to_ntp_time(self.data_dict[key]['Data'])
-            #    self.set_internal_timestamp(timestamp=timestamp)
-
-        return result
+        return self._parsed_values(FlordParticleKey.KEY_LIST)
 
 
 class FlortParticleKey(DataParticleKey):
@@ -411,29 +281,7 @@ class CgldrFlortDelayedDataParticle(GliderParticle):
         @throws SampleException if the data is not a glider data dictionary
             produced by GliderParser._read_data
         """
-
-        result = []
-        for key in FlortParticleKey.KEY_LIST:
-            if key in self.data_dict:
-                # read the value from the gpd dictionary
-                value = self.data_dict[key]['Data']
-
-                # check to see that the value is not a 'NaN'
-                if np.isnan(value):
-                    continue
-
-                # add the value to the record
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: value})
-
-            else:
-                log.warn("CGLDR_FLORT_DELAYED: The particle defined in the" +
-                         "ParticleKey, %s, is not present in the current" % key +
-                         "data set. Confirm by checking the m, s, or tbdlist of " +
-                         "the glider to insure this is expected, or check the " +
-                         "standard lists, or Particle Keys")
-
-        return result
+        return self._parsed_values(FlordParticleKey.KEY_LIST)
 
 
 class EngineeringParticleKey(DataParticleKey):
@@ -474,29 +322,7 @@ class GgldrEngDelayedDataParticle(GliderParticle):
         @throws SampleException if the data is not a glider data dictionary
             produced by GliderParser._read_data
         """
-
-        result = []
-        for key in EngineeringParticleKey.KEY_LIST:
-            if key in self.data_dict:
-                # read the value from the gpd dictionary
-                value = self.data_dict[key]['Data']
-
-                # check to see that the value is not a 'NaN'
-                if np.isnan(value):
-                    continue
-
-                # add the value to the record
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: value})
-
-            else:
-                log.warn("GGLDR_ENG_DELAYED: The particle defined in the" +
-                         "ParticleKey, %s, is not present in the current" % key +
-                         "data set. Confirm by checking the m, s, or tbdlist of " +
-                         "the glider to insure this is expected, or check the " +
-                         "standard lists, or Particle Keys")
-
-        return result
+        return self._parsed_values(EngineeringParticleKey.KEY_LIST)
 
 
 class CgldrEngDelayedDataParticle(GliderParticle):
@@ -511,29 +337,7 @@ class CgldrEngDelayedDataParticle(GliderParticle):
         @throws SampleException if the data is not a glider data dictionary
             produced by GliderParser._read_data
         """
-
-        result = []
-        for key in EngineeringParticleKey.KEY_LIST:
-            if key in self.data_dict:
-                # read the value from the gpd dictionary
-                value = self.data_dict[key]['Data']
-
-                # check to see that the value is not a 'NaN'
-                if np.isnan(value):
-                    continue
-
-                # add the value to the record
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: value})
-
-            else:
-                log.warn("CGLDR_ENG_DELAYED: The particle defined in the" +
-                         "ParticleKey, %s, is not present in the current" % key +
-                         "data set. Confirm by checking the m, s, or tbdlist of " +
-                         "the glider to insure this is expected, or check the " +
-                         "standard lists, or Particle Keys")
-
-        return result
+        return self._parsed_values(EngineeringParticleKey.KEY_LIST)
 
 
 class ParadParticleKey(DataParticleKey):
@@ -562,29 +366,7 @@ class CgldrParadDelayedDataParticle(GliderParticle):
         @throws SampleException if the data is not a glider data dictionary
             produced by GliderParser._read_data
         """
-
-        result = []
-        for key in ParadParticleKey.KEY_LIST:
-            if key in self.data_dict:
-                # read the value from the gpd dictionary
-                value = self.data_dict[key]['Data']
-
-                # check to see that the value is not a 'NaN'
-                if np.isnan(value):
-                    continue
-
-                # add the value to the record
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: value})
-
-            else:
-                log.warn("CGLDR_PARAD_DELAYED: The particle defined in the" +
-                         "ParticleKey, %s, is not present in the current" % key +
-                         "data set. Confirm by checking the m, s, or tbdlist of " +
-                         "the glider to insure this is expected, or check the " +
-                         "standard lists, or Particle Keys")
-
-        return result
+        return self._parsed_values(ParadParticleKey.KEY_LIST)
 
 
 class GliderParser(BufferLoadingParser):
@@ -615,27 +397,72 @@ class GliderParser(BufferLoadingParser):
         self._record_buffer = []  # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION: 0}
         self._read_header()
-        if state and not(state[StateKey.POSITION] == 0):
-        #if state:
+
+        if state:
             self.set_state(self._state)
 
     def _read_header(self):
         """
+        Read the header for a glider file.
+        @raise SampleException if we fail to parse the header.
         """
         self._header_dict = {}
-        # should be 14 header lines, will double check in self
-        # describing header info.
+
+        if self._stream_handle.tell() != 0:
+            log.error("Attempting to call _read_header after file parsing has already started")
+            raise SampleException("Can not call _read_header now")
+
+        # Read and store the configuration found in the 14 line header
+        self._read_file_definition()
+        self._read_column_labels()
+
+        # What file position are we now?
+        file_position = self._stream_handle.tell()
+        self._read_state[StateKey.POSITION] = file_position
+
+    def _read_file_definition(self):
+        """
+        Read the first 14 lines of the data file for the file definitions, values
+        are colon delimited key value pairs.  The pairs are parsed and stored in
+        header_dict member.
+        """
+        row_count = 0
         num_hdr_lines = 14
-        row_count = 1
-        while row_count <= num_hdr_lines:
+
+        while row_count < num_hdr_lines:
             line = self._stream_handle.readline()
-            split_line = line.split()
-            # update num_hdr_lines based on the header info.
-            if 'num_ascii_tags' in split_line:
-                num_hdr_lines = int(split_line[1])
-            # remove a ':' from the key string below using :-1
-            self._header_dict[split_line[0][:-1]] = split_line[1]
+            log.debug("Parse header position: %s line: %s", self._stream_handle.tell(), line)
+
+            values = line.split(':')
+
+            if len(values) == 2:
+                (key, value) = values
+                log.debug("header key: %s, value: %s", key, value)
+
+                # update num_hdr_lines based on the header info.
+                if key in ['num_ascii_tags', 'num_label_lines']:
+                    value = int(value)
+
+                self._header_dict[key] = value
+            else:
+                log.warn("Failed to parse header row: %s.", line)
+
             row_count += 1
+
+    def _read_column_labels(self):
+        """
+        Read the next three lines to populate column data.
+
+        Row 1 == labels
+        Row 2 == units
+        Row 3 == column byte size
+
+        Currently we are only able to support 3 label line rows.  If num_label_lines !=
+        3 then raise an exception.
+        """
+
+        if self._header_dict.get('num_label_lines') != 3:
+            raise SampleException("Label line count must be 3 for this parser")
 
         # read the next 3 rows that describe each column of data
         self._header_dict['labels'] = self._stream_handle.readline().split()
@@ -643,20 +470,6 @@ class GliderParser(BufferLoadingParser):
         num_of_bytes = self._stream_handle.readline().split()
         num_of_bytes = map(int, num_of_bytes)
         self._header_dict['num_of_bytes'] = num_of_bytes
-
-        # unlikely to ever happen, but if 'num_label_lines' is greater than the
-        # 3 read lines just above, then read the extras into the dictionary
-
-        num_label_lines = int(self._header_dict['num_label_lines'])
-        if num_label_lines > 3:
-            for ii in range(num_label_lines-3):
-                key_str = 'unknown_label%d' % ii+1
-                self._header_dict[key_str] = self._stream_handle.readline().split()
-
-        # What file position are we now?
-        file_position = self._stream_handle.tell()
-        # set that to state
-        self._read_state[StateKey.POSITION] = file_position
 
     def set_state(self, state_obj):
         """
@@ -732,46 +545,71 @@ class GliderParser(BufferLoadingParser):
                 'Data': value
             }
 
+        log.trace("Data dict parsed: %s", data_dict)
         return data_dict
 
     def parse_chunks(self):
         """
+        Create particles out of chunks and raise an event
         @retval a list of tuples with sample particles encountered in this
             parsing, plus the state. An empty list is returned if nothing was
             parsed.
         """
         # set defaults
         result_particles = []
+        non_data = None
 
         # collect the data from the file
         (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
         while data_record is not None:
-            row_match = ROW_MATCHER.match(data_record)
-            if row_match:
-                # parse the data record into a data dictionary to pass to the
-                # particle class
-                data_dict = self._read_data(data_record)
+            # parse the data record into a data dictionary to pass to the
+            # particle class
+            data_dict = self._read_data(data_record)
 
-                # from the parsed data, m_present_time is the unix timestamp
+            # from the parsed data, m_present_time is the unix timestamp
+            try:
                 timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
+            except KeyError:
+                raise SampleException("unable to find timestamp in data")
 
+            if self._has_science_data(data_dict):
                 # create the particle
-                particle = self._particle_class(
-                    data_dict, internal_timestamp=timestamp,
-                    preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP)
+                particle = self._extract_sample(self._particle_class, None, data_dict, timestamp)
                 self._increment_state(end)
                 result_particles.append((particle, copy.copy(self._read_state)))
-                self._timestamp += 1
+            else:
+                log.debug("No science data found in particle. %s", particle.generate_dict())
+
+            # Check for noise between records, but ignore newline.  This is detecting noise following
+            # the last successful chunk read which is why it is post sample generation.
+            if non_data is not None and non_data != "\n":
+                    log.info("Gap in datafile detected.")
+                    log.trace("Noise detected: %s", non_data)
+                    self.start_new_sequence()
+            if non_data is not None:
+                self._increment_state(len(non_data))
 
             # process the next chunk, all the way through the file.
             (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
-
-        # TODO: figure out where to log a warning if the file was empty
-            #log.warn("This file is empty")
+            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
 
         # publish the results
         return result_particles
+
+    def _has_science_data(self, data_dict):
+        """
+        Examine the data_dict to see if it contains science data.
+        """
+        for key in data_dict.keys():
+            if key in self._particle_class.science_parameters:
+                value = data_dict[key]['Data']
+                if np.isnan(value):
+                    log.debug("Found science value for key: %s, value: %s", key, value)
+                    return True
+
+        log.debug("No science data found!")
+        return False
 
     def _string_to_ddegrees(self, pos_str):
         """

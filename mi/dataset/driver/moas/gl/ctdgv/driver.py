@@ -17,7 +17,7 @@ log = get_logger()
 from mi.dataset.dataset_driver import SimpleDataSetDriver
 from mi.dataset.parser.glider import GliderParser
 from mi.dataset.parser.glider import GgldrCtdgvDelayedDataParticle
-from mi.dataset.harvester import AdditiveSequentialFileHarvester
+from mi.dataset.harvester import SortingDirectoryHarvester
 
 
 class CTDGVDataSetDriver(SimpleDataSetDriver):
@@ -43,7 +43,7 @@ class CTDGVDataSetDriver(SimpleDataSetDriver):
         return self._parser
 
     def _build_harvester(self, harvester_state):
-        self._harvester = AdditiveSequentialFileHarvester(
+        self._harvester = SortingDirectoryHarvester(
             self._harvester_config,
             harvester_state,
             self._new_file_callback,

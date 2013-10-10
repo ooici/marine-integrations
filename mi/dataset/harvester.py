@@ -193,8 +193,10 @@ class SortingDirectoryPoller(ConditionPoller):
         integers, then sort
         """
         # no sorting needed if 0 or 1 files
-        if filenames and len(filenames) < 2:
+        if not filenames or len(filenames) < 2:
             return filenames
+
+        log.debug("LENGTH: %d", len(filenames))
         # this assumes all files have the same extension
         file_extension = filenames[0].split('.')
         split_names = ()
