@@ -43,6 +43,7 @@ from snakefood.find import ERROR_IMPORT, ERROR_SYMBOL, ERROR_UNUSED
 from snakefood.fallback.collections import defaultdict
 from snakefood.roots import *
 
+REPODIR = '/tmp/repoclone/marine-integrations'
 
 class DependencyList:
     """
@@ -375,7 +376,7 @@ class DriverFileList:
                 f = rootp.sub('', f)
                 result.append(f)
 
-        log.debug("Result File List: %s" % result)
+        log.debug("Result File List: %s", result)
         return result
 
     def _scrub_test_files(self, filelist):
@@ -396,8 +397,9 @@ class DriverFileList:
     def _extra_files(self):
         result = []
         p = re.compile('\.(py|pyc)$')
-        
+        log.debug("*** driver_file: %s", self.driver_file)
         for root, dirs, names in os.walk(dirname(self.driver_file)):
+            log.debug("*** root: %s, dirs: %s, names: %s", root, dirs, names)
             for filename in names:
                 # Ignore python files
                 if not p.search(filename):
@@ -413,13 +415,14 @@ class EggGenerator:
     Generate driver egg
     """
 
-    def __init__(self, metadata):
+    def __init__(self, metadata, repo_dir=REPODIR):
         """
         @brief Constructor
         @param metadata IDK Metadata object
         """
         self.metadata = metadata
         self._bdir = None
+        self._repodir = repo_dir
 
         if not self._tmp_dir():
             raise InvalidParameters("missing tmp_dir configuration")
@@ -442,7 +445,7 @@ class EggGenerator:
         return test_config.driver_class
 
     def _repo_dir(self):
-        return '/tmp/repoclone/marine-integrations'
+        return self._repodir
     
     def _res_dir(self):
         return os.path.join(self._versioned_dir(), 'res')
@@ -491,7 +494,6 @@ class EggGenerator:
 
     def _versioned_dir(self):
         return self._build_dir()
-        # leave in plumbing for building namespaced eggs
         #return os.path.join(self._build_dir(),
         #                    self._build_name())
 
