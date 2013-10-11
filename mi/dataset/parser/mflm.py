@@ -18,10 +18,11 @@ from mi.core.log import get_logger; log = get_logger()
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import DatasetParserException
 from mi.core.instrument.data_particle import DataParticleKey
+from mi.dataset.dataset_parser import Parser
 
 # SIO Main controller header and data for ctdmo in binary
 # groups: ID, Number of Data Bytes, POSIX timestamp, block number, data
-HEADER_REGEX = b'\x01([A-Z0-9]{2})[0-9]{7}_([0-9A-F]{4})[a-z]([0-9A-F]{8})_([0-9A-F]{2})_[0-9A-F]{4}\x02([\x00-\xFF]*?)\x03'
+HEADER_REGEX = b'\x01([A-Z0-9]{2})[0-9]{7}_([0-9A-Fa-f]{4})[a-z]([0-9A-Fa-f]{8})_([0-9A-Fa-f]{2})_[0-9A-Fa-f]{4}\x02([\x00-\xFF]*?)\x03'
 HEADER_MATCHER = re.compile(HEADER_REGEX)
 
 # blocks can be uniquely identified a combination of block number and timestamp,
@@ -29,10 +30,10 @@ HEADER_MATCHER = re.compile(HEADER_REGEX)
 # each block may contain multiple data samples
 class StateKey(BaseEnum):
     TIMESTAMP = "timestamp" # holds the most recent data sample timestamp
-    PROCESSED_BLOCKS = "processed_blocks" # holds a tuple of all processed block numbers and their associated block timestamps 
-    IN_PROCESS_BLOCKS = "in_process_blocks" # holds a tuple of block numbers in process now and their associated block timestamps
+    UNPROCESSED_DATA = "unprocessed_data" # holds an array of start and end of unprocessed blocks of data
+    IN_PROCESS_DATA = "in_process_data" # holds an array of start and end of blocks of data currently being processed
 
-class MflmParser(object):
+class MflmParser(Parser):
 
     def __init__(self, config, stream_handle, state, sieve_fn,
                  state_callback, publish_callback, instrument_id):
@@ -52,23 +53,29 @@ class MflmParser(object):
         @param instrument_id the text string indicating the instrument to
            monitor, can be 'CT', 'AD', 'FL', 'DO', or 'PH'
         """
-        self._chunker = StringChunker(self.sieve_function)
-        self._stream_handle = stream_handle
-        self._state = state
-        self._state_callback = state_callback
-        self._publish_callback = publish_callback
-        self._config = config
+        super(MflmParser, self).__init__(config,
+                                         stream_handle,
+                                         state,
+                                         self.sieve_function,
+                                         state_callback,
+                                         publish_callback)
+
         if instrument_id not in ['CT', 'AD', 'FL', 'DO', 'PH']:
             raise DatasetParserException('instrument id %s is not recognized', instrument_id)
         self._instrument_id = instrument_id
 
-        #build class from module and class name, then set the state
-        self._particle_module = __import__(config.get("particle_module"), fromlist = [config.get("particle_class")])
-        self._particle_class = getattr(self._particle_module, config.get("particle_class"))
-
         self._timestamp = 0.0
+        self._position = [0,0] # store both the start and end point for this read of data within the file
         self._record_buffer = [] # holds list of records
-        self._read_state = {StateKey.TIMESTAMP:0.0, StateKey.PROCESSED_BLOCKS:[], StateKey.IN_PROCESS_BLOCKS:[]}
+        # determine the EOF index
+        self._stream_handle.seek(0)
+        all_data = self._stream_handle.read()
+        EOF = len(all_data)
+        self._stream_handle.seek(0)
+        self._new_seq_flag = True # always start a new sequence on init
+        self._read_state = {StateKey.TIMESTAMP:0.0,
+                            StateKey.UNPROCESSED_DATA:[[0,EOF]],
+                            StateKey.IN_PROCESS_DATA:[]}
 
         if state:
             self.set_state(self._state)
@@ -77,98 +84,116 @@ class MflmParser(object):
         """
         Sort through the raw data to identify new blocks of data that need processing.
         This sieve identifies the SIO header and returns just the data block identified
-        inside the header.  This does a check to make sure the instrument id matches
-        the selected instrument, and checks the state processed blocks to see if
-        a block has been processed already.  
+        inside the header.
+        @param raw_data The raw data to search
+        @retval list of matched start,end index found in raw_data
         """
         return_list = []
-
         for match in HEADER_MATCHER.finditer(raw_data):
-            id_str = match.group(1)
-            log.debug('found match for instrument %s', id_str)
-            if id_str == self._instrument_id:
-                data_len = int(match.group(2), 16)
-                timestamp = match.group(3)
-                block_number = int(match.group(4), 16)
+            # even if this is not the right instrument, keep track that this packet was processed
+            self._read_state[StateKey.IN_PROCESS_DATA].append([match.start(0), match.end(0)])
+            data_len = int(match.group(2), 16)
 
-                if len(match.group(5)) != data_len:
-                    log.warn('data length in header %d does not match data length %d',
-                             data_len, len(match.group(5)))
+            if len(match.group(5)) != data_len:
+                log.warn('data length in header %d does not match data length %d',
+                         data_len, len(match.group(5)))
 
-                if not self.in_processed_block(block_number):
-                    # this block is new, append it
-                    log.debug('Appending block %d, processed_blocks %s', block_number,
-                              self._state[StateKey.PROCESSED_BLOCKS])
-                    self._state[StateKey.IN_PROCESS_BLOCKS].append((block_number, timestamp))
-                    return_list.append((match.start(0), match.end(0)))
-                elif self.in_processed_block(block_number):
-                    # block number can wrap around 0-255, compare timestamp to find out
-                    # if blocks are really different
-                    block_idx = self.processed_block_idx(block_number)
-                    prev_timestamp = self._state[StateKey.PROCESSED_BLOCKS][block_idx][1]
-                    if prev_timestamp != timestamp:
-                        log.debug("Appending block %d", block_number)
-                        # same block number but different timestamps, this block is new
-                        self._state[StateKey.IN_PROCESS_BLOCKS].append((block_number, timestamp))
-                        return_list.append((match.start(0), match.end(0)))
+            return_list.append((match.start(0), match.end(0)))
         return return_list
-
-    def in_processed_block(self, block_number):
-        """
-        Loop through each of the blocks and try to find a matching block_number
-        """
-        for block in self._state[StateKey.PROCESSED_BLOCKS]:
-            if block[0] == block_number:
-                log.debug("Found matching block number %d", block_number)
-                return True
-
-        return False
-
-    def processed_block_idx(self, block_number):
-        idx = -1
-        for block in self._state[StateKey.PROCESSED_BLOCKS]:
-            idx = idx + 1
-            if block[0] == block_number:
-                return idx
-        return -1
 
     def set_state(self, state_obj):
         """
         Set the value of the state object for this parser
         @param state_obj The object to set the state to. Should be a list with
-        a StateKey.POSITION value and StateKey.TIMESTAMP value. The position is
-        number of bytes into the file, the timestamp is an NTP4 format timestamp.
+        a StateKey.UNPROCESSED_DATA value, a StateKey.IN_PROCESS_DATA value,
+        and StateKey.TIMESTAMP value. The UNPROCESSED_DATA and IN_PROCESS_DATA
+        are both arrays which contain an array of start and end indicies for their
+        respective types of data.  The timestamp is an NTP4 format timestamp.
         @throws DatasetParserException if there is a bad state structure
         """
-        log.trace("Attempting to set state to: %s", state_obj)
+        log.debug("Setting state to: %s", state_obj)
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
-        if not ((StateKey.PROCESSED_BLOCKS in state_obj) and \
-            (StateKey.IN_PROCESS_BLOCKS in state_obj) and (StateKey.TIMESTAMP in state_obj)):
+        if not ((StateKey.UNPROCESSED_DATA in state_obj) and \
+            (StateKey.IN_PROCESS_DATA in state_obj) and \
+            (StateKey.TIMESTAMP in state_obj)):
             raise DatasetParserException("Invalid state keys")
 
         self._timestamp = state_obj[StateKey.TIMESTAMP]
+        # store both the start and end point for this read of data within the file
+        self._position = [state_obj[StateKey.UNPROCESSED_DATA][0][0],
+                          state_obj[StateKey.UNPROCESSED_DATA][0][0]]
         self._record_buffer = []
         self._state = state_obj
         self._read_state = state_obj
 
-        # always start at the beginning of the file, need to re-read everything
-        self._stream_handle.seek(0)
+        self._new_seq_flag = True # state has changed, start a new sequence
+
+        # seek to the first unprocessed position
+        self._stream_handle.seek(state_obj[StateKey.UNPROCESSED_DATA][0][0])
+        log.debug('Seeking to %d', state_obj[StateKey.UNPROCESSED_DATA][0][0])
 
     def _increment_state(self, timestamp):
         """
-        Increment which data blocks have been processed by moving the in process
-        blocks to processed.  This keeps track of which blocks have been received,
+        Increment which data packets have been processed, and which are still
+        unprocessed.  This keeps track of which data has been received,
         since blocks may come out of order or appear at a later time in an already
-        processed file. 
+        processed file.
+        @param timestamp The NTP4 timestamp
         """
-        log.trace("Incrementing current state: %s by moving in process blocks to processed",
-                  self._read_state)
+        log.debug("Incrementing current state: %s", self._read_state)
+        # need to adjust position to be relative to the entire file, not just the
+        # currently read section, so add the initial position to the in process packets
+        adj_packets = []
+        for packet in self._read_state[StateKey.IN_PROCESS_DATA]:
+            adj_packets.append([packet[0] + self._position[0], packet[1] + self._position[0]])
 
-        for block in self._read_state[StateKey.IN_PROCESS_BLOCKS]:
-            self._read_state[StateKey.PROCESSED_BLOCKS].append(block)
-        self._read_state[StateKey.IN_PROCESS_BLOCKS] = []
+        # first combine the in process data packet indicies
+        combined_packets = self._combine_adjacent_packets(adj_packets)
+        # loop over combined packets and remove them from unprocessed data
+        for packet in combined_packets:
+            # find which unprocessed section this packet is in
+            for unproc in self._read_state[StateKey.UNPROCESSED_DATA]:
+                if packet[0] >= unproc[0] and packet[1] <= unproc[1]:
+                    # packet is within this unprocessed data, remove it
+                    self._read_state[StateKey.UNPROCESSED_DATA].remove(unproc)
+                    # add back any data still unprocessed on either side
+                    if packet[0] > unproc[0]:
+                        self._read_state[StateKey.UNPROCESSED_DATA].append([unproc[0], packet[0]])
+                    if packet[1] < unproc[1]:
+                        self._read_state[StateKey.UNPROCESSED_DATA].append([packet[1], unproc[1]])
+                    # once we have found which unprocessed section this packet is in,
+                    # move on to next packet
+                    break;
+            self._read_state[StateKey.UNPROCESSED_DATA] = sorted(self._read_state[StateKey.UNPROCESSED_DATA])
+            self._read_state[StateKey.UNPROCESSED_DATA] = self._combine_adjacent_packets(
+                self._read_state[StateKey.UNPROCESSED_DATA])
+
+        self._read_state[StateKey.IN_PROCESS_DATA] = []
         self._read_state[StateKey.TIMESTAMP] = timestamp
+
+    def _combine_adjacent_packets(self, packets):
+        """
+        Combine packets which are adjacent and have the same start/end into one packet
+        i.e [[a,b], [b,c]] -> [[a,c]]
+        @param packets An array of packets, with the form [[start, end], [next_start, next_end], ...]
+        @retval A new array of packets where adjacent packets will have their indicies combined into one 
+        """
+        combined_packets = []
+        idx = 0
+        while idx < len(packets):
+            start_idx = packets[idx][0]
+            # loop until the end of this packet doesn't equal the start of the following packet
+            next_inc = 0
+            while idx + next_inc + 1 < len(packets) and \
+            packets[idx + next_inc][1] == packets[idx + next_inc + 1][0]:
+                next_inc = next_inc + 1
+
+            end_idx = packets[idx + next_inc][1]
+            # append the new combined packet indices
+            combined_packets.append([start_idx, end_idx])
+            idx = idx + next_inc + 1
+        return combined_packets
 
     def get_records(self, num_records):
         """
@@ -181,32 +206,31 @@ class MflmParser(object):
         if num_records <= 0:
             return []
 
-        # default byte size to read from the file
-        size = 1024
-
         while len(self._record_buffer) < num_records:
-            # read data from the file
-            data = self._stream_handle.read(size)
+            # read unprocessed data packet from the file
+            data = self._get_next_unprocessed_data()
             while data and len(self._record_buffer) < num_records:
-                # first need to do special processing on data to handle escape sequences
-                # replace 0x182b with 0x2b and 0x1858 into 0x18
-                data = data.replace(b'\x182b', b'\x2b')
-                data = data.replace(b'\x1858', b'\x18')
                 # there is more data, add it to the chunker
                 self._chunker.add_chunk(data, self._timestamp)
 
                 # parse the chunks now that there is new data in the chunker
                 result = self.parse_chunks()
 
-                # this block has now been parsed, increment the state, using
-                # last samples timestamp to update the state timestamp 
+                # this unprocessed block has now been parsed, increment the state, using
+                # last samples timestamp to update the state timestamp
                 self._increment_state(self._timestamp)
+
+                # clear out any non matching data.  Don't do this during parsing because
+                # it cleans out actual data too because of the way the chunker works
+                (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
+                while non_data is not None:
+                    (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
 
                 # add the parsed chunks to the record_buffer
                 self._record_buffer.extend(result)
 
-                # see if there is more data
-                data = self._stream_handle.read(size)
+                # read the next unprocessed data packet from the file
+                data = self._get_next_unprocessed_data()
 
             # if there is no more data, it is the end of the file, stop looping
             if not data:
@@ -215,6 +239,35 @@ class MflmParser(object):
         log.debug('found %d records', len(self._record_buffer))
         # pull particles out of record_buffer and publish        
         return self._yank_particles(num_records)
+    
+    def _get_next_unprocessed_data(self):
+        """
+        Using the UNPROCESSED_DATA state, determine if there are any more unprocessed blocks,
+        and if there are read in the next one
+        @retval The next unprocessed data packet, or [] if no more unprocessed data
+        """
+        # see if there is more unprocessed data at a later file position (don't go backwards)
+        next_idx = 0
+        # update unproc since it may have changed
+        unproc = self._read_state[StateKey.UNPROCESSED_DATA]
+        while len(unproc) > next_idx and unproc[next_idx][1] <= self._position[1]:
+            next_idx = next_idx + 1
+
+        if len(unproc) > next_idx:
+            data_len = unproc[next_idx][1] - unproc[next_idx][0]
+            # only seek forwards, if we have already read part of a unprocessed section
+            # don't go back to the beginning
+            if unproc[next_idx][0] > self._position[1]:
+                log.debug("Seeking to %d", unproc[next_idx][0])
+                self._stream_handle.seek(unproc[next_idx][0])
+                self._position[0] = unproc[next_idx][0]
+            data = self._stream_handle.read(data_len)
+            self._position[1] = self._position[0] + data_len
+            log.debug('read %d bytes starting at %d', data_len, self._position[0])
+        else:
+            log.debug('Found no data, %s, next_idx=%d', unproc, next_idx)
+            data = []
+        return data
 
     def _yank_particles(self, num_records):
         """
@@ -256,39 +309,4 @@ class MflmParser(object):
             nothing was parsed.
         """            
         raise NotImplementedException("Must write parse_chunks()!")
-
-    def _publish_sample(self, samples):
-        """
-        Publish the samples with the given publishing callback.
-        @param samples The list of data particle to publish up to the system
-        """
-        if isinstance(samples, list):
-            self._publish_callback(samples)
-        else:
-            self._publish_callback([samples])
-
-    @staticmethod
-    def _extract_sample(particle_class, regex, line, timestamp):
-        """
-        Extract sample from a response line if present and publish
-        parsed particle
-
-        @param particle_class The class to instantiate for this specific
-            data particle. Parameterizing this allows for simple, standard
-            behavior from this routine
-        @param regex The regular expression that matches a data sample
-        @param line string to match for sample.
-        @retval return a raw particle if a sample was found, else None
-        """
-        #parsed_sample = None
-        particle = None
-        if regex.match(line):
-            particle = particle_class(line, internal_timestamp=timestamp,
-                                      preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP)
-            #parsed_sample = particle.generate()
-
-        return particle
-
-
-
 
