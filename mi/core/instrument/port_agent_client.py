@@ -41,7 +41,7 @@ TYPE_INDEX = 3
 LENGTH_INDEX = 4 # packet size (including header)
 CHECKSUM_INDEX = 5
 TIMESTAMP_UPPER_INDEX = 6
-TIMESTAMP_LOWER_INDEX = 6
+TIMESTAMP_LOWER_INDEX = 7
 
 SYSTEM_EPOCH = datetime.date(*time.gmtime(0)[0:3])
 NTP_EPOCH = datetime.date(1900, 1, 1)
@@ -107,6 +107,7 @@ class PortAgentPacket():
         upper = variable_tuple[TIMESTAMP_UPPER_INDEX]
         lower = variable_tuple[TIMESTAMP_LOWER_INDEX]
         self.__port_agent_timestamp = float("%s.%s" % (upper, lower))
+        log.debug("port_timestamp: %f", self.__port_agent_timestamp)
 
     def pack_header(self):
         """
