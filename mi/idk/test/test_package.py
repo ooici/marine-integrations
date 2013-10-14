@@ -337,7 +337,8 @@ class TestDriverFileList(IDKPackageNose):
         self.assertTrue(filelist)
         
         known_files = [
-            '%s/res/test_file' % TESTDIR
+            '%s/res/test_file' % TESTDIR,
+            '%s/resource/__init__.py' % TESTDIR
         ]
         
         files = filelist._extra_files()
@@ -362,12 +363,12 @@ class TestDriverFileList(IDKPackageNose):
                       'mi/base3.py',
                       'mi/base4.py',
                       'mi/foo/__init__.py',
+                      'mi/foo/resource/__init__.py',
                       'mi/foo/impl.py',
                       'mi/foo/res/test_file',
                       'mi/foo/test/__init__.py',
-                      'mi/foo/test/test_process.py',
-                      'res/config/mi-logging.yml'
-        ]
+                      'mi/foo/test/test_process.py'
+                      ]
         
         files = filelist.files()
         #log.debug( "F: %s" % files)
@@ -428,18 +429,17 @@ class TestDriverEggGenerator(IDKPackageNose):
     def setUp(self):
         IDKPackageNose.setUp(self)
 
+        self._repo_dir = Config().get('working_repo')
+        self._tmp_dir  = Config().get('tmp_dir')
 
-        self._metadata = Metadata('seabird', 'sbe37smb', 'ooicore')
-        self._generator = EggGenerator(self._metadata)
+        self._metadata = Metadata('seabird', 'sbe37smb', 'ooicore', '.')
+        self._generator = EggGenerator(self._metadata, self._repo_dir)
 
         # Ensure the base build dir doesnt exists
         build_dir = path.join(self._generator._tmp_dir(), self._generator._build_name())
         if exists(build_dir):
             rmtree(build_dir)
             self._generator._generate_build_dir()
-
-        self._repo_dir = Config().get('working_repo')
-        self._tmp_dir  = Config().get('tmp_dir')
 
     def tearDown(self):
         IDKPackageNose.tearDown(self)
@@ -455,11 +455,10 @@ class TestDriverEggGenerator(IDKPackageNose):
             self._metadata.driver_make,
             self._metadata.driver_model,
             self._metadata.driver_name,
-            self._metadata.version,
+            self._metadata.version.replace('.', '_'),
             )
 
         self.assertEqual(self._generator._tmp_dir(), self._tmp_dir)
-        self.assertEqual(self._generator._repo_dir(), self._repo_dir)
         self.assertEqual(self._generator._setup_path(), path.join(self._tmp_dir,self._generator._build_name(),'setup.py'))
         self.assertEqual(self._generator._build_name(), known_name)
         self.assertEqual(self._generator._build_dir(), path.join(self._tmp_dir,self._generator._build_name()))
@@ -506,7 +505,10 @@ class TestDriverEggGenerator(IDKPackageNose):
         files = [ 'mi/__init__.py',
                   'mi/idk/__init__.py',
                   'mi/idk/config.py',
-                  'res/config/mi-logging.yml']
+                  'res/config/mi-logging.yml',
+                  'res/config/__init__.py',
+                  'res/__init__.py'
+        ]
 
         egg_files = [
             'EGG-INFO/dependency_links.txt',
@@ -517,7 +519,6 @@ class TestDriverEggGenerator(IDKPackageNose):
             'EGG-INFO/top_level.txt',
             'EGG-INFO/zip-safe',
             'mi/main.py',
-            'mi/mi-logging.yml',
         ]
 
         egg_file = self._generator._build_egg(files)
@@ -528,7 +529,7 @@ class TestDriverEggGenerator(IDKPackageNose):
 
         # this files is actually moved to mi/mi-logging.yml and appears
         # in the egg_files list.
-        files.remove('res/config/mi-logging.yml')
+        #files.remove('res/config/mi-logging.yml')
 
         log.debug("EGG FILES: %s", sorted(zipped.namelist()))
         log.debug("EXP FILES: %s", sorted(files + egg_files))
