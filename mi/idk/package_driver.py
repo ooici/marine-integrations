@@ -21,6 +21,7 @@ from mi.idk.driver_generator import DriverGenerator
 from mi.idk.egg_generator import EggGenerator
 from mi.idk.exceptions import ValidationFailure
 from mi.idk.exceptions import InvalidParameters
+from mi.idk.exceptions import GitCommandException
 
 REPODIR = '/tmp/repoclone'
 
@@ -111,7 +112,7 @@ class PackageDriver(object):
                                      self.metadata.version)
 
     def archive_path(self):
-        return os.path.join(os.path.expanduser("~"),self.archive_file())
+        return os.pgipath.join(os.path.expanduser("~"),self.archive_file())
 
 
     ###
@@ -157,12 +158,15 @@ class PackageDriver(object):
             shutil.rmtree(REPODIR + '/marine-integrations')
 
         # clone the ooici repository into a temporary location
-        os.system('git clone git@github.com:ooici/marine-integrations.git')
-        log.debug('cloned repository')
+        log.debug('Attempting to clone repository into %s, REPODIR set to %s',
+                  os.getcwd(), REPODIR)
+        ret = os.system('git clone git@github.com:ooici/marine-integrations.git')
+        if ret < 0:
+            raise GitCommandException("Bad return from git command")
 
         # if the directory doesn't exist, something went wrong with cloning
         if not os.path.exists(REPODIR + '/marine-integrations'):
-            raise InvalidParameters('Error creating ooici repository clone')
+            raise GitCommandException('Error creating ooici repository clone with base' % REPODIR)
         # navigate into the cloned repository
         os.chdir(REPODIR + '/marine-integrations')
         log.debug('in cloned repository')

@@ -505,7 +505,10 @@ class TestDriverEggGenerator(IDKPackageNose):
         files = [ 'mi/__init__.py',
                   'mi/idk/__init__.py',
                   'mi/idk/config.py',
-                  'res/config/mi-logging.yml']
+                  'res/config/mi-logging.yml',
+                  'res/config/__init__.py',
+                  'res/__init__.py'
+        ]
 
         egg_files = [
             'EGG-INFO/dependency_links.txt',
@@ -515,7 +518,7 @@ class TestDriverEggGenerator(IDKPackageNose):
             'EGG-INFO/SOURCES.txt',
             'EGG-INFO/top_level.txt',
             'EGG-INFO/zip-safe',
-            'mi/main.py'
+            'mi/main.py',
         ]
 
         egg_file = self._generator._build_egg(files)
@@ -526,7 +529,7 @@ class TestDriverEggGenerator(IDKPackageNose):
 
         # this files is actually moved to mi/mi-logging.yml and appears
         # in the egg_files list.
-        files.remove('res/config/mi-logging.yml')
+        #files.remove('res/config/mi-logging.yml')
 
         log.debug("EGG FILES: %s", sorted(zipped.namelist()))
         log.debug("EXP FILES: %s", sorted(files + egg_files))
