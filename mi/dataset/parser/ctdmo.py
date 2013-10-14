@@ -24,7 +24,7 @@ from mi.core.exceptions import SampleException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
 class DataParticleType(BaseEnum):
-    SAMPLE = 'nose_ctd_external'
+    SAMPLE = 'ctdmo_parsed'
     
 class CtdmoParserDataParticleKey(BaseEnum):
     TEMPERATURE = "temperature"

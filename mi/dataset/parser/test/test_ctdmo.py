@@ -109,7 +109,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 
 	# there is one CT tag from 194-228 that has no data samples
 	# blocks have the same timestamp, packet 2 has 3 data samples [432:505]
-	self.timestamp1 = 3583656001.0
+	self.timestamp1 = 3583656001.0 #07/24/2013 05:00:01
         self.particle_a = CtdmoParserDataParticle(b'\x15\x38\x53\x66\x9e\x1a\xa2\x0c\x81\xd5\x81\x19\x0d',
                                                   internal_timestamp=self.timestamp1, new_sequence=True)
 	self.particle_b = CtdmoParserDataParticle(b'\x35\x3b\xa2\x10\xc3\x5a\xe7\x0a\x81\xd5\x81\x19\x0d',
@@ -118,7 +118,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 						  internal_timestamp=self.timestamp1, new_sequence=False)
 	# this is the start of packet 3 [892:1083]
 	# there is no missing data between packet 2 and 3
-	self.timestamp2 = 3583663201.0
+	self.timestamp2 = 3583663201.0 #07/24/2013 07:00:01
 	self.particle_d = CtdmoParserDataParticle(b'\x40\x3a\x7f\xa0\xc3\x56\xe0\x0a\xa1\xf1\x81\x19\x0d',
 						  internal_timestamp=self.timestamp2, new_sequence=False)
 	self.particle_d_new = CtdmoParserDataParticle(b'\x40\x3a\x7f\xa0\xc3\x56\xe0\x0a\xa1\xf1\x81\x19\x0d',
@@ -133,7 +133,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 						  internal_timestamp=self.timestamp2, new_sequence=False)
 	# particle 16 (packet 4) [1470-1661]
 	# missing block [1197-1470] between 3 and 4
-	self.timestamp3 = 3583670401.0
+	self.timestamp3 = 3583670401.0 #07/24/2013 09:00:01
 	self.particle_xx = CtdmoParserDataParticle(b'\x40\x21\xcb\xc5\x97\x38\x4a\x1e\xc1\x0d\x82\x19\x0d',
 						   internal_timestamp=self.timestamp3, new_sequence=True)
 	self.particle_zz = CtdmoParserDataParticle(b'A!\x94\x95\x928*\x1d\xc1\r\x82\x19\r',

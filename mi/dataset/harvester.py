@@ -14,9 +14,11 @@ __license__ = 'Apache 2.0'
 
 import os
 import glob
+import hashlib
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.poller import DirectoryPoller, ConditionPoller
+from mi.core.common import BaseEnum
 
 class Harvester(object):
     """ abstract class to show API needed for plugin poller objects """
@@ -97,11 +99,13 @@ class FilePoller(ConditionPoller):
             
     def _check_for_data(self):
         """
-        find out how the last file offset relates to the current file size.  If it is less than the current file size, return the 
+        find out how the last file offset relates to the current file size.
+        If it is less than the current file size, return the file
         """
         filesize = os.path.getsize(self._file)
         # files, but no change since last time
-        log.debug("Checking file size, size is %d, last offset is %s", filesize, str(self._last_offset))
+        log.debug("Checking file size, size is %d, last offset is %s",
+                  filesize, str(self._last_offset))
         if filesize == 0:
             # file is empty
             return None
@@ -110,8 +114,7 @@ class FilePoller(ConditionPoller):
             return None
         self._last_offset = filesize
         return self._file
-    
-    
+
 class SingleFileHarvester(FilePoller, Harvester):
     """
     Poll a single file to determine if data has been appended to the file
@@ -146,6 +149,110 @@ class SingleFileHarvester(FilePoller, Harvester):
             with open(fullfile, 'rb') as f:
                 self.callback(f, filesize)
 
+class FileChangeHarvesterMementoKey(BaseEnum):
+    LAST_OFFSET = "last_read_offset"
+    LAST_CHECKSUM = "last_checksum"
+
+class FileChangePoller(ConditionPoller):
+    """
+    poll a single file to determine if that file has had additional data appended to it or has
+    had the data within the file changed
+    """
+
+    def __init__(self, fullfile, last_read_offset, last_checksum, callback, exception_callback=None, interval=1):
+        """
+        @param fullfile full file path to the file to monitor
+        @param last_read_offset offset of the last byte read in this file (can be None)
+        @param last_checkum the checksum of the previously read file (can be None)
+        @param callback the callback to call when new data has been found in the file
+        @param exception_callback the callback to call when an exception has occurred
+        @param interval the interval between checking on the file in seconds
+        """
+        try:
+            self._file = fullfile
+            self._last_offset = last_read_offset
+            self._last_checksum = last_checksum
+            super(FileChangePoller,self).__init__(self._check_for_data,
+                                                  callback, exception_callback,
+                                                  interval)
+        except:
+            log.error('failed init?', exc_info=True)
+
+    def _check_for_data(self):
+        """
+        find out how the last file offset relates to the current file size.
+        If it is less than the current file size, return the file.  Also
+        compare the file checksums, if it is different than the previous
+        checksum return the file.
+        """
+        if not os.path.isfile(self._file):
+            # file does not exist yet
+            return None
+        filesize = os.path.getsize(self._file)
+        # files, but no change since last time
+        log.debug("Checking file size, size is %d, last offset is %s",
+                  filesize, str(self._last_offset))
+        if filesize == 0:
+            # file is empty
+            return None
+        # calculate the checksum
+        with open(self._file) as filehandle:
+            data = filehandle.read()
+            md5_checksum = hashlib.md5(data).hexdigest()
+        if self._last_offset and filesize and filesize==self._last_offset:
+            # no change since last filesize, now compare checksum
+            if self._last_checksum is not None and self._last_checksum == md5_checksum:
+                # checksums are the same
+                return None
+        # checksum or file size is different
+        self._last_checksum = md5_checksum
+        self._last_offset = filesize
+        return self._file
+
+class SingleFileChangeHarvester(FileChangePoller, Harvester):
+    """
+    Poll a single file to determine if data has been appended to the file,
+    or the data in the file has been changed
+    """
+
+    def __init__(self, config, memento, data_callback, exception_callback):
+        """
+        @param config a configuration dictionary containing harvester config
+        @param last_read_offset offset of the last byte read in this file (can be None)
+        @param last_checksum checksum of the last file read (can be None)
+        @param data_callback the callback to call when new data has been found in the file
+        @param exception_callback the callback to call when an exception has occurred
+        """
+        if not isinstance(config, dict):
+            raise TypeError("Config object must be a dict")
+        if not isinstance(memento, dict):
+            raise TypeError("Momento must be a dict")
+
+        self.fullfile = config['directory'] + '/' + config['pattern']
+        self.callback = data_callback
+        if memento == {}:
+            self.last_offset = None
+            self.last_checksum = None
+        else:
+            self.last_offset = memento[FileChangeHarvesterMementoKey.LAST_OFFSET]
+            self.last_checksum = memento[FileChangeHarvesterMementoKey.LAST_CHECKSUM]
+
+        FileChangePoller.__init__(self, self.fullfile,
+                            self.last_offset,
+                            self.last_checksum,
+                            self.on_new_data,
+                            exception_callback,
+                            config.get('frequency', 1))
+
+    def on_new_data(self, fullfile):
+        """
+        When new data has been found, open the file and seek to the last
+        offset if there is one
+        """
+        if fullfile:
+            filesize = os.path.getsize(fullfile)
+            with open(fullfile, 'rb') as f:
+                self.callback(f, filesize)
 
 class SortingDirectoryPoller(ConditionPoller):
     """
