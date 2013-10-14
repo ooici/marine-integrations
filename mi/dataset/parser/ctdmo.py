@@ -54,13 +54,12 @@ class CtdmoParserDataParticle(DataParticle):
         
         match = DATA_MATCHER.match(self.raw_data)
         if not match:
-            raise SampleException("CtdParserDataParticle: No regex match of \
+            raise SampleException("CtdmoParserDataParticle: No regex match of \
                                   parsed sample data: [%s]", self.raw_data)
 
         try:
             # convert binary to hex ascii string
             asciihex = binascii.b2a_hex(match.group(0))
-            log.debug("converting particle hex ascii %s", asciihex)
             # just convert directly from hex-ascii to int
             temp_num = int(asciihex[2:7], 16)
             temp = (temp_num / 10000) - 10
@@ -82,7 +81,7 @@ class CtdmoParserDataParticle(DataParticle):
                    DataParticleKey.VALUE: cond},
                   {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.PRESSURE,
                    DataParticleKey.VALUE: press}]
-        log.debug('CtdmoParserDataParticle: particle=%s', result)
+        log.trace('CtdmoParserDataParticle: particle=%s', result)
         return result
 
     def __eq__(self, arg):

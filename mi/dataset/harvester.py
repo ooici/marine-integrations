@@ -150,7 +150,7 @@ class SingleFileHarvester(FilePoller, Harvester):
                 self.callback(f, filesize)
 
 class FileChangeHarvesterMementoKey(BaseEnum):
-    LAST_OFFSET = "last_read_offset"
+    LAST_FILESIZE = "last_filesize"
     LAST_CHECKSUM = "last_checksum"
 
 class FileChangePoller(ConditionPoller):
@@ -159,7 +159,7 @@ class FileChangePoller(ConditionPoller):
     had the data within the file changed
     """
 
-    def __init__(self, fullfile, last_read_offset, last_checksum, callback, exception_callback=None, interval=1):
+    def __init__(self, fullfile, last_size, last_checksum, callback, exception_callback=None, interval=1):
         """
         @param fullfile full file path to the file to monitor
         @param last_read_offset offset of the last byte read in this file (can be None)
@@ -170,7 +170,7 @@ class FileChangePoller(ConditionPoller):
         """
         try:
             self._file = fullfile
-            self._last_offset = last_read_offset
+            self._last_size = last_size
             self._last_checksum = last_checksum
             super(FileChangePoller,self).__init__(self._check_for_data,
                                                   callback, exception_callback,
@@ -190,8 +190,8 @@ class FileChangePoller(ConditionPoller):
             return None
         filesize = os.path.getsize(self._file)
         # files, but no change since last time
-        log.debug("Checking file size, size is %d, last offset is %s",
-                  filesize, str(self._last_offset))
+        log.debug("Checking file size, size is %d, last size was %s",
+                  filesize, str(self._last_size))
         if filesize == 0:
             # file is empty
             return None
@@ -199,14 +199,15 @@ class FileChangePoller(ConditionPoller):
         with open(self._file) as filehandle:
             data = filehandle.read()
             md5_checksum = hashlib.md5(data).hexdigest()
-        if self._last_offset and filesize and filesize==self._last_offset:
-            # no change since last filesize, now compare checksum
-            if self._last_checksum is not None and self._last_checksum == md5_checksum:
-                # checksums are the same
-                return None
+        if self._last_size and filesize and \
+        filesize==self._last_size and \
+        self._last_checksum is not None and \
+        self._last_checksum == md5_checksum:
+            # file size and checksums are the same
+            return None
         # checksum or file size is different
         self._last_checksum = md5_checksum
-        self._last_offset = filesize
+        self._last_size = filesize
         return self._file
 
 class SingleFileChangeHarvester(FileChangePoller, Harvester):
@@ -231,14 +232,14 @@ class SingleFileChangeHarvester(FileChangePoller, Harvester):
         self.fullfile = config['directory'] + '/' + config['pattern']
         self.callback = data_callback
         if memento == {}:
-            self.last_offset = None
+            self.last_size = None
             self.last_checksum = None
         else:
-            self.last_offset = memento[FileChangeHarvesterMementoKey.LAST_OFFSET]
+            self.last_size = memento[FileChangeHarvesterMementoKey.LAST_FILESIZE]
             self.last_checksum = memento[FileChangeHarvesterMementoKey.LAST_CHECKSUM]
 
         FileChangePoller.__init__(self, self.fullfile,
-                            self.last_offset,
+                            self.last_size,
                             self.last_checksum,
                             self.on_new_data,
                             exception_callback,
