@@ -164,7 +164,7 @@ class UtilMixin(DriverTestMixin):
     # Parameter and Type Definitions
     ###
     _driver_parameters = {Parameter.BATTERY: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: "30", REQUIRED: True},
-                          Parameter.SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 20, REQUIRED: True}}
+                          Parameter.SAMPLE_NUMBER: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 20, REQUIRED: True}}
 
     ###
     # Data Particle Parameters
