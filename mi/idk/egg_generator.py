@@ -397,9 +397,7 @@ class DriverFileList:
     def _extra_files(self):
         result = []
         p = re.compile('\.(py|pyc)$')
-        log.debug("*** driver_file: %s", self.driver_file)
         for root, dirs, names in os.walk(dirname(self.driver_file)):
-            log.debug("*** root: %s, dirs: %s, names: %s", root, dirs, names)
             for filename in names:
                 # Ignore python files
                 if not p.search(filename):
