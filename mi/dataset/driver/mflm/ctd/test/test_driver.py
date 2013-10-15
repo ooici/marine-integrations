@@ -316,6 +316,15 @@ class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
         super(QualificationTest, self).setUp()
 
+    def clean_file(self):
+        # remove just the file we are using
+        driver_config = self._driver_config()['startup_config']
+        log.debug('startup config %s', driver_config)
+        fullfile = os.path.join(driver_config['harvester']['directory'],
+                            driver_config['harvester']['pattern'])
+        if os.path.exists(fullfile):
+            os.remove(fullfile)
+
     def test_initialize(self):
         """
         Test that we can start the container and initialize the dataset agent.
@@ -337,8 +346,8 @@ class QualificationTest(DataSetQualificationTestCase):
 
         try:
             # Verify we get one sample
-            result = self.data_subscribers.get_samples(SAMPLE_STREAM)
-            log.debug("RESULT: %s", result)
+            result = self.data_subscribers.get_samples(SAMPLE_STREAM, 3)
+            log.info("RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1.txt.result.yml')

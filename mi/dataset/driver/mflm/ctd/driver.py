@@ -24,6 +24,16 @@ from mi.dataset.harvester import SingleFileChangeHarvester, FileChangeHarvesterM
 
 
 class MflmCTDMODataSetDriver(SimpleDataSetDriver):
+
+    def __init__(self, config, memento, data_callback, state_callback, exception_callback):
+        super(MflmCTDMODataSetDriver, self).__init__(config, memento, data_callback,
+                                                     state_callback, exception_callback)
+        # need to override initialization of states to be a dict
+        if self._harvester_state == None:
+            self._harvester_state = {}
+        if self._parser_state == None:
+            self._parser_state = {}
+
     @classmethod
     def stream_config(cls):
         return [CtdmoParserDataParticle.type()]
