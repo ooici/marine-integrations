@@ -138,8 +138,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 						   internal_timestamp=self.timestamp3, new_sequence=True)
 	self.particle_zz = CtdmoParserDataParticle(b'A!\x94\x95\x928*\x1d\xc1\r\x82\x19\r',
 						   internal_timestamp=self.timestamp3, new_sequence=False)
-	# packet 5 (past 1470)
-	# no missing blocks between 4 and 5
+	# packet 5 [5392-5582]
+	# no missing blocks between 4 and 5 
 	self.timestamp4 = 3583677601.0
 	self.particle_aa = CtdmoParserDataParticle(b'\x40\x21\xbe\x25\x94\x9d\xa0\x1c\xe1\x29\x82\x19\x0d',
 						   internal_timestamp=self.timestamp4, new_sequence=False)

@@ -324,14 +324,24 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_stop_sampling()
         self.assert_reset()
 
-    @unittest.skip("skip for now")
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
+        self.clean_file()
+        
+        self.create_sample_data('node59p1_step1.dat', "node59p1.dat")
 
         self.assert_initialize()
 
-        # Verify we get one sample
-        result = self.data_subscribers.get_samples(SAMPLE_STREAM)
+        try:
+            # Verify we get one sample
+            result = self.data_subscribers.get_samples(SAMPLE_STREAM)
+            log.debug("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'test_data_1.txt.result.yml')
+        except Exception as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
