@@ -155,9 +155,11 @@ class CtdmoParser(MflmParser):
         if non_data is not None and non_start is 0:
             non_data_flag = True
 
+        sample_count = 0
+
         while (chunk != None):
             header_match = HEADER_MATCHER.match(chunk)
-
+            sample_count = 0
             if header_match.group(1) == self._instrument_id:
                 # Check for missing data between records
                 if non_data_flag or self._new_seq_flag:
@@ -173,6 +175,7 @@ class CtdmoParser(MflmParser):
                 chunk = chunk.replace(b'\x182b', b'\x2b')
                 chunk = chunk.replace(b'\x1858', b'\x18')
                 log.debug("matched chunk header %s", chunk[1:32])
+
                 for data_match in DATA_MATCHER.finditer(chunk):
                     # the timestamp is part of the data, pull out the time stamp
                     # convert from binary to hex string
@@ -192,7 +195,9 @@ class CtdmoParser(MflmParser):
                     if sample:
                         # create particle
                         result_particles.append(sample)
-
+                        sample_count += 1
+            # keep track of how many samples were found in this chunk
+            self._chunk_sample_count.append(sample_count)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             # need to set a flag in case we read a chunk not matching the instrument ID and overwrite the non_data

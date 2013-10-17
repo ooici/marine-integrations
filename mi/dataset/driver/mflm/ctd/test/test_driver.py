@@ -26,9 +26,11 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.exceptions import ConfigurationException
 from mi.core.exceptions import InstrumentParameterException
+from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
+from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetUnitTestCase
@@ -37,6 +39,13 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.driver.mflm.ctd.driver import MflmCTDMODataSetDriver
 from mi.dataset.parser.ctdmo import CtdmoParserDataParticle
+
+from pyon.agent.agent import ResourceAgentState
+
+from interface.objects import CapabilityType
+from interface.objects import AgentCapability
+from interface.objects import ResourceAgentErrorEvent
+from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 
 DataSetTestCase.initialize(
@@ -339,10 +348,18 @@ class QualificationTest(DataSetQualificationTestCase):
         published out the agent
         """
         self.clean_file()
-        
+
         self.create_sample_data('node59p1_step1.dat', "node59p1.dat")
 
-        self.assert_initialize()
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Right now, there is an issue with keeping records in order,
+        # which has to do with the sleep time in get_samples in
+        # instrument_agent_client.  By setting this delay more than the
+        # delay in get_samples, the records are returned in the expected
+        # otherwise they are returned out of order
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
 
         try:
             # Verify we get one sample
@@ -354,3 +371,170 @@ class QualificationTest(DataSetQualificationTestCase):
         except Exception as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
+
+    def test_large_import(self):
+        """
+        Test a large import
+        """
+        self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
+        self.assert_initialize()
+
+        result = self.get_samples(SAMPLE_STREAM,39,120)
+
+    def test_resource_parameters(self):
+        """
+        verify we can get a resource parameter lists and get/set parameters.
+        """
+        def sort_capabilities(caps_list):
+            '''
+            sort a return value into capability buckets.
+            @retval agt_cmds, agt_pars, res_cmds, res_iface, res_pars
+            '''
+            agt_cmds = []
+            agt_pars = []
+            res_cmds = []
+            res_iface = []
+            res_pars = []
+
+            if len(caps_list)>0 and isinstance(caps_list[0], AgentCapability):
+                agt_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_CMD]
+                agt_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_PAR]
+                res_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_CMD]
+                #res_iface = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_IFACE]
+                res_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_PAR]
+
+            elif len(caps_list)>0 and isinstance(caps_list[0], dict):
+                agt_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_CMD]
+                agt_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_PAR]
+                res_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_CMD]
+                #res_iface = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_IFACE]
+                res_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_PAR]
+
+            agt_cmds.sort()
+            agt_pars.sort()
+            res_cmds.sort()
+            res_iface.sort()
+            res_pars.sort()
+
+            return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
+
+        log.debug("Initialize the agent")
+        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        log.debug("Call get capabilities")
+        retval = self.dataset_agent_client.get_capabilities()
+        log.debug("Capabilities: %s", retval)
+        agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
+        self.assertEqual(sorted(res_pars), sorted(expected_params))
+
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 20})
+        reply = self.dataset_agent_client.get_resource(DriverParameter.ALL)
+        log.debug("Get Resource Result: %s", reply)
+
+    def test_stop_start(self):
+        """
+        Test the agents ability to start data flowing, stop, then restart
+        at the correct spot.
+        """
+        log.error("CONFIG: %s", self._agent_config())
+        self.create_sample_data('node59p1_step1.dat', "node59p1.dat")
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # Verify we get one sample
+        try:
+            # Read the first file and verify the data
+            result = self.get_samples(SAMPLE_STREAM, 3)
+            log.debug("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'test_data_1.txt.result.yml')
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+
+            self.create_sample_data('node59p1_step2.dat', "node59p1.dat")
+            # Now read the first four records of the second file then stop
+            result1 = self.get_samples(SAMPLE_STREAM, 4)
+            log.debug("RESULT 1: %s", result1)
+            self.assert_stop_sampling()
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+
+            # Restart sampling and ensure we get the last 8 records of the file
+            self.assert_start_sampling()
+            result2 = self.get_samples(SAMPLE_STREAM, 8)
+            log.debug("RESULT 2: %s", result2)
+            result = result1
+            result.extend(result2)
+            log.debug("RESULT: %s", result)
+            self.assert_data_values(result, 'test_data_2.txt.result.yml')
+
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+    @unittest.skip('This driver doesnt die if the directory isnt there...')
+    def test_missing_file(self):
+        """
+        Test starting the driver when the data directory doesn't exists.  This
+        should prevent the driver from going into streaming mode.  When the
+        directory is created then we should be able to transition into streaming.
+        """
+        self.remove_sample_dir()
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        self.event_subscribers.clear_events()
+        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
+
+        self.create_data_dir()
+
+        # Should automatically retry connect and transition to streaming
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
+
+    def test_harvester_new_file_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.
+
+        exception callback called.
+        """
+        self.clean_file()
+        self.create_sample_data('node59p1_step4.dat', "node59p1.dat", mode=000)
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        self.event_subscribers.clear_events()
+        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
+
+        self.clean_file()
+        self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
+
+        # Should automatically retry connect and transition to streaming
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
+
+    def test_parser_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        record parsing.
+        """
+        self.clean_file()
+        self.create_sample_data('node59p1_step2.dat', "node59p1.dat")
+
+        self.assert_initialize()
+
+        self.event_subscribers.clear_events()
+        result = self.get_samples(SAMPLE_STREAM, 15)
+        self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+
+        # Verify an event was raised and we are in our retry state
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_state_change(ResourceAgentState.STREAMING, 10)
