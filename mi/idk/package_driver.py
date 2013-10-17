@@ -112,7 +112,7 @@ class PackageDriver(object):
                                      self.metadata.version)
 
     def archive_path(self):
-        return os.pgipath.join(os.path.expanduser("~"),self.archive_file())
+        return os.path.join(os.path.expanduser("~"),self.archive_file())
 
 
     ###

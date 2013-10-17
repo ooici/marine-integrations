@@ -96,11 +96,19 @@ class TestResultSet(MiUnitTest):
         ts = rs._string_to_ntp_date_time("1970-01-01T00:00:00.00Z")
         self.assertEqual(ts, 2208988800.0)
 
+        ts = rs._string_to_ntp_date_time("1970-01-01T00:00:00.00")
+        self.assertEqual(ts, 2208988800.0)
+
+        ts = rs._string_to_ntp_date_time("1970-01-01T00:00:00")
+        self.assertEqual(ts, 2208988800.0)
+
+        ts = rs._string_to_ntp_date_time("1970-01-01T00:00:00Z")
+        self.assertEqual(ts, 2208988800.0)
+
         ts = rs._string_to_ntp_date_time("1970-01-01T00:01:00.101Z")
         self.assertEqual(ts, 2208988860.101)
 
-        ts = rs._string_to_ntp_date_time("09/05/2013 02:47:21.82962Z")
-        self.assertEqual(ts, 3587338041.829620)
+        self.assertRaises(ValueError, rs._string_to_ntp_date_time, "09/05/2013 02:47:21.000")
 
     def test_simple_result_set(self):
         """
@@ -109,7 +117,7 @@ class TestResultSet(MiUnitTest):
         rs = ResultSet(self._get_result_set_file("record_set_files/test_data_1.txt.result.yml"))
 
         # Test the happy path
-        base_timestamp = 3583886463.0
+        base_timestamp = 3583861263.0
         particle_a = CtdpfParserDataParticle("10.5914,  4.1870,  161.06,   2693.0",
                                              internal_timestamp=base_timestamp, new_sequence=True)
         particle_b = CtdpfParserDataParticle("10.5915,  4.1871,  161.07,   2693.1",
@@ -156,7 +164,7 @@ class TestResultSet(MiUnitTest):
         rs = ResultSet(self._get_result_set_file("record_set_files/test_data_1.txt.result.yml"))
 
         # Test the happy path
-        base_timestamp = 3583886463.0
+        base_timestamp = 3583861263.0
         particle_a = CtdpfParserDataParticle("10.5914,  4.1870,  161.06,   2693.0",
                                              internal_timestamp=base_timestamp, new_sequence=True).generate_dict()
         particle_b = CtdpfParserDataParticle("10.5915,  4.1871,  161.07,   2693.1",
