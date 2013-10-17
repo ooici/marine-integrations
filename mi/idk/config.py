@@ -72,10 +72,10 @@ class ConfigManager(Singleton):
 
         ## Initialize the config file if one doesn't exist
         cfgpath = os.path.join(config_dir, CONFIG_FILENAME)
-        log.debug("config file: %s" % cfgpath)
+        log.debug("config file: %s", cfgpath)
 
         if not os.path.exists(cfgpath):
-            log.debug("User IDK config doesn't exist: " + cfgpath)
+            log.debug("User IDK config doesn't exist: %s", cfgpath)
             self.rebase()
             
         ## Read the user config file once to get the working repo dir, then again with the default and user config
@@ -109,7 +109,7 @@ class ConfigManager(Singleton):
                root of the local git working directory.
         """
         log.debug("Rebase IDK working repository")
-        idk_repo = os.getcwd();
+        idk_repo = os.getcwd()
         
         # We assume we are in the root of the local repository directory because
         # DEFAULT_CONFIG is a relative path from there
@@ -120,11 +120,19 @@ class ConfigManager(Singleton):
         ### installed doesn't support remotes. 
         origin = idk_repo
 
-        log.debug( "Does '%s' contain '%s'" % (origin, MI_REPO_NAME))
+        log.debug( "Does '%s' contain '%s'", origin, MI_REPO_NAME)
         # Added second criteria as a quick fix to get buildbot working.  Need a better
         # way of identifing the idk dir
         if origin.find(MI_REPO_NAME) < 0 and origin.find('/build') < 0:
-            raise IDKWrongRunningDirectory(msg="Please run this process from the root your local MI git repository")
+            # Maybe we wound up close, so try a quick change, then fail
+            try:
+                os.chdir(MI_REPO_NAME)
+                origin = os.getcwd()
+            except:
+                raise IDKWrongRunningDirectory(msg="Please run this process from the root your local MI git repository")
+                
+            if origin.find(MI_REPO_NAME) < 0 and origin.find('/build') < 0:
+                raise IDKWrongRunningDirectory(msg="Please run this process from the root your local MI git repository")
         
         self.set(YAML_CONFIG_WORKING_REPO, idk_repo)
         self.set(YAML_CONFIG_START_RABBIT, False)

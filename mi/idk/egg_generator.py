@@ -43,6 +43,7 @@ from snakefood.find import ERROR_IMPORT, ERROR_SYMBOL, ERROR_UNUSED
 from snakefood.fallback.collections import defaultdict
 from snakefood.roots import *
 
+REPODIR = '/tmp/repoclone/marine-integrations'
 
 class DependencyList:
     """
@@ -375,7 +376,7 @@ class DriverFileList:
                 f = rootp.sub('', f)
                 result.append(f)
 
-        log.debug("Result File List: %s" % result)
+        log.debug("Result File List: %s", result)
         return result
 
     def _scrub_test_files(self, filelist):
@@ -396,7 +397,6 @@ class DriverFileList:
     def _extra_files(self):
         result = []
         p = re.compile('\.(py|pyc)$')
-        
         for root, dirs, names in os.walk(dirname(self.driver_file)):
             for filename in names:
                 # Ignore python files
@@ -413,13 +413,14 @@ class EggGenerator:
     Generate driver egg
     """
 
-    def __init__(self, metadata):
+    def __init__(self, metadata, repo_dir=REPODIR):
         """
         @brief Constructor
         @param metadata IDK Metadata object
         """
         self.metadata = metadata
         self._bdir = None
+        self._repodir = repo_dir
 
         if not self._tmp_dir():
             raise InvalidParameters("missing tmp_dir configuration")
@@ -442,10 +443,10 @@ class EggGenerator:
         return test_config.driver_class
 
     def _repo_dir(self):
-        return '/tmp/repoclone/marine-integrations'
+        return self._repodir
     
     def _res_dir(self):
-        return os.path.join(self._versioned_dir(), '../res')
+        return os.path.join(self._versioned_dir(), 'res')
     
     def _res_config_dir(self):
         return os.path.join(self._res_dir(), 'config' )
@@ -490,8 +491,9 @@ class EggGenerator:
         return build_dir
 
     def _versioned_dir(self):
-        return os.path.join(self._build_dir(),
-                            self._build_name())
+        return self._build_dir()
+        #return os.path.join(self._build_dir(),
+        #                    self._build_name())
 
     def _stage_files(self, files):
         """
@@ -510,10 +512,6 @@ class EggGenerator:
         if not os.path.exists(self._versioned_dir()):
             os.makedirs(self._versioned_dir())
 
-        # we need to make sure an init file is in the versioned dir so
-        # that find_packages() will look in here
-        self.touch(os.path.join(self._versioned_dir(), "__init__.py"))
-
         for file in files:
             dest = os.path.join(self._versioned_dir(), file)
             destdir = dirname(dest)
@@ -521,7 +519,7 @@ class EggGenerator:
 
             # this one goes elsewhere so the InstrumentDict can find it
             if basename(file) == 'strings.yml':
-                dest = os.path.join(self._res_config_dir(), basename(file))
+                dest = os.path.join(self._res_dir(), basename(file))
                 destdir = dirname(dest)
 
             log.debug(" Copy %s => %s" % (source, dest))
@@ -534,17 +532,17 @@ class EggGenerator:
             # replace mi in the copied files with the versioned driver module.mi
             # this is necessary because the top namespace in the versioned files starts
             # with the versioned driver name directory, not mi
-            driver_file = open(dest, "r")
-            contents = driver_file.read()
-            driver_file.close()
-            new_contents = re.sub(r'(^import |^from |\'|= )mi\.|res/config/mi-logging|\'mi\'',
-                                  self._mi_replace,
-                                  contents,
-                                  count=0,
-                                  flags=re.MULTILINE)
-            driver_file = open(dest, "w")
-            driver_file.write(new_contents)
-            driver_file.close()
+            #driver_file = open(dest, "r")
+            #contents = driver_file.read()
+            #driver_file.close()
+            #new_contents = re.sub(r'(^import |^from |\'|= )mi\.|res/config/mi-logging|\'mi\'',
+            #                      self._mi_replace,
+            #                      contents,
+            #                      count=0,
+            #                      flags=re.MULTILINE)
+            #driver_file = open(dest, "w")
+            #driver_file.write(new_contents)
+            #driver_file.close()
 
             
         # need to add mi-logging.yml special because it is not in cloned repo, only in local repository
@@ -558,16 +556,28 @@ class EggGenerator:
         if not os.path.exists(destdir):
             os.makedirs(destdir)
         # Now that it exists, make the package scanner find it           
-        self.touch(os.path.join(self._res_dir(), "__init__.py"))
-        self.touch(os.path.join(self._res_config_dir(), "__init__.py"))        
+        self._create_file(os.path.join(self._res_dir(), "__init__.py"))
+        self._create_file(os.path.join(self._res_config_dir(), "__init__.py"))        
 
         shutil.copy(source, dest)
 
+        # we need to make sure an init file is in the versioned dir and
+        # resource directories so that find_packages() will look in here
+        init_file_list = [os.path.join(self._versioned_dir(), "__init__.py"),
+                          os.path.join(self._versioned_dir(), "res", "__init__.py"),
+                          os.path.join(self._versioned_dir(), "res", "config", "__init__.py")]
+        for file in init_file_list:
+            self._create_file(file)
+            
     @staticmethod
-    def touch(file):
-        fd = os.open(file, os.O_CREAT)
-        os.close(fd)
-
+    def _create_file(file):
+        """
+        Create a file if it isnt there already
+        """
+        if not os.path.exists(file):
+            init_file = open(file, "w")
+            init_file.close()
+        
     def _mi_replace(self, matchobj):
         """
         This function is used in regex sub to replace mi with the versioned
@@ -719,4 +729,3 @@ class EggGenerator:
 
 if __name__ == '__main__':
     pass
-
