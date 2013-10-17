@@ -1,0 +1,17 @@
+# Result data after parsing test_data_1.txt 
+
+header:
+  particle_object: GgldrCtdgvDelayedDataParticle
+  particle_type: ggldr_ctdgv_delayed
+
+data:
+  - _index: 1
+    _new_sequence: True
+    internal_timestamp: 09/05/2013 02:47:21.82962Z
+    m_present_time: 1378349241.82962
+    m_present_secs_into_mission: 121147
+    sci_m_present_time: 1378349241.82962
+    sci_m_present_secs_into_mission: 121147
+    sci_water_cond: 4.03096
+    sci_water_pressure: 0.021
+    sci_water_temp: 15.3683

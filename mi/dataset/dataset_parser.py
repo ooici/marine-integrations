@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env pythonmrg
 
 """
 @package mi.dataset.parser A collection of parsers that strip data blocks
@@ -44,8 +44,11 @@ class Parser(object):
         self._new_sequence = True
         
         #build class from module and class name, then set the state
-        self._particle_module = __import__(config.get("particle_module"), fromlist = [config.get("particle_class")])
-        self._particle_class = getattr(self._particle_module, config.get("particle_class"))
+        if config.get("particle_module"):
+            self._particle_module = __import__(config.get("particle_module"), fromlist = [config.get("particle_class")])
+            self._particle_class = getattr(self._particle_module, config.get("particle_class"))
+        else:
+            log.warn("No particle module specified in config")
 
     def start_new_sequence(self):
         """
@@ -86,12 +89,13 @@ class Parser(object):
         @param particle_class The class to instantiate for this specific
             data particle. Parameterizing this allows for simple, standard
             behavior from this routine
-        @param regex The regular expression that matches a data sample
+        @param regex The regular expression that matches a data sample if regex
+                     is none then process every line
         @param line string to match for sample.
         @retval return a raw particle if a sample was found, else None
         """
         particle = None
-        if regex.match(line):
+        if regex is None or regex.match(line):
             particle = particle_class(line, internal_timestamp=timestamp,
                                       preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP, new_sequence=self._new_sequence)
 
@@ -149,6 +153,7 @@ class BufferLoadingParser(Parser):
             self._state = records_to_return[-1][1] # state side of tuple of last entry
             # strip the state info off of them now that we have what we need
             for item in records_to_return:
+                log.debug("Record to return: %s", item)
                 return_list.append(item[0])
             self._publish_sample(return_list)
             log.trace("Sending parser state [%s] to driver", self._state)

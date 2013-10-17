@@ -154,15 +154,12 @@ class SortingDirectoryPoller(ConditionPoller):
     these will be sorted from left to right as integers instead of ascii.
     """
     def __init__(self, directory, wildcard, callback, exception_callback=None, interval=1):
-        try:
-            if not os.path.isdir(directory):
-                raise ValueError('%s is not a directory'%directory)
-            self._path = directory + '/' + wildcard
-            self._last_filename = None
-            super(SortingDirectoryPoller,self).__init__(self._check_for_files, callback, exception_callback, interval)
-        except:
-            log.error('failed init?', exc_info=True)
-            
+        if not os.path.isdir(directory):
+            raise ValueError('%s is not a directory'%directory)
+        self._path = directory + '/' + wildcard
+        self._last_filename = None
+        super(SortingDirectoryPoller,self).__init__(self._check_for_files, callback, exception_callback, interval)
+
     def _check_for_files(self):
         unsorted_filenames = glob.glob(self._path)      
         filenames = self.sort_files(unsorted_filenames)
@@ -193,8 +190,10 @@ class SortingDirectoryPoller(ConditionPoller):
         integers, then sort
         """
         # no sorting needed if 0 or 1 files
-        if filenames and len(filenames) < 2:
+        if not filenames or len(filenames) < 2:
             return filenames
+
+        log.debug("LENGTH: %d", len(filenames))
         # this assumes all files have the same extension
         file_extension = filenames[0].split('.')
         split_names = ()

@@ -20,9 +20,13 @@ class ConditionPoller(Thread):
         self._callback = condition_callback
         self._on_exception = exception_callback
         super(ConditionPoller,self).__init__()
+        log.debug("ConditionPoller: __init__")
+
     def shutdown(self):
+        log.debug("Shutting down poller: %s", self._shutdown_now)
         self.is_shutting_down = True
         self._shutdown_now.set()
+
     def run(self):
         try:
             while not self._shutdown_now.is_set():
