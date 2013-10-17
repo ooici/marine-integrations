@@ -163,10 +163,6 @@ class DataSetDriver(object):
     def cmd_dvr(self, cmd, *args, **kwargs):
         log.warn("DRIVER: cmd_dvr %s", cmd)
 
-        if not cmd in ['execute_resource', 'get_resource_capabilities', 'set_resource', 'get_resource']:
-            log.error("Unhandled command: %s", cmd)
-            raise InstrumentStateException("Unhandled command: %s" % cmd)
-
         resource_cmd = args[0]
 
         if cmd == 'execute_resource':
@@ -189,6 +185,13 @@ class DataSetDriver(object):
 
         elif cmd == 'get_resource':
             return self.get_resource(*args, **kwargs)
+
+        elif cmd == 'disconnect':
+            pass
+
+        else:
+            log.error("Unhandled command: %s", cmd)
+            raise InstrumentStateException("Unhandled command: %s" % cmd)
 
     def get_resource_capabilities(self, current_state=True, *args, **kwargs):
         """
@@ -362,14 +365,21 @@ class SimpleDataSetDriver(DataSetDriver):
     def _start_sampling(self):
         # just a little nap before we start working.  Giving the agent time
         # to respond.
-        self._harvester = self._build_harvester(self._harvester_state)
-        self._harvester.start()
+        try:
+            self._harvester = self._build_harvester(self._harvester_state)
+            self._harvester.start()
+        except Exception as e:
+            log.debug("Exception detected when starting sampling: %s", e, exc_info=True)
+            self._exception_callback(e)
 
     def _stop_sampling(self):
         log.debug("Shutting down harvester")
-        if self._harvester:
+        if self._harvester and self._harvester.is_alive():
+            log.debug("Stopping harvester thread")
             self._harvester.shutdown()
             self._harvester = None
+        else:
+            log.debug("poller not running. not need to shutdown")
 
     ####
     ##    Helpers

@@ -57,6 +57,9 @@ import re
 import yaml
 import time
 import ntplib
+import datetime
+from dateutil import parser
+from dateutil import tz
 
 import mi.core.common
 from mi.core.instrument.data_particle import DataParticle
@@ -269,8 +272,9 @@ class ResultSet(object):
         # If we have a timestamp AND expect one then compare values
         elif (particle_timestamp and
               particle_timestamp != self._string_to_ntp_date_time(expected_time)):
-            errors.append("expected internal_timestamp mismatch, %s != %s" %
-                (self._string_to_ntp_date_time(expected_time), particle_timestamp))
+            errors.append("expected internal_timestamp mismatch, %f != %f (%f)" %
+                (self._string_to_ntp_date_time(expected_time), particle_timestamp,
+                 self._string_to_ntp_date_time(expected_time)- particle_timestamp))
 
         # verify the stream name
         particle_stream = particle_dict['stream_name']
@@ -324,13 +328,13 @@ class ResultSet(object):
                 expected_value = particle_def[key]
                 particle_value = pv[key]
                 if expected_value != particle_value:
-                    errors.append("%s value mismatch, %s != %s" % (key, expected_value, particle_value))
+                    errors.append("%s value mismatch, %s != %s (decimals may be rounded)" % (key, expected_value, particle_value))
 
 
 
         return errors
 
-    def _string_to_ntp_date_time(self, datestr, fmt="%m/%d/%Y %H:%M:%S.%f"):
+    def _string_to_ntp_date_time(self, datestr):
         """
         Extract a date tuple from a formatted date string.
         @param str a string containing date information
@@ -341,18 +345,22 @@ class ResultSet(object):
         if not isinstance(datestr, str):
             raise IOError('Value %s is not a string.' % str(datestr))
         try:
-            # If the date time doesn't have microseconds then add them
-            dec = re.compile(r'\.')
-            if not dec.search(datestr):
-                datestr += ".0"
-
-            date_time = time.strptime(datestr, fmt)
-            timestamp = ntplib.system_to_ntp_time(time.mktime(date_time))
+            localtime_offset = self._parse_time("1970-01-01T00:00:00.00Z")
+            converted_time = self._parse_time(datestr)
+            adjusted_time = converted_time - localtime_offset
+            timestamp = ntplib.system_to_ntp_time(adjusted_time)
 
         except ValueError:
             raise IOError('Value %s could not be formatted to a date.' % str(datestr))
 
+        log.debug("converting time string '%s', unix_ts: %s ntp: %s", datestr, adjusted_time, timestamp)
+
         return timestamp
+
+    def _parse_time(self, datestr):
+        dt = parser.parse(datestr)
+        elapse = float(dt.strftime("%s.%f"))
+        return elapse
 
     def _particle_as_dict(self, particle):
         if isinstance(particle, dict):
