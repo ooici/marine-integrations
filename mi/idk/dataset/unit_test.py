@@ -11,6 +11,8 @@ import gevent
 import shutil
 from mi.core.log import get_logger ; log = get_logger()
 
+import unittest
+
 from mi.core.unit_test import MiIntTestCase
 from mi.core.unit_test import ParticleTestMixin
 
@@ -21,6 +23,10 @@ from mi.idk.exceptions import TestNotInitialized
 from mi.idk.exceptions import IDKConfigMissing
 from mi.idk.exceptions import IDKException
 from mi.idk.exceptions import SampleTimeout
+from mi.core.exceptions import ConfigurationException
+from mi.core.exceptions import InstrumentParameterException
+
+from mi.dataset.dataset_driver import DriverParameter
 
 from mi.idk.result_set import ResultSet
 from mi.idk.dataset.metadata import Metadata
@@ -30,6 +36,8 @@ from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.core.instrument.instrument_driver import DriverEvent
 
+from interface.objects import ResourceAgentConnectionLostErrorEvent
+
 from pyon.core.exception import Conflict
 from pyon.core.exception import ResourceError, BadRequest, Timeout, ServerError
 from pyon.agent.agent import ResourceAgentState
@@ -37,6 +45,8 @@ from pyon.agent.agent import ResourceAgentEvent
 
 from interface.objects import AgentCommandResult
 from interface.objects import AgentCommand
+from interface.objects import AgentCapability
+from interface.objects import CapabilityType
 
 class DataSetTestConfig(InstrumentDriverTestConfig):
     """
@@ -179,7 +189,7 @@ class DataSetTestCase(MiIntTestCase):
         log.debug("Clean all data from %s", data_dir)
         remove_all_files(data_dir)
 
-    def create_sample_data(self, filename, dest_filename=None, mode=0644):
+    def create_sample_data(self, filename, dest_filename=None, mode=0644, create=True):
         """
         Search for a data file in the driver resource directory and if the file
         is not found there then search using the filename directly.  Then copy
@@ -190,19 +200,34 @@ class DataSetTestCase(MiIntTestCase):
         @param: filename - filename or path to a data file to copy
         @param: dest_filename - name of the file when copied. default to filename
         @param: file mode
+        @param: create an empty file in the destination if the source is not found
         @return: path to file created
         """
         data_dir = self.create_data_dir()
-        source_path = self._get_source_data_file(filename)
+        source_path = None
+
+        try:
+            source_path = self._get_source_data_file(filename)
+        except IDKException:
+            if not create:
+                raise
 
         log.debug("DIR: %s", data_dir)
-        if dest_filename is None:
+        if dest_filename is None and source_path is not None:
             dest_path = os.path.join(data_dir, os.path.basename(source_path))
+        elif dest_filename is None and source_path is None:
+            dest_path = os.path.join(data_dir, filename)
         else:
             dest_path = os.path.join(data_dir, dest_filename)
 
         log.debug("Creating data file src: %s, dest: %s", source_path, dest_path)
-        shutil.copy2(source_path, dest_path)
+
+        if source_path == None:
+            file = open(dest_path, 'w')
+            file.close()
+        else:
+            shutil.copy2(source_path, dest_path)
+
         os.chmod(dest_path, mode)
 
         return dest_path
@@ -231,7 +256,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
             self.data_callback_result.append(d)
 
     def exception_callback(self, ex):
-        log.debug("Exception callback: %s", ex)
+        log.debug("Exception callback: %s", ex, exc_info=True)
         self.exception_callback_result.append(ex)
 
     def setUp(self):
@@ -243,16 +268,22 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         self.memento = {DataSourceConfigKey.HARVESTER: {},
                         DataSourceConfigKey.PARSER: {}}
 
-        module_object = __import__(self.test_config.driver_module, fromlist=[self.test_config.driver_class])
-        class_object = getattr(module_object, self.test_config.driver_class)
-        self.driver = class_object(
-            self._driver_config()['startup_config'],
-            self.memento,
-            self.data_callback,
-            self.state_callback,
-            self.exception_callback)
+        self.driver = self._get_driver_object()
 
         self.addCleanup(self._stop_driver)
+
+    def _get_driver_object(self, **kwargs):
+        config = kwargs.get('config', self._driver_config()['startup_config'])
+        memento = kwargs.get('memento', self.memento)
+        data_callback = kwargs.get('data_callback', self.data_callback)
+        state_callback = kwargs.get('state_callback', self.state_callback)
+        exception_callback = kwargs.get('exception_callback', self.exception_callback)
+
+        module_object = __import__(self.test_config.driver_module, fromlist=[self.test_config.driver_class])
+        class_object = getattr(module_object, self.test_config.driver_class)
+
+        driver = class_object(config, memento, data_callback, state_callback, exception_callback)
+        return driver
 
     def _stop_driver(self):
         if self.driver:
@@ -300,10 +331,10 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         to = gevent.Timeout(timeout)
         to.start()
         done = False
+        found = 0
 
         try:
             while(not done):
-                found = 0
                 for data in self.data_callback_result:
                     if isinstance(data, particle_class):
                         found += 1
@@ -315,8 +346,8 @@ class DataSetIntegrationTestCase(DataSetTestCase):
                     log.debug("No particle detected yet, sleep for a bit")
                     gevent.sleep(1)
         except Timeout:
-            log.error("Failed to detect particle %s", particle_class)
-            self.fail("particle detection failed.")
+            log.error("Failed to detect particle %s, expected %d particles, found %d", particle_class, count, found)
+            self.fail("particle detection failed. Expected %d, Found %d" % (count, found))
         finally:
             to.cancel()
 
@@ -325,7 +356,121 @@ class DataSetIntegrationTestCase(DataSetTestCase):
             rs_file = self._get_source_data_file(result_set_file)
             rs = ResultSet(rs_file)
 
-            self.assertTrue(rs.verify(self.data_callback_result))
+            self.assertTrue(rs.verify(self.data_callback_result), msg="Failed data validation, check the logs.")
+
+###
+#  Common integration tests
+###
+
+    def test_harvester_config_exception(self):
+        """
+        Start the a driver with a bad configuration.  Should raise
+        an exception.
+        """
+        with self.assertRaises(ConfigurationException):
+            self._get_driver_object(config={})
+
+    def test_harvester_new_file_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.  Should call the exception callback.
+        """
+        self.clear_sample_data()
+
+        config = self._driver_config()['startup_config']['harvester']['pattern']
+        filename = config.replace("*", "foo")
+        self.assertIsNotNone(config)
+
+        # create the file so that it is unreadable
+        self.create_sample_data(filename, create=True, mode=000)
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.assert_exception(IOError)
+
+        # At this point the harvester thread is dead.  The agent
+        # exception handle should handle this case.
+
+    def test_parameters(self):
+        """
+        Verify that we can get, set, and report all driver parameters.
+        """
+        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
+        (res_cmds, res_params) = self.driver.get_resource_capabilities()
+
+        # Ensure capabilities are as expected
+        self.assertEqual(len(res_cmds), 0)
+        self.assertEqual(len(res_params), len(expected_params))
+        self.assertEqual(sorted(res_params), sorted(expected_params))
+
+        # Verify default values are as expected.
+        params = self.driver.get_resource(DriverParameter.ALL)
+        log.debug("Get Resources Result: %s", params)
+        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
+        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 1)
+        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
+
+        # Try set resource individually
+        self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 2})
+        self.driver.set_resource({DriverParameter.PUBLISHER_POLLING_INTERVAL: 2})
+        self.driver.set_resource({DriverParameter.RECORDS_PER_SECOND: 59})
+
+        params = self.driver.get_resource(DriverParameter.ALL)
+        log.debug("Get Resources Result: %s", params)
+        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 2)
+        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 2)
+        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 59)
+
+        # Try set resource in bulk
+        self.driver.set_resource(
+            {DriverParameter.BATCHED_PARTICLE_COUNT: 1,
+             DriverParameter.PUBLISHER_POLLING_INTERVAL: .1,
+             DriverParameter.RECORDS_PER_SECOND: 60})
+
+        params = self.driver.get_resource(DriverParameter.ALL)
+        log.debug("Get Resources Result: %s", params)
+        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
+        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .1)
+        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
+
+        # Set with some bad values
+        with self.assertRaises(InstrumentParameterException):
+            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 'a'})
+        with self.assertRaises(InstrumentParameterException):
+            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: -1})
+        with self.assertRaises(InstrumentParameterException):
+            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 0})
+
+        # Try to configure with the driver startup config
+        driver_config = self._driver_config()['startup_config']
+        cfg = {
+            DataSourceConfigKey.HARVESTER: driver_config.get(DataSourceConfigKey.HARVESTER),
+            DataSourceConfigKey.PARSER: driver_config.get(DataSourceConfigKey.PARSER),
+            DataSourceConfigKey.DRIVER: {
+                DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
+                DriverParameter.RECORDS_PER_SECOND: 3,
+                DriverParameter.BATCHED_PARTICLE_COUNT: 3,
+            }
+        }
+        self.driver = self._get_driver_object(config=cfg)
+
+        params = self.driver.get_resource(DriverParameter.ALL)
+        log.debug("Get Resources Result: %s", params)
+        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 3)
+        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .2)
+        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 3)
+
+        # Finally verify we get a KeyError when sending in bad config keys
+        cfg[DataSourceConfigKey.DRIVER] = {
+            DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
+            DriverParameter.RECORDS_PER_SECOND: 3,
+            DriverParameter.BATCHED_PARTICLE_COUNT: 3,
+            'something_extra': 1
+        }
+
+        with self.assertRaises(KeyError):
+            self._get_driver_object(config=cfg)
 
 class DataSetQualificationTestCase(DataSetTestCase):
     """
@@ -362,6 +507,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
         """
         Cleanup after the test completes or fails
         """
+        log.debug("Starting test cleanup")
         self.assert_reset()
         self.event_subscribers.stop()
         self.data_subscribers.stop_data_subscribers()
@@ -501,12 +647,13 @@ class DataSetQualificationTestCase(DataSetTestCase):
         Put the instrument back in uninitialized
         '''
         agent_state = self.dataset_agent_client.get_agent_state()
+        log.debug("Resetting agent: current state: %s", agent_state)
 
         if agent_state != ResourceAgentState.UNINITIALIZED:
             cmd = AgentCommand(command=ResourceAgentEvent.RESET)
             retval = self.dataset_agent_client.execute_agent(cmd)
             state = self.dataset_agent_client.get_agent_state()
-            self.assertEqual(state, ResourceAgentState.UNINITIALIZED)
+            log.debug("Resetting agent: final state: %s", state)
 
     def assert_agent_state(self, target_state):
         """
@@ -594,3 +741,112 @@ class DataSetQualificationTestCase(DataSetTestCase):
             to.cancel()
 
         log.info("Expected event detected: %s", event)
+
+    def test_initialize(self):
+        """
+        Test that we can start the container and initialize the dataset agent.
+        """
+        self.assert_initialize()
+        self.assert_stop_sampling()
+        self.assert_reset()
+
+    def test_resource_parameters(self):
+        """
+        verify we can get a resource parameter lists and get/set parameters.
+        """
+        def sort_capabilities(caps_list):
+            '''
+            sort a return value into capability buckets.
+            @retval agt_cmds, agt_pars, res_cmds, res_iface, res_pars
+            '''
+            agt_cmds = []
+            agt_pars = []
+            res_cmds = []
+            res_iface = []
+            res_pars = []
+
+            if len(caps_list)>0 and isinstance(caps_list[0], AgentCapability):
+                agt_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_CMD]
+                agt_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_PAR]
+                res_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_CMD]
+                #res_iface = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_IFACE]
+                res_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_PAR]
+
+            elif len(caps_list)>0 and isinstance(caps_list[0], dict):
+                agt_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_CMD]
+                agt_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_PAR]
+                res_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_CMD]
+                #res_iface = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_IFACE]
+                res_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_PAR]
+
+            agt_cmds.sort()
+            agt_pars.sort()
+            res_cmds.sort()
+            res_iface.sort()
+            res_pars.sort()
+
+            return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
+
+        log.debug("Initialize the agent")
+        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        log.debug("Call get capabilities")
+        retval = self.dataset_agent_client.get_capabilities()
+        log.debug("Capabilities: %s", retval)
+        agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
+        self.assertEqual(sorted(res_pars), sorted(expected_params))
+
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 20})
+        reply = self.dataset_agent_client.get_resource(DriverParameter.ALL)
+        log.debug("Get Resource Result: %s", reply)
+
+    def test_missing_directory(self):
+        """
+        Test starting the driver when the data directory doesn't exists.  This
+        should prevent the driver from going into streaming mode.  When the
+        directory is created then we should be able to transition into streaming.
+        """
+        self.remove_sample_dir()
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        self.event_subscribers.clear_events()
+        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
+
+        self.create_data_dir()
+
+        # Should automatically retry connect and transition to streaming
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
+
+    def test_harvester_new_file_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.
+
+        exception callback called.
+        """
+        config = self._driver_config()['startup_config']['harvester']['pattern']
+        filename = config.replace("*", "foo")
+
+        self.assert_new_file_exception(filename)
+
+    def assert_new_file_exception(self, filename):
+
+        self.clear_sample_data()
+        self.create_sample_data(filename, mode=000)
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        self.event_subscribers.clear_events()
+        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
+
+        self.clear_sample_data()
+        self.create_sample_data(filename)
+
+        # Should automatically retry connect and transition to streaming
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
