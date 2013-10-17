@@ -51,12 +51,31 @@ c_battpos c_wpt_lat c_wpt_lon m_battpos m_coulomb_amphr_total m_coulomb_current 
 in lat lon in amp-hrs amp m cc lat lon lat lon rad sec timestamp m/s m/s m/s nodim nodim ug/l sec timestamp um % s/m bar degc
 4 8 8 4 4 4 4 4 8 8 8 8 4 4 8 4 4 4 4 4 4 4 8 4 4 4 4 4 """
 
+# header from sample data in ctdgv driver test
+HEADER2="""dbd_label: DBD_ASC(dinkum_binary_data_ascii)file
+encoding_ver: 2
+num_ascii_tags: 14
+all_sensors: 0
+filename: unit_363-2013-245-6-6
+the8x3_filename: 01790006
+filename_extension: sbd
+filename_label: unit_363-2013-245-6-6-sbd(01790006)
+mission_name: TRANS58.MI
+fileopen_time: Thu_Sep__5_02:46:15_2013
+sensors_per_cycle: 29
+num_label_lines: 3
+num_segments: 1
+segment_filename_0: unit_363-2013-245-6-6
+c_battpos c_wpt_lat c_wpt_lon m_battpos m_coulomb_amphr_total m_coulomb_current m_depth m_de_oil_vol m_gps_lat m_gps_lon m_heading m_lat m_lon m_pitch m_present_secs_into_mission m_present_time m_speed m_water_vx m_water_vy x_low_power_status sci_flbb_bb_units sci_flbb_chlor_units sci_m_present_secs_into_mission sci_m_present_time sci_oxy4_oxygen sci_oxy4_saturation sci_water_cond sci_water_pressure sci_water_temp
+in lat lon in amp-hrs amp m cc lat lon rad lat lon rad sec timestamp m/s m/s m/s nodim nodim ug/l sec timestamp um % s/m bar degc
+4 8 8 4 4 4 4 4 8 8 4 8 8 4 4 8 4 4 4 4 4 4 4 8 4 4 4 4 4  """
+
 EMPTY_RECORD="""
 NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN """
 
 CTDGR_RECORD="""
 NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN 135.361 1376510712.36099 NaN NaN NaN NaN NaN NaN 135.361 1376510712.36099 NaN NaN 4.01713 0.006 15.2229
-NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN 256.162 1376510833.16202 NaN NaN NaN NaN NaN NaN 256.162 1376510833.16202 NaN NaN 4.01758 0.123 15.2283 """
+NaN NaN NaN NaN 0.000298102 NaN NaN NaN NaN NaN NaN NaN NaN NaN 256.162 1376510833.16202 NaN NaN NaN NaN NaN NaN 256.162 1376510833.16202 NaN NaN 4.01758 0.123 15.2283 """
 
 "0.7 5004.24 -14447.88 0.702899 90.0873 0.669156 0 259.684 5002.9179 -14450.1677 5002.91790011739 -14450.1676999628 0.286234 5.609 1376510583.11807 0.343776 0.0102727 0.00906202 3 NaN NaN NaN NaN NaN NaN NaN NaN NaN "
 "NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN 114.106 1376510691.61636 NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN "
@@ -196,6 +215,10 @@ class GliderParserUnitTestCase(ParserUnitTestCase):
         self.reset_parser()
         self.assert_state(990)
 
+        self.set_test_data(HEADER2)
+        self.reset_parser()
+        self.assert_state(1004)
+
     def test_exception(self):
         with self.assertRaises(SampleException):
             self.set_test_data("Foo")
@@ -223,14 +246,29 @@ class CTDGVGliderTest(GliderParserUnitTestCase):
         record_1 = {CtdgvParticleKey.SCI_WATER_TEMP: 15.2229}
         record_2 = {CtdgvParticleKey.SCI_WATER_TEMP: 15.2283}
 
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1147)
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1303)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1146)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1315)
         self.assert_no_more_data()
 
         # Reset with the parser, but with a state this time
         self.set_test_data(HEADER, CTDGR_RECORD)
-        self.reset_parser({StateKey.POSITION: 1147})
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1303)
+        self.reset_parser({StateKey.POSITION: 1146})
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1315)
+        self.assert_no_more_data()
+
+        # Reset with the parser, but insert noise between records
+        self.set_test_data(HEADER, "\nSome noise here!\n", CTDGR_RECORD)
+        self.reset_parser()
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1164)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1333)
+        self.assert_no_more_data()
+
+        self.set_test_data(HEADER, CTDGR_RECORD, "\nSome noise here!\n", CTDGR_RECORD)
+        self.reset_parser()
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1146)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1315)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1489)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1658)
         self.assert_no_more_data()
 
 class OtherGliderTest(GliderParserUnitTestCase):

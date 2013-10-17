@@ -53,7 +53,50 @@ class TestSortingDirectoryHarvester(MiUnitTest):
         Cleanup files we have created
         """
         self.clean_directory(TESTDIR, CONFIG['pattern'])
-        
+
+    def test_init(self):
+        """
+        Test initialize
+        """
+        config = {'directory': TESTDIR, 'pattern': CONFIG['pattern']}
+
+        # start the harvester from scratch
+        memento = None
+        file_harvester = SortingDirectoryHarvester(config, memento,
+                                                         self.new_file_found_callback,
+                                                         self.file_exception_callback)
+
+        file_harvester.sort_files(['a_1_2.bla', 'a_2_2.bla'])
+        file_harvester.start()
+        file_harvester.shutdown()
+
+    def test_missing_directory(self):
+        config = {'directory': TESTDIR, 'pattern': CONFIG['pattern']}
+
+        self.clean_directory(TESTDIR)
+        os.rmdir(TESTDIR)
+        self.assertFalse(os.path.exists(TESTDIR))
+
+        # start the harvester from scratch
+        memento = None
+
+        os.mkdir(TESTDIR)
+        file_harvester = SortingDirectoryHarvester(config, memento,
+                                                         self.new_file_found_callback,
+                                                         self.file_exception_callback)
+        file_harvester.start()
+
+        # start a new event which will increase the file index using INDICIES
+        self.directory_filler = gevent.spawn(self.fill_directory_with_files,
+                                             CONFIG['directory'],
+                                             CONFIG['pattern'], 0, 2)
+
+        # Wait for three sets of new files to be discovered
+        self.wait_for_file(self.found_file_count)
+        self.wait_for_file(self.found_file_count)
+
+        file_harvester.shutdown()
+
     def test_harvester_without_frequency(self):
         """
         Test that we can use a default frequency
@@ -222,12 +265,11 @@ class TestSortingDirectoryHarvester(MiUnitTest):
             log.debug("Added file %s to directory, index %d", next_file, start_idx + i)
         log.debug("Done with directory filler")
     
-    def clean_directory(self, data_directory, pattern):
+    def clean_directory(self, data_directory, pattern = "*"):
         """
         Clean out the data directory of all files
         """
         dir_files = glob.glob(data_directory + '/' + pattern)
-        if len(dir_files) > 1:
-            for file_name in dir_files:
-                    log.debug("Removing file %s", file_name)
-                    os.remove(file_name)
+        for file_name in dir_files:
+            log.debug("Removing file %s", file_name)
+            os.remove(file_name)

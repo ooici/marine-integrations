@@ -91,6 +91,17 @@ class TestResultSet(MiUnitTest):
         Setup the test case
         """
 
+    def test_ntp_conversion(self):
+        rs = ResultSet(self._get_result_set_file("record_set_files/test_data_1.txt.result.yml"))
+        ts = rs._string_to_ntp_date_time("1970-01-01T00:00:00.00Z")
+        self.assertEqual(ts, 2208988800.0)
+
+        ts = rs._string_to_ntp_date_time("1970-01-01T00:01:00.101Z")
+        self.assertEqual(ts, 2208988860.101)
+
+        ts = rs._string_to_ntp_date_time("09/05/2013 02:47:21.82962Z")
+        self.assertEqual(ts, 3587338041.829620)
+
     def test_simple_result_set(self):
         """
         Try the first result set with a single record.
