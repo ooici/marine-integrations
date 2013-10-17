@@ -145,7 +145,6 @@ class GliderParticle(DataParticle):
         return result
 
 class CtdgvParticleKey(GliderParticleKey):
-    SCI_CTD41CP_TIMESTAMP = 'sci_ctd41cp_timestamp' # not expected in delayed data sets
     SCI_WATER_COND = 'sci_water_cond'
     SCI_WATER_PRESSURE = 'sci_water_pressure'
     SCI_WATER_TEMP = 'sci_water_temp'
