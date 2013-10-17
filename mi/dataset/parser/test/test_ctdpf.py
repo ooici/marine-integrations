@@ -148,7 +148,7 @@ GPS2:
         # Gonna need the test cases to make some of these
         # self.stream_handle = StringIO(TEST_DATA)        
         # self.parser = CtdpfParser(config, self.position, self.stream_handle) # last one is the link to the data source
-        self.base_timestamp = 3526452961.0
+        self.base_timestamp = 3526427761.0
         self.particle_a = CtdpfParserDataParticle(" 42.2095, 13.4344,  143.63,   2830.2",
                                                   internal_timestamp=self.base_timestamp)
         self.particle_b = CtdpfParserDataParticle(" 42.2102, 13.4346,  143.63,   2831.1",
