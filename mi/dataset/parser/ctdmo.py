@@ -16,6 +16,7 @@ import string
 import re
 import time
 import ntplib
+from dateutil import parser
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.parser.mflm import MflmParser, HEADER_MATCHER
@@ -129,11 +130,16 @@ class CtdmoParser(MflmParser):
         @param ts_str The timestamp string in the format "mm/dd/yyyy hh:mm:ss"
         @retval The NTP4 timestamp
         """
-        # convert from epoch in 2000 to epoch in 1970 for time
-        sec_since_1970 = sec_since_2000 + (31557600*30)
-        systime = time.localtime(sec_since_1970)
-        ntptime = ntplib.system_to_ntp_time(time.mktime(systime))
-        log.trace("Converted sys time \"%s\" into ntp %s", systime, ntptime) 
+        # get seconds since jan 1 2000 (local timezone)
+        local_dt_2000 = parser.parse("2000-01-01T00:00:00.00Z")
+        elapse_2000 = float(local_dt_2000.strftime("%s.%f"))
+        # get seconds since jan 1 1970 (local timezone)
+        local_dt_1970 = parser.parse("1970-01-01T00:00:00.00Z")
+        elapse_1970 = float(local_dt_1970.strftime("%s.%f"))
+        # convert from epoch in 2000 to epoch in 1970, GMT
+        sec_since_1970 = sec_since_2000 + elapse_2000 - elapse_1970
+        ntptime = ntplib.system_to_ntp_time(sec_since_1970)
+        log.debug("seconds since 1970 %d, ntptime %s", sec_since_1970, ntptime)
         return ntptime
 
     def parse_chunks(self):

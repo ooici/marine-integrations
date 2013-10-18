@@ -294,13 +294,6 @@ class MflmParser(Parser):
             if len(self._read_state[StateKey.IN_PROCESS_DATA]) > 0:
                 # there is in process data, read that first
                 data = self._get_next_unprocessed_data(self._read_state[StateKey.IN_PROCESS_DATA])
-                if not data:
-                    # no more in process data, move on to unprocessed data,
-                    # need to start at beginning of file again
-                    self._stream_handle.seek(0)
-                    self._position = [0,0]
-                    self._new_seq_flag = True # start a new sequence since we are back at the beginning
-                    data = self._get_next_unprocessed_data(self._read_state[StateKey.UNPROCESSED_DATA])
             else:
                 # there is no in process data, read the unprocessed data
                 data = self._get_next_unprocessed_data(self._read_state[StateKey.UNPROCESSED_DATA])

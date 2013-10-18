@@ -117,18 +117,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
         self.assert_data(CtdmoParserDataParticle, count=3, timeout=10)
 
-    def test_harvester_config_exception(self):
-        """
-        Start the a driver with a bad configuration.  Should raise
-        an exception.
-        """
-        with self.assertRaises(ConfigurationException):
-            self.driver = MflmCTDMODataSetDriver({},
-                self.memento,
-                self.data_callback,
-                self.state_callback,
-                self.exception_callback)
-
     def test_harvester_new_file_exception(self):
         """
         Test an exception raised after the driver is started during
@@ -175,98 +163,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # verify data is produced
         self.assert_data(CtdmoParserDataParticle, 'test_data_2.txt.result.yml',
                          count=12, timeout=10)
-
-    def test_parameters(self):
-        """
-        Verify that we can get, set, and report all driver parameters.
-        """
-        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT,
-                           DriverParameter.PUBLISHER_POLLING_INTERVAL,
-                           DriverParameter.RECORDS_PER_SECOND]
-        (res_cmds, res_params) = self.driver.get_resource_capabilities()
-
-        # Ensure capabilities are as expected
-        self.assertEqual(len(res_cmds), 0)
-        self.assertEqual(len(res_params), len(expected_params))
-        self.assertEqual(sorted(res_params), sorted(expected_params))
-
-        # Verify default values are as expected.
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 1)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
-
-        # Try set resource individually
-        self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 2})
-        self.driver.set_resource({DriverParameter.PUBLISHER_POLLING_INTERVAL: 2})
-        self.driver.set_resource({DriverParameter.RECORDS_PER_SECOND: 59})
-
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 2)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 2)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 59)
-
-        # Try set resource in bulk
-        self.driver.set_resource(
-            {DriverParameter.BATCHED_PARTICLE_COUNT: 1,
-             DriverParameter.PUBLISHER_POLLING_INTERVAL: .1,
-             DriverParameter.RECORDS_PER_SECOND: 60})
-
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .1)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
-
-        # Set with some bad values
-        with self.assertRaises(InstrumentParameterException):
-            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 'a'})
-        with self.assertRaises(InstrumentParameterException):
-            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: -1})
-        with self.assertRaises(InstrumentParameterException):
-            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 0})
-
-        # Try to configure with the driver startup config
-        driver_config = self._driver_config()['startup_config']
-        cfg = {
-            DataSourceConfigKey.HARVESTER: driver_config.get(DataSourceConfigKey.HARVESTER),
-            DataSourceConfigKey.PARSER: driver_config.get(DataSourceConfigKey.PARSER),
-            DataSourceConfigKey.DRIVER: {
-                DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
-                DriverParameter.RECORDS_PER_SECOND: 3,
-                DriverParameter.BATCHED_PARTICLE_COUNT: 3,
-            }
-        }
-        self.driver = MflmCTDMODataSetDriver(
-            cfg,
-            self.memento,
-            self.data_callback,
-            self.state_callback,
-            self.exception_callback)
-
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 3)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .2)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 3)
-
-        # Finally verify we get a KeyError when sending in bad config keys
-        cfg[DataSourceConfigKey.DRIVER] = {
-            DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
-            DriverParameter.RECORDS_PER_SECOND: 3,
-            DriverParameter.BATCHED_PARTICLE_COUNT: 3,
-            'something_extra': 1
-        }
-
-        with self.assertRaises(KeyError):
-            self.driver = MflmCTDMODataSetDriver(
-                cfg,
-                self.memento,
-                self.data_callback,
-                self.state_callback,
-                self.exception_callback)
 
     def test_sequences(self):
         """
@@ -334,14 +230,6 @@ class QualificationTest(DataSetQualificationTestCase):
         if os.path.exists(fullfile):
             os.remove(fullfile)
 
-    def test_initialize(self):
-        """
-        Test that we can start the container and initialize the dataset agent.
-        """
-        self.assert_initialize()
-        self.assert_stop_sampling()
-        self.assert_reset()
-
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
@@ -380,57 +268,6 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         result = self.get_samples(SAMPLE_STREAM,39,120)
-
-    def test_resource_parameters(self):
-        """
-        verify we can get a resource parameter lists and get/set parameters.
-        """
-        def sort_capabilities(caps_list):
-            '''
-            sort a return value into capability buckets.
-            @retval agt_cmds, agt_pars, res_cmds, res_iface, res_pars
-            '''
-            agt_cmds = []
-            agt_pars = []
-            res_cmds = []
-            res_iface = []
-            res_pars = []
-
-            if len(caps_list)>0 and isinstance(caps_list[0], AgentCapability):
-                agt_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_CMD]
-                agt_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_PAR]
-                res_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_CMD]
-                #res_iface = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_IFACE]
-                res_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_PAR]
-
-            elif len(caps_list)>0 and isinstance(caps_list[0], dict):
-                agt_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_CMD]
-                agt_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_PAR]
-                res_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_CMD]
-                #res_iface = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_IFACE]
-                res_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_PAR]
-
-            agt_cmds.sort()
-            agt_pars.sort()
-            res_cmds.sort()
-            res_iface.sort()
-            res_pars.sort()
-
-            return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
-
-        log.debug("Initialize the agent")
-        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        log.debug("Call get capabilities")
-        retval = self.dataset_agent_client.get_capabilities()
-        log.debug("Capabilities: %s", retval)
-        agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
-        self.assertEqual(sorted(res_pars), sorted(expected_params))
-
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 20})
-        reply = self.dataset_agent_client.get_resource(DriverParameter.ALL)
-        log.debug("Get Resource Result: %s", reply)
 
     def test_stop_start(self):
         """
@@ -478,7 +315,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.fail("Sample timeout.")
 
     @unittest.skip('This driver doesnt die if the directory isnt there...')
-    def test_missing_file(self):
+    def test_missing_directory(self):
         """
         Test starting the driver when the data directory doesn't exists.  This
         should prevent the driver from going into streaming mode.  When the
@@ -497,7 +334,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)
-
+    @unittest.skip('This driver doesnt die if the directory isnt there...')
     def test_harvester_new_file_exception(self):
         """
         Test an exception raised after the driver is started during
@@ -520,7 +357,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)
-
+    @unittest.skip('This driver doesnt die if the directory isnt there...')
     def test_parser_exception(self):
         """
         Test an exception raised after the driver is started during
