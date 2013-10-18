@@ -17,6 +17,8 @@ import re
 import time
 import ntplib
 from functools import partial
+from dateutil import parser
+from dateutil import tz
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -31,6 +33,9 @@ TIME_MATCHER = re.compile(TIME_REGEX, re.DOTALL)
 
 DATA_REGEX = r' (\d*\.\d*),\s*(\d*\.\d*),\s*(\d*\.\d*),\s*(\d*\.\d)'
 DATA_MATCHER = re.compile(DATA_REGEX, re.DOTALL)
+
+DATE_REGEX = r'(\d{2})/(\d{2})/(\d{4}) (\d{2}):(\d{2}):(\d{2})'
+DATE_MATCHER = re.compile(DATE_REGEX)
 
 # TODO: This should be passed in as a parameter so the driver can define the particle name.
 class DataParticleType(BaseEnum):
@@ -92,6 +97,9 @@ class CtdpfParserDataParticle(DataParticle):
             (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
             return True
         else:
+            log.info("Timestamp mismatch %s != %s",
+                self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
+                arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
             return False
     
 class CtdpfParser(BufferLoadingParser):
@@ -142,7 +150,13 @@ class CtdpfParser(BufferLoadingParser):
         
         # seek to it
         self._stream_handle.seek(state_obj[StateKey.POSITION])
-        
+
+    @staticmethod
+    def _parse_time(datestr):
+        dt = parser.parse(datestr)
+        elapse = float(dt.strftime("%s.%f"))
+        return elapse
+
     @staticmethod
     def _convert_string_to_timestamp(ts_str):
         """
@@ -151,11 +165,24 @@ class CtdpfParser(BufferLoadingParser):
         @param ts_str The timestamp string in the format "mm/dd/yyyy hh:mm:ss"
         @retval The NTP4 timestamp
         """
-        systime = time.strptime(ts_str, "%m/%d/%Y %H:%M:%S")
-        ntptime = ntplib.system_to_ntp_time(time.mktime(systime))
-        log.trace("Converted time \"%s\" into %s", ts_str, ntptime) 
+        match = DATE_MATCHER.match(ts_str)
+        if not match:
+            raise ValueError("Invalid time format: %s" % ts_str)
+
+        zulu_ts = "%04d-%02d-%02dT%02d:%02d:%02dZ" % (
+            int(match.group(3)), int(match.group(1)), int(match.group(2)),
+            int(match.group(4)), int(match.group(5)), int(match.group(6))
+        )
+        log.trace("converted ts '%s' to '%s'", ts_str, zulu_ts)
+
+        localtime_offset = float(parser.parse("1970-01-01T00:00:00.00Z").strftime("%s.%f"))
+        converted_time = float(parser.parse(zulu_ts).strftime("%s.%f"))
+        adjusted_time = round(converted_time - localtime_offset)
+        ntptime = ntplib.system_to_ntp_time(adjusted_time)
+
+        log.trace("Converted time \"%s\" (unix: %s) into %s", ts_str, adjusted_time, ntptime)
         return ntptime
-        
+
     def _increment_timestamp(self, increment=1):
         """
         Increment timestamp by a certain amount in seconds. By default this

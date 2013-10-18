@@ -146,7 +146,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         # Create and store the new driver state
         self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.txt',
-                        DataSourceConfigKey.PARSER: {'position': 209, 'timestamp': 3583886465.0}}
+                        DataSourceConfigKey.PARSER: {'position': 209, 'timestamp': 3583861265.0}}
         self.driver = HypmCTDPFDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
@@ -297,14 +297,6 @@ class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
         super(QualificationTest, self).setUp()
 
-    def test_initialize(self):
-        """
-        Test that we can start the container and initialize the dataset agent.
-        """
-        self.assert_initialize()
-        self.assert_stop_sampling()
-        self.assert_reset()
-
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
@@ -334,57 +326,6 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         result = self.get_samples(SAMPLE_STREAM,436,120)
-
-    def test_resource_parameters(self):
-        """
-        verify we can get a resource parameter lists and get/set parameters.
-        """
-        def sort_capabilities(caps_list):
-            '''
-            sort a return value into capability buckets.
-            @retval agt_cmds, agt_pars, res_cmds, res_iface, res_pars
-            '''
-            agt_cmds = []
-            agt_pars = []
-            res_cmds = []
-            res_iface = []
-            res_pars = []
-
-            if len(caps_list)>0 and isinstance(caps_list[0], AgentCapability):
-                agt_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_CMD]
-                agt_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_PAR]
-                res_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_CMD]
-                #res_iface = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_IFACE]
-                res_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_PAR]
-
-            elif len(caps_list)>0 and isinstance(caps_list[0], dict):
-                agt_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_CMD]
-                agt_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_PAR]
-                res_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_CMD]
-                #res_iface = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_IFACE]
-                res_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_PAR]
-
-            agt_cmds.sort()
-            agt_pars.sort()
-            res_cmds.sort()
-            res_iface.sort()
-            res_pars.sort()
-
-            return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
-
-        log.debug("Initialize the agent")
-        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        log.debug("Call get capabilities")
-        retval = self.dataset_agent_client.get_capabilities()
-        log.debug("Capabilities: %s", retval)
-        agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
-        self.assertEqual(sorted(res_pars), sorted(expected_params))
-
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 20})
-        reply = self.dataset_agent_client.get_resource(DriverParameter.ALL)
-        log.debug("Get Resource Result: %s", reply)
 
     def test_stop_start(self):
         """
@@ -425,49 +366,6 @@ class QualificationTest(DataSetQualificationTestCase):
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
-
-    def test_missing_directory(self):
-        """
-        Test starting the driver when the data directory doesn't exists.  This
-        should prevent the driver from going into streaming mode.  When the
-        directory is created then we should be able to transition into streaming.
-        """
-        self.remove_sample_dir()
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        self.event_subscribers.clear_events()
-        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
-
-        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
-        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
-
-        self.create_data_dir()
-
-        # Should automatically retry connect and transition to streaming
-        self.assert_state_change(ResourceAgentState.STREAMING, 90)
-
-    def test_harvester_new_file_exception(self):
-        """
-        Test an exception raised after the driver is started during
-        the file read.
-
-        exception callback called.
-        """
-        self.clear_sample_data()
-        self.create_sample_data('DATA003.txt', mode=000)
-
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        self.event_subscribers.clear_events()
-        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
-        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
-        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
-
-        self.clear_sample_data()
-        self.create_sample_data('DATA003.txt')
-
-        # Should automatically retry connect and transition to streaming
-        self.assert_state_change(ResourceAgentState.STREAMING, 90)
 
     def test_parser_exception(self):
         """

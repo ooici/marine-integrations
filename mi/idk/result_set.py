@@ -66,6 +66,9 @@ from mi.core.instrument.data_particle import DataParticle
 
 from mi.core.log import get_logger ; log = get_logger()
 
+DATE_PATTERN = r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?$'
+DATE_MATCHER = re.compile(DATE_PATTERN)
+
 class ResultSet(object):
     """
     Result Set object
@@ -350,14 +353,22 @@ class ResultSet(object):
             adjusted_time = converted_time - localtime_offset
             timestamp = ntplib.system_to_ntp_time(adjusted_time)
 
-        except ValueError:
-            raise IOError('Value %s could not be formatted to a date.' % str(datestr))
+        except ValueError as e:
+            raise ValueError('Value %s could not be formatted to a date. %s' % (str(datestr), e))
 
         log.debug("converting time string '%s', unix_ts: %s ntp: %s", datestr, adjusted_time, timestamp)
 
         return timestamp
 
     def _parse_time(self, datestr):
+        if not DATE_MATCHER.match(datestr):
+            raise ValueError("date string not in ISO8601 format YYYY-MM-DDTHH:MM:SS.SSSSZ")
+        else:
+            log.debug("Match: %s", datestr)
+
+        if datestr[:-1] != 'Z':
+            datestr += 'Z'
+
         dt = parser.parse(datestr)
         elapse = float(dt.strftime("%s.%f"))
         return elapse

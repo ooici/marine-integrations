@@ -7,7 +7,7 @@ header:
 data:
   - _index: 1
     _new_sequence: True
-    internal_timestamp: 07/26/2013 21:01:03
+    internal_timestamp: '2013-07-26T21:01:03'
     temperature: 4.1870
     conductivity: 10.5914
     pressure: 161.06

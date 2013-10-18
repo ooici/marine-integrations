@@ -65,11 +65,12 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
         """
         self.metadata = metadata
         self._bdir = None
+        self._repodir = mi.idk.egg_generator.REPODIR
 
         if not self._tmp_dir():
             raise InvalidParameters("missing tmp_dir configuration")
 
-        if not self._tmp_dir():
+        if not self._repo_dir():
             raise InvalidParameters("missing working_repo configuration")
 
         self.generator = DriverGenerator(self.metadata)
