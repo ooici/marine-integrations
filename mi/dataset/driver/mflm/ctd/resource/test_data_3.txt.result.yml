@@ -1,0 +1,79 @@
+# Result data after parsing test_data_1.txt 
+
+header:
+  particle_object: CtdmoParserDataParticle
+  particle_type: ctdmo_parsed
+
+data:
+  - _index: 1
+    _new_sequence: True
+    internal_timestamp: '2013-07-24T06:00:01'
+    temperature: 3
+    conductivity: 2.5
+    pressure: 55.438694156015636 
+  - _index: 2
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:01'
+    temperature: 3
+    conductivity: 2.5
+    pressure: 53.18098106366944
+  - _index: 3
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:01'
+    temperature: 3
+    conductivity: 2.5
+    pressure: 34.16737566974853
+  - _index: 4
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:01'
+    temperature: 5
+    conductivity: 2.5
+    pressure: 46.85938440510011
+  - _index: 5
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:01'
+    temperature: 11
+    conductivity: 3.5
+    pressure: 14.751043075571289
+  - _index: 6
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:01'
+    temperature: 5
+    conductivity: 2.5
+    pressure: 45.06541778577637
+  - _index: 7
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:01'
+    temperature: 7
+    conductivity: 2.5
+    pressure: 34.43586046991944
+  - _index: 8
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:01'
+    temperature: 9
+    conductivity: 2.5
+    pressure: 26.198258646494146
+  - _index: 9
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:01'
+    temperature: 6
+    conductivity: 2.5
+    pressure: 37.25495087171388
+  - _index: 10
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:01'
+    temperature: 13
+    conductivity: 3.5
+    pressure: 5.598152160654301
+  - _index: 11
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:01'
+    temperature: 13
+    conductivity: 3.5
+    pressure: 0.8264450303442388
+  - _index: 12
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:01'
+    temperature: 11
+    conductivity: -0.5
+    pressure: 0.04539833893798573

@@ -336,19 +336,19 @@ class Chunker(object):
         else:
             self.buffer[0:end_index] = []
         
-    def get_next_non_data(self, clean=True):
+    def get_next_non_data_with_index(self, clean=True):
         """
         Get the next chunk of non-data from the buffer, clearing all that comes
         before it. Default behavior is to clear the buffer before and including
         this data.
         
         @param clean Remove the buffer contents before and including this data
-        @return A tuple of (timestamp, data_chunk) where timestamp is in NTP4
-            float format and data chunk is a (start, end) tuple,
-            (None, None) if no data
+        @return A tuple of (timestamp, data_chunk, next_start, next_end) 
+            where timestamp is in NTP4 float format and data chunk is a 
+            (start, end) tuple, (None, None) if no data
         """
         if self.nondata_chunk_list == []:
-            return (None, None)
+            return (None, None, None, None)
 
         if clean:    
             (next_start, next_end, next_time) = self.nondata_chunk_list.pop(0)
@@ -366,7 +366,21 @@ class Chunker(object):
             self.nondata_chunk_list = self._clean_chunk_list(self.nondata_chunk_list,
                                                              next_end)
                         
-        return (next_time, next_block)
+        return (next_time, next_block, next_start, next_end)
+
+    def get_next_non_data(self, clean=True):
+        """
+        Get the next chunk of non-data from the buffer, clearing all that comes
+        before it. Default behavior is to clear the buffer before and including
+        this data.
+
+        @param clean Remove the buffer contents before and including this data
+        @return A tuple of (timestamp, data_chunk) where timestamp is in NTP4
+            float format and data chunk is a (start, end) tuple,
+            (None, None) if no data
+        """
+        (time, result, start, end) = self.get_next_non_data_with_index(clean)
+        return (time, result)
     
     def get_next_raw(self, clean=True):
         """

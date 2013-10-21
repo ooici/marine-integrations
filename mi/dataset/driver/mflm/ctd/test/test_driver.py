@@ -24,72 +24,48 @@ from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
 
+from mi.core.exceptions import ConfigurationException
+from mi.core.exceptions import InstrumentParameterException
+from mi.idk.exceptions import SampleTimeout
+
+from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+from mi.dataset.dataset_driver import DriverParameter
+from mi.core.instrument.instrument_driver import DriverEvent
+
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetUnitTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
+from mi.dataset.driver.mflm.ctd.driver import MflmCTDMODataSetDriver
+from mi.dataset.parser.ctdmo import CtdmoParserDataParticle
 
-    
+from pyon.agent.agent import ResourceAgentState
+
+from interface.objects import CapabilityType
+from interface.objects import AgentCapability
+from interface.objects import ResourceAgentErrorEvent
+from interface.objects import ResourceAgentConnectionLostErrorEvent
+
+
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.mflm.ctd.driver',
     driver_class="MflmCTDMODataSetDriver",
-
-    agent_preload_id = 'EDA_NOSE_CTD',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = ['nose_ctd_external'],
+    agent_packet_config = MflmCTDMODataSetDriver.stream_config(),
     startup_config = {
         'harvester':
         {
             'directory': '/tmp/dsatest',
-            'pattern': '*.000',
+            'pattern': 'node59p1.dat',
             'frequency': 1,
         },
         'parser': {}
     }
 )
 
-class SampleData(object):
-    
-    TEST_DATA_1 = """
-cd3e3c2f53616d706c65446174613e0d0a3c45786563757465642f3e0d0a03014354313233373230305f303039436235314543354239365f35365f3041343802
-4321abe596d7bd1f41fa7e190d1d21da659c18282241fa7e190d14383d469c4af80c41fa7e190d1324075588a0991f41fa7e190d36248f258e9b131d41fa7e19
-0d3e234eb5842c392341fa7e190d3c2f14f61b6ff51041fa7e190d3423b2059240272641fa7e190d0f25e5d59f0f971641fa7e190d383857c69d9a140b41fa7e
-190d39360a40c355eb0a41fa7e190d1a21c4b59025741841fa7e190d0301434f313233373230305f303034387535314543354239365f35375f304541330243ff
-"""
-
-
-    def __init__(self, testdir):
-        self.TESTDIR = testdir
-    
-    def create_sample_data(self):
-        """
-        Create some test data: Some files with some lines in them. Leave room
-        for individual test cases to insert files at the beginning of the sequence
-        """
-        log.debug("Creating test file directory: %s", self.TESTDIR)
-        if(not os.path.exists(self.TESTDIR)):
-            os.makedirs(self.TESTDIR)
-    
-        log.debug("Creating test file: %s/gp03flma_atm_test_20130722.000", self.TESTDIR)
-        fh = open(os.path.join(self.TESTDIR, "gp03flma_atm_test_20130722.000"), 'wb')
-        fh.write(binascii.unhexlify(self.TEST_DATA_1.replace('/n', '')))
-        fh.close()
-
-
-###############################################################################
-#                            UNIT TESTS                                #
-# Device specific integration tests are for                                   #
-# testing device specific capabilities                                        #
-###############################################################################
-@attr('UNIT', group='mi')
-class UnitTest(DataSetUnitTestCase):
-    def setUp(self):
-        sample_data = SampleData(self.test_config.driver_startup_config.harvester.directory)
-        sample_data.create_sample_data()
-        log.debug("Created test data")
-        
+SAMPLE_STREAM='ctdmo_parsed'
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -98,11 +74,142 @@ class UnitTest(DataSetUnitTestCase):
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
-    def setUp(self):
-        sample_data = SampleData(self.test_config.driver_startup_config.harvester.directory)
-        sample_data.create_sample_data()
-        log.debug("Created test data")
-    
+
+    def clean_file(self):
+        # remove just the file we are using
+        driver_config = self._driver_config()['startup_config']
+        log.debug('startup config %s', driver_config)
+        fullfile = os.path.join(driver_config['harvester']['directory'],
+                            driver_config['harvester']['pattern'])
+        if os.path.exists(fullfile):
+            os.remove(fullfile)
+
+    def test_get(self):
+        self.clean_file()
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.clear_async_data()
+        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
+        self.assert_data(CtdmoParserDataParticle, 'test_data_1.txt.result.yml',
+                         count=3, timeout=10)
+
+        # there is only one file we read from, this example 'appends' data to
+        # the end of the node59p1.dat file, and the data from the new append
+        # is returned (not including the original data from _step1)
+        self.clear_async_data()
+        self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
+        self.assert_data(CtdmoParserDataParticle, 'test_data_2.txt.result.yml',
+                         count=12, timeout=10)
+
+        # now 'appends' the rest of the data and just check if we get the right number
+        self.clear_async_data()
+        self.create_sample_data("node59p1_step4.dat", "node59p1.dat")
+        self.assert_data(CtdmoParserDataParticle, count=24, timeout=10)
+
+        self.driver.stop_sampling()
+        # reset the parser and harvester states
+        self.driver.clear_states()
+        self.driver.start_sampling()
+
+        self.clear_async_data()
+        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
+        self.assert_data(CtdmoParserDataParticle, count=3, timeout=10)
+
+    def test_harvester_new_file_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.  Should call the exception callback.
+        """
+        self.clean_file()
+
+        # create the file so that it is unreadable
+        self.create_sample_data("node59p1_step1.dat", "node59p1.dat", mode=000)
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.assert_exception(IOError)
+
+        # At this point the harvester thread is dead.  The agent
+        # exception handle should handle this case.
+
+    def test_stop_resume(self):
+        """
+        Test the ability to stop and restart the process
+        """
+        self.clean_file()
+
+        # Create and store the new driver state
+        self.memento = {DataSourceConfigKey.HARVESTER: {'last_filesize': 893,
+                                                        'last_checksum': 'b859e40320ac396a5991d80a655bc161'},
+                        DataSourceConfigKey.PARSER: {'in_process_data': [],
+                                                     'unprocessed_data':[[0,50], [374,432], [892,893]],
+                                                     'timestamp': 3583656001.0}}
+        self.driver = MflmCTDMODataSetDriver(
+            self._driver_config()['startup_config'],
+            self.memento,
+            self.data_callback,
+            self.state_callback,
+            self.exception_callback)
+
+        # create some data to parse
+        self.clear_async_data()
+        self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
+
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(CtdmoParserDataParticle, 'test_data_2.txt.result.yml',
+                         count=12, timeout=10)
+
+    def test_sequences(self):
+        """
+        Test new sequence flags are set correctly.  There is only one file
+        that just has data appended or inserted into it, so new sequences
+        can occur in both cases, or if there is missing data in between two sequences
+        """
+
+        self.clean_file()
+
+        self.driver.start_sampling()
+
+        self.clear_async_data()
+
+        # step 2 contains 2 blocks, start with this and get both since we used them
+        # separately in other tests (no new sequences)
+        self.clear_async_data()
+        self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
+        self.assert_data(CtdmoParserDataParticle, 'test_data_1-2.txt.result.yml',
+                         count=15, timeout=10)
+
+        # This file has had a section of CT data replaced with 0s, this should start a new
+        # sequence for the data following the missing CT data
+        self.clear_async_data()
+        self.create_sample_data('node59p1_step3.dat', "node59p1.dat")
+        self.assert_data(CtdmoParserDataParticle, 'test_data_3.txt.result.yml',
+                         count=12, timeout=10)
+
+        # Now fill in the zeroed section from step3, this should just return the new
+        # data with a new sequence flag
+        self.clear_async_data()
+        self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
+        self.assert_data(CtdmoParserDataParticle, 'test_data_4.txt.result.yml',
+                         count=12, timeout=10)
+
+        # start over now, using step 4, make sure sequence flags just account for
+        # missing data in file (there are some sections of bad data that don't
+        # match in headers, [0-50], [374-432], [1197-1471]
+        self.driver.stop_sampling()
+        # reset the parser and harvester states
+        self.driver.clear_states()
+        self.driver.start_sampling()
+
+        self.clear_async_data()
+        self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
+        self.assert_data(CtdmoParserDataParticle, 'test_data_1-4.txt.result.yml',
+                         count=39, timeout=10)
     
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -113,24 +220,137 @@ class IntegrationTest(DataSetIntegrationTestCase):
 class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
         super(QualificationTest, self).setUp()
-        
-    def test_initialize(self):
-        """
-        Test that we can start the container and initialize the dataset agent.
-        """
-        self.assert_initialize()
-        self.assert_stop_sampling()
-        self.assert_reset()
 
-    @unittest.skip("skip for now")
+    def clean_file(self):
+        # remove just the file we are using
+        driver_config = self._driver_config()['startup_config']
+        log.debug('startup config %s', driver_config)
+        fullfile = os.path.join(driver_config['harvester']['directory'],
+                            driver_config['harvester']['pattern'])
+        if os.path.exists(fullfile):
+            os.remove(fullfile)
+
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        sample_data = SampleData(self.test_config.driver_startup_config.harvester.directory)
-        sample_data.create_sample_data()
+        self.clean_file()
+
+        self.create_sample_data('node59p1_step1.dat', "node59p1.dat")
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Right now, there is an issue with keeping records in order,
+        # which has to do with the sleep time in get_samples in
+        # instrument_agent_client.  By setting this delay more than the
+        # delay in get_samples, the records are returned in the expected
+        # otherwise they are returned out of order
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        try:
+            # Verify we get one sample
+            result = self.data_subscribers.get_samples(SAMPLE_STREAM, 3)
+            log.info("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'test_data_1.txt.result.yml')
+        except Exception as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
+
+    def test_large_import(self):
+        """
+        Test a large import
+        """
+        self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
         self.assert_initialize()
 
+        result = self.get_samples(SAMPLE_STREAM,39,120)
+
+    def test_stop_start(self):
+        """
+        Test the agents ability to start data flowing, stop, then restart
+        at the correct spot.
+        """
+        log.error("CONFIG: %s", self._agent_config())
+        self.create_sample_data('node59p1_step1.dat', "node59p1.dat")
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
         # Verify we get one sample
-        result = self.data_subscribers.get_samples('nose_ctd_external')
+        try:
+            # Read the first file and verify the data
+            result = self.get_samples(SAMPLE_STREAM, 3)
+            log.debug("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'test_data_1.txt.result.yml')
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+
+            self.create_sample_data('node59p1_step2.dat', "node59p1.dat")
+            # Now read the first four records of the second file then stop
+            result1 = self.get_samples(SAMPLE_STREAM, 4)
+            log.debug("RESULT 1: %s", result1)
+            self.assert_stop_sampling()
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+
+            # Restart sampling and ensure we get the last 8 records of the file
+            self.assert_start_sampling()
+            result2 = self.get_samples(SAMPLE_STREAM, 8)
+            log.debug("RESULT 2: %s", result2)
+            result = result1
+            result.extend(result2)
+            log.debug("RESULT: %s", result)
+            self.assert_data_values(result, 'test_data_2.txt.result.yml')
+
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+    def test_harvester_new_file_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.
+
+        exception callback called.
+        """
+        self.clean_file()
+        self.create_sample_data('node59p1_step4.dat', "node59p1.dat", mode=000)
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        self.event_subscribers.clear_events()
+        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
+        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
+
+        self.clean_file()
+        self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
+
+        # Should automatically retry connect and transition to streaming
+        self.assert_state_change(ResourceAgentState.STREAMING, 90)
+    @unittest.skip('Not working currently')
+    def test_parser_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        record parsing.
+        """
+        self.clean_file()
+        self.create_sample_data('node59p1_bad.dat', "node59p1.dat")
+
+        self.assert_initialize()
+
+        self.event_subscribers.clear_events()
+        result = self.get_samples(SAMPLE_STREAM, 2)
+        self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+
+        # Verify an event was raised and we are in our retry state
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_state_change(ResourceAgentState.STREAMING, 10)
