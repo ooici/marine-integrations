@@ -314,27 +314,6 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    @unittest.skip('This driver doesnt die if the directory isnt there...')
-    def test_missing_directory(self):
-        """
-        Test starting the driver when the data directory doesn't exists.  This
-        should prevent the driver from going into streaming mode.  When the
-        directory is created then we should be able to transition into streaming.
-        """
-        self.remove_sample_dir()
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        self.event_subscribers.clear_events()
-        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
-
-        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
-        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
-
-        self.create_data_dir()
-
-        # Should automatically retry connect and transition to streaming
-        self.assert_state_change(ResourceAgentState.STREAMING, 90)
-    @unittest.skip('This driver doesnt die if the directory isnt there...')
     def test_harvester_new_file_exception(self):
         """
         Test an exception raised after the driver is started during
@@ -357,19 +336,19 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)
-    @unittest.skip('This driver doesnt die if the directory isnt there...')
+
     def test_parser_exception(self):
         """
         Test an exception raised after the driver is started during
         record parsing.
         """
         self.clean_file()
-        self.create_sample_data('node59p1_step2.dat', "node59p1.dat")
+        self.create_sample_data('node59p1_bad.dat', "node59p1.dat")
 
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 15)
+        result = self.get_samples(SAMPLE_STREAM, 2)
         self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
         # Verify an event was raised and we are in our retry state

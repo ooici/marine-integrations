@@ -80,18 +80,19 @@ class FilePoller(ConditionPoller):
     poll a single file to determine if that file has had additional data appended to it
     """
     
-    def __init__(self, fullfile, last_read_offset, callback, exception_callback=None, interval=1):
+    def __init__(self, directory, filename, last_read_offset, callback, exception_callback=None, interval=1):
         """
-        @param fullfile full file path to the file to monitor
+        @param directory directory of the file to monitor
+        @param filename name of the file to monitor
         @param last_read_offset offset of the last byte read in this file (can be None)
         @param callback the callback to call when new data has been found in the file
         @param exception_callback the callback to call when an exception has occurred
         @param interval the interval between checking on the file in seconds
         """
         try:
-            if not os.path.isfile(fullfile):
-                raise ValueError('%s is not an existing file'%fullfile)
-            self._file = fullfile
+            if not os.path.isdir(directory):
+                raise ValueError('%s is not an existing directory'%directory)
+            self._file = directory + '/' + filename
             self._last_offset = last_read_offset
             super(FilePoller,self).__init__(self._check_for_data, callback, exception_callback, interval)
         except:
@@ -129,12 +130,12 @@ class SingleFileHarvester(FilePoller, Harvester):
         if not isinstance(config, dict):
             raise TypeError("Config object must be a dict")
         
-        self.fullfile = config['directory'] + '/' + config['filename']
         self.callback = data_callback
-        self.last_offset = last_read_offset
         
-        FilePoller.__init__(self, self.fullfile,
-                            self.last_offset,
+        FilePoller.__init__(self,
+                            config['directory'],
+                            config['filename'],
+                            last_read_offset,
                             self.on_new_data,
                             exception_callback,
                             config.get('frequency', 1))
@@ -159,17 +160,20 @@ class FileChangePoller(ConditionPoller):
     had the data within the file changed
     """
 
-    def __init__(self, fullfile, last_size, last_checksum, callback, exception_callback=None, interval=1):
+    def __init__(self, directory, filename, last_size, last_checksum, callback, exception_callback=None, interval=1):
         """
-        @param fullfile full file path to the file to monitor
-        @param last_read_offset offset of the last byte read in this file (can be None)
+        @param directory directory of the file to monitor
+        @param filename name of the file to monitor
+        @param last_size offset of the last byte read in this file (can be None)
         @param last_checkum the checksum of the previously read file (can be None)
         @param callback the callback to call when new data has been found in the file
         @param exception_callback the callback to call when an exception has occurred
         @param interval the interval between checking on the file in seconds
         """
+        if not os.path.isdir(directory):
+            raise ValueError('%s is not a directory'%directory)
         try:
-            self._file = fullfile
+            self._file = directory + '/' + filename
             self._last_size = last_size
             self._last_checksum = last_checksum
             super(FileChangePoller,self).__init__(self._check_for_data,
@@ -229,21 +233,21 @@ class SingleFileChangeHarvester(FileChangePoller, Harvester):
         if not isinstance(memento, dict):
             raise TypeError("Momento must be a dict")
 
-        self.fullfile = config['directory'] + '/' + config['pattern']
         self.callback = data_callback
-        if memento == {}:
-            self.last_size = None
-            self.last_checksum = None
-        else:
-            self.last_size = memento[FileChangeHarvesterMementoKey.LAST_FILESIZE]
-            self.last_checksum = memento[FileChangeHarvesterMementoKey.LAST_CHECKSUM]
+        last_size = None
+        last_checksum = None
+        if memento != {}:
+            last_size = memento[FileChangeHarvesterMementoKey.LAST_FILESIZE]
+            last_checksum = memento[FileChangeHarvesterMementoKey.LAST_CHECKSUM]
 
-        FileChangePoller.__init__(self, self.fullfile,
-                            self.last_size,
-                            self.last_checksum,
-                            self.on_new_data,
-                            exception_callback,
-                            config.get('frequency', 1))
+        FileChangePoller.__init__(self,
+                                  config['directory'],
+                                  config['pattern'],
+                                  last_size,
+                                  last_checksum,
+                                  self.on_new_data,
+                                  exception_callback,
+                                  config.get('frequency', 1))
 
     def on_new_data(self, fullfile):
         """

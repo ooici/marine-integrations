@@ -162,10 +162,12 @@ class CtdmoParser(MflmParser):
             non_data_flag = True
 
         sample_count = 0
+        prev_sample = None
 
         while (chunk != None):
             header_match = HEADER_MATCHER.match(chunk)
             sample_count = 0
+            prev_sample = None
             if header_match.group(1) == self._instrument_id:
                 # Check for missing data between records
                 if non_data_flag or self._new_seq_flag:
@@ -183,6 +185,12 @@ class CtdmoParser(MflmParser):
                 log.debug("matched chunk header %s", chunk[1:32])
 
                 for data_match in DATA_MATCHER.finditer(chunk):
+                    # check if the end of the last sample connects to the start of the next sample
+                    #if prev_sample is not None:
+                    #    if data_match.start(0) != prev_sample:
+                    #        log.error('start sample %d is not next to previous %d', data_match.start(0), prev_sample)
+                    #        raise SampleException('Samples do not line up, bad data found')
+                    prev_sample = data_match.end(0)
                     # the timestamp is part of the data, pull out the time stamp
                     # convert from binary to hex string
                     asciihextime = binascii.b2a_hex(data_match.group(1))
