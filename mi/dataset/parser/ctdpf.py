@@ -37,6 +37,9 @@ DATA_MATCHER = re.compile(DATA_REGEX, re.DOTALL)
 DATE_REGEX = r'(\d{2})/(\d{2})/(\d{4}) (\d{2}):(\d{2}):(\d{2})'
 DATE_MATCHER = re.compile(DATE_REGEX)
 
+WHITESPACE = r'\s+$'
+WHITESPACE_MATCHER = re.compile(WHITESPACE)
+
 # TODO: This should be passed in as a parameter so the driver can define the particle name.
 class DataParticleType(BaseEnum):
     SAMPLE = 'ctdpf_parsed'
@@ -248,13 +251,16 @@ class CtdpfParser(BufferLoadingParser):
 
                 # Check for noise between records, but ignore newline.  This is detecting noise following
                 # the last successful chunk read which is why it is post sample generation.
-                if non_data is not None and non_data != "\n":
+                if non_data is not None:
+                    log.trace("Non-data detected: '%s'", non_data)
+                    if not WHITESPACE_MATCHER.match(non_data):
                         log.info("Gap in datafile detected.")
-                        log.trace("Noise detected: %s", non_data)
                         self.start_new_sequence()
 
-            if non_data is not None:
-                self._increment_state(len(non_data), self._timestamp)
+                    self._increment_state(len(non_data), self._timestamp)
+
+            else:
+                raise SampleException("Unhandled chunk: %s", chunk)
 
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
             (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
