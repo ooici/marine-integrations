@@ -166,7 +166,7 @@ class PackageDriver(object):
 
         # if the directory doesn't exist, something went wrong with cloning
         if not os.path.exists(REPODIR + '/marine-integrations'):
-            raise GitCommandException('Error creating ooici repository clone with base' % REPODIR)
+            raise GitCommandException('Error creating ooici repository clone with base: %s' % REPODIR)
         # navigate into the cloned repository
         os.chdir(REPODIR + '/marine-integrations')
         log.debug('in cloned repository')
