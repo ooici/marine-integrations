@@ -348,7 +348,7 @@ class ResultSet(object):
         if not isinstance(datestr, str):
             raise IOError('Value %s is not a string.' % str(datestr))
         try:
-            localtime_offset = self._parse_time("1970-01-01T00:00:00.00Z")
+            localtime_offset = self._parse_time("1970-01-01T00:00:00.00")
             converted_time = self._parse_time(datestr)
             adjusted_time = converted_time - localtime_offset
             timestamp = ntplib.system_to_ntp_time(adjusted_time)
@@ -366,9 +366,10 @@ class ResultSet(object):
         else:
             log.debug("Match: %s", datestr)
 
-        if datestr[:-1] != 'Z':
+        if datestr[-1:] != 'Z':
             datestr += 'Z'
 
+        log.debug("Converting time string: %s", datestr)
         dt = parser.parse(datestr)
         elapse = float(dt.strftime("%s.%f"))
         return elapse
