@@ -164,19 +164,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # verify data is produced
         self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.partial_results.yml', count=5, timeout=10)
 
-    def test_sample_data(self):
-        """
-        This data file was generating new sequences for every record.  It shouldn't
-        """
-        self.clear_async_data()
-
-        self.create_sample_data('coitest.txt', "DATA003.txt")
-
-        self.driver.start_sampling()
-
-        # verify data is produced
-        self.assert_data(CtdpfParserDataParticle, count=5, timeout=10)
-
     def test_parameters(self):
         """
         Verify that we can get, set, and report all driver parameters.
