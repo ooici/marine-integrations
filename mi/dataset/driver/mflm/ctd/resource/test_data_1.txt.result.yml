@@ -8,18 +8,18 @@ data:
   - _index: 1
     _new_sequence: True
     internal_timestamp: '2013-07-24T00:00:01' 
-    temperature: 13
-    conductivity: 3.5
+    temperature: 13.071000000000002
+    conductivity: 3.8369
     pressure: 5.476113615122074
   - _index: 2
     _new_sequence: False
     internal_timestamp: '2013-07-24T00:00:01'
-    temperature: 14
-    conductivity: -0.5
+    temperature: 14.425699999999999
+    conductivity: 9.999999999998899e-05
     pressure: 0.06980604804443402
   - _index: 3
     _new_sequence: False
     internal_timestamp: '2013-07-24T00:00:01'
-    temperature: 13
-    conductivity: -0.5
+    temperature: 13.470199999999998
+    conductivity: 4.0000000000040004e-05
     pressure: 0.05760219349121343

@@ -61,16 +61,26 @@ class CtdmoParserDataParticle(DataParticle):
         try:
             # convert binary to hex ascii string
             asciihex = binascii.b2a_hex(match.group(0))
+            log.debug('Converting data %s', asciihex)
             # just convert directly from hex-ascii to int
             temp_num = int(asciihex[2:7], 16)
-            temp = (temp_num / 10000) - 10
+            temp = (float(temp_num) / 10000.0) - 10
+            log.debug('Hex %s to temp num %d converted to temp %f', asciihex[2:7], temp_num, temp)
+            if temp > 50 or temp < -10:
+                raise ValueError('Temperature %f outside reasonable range of -10 to 50 C'%temp)
             cond_num = int(asciihex[7:12], 16)
-            cond = (cond_num / 100000) - .5
+            cond = (float(cond_num) / 100000.0) - .5
+            log.debug('Hex %s to cond num %d to conductivity %f', asciihex[7:12], cond_num, cond)
+            if cond > 15 or cond < 0:
+                raise ValueError('Conductivity %f is outside reasonable range of .005 to 15'%cond)
             # need to swap pressure bytes
             press_byte_swap = asciihex[14:16] + asciihex[12:14]
             press_num = int(press_byte_swap, 16)
             pressure_range = .6894757 * (1000 - 14)
-            press = (press_num * pressure_range / (.85 * 65536)) - (.05 * pressure_range)
+            press = (float(press_num) * pressure_range / (.85 * 65536.0)) - (.05 * pressure_range)
+            log.debug('Hex %s convert to press num %d to pressure %f', press_byte_swap, press_num, press)
+            if press > 10900 or press < 0:
+                raise ValueError('Pressure %f is outside reasonable range of 0 to 10900 dbar'%press)
 
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
@@ -186,10 +196,10 @@ class CtdmoParser(MflmParser):
 
                 for data_match in DATA_MATCHER.finditer(chunk):
                     # check if the end of the last sample connects to the start of the next sample
-                    #if prev_sample is not None:
-                    #    if data_match.start(0) != prev_sample:
-                    #        log.error('start sample %d is not next to previous %d', data_match.start(0), prev_sample)
-                    #        raise SampleException('Samples do not line up, bad data found')
+                    if prev_sample is not None:
+                        if data_match.start(0) != prev_sample:
+                            log.error('extra data found between samples, leaving out the rest of this chunk')
+                            break
                     prev_sample = data_match.end(0)
                     # the timestamp is part of the data, pull out the time stamp
                     # convert from binary to hex string

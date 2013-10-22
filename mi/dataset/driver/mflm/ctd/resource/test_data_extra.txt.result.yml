@@ -60,174 +60,132 @@ data:
     conductivity: 3.23438    
     pressure: 37.084096907968764
   - _index: 10
-    _new_sequence: False
-    internal_timestamp: '2013-07-24T02:00:01'
-    temperature: 34.2267
-    conductivity: 3.39326    
-    pressure: 28.724456539011236
-  - _index: 11
-    _new_sequence: False
-    internal_timestamp: '2013-07-24T02:00:01'
-    temperature: 5.9627
-    conductivity: 3.22102    
-    pressure: 40.96492265589355
-  - _index: 12
-    _new_sequence: False
-    internal_timestamp: '2013-07-24T02:00:01'
-    temperature: 13.179200000000002
-    conductivity: 3.84621    
-    pressure: 5.964267797250976
-  - _index: 13
-    _new_sequence: False
-    internal_timestamp: '2013-07-24T02:00:01'
-    temperature: 13.183399999999999
-    conductivity: 3.8455000000000004    
-    pressure: 0.5579602301733431
-  - _index: 14
-    _new_sequence: False
-    internal_timestamp: '2013-07-24T02:00:01'
-    temperature: 12.911999999999999
-    conductivity: 4.0000000000040004e-05
-    pressure: 0.04539833893798573
-  - _index: 15
     _new_sequence: True
     internal_timestamp: '2013-07-24T04:00:01'
     temperature: 3.8428000000000004
     conductivity: 3.16392    
     pressure: 60.63753619568849
-  - _index: 16
+  - _index: 11
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
     temperature: 3.7545
     conductivity: 3.15112
     pressure: 57.12282608436036
-  - _index: 17
+  - _index: 12
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
     temperature: 3.880000000000001
     conductivity: 3.14488
     pressure: 37.02307763520265
-  - _index: 18
+  - _index: 13
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
     temperature: 5.696300000000001
     conductivity: 3.20124
     pressure: 51.13073349872803
-  - _index: 19
+  - _index: 14
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
     temperature: 9.9041
     conductivity: 3.55539
     pressure: 15.751759148935548
-  - _index: 20
+  - _index: 15
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
     temperature: 5.779
     conductivity: 3.20789    
     pressure: 49.5564362613623
-  - _index: 21
+  - _index: 16
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
     temperature: 6.3216
     conductivity: 3.25275
     pressure: 37.29156243537354
-  - _index: 22
+  - _index: 17
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
     temperature: 7.439299999999999
     conductivity: 3.34219    
     pressure: 28.45597173884034
-  - _index: 23
+  - _index: 18
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
     temperature: 5.928800000000001
     conductivity: 3.21882    
     pressure: 40.81847640125489
-  - _index: 24
+  - _index: 19
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
     temperature: 13.0901
     conductivity: 3.8383900000000004    
     pressure: 5.903248524484866
-  - _index: 25
-    _new_sequence: False
-    internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 25.8249
-    conductivity: 8.73755  
-    pressure: 0.9240758667700248
-  - _index: 26
-    _new_sequence: False
-    internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 12.1767
-    conductivity: 4.0000000000040004e-05    
-    pressure: 0.03319448438476513
-  - _index: 27
+  - _index: 20
     _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01'
     temperature: 3.8209999999999997
     conductivity: 3.15725    
     pressure: 55.438694156015636
-  - _index: 28
+  - _index: 21
     _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01'
     temperature: 3.8316999999999997
     conductivity: 3.15625    
     pressure: 53.18098106366944
-  - _index: 29
+  - _index: 22
     _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01'
     temperature: 3.927199999999999
     conductivity: 3.14557
     pressure: 34.16737566974853
-  - _index: 30
+  - _index: 23
     _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01'
     temperature: 5.4109
     conductivity: 3.1758  
     pressure: 46.85938440510011
-  - _index: 31
+  - _index: 24
     _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01'
     temperature: 11.6582
     conductivity: 3.7126799999999998    
     pressure: 14.751043075571289
-  - _index: 32
+  - _index: 25
     _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01'
     temperature: 5.4352
     conductivity: 3.17763    
     pressure: 45.06541778577637
-  - _index: 33
+  - _index: 26
     _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01'
     temperature: 7.260300000000001
     conductivity: 3.3314    
     pressure: 34.43586046991944
-  - _index: 34
+  - _index: 27
     _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01'
     temperature: 9.0019
     conductivity: 3.48049    
     pressure: 26.198258646494146
-  - _index: 35
+  - _index: 28
     _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01'
     temperature: 6.222300000000001
     conductivity: 3.24387    
     pressure: 37.25495087171388
-  - _index: 36
+  - _index: 29
     _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01'
     temperature: 13.0439
     conductivity: 3.8358499999999998    
     pressure: 5.598152160654301
-  - _index: 37
+  - _index: 30
     _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01'
     temperature: 13.032699999999998
     conductivity: 3.83469    
     pressure: 0.8264450303442388
-  - _index: 38
+  - _index: 31
     _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01'
     temperature: 11.9326

@@ -8,73 +8,73 @@ data:
   - _index: 1
     _new_sequence: True
     internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 3
-    conductivity: 2.5
+    temperature: 3.8428000000000004
+    conductivity: 3.16392
     pressure: 60.63753619568849
   - _index: 2
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 3
-    conductivity: 2.5
+    temperature: 3.7545
+    conductivity: 3.15112
     pressure: 57.12282608436036
   - _index: 3
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 3
-    conductivity: 2.5
+    temperature: 3.880000000000001
+    conductivity: 3.14488
     pressure: 37.02307763520265
   - _index: 4
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 5
-    conductivity: 2.5
+    temperature: 5.696300000000001
+    conductivity: 3.20124
     pressure: 51.13073349872803
   - _index: 5
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 9
-    conductivity: 3.5
+    temperature: 9.9041
+    conductivity: 3.55539
     pressure: 15.751759148935548
   - _index: 6
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 5
-    conductivity: 2.5
+    temperature: 5.779
+    conductivity: 3.20789
     pressure: 49.5564362613623
   - _index: 7
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 6
-    conductivity: 2.5
+    temperature: 6.3216
+    conductivity: 3.25275
     pressure: 37.29156243537354
   - _index: 8
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 7
-    conductivity: 2.5
+    temperature: 7.439299999999999
+    conductivity: 3.34219
     pressure: 28.45597173884034
   - _index: 9
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 5
-    conductivity: 2.5
+    temperature: 5.928800000000001
+    conductivity: 3.21882
     pressure: 40.81847640125489
   - _index: 10
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 13
-    conductivity: 3.5
+    temperature: 13.0901
+    conductivity: 3.8383900000000004
     pressure: 5.903248524484866
   - _index: 11
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 25
-    conductivity: 8.5
+    temperature: 25.8249
+    conductivity: 8.73755
     pressure: 0.9240758667700248
   - _index: 12
     _new_sequence: False
     internal_timestamp: '2013-07-24T04:00:01'
-    temperature: 12
-    conductivity: -0.5
+    temperature: 12.1767
+    conductivity: 4.0000000000040004e-05
     pressure: 0.03319448438476513
 

@@ -152,6 +152,9 @@ class MflmParser(Parser):
         if self._mid_sample_packets > 0 and state_obj[StateKey.IN_PROCESS_DATA][0][3] > 0:
             self._samples_to_throw_out = state_obj[StateKey.IN_PROCESS_DATA][0][3]
 
+        # make sure we have cleaned the chunker out of old data so there are no wrap arounds
+        self._clean_all_chunker()
+
         self._new_seq_flag = True # state has changed, start a new sequence
 
         # seek to the first unprocessed position
@@ -224,6 +227,8 @@ class MflmParser(Parser):
                 self._stream_handle.seek(0)
                 self._position = [0,0]
                 self._new_seq_flag = True # start a new sequence since we are back at the beginning
+                # clear out the chunker so we don't wrap around data
+                self._clean_all_chunker()
 
             log.debug('In process %s', self._read_state[StateKey.IN_PROCESS_DATA])
 
@@ -249,6 +254,23 @@ class MflmParser(Parser):
                     self._read_state[StateKey.UNPROCESSED_DATA])
 
         self._read_state[StateKey.TIMESTAMP] = timestamp
+
+    def _clean_all_chunker(self):
+        """
+        Clean out the chunker of all possible data types
+        """
+        # clear out any non matching data.
+        (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
+        while non_data is not None:
+            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
+        # clean out raw data
+        (nd_timestamp, raw_data) = self._chunker.get_next_raw(clean=True)
+        while raw_data is not None:
+            (nd_timestamp, raw_data) = self._chunker.get_next_raw(clean=True)
+        # clean out data
+        (nd_timestamp, data) = self._chunker.get_next_data(clean=True)
+        while data is not None:
+            (nd_timestamp, data) = self._chunker.get_next_data(clean=True)
 
     def _combine_adjacent_packets(self, packets):
         """

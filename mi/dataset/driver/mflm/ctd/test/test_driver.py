@@ -101,12 +101,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
         self.assert_data(CtdmoParserDataParticle, 'test_data_2.txt.result.yml',
-                         count=12, timeout=10)
+                         count=11, timeout=10)
 
         # now 'appends' the rest of the data and just check if we get the right number
         self.clear_async_data()
         self.create_sample_data("node59p1_step4.dat", "node59p1.dat")
-        self.assert_data(CtdmoParserDataParticle, count=24, timeout=10)
+        self.assert_data(CtdmoParserDataParticle, count=23, timeout=10)
 
         self.driver.stop_sampling()
         # reset the parser and harvester states
@@ -162,7 +162,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # verify data is produced
         self.assert_data(CtdmoParserDataParticle, 'test_data_2.txt.result.yml',
-                         count=12, timeout=10)
+                         count=11, timeout=10)
 
     def test_sequences(self):
         """
@@ -182,7 +182,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
         self.assert_data(CtdmoParserDataParticle, 'test_data_1-2.txt.result.yml',
-                         count=15, timeout=10)
+                         count=14, timeout=10)
 
         # This file has had a section of CT data replaced with 0s, this should start a new
         # sequence for the data following the missing CT data
@@ -267,7 +267,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,39,120)
+        result = self.get_samples(SAMPLE_STREAM,38,120)
 
     def test_stop_start(self):
         """
@@ -295,7 +295,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
             self.create_sample_data('node59p1_step2.dat', "node59p1.dat")
             # Now read the first four records of the second file then stop
-            result1 = self.get_samples(SAMPLE_STREAM, 4)
+            result1 = self.get_samples(SAMPLE_STREAM, 3)
             log.debug("RESULT 1: %s", result1)
             self.assert_stop_sampling()
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
@@ -336,13 +336,14 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)
-    @unittest.skip('Not working currently')
+
     def test_parser_exception(self):
         """
-        Test an exception raised after the driver is started during
+        Test an exception is raised after the driver is started during
         record parsing.
         """
         self.clean_file()
+        # file contains invalid sample values
         self.create_sample_data('node59p1_bad.dat', "node59p1.dat")
 
         self.assert_initialize()
@@ -354,3 +355,23 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 10)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
+    def test_parser_extra_data(self):
+        """
+        Test that the remaining part of a chunk is skipped if data is
+        read with extra data in between samples (meaning data has
+        been corrupted)
+        """
+        self.clean_file()
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        self.event_subscribers.clear_events()
+        # this data has both extra data and invalid sample values in it
+        self.create_sample_data('node59p1_extra.dat', "node59p1.dat")
+        result = self.get_samples(SAMPLE_STREAM, 31, 60)
+        # make sure the invalid sample is recognized
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        # check that the right samples are skipped
+        self.assert_data_values(result, 'test_data_extra.txt.result.yml')
