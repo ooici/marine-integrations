@@ -487,7 +487,6 @@ class DataSetQualificationTestCase(DataSetTestCase):
 
         self.container = self.instrument_agent_manager.container
 
-        gevent.sleep(5)
         log.debug("Packet Config: %s", self.test_config.agent_packet_config)
         self.data_subscribers = InstrumentAgentDataSubscribers(
             packet_config=self.test_config.agent_packet_config,
