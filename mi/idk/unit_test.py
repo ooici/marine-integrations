@@ -2144,7 +2144,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         list of common agent parameters
         @return: list of agent parameters
         '''
-        return ['aggstatus', 'alerts', 'example', 'pubrate', 'streams']
+        return ['aggstatus', 'alerts', 'driver_pid', 'example', 'pubrate', 'streams']
 
     def assert_agent_state(self, target_state):
         """
