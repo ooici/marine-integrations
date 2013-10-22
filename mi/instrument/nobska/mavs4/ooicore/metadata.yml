@@ -1,8 +1,8 @@
 driver_metadata:
+  version: 0.0.9
   author: Bill Bollenbacher
-  driver_make: nobska
   driver_model: mavs4
+  driver_make: nobska
   driver_name: ooicore
-  email: wcbollenbacher@ucsd.edu
   release_notes: .
-  version: '0.0.8'
+  email: wcbollenbacher@ucsd.edu
