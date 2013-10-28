@@ -437,9 +437,9 @@ class GliderParser(BufferLoadingParser):
 
         regex = r''
         for i in range(0, column_count-1):
-            regex += r'[-\d\.Na]+\s'
+            regex += r'([-\d\.]+|NaN)\s'
 
-        regex += r'[-\d\.Na]+ *$'
+        regex += r'([-\d\.]+|NaN) *$'
 
         log.debug("Sample Pattern: %s", regex)
         return re.compile(regex, re.MULTILINE)
