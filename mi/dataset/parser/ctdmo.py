@@ -161,23 +161,25 @@ class CtdmoParser(MflmParser):
             parsing, plus the state. An empty list of nothing was parsed.
         """            
         result_particles = []
+        (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
         # all non-data packets will be read along with all the data, so we can't just use the fact that
         # there is or is not non-data to determine when a new sequence should occur.  The non-data will
-        # keep getting shifted lower as things get cleaned out, and when it reaches the 0 index the non-data
-        # is actually next
-        (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
+        # keep getting shifted lower as actual data get cleaned out, so as long as the end of non-data
+        # is before the start of the data it counts
         non_data_flag = False
-        if non_data is not None and non_start is 0:
+        if non_data is not None and non_end <= start:
             non_data_flag = True
 
         sample_count = 0
         prev_sample = None
+        new_seq = 0
 
         while (chunk != None):
             header_match = HEADER_MATCHER.match(chunk)
             sample_count = 0
             prev_sample = None
+            new_seq = 0
             if header_match.group(1) == self._instrument_id:
                 # Check for missing data between records
                 if non_data_flag or self._new_seq_flag:
@@ -187,6 +189,7 @@ class CtdmoParser(MflmParser):
                     non_data_flag = False
                     self._new_seq_flag = False
                     self.start_new_sequence()
+                    new_seq = 1
 
                 # need to do special processing on data to handle escape sequences
                 # replace 0x182b with 0x2b and 0x1858 into 0x18
@@ -222,10 +225,11 @@ class CtdmoParser(MflmParser):
                         sample_count += 1
             # keep track of how many samples were found in this chunk
             self._chunk_sample_count.append(sample_count)
-            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+            self._chunk_new_seq.append(new_seq)
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
+            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
             # need to set a flag in case we read a chunk not matching the instrument ID and overwrite the non_data
-            if non_data is not None and non_start is 0:
+            if non_data is not None and non_end <= start:
                 non_data_flag = True
 
         return result_particles

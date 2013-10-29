@@ -12,6 +12,8 @@ __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
 import re
+import struct
+import binascii
 
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger; log = get_logger()
@@ -22,7 +24,13 @@ from mi.dataset.dataset_parser import Parser
 
 # SIO Main controller header and data for ctdmo in binary
 # groups: ID, Number of Data Bytes, POSIX timestamp, block number, data
-HEADER_REGEX = b'\x01([A-Z0-9]{2})[0-9]{7}_([0-9A-Fa-f]{4})[a-z]([0-9A-Fa-f]{8})_([0-9A-Fa-f]{2})_[0-9A-Fa-f]{4}\x02([\x00-\xFF]*?)\x03'
+# some instruments have \x03 within the data, need to check if header is
+# followed by another header or not or zeros for blank data
+SIO_HEADER_REGEX = b'\x01(CT|AD|FL|DO|PH|PS|CS)[0-9]{7}_([0-9A-Fa-f]{4})[a-z]' \
+               '([0-9A-Fa-f]{8})_([0-9A-Fa-f]{2})_([0-9A-Fa-f]{4})\x02'
+SIO_HEADER_MATCHER = re.compile(SIO_HEADER_REGEX)
+HEADER_REGEX = b'\x01(CT|AD|FL|DO|PH|PS|CS)[0-9]{7}_([0-9A-Fa-f]{4})[a-z]' \
+               '([0-9A-Fa-f]{8})_([0-9A-Fa-f]{2})_[0-9A-Fa-f]{4}\x02([\x00-\xFF]*?)\x03'
 HEADER_MATCHER = re.compile(HEADER_REGEX)
 
 # blocks can be uniquely identified a combination of block number and timestamp,
@@ -32,8 +40,8 @@ class StateKey(BaseEnum):
     TIMESTAMP = "timestamp" # holds the most recent data sample timestamp
     UNPROCESSED_DATA = "unprocessed_data" # holds an array of start and end of unprocessed blocks of data
     IN_PROCESS_DATA = "in_process_data" # holds an array of start and end of packets of data,
-                                        # the number of samples in that packet, and how many packets
-                                        # have been pulled out currently being processed
+        # the number of samples in that packet, how many packets have been pulled out currently
+        # being processed, and if this packet is a new sequence or not
 
 class MflmParser(Parser):
 
@@ -76,6 +84,7 @@ class MflmParser(Parser):
         self._stream_handle.seek(0)
         self._new_seq_flag = True # always start a new sequence on init
         self._chunk_sample_count = []
+        self._chunk_new_seq = []
         self._samples_to_throw_out = None
         self._mid_sample_packets = 0
         self._read_state = {StateKey.TIMESTAMP:0.0,
@@ -95,18 +104,67 @@ class MflmParser(Parser):
         @retval list of matched start,end index found in raw_data
         """
         return_list = []
-        for match in HEADER_MATCHER.finditer(raw_data):
-            # even if this is not the right instrument, keep track that this packet was processed
-            if not self.packet_exists(match.start(0), match.end(0)):
-                self._read_state[StateKey.IN_PROCESS_DATA].append([match.start(0), match.end(0), None, 0])
+
+        for match in SIO_HEADER_MATCHER.finditer(raw_data):
             data_len = int(match.group(2), 16)
-
-            if len(match.group(5)) != data_len:
-                log.warn('data length in header %d does not match data length %d',
-                         data_len, len(match.group(5)))
-
-            return_list.append((match.start(0), match.end(0)))
+            checksum = match.group(5)
+            end_packet_idx = match.end(0) + data_len
+            if end_packet_idx <= len(raw_data):
+                end_packet = raw_data[end_packet_idx]
+                log.debug('Checking header %s, packet (%d, %d), start %d, data len %d',
+                          match.group(0)[1:32], match.end(0), end_packet_idx,
+                          match.start(0), data_len)
+                if end_packet == '\x03':
+                    packet_data = raw_data[match.end(0):end_packet_idx]
+                    chksum = self.calc_checksum(packet_data)
+                    if chksum == checksum:
+                        # even if this is not the right instrument, keep track that
+                        # this packet was processed
+                        if not self.packet_exists(match.start(0), end_packet_idx+1):
+                            self._read_state[StateKey.IN_PROCESS_DATA].append([match.start(0),
+                                                                               end_packet_idx+1,
+                                                                               None, 0, 0])
+                        return_list.append((match.start(0), end_packet_idx+1))
+                    else:
+                        log.debug("Calculated checksum %s != received checksum %s for header %s and packet %d to %d",
+                                  chksum, checksum, match.group(0)[1:32], match.end(0), end_packet_idx)
+                else:
+                    log.debug('End packet at %d is not x03 for header %s',
+                              end_packet_idx, match.group(0)[1:32])
         return return_list
+
+    @staticmethod
+    def calc_checksum(data):
+        """
+        Calculate SIO header checksum of data
+        """
+        crc = 65535
+        if len(data) == 0:
+            return '0000'
+        for iData in range(0,len(data)):
+            short = struct.unpack('H', data[iData] + '\x00')
+            point = 255 & short[0]
+            crc = crc ^ point
+            for i in range(7, -1, -1):
+                if crc & 1:
+                    crc = (crc >> 1) ^ 33800
+                else:
+                    crc >>= 1
+        crc = ~crc
+        # convert to unsigned
+        if crc < 0:
+            crc += 65536
+        # get rid of the '0x' from the hex string
+        crc = "%s" % hex(crc)[2:].upper()
+        # make sure we have the right format for comparing, must be 4 hex digits
+        if len(crc) == 3:
+            crc = '0' + crc
+        elif len(crc) == 2:
+            crc = '00' + crc
+        elif len(crc) == 1:
+            crc = '000' + crc
+        log.trace("calculated checksum %s", crc)
+        return crc
 
     def packet_exists(self, start, end):
         """
@@ -175,6 +233,7 @@ class MflmParser(Parser):
             # if we were in the middle of processing, we need to drop the parsed
             # packets sample count because that in process packet already exists
             self._chunk_sample_count.pop(0)
+            self._chunk_new_seq.pop(0)
             # decrease the mid sample number remaining
             self._mid_sample_packets -= 1
 
@@ -182,6 +241,7 @@ class MflmParser(Parser):
             if self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][2] is None and \
             len(self._chunk_sample_count) > 0:
                 self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][2] = self._chunk_sample_count.pop(0)
+                self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][4] = self._chunk_new_seq.pop(0)
                 # adjust for current file position, only do this once when filling in sample count
                 self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][0] += self._position[0]
                 self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][1] += self._position[0]
@@ -206,7 +266,7 @@ class MflmParser(Parser):
                         # this packet has had all the samples pulled out from it, remove it from in process
                         adj_packets.append([this_packet[0], this_packet[1]])
                         ret = self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
-                        log.debug('Packet %s has been processed, removing', ret)
+                        log.trace('Packet %s has been processed, removing', ret)
                         n_removed += 1
                     elif self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][3] < 0:
                         self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][3] = 0
@@ -217,7 +277,7 @@ class MflmParser(Parser):
                     # this packet has no samples, no need to process further
                     adj_packets.append([this_packet[0], this_packet[1]])
                     ret = self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
-                    log.debug('Packet %s has been processed, removing', ret)
+                    log.trace('Packet %s has been processed, removing', ret)
                     n_removed += 1
 
             if len(adj_packets) > 0 and self._read_state[StateKey.IN_PROCESS_DATA] == []:
@@ -295,24 +355,14 @@ class MflmParser(Parser):
             idx = idx + next_inc + 1
         return combined_packets
 
-    def get_records(self, num_records):
+    def get_num_records(self, num_records):
         """
-        Go ahead and execute the data parsing loop up to a point. This involves
-        getting data from the file, stuffing it in to the chunker, then parsing
-        it and publishing.
-        @param num_records The number of records to gather
-        @retval Return the list of particles requested, [] if none available
-        """ 
-        if num_records <= 0:
-            return []
-
-        if self._samples_to_throw_out is not None:
-            num_records += self._samples_to_throw_out
-            log.debug('num records increased by %d', self._samples_to_throw_out)
-
+        Loop through all the in process or unprocessed data until the requested number of records are found
+        """
         while len(self._record_buffer) < num_records:
             # read unprocessed data packet from the file, starting with in process data
-            log.debug('have %d records, waiting for %d records, samples to throw out %s', len(self._record_buffer), num_records, self._samples_to_throw_out)
+            log.debug('have %d records, waiting for %d records, samples to throw out %s',
+                      len(self._record_buffer), num_records, self._samples_to_throw_out)
             if len(self._read_state[StateKey.IN_PROCESS_DATA]) > 0:
                 # there is in process data, read that first
                 data = self._get_next_unprocessed_data(self._read_state[StateKey.IN_PROCESS_DATA])
@@ -343,10 +393,59 @@ class MflmParser(Parser):
                  # if there is no more data, it is the end of the file, stop looping
                 break
 
+    def get_records(self, num_records):
+        """
+        Go ahead and execute the data parsing loop up to a point. This involves
+        getting data from the file, stuffing it in to the chunker, then parsing
+        it and publishing.
+        @param num_records The number of records to gather
+        @retval Return the list of particles requested, [] if none available
+        """
+        if num_records <= 0:
+            return []
+
+        if self._samples_to_throw_out is not None:
+            num_records += self._samples_to_throw_out
+            log.debug('num records increased by %d', self._samples_to_throw_out)
+
+        self.get_num_records(num_records)
+
         if self._samples_to_throw_out is not None:
             num_records -= self._samples_to_throw_out
-        # pull particles out of record_buffer and publish        
-        return self._yank_particles(num_records)
+
+        if self._samples_to_throw_out is not None:
+            if len(self._record_buffer) < (num_records + self._samples_to_throw_out):
+                num_to_fetch = len(self._record_buffer) - self._samples_to_throw_out
+            else:
+                num_to_fetch = num_records
+        else:
+            if len(self._record_buffer) < num_records:
+                num_to_fetch = len(self._record_buffer)
+            else:
+                num_to_fetch = num_records
+        log.debug("Yanking %s records of %s requested",
+                  num_to_fetch,
+                  num_records)
+        # pull particles out of record_buffer and publish
+        return_list = self._yank_particles(num_to_fetch)
+
+        # this is a special case if we are switching from in process data to unprocessed data in
+        # order to get all the records required
+        if num_to_fetch < num_records and self._position == [0,0] and self._new_seq_flag is True:
+            remain_records = num_records - num_to_fetch
+            self.get_num_records(remain_records)
+            if len(self._record_buffer) < remain_records:
+                num_to_fetch = len(self._record_buffer)
+            else:
+                num_to_fetch = remain_records
+            log.debug("Yanking extra %s records of %s requested",
+                  num_to_fetch,
+                  remain_records)
+            return_list_2 = self._yank_particles(num_to_fetch)
+            return_list.extend(return_list_2)
+            log.debug('return list extended with %s, total len %d', return_list_2, len(return_list))
+
+        return return_list
 
     def _get_next_unprocessed_data(self, unproc):
         """
@@ -371,12 +470,18 @@ class MflmParser(Parser):
             data = self._stream_handle.read(data_len)
             self._position[1] = self._position[0] + data_len
             log.debug('read %d bytes starting at %d', data_len, self._position[0])
+            if len(unproc[next_idx]) >= 4:
+                # this is in process data, update the new sequence flag if there
+                # is a new sequence for the first sample(unprocessed data is not
+                # read again so the chunker doesn't trigger on it)
+                if unproc[next_idx][4] == 1 and unproc[next_idx][3] == 0:
+                    self._new_seq_flag = True
         else:
             log.debug('Found no data, %s, next_idx=%d', unproc, next_idx)
             data = []
         return data
 
-    def _yank_particles(self, num_records):
+    def _yank_particles(self, num_to_fetch):
         """
         Get particles out of the buffer and publish them. Update the state
         of what has been published, too.
@@ -385,20 +490,6 @@ class MflmParser(Parser):
         cannot be collected (perhaps due to an EOF), the list will have the
         elements it was able to collect.
         """
-        if self._samples_to_throw_out is not None:
-            if len(self._record_buffer) < (num_records + self._samples_to_throw_out):
-                num_to_fetch = len(self._record_buffer) - self._samples_to_throw_out
-            else:
-                num_to_fetch = num_records
-        else: 
-            if len(self._record_buffer) < num_records:
-                num_to_fetch = len(self._record_buffer)
-            else:
-                num_to_fetch = num_records
-        log.debug("Yanking %s records of %s requested",
-                  num_to_fetch,
-                  num_records)
-
         return_list = []
         if self._samples_to_throw_out is not None:
             records_to_return = self._record_buffer[self._samples_to_throw_out:(num_to_fetch+self._samples_to_throw_out)]
