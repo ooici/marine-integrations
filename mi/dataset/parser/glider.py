@@ -453,14 +453,18 @@ class GliderParser(BufferLoadingParser):
         row_count = 0
         num_hdr_lines = 14
 
+        header_pattern = r'(.*): (.*)$'
+        header_re = re.compile(header_pattern)
+
         while row_count < num_hdr_lines:
             line = self._stream_handle.readline()
             log.debug("Parse header position: %s line: %s", self._stream_handle.tell(), line)
 
-            values = line.split(':')
+            match = header_re.match(line)
 
-            if len(values) == 2:
-                (key, value) = values
+            if match:
+                key = match.group(1)
+                value = match.group(2)
                 value = value.strip()
                 log.debug("header key: %s, value: %s", key, value)
 
