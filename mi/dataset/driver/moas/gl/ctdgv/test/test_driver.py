@@ -109,7 +109,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         # Create and store the new driver state
         state = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/unit_363_2013_245_6_8.mrg',
-                        DataSourceConfigKey.PARSER: {'position': 1146}}
+                 DataSourceConfigKey.PARSER: {'position': 1146}}
         self.driver = self._get_driver_object(memento=state)
 
         # create some data to parse
@@ -121,8 +121,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # verify data is produced
         self.assert_data(GgldrCtdgvDelayedDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=5, timeout=10)
-
-###############################################################################
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

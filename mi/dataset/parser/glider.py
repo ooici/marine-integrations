@@ -437,9 +437,9 @@ class GliderParser(BufferLoadingParser):
 
         regex = r''
         for i in range(0, column_count-1):
-            regex += r'[-\d\.Na]+\s'
+            regex += r'([-\d\.]+|NaN)\s'
 
-        regex += r'[-\d\.Na]+ *$'
+        regex += r'([-\d\.]+|NaN) *$'
 
         log.debug("Sample Pattern: %s", regex)
         return re.compile(regex, re.MULTILINE)
@@ -453,14 +453,18 @@ class GliderParser(BufferLoadingParser):
         row_count = 0
         num_hdr_lines = 14
 
+        header_pattern = r'(.*): (.*)$'
+        header_re = re.compile(header_pattern)
+
         while row_count < num_hdr_lines:
             line = self._stream_handle.readline()
             log.debug("Parse header position: %s line: %s", self._stream_handle.tell(), line)
 
-            values = line.split(':')
+            match = header_re.match(line)
 
-            if len(values) == 2:
-                (key, value) = values
+            if match:
+                key = match.group(1)
+                value = match.group(2)
                 value = value.strip()
                 log.debug("header key: %s, value: %s", key, value)
 
