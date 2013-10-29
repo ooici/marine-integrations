@@ -95,13 +95,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_7_6.mrg")
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'multiple_ctdgv_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_data(GgldrCtdgvDelayedDataParticle, 'multiple_ctdgv_record.mrg.result.yml', count=4, timeout=10)
 
         log.debug("Start second file ingestion")
         # Verify sort order isn't ascii, but numeric
         self.clear_async_data()
         self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
-        self.assert_data(GgldrCtdgvDelayedDataParticle, count=171, timeout=20)
+        self.assert_data(GgldrCtdgvDelayedDataParticle, count=171, timeout=30)
 
     def test_stop_resume(self):
         """
@@ -109,7 +109,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         # Create and store the new driver state
         state = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/unit_363_2013_245_6_8.mrg',
-                 DataSourceConfigKey.PARSER: {'position': 1146}}
+                 DataSourceConfigKey.PARSER: {'position': 2600}}
         self.driver = self._get_driver_object(memento=state)
 
         # create some data to parse
@@ -120,7 +120,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=5, timeout=10)
+        self.assert_data(GgldrCtdgvDelayedDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=4, timeout=10)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
