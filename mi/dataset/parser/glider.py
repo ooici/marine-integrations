@@ -670,12 +670,18 @@ class GliderParser(BufferLoadingParser):
             log.warn("0 value found for lat/lon, not parsing, return NaN")
             return float("NaN")
 
+        # As a stop gap fix add a .0 to integers that don't contain a decimal.  This
+        # should only affect the engineering stream as the science data streams shouldn't
+        # contain lat lon
+        if not "." in pos_str:
+            pos_str += ".0"
+
         regex = r'(-*\d{2,3})(\d{2}.\d+)'
         regex_matcher = re.compile(regex)
         latlon_match = regex_matcher.match(pos_str)
 
         if latlon_match is None:
-            raise SampleException("Failed to parse lat/lon value: %s", pos_str)
+            raise SampleException("Failed to parse lat/lon value: '%s'" % pos_str)
 
         degrees = float(latlon_match.group(1))
         minutes = float(latlon_match.group(2))
