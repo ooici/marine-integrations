@@ -177,27 +177,14 @@ class CgldrCtdgvDelayedDataParticle(GliderParticle):
         return self._parsed_values(CtdgvParticleKey.KEY_LIST)
 
 
-class DostaParticleKey(DataParticleKey):
-    KEY_LIST = [
-        'm_gps_lat',
-        'm_gps_lon',
-        'm_lat',
-        'm_lon',
-        'sci_oxy4_oxygen',
-        'sci_oxy4_saturation',
-        'm_present_time',  # need the m_ timestamps for lats & lons
-        'm_present_secs_into_mission',
-        'sci_m_present_time',
-        'sci_m_present_secs_into_mission',
-        # need the CTD variables too for salinity corrections
-        'sci_water_cond',
-        'sci_water_temp',
-        'sci_water_pressure'
-    ]
+class DostaParticleKey(GliderParticleKey):
+    SCI_OXY4_OXYGEN = 'sci_oxy4_oxygen'
+    SCI_OXY4_SATURATION = 'sci_oxy4_saturation'
 
 
 class GgldrDostaDelayedDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GGLDR_DOSTA_DELAYED
+    science_parameters = DostaParticleKey.science_parameter_list()
 
     def _build_parsed_values(self):
         """
@@ -207,7 +194,7 @@ class GgldrDostaDelayedDataParticle(GliderParticle):
         @param gpd A GliderParser class instance.
         @param result A returned list with sub dictionaries of the data
         """
-        return self._parsed_values(DostaParticleKey.KEY_LIST)
+        return self._parsed_values(DostaParticleKey.list())
 
 
 class CgldrDostaDelayedDataParticle(GliderParticle):
@@ -224,23 +211,14 @@ class CgldrDostaDelayedDataParticle(GliderParticle):
         return self._parsed_values(DostaParticleKey.KEY_LIST)
 
 
-class FlordParticleKey(DataParticleKey):
-    KEY_LIST = [
-        'm_gps_lat',
-        'm_gps_lon',
-        'm_lat',
-        'm_lon',
-        'sci_flbb_bb_units',
-        'sci_flbb_chlor_units',
-        'm_present_time',  # need m_ timestamps for lats & lons
-        'm_present_secs_into_mission',
-        'sci_m_present_time',
-        'sci_m_present_secs_into_mission'
-    ]
+class FlordParticleKey(GliderParticleKey):
+    SCI_FLBB_BB_UNITS = 'sci_flbb_bb_units'
+    SCI_FLBB_CHLOR_UNITS = 'sci_flbb_chlor_units'
 
 
 class GgldrFlordDelayedDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GGLDR_FLORD_DELAYED
+    science_parameters = FlordParticleKey.science_parameter_list()
 
     def _build_parsed_values(self):
         """
@@ -251,7 +229,7 @@ class GgldrFlordDelayedDataParticle(GliderParticle):
         @throws SampleException if the data is not a glider data dictionary
             produced by GliderParser._read_data
         """
-        return self._parsed_values(FlordParticleKey.KEY_LIST)
+        return self._parsed_values(FlordParticleKey.list())
 
 
 class FlortParticleKey(DataParticleKey):
@@ -285,34 +263,31 @@ class CgldrFlortDelayedDataParticle(GliderParticle):
         return self._parsed_values(FlordParticleKey.KEY_LIST)
 
 
-class EngineeringParticleKey(DataParticleKey):
+class EngineeringParticleKey(GliderParticleKey):
     # [TODO: This key list will need to be adjusted once confirmation is received from PS/SE]
-    KEY_LIST = [
-        'c_battpos',
-        'c_wpt_lat',
-        'c_wpt_lon',
-        'm_battpos',
-        'm_coulomb_amphr_total',
-        'm_coulomb_current',
-        'm_depth',
-        'm_de_oil_vol',
-        'm_gps_lat',
-        'm_gps_lon',
-        'm_lat',
-        'm_lon',
-        'm_heading',
-        'm_pitch',
-        'm_present_time',
-        'm_present_secs_into_mission',
-        'm_speed',
-        'm_water_vx',
-        'm_water_vy',
-        'x_low_power_status'
-    ]
+    BATT_POS = 'c_battpos'
+    WPT_LAT = 'c_wpt_lat'
+    WPT_LON = 'c_wpt_lon'
+    BATT_POS = 'm_battpos'
+    COULOMB_AMPHR_TOTAL = 'm_coulomb_amphr_total'
+    COULOMB_CURRENT = 'm_coulomb_current'
+    DEPTH = 'm_depth'
+    DE_OIL_VOL = 'm_de_oil_vol'
+    GPS_LAT = 'm_gps_lat'
+    GPS_LON = 'm_gps_lon'
+    LAT = 'm_lat'
+    LON = 'm_lon'
+    HEADING = 'm_heading'
+    PITCH = 'm_pitch'
+    SPEED = 'm_speed'
+    WATER_VX = 'm_water_vx'
+    WATER_VY = 'm_water_vy'
+    LOW_POWER_STATUS = 'x_low_power_status'
 
 
 class GgldrEngDelayedDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GGLDR_ENG_DELAYED
+    science_parameters = EngineeringParticleKey.science_parameter_list()
 
     def _build_parsed_values(self):
         """
@@ -323,7 +298,7 @@ class GgldrEngDelayedDataParticle(GliderParticle):
         @throws SampleException if the data is not a glider data dictionary
             produced by GliderParser._read_data
         """
-        return self._parsed_values(EngineeringParticleKey.KEY_LIST)
+        return self._parsed_values(EngineeringParticleKey.list())
 
 
 class CgldrEngDelayedDataParticle(GliderParticle):
@@ -392,11 +367,15 @@ class GliderParser(BufferLoadingParser):
         self._read_state = {StateKey.POSITION: 0}
         self._read_header()
 
+        record_regex = re.compile(r'.*\n')
+        self._sample_regex = self._get_sample_pattern()
+        self._whitespace_regex = re.compile(r'\s*$')
+
         super(GliderParser, self).__init__(config,
                                            self._stream_handle,
                                            state,
                                            partial(StringChunker.regex_sieve_function,
-                                                   regex_list=[self._get_sample_pattern()]),
+                                                   regex_list=[record_regex]),
                                            state_callback,
                                            publish_callback,
                                            *args,
@@ -437,9 +416,9 @@ class GliderParser(BufferLoadingParser):
 
         regex = r''
         for i in range(0, column_count-1):
-            regex += r'([-\d\.]+|NaN)\s'
+            regex += r'([-\d\.e]+|NaN)\s'
 
-        regex += r'([-\d\.]+|NaN) *$'
+        regex += r'([-\d\.e]+|NaN)\s*$'
 
         log.debug("Sample Pattern: %s", regex)
         return re.compile(regex, re.MULTILINE)
@@ -494,11 +473,13 @@ class GliderParser(BufferLoadingParser):
             raise SampleException("Label line count must be 3 for this parser")
 
         # read the next 3 rows that describe each column of data
-        self._header_dict['labels'] = self._stream_handle.readline().split()
-        self._header_dict['data_units'] = self._stream_handle.readline().split()
-        num_of_bytes = self._stream_handle.readline().split()
+        self._header_dict['labels'] = self._stream_handle.readline().strip().split()
+        self._header_dict['data_units'] = self._stream_handle.readline().strip().split()
+        num_of_bytes = self._stream_handle.readline().strip().split()
         num_of_bytes = map(int, num_of_bytes)
         self._header_dict['num_of_bytes'] = num_of_bytes
+
+        log.debug("Label count: %d", len(self._header_dict['labels']))
 
     def set_state(self, state_obj):
         """
@@ -545,7 +526,8 @@ class GliderParser(BufferLoadingParser):
         data_labels = self._header_dict['labels']
         #data_units = self._header_dict['data_units']
         num_bytes = self._header_dict['num_of_bytes']
-        data = data_record.split()
+        data = data_record.strip().split()
+        log.trace("Split data: %s", data)
         if num_columns != len(data):
             raise DatasetParserException('Glider data file does not have the ' +
                                          'same number of columns as described ' +
@@ -580,6 +562,34 @@ class GliderParser(BufferLoadingParser):
         log.trace("Data dict parsed: %s", data_dict)
         return data_dict
 
+    def get_block(self, size=1024):
+        """
+        Need to overload the base class behavior so we can get the last
+        record if it doesn't end with a newline it would be ignored.
+        """
+        len = super(GliderParser, self).get_block(size)
+        log.debug("Buffer read bytes: %d", len)
+
+        if len != size:
+            self._chunker.add_chunk("\n", self._timestamp)
+
+        return len
+
+    def _sload_particle_buffer(self):
+        """
+        Need to overload the base class behavior so we can get the last
+        record if it doesn't end with a newline it would be ignored.
+        """
+        bytes_read = self.get_block(1024)
+
+        while bytes_read > 0:
+            # Add a newline if we have read the last byte of the file
+            # This ensures the last record will be \n terminated.
+            if bytes_read < 1024:
+                self._chunker.add_chunk("\n", self._timestamp)
+            result = self.parse_chunks()
+            self._record_buffer.extend(result)
+
     def parse_chunks(self):
         """
         Create particles out of chunks and raise an event
@@ -589,44 +599,41 @@ class GliderParser(BufferLoadingParser):
         """
         # set defaults
         result_particles = []
-        non_data = None
 
+        log.debug("BUFFER: %s", self._chunker.buffer)
         # collect the data from the file
         (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
         while data_record is not None:
-            # parse the data record into a data dictionary to pass to the
-            # particle class
-            data_dict = self._read_data(data_record)
+            log.debug("data record: %s", data_record)
+            if self._sample_regex.match(data_record):
+                # parse the data record into a data dictionary to pass to the
+                # particle class
+                data_dict = self._read_data(data_record)
 
-            # from the parsed data, m_present_time is the unix timestamp
-            try:
-                record_time = data_dict['m_present_time']['Data']
-                timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
-                log.debug("Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
-            except KeyError:
-                raise SampleException("unable to find timestamp in data")
+                # from the parsed data, m_present_time is the unix timestamp
+                try:
+                    record_time = data_dict['m_present_time']['Data']
+                    timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
+                    log.debug("Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
+                except KeyError:
+                    raise SampleException("unable to find timestamp in data")
 
-            if self._has_science_data(data_dict):
-                # create the particle
-                particle = self._extract_sample(self._particle_class, None, data_dict, timestamp)
-                self._increment_state(end)
-                result_particles.append((particle, copy.copy(self._read_state)))
+                if self._has_science_data(data_dict):
+                    # create the particle
+                    particle = self._extract_sample(self._particle_class, None, data_dict, timestamp)
+                    self._increment_state(end)
+                    result_particles.append((particle, copy.copy(self._read_state)))
+                else:
+                    log.debug("No science data found in particle. %s", data_dict)
+
+            elif self._whitespace_regex.match(data_record):
+                log.debug("Only whitespace detected in record.  Ignoring.")
             else:
-                log.debug("No science data found in particle. %s", data_dict)
+                log.error("Data record did not match data pattern.  Failed parsing: '%s'", data_record)
+                raise SampleException("data record does not match sample pattern")
 
-            # Check for noise between records, but ignore newline.  This is detecting noise following
-            # the last successful chunk read which is why it is post sample generation.
-            if non_data is not None and non_data != "\n":
-                    log.info("Gap in datafile detected.")
-                    log.trace("Noise detected: %s", non_data)
-                    self.start_new_sequence()
-            if non_data is not None:
-                self._increment_state(len(non_data))
-
-            # process the next chunk, all the way through the file.
             (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
-            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
 
         # publish the results
         return result_particles
@@ -635,6 +642,7 @@ class GliderParser(BufferLoadingParser):
         """
         Examine the data_dict to see if it contains science data.
         """
+        log.debug("Looking for data in science parameters: %s", self._particle_class.science_parameters)
         for key in data_dict.keys():
             if key in self._particle_class.science_parameters:
                 value = data_dict[key]['Data']
