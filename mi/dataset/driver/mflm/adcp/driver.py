@@ -1,11 +1,11 @@
 """
-@package mi.dataset.driver.mflm.ctd.driver
-@file marine-integrations/mi/dataset/driver/mflm/ctd/driver.py
+@package mi.dataset.driver.mflm.adcp.driver
+@file marine-integrations/mi/dataset/driver/mflm/adcp/driver.py
 @author Emily Hahn
-@brief Driver for the mflm_ctd
+@brief Driver for the mflm_adcp
 Release notes:
 
-initial release
+Initial version.
 """
 
 __author__ = 'Emily Hahn'
@@ -14,28 +14,30 @@ __license__ = 'Apache 2.0'
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.driver.mflm.driver import MflmDataSetDriver
-from mi.dataset.parser.ctdmo import CtdmoParser, CtdmoParserDataParticle
+from mi.dataset.parser.adcps import AdcpsParser, AdcpsParserDataParticle
 
-
-class MflmCTDMODataSetDriver(MflmDataSetDriver):
-
+class MflmADCPSDataSetDriver(MflmDataSetDriver):
+    
     @classmethod
     def stream_config(cls):
-        return [CtdmoParserDataParticle.type()]
-
+        return [AdcpsParserDataParticle.type()]
+    
     def _build_parser(self, parser_state, infile):
+        """
+        Build and return the parser
+        """
         config = self._parser_config
         config.update({
-            'particle_module': 'mi.dataset.parser.ctdmo',
-            'particle_class': 'CtdmoParserDataParticle'
+            'particle_module': 'mi.dataset.parser.adcps',
+            'particle_class': 'AdcpsParserDataParticle'
         })
         log.debug("MYCONFIG: %s", config)
-        self._parser = CtdmoParser(
+        self._parser = AdcpsParser(
             config,
             parser_state,
             infile,
             self._save_parser_state,
             self._data_callback
         )
-
         return self._parser
+

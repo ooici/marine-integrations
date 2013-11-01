@@ -1,0 +1,35 @@
+# Result data after parsing node59p1_step1.dat
+
+header:
+  particle_object: AdcpsParserDataParticle
+  particle_type: adcps_parsed
+
+data:
+  - _index: 1
+    _new_sequence: True
+    internal_timestamp: '2013-07-25T19:26:16.97'
+    pd12_packet_id: 32622
+    num_bytes: 258
+    ensemble_number: 121
+    unit_id: 0
+    firmware_version: 50
+    firmware_revision: 40
+    real_time_clock: [2013, 7, 25, 19, 26, 16, 97]
+    ensemble_start_time: 3583769176.97
+    heading: 7069
+    pitch: -159
+    roll: 6
+    temperature: 365
+    pressure: 10276
+    velocity_po_error_flag: 1
+    velocity_po_up_flag: 1
+    velocity_po_north_flag: 1
+    velocity_po_east_flag: 1
+    subsampling_parameter: 2
+    start_bin: 1
+    num_bins: 28
+    water_velocity_east: [-2049, -1281, -10753, -14849, -18945, -28417, 25343, 28415, -28417, 29183, -24833, -29441, -27649, -32513, -22785, -32001, -22017, -22273, -19201, 26367, 30207, -27393, 26623, 2559, 2303, 5119, 7423, 30975 ]
+    water_velocity_north: [1792, 6912, -5889, 1792, 1024, 4096, 3584, 14336, 15104, 8704, 8960, -6401, -2561, -2305, -12545, -15105, -4865, -15105, -12033, -17921, -24577, -13569, 14591, 31995, 17402, 13051, 7678, 19199 ]
+    water_velocity_up: [512, -257, 0, -513, -1793, 256, -1, -769, 2560, 3328, 1536, 1536, -257, 1024, 1024, 1280, 1024, 2048, 2304, 2048, 768, 3840, -5377, -1793, -2049, 10240, 5888, -4097 ]
+    error_velocity: [10496, 4864, 768, -2049, 4864, -1, -5633, -1537, 6656, 4608, -8961, 11520, -257, -4609, -1281, -3329, 2048, -7937, 2560, 256, 8448, 5888, -12033, -9729, -9473, -30720, -29184, 128 ]
+    checksum: 32542 

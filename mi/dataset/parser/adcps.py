@@ -27,28 +27,31 @@ class DataParticleType(BaseEnum):
     SAMPLE = 'adcps_parsed'
 
 class AdcpsParserDataParticleKey(BaseEnum):
+    PD12_PACKET_ID = 'pd12_packet_id'
+    NUM_BYTES = 'num_bytes'
     ENSEMBLE_NUMBER = 'ensemble_number'
     UNIT_ID = 'unit_id'
     FIRMWARE_VERSION = 'firmware_version'
     FIRMWARE_REVISION = 'firmware_revision'
+    REAL_TIME_CLOCK = 'real_time_clock'
     ENSEMBLE_START_TIME = 'ensemble_start_time'
     HEADING = 'heading'
     PITCH = 'pitch'
     ROLL = 'roll'
     TEMPERATURE = 'temperature'
     PRESSURE = 'pressure'
-    SUB_SAMPLING_PARAMETER = 'sub_sampling_parameter'
     VELOCITY_PO_ERROR_FLAG = 'velocity_po_error_flag'
     VELOCITY_PO_UP_FLAG = 'velocity_po_up_flag'
     VELOCITY_PO_NORTH_FLAG = 'velocity_po_north_flag'
     VELOCITY_PO_EAST_FLAG = 'velocity_po_east_flag'
-    INCREMENT_BIN = 'increment_bin'
+    SUBSAMPLING_PARAMETER = 'subsampling_parameter'
     START_BIN = 'start_bin'
     NUM_BINS = 'num_bins'
     WATER_VELOCITY_EAST = 'water_velocity_east'
     WATER_VELOCITY_NORTH = 'water_velocity_north'
     WATER_VELOCITY_UP = 'water_velocity_up'
     ERROR_VELOCITY = 'error_velocity'
+    CHECKSUM = 'checksum'
 
 DATA_WRAPPER_REGEX = b'<Executing/>\x0d\x0a<SampleData ID=\'0x[0-9a-f]+\' LEN=\'[0-9]+\' CRC=\'0x[0-9a-f]+\'>([\x00-\xFF]+)</SampleData>\x0d\x0a<Executed/>\x0d\x0a'
 DATA_WRAPPER_MATCHER = re.compile(DATA_WRAPPER_REGEX)
@@ -68,90 +71,122 @@ class AdcpsParserDataParticle(DataParticle):
         particle with the appropriate tag.
         throws SampleException If there is a problem with sample creation
         """
-        
+
         # match the data inside the wrapper
-        match = DATA_MATCHER.match(self._raw_data)
+        match = DATA_MATCHER.match(self.raw_data)
         if not match:
             raise SampleException("AdcpsParserDataParticle: No regex match of \
-                                  parsed sample data [%s]", self._raw_data)
+                                  parsed sample data [%s]", self.raw_data)
         try:
-            fields = struct.unpack('>IBBBdHhhhIbBB', match.group(0)[4:34])
-            nbins = fields(13)
+            fields = struct.unpack('<HHIBBBdHhhhIbBB', match.group(0)[0:34])
+            packet_id = fields[0]
+            num_bytes = fields[1]
+            if len(match.group(0)) - 2 != num_bytes:
+                raise ValueError('num bytes %d does not match data length %d'
+                          % (num_bytes, len(match.group(0))))
+            log.debug('unpacked fields %s', fields)
+            nbins = fields[14]
             if len(match.group(0)) < (36+(nbins*8)):
-                raise ValueError('Number of bins %d does not fit in data length %d'%(nbins, len(match.group(0))))
-            
+                raise ValueError('Number of bins %d does not fit in data length %d'%(nbins,
+                                                                                     len(match.group(0))))
+            date_fields = struct.unpack('HBBBBBB', match.group(0)[11:19])
             date_str = self.unpack_date(match.group(0)[11:19])
-            
+            log.debug('unpacked date string %s', date_str)
             # get seconds from 1990 to 1970
-            elapse_1990 = float(parser.parse("1990-01-01T00:00:00.00Z").strftime("%s.%f"))
+            elapse_1900 = float(parser.parse("1900-01-01T00:00:00.00Z").strftime("%s.%f"))
             # get seconds 
             elapse_date = float(parser.parse(date_str).strftime("%s.%f"))
-            # subtract seconds from 1990 to 1970 to convert to seconds since 1990
-            sec_since_1990 = elapse_date - elapse_1990
-            
+            # subtract seconds from 1900 to 1970 to convert to seconds since 1900
+            sec_since_1900 = round((elapse_date - elapse_1900)*100)/100
+            log.debug('calculated seconds since 1900 %f', sec_since_1900)
             # create a string with the right number of shorts to unpack 
             struct_format = '>'
             for i in range(0,nbins):
-                struct_format.append('h')
-            
+                struct_format = struct_format + 'h'
+
             bin_len = nbins*2
             vel_east = struct.unpack(struct_format, match.group(0)[34:(34+bin_len)])
             vel_north = struct.unpack(struct_format, match.group(0)[(34+bin_len):(34+(bin_len*2))])
             vel_up = struct.unpack(struct_format, match.group(0)[(34+(bin_len*2)):(34+(bin_len*3))])
             vel_err = struct.unpack(struct_format, match.group(0)[(34+(bin_len*3)):(34+(bin_len*4))])
-            
+
+            checksum = struct.unpack('<h', match.group(0)[(34+(bin_len*4)):(36+(bin_len*4))])
+
+            # heading/pitch/roll/temp units of cdegrees (= .01 deg)
+            heading = fields[7]
+            pitch = fields[8]
+            roll = fields[9]
+            temp = fields[10]
+            # pressure in units of daPa (= .01 kPa)
+            pressure = fields[11]
+
+            if heading < 0 or heading > 35999:
+                raise ValueError('Heading outside of expected range 0 to 359.99 deg')
+            if pitch < -6000 or pitch > 6000:
+                raise ValueError('Pitch outside of expected range +/- 60.0 deg')
+            if roll < -6000 or roll > 6000:
+                raise ValueError('Roll outside of expected range +/- 60.0 deg')
+            if temp < -500 or temp > 4000:
+                raise ValueError('Temperature outside expected range -5.0 to 40.0 deg C')
+
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
-        
-        result = [{DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.ENSEMBLE_NUMBER,
-                   DataParticleKey.VALUE: fields(0)},
+
+        result = [{DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.PD12_PACKET_ID,
+                   DataParticleKey.VALUE: packet_id},
+                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.NUM_BYTES,
+                   DataParticleKey.VALUE: num_bytes},
+                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.ENSEMBLE_NUMBER,
+                   DataParticleKey.VALUE: fields[2]},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.UNIT_ID,
-                   DataParticleKey.VALUE: fields(1)},
+                   DataParticleKey.VALUE: fields[3]},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.FIRMWARE_VERSION,
-                   DataParticleKey.VALUE: fields(2)},
+                   DataParticleKey.VALUE: fields[4]},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.FIRMWARE_REVISION,
-                   DataParticleKey.VALUE: fields(3)},
+                   DataParticleKey.VALUE: fields[5]},
+                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.REAL_TIME_CLOCK,
+                   DataParticleKey.VALUE: list(date_fields)},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.ENSEMBLE_START_TIME,
-                   DataParticleKey.VALUE: sec_since_1990},
+                   DataParticleKey.VALUE: sec_since_1900},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.HEADING,
-                   DataParticleKey.VALUE: fields(5)},
+                   DataParticleKey.VALUE: heading},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.PITCH,
-                   DataParticleKey.VALUE: fields(6)},
+                   DataParticleKey.VALUE: pitch},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.ROLL,
-                   DataParticleKey.VALUE: fields(7)},
+                   DataParticleKey.VALUE: roll},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.TEMPERATURE,
-                   DataParticleKey.VALUE: fields(8)},
+                   DataParticleKey.VALUE: temp},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.PRESSURE,
-                   DataParticleKey.VALUE: fields(9)},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.SUB_SAMPLING_PARAMETER,
-                   DataParticleKey.VALUE: (fields(10)&240) >> 4},
+                   DataParticleKey.VALUE: pressure},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.VELOCITY_PO_ERROR_FLAG,
-                   DataParticleKey.VALUE: fields(10)&1},
+                   DataParticleKey.VALUE: fields[12]&1},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.VELOCITY_PO_UP_FLAG,
-                   DataParticleKey.VALUE: (fields(10)&2) >> 1},
+                   DataParticleKey.VALUE: (fields[12]&2) >> 1},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.VELOCITY_PO_NORTH_FLAG,
-                   DataParticleKey.VALUE: (fields(10)&4) >> 2},
+                   DataParticleKey.VALUE: (fields[12]&4) >> 2},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.VELOCITY_PO_EAST_FLAG,
-                   DataParticleKey.VALUE: (fields(10)&8) >> 3},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.INCREMENT_BIN,
-                   DataParticleKey.VALUE: fields(11)},
+                   DataParticleKey.VALUE: (fields[12]&8) >> 3},
+                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.SUBSAMPLING_PARAMETER,
+                   DataParticleKey.VALUE: (fields[12]&240) >> 4},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.START_BIN,
-                   DataParticleKey.VALUE: fields(12)},
+                   DataParticleKey.VALUE: fields[13]},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.NUM_BINS,
                    DataParticleKey.VALUE: nbins},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.WATER_VELOCITY_EAST,
-                   DataParticleKey.VALUE: vel_east},
+                   DataParticleKey.VALUE: list(vel_east)},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.WATER_VELOCITY_NORTH,
-                   DataParticleKey.VALUE: vel_north},
+                   DataParticleKey.VALUE: list(vel_north)},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.WATER_VELOCITY_UP,
-                   DataParticleKey.VALUE: vel_up},
+                   DataParticleKey.VALUE: list(vel_up)},
                   {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.ERROR_VELOCITY,
-                   DataParticleKey.VALUE: vel_err},]
-        
-        log.trace('AdcpsParserDataParticle: particle=%s', result)
+                   DataParticleKey.VALUE: list(vel_err)},
+                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.CHECKSUM,
+                   DataParticleKey.VALUE: checksum[0]},]
+
+        log.debug('AdcpsParserDataParticle: particle=%s', result)
         return result
-    
+
     def __eq__(self, arg):
         """
         Quick equality check for testing purposes. If they have the same raw
@@ -169,7 +204,7 @@ class AdcpsParserDataParticle(DataParticle):
             elif self.contents[DataParticleKey.NEW_SEQUENCE] != arg.contents[DataParticleKey.NEW_SEQUENCE]:
                 log.debug('Sequence does not match')
             return False
-    
+
     @staticmethod
     def unpack_date(data):
         fields = struct.unpack('HBBBBBB', data)
@@ -257,7 +292,8 @@ class AdcpsParser(MflmParser):
                         # convert to ntp
                         localtime_offset = float(parser.parse("1970-01-01T00:00:00.00Z").strftime("%s.%f"))
                         converted_time = float(parser.parse(date_str).strftime("%s.%f"))
-                        adjusted_time = round(converted_time - localtime_offset)
+                        # round to nearest .01
+                        adjusted_time = round((converted_time - localtime_offset)*100)/100
                         self._timestamp = ntplib.system_to_ntp_time(adjusted_time)
                         log.debug("Converted time \"%s\" (unix: %s) into %s", date_str, adjusted_time, self._timestamp)
 

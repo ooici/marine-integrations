@@ -61,7 +61,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 						   internal_timestamp=self.timestamp3, new_sequence=True)
 	self.particle_q = CtdmoParserDataParticle(b'A\x1f\x8a5\x92\x9d?IA~\x82\x19\r',
 						   internal_timestamp=self.timestamp3, new_sequence=False)
-	# packet 5 [7547-7737]
+	# packet 4 [7547-7737]
 	self.timestamp4 = 3583663201.0
 	self.particle_y = CtdmoParserDataParticle(b'@\x1e\x04\xf5\x8a\x12\xf6ha\x9a\x82\x19\r',
 						   internal_timestamp=self.timestamp4, new_sequence=True)

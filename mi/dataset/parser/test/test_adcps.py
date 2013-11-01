@@ -73,7 +73,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	    '\xff\xdd\xff\xe1\xff\x03\x00\t\x00\x05\x00\x12\x00\x0b\x00\x02\x00\xec\xff\x16\x00\xc0\x00G' \
 	    '\x00\xf7\xff\xd0\xff\xd5\xff\x00\x801n',
 	      internal_timestamp=self.timestamp2, new_sequence=True)
-	# third AD block 3827-4213
+	# third AD block 3827-4214
 	self.timestamp3 = 3583761977.0
 	self.particle_c = AdcpsParserDataParticle(b'n\x7f\x02\x01w\x00\x00\x00\x002(\xdd\x07\x07\x19' \
 	    '\x11\x1a\x10a\xc9\x06d\xff\x04\x00m\x01!(\x00\x00/\x01\x1cZ\x00\xf8\xff\x0f\x00\xef\xff\xe8' \
@@ -128,8 +128,6 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	    '\x00\xf5\xff\xe1\xff\n\x00\xf9\xff/\x00\xdd\xff:\x00\x13\x00\x03\x00\xf4\xff\x05\x00\x1d\x00' \
 	    '\x04\x00 \x002\x00\xe0\xff\x00\x80\xb6\x83',
               internal_timestamp = self.timestamp_l, new_sequence=False)
-	
-	self.timestamp_last = 3583790777.0
 
 	self.state_callback_value = None
         self.publish_callback_value = None

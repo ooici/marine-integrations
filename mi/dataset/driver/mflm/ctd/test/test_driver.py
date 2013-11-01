@@ -101,12 +101,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
         self.assert_data(CtdmoParserDataParticle, 'test_data_2.txt.result.yml',
-                         count=11, timeout=10)
+                         count=12, timeout=10)
 
         # now 'appends' the rest of the data and just check if we get the right number
         self.clear_async_data()
         self.create_sample_data("node59p1_step4.dat", "node59p1.dat")
-        self.assert_data(CtdmoParserDataParticle, count=23, timeout=10)
+        self.assert_data(CtdmoParserDataParticle, count=24, timeout=10)
 
         self.driver.stop_sampling()
         # reset the parser and harvester states
@@ -142,11 +142,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clean_file()
 
         # Create and store the new driver state
-        self.memento = {DataSourceConfigKey.HARVESTER: {'last_filesize': 893,
-                                                        'last_checksum': 'b859e40320ac396a5991d80a655bc161'},
+        self.memento = {DataSourceConfigKey.HARVESTER: {'last_filesize': 500,
+                                                        'last_checksum': '36cd31b3ae1c90eb5b1a0ed7d7be6512'},
                         DataSourceConfigKey.PARSER: {'in_process_data': [],
-                                                     'unprocessed_data':[[0,50], [374,432], [892,893]],
-                                                     'timestamp': 3583656001.0}}
+                                                     'unprocessed_data':[[0,12], [336,394], [467,500]],
+                                                     'timestamp': 3583612801.0}}
         self.driver = MflmCTDMODataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
@@ -162,7 +162,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # verify data is produced
         self.assert_data(CtdmoParserDataParticle, 'test_data_2.txt.result.yml',
-                         count=11, timeout=10)
+                         count=12, timeout=10)
 
     def test_sequences(self):
         """
@@ -182,7 +182,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
         self.assert_data(CtdmoParserDataParticle, 'test_data_1-2.txt.result.yml',
-                         count=14, timeout=10)
+                         count=15, timeout=10)
 
         # This file has had a section of CT data replaced with 0s, this should start a new
         # sequence for the data following the missing CT data
@@ -199,8 +199,10 @@ class IntegrationTest(DataSetIntegrationTestCase):
                          count=12, timeout=10)
 
         # start over now, using step 4, make sure sequence flags just account for
-        # missing data in file (there are some sections of bad data that don't
-        # match in headers, [0-50], [374-432], [1197-1471]
+        # missing data in file 
+        # note that node59p1_step4.dat has been doctored from the original file to
+        # take out one data section in between two CT packets (3rd and 4th) so there
+        # could be two continuous packets (no new seq)
         self.driver.stop_sampling()
         # reset the parser and harvester states
         self.driver.clear_states()
@@ -267,7 +269,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,38,120)
+        result = self.get_samples(SAMPLE_STREAM,39,120)
 
     def test_stop_start(self):
         """
@@ -295,7 +297,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
             self.create_sample_data('node59p1_step2.dat', "node59p1.dat")
             # Now read the first four records of the second file then stop
-            result1 = self.get_samples(SAMPLE_STREAM, 3)
+            result1 = self.get_samples(SAMPLE_STREAM, 4)
             log.debug("RESULT 1: %s", result1)
             self.assert_stop_sampling()
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
@@ -355,23 +357,3 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 10)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
-
-    def test_parser_extra_data(self):
-        """
-        Test that the remaining part of a chunk is skipped if data is
-        read with extra data in between samples (meaning data has
-        been corrupted)
-        """
-        self.clean_file()
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
-        self.assert_start_sampling()
-
-        self.event_subscribers.clear_events()
-        # this data has both extra data and invalid sample values in it
-        self.create_sample_data('node59p1_extra.dat', "node59p1.dat")
-        result = self.get_samples(SAMPLE_STREAM, 31, 60)
-        # make sure the invalid sample is recognized
-        self.assert_event_received(ResourceAgentErrorEvent, 10)
-        # check that the right samples are skipped
-        self.assert_data_values(result, 'test_data_extra.txt.result.yml')

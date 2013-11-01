@@ -1,0 +1,63 @@
+# Result data after parsing node59p1_step1.dat
+
+header:
+  particle_object: AdcpsParserDataParticle
+  particle_type: adcps_parsed
+
+data:
+  - _index: 1
+    _new_sequence: True
+    internal_timestamp: '2013-07-25T07:26:16.97'
+    pd12_packet_id: 32622
+    num_bytes: 258
+    ensemble_number: 109
+    unit_id: 0
+    firmware_version: 50
+    firmware_revision: 40
+    real_time_clock: [2013, 7, 25, 7, 26, 16, 97]
+    ensemble_start_time: 3583725976.97
+    heading: 9029
+    pitch: -157
+    roll: 13
+    temperature: 365
+    pressure: 10332
+    velocity_po_error_flag: 1
+    velocity_po_up_flag: 1
+    velocity_po_north_flag: 1
+    velocity_po_east_flag: 1
+    subsampling_parameter: 2
+    start_bin: 1
+    num_bins: 28
+    water_velocity_east: [-13825, 7680, -1537, -13569, -12033, -18945, -29953, -22529, 32511, -27905, -26881, -24065, 24063, 25599, -30977, 24575, -11009, -23041, -27137, -30721, 3327, 20479, -14081, 26112, -22016, -9217, -22785, 28415]
+    water_velocity_north: [3328, 10752, -513, 5888, -1793, -1537, 11520, 13824, 14848, 7936, -3585, 768, -5377, -3585, 1536, 2048, -13569, -23553, 2048, 7424, -3585, -513, -14337, 1790, -11780, 29437, 13310, -23041]
+    water_velocity_up: [-1281, 512, -1, -257, 0, -769, -769, -2305, -513, 256, -513, -2305, -1537, -257, -2561, -3585, 1280, -1025, -3585, -3841, -1281, -4609, 256, -9217, -6145, -3329, 5120, 7936]
+    error_velocity: [3584, 256, -8449, 12288, 1024, 1792, 0, -1281, -4609, 6912, 3840, 14080, -7681, 4096, -2561, -3585, -7425, 3840, 5888, 8192, 4608, -7169, -3841, 32000, 11520, 19456, 3584, 128]
+    checksum: -30319
+  - _index: 2
+    _new_sequence: False
+    internal_timestamp: '2013-07-25T09:26:16.97'
+    pd12_packet_id: 32622
+    num_bytes: 258
+    ensemble_number: 111
+    unit_id: 0
+    firmware_version: 50
+    firmware_revision: 40
+    real_time_clock: [2013, 7, 25, 9, 26, 16, 97]
+    ensemble_start_time: 3583733176.97
+    heading: 14975
+    pitch: -159
+    roll: 10
+    temperature: 365
+    pressure: 10331
+    velocity_po_error_flag: 1
+    velocity_po_up_flag: 1
+    velocity_po_north_flag: 1
+    velocity_po_east_flag: 1
+    subsampling_parameter: 2
+    start_bin: 1
+    num_bins: 28
+    water_velocity_east: [-5377, -6913, -5889, -20225, -16385, -26369, -15617, -8705, -12545, -10241, -21761, -28161, -29953, -26881, -31745, -9473, -32257, -18689, -13569, 23807, 19455, -31233, 15104, -17408, 2560, -27648, -14337, 8192]
+    water_velocity_north: [4096, 5376, 16640, 14592, 8192, 6912, 32512, 20992, 25344, 21248, 17408, 24832, 22528, 29696, -22528, 13056, 7168, 18944, 29440, 23808, -29440, 17408, 25087, -3845, -12806, -25093, -20227, 1535]
+    water_velocity_up: [-257, -1537, -2305, 1280, -257, 1280, 512, 5120, 3072, 2560, 4864, 2304, 1536, 2560, 4864, 3072, 3328, 6400, 2816, 4352, 3072, 1024, 9472, -4865, -9985, -13313, 8448, 9472]
+    error_velocity: [-1281, -2049, -2817, -1, -4353, -3585, 768, -7425, -7937, 4608, -6657, -3073, -8705, -7681, 768, 2304, 1280, 4608, 2816, 512, -4865, 5632, -16384, 18176, -2049, -12033, -10753, 128]
+    checksum: 28209 
