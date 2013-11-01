@@ -595,8 +595,6 @@ class GliderParser(BufferLoadingParser):
         (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
         while data_record is not None:
-            log.debug("HERE HERE!!!!")
-
             # parse the data record into a data dictionary to pass to the
             # particle class
             data_dict = self._read_data(data_record)
@@ -660,16 +658,35 @@ class GliderParser(BufferLoadingParser):
         @retval The position in decimal degrees
         """
         log.debug("Convert lat lon to degrees: %s", pos_str)
+
+        # If NaN then return NaN
         if np.isnan(float(pos_str)):
             return float(pos_str)
+
+        # It appears that in some cases lat/lon is "0" not a decimal format as
+        # indicated above.  While 0 is a valid lat/lon measurement we think
+        # because it is not in decimal form it is an erroneous value.
+        if pos_str == "0":
+            log.warn("0 value found for lat/lon, not parsing, return NaN")
+            return float("NaN")
+
+        # As a stop gap fix add a .0 to integers that don't contain a decimal.  This
+        # should only affect the engineering stream as the science data streams shouldn't
+        # contain lat lon
+        if not "." in pos_str:
+            pos_str += ".0"
+
         regex = r'(-*\d{2,3})(\d{2}.\d+)'
         regex_matcher = re.compile(regex)
         latlon_match = regex_matcher.match(pos_str)
+
         if latlon_match is None:
-            print pos_str, latlon_match
+            raise SampleException("Failed to parse lat/lon value: '%s'" % pos_str)
+
         degrees = float(latlon_match.group(1))
         minutes = float(latlon_match.group(2))
         ddegrees = copysign((abs(degrees) + minutes / 60.), degrees)
+
         return ddegrees
 
 # End of glider.py

@@ -73,8 +73,14 @@ in lat lon in amp-hrs amp m cc lat lon rad lat lon rad sec timestamp m/s m/s m/s
 EMPTY_RECORD="""
 NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN """
 
+ZERO_GPS_VALUE ="""
+NaN 0 NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN """
+
+INT_GPS_VALUE ="""
+NaN 5010 NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN """
+
 CTDGR_RECORD="""
-NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN NaN 135.361 1376510712.36099 NaN NaN NaN NaN NaN NaN 135.361 1376510712.36099 NaN NaN 4.01713 0.006 15.2229
+NaN NaN NaN NaN NaN NaN NaN NaN 0 0 NaN NaN NaN 135.361 1376510712.36099 NaN NaN NaN NaN NaN NaN 135.361 1376510712.36099 NaN NaN 4.01713 0.006 15.2229
 NaN NaN NaN NaN 0.000298102 NaN NaN NaN NaN NaN NaN NaN NaN NaN 256.162 1376510833.16202 NaN NaN NaN NaN NaN NaN 256.162 1376510833.16202 NaN NaN 4.01758 0.123 15.2283 """
 
 "0.7 5004.24 -14447.88 0.702899 90.0873 0.669156 0 259.684 5002.9179 -14450.1677 5002.91790011739 -14450.1676999628 0.286234 5.609 1376510583.11807 0.343776 0.0102727 0.00906202 3 NaN NaN NaN NaN NaN NaN NaN NaN NaN "
@@ -106,7 +112,7 @@ class GliderParserUnitTestCase(ParserUnitTestCase):
     def setUp(self):
         ParserUnitTestCase.setUp(self)
 
-    def set_test_data(self, *args):
+    def set_data(self, *args):
         """
         Accept strings of data in args[] joined together and then a file handle
         to the concatenated string is returned.
@@ -118,6 +124,12 @@ class GliderParserUnitTestCase(ParserUnitTestCase):
         log.debug("Test data file: %s", io.getvalue())
         io.seek(0)
         self.test_data = io
+
+    def set_data_file(self, filename):
+        """
+        Set test to read from a file.
+        """
+        self.test_data = open(filename, "r")
 
     def reset_parser(self, state = {}):
         self.state_callback_values = []
@@ -211,17 +223,17 @@ class GliderParserUnitTestCase(ParserUnitTestCase):
         """
         Verify we can initialize
         """
-        self.set_test_data(HEADER)
+        self.set_data(HEADER)
         self.reset_parser()
         self.assert_state(990)
 
-        self.set_test_data(HEADER2)
+        self.set_data(HEADER2)
         self.reset_parser()
         self.assert_state(1004)
 
     def test_exception(self):
         with self.assertRaises(SampleException):
-            self.set_test_data("Foo")
+            self.set_data("Foo")
             self.reset_parser()
 
 
@@ -240,36 +252,47 @@ class CTDGVGliderTest(GliderParserUnitTestCase):
         Verify we publish particles as expected.  Ensure particle is published and
         that state is returned.
         """
-        self.set_test_data(HEADER, CTDGR_RECORD)
+        self.set_data(HEADER, CTDGR_RECORD)
         self.reset_parser()
 
         record_1 = {CtdgvParticleKey.SCI_WATER_TEMP: 15.2229}
         record_2 = {CtdgvParticleKey.SCI_WATER_TEMP: 15.2283}
 
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1146)
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1315)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1142)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1311)
         self.assert_no_more_data()
 
         # Reset with the parser, but with a state this time
-        self.set_test_data(HEADER, CTDGR_RECORD)
-        self.reset_parser({StateKey.POSITION: 1146})
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1315)
+        self.set_data(HEADER, CTDGR_RECORD)
+        self.reset_parser({StateKey.POSITION: 1142})
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1311)
         self.assert_no_more_data()
 
         # Reset with the parser, but insert noise between records
-        self.set_test_data(HEADER, "\nSome noise here!\n", CTDGR_RECORD)
+        self.set_data(HEADER, "\nSome noise here!\n", CTDGR_RECORD)
         self.reset_parser()
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1164)
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1333)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1160)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1329)
         self.assert_no_more_data()
 
-        self.set_test_data(HEADER, CTDGR_RECORD, "\nSome noise here!\n", CTDGR_RECORD)
+        self.set_data(HEADER, CTDGR_RECORD, "\nSome noise here!\n", CTDGR_RECORD)
         self.reset_parser()
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1146)
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1315)
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1489)
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1658)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1142)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1311)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1481)
+        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1650)
         self.assert_no_more_data()
+
+    def test_gps(self):
+        self.set_data(HEADER, ZERO_GPS_VALUE)
+        self.reset_parser()
+        records = self.parser.get_records(1)
+        self.assertEqual(len(records), 0)
+
+        self.set_data(HEADER, INT_GPS_VALUE)
+        self.reset_parser()
+        records = self.parser.get_records(1)
+        self.assertEqual(len(records), 0)
 
 class OtherGliderTest(GliderParserUnitTestCase):
     def generic_particle_parse(self, particle_type, num_of_records, start_index=0):
