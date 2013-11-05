@@ -335,6 +335,8 @@ class DataSetIntegrationTestCase(DataSetTestCase):
 
         try:
             while(not done):
+                # reset or it becomes additive defeating the purpose of count
+                found = 0
                 for data in self.data_callback_result:
                     if isinstance(data, particle_class):
                         found += 1
@@ -556,7 +558,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
 
             # Check for timeout
             if(start_time + timeout < time.time()):
-                raise SampleTimeout()
+                raise SampleTimeout("DataSetQualificationTestCase.get_samples")
 
             if(not self.data_subscribers.samples_received.has_key(stream_name) or
                len(self.data_subscribers.samples_received.get(stream_name)) == 0):
