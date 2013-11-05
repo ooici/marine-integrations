@@ -325,6 +325,7 @@ class ResultSet(object):
             for key in expected_keys:
                 expected_value = particle_def[key]
                 particle_value = pv[key]
+                log.debug("Verify value for '%s'", key)
                 e = self._verify_value(expected_value, particle_value)
                 if e:
                     errors.append("'%s' %s"  % (key, e))
@@ -346,7 +347,13 @@ class ResultSet(object):
             ex_value = expected_value
             round_factor = None
 
-        if round_factor is not None:
+        if ex_value is None:
+            log.debug("No value to compare, ignoring")
+            return None
+
+        log.debug("Test %s == %s", ex_value, particle_value)
+
+        if round_factor is not None and particle_value is not None:
             particle_value = round(particle_value, round_factor)
             log.debug("rounded value to %s", particle_value)
 

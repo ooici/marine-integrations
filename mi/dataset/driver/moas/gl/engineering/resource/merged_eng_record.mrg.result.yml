@@ -1,0 +1,67 @@
+header:
+  particle_object: GgldrEngDelayedDataParticle
+  particle_type: ggldr_eng_delayed
+
+data:
+  - _index: 1
+    _new_sequence: True
+    internal_timestamp: '2013-09-05T02:54:01.79871'
+    c_battpos: 0.273273
+    c_wpt_lat: null
+    c_wpt_lon: null
+    m_battpos: 0.335
+    m_coulomb_amphr_total: 149.608
+    m_coulomb_current: 0.114297
+    m_depth: 33.9352
+    m_de_oil_vol: -64.3506
+    m_gps_lat: null
+    m_gps_lon: null
+    m_heading: null
+    m_lat:
+      value: 50.1897
+      round: 4
+    m_lon:
+      value: -144.5597
+      round: 4
+    m_pitch: null
+    m_speed: null
+    m_water_vx: null
+    m_water_vy: null
+    x_low_power_status: 0
+    m_present_time: 1378349641.79871
+    m_present_secs_into_mission: 121546
+  - _index: 2
+    _new_sequence: True
+    internal_timestamp: '2013-09-05T02:45:30.18188'
+    c_battpos: 0.7
+    c_wpt_lat:
+      value: 50.0705
+      round: 4
+    c_wpt_lon:
+      value: -144.8158
+      round: 4
+    m_battpos: 0.682538
+    m_coulomb_amphr_total: 149.576
+    m_coulomb_current: 0.513297
+    m_depth: 0.05
+    m_de_oil_vol: 260.038
+    m_gps_lat:
+      value: 50.1882
+      round: 4
+    m_gps_lon:
+      value: -144.5606
+      round: 4
+    m_heading: 3.48019
+    m_lat:
+      value: 50.1882
+      round: 4
+    m_lon:
+      value: -144.5606
+      round: 4
+    m_pitch: 0.364774
+    m_speed: 0.0935219
+    m_water_vx: -0.0101841
+    m_water_vy: 0.0556645
+    x_low_power_status: 5
+    m_present_time: 1378349130.18188
+    m_present_secs_into_mission: 121034
