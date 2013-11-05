@@ -1,0 +1,67 @@
+# Result data after parsing test_data_3.txt 
+
+header:
+  particle_object: CtdpfkParserDataParticle
+  particle_type: ctdpfk_parsed
+
+data:
+  - _index: 1
+    _new_sequence: True
+    internal_timestamp: '2013-04-16T01:00:02Z'
+    conductivity: 1.5282
+    temperature: 16.3541
+    pressure: 0.97
+    oxygen:  2724.0
+
+  - _index: 2
+    internal_timestamp: '2013-04-16T01:00:03Z'
+    conductivity: 1.5283
+    temperature: 16.3574
+    pressure: 0.97
+    oxygen:  2739.0
+
+  - _index: 3
+    internal_timestamp: '2013-04-16T01:00:04Z'
+    conductivity: 1.5283
+    temperature: 16.3596
+    pressure: 0.97
+    oxygen:  2745.0
+
+  - _index: 4
+    _new_sequence: True
+    internal_timestamp: '2013-04-16T01:00:05Z'
+    conductivity: 1.5283
+    temperature: 16.3603
+    pressure: 0.97
+    oxygen:  2749.0
+
+  - _index: 5
+    _new_sequence: True
+    internal_timestamp: '2013-04-16T01:00:06Z'
+    conductivity: 1.5282
+    temperature: 16.3591
+    pressure: 0.97
+    oxygen:  2754.0
+
+  - _index: 6
+    internal_timestamp: '2013-04-16T01:00:07Z'
+    conductivity: 1.5281
+    temperature: 16.3581
+    pressure: 0.97
+    oxygen:  2753.0
+
+  - _index: 7
+    _new_sequence: True
+    internal_timestamp: '2013-04-16T01:00:08Z'
+    conductivity: 1.5279
+    temperature: 16.3573
+    pressure: 0.97
+    oxygen:  2754.0
+
+  - _index: 8
+    internal_timestamp: '2013-04-16T01:00:09Z'
+    conductivity: 1.5278
+    temperature: 16.3573
+    pressure: 0.97
+    oxygen:  2753.0
+

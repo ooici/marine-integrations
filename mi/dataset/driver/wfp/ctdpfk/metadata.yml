@@ -1,0 +1,8 @@
+driver_metadata:
+  version: 0.0.1
+  author: Roger Unwin
+  constructor: WfpCTDPFKDataSetDriver
+  driver_name: wfp_ctdpfk
+  driver_path: wfp/ctdpfk
+  release_notes: test
+  email: raunwin@ucsd.edu

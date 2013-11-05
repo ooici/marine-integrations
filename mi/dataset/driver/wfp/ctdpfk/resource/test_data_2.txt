@@ -1,0 +1,11 @@
+
+
+ Profile 181
+
+mmho/cm,Celsius,dbars,hz
+
+1.5282.16.3@41,0.970, 2x24
+
+ Profile 181
+  CTD turned on at 04/16/2013 01:00:02
+  CTD turned off at 04/16/2013 01:05:16
