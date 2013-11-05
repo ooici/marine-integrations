@@ -155,10 +155,10 @@ class DataSetDriver(object):
         self._stop_publisher_thread()
 
     def _start_sampling(self):
-        raise NotImplementedException('virtual methond needs to be specialized')
+        raise NotImplementedException('virtual method needs to be specialized')
 
     def _stop_sampling(self):
-        raise NotImplementedException('virtual methond needs to be specialized')
+        raise NotImplementedException('virtual method needs to be specialized')
 
     def cmd_dvr(self, cmd, *args, **kwargs):
         log.warn("DRIVER: cmd_dvr %s", cmd)
