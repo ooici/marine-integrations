@@ -184,3 +184,14 @@ class TestResultSet(MiUnitTest):
         # test bad data record
         self.assertFalse(rs.verify([particle_a, particle_a]))
         self.assertIsNotNone(rs.report())
+
+    def test_round(self):
+        rs = ResultSet(self._get_result_set_file("record_set_files/test_data_2.txt.result.yml"))
+
+        # Test the happy path
+        base_timestamp = 3583861263.0
+        particle_a = CtdpfParserDataParticle("10.5914,  4.1870,  161.06,   2693.0",
+                                             internal_timestamp=base_timestamp, new_sequence=True).generate_dict()
+
+        self.assertTrue(rs.verify([particle_a]))
+        self.assertIsNone(rs.report())

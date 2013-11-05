@@ -325,12 +325,35 @@ class ResultSet(object):
             for key in expected_keys:
                 expected_value = particle_def[key]
                 particle_value = pv[key]
-                if expected_value != particle_value:
-                    errors.append("%s value mismatch, %s != %s (decimals may be rounded)" % (key, expected_value, particle_value))
-
-
+                e = self._verify_value(expected_value, particle_value)
+                if e:
+                    errors.append("'%s' %s"  % (key, e))
 
         return errors
+
+    def _verify_value(self, expected_value, particle_value):
+        """
+        Verify a value matches what we expect.  If the expected value (from the yaml)
+        is a dict then we expect the value to be in a 'value' field.  Otherwise just
+        use the parameter as a raw value.
+
+        when passing a dict you can specify a 'round' factor.
+        """
+        if isinstance(expected_value, dict):
+            ex_value = expected_value['value']
+            round_factor = expected_value.get('round')
+        else:
+            ex_value = expected_value
+            round_factor = None
+
+        if round_factor is not None:
+            particle_value = round(particle_value, round_factor)
+            log.debug("rounded value to %s", particle_value)
+
+        if ex_value != particle_value:
+            return "value mismatch, %s != %s (decimals may be rounded)" % (ex_value, particle_value)
+
+        return None
 
     def _string_to_ntp_date_time(self, datestr):
         """
