@@ -109,8 +109,9 @@ class SwitchDriver(mi.idk.switch_driver.SwitchDriver):
         """
         # get all tags that start with this instrument
         cmd = 'git tag -l ' + 'release_dsd_' + path.replace('/', '_') + '*'
+        log.debug("git cmd: %s", cmd)
         output = subprocess.check_output(cmd, shell=True)
-        version_list = []
+        version_list = ['master']
         if len(output) > 0:
             tag_regex = re.compile(r'release_dsd_[a-z0-9_]+(\d+_\d+_\d+)')
             tag_iter = tag_regex.finditer(output)
