@@ -1,0 +1,8 @@
+driver_metadata:
+  version: 0.0.1
+  author: Roger Unwin
+  constructor: WfpCTD_XX_DataSetDriver
+  driver_name: wfp_ctd
+  driver_path: wfp/ctd
+  release_notes: 
+  email: raunwin@ucsd.edu
