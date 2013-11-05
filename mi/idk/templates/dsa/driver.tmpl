@@ -18,10 +18,23 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.dataset_driver import SimpleDataSetDriver
 
 class ${constructor}(SimpleDataSetDriver):
+    
+    @classmethod
+    def stream_config(cls):
+        # Fill in below with particle stream
+        return []
+
     def _build_parser(self, parser_state, infile):
         """
         Build and return the parser
         """
+        config = self._parser_config
+        # Fill in blanks with particle info
+        config.update({
+            'particle_module': '',
+            'particle_class': ''
+        })
+        log.debug("My Config: %s", config)
         # *** Replace the following with parser initialization ***
         self._parser = None
         return self._parser

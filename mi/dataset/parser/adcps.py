@@ -19,9 +19,7 @@ from mi.core.log import get_logger; log = get_logger()
 from mi.dataset.parser.mflm import MflmParser, SIO_HEADER_MATCHER
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, DatasetParserException
-from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.dataset.dataset_parser import BufferLoadingParser
 
 class DataParticleType(BaseEnum):
     SAMPLE = 'adcps_parsed'

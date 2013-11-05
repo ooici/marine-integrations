@@ -1,8 +1,8 @@
 """
-@package mi.dataset.driver.mflm.adcp.test.test_driver
-@file marine-integrations/mi/dataset/driver/mflm/adcp/driver.py
+@package mi.dataset.driver.mflm.flort.test.test_driver
+@file marine-integrations/mi/dataset/driver/mflm/flort/driver.py
 @author Emily Hahn
-@brief Test cases for mflm_adcp driver
+@brief Test cases for mflm_flort driver
 
 USAGE:
  Make tests verbose and provide stdout
@@ -22,7 +22,6 @@ from nose.plugins.attrib import attr
 from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
-
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.idk.exceptions import SampleTimeout
 
@@ -32,21 +31,20 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 
-from mi.dataset.driver.mflm.adcp.driver import MflmADCPSDataSetDriver
-from mi.dataset.parser.adcps import AdcpsParserDataParticle
+from mi.dataset.driver.mflm.flort.driver import MflmFLORTDDataSetDriver
+from mi.dataset.parser.flortd import FlortdParserDataParticle
 
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
 from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 
-# Fill in the blanks to initialize data set test case
 DataSetTestCase.initialize(
-    driver_module='mi.dataset.driver.mflm.adcp.driver',
-    driver_class='MflmADCPSDataSetDriver',
+    driver_module='mi.dataset.driver.mflm.flort.driver',
+    driver_class='MflmFLORTDDataSetDriver',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = MflmADCPSDataSetDriver.stream_config(),
+    agent_packet_config = MflmFLORTDDataSetDriver.stream_config(),
     startup_config = {
         'harvester':
         {
@@ -58,7 +56,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM='adcps_parsed'
+SAMPLE_STREAM = 'flortd_parsed'
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -67,7 +65,7 @@ SAMPLE_STREAM='adcps_parsed'
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
-        
+
     def clean_file(self):
         # remove just the file we are using
         driver_config = self._driver_config()['startup_config']
@@ -78,6 +76,10 @@ class IntegrationTest(DataSetIntegrationTestCase):
             os.remove(fullfile)
 
     def test_get(self):
+        """
+        Test that we can get data from files.  Verify that the driver
+        sampling can be started and stopped
+        """
         self.clean_file()
 
         # Start sampling and watch for an exception
@@ -85,7 +87,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
-        self.assert_data(AdcpsParserDataParticle, 'test_data_1.txt.result.yml',
+        self.assert_data(FlortdParserDataParticle, 'test_data_1.txt.result.yml',
                          count=1, timeout=10)
 
         # there is only one file we read from, this example 'appends' data to
@@ -93,13 +95,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # is returned (not including the original data from _step1)
         self.clear_async_data()
         self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
-        self.assert_data(AdcpsParserDataParticle, 'test_data_2.txt.result.yml',
+        self.assert_data(FlortdParserDataParticle, 'test_data_2.txt.result.yml',
                          count=1, timeout=10)
 
         # now 'appends' the rest of the data and just check if we get the right number
         self.clear_async_data()
         self.create_sample_data("node59p1_step4.dat", "node59p1.dat")
-        self.assert_data(AdcpsParserDataParticle, count=2, timeout=10)
+        self.assert_data(FlortdParserDataParticle, count=4, timeout=10)
 
         self.driver.stop_sampling()
         # reset the parser and harvester states
@@ -108,8 +110,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
-        self.assert_data(AdcpsParserDataParticle, count=1, timeout=10)
-        
+        self.assert_data(FlortdParserDataParticle, count=1, timeout=10)
+
     def test_harvester_new_file_exception(self):
         """
         Test an exception raised after the driver is started during
@@ -127,7 +129,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # At this point the harvester thread is dead.  The agent
         # exception handle should handle this case.
-        
+
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
@@ -135,12 +137,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clean_file()
 
         # Create and store the new driver state
-        self.memento = {DataSourceConfigKey.HARVESTER: {'last_filesize': 1300,
-                                                        'last_checksum': 'e56e28e6bd67c6b00c6702c9f9a13f93'},
+        self.memento = {DataSourceConfigKey.HARVESTER: {'last_filesize': 300,
+                                                        'last_checksum': 'a640fd577c65ed07ed67f1d2e73d34e2'},
                         DataSourceConfigKey.PARSER: {'in_process_data': [],
-                                                     'unprocessed_data':[[0,32], [222,871], [1257,1300]],
-                                                     'timestamp': 3583725976.97}}
-        self.driver = MflmADCPSDataSetDriver(
+                                                     'unprocessed_data':[[0,69], [197,300]],
+                                                     'timestamp': 3583610106.0}}
+        self.driver = MflmFLORTDDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
             self.data_callback,
@@ -154,16 +156,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(AdcpsParserDataParticle, 'test_data_2.txt.result.yml',
+        self.assert_data(FlortdParserDataParticle, 'test_data_2.txt.result.yml',
                          count=1, timeout=10)
-        
+
     def test_sequences(self):
         """
-        Test new sequence flags are set correctly.  There is only one file
-        that just has data appended or inserted into it, so new sequences
-        can occur in both cases, or if there is missing data in between two sequences
+        Test new sequence flags are set correctly
         """
-
         self.clean_file()
 
         self.driver.start_sampling()
@@ -174,26 +173,26 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # separately in other tests (no new sequences)
         self.clear_async_data()
         self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
-        self.assert_data(AdcpsParserDataParticle, 'test_data_1-2.txt.result.yml',
+        self.assert_data(FlortdParserDataParticle, 'test_data_1-2.txt.result.yml',
                          count=2, timeout=10)
 
-        # This file has had a section of AD data replaced with 0s, this should start a new
+        # This file has had a section of FL data replaced with 0s, this should start a new
         # sequence for the data following the missing AD data
         self.clear_async_data()
         self.create_sample_data('node59p1_step3.dat', "node59p1.dat")
-        self.assert_data(AdcpsParserDataParticle, 'test_data_3.txt.result.yml',
-                         count=1, timeout=10)
+        self.assert_data(FlortdParserDataParticle, 'test_data_3.txt.result.yml',
+                         count=3, timeout=10)
 
         # Now fill in the zeroed section from step3, this should just return the new
         # data with a new sequence flag
         self.clear_async_data()
         self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
-        self.assert_data(AdcpsParserDataParticle, 'test_data_4.txt.result.yml',
+        self.assert_data(FlortdParserDataParticle, 'test_data_4.txt.result.yml',
                          count=1, timeout=10)
 
         # start over now, using step 4, make sure sequence flags just account for
         # missing data in file (there are some sections of bad data that don't
-        # match in headers, [0-32], [222-871], [1833-2000]
+        # match in headers
         self.driver.stop_sampling()
         # reset the parser and harvester states
         self.driver.clear_states()
@@ -201,8 +200,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
-        self.assert_data(AdcpsParserDataParticle, 'test_data_1-4.txt.result.yml',
-                         count=4, timeout=10)
+        self.assert_data(FlortdParserDataParticle, 'test_data_1-4.txt.result.yml',
+                         count=6, timeout=10)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -213,7 +212,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
         super(QualificationTest, self).setUp()
-        
+
     def clean_file(self):
         # remove just the file we are using
         driver_config = self._driver_config()['startup_config']
@@ -271,9 +270,9 @@ class QualificationTest(DataSetQualificationTestCase):
 
     def test_large_import(self):
         """
-        Test a large import
+        Test importing a large number of samples from the file at once
         """
-        self.create_sample_data('node59p1_shorter.dat', "node59p1.dat")
+        self.create_sample_data('node59p1_longer.dat', "node59p1.dat")
         self.assert_initialize()
 
         result = self.get_samples(SAMPLE_STREAM,12,30)
@@ -283,7 +282,7 @@ class QualificationTest(DataSetQualificationTestCase):
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        log.error("CONFIG: %s", self._agent_config())
+        log.info("CONFIG: %s", self._agent_config())
         self.create_sample_data('node59p1_step2.dat', "node59p1.dat")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
@@ -304,14 +303,14 @@ class QualificationTest(DataSetQualificationTestCase):
 
             self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
             # Now read the first records of the second file then stop
-            result1 = self.get_samples(SAMPLE_STREAM, 1)
+            result1 = self.get_samples(SAMPLE_STREAM, 2)
             log.debug("RESULT 1: %s", result1)
             self.assert_stop_sampling()
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
             # Restart sampling and ensure we get the last 2 records of the file
             self.assert_start_sampling()
-            result2 = self.get_samples(SAMPLE_STREAM, 1)
+            result2 = self.get_samples(SAMPLE_STREAM, 2)
             log.debug("RESULT 2: %s", result2)
             result = result1
             result.extend(result2)
@@ -335,7 +334,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 3)
+        result = self.get_samples(SAMPLE_STREAM, 5)
         self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
         # Verify an event was raised and we are in our retry state

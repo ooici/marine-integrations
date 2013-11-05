@@ -109,7 +109,7 @@ class MflmParser(Parser):
             data_len = int(match.group(2), 16)
             checksum = match.group(5)
             end_packet_idx = match.end(0) + data_len
-            if end_packet_idx <= len(raw_data):
+            if end_packet_idx < len(raw_data):
                 end_packet = raw_data[end_packet_idx]
                 log.debug('Checking header %s, packet (%d, %d), start %d, data len %d',
                           match.group(0)[1:32], match.end(0), end_packet_idx,
