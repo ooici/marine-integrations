@@ -52,16 +52,11 @@ contiguous records.
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
-import os
 import re
 import yaml
-import time
 import ntplib
-import datetime
 from dateutil import parser
-from dateutil import tz
 
-import mi.core.common
 from mi.core.instrument.data_particle import DataParticle
 
 from mi.core.log import get_logger ; log = get_logger()

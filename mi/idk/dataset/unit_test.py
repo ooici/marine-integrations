@@ -328,37 +328,53 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         @param count, how many records to wait for
         @param timeout, how long to wait for the records.
         """
-        to = gevent.Timeout(timeout)
-        to.start()
-        done = False
-        found = 0
-
         try:
-            while(not done):
-                # reset or it becomes additive defeating the purpose of count
-                found = 0
-                for data in self.data_callback_result:
-                    if isinstance(data, particle_class):
-                        found += 1
-
-                    if found == count:
-                        done = True
-
-                if not done:
-                    log.debug("No particle detected yet, sleep for a bit")
-                    gevent.sleep(1)
+            particles = self.get_samples(particle_class, count, timeout)
         except Timeout:
             log.error("Failed to detect particle %s, expected %d particles, found %d", particle_class, count, found)
             self.fail("particle detection failed. Expected %d, Found %d" % (count, found))
-        finally:
-            to.cancel()
 
         # Verify the data against the result data set definition
         if result_set_file:
             rs_file = self._get_source_data_file(result_set_file)
             rs = ResultSet(rs_file)
 
-            self.assertTrue(rs.verify(self.data_callback_result), msg="Failed data validation, check the logs.")
+            self.assertTrue(rs.verify(particles), msg="Failed data validation, check the logs.")
+
+    def get_samples(self, particle_class, count=1, timeout=10):
+        to = gevent.Timeout(timeout)
+        to.start()
+        result = []
+        found = 0
+        done = False
+
+        try:
+            while(not done):
+                current_found = 0
+                for i, data in enumerate(self.data_callback_result):
+                    if isinstance(data, particle_class):
+                        index = i - current_found
+                        found += 1
+                        current_found += 1
+                        result.append(self.data_callback_result.pop(index))
+                        log.debug("Found sample index %d, #%d", index, found)
+
+                    if found >= count:
+                        log.debug("All done. %d >= %d", found, count)
+                        done = True
+                        break
+
+                if not done:
+                    log.debug("No particle detected yet, sleep for a bit")
+                    gevent.sleep(1)
+        except Timeout:
+            log.error("Failed to detect particle %s, expected %d particles, found %d", particle_class, count, found)
+            result = []
+        finally:
+            to.cancel()
+
+        log.debug("Samples found: %d, %s", len(result), result)
+        return result
 
 ###
 #  Common integration tests
@@ -553,7 +569,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
             if(self.data_subscribers.samples_received.has_key(stream_name) and
                len(self.data_subscribers.samples_received.get(stream_name))):
                 log.trace("get_samples() received sample #%d!", i)
-                result.append(self.data_subscribers.samples_received[stream_name].pop())
+                result.append(self.data_subscribers.samples_received[stream_name].pop(0))
                 i += 1
 
             # Check for timeout

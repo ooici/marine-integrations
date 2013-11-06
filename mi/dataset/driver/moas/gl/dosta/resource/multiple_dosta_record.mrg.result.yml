@@ -1,0 +1,43 @@
+# Result data after parsing test_data_1.txt 
+
+header:
+  particle_object: GgldrDostaDelayedDataParticle
+  particle_type: ggldr_dosta_delayed
+
+data:
+  - _index: 1
+    _new_sequence: True
+    internal_timestamp: '2013-09-05T02:47:18.77789'
+    m_present_time: 1378349238.77789
+    m_present_secs_into_mission: 121144
+    sci_m_present_time: 1378349238.77789
+    sci_m_present_secs_into_mission: 121144
+    sci_oxy4_oxygen: 242.217
+    sci_oxy4_saturation: 96.009
+  - _index: 2
+    _new_sequence: False
+    internal_timestamp: '2013-09-05T02:48:19.09106'
+    m_present_time: 1378349299.09106
+    m_present_secs_into_mission: 121204
+    sci_m_present_time: 1378349299.09106
+    sci_m_present_secs_into_mission: 121204
+    sci_oxy4_oxygen: 242.141
+    sci_oxy4_saturation: 95.988
+  - _index: 3
+    _new_sequence: False
+    internal_timestamp: '2013-09-05T02:49:19.38211'
+    m_present_time: 1378349359.38211
+    m_present_secs_into_mission: 121264
+    sci_m_present_time: 1378349359.38211
+    sci_m_present_secs_into_mission: 121264
+    sci_oxy4_oxygen: 241.953
+    sci_oxy4_saturation: 95.927
+  - _index: 4
+    _new_sequence: False
+    internal_timestamp: '2013-09-05T02:50:19.86694'
+    m_present_time: 1378349419.86694
+    m_present_secs_into_mission: 121325
+    sci_m_present_time: 1378349419.86694
+    sci_m_present_secs_into_mission: 121325
+    sci_oxy4_oxygen: 241.865
+    sci_oxy4_saturation: 95.848

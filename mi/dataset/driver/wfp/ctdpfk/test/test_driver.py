@@ -268,15 +268,16 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test the ability to stop and restart the process
         """
         # Create and store the new driver state
+        #"""
         self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.TXT',
-                        DataSourceConfigKey.PARSER: {'position': 209, 'timestamp': 3575062801.0}}
+                        DataSourceConfigKey.PARSER: {'position': 201, 'timestamp': 3575062804.0}}
         self.driver = WfpCTDPFKDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
             self.data_callback,
             self.state_callback,
             self.exception_callback)
-
+        #"""
         # create some data to parse
         self.clear_async_data()
         self.create_sample_data('test_data_1.txt', "DATA001.TXT")
@@ -285,7 +286,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(CtdpfkParserDataParticle, 'test_data_3.txt.partial_results.yml', count=4, timeout=10)
+        self.assert_data(CtdpfkParserDataParticle, 'test_data_3.txt.partial_results.yml', count=5, timeout=10)
 
         
 ###############################################################################
@@ -417,29 +418,39 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
+            log.error("1")
             result = self.get_samples(SAMPLE_STREAM)
-            log.debug("RESULT: %s", result)
+            log.error("RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
+            log.error("2")
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            log.error("3")
 
-            self.create_sample_data('test_data_3.txt', 'C0000181.TXT')
+            self.create_sample_data('test_data_3.txt', 'DATA003.TXT')
             # Now read the first three records of the second file then stop
+            log.error("BEFORE")
             result = self.get_samples(SAMPLE_STREAM, 3)
+            log.error("AFTER")
             self.assert_stop_sampling()
+            log.error("4")
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            log.error("5")
 
             # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()
+            log.error("6")
             result = self.get_samples(SAMPLE_STREAM, 5)
+            log.error("7")
             self.assert_data_values(result, 'test_data_3.txt.partial_results.yml')
 
+            log.error("8")
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
-    
+
     ## broke
     def test_missing_directory(self):
         """

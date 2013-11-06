@@ -1,6 +1,6 @@
 """
-@package mi.dataset.driver.moas.gl.ctdgv.test.test_driver
-@file marine-integrations/mi/dataset/driver/moas/gl/ctdgv/test/test_driver.py
+@package mi.dataset.driver.moas.gl.flord.test.test_driver
+@file marine-integrations/mi/dataset/driver/moas/gl/flord/test/test_driver.py
 @author Bill French
 @brief Test cases for glider ctd data
 
@@ -26,39 +26,27 @@ from mi.core.log import get_logger ; log = get_logger()
 from exceptions import Exception
 
 from mi.idk.dataset.unit_test import DataSetTestCase
-from mi.idk.dataset.unit_test import DataSetTestConfig
-from mi.idk.dataset.unit_test import DataSetUnitTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
-from mi.core.exceptions import ConfigurationException
-from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentParameterException
 from mi.idk.exceptions import SampleTimeout
 
-from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+from mi.dataset.dataset_driver import DataSourceConfigKey
 from mi.dataset.dataset_driver import DriverParameter
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.dataset.parser.glider import GliderParser
-from mi.dataset.parser.test.test_glider import GliderParserUnitTestCase
-from mi.dataset.harvester import AdditiveSequentialFileHarvester
-from mi.dataset.driver.moas.gl.ctdgv.driver import CTDGVDataSetDriver
+from mi.dataset.driver.moas.gl.flord.driver import FLORDDataSetDriver
 
-from mi.dataset.parser.glider import GgldrCtdgvDelayedDataParticle
+from mi.dataset.parser.glider import GgldrFlordDelayedDataParticle
 from pyon.agent.agent import ResourceAgentState
 
-from interface.objects import CapabilityType
-from interface.objects import AgentCapability
 from interface.objects import ResourceAgentErrorEvent
-from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 DataSetTestCase.initialize(
-    driver_module='mi.dataset.driver.moas.gl.ctdgv.driver',
-    driver_class="CTDGVDataSetDriver",
+    driver_module='mi.dataset.driver.moas.gl.flord.driver',
+    driver_class="FLORDDataSetDriver",
 
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = CTDGVDataSetDriver.stream_config(),
+    agent_packet_config = FLORDDataSetDriver.stream_config(),
     startup_config = {
         'harvester':
         {
@@ -70,7 +58,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM='ggldr_ctdgv_delayed'
+SAMPLE_STREAM='ggldr_flord_delayed'
     
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -90,18 +78,18 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         self.clear_async_data()
-        self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_6.mrg")
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'single_ctdgv_record.mrg.result.yml', count=1, timeout=10)
+        self.create_sample_data('single_flord_record.mrg', "unit_363_2013_245_6_6.mrg")
+        self.assert_data(GgldrFlordDelayedDataParticle, 'single_flord_record.mrg.result.yml', count=1, timeout=10)
 
         self.clear_async_data()
-        self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_7_6.mrg")
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'multiple_ctdgv_record.mrg.result.yml', count=4, timeout=10)
+        self.create_sample_data('multiple_flord_record.mrg', "unit_363_2013_245_7_6.mrg")
+        self.assert_data(GgldrFlordDelayedDataParticle, 'multiple_flord_record.mrg.result.yml', count=4, timeout=10)
 
         log.debug("Start second file ingestion")
         # Verify sort order isn't ascii, but numeric
         self.clear_async_data()
         self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
-        self.assert_data(GgldrCtdgvDelayedDataParticle, count=171, timeout=30)
+        self.assert_data(GgldrFlordDelayedDataParticle, count=163, timeout=30)
 
     def test_stop_resume(self):
         """
@@ -109,18 +97,18 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         # Create and store the new driver state
         state = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/unit_363_2013_245_6_8.mrg',
-                 DataSourceConfigKey.PARSER: {'position': 2600}}
+                 DataSourceConfigKey.PARSER: {'position': 1987}}
         self.driver = self._get_driver_object(memento=state)
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_6_9.mrg")
-        self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_10.mrg")
+        self.create_sample_data('multiple_flord_record.mrg', "unit_363_2013_245_6_9.mrg")
+        self.create_sample_data('single_flord_record.mrg', "unit_363_2013_245_6_10.mrg")
 
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_data(GgldrFlordDelayedDataParticle, 'merged_flord_record.mrg.result.yml', count=4, timeout=10)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -137,7 +125,7 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        self.create_sample_data('single_ctdgv_record.mrg', 'unit_363_2013_245_6_9.mrg')
+        self.create_sample_data('single_flord_record.mrg', 'unit_363_2013_245_6_9.mrg')
         self.assert_initialize()
 
         # Verify we get one sample
@@ -146,7 +134,7 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'single_ctdgv_record.mrg.result.yml')
+            self.assert_data_values(result, 'single_flord_record.mrg.result.yml')
         except Exception as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
@@ -160,7 +148,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data('unit_363_2013_245_6_6.mrg')
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,171,120)
+        result = self.get_samples(SAMPLE_STREAM,172,120)
 
     def test_harvester_new_file_exception(self):
         self.assert_new_file_exception('unit_363_2013_245_6_6.mrg')

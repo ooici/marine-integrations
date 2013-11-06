@@ -109,7 +109,7 @@ class PackageDriver(mi.idk.package_driver.PackageDriver):
             self.package_driver()
 
             if not "--no-push" in sys.argv:
-                cmd = 'git push'
+                cmd = 'git push --tags'
                 output = subprocess.check_output(cmd, shell=True)
                 if len(output) > 0:
                     log.debug('git push returned: %s', output)
