@@ -263,26 +263,42 @@ class CgldrFlortDelayedDataParticle(GliderParticle):
         return self._parsed_values(FlordParticleKey.KEY_LIST)
 
 
-class EngineeringParticleKey(GliderParticleKey):
+class EngineeringParticleKey(BaseEnum):
+
+    M_PRESENT_SECS_INTO_MISSION = 'm_present_secs_into_mission'
+    M_PRESENT_TIME = 'm_present_time'  # you need the m_ timestamps for lats & lons
+
     # [TODO: This key list will need to be adjusted once confirmation is received from PS/SE]
-    BATT_POS = 'c_battpos'
-    WPT_LAT = 'c_wpt_lat'
-    WPT_LON = 'c_wpt_lon'
-    BATT_POS = 'm_battpos'
-    COULOMB_AMPHR_TOTAL = 'm_coulomb_amphr_total'
-    COULOMB_CURRENT = 'm_coulomb_current'
-    DEPTH = 'm_depth'
-    DE_OIL_VOL = 'm_de_oil_vol'
-    GPS_LAT = 'm_gps_lat'
-    GPS_LON = 'm_gps_lon'
-    LAT = 'm_lat'
-    LON = 'm_lon'
-    HEADING = 'm_heading'
-    PITCH = 'm_pitch'
-    SPEED = 'm_speed'
-    WATER_VX = 'm_water_vx'
-    WATER_VY = 'm_water_vy'
-    LOW_POWER_STATUS = 'x_low_power_status'
+    C_BATTPOS = 'c_battpos'
+    C_WPT_LAT = 'c_wpt_lat'
+    C_WPT_LON = 'c_wpt_lon'
+    M_BATTPOS = 'm_battpos'
+    M_COULOMB_AMPHR_TOTAL = 'm_coulomb_amphr_total'
+    M_COULOMB_CURRENT = 'm_coulomb_current'
+    M_DEPTH = 'm_depth'
+    M_DE_OIL_VOL = 'm_de_oil_vol'
+    M_GPS_LAT = 'm_gps_lat'
+    M_GPS_LON = 'm_gps_lon'
+    M_LAT = 'm_lat'
+    M_LON = 'm_lon'
+    M_HEADING = 'm_heading'
+    M_PITCH = 'm_pitch'
+    M_SPEED = 'm_speed'
+    M_WATER_VX = 'm_water_vx'
+    M_WATER_VY = 'm_water_vy'
+    X_LOW_POWER_STATUS = 'x_low_power_status'
+
+    @classmethod
+    def science_parameter_list(cls):
+        """
+        Get a list of all science parameters
+        """
+        result = []
+        for key in cls.list():
+            if key not in GliderParticleKey.list():
+                result.append(key)
+
+        return result
 
 
 class GgldrEngDelayedDataParticle(GliderParticle):
