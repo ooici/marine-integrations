@@ -57,16 +57,16 @@ class CtdpfkParserDataParticle(DataParticle):
     """
     Class for parsing data from the CTDPF instrument on a HYPM SP platform node
     """
-    
+
     _data_particle_type = DataParticleType.SAMPLE
-    
+
     def _build_parsed_values(self):
         """
         Take something in the data format CSV delimited values and turn it into
         a particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-        log.error("_build_parsed_values")
+
         match = DATA_MATCHER.match(self.raw_data)
         if not match:
             raise SampleException("CtdParserDataParticle: No regex match of \
@@ -79,7 +79,7 @@ class CtdpfkParserDataParticle(DataParticle):
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
-        
+
         result = [{DataParticleKey.VALUE_ID: CtdpfkParserDataParticleKey.TEMPERATURE,
                    DataParticleKey.VALUE: temp},
                   {DataParticleKey.VALUE_ID: CtdpfkParserDataParticleKey.CONDUCTIVITY,
@@ -88,7 +88,7 @@ class CtdpfkParserDataParticle(DataParticle):
                    DataParticleKey.VALUE: press},
                   {DataParticleKey.VALUE_ID: CtdpfkParserDataParticleKey.OXYGEN,
                    DataParticleKey.VALUE: o2}]
-        log.error('CtdpfkParserDataParticle: particle=%s', result)
+        log.trace('CtdpfkParserDataParticle: particle=%s', result)
         return result
 
     def __eq__(self, arg):
@@ -121,7 +121,7 @@ class CtdpfkParser(BufferLoadingParser):
                                           publish_callback,
                                           *args,
                                           **kwargs)
-        log.error("CtdpfkParser.__init__")
+
         self._timestamp = 0.0
         self._record_buffer = [] # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION:0, StateKey.TIMESTAMP:0.0}
@@ -137,7 +137,7 @@ class CtdpfkParser(BufferLoadingParser):
         number of bytes into the file, the timestamp is an NTP4 format timestamp.
         @throws DatasetParserException if there is a bad state structure
         """
-        log.error("Attempting to set state to: %s", state_obj)
+        log.trace("Attempting to set state to: %s", state_obj)
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
         if not ((StateKey.POSITION in state_obj) and (StateKey.TIMESTAMP in state_obj)):
@@ -160,7 +160,7 @@ class CtdpfkParser(BufferLoadingParser):
         @param ts_str The timestamp string in the format "mm/dd/yyyy hh:mm:ss"
         @retval The NTP4 timestamp
         """
-        log.error("CtdpfkParser._convert_string_to_timestamp")
+
         match = DATE_MATCHER.match(ts_str)
         if not match:
             raise ValueError("Invalid time format: %s" % ts_str)
@@ -187,7 +187,7 @@ class CtdpfkParser(BufferLoadingParser):
         as needed in subclasses
         @param increment Number of seconds in increment the timestamp.
         """
-        log.error("_increment_timestamp")
+
         self._timestamp += increment
 
     def _increment_state(self, increment, timestamp):
@@ -203,7 +203,7 @@ class CtdpfkParser(BufferLoadingParser):
         @param increment Number of bytes to increment the parser position.
         @param timestamp The timestamp completed up to that position
         """
-        log.error("Incrementing current state: %s with inc: %s, timestamp: %s",
+        log.trace("Incrementing current state: %s with inc: %s, timestamp: %s",
                   self._read_state, increment, timestamp)
 
         self._read_state[StateKey.POSITION] += increment
@@ -217,7 +217,7 @@ class CtdpfkParser(BufferLoadingParser):
         @retval a list of tuples with sample particles encountered in this
             parsing, plus the state. An empty list of nothing was parsed.
         """
-        log.error("CtdpfkParser.parse_chunks")
+
         result_particles = []
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
         non_data = None
@@ -227,7 +227,7 @@ class CtdpfkParser(BufferLoadingParser):
             time_match = TIME_MATCHER.match(chunk)
             data_match = DATA_MATCHER.match(chunk)
             if time_match:
-                log.error("Encountered timestamp in data stream: %s", time_match.group(1))
+                log.trace("Encountered timestamp in data stream: %s", time_match.group(1))
 
                 self._timestamp = self._convert_string_to_timestamp(time_match.group(1))
                 self._increment_state(end, self._timestamp)
@@ -240,7 +240,7 @@ class CtdpfkParser(BufferLoadingParser):
                 sample = self._extract_sample(self._particle_class, DATA_MATCHER, chunk, self._timestamp)
                 if sample:
                     # create particle
-                    log.error("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
+                    log.trace("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
                     self._increment_state(end, self._timestamp)    
                     self._increment_timestamp() # increment one samples worth of time
                     result_particles.append((sample, copy.copy(self._read_state)))

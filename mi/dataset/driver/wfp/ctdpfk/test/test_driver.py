@@ -288,7 +288,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # verify data is produced
         self.assert_data(CtdpfkParserDataParticle, 'test_data_3.txt.partial_results.yml', count=5, timeout=10)
 
-        
+
 ###############################################################################
 
 ###############################################################################
@@ -300,9 +300,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
         super(QualificationTest, self).setUp()
-        log.error("*******************SETUP DONE*********************")
 
-    ## works
     def test_initialize(self):
         """
         Test that we can start the container and initialize the dataset agent.
@@ -311,32 +309,24 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_stop_sampling()
         self.assert_reset()
 
-    ## broke -- No pd_id found for param_dict 'ctdpfk_parsed'
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
         self.create_sample_data('test_data_1.txt', 'DATA001.TXT')
-        log.error("GOT HERE 0")
         self.assert_initialize()
-        log.error("GOT HERE 1")
         # Verify we get one sample
         try:
-            log.error("GOT HERE 2")
             result = self.data_subscribers.get_samples(SAMPLE_STREAM)
-            log.error("GOT HERE 3")
             log.debug("RESULT: %s", result)
-            log.error("GOT HERE 4")
 
             # Verify values
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
-            log.error("GOT HERE 5")
         except Exception as e:
-            log.error("Exception trapped [1]: %s", e)
+            log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
 
-    ## broke - No pd_id found for param_dict 'ctdpfk_parsed'
     def test_large_import(self):
         """
         There is a bug when activating an instrument go_active times out and
@@ -348,7 +338,6 @@ class QualificationTest(DataSetQualificationTestCase):
 
         result = self.get_samples(SAMPLE_STREAM,303,120)
 
-    ## works
     def test_resource_parameters(self):
         """
         verify we can get a resource parameter lists and get/set parameters.
@@ -400,13 +389,11 @@ class QualificationTest(DataSetQualificationTestCase):
         reply = self.dataset_agent_client.get_resource(DriverParameter.ALL)
         log.debug("Get Resource Result: %s", reply)
 
-    ## broke
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        log.error("CONFIG: %s", self._agent_config())
         self.create_sample_data('test_data_1.txt', 'DATA001.TXT')
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
@@ -418,40 +405,29 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            log.error("1")
             result = self.get_samples(SAMPLE_STREAM)
-            log.error("RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
-            log.error("2")
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
-            log.error("3")
 
             self.create_sample_data('test_data_3.txt', 'DATA003.TXT')
             # Now read the first three records of the second file then stop
-            log.error("BEFORE")
+
             result = self.get_samples(SAMPLE_STREAM, 3)
-            log.error("AFTER")
             self.assert_stop_sampling()
-            log.error("4")
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
-            log.error("5")
 
             # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()
-            log.error("6")
             result = self.get_samples(SAMPLE_STREAM, 5)
-            log.error("7")
             self.assert_data_values(result, 'test_data_3.txt.partial_results.yml')
 
-            log.error("8")
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    ## broke
     def test_missing_directory(self):
         """
         Test starting the driver when the data directory doesn't exists.  This
@@ -472,7 +448,6 @@ class QualificationTest(DataSetQualificationTestCase):
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)
 
-    ## Broke
     def test_harvester_new_file_exception(self):
         """
         Test an exception raised after the driver is started during
@@ -496,7 +471,6 @@ class QualificationTest(DataSetQualificationTestCase):
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)
 
-    ## Broke
     def test_parser_exception(self):
         """
         Test an exception raised after the driver is started during

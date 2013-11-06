@@ -23,17 +23,15 @@ from mi.dataset.harvester import AdditiveSequentialModifyingFileHarvester
 class WfpCTDPFKDataSetDriver(SimpleDataSetDriver):
     @classmethod
     def stream_config(cls):
-        log.error("*** stream_config")
         return [CtdpfkParserDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
-        log.error("*** _build_parser")
         config = self._parser_config
         config.update({
             'particle_module': 'mi.dataset.parser.ctdpfk',
             'particle_class': 'CtdpfkParserDataParticle'
         })
-        log.error("MYCONFIG: %s", config)
+
         self._parser = CtdpfkParser(
             config,
             parser_state,
@@ -45,7 +43,6 @@ class WfpCTDPFKDataSetDriver(SimpleDataSetDriver):
         return self._parser
 
     def _build_harvester(self, harvester_state):
-        log.error("*** _build_harvester")
         self._harvester = AdditiveSequentialModifyingFileHarvester(
             self._harvester_config,
             harvester_state,
@@ -62,9 +59,8 @@ class WfpCTDPFKDataSetDriver(SimpleDataSetDriver):
         that has been re-arranged into a better contents order. 
         return the open file handle for the new file.
         """
-        log.error("_file_preprocessing_callback")
-        processed_file = raw_file_name + "P"
 
+        processed_file = raw_file_name + "P"
 
         with open(raw_file_name,'rb') as raw_file:
             with open(processed_file, 'w') as f:
@@ -77,5 +73,3 @@ class WfpCTDPFKDataSetDriver(SimpleDataSetDriver):
                         f.write(line)
 
         return processed_file
-
-    
