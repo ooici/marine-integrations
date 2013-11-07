@@ -29,9 +29,6 @@ from mi.dataset.dataset_parser import Parser
 SIO_HEADER_REGEX = b'\x01(CT|AD|FL|DO|PH|PS|CS)[0-9]{7}_([0-9A-Fa-f]{4})[a-z]' \
                '([0-9A-Fa-f]{8})_([0-9A-Fa-f]{2})_([0-9A-Fa-f]{4})\x02'
 SIO_HEADER_MATCHER = re.compile(SIO_HEADER_REGEX)
-HEADER_REGEX = b'\x01(CT|AD|FL|DO|PH|PS|CS)[0-9]{7}_([0-9A-Fa-f]{4})[a-z]' \
-               '([0-9A-Fa-f]{8})_([0-9A-Fa-f]{2})_[0-9A-Fa-f]{4}\x02([\x00-\xFF]*?)\x03'
-HEADER_MATCHER = re.compile(HEADER_REGEX)
 
 # blocks can be uniquely identified a combination of block number and timestamp,
 # since block numbers roll over after 255

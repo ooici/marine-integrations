@@ -1,0 +1,22 @@
+# Result data after parsing test_data_1.txt
+
+header:
+  particle_object: DostadParserDataParticle
+  particle_type: dostad_parsed
+
+data:
+  - _index: 1
+    _new_sequence: True
+    internal_timestamp: '2013-07-24T06:00:01'
+    product_number: 4831
+    serial_number: 128
+    estimated_oxygen: 326.544
+    air_saturation: 96.726
+    optode_temperature: 11.873
+    calibrated_phase: 31.965
+    temp_compensated_phase: 31.965
+    blue_phase: 37.134
+    red_phase: 5.169
+    blue_amplitude: 1370.7
+    red_amplitude: 1245.9
+    raw_temp: 444.4
