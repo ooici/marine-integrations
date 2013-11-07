@@ -1,0 +1,16 @@
+# Result data after parsing test_data_1.txt 
+
+header:
+  particle_object: CtdpfParserDataParticle
+  particle_type: ctdpf_parsed
+
+data:
+    - _index: 1
+      _new_sequence: True
+      internal_timestamp: '2013-07-26T21:01:03.0'
+      temperature:
+        value: 4.2
+        round: 1
+      conductivity: 10.5914
+      pressure: 161.06
+      oxygen: 2693.0

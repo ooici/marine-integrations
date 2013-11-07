@@ -391,8 +391,8 @@ class ENGGliderTest(GliderParserUnitTestCase):
         self.set_data(HEADER, ENG_RECORD)
         self.reset_parser()
 
-        record_1 = {EngineeringParticleKey.BATT_POS: 0.335}
-        record_2 = {EngineeringParticleKey.HEADING: 1.23569}
+        record_1 = {EngineeringParticleKey.M_BATTPOS: 0.335}
+        record_2 = {EngineeringParticleKey.M_HEADING: 1.23569}
 
         self.assert_generate_particle(GgldrEngDelayedDataParticle, record_1, 1186)
         self.assert_generate_particle(GgldrEngDelayedDataParticle, record_2, 1335)
@@ -403,4 +403,3 @@ class ENGGliderTest(GliderParserUnitTestCase):
         self.reset_parser({StateKey.POSITION: 1186})
         self.assert_generate_particle(GgldrEngDelayedDataParticle, record_2, 1335)
         self.assert_no_more_data()
-
