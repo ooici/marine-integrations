@@ -21,19 +21,22 @@ from nose.plugins.attrib import attr
 from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
+from mi.idk.exceptions import SampleTimeout
 
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
+from ${driver_module} import ${constructor}
+from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_first}ParserDataParticle
 
 # Fill in driver details
 DataSetTestCase.initialize(
-    driver_module='mi.dataset.driver.',
-    driver_class='DataSetDriver',
+    driver_module='${driver_module}',
+    driver_class='${constructor}',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = DataSetDriver.stream_config(),
+    agent_packet_config = ${constructor}.stream_config(),
     startup_config = {
         'harvester':
         {
@@ -45,7 +48,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM = ''
+SAMPLE_STREAM = '${full_instrument_lower}_parsed'
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
