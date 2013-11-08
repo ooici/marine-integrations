@@ -19,7 +19,7 @@ import ntplib
 from dateutil import parser
 from mi.core.log import get_logger ; log = get_logger()
 
-from mi.dataset.parser.mflm import MflmParser, HEADER_MATCHER
+from mi.dataset.parser.mflm import MflmParser, SIO_HEADER_MATCHER
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
@@ -101,15 +101,19 @@ class CtdmoParserDataParticle(DataParticle):
         data, timestamp, and new sequence, they are the same enough for this particle
         """
         if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) and \
-            (self.contents[DataParticleKey.NEW_SEQUENCE] == arg.contents[DataParticleKey.NEW_SEQUENCE])):
+            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
+             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) and \
+            (self.contents[DataParticleKey.NEW_SEQUENCE] == \
+             arg.contents[DataParticleKey.NEW_SEQUENCE])):
             return True
         else:
             if self.raw_data != arg.raw_data:
                 log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
+            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
+            arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
                 log.debug('Timestamp does not match')
-            elif self.contents[DataParticleKey.NEW_SEQUENCE] != arg.contents[DataParticleKey.NEW_SEQUENCE]:
+            elif self.contents[DataParticleKey.NEW_SEQUENCE] != \
+            arg.contents[DataParticleKey.NEW_SEQUENCE]:
                 log.debug('Sequence does not match')
             return False
 
@@ -176,7 +180,7 @@ class CtdmoParser(MflmParser):
         new_seq = 0
 
         while (chunk != None):
-            header_match = HEADER_MATCHER.match(chunk)
+            header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
             prev_sample = None
             new_seq = 0

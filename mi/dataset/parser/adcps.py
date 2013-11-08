@@ -13,6 +13,8 @@ __license__ = 'Apache 2.0'
 import re
 import struct
 import ntplib
+import time
+import datetime
 from dateutil import parser
 
 from mi.core.log import get_logger; log = get_logger()
@@ -190,16 +192,21 @@ class AdcpsParserDataParticle(DataParticle):
         Quick equality check for testing purposes. If they have the same raw
         data, timestamp, and new sequence, they are the same enough for this particle
         """
+        allowed_diff = .000001
         if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) and \
-            (self.contents[DataParticleKey.NEW_SEQUENCE] == arg.contents[DataParticleKey.NEW_SEQUENCE])):
+            (abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
+                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) < allowed_diff) and \
+            (self.contents[DataParticleKey.NEW_SEQUENCE] == \
+             arg.contents[DataParticleKey.NEW_SEQUENCE])):
             return True
         else:
             if self.raw_data != arg.raw_data:
                 log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
+            elif abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
+                     arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) > allowed_diff:
                 log.debug('Timestamp does not match')
-            elif self.contents[DataParticleKey.NEW_SEQUENCE] != arg.contents[DataParticleKey.NEW_SEQUENCE]:
+            elif self.contents[DataParticleKey.NEW_SEQUENCE] != \
+            arg.contents[DataParticleKey.NEW_SEQUENCE]:
                 log.debug('Sequence does not match')
             return False
 
@@ -288,13 +295,12 @@ class AdcpsParser(MflmParser):
                         # pull out the date string from the data
                         date_str = AdcpsParserDataParticle.unpack_date(data_match.group(0)[11:19])
                         # convert to ntp
-                        localtime_offset = float(parser.parse("1970-01-01T00:00:00.00Z").strftime("%s.%f"))
                         converted_time = float(parser.parse(date_str).strftime("%s.%f"))
-                        # round to nearest .01
-                        adjusted_time = round((converted_time - localtime_offset)*100)/100
+                        adjusted_time = converted_time - time.timezone
                         self._timestamp = ntplib.system_to_ntp_time(adjusted_time)
-                        log.debug("Converted time \"%s\" (unix: %s) into %s", date_str, adjusted_time, self._timestamp)
-
+                        # round to ensure the timestamps match
+                        self._timestamp = round(self._timestamp*100)/100
+                        log.debug("Converted time \"%s\" (unix: %10.9f) into %10.9f", date_str, adjusted_time, self._timestamp)
                         # particle-ize the data block received, return the record
                         sample = self._extract_sample(AdcpsParserDataParticle,
                                                       DATA_MATCHER,

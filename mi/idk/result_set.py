@@ -261,6 +261,7 @@ class ResultSet(object):
         particle_dict = self._particle_as_dict(particle)
         particle_timestamp = particle_dict.get('internal_timestamp')
         expected_time = particle_def.get('internal_timestamp')
+        allow_diff = .000001
 
         # Verify the timestamp
         if particle_timestamp and not expected_time:
@@ -270,8 +271,8 @@ class ResultSet(object):
 
         # If we have a timestamp AND expect one then compare values
         elif (particle_timestamp and
-              particle_timestamp != self._string_to_ntp_date_time(expected_time)):
-            errors.append("expected internal_timestamp mismatch, %f != %f (%f)" %
+              (particle_timestamp - self._string_to_ntp_date_time(expected_time)) > allow_diff):
+            errors.append("expected internal_timestamp mismatch, %.9f != %.9f (%.9f)" %
                 (self._string_to_ntp_date_time(expected_time), particle_timestamp,
                  self._string_to_ntp_date_time(expected_time)- particle_timestamp))
 

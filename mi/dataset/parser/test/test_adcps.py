@@ -33,7 +33,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	    }
 
 	# first AD tag from 871-1257 (there is 1 previous AD but the data is corrupted in it)
-	self.timestamp1 = 3583725977.0
+	self.timestamp1 = 3583725976.97
 	self.particle_a = AdcpsParserDataParticle(b'n\x7f\x02\x01m\x00\x00\x00\x002(\xdd\x07\x07\x19\x07\x1a' \
 	    '\x10aE#c\xff\r\x00m\x01\\(\x00\x00/\x01\x1c\xc9\xff\x1e\x00\xf9\xff\xca\xff\xd0\xff\xb5\xff\x8a' \
 	    '\xff\xa7\xff~\xff\x92\xff\x96\xff\xa1\xff]\xffc\xff\x86\xff_\xff\xd4\xff\xa5\xff\x95\xff\x87\xff' \
@@ -47,7 +47,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	    '\x00L\x00\x0e\x00\x00\x80\x91\x89',
               internal_timestamp=self.timestamp1, new_sequence=True)
 	# second AD block from 1447-1833
-	self.timestamp2 = 3583733177.0
+	self.timestamp2 = 3583733176.97
 	self.particle_b = AdcpsParserDataParticle(b'n\x7f\x02\x01o\x00\x00\x00\x002(\xdd\x07\x07\x19\t\x1a' \
 	    '\x10a\x7f:a\xff\n\x00m\x01[(\x00\x00/\x01\x1c\xea\xff\xe4\xff\xe8\xff\xb0\xff\xbf\xff\x98\xff' \
 	    '\xc2\xff\xdd\xff\xce\xff\xd7\xff\xaa\xff\x91\xff\x8a\xff\x96\xff\x83\xff\xda\xff\x81\xff\xb6' \
@@ -74,7 +74,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	    '\x00\xf7\xff\xd0\xff\xd5\xff\x00\x801n',
 	      internal_timestamp=self.timestamp2, new_sequence=True)
 	# third AD block 3827-4214
-	self.timestamp3 = 3583761977.0
+	self.timestamp3 = 3583761976.97
 	self.particle_c = AdcpsParserDataParticle(b'n\x7f\x02\x01w\x00\x00\x00\x002(\xdd\x07\x07\x19' \
 	    '\x11\x1a\x10a\xc9\x06d\xff\x04\x00m\x01!(\x00\x00/\x01\x1cZ\x00\xf8\xff\x0f\x00\xef\xff\xe8' \
 	    '\xff\xd7\xff\xe9\xff\xae\xff\xa2\xff\xd1\xff\xba\xff\xd3\xff\xf0\xff\xda\xff\xe7\xff\x05\x00' \
@@ -88,7 +88,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	    '\x00\xe6\xff\xf5\xff\xd4\xff\xce\xff\xf6\xffl\x00-\x00\x00\x80\x9b\x88',
               internal_timestamp = self.timestamp3, new_sequence=True)
 	# fourth AD block 4471-4857
-	self.timestamp4 = 3583769177.0
+	self.timestamp4 = 3583769176.97
 	self.particle_d = AdcpsParserDataParticle(b'n\x7f\x02\x01y\x00\x00\x00\x002(\xdd\x07\x07\x19\x13\x1a' \
 	    '\x10a\x9d\x1ba\xff\x06\x00m\x01$(\x00\x00/\x01\x1c\xf7\xff\xfa\xff\xd5\xff\xc5\xff\xb5\xff\x90' \
 	    '\xffb\xffn\xff\x90\xffq\xff\x9e\xff\x8c\xff\x93\xff\x80\xff\xa6\xff\x82\xff\xa9\xff\xa8\xff\xb4' \
@@ -102,7 +102,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	    '\x88\x00\x8e\x00\x00\x80\x1e\x7f',
               internal_timestamp = self.timestamp4, new_sequence=True)
 	# eleventh AD block 17981-18366
-	self.timestamp_k = 3583877177.0
+	self.timestamp_k = 3583877176.97
 	self.particle_k = AdcpsParserDataParticle(b'n\x7f\x02\x01\x97\x00\x00\x00\x002(\xdd\x07\x07\x1b\x01' \
 	    '\x1a\x10a\xe8,T\xff\x07\x00m\x01X(\x00\x00/\x01\x1c\xf6\xff1\x00\x17\x00 \x00\x15\x00/\x00\x16' \
 	    '\x00\x16\x00\x14\x00L\x00`\x00^\x00K\x00.\x001\x00%\x00\xf5\xff\xf1\xff\x95\xff\x9f\xff\x8a\xff' \
@@ -115,7 +115,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	    '\xfc\xff\x19\x00\xfa\xff\x07\x00\x16\x00\x10\x00\xe2\xff\x9c\xff#\x00\xd8\xff\x00\x80\xc1W',
               internal_timestamp = self.timestamp_k, new_sequence=True)
 	# twelvth AD block 18556-18943
-	self.timestamp_l = 3583884377.0
+	self.timestamp_l = 3583884376.97
 	self.particle_l = AdcpsParserDataParticle(b'n\x7f\x02\x01\x99\x00\x00\x00\x002(\xdd\x07\x07\x1b\x03' \
 	    '\x1a\x10a\x05\x02]\xff\n\x00j\x013(\x00\x00/\x01\x1c\xed\xff\x01\x00&\x00\'\x002\x00\x1b\x00#' \
 	    '\x00D\x00D\x00\xf4\xff&\x003\x00\x17\x00\x19\x00\xf3\xffc\x00\x02\x00\x0f\x00\xdb\xff\xe8\xff' \
@@ -143,13 +143,14 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(self.parser._state[StateKey.UNPROCESSED_DATA], unprocessed_data)
 	self.assertEqual(self.state_callback_value[StateKey.IN_PROCESS_DATA], in_process_data)
         self.assertEqual(self.state_callback_value[StateKey.UNPROCESSED_DATA], unprocessed_data)
-        self.assertEqual(self.state_callback_value[StateKey.TIMESTAMP], timestamp)
+        self.assertAlmostEqual(self.state_callback_value[StateKey.TIMESTAMP], timestamp, places=6)
 
     def test_simple(self):
 	"""
 	Read test data from the file and pull out data particles one at a time.
 	Assert that the results are those we expected.
 	"""
+	log.debug('Starting test_simple')
 	self.stream_handle = open(os.path.join(Metadata().resource_dir(),
 					       'node59p1_shorter.dat'))
 	# NOTE: using the unprocessed data state of 0,5000 limits the file to reading
@@ -184,6 +185,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	Read test data from the file and pull out multiple data particles at one time.
 	Assert that the results are those we expected.
 	"""
+	log.debug('Starting test_get_many')
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
 	    StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
         self.stream_handle = open(os.path.join(Metadata().resource_dir(),
@@ -204,6 +206,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	self.assertEqual(self.publish_callback_value[3], self.particle_d)
 
     def test_long_stream(self):
+	log.debug('Starting test_long_stream')
 	self.stream_handle = open(os.path.join(Metadata().resource_dir(),
 					       'node59p1_shorter.dat'))
 	data = self.stream_handle.read()
@@ -234,6 +237,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	"""
 	test starting a parser with a state in the middle of processing
 	"""
+	log.debug('Starting test_mid_state_start')
         new_state = {StateKey.IN_PROCESS_DATA:[],
 	    StateKey.UNPROCESSED_DATA:[[0,32], [222,871], [1447,5000]],
 	    StateKey.TIMESTAMP:self.timestamp1}
@@ -256,6 +260,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	"""
 	test starting a parser with a state in the middle of processing
 	"""
+	log.debug('Starting test_in_process_start')
         new_state = {StateKey.IN_PROCESS_DATA:[[1447,1833,1,0,0],[3827,4214,1,0,1],[4471,4857,1,0,1]],
 	    StateKey.UNPROCESSED_DATA:[[0,32], [222,871],[1447,3058],[3248,4281],[4471,5000]],
 	    StateKey.TIMESTAMP:self.timestamp4}
@@ -283,6 +288,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	"""
 	test changing the state after initializing
 	"""
+	log.debug('Starting test_set_state')
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 4500]], StateKey.IN_PROCESS_DATA:[],
 	    StateKey.TIMESTAMP:0.0}
         new_state = {StateKey.UNPROCESSED_DATA:[[0,32],[222,871],[1833,3058],[3248,3827],[4214,4281],[4471,5000]],
@@ -313,6 +319,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	Test a file which has had a section of data replaced by 0s, as if a block of data has not been received yet,
 	then using the returned state make a new parser with the test data that has the 0s filled in
 	"""
+	log.debug('Starting test_update')
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
 	    StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
 	# this file has a block of AD data replaced by 0s

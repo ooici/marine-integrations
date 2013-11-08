@@ -33,13 +33,13 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    }
 
 	# first DO tag
-	self.timestamp1 = 3583581301.0
+	self.timestamp1 = 3583610101.0
 	self.particle_a = DostadParserDataParticle('\xff\x11\x25\x11' \
 	    '4831	128	302.636	98.918	16.355	30.771	' \
 	    '30.771	36.199	5.429	1309.9	1175.7	299.6\x0d\x0a',
               internal_timestamp=self.timestamp1, new_sequence=True)
 
-	self.timestamp2 = 3583584001.0
+	self.timestamp2 = 3583612801.0
 	self.particle_b = DostadParserDataParticle('\xff\x11\x25\x11' \
 	    '4831	128	317.073	98.515	14.004	31.299	31.299' \
 	    '	36.647	5.349	1338.5	1212.4	375.8\x0d\x0a',
@@ -49,7 +49,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    '	36.647	5.349	1338.5	1212.4	375.8\x0d\x0a',
               internal_timestamp=self.timestamp2, new_sequence=True)
 
-	self.timestamp3 = 3583605601.0
+	self.timestamp3 = 3583634401.0
 	self.particle_c = DostadParserDataParticle('\xff\x11\x25\x11' \
 	    '4831	128	326.544	96.726	11.873	31.965	31.965' \
 	    '	37.134	5.169	1370.7	1245.9	444.4\x0d\x0a',
@@ -59,19 +59,19 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    '	37.134	5.169	1370.7	1245.9	444.4\x0d\x0a',
               internal_timestamp=self.timestamp3, new_sequence=True)
 
-	self.timestamp4 = 3583627202.0
+	self.timestamp4 = 3583656002.0
 	self.particle_d = DostadParserDataParticle('\xff\x11\x25\x11' \
 	    '4831	128	332.060	99.617	12.432	31.490	31.490' \
 	    '	36.812	5.323	1026.0	1100.0	426.5\x0d\x0a',
               internal_timestamp=self.timestamp4, new_sequence=True)
 
-	self.timestamp5 = 3583648802.0
+	self.timestamp5 = 3583677602.0
 	self.particle_e = DostadParserDataParticle('\xff\x11\x25\x11' \
 	    '4831	128	354.515	101.592	10.440	31.666	31.666' \
 	    '	36.930	5.263	1020.1	1123.0	490.0\x0d\x0a',
               internal_timestamp=self.timestamp5, new_sequence=False)
 
-	self.timestamp6 = 3583670402.0
+	self.timestamp6 = 3583699202.0
 	self.particle_f = DostadParserDataParticle('\xff\x11\x25\x11' \
 	    '4831	128	337.540	100.172	11.955	31.521	31.521' \
 	    '	36.805	5.284	983.8	1092.6	441.7\x0d\x0a',
