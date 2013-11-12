@@ -256,14 +256,6 @@ class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
         super(QualificationTest, self).setUp()
 
-    def test_initialize(self):
-        """
-        Test that we can start the container and initialize the dataset agent.
-        """
-        self.assert_initialize()
-        self.assert_stop_sampling()
-        self.assert_reset()
-
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
