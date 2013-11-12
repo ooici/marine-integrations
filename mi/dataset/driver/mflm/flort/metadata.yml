@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Emily Hahn
+  constructor: MflmFLORTDDataSetDriver
+  driver_name: mflm_flort
+  driver_path: mflm/flort
+  email: ehahn@bbn.com
+  release_notes: initial release
+  version: 0.0.1
