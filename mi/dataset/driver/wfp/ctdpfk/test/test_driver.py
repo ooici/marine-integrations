@@ -324,26 +324,6 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    def test_missing_directory(self):
-        """
-        Test starting the driver when the data directory doesn't exists.  This
-        should prevent the driver from going into streaming mode.  When the
-        directory is created then we should be able to transition into streaming.
-        """
-        self.remove_sample_dir()
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        self.event_subscribers.clear_events()
-        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
-
-        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
-        self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
-
-        self.create_data_dir()
-
-        # Should automatically retry connect and transition to streaming
-        self.assert_state_change(ResourceAgentState.STREAMING, 90)
-
     def test_harvester_new_file_exception(self):
         """
         Test an exception raised after the driver is started during
