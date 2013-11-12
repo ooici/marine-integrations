@@ -99,21 +99,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 self.state_callback,
                 self.exception_callback)
 
-    def test_harvester_new_file_exception(self):
-        """
-        Test an exception raised after the driver is started during
-        the file read.  Should call the exception callback.
-        """
-        self.clear_sample_data()
-        # create the file so that it is unreadable
-        self.create_sample_data('C0000181.TXT', mode=000)
-        # Start sampling and watch for an exception
-        self.driver.start_sampling()
-        self.assert_exception(IOError)
-
-        # At this point the harvester thread is dead.  The agent
-        # exception handle should handle this case.
-
     def test_parameters(self):
         """
         Verify that we can get, set, and report all driver parameters.
