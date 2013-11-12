@@ -12,17 +12,15 @@ files. It initially holds SBE52-specific logic, ultimately more than that.
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
-import copy
 import re
-import time
-import ntplib
-from dateutil import parser
+import copy
 from functools import partial
 
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum
-from mi.core.exceptions import SampleException, DatasetParserException
+from mi.core.exceptions import SampleException
+from mi.dataset.parser.ctdpf import CtdpfParser, CtdpfParserDataParticle
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.dataset.dataset_parser import BufferLoadingParser
@@ -36,7 +34,7 @@ DATA_MATCHER = re.compile(DATA_REGEX, re.DOTALL)
 DATE_REGEX = r'(\d{2})/(\d{2})/(\d{4}) (\d{2}):(\d{2}):(\d{2})'
 DATE_MATCHER = re.compile(DATE_REGEX)
 
-# TODO: This should be passed in as a parameter so the driver can define the particle name.
+
 class DataParticleType(BaseEnum):
     SAMPLE = 'ctdpfk_parsed'
 
@@ -53,7 +51,7 @@ class StateKey(BaseEnum):
     TIMESTAMP = "timestamp"
 
 
-class CtdpfkParserDataParticle(DataParticle):
+class CtdpfkParserDataParticle(CtdpfParserDataParticle):
     """
     Class for parsing data from the CTDPF instrument on a HYPM SP platform node
     """
@@ -91,18 +89,9 @@ class CtdpfkParserDataParticle(DataParticle):
         log.trace('CtdpfkParserDataParticle: particle=%s', result)
         return result
 
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data and timestamp, they are the same enough for this particle
-        """
-        if ((self.raw_data == arg.raw_data) and
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            return False
 
-class CtdpfkParser(BufferLoadingParser):
+
+class CtdpfkParser(CtdpfParser):
 
     def __init__(self,
                  config,
@@ -111,7 +100,7 @@ class CtdpfkParser(BufferLoadingParser):
                  state_callback,
                  publish_callback,
                  *args, **kwargs):
-        super(CtdpfkParser, self).__init__(config,
+        super(BufferLoadingParser, self).__init__(config,
                                           stream_handle,
                                           state,
                                           partial(StringChunker.regex_sieve_function,
@@ -129,85 +118,8 @@ class CtdpfkParser(BufferLoadingParser):
         if state:
             self.set_state(self._state)
 
-    def set_state(self, state_obj):
-        """
-        Set the value of the state object for this parser
-        @param state_obj The object to set the state to. Should be a list with
-        a StateKey.POSITION value and StateKey.TIMESTAMP value. The position is
-        number of bytes into the file, the timestamp is an NTP4 format timestamp.
-        @throws DatasetParserException if there is a bad state structure
-        """
-        log.trace("Attempting to set state to: %s", state_obj)
-        if not isinstance(state_obj, dict):
-            raise DatasetParserException("Invalid state structure")
-        if not ((StateKey.POSITION in state_obj) and (StateKey.TIMESTAMP in state_obj)):
-            raise DatasetParserException("Invalid state keys")
 
-        self._timestamp = state_obj[StateKey.TIMESTAMP]
-        self._timestamp += 1
-        self._record_buffer = []
-        self._state = state_obj
-        self._read_state = state_obj
 
-        # seek to it
-        self._stream_handle.seek(state_obj[StateKey.POSITION])
-
-    @staticmethod
-    def _convert_string_to_timestamp(ts_str):
-        """
-        Converts the given string from this data stream's format into an NTP
-        timestamp. This is very likely instrument specific.
-        @param ts_str The timestamp string in the format "mm/dd/yyyy hh:mm:ss"
-        @retval The NTP4 timestamp
-        """
-
-        match = DATE_MATCHER.match(ts_str)
-        if not match:
-            raise ValueError("Invalid time format: %s" % ts_str)
-
-        zulu_ts = "%04d-%02d-%02dT%02d:%02d:%02dZ" % (
-            int(match.group(3)), int(match.group(1)), int(match.group(2)),
-            int(match.group(4)), int(match.group(5)), int(match.group(6))
-        )
-        log.trace("converted ts '%s' to '%s'", ts_str, zulu_ts)
-
-        localtime_offset = float(parser.parse("1970-01-01T00:00:00.00Z").strftime("%s.%f"))
-        converted_time = float(parser.parse(zulu_ts).strftime("%s.%f"))
-        adjusted_time = round(converted_time - localtime_offset)
-        ntptime = ntplib.system_to_ntp_time(adjusted_time)
-
-        log.trace("Converted time \"%s\" (unix: %s) into %s", ts_str, adjusted_time, ntptime)
-        return ntptime
-
-    def _increment_timestamp(self, increment=1):
-        """
-        Increment timestamp by a certain amount in seconds. By default this
-        dataset definition takes one sample per minute between lines. This method
-        is designed to be called with each sample line collected. Override this
-        as needed in subclasses
-        @param increment Number of seconds in increment the timestamp.
-        """
-
-        self._timestamp += increment
-
-    def _increment_state(self, increment, timestamp):
-        """
-        Increment the parser position by a certain amount in bytes. This
-        indicates what has been READ from the file, not what has been published.
-        The increment takes into account a timestamp of WHEN in the data the
-        position corresponds to. This allows a reload of both timestamp and the
-        position.
-
-        This is a base implementation, override as needed.
-
-        @param increment Number of bytes to increment the parser position.
-        @param timestamp The timestamp completed up to that position
-        """
-        log.trace("Incrementing current state: %s with inc: %s, timestamp: %s",
-                  self._read_state, increment, timestamp)
-
-        self._read_state[StateKey.POSITION] += increment
-        self._read_state[StateKey.TIMESTAMP] = timestamp
 
     def parse_chunks(self):
         """
@@ -228,7 +140,6 @@ class CtdpfkParser(BufferLoadingParser):
             data_match = DATA_MATCHER.match(chunk)
             if time_match:
                 log.trace("Encountered timestamp in data stream: %s", time_match.group(1))
-
                 self._timestamp = self._convert_string_to_timestamp(time_match.group(1))
                 self._increment_state(end, self._timestamp)
 
