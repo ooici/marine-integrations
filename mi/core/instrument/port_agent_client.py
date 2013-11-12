@@ -107,7 +107,7 @@ class PortAgentPacket():
         upper = variable_tuple[TIMESTAMP_UPPER_INDEX]
         lower = variable_tuple[TIMESTAMP_LOWER_INDEX]
         self.__port_agent_timestamp = float("%s.%s" % (upper, lower))
-        log.debug("port_timestamp: %f", self.__port_agent_timestamp)
+        #log.trace("port_timestamp: %f", self.__port_agent_timestamp)
 
     def pack_header(self):
         """
