@@ -76,8 +76,8 @@ DataSetTestCase.initialize(
 SAMPLE_STREAM='ctdpfk_parsed'
 
 ###############################################################################
-#                                UNIT TESTS                                   #
-# Device specific unit tests are for                                          #
+#                                INT TESTS                                   #
+# Device specific integration tests are for                                          #
 # testing device specific capabilities                                        #
 ###############################################################################
 
