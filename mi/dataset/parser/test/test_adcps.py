@@ -6,13 +6,17 @@ import os
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger ; log = get_logger()
-from mi.idk.dataset.metadata import Metadata
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.parser.mflm import StateKey
 from mi.dataset.parser.adcps import AdcpsParser, AdcpsParserDataParticle
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
+
+from mi.idk.config import Config
+RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
+			     'dataset', 'driver', 'mflm',
+			     'adcp', 'resource')
 
 @attr('UNIT', group='mi')
 class AdcpsParserUnitTestCase(ParserUnitTestCase):
@@ -151,7 +155,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	Assert that the results are those we expected.
 	"""
 	log.debug('Starting test_simple')
-	self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+	self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
 	# NOTE: using the unprocessed data state of 0,5000 limits the file to reading
 	# just 5000 bytes, so even though the file is longer it only reads the first
@@ -188,7 +192,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	log.debug('Starting test_get_many')
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
 	    StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
         self.parser = AdcpsParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -207,7 +211,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 
     def test_long_stream(self):
 	log.debug('Starting test_long_stream')
-	self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+	self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
 	data = self.stream_handle.read()
 	data_len = len(data)
@@ -241,7 +245,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         new_state = {StateKey.IN_PROCESS_DATA:[],
 	    StateKey.UNPROCESSED_DATA:[[0,32], [222,871], [1447,5000]],
 	    StateKey.TIMESTAMP:self.timestamp1}
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
         self.parser = AdcpsParser(self.config, new_state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -264,7 +268,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         new_state = {StateKey.IN_PROCESS_DATA:[[1447,1833,1,0,0],[3827,4214,1,0,1],[4471,4857,1,0,1]],
 	    StateKey.UNPROCESSED_DATA:[[0,32], [222,871],[1447,3058],[3248,4281],[4471,5000]],
 	    StateKey.TIMESTAMP:self.timestamp4}
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
         self.parser = AdcpsParser(self.config, new_state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -295,7 +299,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	    StateKey.IN_PROCESS_DATA:[],
 	    StateKey.TIMESTAMP:self.timestamp2}
 
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
         self.parser = AdcpsParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -323,7 +327,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
 	    StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
 	# this file has a block of AD data replaced by 0s
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_replaced.dat'))
         self.parser = AdcpsParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -340,7 +344,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 
 	next_state = self.parser._state
 	# this file has the block of CT data that was missing in the previous file
-	self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+	self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
 	self.parser = AdcpsParser(self.config, next_state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source

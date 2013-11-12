@@ -16,27 +16,31 @@ import string
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
+from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_first}Parser, ${full_instrument_first}ParserDataParticle
 
 class ${constructor}(SimpleDataSetDriver):
     
     @classmethod
     def stream_config(cls):
-        # Fill in below with particle stream
-        return []
+        return [${full_instrument_first}ParserDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
         """
         Build and return the parser
         """
         config = self._parser_config
-        # Fill in blanks with particle info
         config.update({
-            'particle_module': '',
-            'particle_class': ''
+            'particle_module': 'mi.dataset.parser.${full_instrument_lower}',
+            'particle_class': '${full_instrument_first}ParserDataParticle'
         })
         log.debug("My Config: %s", config)
-        # *** Replace the following with parser initialization ***
-        self._parser = None
+        self._parser = ${full_instrument_first}Parser(
+            config,
+            parser_state,
+            infile,
+            self._save_parser_state,
+            self._data_callback
+        )
         return self._parser
 
     def _build_harvester(self, harvester_state):

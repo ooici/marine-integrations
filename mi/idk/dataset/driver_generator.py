@@ -189,6 +189,8 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
             'driver_path': self.metadata.driver_path,
             'release_notes': self.metadata.notes,
             'constructor': self.metadata.constructor,
+            'full_instrument_lower': self.metadata.full_instrument_name.lower(),
+            'full_instrument_first': self.full_instrument_name_first_cap(),
         }
 
     def _parser_template_data(self):

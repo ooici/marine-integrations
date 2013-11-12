@@ -57,7 +57,7 @@ SAMPLE_STREAM = '${full_instrument_lower}_parsed'
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
-        
+ 
     def test_get(self):
         """
         Test that we can get data from files.  Verify that the driver
@@ -86,7 +86,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
         super(QualificationTest, self).setUp()
-    
+
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is

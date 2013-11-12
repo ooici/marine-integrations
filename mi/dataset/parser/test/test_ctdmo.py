@@ -7,13 +7,17 @@ from nose.plugins.attrib import attr
 from StringIO import StringIO
 
 from mi.core.log import get_logger ; log = get_logger()
-from mi.idk.dataset.metadata import Metadata
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.parser.mflm import StateKey
 from mi.dataset.parser.ctdmo import CtdmoParser, CtdmoParserDataParticle
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
+
+from mi.idk.config import Config
+RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
+			     'dataset', 'driver', 'mflm',
+			     'ctd', 'resource')
 
 @attr('UNIT', group='mi')
 class CtdmoParserUnitTestCase(ParserUnitTestCase):
@@ -91,7 +95,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 	"""
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 6000]],
 	    StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
-	self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+	self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
 	self.parser = CtdmoParser(self.config, self.state, self.stream_handle,
 				  self.state_callback, self.pub_callback)
@@ -125,7 +129,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 	"""
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 6000]],
 	    StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
         self.parser = CtdmoParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -142,7 +146,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
     def test_long_stream(self):
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 8000]],
 	    StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
         self.parser = CtdmoParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -171,7 +175,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         new_state = {StateKey.IN_PROCESS_DATA:[],
 	    StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [467, 2010], [5354, 6000]],
 	    StateKey.TIMESTAMP:self.timestamp1}
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
         self.parser = CtdmoParser(self.config, new_state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -188,7 +192,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         new_state = {StateKey.IN_PROCESS_DATA:[[5354, 5544, 12, 1, 1]],
 	    StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [467, 2010], [5354, 7160]],
 	    StateKey.TIMESTAMP:self.timestamp2}
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
         self.parser = CtdmoParser(self.config, new_state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -214,7 +218,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 	    StateKey.IN_PROCESS_DATA:[],
 	    StateKey.TIMESTAMP:self.timestamp1}
 
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
         self.parser = CtdmoParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -238,7 +242,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 7160]],
 	    StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
 	# this file has a block of CT data replaced by 0s
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_replace.dat'))
         self.parser = CtdmoParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -263,7 +267,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 
 	next_state = self.parser._state
 	# this file has the block of CT data that was missing in the previous file
-	self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+	self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
 	self.parser = CtdmoParser(self.config, next_state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
