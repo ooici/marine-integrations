@@ -6,13 +6,17 @@ import os
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger ; log = get_logger()
-from mi.idk.dataset.metadata import Metadata
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.parser.mflm import StateKey
 from mi.dataset.parser.dostad import DostadParser, DostadParserDataParticle
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
+
+from mi.idk.config import Config
+RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
+			     'dataset', 'driver', 'mflm',
+			     'dosta', 'resource')
 
 @attr('UNIT', group='mi')
 class DostadParserUnitTestCase(ParserUnitTestCase):
@@ -98,7 +102,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	Read test data from the file and pull out data particles one at a time.
 	Assert that the results are those we expected.
 	"""
-	self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+	self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
 	# NOTE: using the unprocessed data state of 0,6300 limits the file to reading
 	# just 6300 bytes, so even though the file is longer it only reads the first
@@ -138,7 +142,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	"""
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 1000]],
 	    StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
         self.parser = DostadParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -155,7 +159,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	self.assertEqual(self.publish_callback_value[2], self.particle_c)
 
     def test_long_stream(self):
-	self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+	self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
 	data = self.stream_handle.read()
 	data_len = len(data)
@@ -186,7 +190,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         new_state = {StateKey.IN_PROCESS_DATA:[],
 	    StateKey.UNPROCESSED_DATA:[[0,69], [314,1000]],
 	    StateKey.TIMESTAMP:self.timestamp1}
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
         self.parser = DostadParser(self.config, new_state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -207,7 +211,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         new_state = {StateKey.IN_PROCESS_DATA:[[390, 507, 1, 0, 0], [637, 754, 1, 0, 0]],
 	    StateKey.UNPROCESSED_DATA:[[0,69], [390,507], [637,754], [944,6300]],
 	    StateKey.TIMESTAMP:self.timestamp3}
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
         self.parser = DostadParser(self.config, new_state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -238,7 +242,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	    StateKey.IN_PROCESS_DATA:[],
 	    StateKey.TIMESTAMP:self.timestamp2}
 
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
         self.parser = DostadParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -266,7 +270,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	self.state = {StateKey.UNPROCESSED_DATA:[[0, 6300]],
 	    StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
 	# this file has a block of FL data replaced by 0s
-        self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_replaced.dat'))
         self.parser = DostadParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source
@@ -285,7 +289,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 
 	next_state = self.parser._state
 	# this file has the block of data that was missing in the previous file
-	self.stream_handle = open(os.path.join(Metadata().resource_dir(),
+	self.stream_handle = open(os.path.join(RESOURCE_PATH,
 					       'node59p1_shorter.dat'))
 	self.parser = DostadParser(self.config, next_state, self.stream_handle,
                                   self.state_callback, self.pub_callback) # last one is the link to the data source

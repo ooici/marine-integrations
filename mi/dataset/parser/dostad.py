@@ -11,16 +11,12 @@ __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
 import re
-import binascii
 from datetime import datetime
 import ntplib
-import time
 
 from mi.core.log import get_logger; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-
-from dateutil import parser
 from mi.dataset.parser.mflm import MflmParser, SIO_HEADER_MATCHER
 from mi.core.exceptions import SampleException, DatasetParserException
 
