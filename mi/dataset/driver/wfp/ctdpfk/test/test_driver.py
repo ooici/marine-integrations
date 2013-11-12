@@ -285,57 +285,6 @@ class QualificationTest(DataSetQualificationTestCase):
 
         result = self.get_samples(SAMPLE_STREAM,303,120)
 
-    def test_resource_parameters(self):
-        """
-        verify we can get a resource parameter lists and get/set parameters.
-        """
-        def sort_capabilities(caps_list):
-            '''
-            sort a return value into capability buckets.
-            @retval agt_cmds, agt_pars, res_cmds, res_iface, res_pars
-            '''
-            agt_cmds = []
-            agt_pars = []
-            res_cmds = []
-            res_iface = []
-            res_pars = []
-
-            if len(caps_list)>0 and isinstance(caps_list[0], AgentCapability):
-                agt_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_CMD]
-                agt_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_PAR]
-                res_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_CMD]
-                #res_iface = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_IFACE]
-                res_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_PAR]
-
-            elif len(caps_list)>0 and isinstance(caps_list[0], dict):
-                agt_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_CMD]
-                agt_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_PAR]
-                res_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_CMD]
-                #res_iface = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_IFACE]
-                res_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_PAR]
-
-            agt_cmds.sort()
-            agt_pars.sort()
-            res_cmds.sort()
-            res_iface.sort()
-            res_pars.sort()
-
-            return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
-
-        log.debug("Initialize the agent")
-        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        log.debug("Call get capabilities")
-        retval = self.dataset_agent_client.get_capabilities()
-        log.debug("Capabilities: %s", retval)
-        agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
-        self.assertEqual(sorted(res_pars), sorted(expected_params))
-
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 20})
-        reply = self.dataset_agent_client.get_resource(DriverParameter.ALL)
-        log.debug("Get Resource Result: %s", reply)
-
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
