@@ -6,7 +6,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-09-05T02:48:15.07373'
     m_present_time: 1378349295.07373
     m_present_secs_into_mission: 121200
@@ -33,7 +33,7 @@ data:
     sci_flbb_bb_units: 0.000327355
     sci_flbb_chlor_units: 1.708
   - _index: 4
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-09-05T02:47:14.75079'
     m_present_time: 1378349234.75079
     m_present_secs_into_mission: 121140

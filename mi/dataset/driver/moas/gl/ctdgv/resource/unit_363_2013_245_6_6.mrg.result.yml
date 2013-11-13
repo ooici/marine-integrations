@@ -6,7 +6,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: 07/26/2013 21:01:03
     m_present_time: x
     m_present_secs_into_mission: x
