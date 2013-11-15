@@ -74,7 +74,7 @@ class Parser(object):
            be in for this state. This structure should look like what was
            published for the last state.
         """
-        raise NotImplementedException("get_records() not overridden!")
+        raise NotImplementedException("set_state() not overridden!")
     
     def _publish_sample(self, samples):
         """

@@ -574,7 +574,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
 
             # Check for timeout
             if(start_time + timeout < time.time()):
-                raise SampleTimeout()
+                raise SampleTimeout("DataSetQualificationTestCase.get_samples")
 
             if(not self.data_subscribers.samples_received.has_key(stream_name) or
                len(self.data_subscribers.samples_received.get(stream_name)) == 0):

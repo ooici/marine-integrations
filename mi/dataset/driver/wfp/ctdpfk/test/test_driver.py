@@ -1,8 +1,9 @@
 """
-@package mi.dataset.driver.hypm.ctd.test.test_driver
-@file marine-integrations/mi/dataset/driver/hypm/ctd/test/test_driver.py
-@author Bill French
-@brief Test cases for hypm/ctd driver
+@package mi.dataset.driver.wfp.ctdpfk.test.test_driver
+@file marine-integrations/mi/dataset/driver/wfp/ctdpfk/test/test_driver.py
+@author Bill French (template)
+@author Roger Unwin 
+@brief Test cases for wfp/ctdpfk driver
 
 USAGE:
  Make tests verbose and provide stdout
@@ -12,7 +13,7 @@ USAGE:
        $ bin/test_driver -q [-t testname]
 """
 
-__author__ = 'Bill French'
+__author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
 import unittest
@@ -41,12 +42,12 @@ from mi.idk.exceptions import SampleTimeout
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverEvent
-from mi.dataset.parser.ctdpf import CtdpfParser
-from mi.dataset.parser.test.test_ctdpf import CtdpfParserUnitTestCase
+from mi.dataset.parser.ctdpfk import CtdpfkParser
+from mi.dataset.parser.test.test_ctdpfk import CtdpfkParserUnitTestCase
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
-from mi.dataset.driver.hypm.ctd.driver import HypmCTDPFDataSetDriver
+from mi.dataset.driver.wfp.ctdpfk.driver import WfpCTDPFKDataSetDriver
 
-from mi.dataset.parser.ctdpf import CtdpfParserDataParticle
+from mi.dataset.parser.ctdpfk import CtdpfkParserDataParticle
 from pyon.agent.agent import ResourceAgentState
 
 from interface.objects import CapabilityType
@@ -55,60 +56,36 @@ from interface.objects import ResourceAgentErrorEvent
 from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 DataSetTestCase.initialize(
-    driver_module='mi.dataset.driver.hypm.ctd.driver',
-    driver_class="HypmCTDPFDataSetDriver",
+    driver_module='mi.dataset.driver.wfp.ctdpfk.driver',
+    driver_class="WfpCTDPFKDataSetDriver",
 
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = HypmCTDPFDataSetDriver.stream_config(),
+    agent_packet_config = WfpCTDPFKDataSetDriver.stream_config(),
     startup_config = {
         'harvester':
         {
             'directory': '/tmp/dsatest',
-            'pattern': '*.txt',
+            'pattern': '*.TXT',
             'frequency': 1,
         },
         'parser': {}
     }
 )
 
-SAMPLE_STREAM='ctdpf_parsed'
-    
+SAMPLE_STREAM='ctdpfk_parsed'
+
 ###############################################################################
 #                                INT TESTS                                   #
-# Device specific unit tests are for                                          #
+# Device specific integration tests are for                                          #
 # testing device specific capabilities                                        #
 ###############################################################################
+
+
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
-    def test_get(self):
-        """
-        Test that we can get data from files.  Verify that the driver sampling
-        can be started and stopped.
-        """
-        self.clear_sample_data()
-
-        # Start sampling and watch for an exception
-        self.driver.start_sampling()
-
-        self.clear_async_data()
-        self.create_sample_data('test_data_1.txt', "DATA001.txt")
-        self.assert_data(CtdpfParserDataParticle, 'test_data_1.txt.result.yml', count=1, timeout=10)
-
-        self.clear_async_data()
-        self.create_sample_data('test_data_3.txt', "DATA002.txt")
-        self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.result.yml', count=8, timeout=10)
-
-        self.clear_async_data()
-        self.create_sample_data('DATA003.txt')
-        self.assert_data(CtdpfParserDataParticle, count=436, timeout=20)
-
-        self.driver.stop_sampling()
-        self.driver.start_sampling()
-
-        self.clear_async_data()
-        self.create_sample_data('test_data_1.txt', "DATA004.txt")
-        self.assert_data(CtdpfParserDataParticle, count=1, timeout=10)
+    def setUp(self):
+        super(IntegrationTest, self).setUp()
 
     def test_harvester_config_exception(self):
         """
@@ -116,35 +93,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
         an exception.
         """
         with self.assertRaises(ConfigurationException):
-            self.driver = HypmCTDPFDataSetDriver({},
+            self.driver = WfpCTDPFKDataSetDriver({},
                 self.memento,
                 self.data_callback,
                 self.state_callback,
                 self.exception_callback)
-
-    def test_stop_resume(self):
-        """
-        Test the ability to stop and restart the process
-        """
-        # Create and store the new driver state
-        self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.txt',
-                        DataSourceConfigKey.PARSER: {'position': 209, 'timestamp': 3583861265.0}}
-        self.driver = HypmCTDPFDataSetDriver(
-            self._driver_config()['startup_config'],
-            self.memento,
-            self.data_callback,
-            self.state_callback,
-            self.exception_callback)
-
-        # create some data to parse
-        self.clear_async_data()
-        self.create_sample_data('test_data_1.txt', "DATA001.txt")
-        self.create_sample_data('test_data_3.txt', "DATA002.txt")
-
-        self.driver.start_sampling()
-
-        # verify data is produced
-        self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.partial_results.yml', count=5, timeout=10)
 
     def test_parameters(self):
         """
@@ -207,7 +160,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 DriverParameter.BATCHED_PARTICLE_COUNT: 3,
             }
         }
-        self.driver = HypmCTDPFDataSetDriver(
+        self.driver = WfpCTDPFKDataSetDriver(
             cfg,
             self.memento,
             self.data_callback,
@@ -229,42 +182,66 @@ class IntegrationTest(DataSetIntegrationTestCase):
         }
 
         with self.assertRaises(KeyError):
-            self.driver = HypmCTDPFDataSetDriver(
+            self.driver = WfpCTDPFKDataSetDriver(
                 cfg,
                 self.memento,
                 self.data_callback,
                 self.state_callback,
                 self.exception_callback)
 
-    def test_sequences(self):
+    def test_get(self):
         """
-        Test new sequence flags are set correctly
+        Test that we can get data from files.  Verify that the driver sampling
+        can be started and stopped.
         """
-
-        ###
-        #   One file, no breaks, should only have 1 new sequence flag
-        #   New sequence flag when a new file is read
-        ###
         self.clear_sample_data()
 
+        # Start sampling and watch for an exception
         self.driver.start_sampling()
 
         self.clear_async_data()
-        self.create_sample_data('test_data_1.txt', "DATA001.txt")
-        self.assert_data(CtdpfParserDataParticle, 'test_data_1.txt.result.yml', count=1, timeout=10)
+        self.create_sample_data('test_data_1.txt', "DATA001.TXT")
+        self.assert_data(CtdpfkParserDataParticle, 'test_data_1.txt.result.yml', count=1, timeout=10)
 
         self.clear_async_data()
-        self.create_sample_data('test_data_3.txt', "DATA002.txt")
-        self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.result.yml', count=8, timeout=10)
+        self.create_sample_data('test_data_3.txt', "DATA002.TXT")
+        self.assert_data(CtdpfkParserDataParticle, 'test_data_3.txt.result.yml', count=8, timeout=10)
 
-        ###
-        #   New sequence flag when noise if detected between records
-        ###
         self.clear_async_data()
-        self.create_sample_data('test_data_4.txt', "DATA004.txt")
-        self.assert_data(CtdpfParserDataParticle, 'test_data_4.txt.result.yml', count=8, timeout=10)
+        self.create_sample_data('C0000181.TXT', "DATA003.TXT")
+        self.assert_data(CtdpfkParserDataParticle, count=303, timeout=300) # 20
 
-        ###  Exceptions in the publisher are handled in the agent
+        self.driver.stop_sampling()
+        self.driver.start_sampling()
+
+        self.clear_async_data()
+        self.create_sample_data('test_data_1.txt', "DATA004.TXT")
+        self.assert_data(CtdpfkParserDataParticle, count=1, timeout=10)
+
+    def test_stop_resume(self):
+        """
+        Test the ability to stop and restart the process
+        """
+        # Create and store the new driver state
+        #"""
+        self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.TXT',
+                        DataSourceConfigKey.PARSER: {'position': 201, 'timestamp': 3575062804.0}}
+        self.driver = WfpCTDPFKDataSetDriver(
+            self._driver_config()['startup_config'],
+            self.memento,
+            self.data_callback,
+            self.state_callback,
+            self.exception_callback)
+        #"""
+        # create some data to parse
+        self.clear_async_data()
+        self.create_sample_data('test_data_1.txt', "DATA001.TXT")
+        self.create_sample_data('test_data_3.txt', "DATA002.TXT")
+
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(CtdpfkParserDataParticle, 'test_data_3.txt.partial_results.yml', count=5, timeout=10)
 
 
 ###############################################################################
@@ -284,9 +261,8 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        self.create_sample_data('test_data_1.txt', 'DATA001.txt')
+        self.create_sample_data('test_data_1.txt', 'DATA001.TXT')
         self.assert_initialize()
-
         # Verify we get one sample
         try:
             result = self.data_subscribers.get_samples(SAMPLE_STREAM)
@@ -304,18 +280,17 @@ class QualificationTest(DataSetQualificationTestCase):
         there was speculation this was due to blocking behavior in the agent.
         https://jira.oceanobservatories.org/tasks/browse/OOIION-1284
         """
-        self.create_sample_data('DATA003.txt')
+        self.create_sample_data('C0000181.TXT', 'C0000181.TXT')
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,436,120)
+        result = self.get_samples(SAMPLE_STREAM,303,120)
 
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        log.error("CONFIG: %s", self._agent_config())
-        self.create_sample_data('test_data_1.txt', 'DATA001.txt')
+        self.create_sample_data('test_data_1.txt', 'DATA001.TXT')
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -327,14 +302,14 @@ class QualificationTest(DataSetQualificationTestCase):
         try:
             # Read the first file and verify the data
             result = self.get_samples(SAMPLE_STREAM)
-            log.debug("RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
-            self.create_sample_data('test_data_3.txt', 'DATA003.txt')
+            self.create_sample_data('test_data_3.txt', 'DATA003.TXT')
             # Now read the first three records of the second file then stop
+
             result = self.get_samples(SAMPLE_STREAM, 3)
             self.assert_stop_sampling()
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
@@ -355,7 +330,7 @@ class QualificationTest(DataSetQualificationTestCase):
         record parsing.
         """
         self.clear_sample_data()
-        self.create_sample_data('test_data_2.txt', 'DATA002.txt')
+        self.create_sample_data('test_data_2.txt', 'DATA002.TXT')
 
         self.assert_initialize()
 
