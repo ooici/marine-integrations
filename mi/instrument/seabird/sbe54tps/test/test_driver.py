@@ -888,14 +888,6 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest, SeaBird54tpsMixin
         self.assert_get_parameter(Parameter.SAMPLE_PERIOD, 10)
 
         ###
-        # Test direct access inactivity timeout
-        ###
-        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
-        self.tcp_client.send_data("%sStart%s" % (NEWLINE, NEWLINE))
-        gevent.sleep(3)
-        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 60)
-
-        ###
         # Test session timeout without activity
         ###
         self.assert_direct_access_start_telnet(inactivity_timeout=120, session_timeout=30)
@@ -915,7 +907,7 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest, SeaBird54tpsMixin
             log.debug("Sending a little keep alive communication, sleeping for 15 seconds")
             gevent.sleep(15)
 
-        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 45)
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 75)
 
         ###
         # Test direct access disconnect
