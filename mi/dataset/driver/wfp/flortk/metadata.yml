@@ -1,0 +1,8 @@
+driver_metadata:
+  version: 0.0.1
+  author: Roger Unwin
+  constructor: WfpFLORTKDataSetDriver
+  driver_name: wfp_flortk
+  driver_path: wfp/flortk
+  release_notes: 
+  email: raunwin@ucsd.edu

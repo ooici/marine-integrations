@@ -1,0 +1,8 @@
+driver_metadata:
+  version: 0.0.1
+  author: Roger Unwin
+  constructor: WfpPARADKDataSetDriver
+  driver_name: wfp_paradk
+  driver_path: wfp/paradk
+  release_notes: 
+  email: raunwin@ucsd.edu
