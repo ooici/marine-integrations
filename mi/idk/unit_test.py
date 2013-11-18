@@ -3093,7 +3093,7 @@ class InstrumentDriverQualificationTestCase(InstrumentDriverTestCase):
         self.assert_direct_access_start_telnet(timeout=600)
         self.assertTrue(self.tcp_client)
         self.tcp_client.disconnect()
-        self.assert_state_change(ResourceAgentState.COMMAND, DriverProtocolState.COMMAND, 20)
+        self.assert_state_change(ResourceAgentState.COMMAND, DriverProtocolState.COMMAND, 50)
 
     def test_agent_save_and_restore(self):
         """
