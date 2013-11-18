@@ -419,7 +419,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         (res_cmds, res_params) = self.driver.get_resource_capabilities()
 
         # Ensure capabilities are as expected
-        self.assertEqual(len(res_cmds), 0)
+        self.assertEqual(len(res_cmds), 1)
         self.assertEqual(len(res_params), len(expected_params))
         self.assertEqual(sorted(res_params), sorted(expected_params))
 
