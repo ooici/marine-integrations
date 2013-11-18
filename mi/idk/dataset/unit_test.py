@@ -28,6 +28,7 @@ from mi.core.exceptions import InstrumentParameterException
 
 from mi.dataset.dataset_driver import DriverParameter
 
+from mi.idk.unit_test import AgentCapabilityType
 from mi.idk.result_set import ResultSet
 from mi.idk.dataset.metadata import Metadata
 from mi.idk.instrument_agent_client import InstrumentAgentClient
@@ -687,7 +688,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
         @param args: kwargs to pass to the agent command object
         """
         cmd = AgentCommand(command=command, kwargs=args)
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=timeout)
+        retval = self.dataset_agent_client.execute_agent(cmd, timeout=timeout)
 
     def assert_resource_command(self, command, args=None, timeout=None):
         """
@@ -817,6 +818,220 @@ class DataSetQualificationTestCase(DataSetTestCase):
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 20})
         reply = self.dataset_agent_client.get_resource(DriverParameter.ALL)
         log.debug("Get Resource Result: %s", reply)
+
+
+    def test_capabilities(self):
+        """
+        Verify capabilities throughout the agent lifecycle
+        """
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.UNINITIALIZED),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: None,
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: None,
+        }
+
+        ###
+        # DSA State INACTIVE
+        ###
+
+        log.debug("Initialize DataSet agent")
+        self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
+        self.assert_state_change(ResourceAgentState.INACTIVE)
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State IDLE
+        ###
+
+        log.debug("DataSet agent go active")
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.IDLE)
+        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
+        self.assert_state_change(ResourceAgentState.IDLE)
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State COMMAND
+        ###
+
+        log.debug("DataSet agent run")
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [DriverEvent.START_AUTOSAMPLE]
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._common_resource_parameters()
+        self.assert_agent_command(ResourceAgentEvent.RUN)
+        self.assert_state_change(ResourceAgentState.COMMAND)
+        self.assert_capabilities(capabilities)
+
+
+        ###
+        # DSA State STREAMING
+        ###
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [DriverEvent.STOP_AUTOSAMPLE]
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._common_resource_parameters()
+        self.assert_start_sampling()
+        self.assert_capabilities(capabilities)
+
+
+        ###
+        # DSA State LOST_CONNECTION
+        ###
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.LOST_CONNECTION)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = None
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = None
+        self.assert_agent_command(ResourceAgentEvent.RESET)
+        self.assert_state_change(ResourceAgentState.UNINITIALIZED)
+
+        self.remove_sample_dir()
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.assert_resource_command(DriverEvent.START_AUTOSAMPLE)
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
+
+    def assert_capabilities(self, capabilities):
+        '''
+        Verify that all capabilities are available for a give state
+
+        @todo: Currently resource interface not implemented because it requires
+               a submodule update and some of the submodules are in release
+               states.  So for now, no resource interfaces
+
+        @param: dictionary of all the different capability types that are
+        supposed to be there. i.e.
+        {
+          agent_command = ['DO_MY_COMMAND'],
+          agent_parameter = ['foo'],
+          resource_command = None,
+          resource_interface = None,
+          resource_parameter = None,
+        }
+        '''
+        def sort_capabilities(caps_list):
+            '''
+            sort a return value into capability buckets.
+            @retval agt_cmds, agt_pars, res_cmds, res_iface, res_pars
+            '''
+            agt_cmds = []
+            agt_pars = []
+            res_cmds = []
+            res_iface = []
+            res_pars = []
+
+            if len(caps_list)>0 and isinstance(caps_list[0], AgentCapability):
+                agt_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_CMD]
+                agt_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.AGT_PAR]
+                res_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_CMD]
+                #res_iface = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_IFACE]
+                res_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_PAR]
+
+            elif len(caps_list)>0 and isinstance(caps_list[0], dict):
+                agt_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_CMD]
+                agt_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.AGT_PAR]
+                res_cmds = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_CMD]
+                #res_iface = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_IFACE]
+                res_pars = [x['name'] for x in caps_list if x['cap_type']==CapabilityType.RES_PAR]
+
+            agt_cmds.sort()
+            agt_pars.sort()
+            res_cmds.sort()
+            res_iface.sort()
+            res_pars.sort()
+
+            return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
+
+        if(not capabilities.get(AgentCapabilityType.AGENT_COMMAND)):
+            capabilities[AgentCapabilityType.AGENT_COMMAND] = []
+        if(not capabilities.get(AgentCapabilityType.AGENT_PARAMETER)):
+            capabilities[AgentCapabilityType.AGENT_PARAMETER] = []
+        if(not capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)):
+            capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        if(not capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE)):
+            capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        if(not capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)):
+            capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+
+        expected_agent_cmd = capabilities.get(AgentCapabilityType.AGENT_COMMAND)
+        expected_agent_cmd.sort()
+        expected_agent_param = self._common_agent_parameters()
+        expected_agent_param.sort()
+        expected_res_cmd = capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)
+        expected_res_cmd.sort()
+        expected_res_param = capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)
+        expected_res_param.sort()
+        expected_res_int = capabilities.get(AgentCapabilityType.RESOURCE_INTERFACE)
+        expected_res_int.sort()
+
+        # go get the active capabilities
+        retval = self.dataset_agent_client.get_capabilities()
+        agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
+
+        log.debug("Agent Commands: %s ", str(agt_cmds))
+        log.debug("Compared to: %s", expected_agent_cmd)
+        log.debug("Agent Parameters: %s ", str(agt_pars))
+        log.debug("Compared to: %s", expected_agent_param)
+        log.debug("Resource Commands: %s ", str(res_cmds))
+        log.debug("Compared to: %s", expected_res_cmd)
+        log.debug("Resource Interface: %s ", str(res_iface))
+        log.debug("Compared to: %s", expected_res_int)
+        log.debug("Resource Parameter: %s ", str(res_pars))
+        log.debug("Compared to: %s", expected_res_param)
+
+        # Compare to what we are supposed to have
+        self.assertEqual(expected_agent_cmd, agt_cmds)
+        self.assertEqual(expected_agent_param, agt_pars)
+        self.assertEqual(expected_res_cmd, res_cmds)
+        self.assertEqual(expected_res_int, res_iface)
+        self.assertEqual(expected_res_param, res_pars)
+
+    def _common_resource_parameters(self):
+        '''
+        list of common resource parameters
+        @return: list of resource parameters
+        '''
+        return [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
+
+    def _common_agent_parameters(self):
+        '''
+        list of common agent parameters
+        @return: list of agent parameters
+        '''
+        return ['aggstatus', 'alerts', 'driver_name', 'driver_pid', 'example', 'pubrate', 'streams']
+
+    def _common_agent_commands(self, agent_state):
+        '''
+        list of common agent parameters for a agent state
+        @return: list of agent parameters
+        @raise: KeyError for undefined agent state
+        '''
+        capabilities = {
+            ResourceAgentState.UNINITIALIZED: [
+                ResourceAgentEvent.GO_ACTIVE,
+                ResourceAgentEvent.RESET,
+            ],
+            ResourceAgentState.IDLE: [
+                ResourceAgentEvent.GO_INACTIVE,
+                ResourceAgentEvent.RESET,
+                ResourceAgentEvent.RUN,
+            ],
+            ResourceAgentState.COMMAND: [
+                ResourceAgentEvent.CLEAR,
+                ResourceAgentEvent.RESET,
+                ResourceAgentEvent.GO_INACTIVE,
+                ResourceAgentEvent.PAUSE
+            ],
+            ResourceAgentState.STREAMING: [
+                ResourceAgentEvent.RESET,
+                ResourceAgentEvent.GO_INACTIVE
+            ],
+
+            ResourceAgentState.LOST_CONNECTION: [
+                ResourceAgentEvent.RESET,
+                ResourceAgentEvent.GO_INACTIVE
+            ]
+        }
+
+        return capabilities[agent_state]
 
     def test_missing_directory(self):
         """
