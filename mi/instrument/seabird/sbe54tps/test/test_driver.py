@@ -823,12 +823,6 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest, SeaBird54tpsMixin
         self.assert_get_parameter(Parameter.SAMPLE_PERIOD, 10)
 
         ###
-        # Test direct access inactivity timeout
-        ###
-        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
-
-        ###
         # Test session timeout without activity
         ###
         self.assert_direct_access_start_telnet(inactivity_timeout=120, session_timeout=30)
@@ -961,28 +955,6 @@ class SeaBird54PlusQualificationTest(SeaBirdQualificationTest, SeaBird54tpsMixin
         self.tcp_client.disconnect()
 
         self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, 30)
-
-    def test_execute_clock_sync(self):
-        """
-        Verify we can syncronize the instrument internal clock
-        """
-        self.assert_enter_command_mode()
-
-        # wait for a bit so the event can be triggered
-        time.sleep(1)
-
-        # Set the clock to something in the past
-        self.assert_set_parameter(Parameter.TIME, "2001-01-01T01:01:01", verify=False)
-
-        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
-        self.assert_execute_resource(ProtocolEvent.ACQUIRE_STATUS)
-
-        # Now verify that at least the date matches
-        params = [Parameter.TIME]
-        check_new_params = self.instrument_agent_client.get_resource(params)
-        lt = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
-        log.debug("TIME: %s && %s" % (lt, check_new_params[Parameter.TIME]))
-        self.assertTrue(lt[:12].upper() in check_new_params[Parameter.TIME].upper())
 
     def test_sample_interval_set(self):
         """
