@@ -2,11 +2,11 @@
 
 header:
   particle_object: WfpParadkDataParticle
-  particle_type: wfp_e_file_parad_k
+  particle_type: wfp_parad_k_parsed
 
 data:
   - _index: 1
     _new_sequence: True
-    internal_timestamp: '2013-04-15T14:22:02Z'
+    timestamp: 3575024522.0
     photosynthetically_active_radiation: 7.630
 

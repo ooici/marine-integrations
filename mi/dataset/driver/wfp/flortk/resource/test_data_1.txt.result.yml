@@ -2,12 +2,13 @@
 
 header:
   particle_object: WfpFlortkDataParticle
-  particle_type: wfp_e_file_flort_k
+  particle_type: wfp_flort_k_parsed
 
 data:
   - _index: 1
     _new_sequence: True
-    internal_timestamp: '2013-04-15T14:22:02Z'
-    total_volume_scattering_coefficient: 117.0
-    fluorometric_chlorophyll_a_concentration: 52.0
+    timestamp: 3575024522.0
     colored_dissolved_organic_matter_concentration: 94.0
+    fluorometric_chlorophyll_a_concentration: 52.0
+    total_volume_scattering_coefficient: 117.0
+
