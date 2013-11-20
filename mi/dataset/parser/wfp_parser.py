@@ -4,7 +4,7 @@
 @package mi.dataset.parser.wfp_parser WFP platform data set agent information
 @file mi/dataset/parser/wfp_parser.py
 @author Roger Unwin
-@brief A CTDPF-specific data set agent package
+@brief A WFP-specific data set agent package
 This module should contain classes that handle parsers used with WFP dataset
 files. It initially holds WFP-specific logic, ultimately more than that.
 """
@@ -28,9 +28,8 @@ from mi.dataset.dataset_parser import BufferLoadingParser
 
 
 
-
-TIME_REGEX = r'Vehicle began profiling at (\d{1,2})/(\d{1,2})/(\d{4})\s*(\d{1,2}):(\d{1,2}):(\d{1,2})'
-TIME_MATCHER = re.compile(TIME_REGEX, re.DOTALL)
+#TIME_REGEX = r'Vehicle began profiling at (\d{1,2})/(\d{1,2})/(\d{4})\s*(\d{1,2}):(\d{1,2}):(\d{1,2})'
+#TIME_MATCHER = re.compile(TIME_REGEX, re.DOTALL)
 
 # Date,[mA],[V],[dbar],Par[mV],scatSig,chlSig,CDOMSig
 #DATA_REGEX = r'(\d{1,2}/\d{1,2}/\d{4}\s*\d{1,2}:\d{1,2}:\d{1,2}),([\-\d\.]+),([\-\d\.]+),([\-\d\.]+),([\-\d\.]+),([\-\d]+),([\-\d]+),([\-\d]+)'
@@ -47,30 +46,22 @@ class DataParticleType(BaseEnum):
     WFP_PARADK = 'wfp_parad_k_parsed'
     WFP_FLORTK = 'wfp_flort_k_parsed'
     WFP_UNDEFINED = 'wfp_undefined'
-
+    WFP_ENGINEERING = 'wfp_engineering_parsed'
 
 class WfpParticleKey(BaseEnum):
     """
-    Common glider particle parameters
+    Common WFP particle parameters
     """
-    TIMESTAMP = 'timestamp'
-
-
-class EngineeringParticleKey(BaseEnum):
-    CURRENT = 'current'
-    VOLTAGE = 'voltage'
-    PRESURE = 'pressure_dbar'
     TIMESTAMP = 'timestamp'
 
 
 class WfpParticle(DataParticle):
-    #_data_particle_type = DataParticleType.WFP_UNDEFINED
+    _data_particle_type = DataParticleType.WFP_UNDEFINED
 
     def _build_parsed_values(self):
         match = DATA_MATCHER.match(self.raw_data)
         if not match:
-            log.trace("SampleException ****************************************")
-            raise SampleException("CtdParserDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
+            raise SampleException("CWfpParserDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
 
         try:
             # Date,[mA],[V],[dbar],Par[mV],scatSig,chlSig,CDOMSig
@@ -78,7 +69,7 @@ class WfpParticle(DataParticle):
             timestamp = self._convert_string_to_timestamp(match.group(1))
             current = float(match.group(2))
             voltage = float(match.group(3))
-            presure = float(match.group(4))
+            #presure = float(match.group(4)) # nobody wants you!
             cdom = float(match.group(8))
             chl = float(match.group(7))
             scat_sig = float(match.group(6))
@@ -90,12 +81,12 @@ class WfpParticle(DataParticle):
 
         result = [{DataParticleKey.VALUE_ID: WfpParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: timestamp},
-                  {DataParticleKey.VALUE_ID: EngineeringParticleKey.CURRENT,
+                  {DataParticleKey.VALUE_ID: WfpEngineeringDataParticleKey.CURRENT,
                    DataParticleKey.VALUE: current},
-                  {DataParticleKey.VALUE_ID: EngineeringParticleKey.VOLTAGE,
+                  {DataParticleKey.VALUE_ID: WfpEngineeringDataParticleKey.VOLTAGE,
                    DataParticleKey.VALUE: voltage},
-                  {DataParticleKey.VALUE_ID: EngineeringParticleKey.PRESURE,
-                   DataParticleKey.VALUE: presure},
+                  #{DataParticleKey.VALUE_ID: WfpEngineeringDataParticleKey.PRESURE,
+                  # DataParticleKey.VALUE: presure},
                   {DataParticleKey.VALUE_ID: WfpFlortkDataParticleKey.CDOM,
                    DataParticleKey.VALUE: cdom},
                   {DataParticleKey.VALUE_ID: WfpFlortkDataParticleKey.CHL,
@@ -155,8 +146,8 @@ class WfpParadkDataParticle(WfpParticle):
 
     def _build_parsed_values(self):
         """
-        Extracts CTDGV data from the glider data dictionary intiallized with
-        the particle class and puts the data into a CTDGV Data Particle.
+        Extracts Paradk data from the WFP data dictionary initialized with
+        the particle class and puts the data into a Paradk Data Particle.
 
         @param result A returned list with sub dictionaries of the data
         """
@@ -173,6 +164,35 @@ class WfpParadkDataParticle(WfpParticle):
         return result
 
 
+class WfpEngineeringDataParticleKey(BaseEnum):
+    CURRENT = 'current'
+    VOLTAGE = 'voltage'
+    #PRESURE = 'pressure_dbar'
+    TIMESTAMP = 'timestamp'
+
+
+class WfpEngineeringDataParticle(WfpParticle):
+    _data_particle_type = DataParticleType.WFP_ENGINEERING
+
+    def _build_parsed_values(self):
+        """
+        Extracts Engineering data from the WFP data dictionary initialized with
+        the particle class and puts the data into a Engineering Data Particle.
+
+        @param result A returned list with sub dictionaries of the data
+        """
+
+        result = []
+        for item in super(WfpEngineeringDataParticle, self)._build_parsed_values():
+
+            if item[DataParticleKey.VALUE_ID] in WfpEngineeringDataParticleKey.list():
+                log.error("MATCH " + repr(item[DataParticleKey.VALUE_ID]))
+                result.append(item)
+
+        log.error("WfpEngineeringDataParticle RETURNING " + repr(result))
+        return result
+
+
 class WfpFlortkDataParticleKey(WfpParticleKey):
     CDOM = 'colored_dissolved_organic_matter_concentration'
     CHL = 'fluorometric_chlorophyll_a_concentration'
@@ -185,8 +205,8 @@ class WfpFlortkDataParticle(WfpParticle):
 
     def _build_parsed_values(self):
         """
-        Extracts CTDGV data from the glider data dictionary intiallized with
-        the particle class and puts the data into a CTDGV Data Particle.
+        Extracts Flortk data from the WFP data dictionary initialized with
+        the particle class and puts the data into a Flortk Data Particle.
 
         @param result A returned list with sub dictionaries of the data
         """
@@ -318,5 +338,13 @@ class ParadkParser(WfpParser):
 # ParadkParserDataParticle
 #
 class FlortkParser(WfpParser):
+    """
+    """
+
+
+#
+# ParadkParserDataParticle
+#
+class EngineeringParser(WfpParser):
     """
     """

@@ -1,9 +1,9 @@
 """
-@package mi.dataset.driver.wfp.paradk.test.test_driver
-@file marine-integrations/mi/dataset/driver/wfp/paradk/test/test_driver.py
+@package mi.dataset.driver.wfp.engineering.test.test_driver
+@file marine-integrations/mi/dataset/driver/wfp/engineering/test/test_driver.py
 @author Bill French (template)
 @author Roger Unwin 
-@brief Test cases for wfp/paradk driver
+@brief Test cases for wfp/engineering driver
 
 USAGE:
  Make tests verbose and provide stdout
@@ -42,13 +42,13 @@ from mi.idk.exceptions import SampleTimeout
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverEvent
-from mi.dataset.parser.wfp_parser import ParadkParser
-from mi.dataset.parser.wfp_parser import WfpParadkDataParticle
+from mi.dataset.parser.wfp_parser import EngineeringParser
+from mi.dataset.parser.wfp_parser import WfpEngineeringDataParticle
 from mi.dataset.parser.test.test_wfp_parser import WfpParserUnitTestCase
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
-from mi.dataset.driver.wfp.paradk.driver import WfpPARADKDataSetDriver
+from mi.dataset.driver.wfp.engineering.driver import WfpEngineeringDataSetDriver
 
-from mi.dataset.parser.wfp_parser import WfpParadkDataParticle
+from mi.dataset.parser.wfp_parser import WfpEngineeringDataParticle
 from pyon.agent.agent import ResourceAgentState
 
 from interface.objects import CapabilityType
@@ -57,12 +57,12 @@ from interface.objects import ResourceAgentErrorEvent
 from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 DataSetTestCase.initialize(
-    driver_module='mi.dataset.driver.wfp.paradk.driver',
-    driver_class="WfpPARADKDataSetDriver",
+    driver_module='mi.dataset.driver.wfp.engineering.driver',
+    driver_class="WfpEngineeringDataSetDriver",
 
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = WfpPARADKDataSetDriver.stream_config(),
+    agent_packet_config = WfpEngineeringDataSetDriver.stream_config(),
     startup_config = {
         'harvester':
         {
@@ -74,11 +74,11 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM='wfp_parad_k_parsed'
+SAMPLE_STREAM = 'wfp_engineering_parsed'
 
 ###############################################################################
-#                                INT TESTS                                   #
-# Device specific integration tests are for                                          #
+#                                INT TESTS                                    #
+# Device specific integration tests are for                                   #
 # testing device specific capabilities                                        #
 ###############################################################################
 
@@ -94,7 +94,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         an exception.
         """
         with self.assertRaises(ConfigurationException):
-            self.driver = WfpPARADKDataSetDriver({},
+            self.driver = WfpEngineeringDataSetDriver({},
                 self.memento,
                 self.data_callback,
                 self.state_callback,
@@ -104,9 +104,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Verify that we can get, set, and report all driver parameters.
         """
-        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT,
-                           DriverParameter.PUBLISHER_POLLING_INTERVAL,
-                           DriverParameter.RECORDS_PER_SECOND]
+        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
         (res_cmds, res_params) = self.driver.get_resource_capabilities()
 
         # Ensure capabilities are as expected
@@ -163,7 +161,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 DriverParameter.BATCHED_PARTICLE_COUNT: 3,
             }
         }
-        self.driver = WfpPARADKDataSetDriver(
+        self.driver = WfpEngineeringDataSetDriver(
             cfg,
             self.memento,
             self.data_callback,
@@ -185,7 +183,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         }
 
         with self.assertRaises(KeyError):
-            self.driver = WfpPARADKDataSetDriver(
+            self.driver = WfpEngineeringDataSetDriver(
                 cfg,
                 self.memento,
                 self.data_callback,
@@ -204,23 +202,23 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('test_data_1.txt', "DATA001.TXT")
-        log.error("*** WfpParadkDataParticle = " + repr(WfpParadkDataParticle))
-        self.assert_data(WfpParadkDataParticle, 'test_data_1.txt.result.yml', count=1, timeout=10)
+        log.error("*** WfpEngineeringDataParticle = " + repr(WfpEngineeringDataParticle))
+        self.assert_data(WfpEngineeringDataParticle, 'test_data_1.txt.result.yml', count=1, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('test_data_3.txt', "DATA002.TXT")
-        self.assert_data(WfpParadkDataParticle, 'test_data_3.txt.result.yml', count=8, timeout=10)
+        self.assert_data(WfpEngineeringDataParticle, 'test_data_3.txt.result.yml', count=8, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('E0000152.TXT', "DATA003.TXT")
-        self.assert_data(WfpParadkDataParticle, count=11, timeout=30) # 20
+        self.assert_data(WfpEngineeringDataParticle, count=11, timeout=30) # 20
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
         self.clear_async_data()
         self.create_sample_data('test_data_1.txt', "DATA004.TXT")
-        self.assert_data(WfpParadkDataParticle, count=1, timeout=10)
+        self.assert_data(WfpEngineeringDataParticle, count=1, timeout=10)
 
     def test_stop_resume(self):
         """
@@ -230,7 +228,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Create and store the new driver state
         self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.TXT',
                         DataSourceConfigKey.PARSER: {'position': 201, 'timestamp': 3575062804.0}}
-        self.driver = WfpPARADKDataSetDriver(
+        self.driver = WfpEngineeringDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
             self.data_callback,
@@ -245,7 +243,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(WfpParadkDataParticle, 'test_data_3B.txt.partial_results.yml', count=5, timeout=10)
+        self.assert_data(WfpEngineeringDataParticle, 'test_data_3B.txt.partial_results.yml', count=5, timeout=10)
 
 
 ###############################################################################

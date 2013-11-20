@@ -1,8 +1,8 @@
 """
-@package mi.dataset.driver.wfp.flortk.driver
-@file marine-integrations/mi/dataset/driver/wfp/flortk/driver.py
+@package mi.dataset.driver.wfp.engineering.driver
+@file marine-integrations/mi/dataset/driver/wfp/engineering/driver.py
 @author Roger Unwin
-@brief Driver for the wfp/Flortk
+@brief Driver for the wfp/Engineering
 Release notes:
 
 initial release
@@ -14,26 +14,26 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
-from mi.dataset.parser.wfp_parser import FlortkParser
-from mi.dataset.parser.wfp_parser import WfpFlortkDataParticle
+from mi.dataset.parser.wfp_parser import EngineeringParser
+from mi.dataset.parser.wfp_parser import WfpEngineeringDataParticle
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
 
 
-class WfpFLORTKDataSetDriver(SimpleDataSetDriver):
+class WfpEngineeringDataSetDriver(SimpleDataSetDriver):
     @classmethod
     def stream_config(cls):
-        return [WfpFlortkDataParticle.type()]
+        return [WfpEngineeringDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
         config = self._parser_config
         config.update({
             'particle_module': 'mi.dataset.parser.wfp_parser',
-            'particle_class': 'WfpFlortkDataParticle'
+            'particle_class': 'WfpEngineeringDataParticle'
         })
 
         log.debug("MYCONFIG: %s", config)
 
-        self._parser = FlortkParser(
+        self._parser = EngineeringParser(
             config,
             parser_state,
             infile,

@@ -113,9 +113,6 @@ Date,[mA],[V],[dbar],Par[mV],scatSig,chlSig,CDOMSig
         # not a DataSourceLocation...its just the parser
         self.position = {StateKey.POSITION:0}
 
-        # Gonna need the test cases to make some of these
-        # self.stream_handle = StringIO(TEST_DATA)        
-        # self.parser = CtdpfParser(config, self.position, self.stream_handle) # last one is the link to the data source
         self.base_timestamp = 3575024522.0
         self.particle_a = WfpParticle("04/15/2013 14:22:02,-2,10.8,0.000,0.00,117,52,94",
                                                   internal_timestamp=self.base_timestamp)
@@ -134,17 +131,10 @@ Date,[mA],[V],[dbar],Par[mV],scatSig,chlSig,CDOMSig
         self.publish_callback_value = None
 
     def assert_result(self, result, position, particle):
-        #log.error("result => " + str(result[0].__dict__))
-        #log.error("particle => " + str(particle.__dict__))
         self.assertEqual(result, [particle])
-        
-        
-        
+
         self.assertEqual(self.parser._state[StateKey.POSITION], position)
         self.assertEqual(self.position_callback_value[StateKey.POSITION], position)
-
-
-
 
         self.assert_(isinstance(self.publish_callback_value, list))
         self.assertEqual(self.publish_callback_value[0], particle)
@@ -196,7 +186,7 @@ Date,[mA],[V],[dbar],Par[mV],scatSig,chlSig,CDOMSig
                                   self.pos_callback, self.pub_callback)
 
         result = self.parser.get_records(1)
-        log.error("RESULTx = " + str(result))
+        log.error("RESULT = " + str(result))
         self.assert_result(result, 243, self.particle_b)
 
     def test_long_stream(self):
@@ -239,8 +229,6 @@ Date,[mA],[V],[dbar],Par[mV],scatSig,chlSig,CDOMSig
         result = self.parser.get_records(1)
         self.assert_result(result, 360, self.particle_d)
 
-
-        log.error("===============================CALLING SET_STATE===============================")
         self.parser.set_state(new_state)
         #
         # Oddly the position is off by 1 after repositioning.
