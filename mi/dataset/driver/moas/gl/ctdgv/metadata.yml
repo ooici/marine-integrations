@@ -1,5 +1,5 @@
 driver_metadata:
-  version: 0.1.0
+  version: 0.1.1
   author: Stuart Pearce & Chris Wingard
   constructor: CTDGVDataSetDriver
   driver_name: glider_ctdgv
