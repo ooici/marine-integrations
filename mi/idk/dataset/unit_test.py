@@ -863,7 +863,6 @@ class DataSetQualificationTestCase(DataSetTestCase):
         self.assert_state_change(ResourceAgentState.COMMAND)
         self.assert_capabilities(capabilities)
 
-
         ###
         # DSA State STREAMING
         ###
@@ -873,6 +872,28 @@ class DataSetQualificationTestCase(DataSetTestCase):
         self.assert_start_sampling()
         self.assert_capabilities(capabilities)
 
+        ###
+        # DSA State COMMAND Revisited
+        ###
+
+        log.debug("DataSet agent run")
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [DriverEvent.START_AUTOSAMPLE]
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._common_resource_parameters()
+        self.assert_stop_sampling()
+        self.assert_capabilities(capabilities)
+
+        ###
+        # DSA State INACTIVE
+        ###
+
+        log.debug("DataSet agent run")
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.INACTIVE)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = None
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = None
+        self.assert_agent_command(ResourceAgentEvent.GO_INACTIVE)
+        self.assert_state_change(ResourceAgentState.INACTIVE)
+        self.assert_capabilities(capabilities)
 
         ###
         # DSA State LOST_CONNECTION
@@ -1028,6 +1049,11 @@ class DataSetQualificationTestCase(DataSetTestCase):
             ResourceAgentState.LOST_CONNECTION: [
                 ResourceAgentEvent.RESET,
                 ResourceAgentEvent.GO_INACTIVE
+            ],
+
+            ResourceAgentState.INACTIVE: [
+                ResourceAgentEvent.RESET,
+                ResourceAgentEvent.GO_ACTIVE
             ]
         }
 

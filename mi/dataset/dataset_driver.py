@@ -173,9 +173,9 @@ class DataSetDriver(object):
     def cmd_dvr(self, cmd, *args, **kwargs):
         log.warn("DRIVER: cmd_dvr %s", cmd)
 
-        resource_cmd = args[0]
-
         if cmd == 'execute_resource':
+            resource_cmd = args[0]
+
             if resource_cmd == DriverEvent.START_AUTOSAMPLE:
                 return (ResourceAgentState.STREAMING, None)
 
@@ -197,6 +197,9 @@ class DataSetDriver(object):
             return self.get_resource(*args, **kwargs)
 
         elif cmd == 'disconnect':
+            pass
+
+        elif cmd == 'initialize':
             pass
 
         else:
