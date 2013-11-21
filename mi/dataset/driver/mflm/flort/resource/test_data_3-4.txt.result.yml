@@ -6,7 +6,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:05'
     date_string: '07/24/13'
     time_string: '06:00:05'
@@ -18,7 +18,7 @@ data:
     raw_signal_cdom: 51
     raw_internal_temp: 553
   - _index: 2
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-07-24T12:00:06'
     date_string: '07/24/13'
     time_string: '12:00:06'
@@ -30,7 +30,7 @@ data:
     raw_signal_cdom: 58
     raw_internal_temp: 553
   - _index: 3
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-07-24T18:00:06'
     date_string: '07/24/13'
     time_string: '18:00:06'

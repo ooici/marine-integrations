@@ -189,7 +189,8 @@ class DostadParser(MflmParser):
                     non_data = None
                     non_data_flag = False
                     self._new_seq_flag = False
-                    self.start_new_sequence()
+                    # Removed because we don't want to reset the connection id anymore.
+                    #self.start_new_sequence()
                     # need to figure out if there is a new sequence the first time through,
                     # since if we are using in process data we don't read unprocessed again
                     new_seq = 1

@@ -20,26 +20,28 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.poller import DirectoryPoller, ConditionPoller
 from mi.core.common import BaseEnum
 
+
 class Harvester(object):
     """ abstract class to show API needed for plugin poller objects """
-    def __init__(self, config, memento, data_callback, exception_callback):  
+    def __init__(self, config, memento, data_callback, exception_callback):
         pass
 
-    def start(self): 
+    def start(self):
         pass
 
-    def shutdown(self): 
+    def shutdown(self):
         pass
-    
+
     def connect_to_source(self):
         """
         Trigger a connection to the data source using the configuration
-        information for this stream. 
+        information for this stream.
         """
         pass
 
 ## other pollers that check HTTP, FTP or other methods of finding data may be
 ## added here down the road
+
 
 class AdditiveSequentialFileHarvester(DirectoryPoller, Harvester):
     """
@@ -71,15 +73,37 @@ class AdditiveSequentialFileHarvester(DirectoryPoller, Harvester):
             if file>self.last_file_completed:
                 log.debug("Found new file and state verified: %s", file)
                 log.debug("File callback: %s", self.callback)
-                with open(file,'rb') as f:
+                with open(file, 'rb') as f:
                     self.callback(f, file)
-                    
-            
+
+
+class AdditiveSequentialModifyingFileHarvester(AdditiveSequentialFileHarvester):
+    """
+    Poll a single directory looking for new files with the directory poller.
+    """
+    def __init__(self, config, memento, file_callback, exception_callback, file_preprocessing_callback):
+        self.file_preprocessing_callback = file_preprocessing_callback
+        AdditiveSequentialFileHarvester.__init__(self, config, memento, file_callback, exception_callback)
+
+    def on_new_files(self, files):
+        """
+        New files have been found, open each file and process it in the callback
+        """
+        for file in files:
+
+            if file > self.last_file_completed:
+                fixed_file = self.file_preprocessing_callback(file)
+                log.debug("Found new file: %s", fixed_file)
+
+                with open(fixed_file, 'rb') as f:
+                    self.callback(f, file)
+
+
 class FilePoller(ConditionPoller):
     """
     poll a single file to determine if that file has had additional data appended to it
     """
-    
+
     def __init__(self, directory, filename, last_read_offset, callback, exception_callback=None, interval=1):
         """
         @param directory directory of the file to monitor
@@ -97,7 +121,7 @@ class FilePoller(ConditionPoller):
             super(FilePoller,self).__init__(self._check_for_data, callback, exception_callback, interval)
         except:
             log.error('failed init?', exc_info=True)
-            
+
     def _check_for_data(self):
         """
         find out how the last file offset relates to the current file size.
@@ -116,6 +140,7 @@ class FilePoller(ConditionPoller):
         self._last_offset = filesize
         return self._file
 
+
 class SingleFileHarvester(FilePoller, Harvester):
     """
     Poll a single file to determine if data has been appended to the file
@@ -129,9 +154,9 @@ class SingleFileHarvester(FilePoller, Harvester):
         """
         if not isinstance(config, dict):
             raise TypeError("Config object must be a dict")
-        
+
         self.callback = data_callback
-        
+
         FilePoller.__init__(self,
                             config['directory'],
                             config['filename'],
@@ -139,7 +164,7 @@ class SingleFileHarvester(FilePoller, Harvester):
                             self.on_new_data,
                             exception_callback,
                             config.get('frequency', 1))
-        
+
     def on_new_data(self, fullfile):
         """
         When new data has been found, open the file and seek to the last
@@ -150,9 +175,11 @@ class SingleFileHarvester(FilePoller, Harvester):
             with open(fullfile, 'rb') as f:
                 self.callback(f, filesize)
 
+
 class FileChangeHarvesterMementoKey(BaseEnum):
     LAST_FILESIZE = "last_filesize"
     LAST_CHECKSUM = "last_checksum"
+
 
 class FileChangePoller(ConditionPoller):
     """
@@ -214,6 +241,7 @@ class FileChangePoller(ConditionPoller):
         self._last_size = filesize
         return self._file
 
+
 class SingleFileChangeHarvester(FileChangePoller, Harvester):
     """
     Poll a single file to determine if data has been appended to the file,
@@ -259,6 +287,7 @@ class SingleFileChangeHarvester(FileChangePoller, Harvester):
             with open(fullfile, 'rb') as f:
                 self.callback(f, filesize)
 
+
 class SortingDirectoryPoller(ConditionPoller):
     """
     poll for new files added to a single directory that match a wildcard pattern.
@@ -294,7 +323,7 @@ class SortingDirectoryPoller(ConditionPoller):
         self._last_filename = filenames[-1]
         log.trace('found files: %r', out)
         return out
-    
+
     def sort_files(self, filenames):
         """
         Sorts files which have multiple indices separated by underscores in a file name.
@@ -326,10 +355,10 @@ class SortingDirectoryPoller(ConditionPoller):
             # remove the last underscore, and add the file extension back in
             sorted_filenames.append(this_file[:-1] + '.' + file_extension[1])
             i += 1
-            
-        log.trace("sorted %s", sorted_filenames)    
+
+        log.trace("sorted %s", sorted_filenames)
         return sorted_filenames
-    
+
     @staticmethod
     def ascii_to_int_list(filename):
         # remove file extension and split by underscores
@@ -344,8 +373,8 @@ class SortingDirectoryPoller(ConditionPoller):
                 # ignore error
                 pass
         return split_name
-    
-    
+
+
 class SortingDirectoryHarvester(SortingDirectoryPoller, Harvester):
     """
     Poll a single directory looking for new files with the directory poller.
@@ -368,20 +397,18 @@ class SortingDirectoryHarvester(SortingDirectoryPoller, Harvester):
         New files have been found, open each file and process it in the callback
         """
         for fn in files:
-            
+
             if self.last_file_completed:
                 # sort the last file and new file into int list form so they will
                 # evalulate > not as ascii strings but as integers
                 fn_int_list = SortingDirectoryPoller.ascii_to_int_list(fn)
                 last_file_int_list = SortingDirectoryPoller.ascii_to_int_list(self.last_file_completed)
                 if fn_int_list > last_file_int_list:
-                    with open(fn,'rb') as f:
+                    with open(fn, 'rb') as f:
                         self.callback(f, fn)
             else:
                 # there is no last file completed, so this file must be new, return it
-                with open(fn,'rb') as f:
+                with open(fn, 'rb') as f:
                     self.callback(f, fn)
 
-        
-        
-    
+

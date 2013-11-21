@@ -192,7 +192,8 @@ class CtdmoParser(MflmParser):
                     # that we have made a new sequence
                     non_data_flag = False
                     self._new_seq_flag = False
-                    self.start_new_sequence()
+                    # No longer starting new sequences on gaps. for now.
+                    #self.start_new_sequence()
                     new_seq = 1
 
                 # need to do special processing on data to handle escape sequences

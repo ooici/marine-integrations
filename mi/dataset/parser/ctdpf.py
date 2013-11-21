@@ -255,7 +255,7 @@ class CtdpfParser(BufferLoadingParser):
                     log.trace("Non-data detected: '%s'", non_data)
                     if not WHITESPACE_MATCHER.match(non_data):
                         log.info("Gap in datafile detected.")
-                        self.start_new_sequence()
+                        #self.start_new_sequence()
 
                     self._increment_state(len(non_data), self._timestamp)
 

@@ -6,7 +6,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-07-24T00:00:01'
     temperature: 13.071000000000002
     conductivity: 3.8369
@@ -24,7 +24,7 @@ data:
     conductivity: 4.0000000000040004e-05
     pressure: 0.05760219349121343
   - _index: 4
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01'
     temperature: 3.8209999999999997
     conductivity: 3.15725
@@ -96,7 +96,7 @@ data:
     conductivity: 4.0000000000040004e-05
     pressure: 0.04539833893798573
   - _index: 16
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-07-24T12:00:01'
     temperature: 2.3058999999999994
     conductivity: 3.13101

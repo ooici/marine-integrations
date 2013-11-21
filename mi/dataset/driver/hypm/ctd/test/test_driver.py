@@ -75,7 +75,7 @@ DataSetTestCase.initialize(
 SAMPLE_STREAM='ctdpf_parsed'
     
 ###############################################################################
-#                                UNIT TESTS                                   #
+#                                INT TESTS                                   #
 # Device specific unit tests are for                                          #
 # testing device specific capabilities                                        #
 ###############################################################################
@@ -122,24 +122,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 self.state_callback,
                 self.exception_callback)
 
-    def test_harvester_new_file_exception(self):
-        """
-        Test an exception raised after the driver is started during
-        the file read.  Should call the exception callback.
-        """
-        self.clear_sample_data()
-
-        # create the file so that it is unreadable
-        self.create_sample_data('DATA003.txt', mode=000)
-
-        # Start sampling and watch for an exception
-        self.driver.start_sampling()
-
-        self.assert_exception(IOError)
-
-        # At this point the harvester thread is dead.  The agent
-        # exception handle should handle this case.
-
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
@@ -163,127 +145,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # verify data is produced
         self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.partial_results.yml', count=5, timeout=10)
-
-    def test_parameters(self):
-        """
-        Verify that we can get, set, and report all driver parameters.
-        """
-        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
-        (res_cmds, res_params) = self.driver.get_resource_capabilities()
-
-        # Ensure capabilities are as expected
-        self.assertEqual(len(res_cmds), 0)
-        self.assertEqual(len(res_params), len(expected_params))
-        self.assertEqual(sorted(res_params), sorted(expected_params))
-
-        # Verify default values are as expected.
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 1)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
-
-        # Try set resource individually
-        self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 2})
-        self.driver.set_resource({DriverParameter.PUBLISHER_POLLING_INTERVAL: 2})
-        self.driver.set_resource({DriverParameter.RECORDS_PER_SECOND: 59})
-
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 2)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 2)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 59)
-
-        # Try set resource in bulk
-        self.driver.set_resource(
-            {DriverParameter.BATCHED_PARTICLE_COUNT: 1,
-             DriverParameter.PUBLISHER_POLLING_INTERVAL: .1,
-             DriverParameter.RECORDS_PER_SECOND: 60})
-
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .1)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
-
-        # Set with some bad values
-        with self.assertRaises(InstrumentParameterException):
-            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 'a'})
-        with self.assertRaises(InstrumentParameterException):
-            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: -1})
-        with self.assertRaises(InstrumentParameterException):
-            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 0})
-
-        # Try to configure with the driver startup config
-        driver_config = self._driver_config()['startup_config']
-        cfg = {
-            DataSourceConfigKey.HARVESTER: driver_config.get(DataSourceConfigKey.HARVESTER),
-            DataSourceConfigKey.PARSER: driver_config.get(DataSourceConfigKey.PARSER),
-            DataSourceConfigKey.DRIVER: {
-                DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
-                DriverParameter.RECORDS_PER_SECOND: 3,
-                DriverParameter.BATCHED_PARTICLE_COUNT: 3,
-            }
-        }
-        self.driver = HypmCTDPFDataSetDriver(
-            cfg,
-            self.memento,
-            self.data_callback,
-            self.state_callback,
-            self.exception_callback)
-
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 3)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .2)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 3)
-
-        # Finally verify we get a KeyError when sending in bad config keys
-        cfg[DataSourceConfigKey.DRIVER] = {
-            DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
-            DriverParameter.RECORDS_PER_SECOND: 3,
-            DriverParameter.BATCHED_PARTICLE_COUNT: 3,
-            'something_extra': 1
-        }
-
-        with self.assertRaises(KeyError):
-            self.driver = HypmCTDPFDataSetDriver(
-                cfg,
-                self.memento,
-                self.data_callback,
-                self.state_callback,
-                self.exception_callback)
-
-    def test_sequences(self):
-        """
-        Test new sequence flags are set correctly
-        """
-
-        ###
-        #   One file, no breaks, should only have 1 new sequence flag
-        #   New sequence flag when a new file is read
-        ###
-        self.clear_sample_data()
-
-        self.driver.start_sampling()
-
-        self.clear_async_data()
-        self.create_sample_data('test_data_1.txt', "DATA001.txt")
-        self.assert_data(CtdpfParserDataParticle, 'test_data_1.txt.result.yml', count=1, timeout=10)
-
-        self.clear_async_data()
-        self.create_sample_data('test_data_3.txt', "DATA002.txt")
-        self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.result.yml', count=8, timeout=10)
-
-        ###
-        #   New sequence flag when noise if detected between records
-        ###
-        self.clear_async_data()
-        self.create_sample_data('test_data_4.txt', "DATA004.txt")
-        self.assert_data(CtdpfParserDataParticle, 'test_data_4.txt.result.yml', count=8, timeout=10)
-
-        ###  Exceptions in the publisher are handled in the agent
-
 
 ###############################################################################
 

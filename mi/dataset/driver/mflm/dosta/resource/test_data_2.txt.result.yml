@@ -6,7 +6,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-07-24T00:00:01'
     product_number: 4831
     serial_number: 128

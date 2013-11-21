@@ -41,8 +41,13 @@ class Parser(object):
         self._state_callback = state_callback
         self._publish_callback = publish_callback
         self._config = config
-        self._new_sequence = True
-        
+        #self._new_sequence = True
+
+        # It was originally thought that we wanted to start a new sequence for every new file
+        # But that has changed.  If we want this behavior back then we need to change
+        # this back to true
+        self._new_sequence = False
+
         #build class from module and class name, then set the state
         if config.get("particle_module"):
             self._particle_module = __import__(config.get("particle_module"), fromlist = [config.get("particle_class")])
@@ -69,7 +74,7 @@ class Parser(object):
            be in for this state. This structure should look like what was
            published for the last state.
         """
-        raise NotImplementedException("get_records() not overridden!")
+        raise NotImplementedException("set_state() not overridden!")
     
     def _publish_sample(self, samples):
         """

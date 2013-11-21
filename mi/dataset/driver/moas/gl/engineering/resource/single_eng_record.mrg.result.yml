@@ -6,7 +6,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-09-05T02:45:30.18188'
     c_battpos: 0.7
     c_wpt_lat:

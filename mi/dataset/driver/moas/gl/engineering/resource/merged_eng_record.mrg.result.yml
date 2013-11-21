@@ -4,7 +4,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-09-05T02:54:01.79871'
     c_battpos: 0.273273
     c_wpt_lat: null
@@ -31,7 +31,7 @@ data:
     m_present_time: 1378349641.79871
     m_present_secs_into_mission: 121546
   - _index: 2
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-09-05T02:45:30.18188'
     c_battpos: 0.7
     c_wpt_lat:

@@ -6,7 +6,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-07-23T23:15:01'
     product_number: 4831
     serial_number: 128
@@ -51,7 +51,7 @@ data:
     red_amplitude: 1245.9
     raw_temp: 444.4
   - _index: 4
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-07-24T12:00:02'
     product_number: 4831
     serial_number: 128

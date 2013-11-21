@@ -1,0 +1,12 @@
+# Result data after parsing test_data_1.txt 
+
+header:
+  particle_object: WfpParadkDataParticle
+  particle_type: wfp_e_file_parad_k
+
+data:
+  - _index: 1
+    _new_sequence: True
+    internal_timestamp: '2013-04-15T14:22:02Z'
+    photosynthetically_active_radiation: 7.630
+
