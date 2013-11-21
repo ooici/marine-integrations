@@ -170,7 +170,7 @@ class SBE37Prompt(BaseEnum):
 NEWLINE = '\r\n'
 
 # SBE37 default timeout.
-SBE37_TIMEOUT = 10
+SBE37_TIMEOUT = 60
 
 # Sample looks something like:
 # '#87.9140,5.42747, 556.864,   37.1829, 1506.961, 02 Jan 2001, 15:34:51'
