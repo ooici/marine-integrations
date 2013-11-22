@@ -37,7 +37,7 @@ DATA_REGEX = r'(\d*/\d*/\d*\s*\d*:\d*:\d*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),(
 DATA_MATCHER = re.compile(DATA_REGEX, re.DOTALL)
 
 # MM-DD-YYYY HH:MM:SS    ,Sndm/s,TmpC,Heading,Pitch,Roll,magnHx,magnHy,magnHz,Beams,Cells,Beam1,Beam2,Beam3,Beam4,Beam5,Vel[0,0],Vel[1,0],Vel[2,0],Amp[0,0],Amp[1,0],Amp[2,0],Corr[0,0],Corr[1,0],Corr[2,0]
-VEL_DATA_REGEX = r'(\d*\-\d*\-\d*\s*\d*:\d*:[\.\d]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*)'
+VEL_DATA_REGEX = r'(\d*\-\d*\-\d*\s*\d*:\d*:[\.\d]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*),([\-\d\.]*)'
 VEL_DATA_MATCHER = re.compile(VEL_DATA_REGEX, re.DOTALL)
 
 
@@ -52,7 +52,7 @@ class DataParticleType(BaseEnum):
     WFP_FLORTK = 'wfp_flort_k_parsed'
     WFP_UNDEFINED = 'wfp_undefined'
     WFP_ENGINEERING = 'wfp_engineering_parsed'
-    WFP_VEL3D = 'vel3dk_parsed'
+    WFP_VEL3D = 'vel3d_k_parsed'
 
 class WfpParticleKey(BaseEnum):
     """
@@ -76,11 +76,10 @@ class WfpParticle(DataParticle):
             current = float(match.group(2))
             voltage = float(match.group(3))
             #presure = float(match.group(4)) # nobody wants you!
-            cdom = float(match.group(8))
-            chl = float(match.group(7))
-            scat_sig = float(match.group(6))
             par = float(match.group(5))
-
+            scat_sig = float(match.group(6))
+            chl = float(match.group(7))
+            cdom = float(match.group(8))
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
@@ -93,14 +92,14 @@ class WfpParticle(DataParticle):
                    DataParticleKey.VALUE: voltage},
                   #{DataParticleKey.VALUE_ID: WfpEngineeringDataParticleKey.PRESURE,
                   # DataParticleKey.VALUE: presure},
-                  {DataParticleKey.VALUE_ID: WfpFlortkDataParticleKey.CDOM,
-                   DataParticleKey.VALUE: cdom},
-                  {DataParticleKey.VALUE_ID: WfpFlortkDataParticleKey.CHL,
-                   DataParticleKey.VALUE: chl},
+                  {DataParticleKey.VALUE_ID: WfpParadkDataParticleKey.PAR,
+                   DataParticleKey.VALUE: par},
                   {DataParticleKey.VALUE_ID: WfpFlortkDataParticleKey.SCAT_SIG,
                    DataParticleKey.VALUE: scat_sig},
-                  {DataParticleKey.VALUE_ID: WfpParadkDataParticleKey.PAR,
-                   DataParticleKey.VALUE: par}]
+                  {DataParticleKey.VALUE_ID: WfpFlortkDataParticleKey.CHL,
+                   DataParticleKey.VALUE: chl},
+                  {DataParticleKey.VALUE_ID: WfpFlortkDataParticleKey.CDOM,
+                   DataParticleKey.VALUE: cdom}]
         log.trace('WfpParticle RETURNING %s', result)
         return result
 
@@ -237,12 +236,12 @@ class WfpParser(BufferLoadingParser):
                  state_callback,
                  publish_callback,
                  *args, **kwargs):
-
+        log.error("IN WfpParser.__init__ 1")
 
         self._timestamp = 0.0
         self._record_buffer = [] # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION:0}
-
+        log.error("IN WfpParser.__init__ 2")
         super(WfpParser, self).__init__(config,
                                           stream_handle,
                                           state,
@@ -252,7 +251,7 @@ class WfpParser(BufferLoadingParser):
                                           publish_callback,
                                           *args,
                                           **kwargs)
-
+        log.error("IN WfpParser.__init__ 3 ")
         if state:
             self.set_state(self._state)
 
@@ -356,7 +355,7 @@ class EngineeringParser(WfpParser):
     """
 
 
-class Vel3dkParserDataParticleKey(WfpParticleKey):
+class WfpVel3dkDataParticleKey(WfpParticleKey):
     SOUND_VELOCITY = "sound_velocity"
     TEMPERATURE = "temperature"
     HEADING = "heading"
@@ -372,22 +371,24 @@ class Vel3dkParserDataParticleKey(WfpParticleKey):
     BEAM_3 = "beam3"
     BEAM_4 = "beam4"
     BEAM_5 = "beam5"
-    VEL_0_0 = "vel[0,0]"
-    VEL_1_0 = "vel[1,0]"
-    VEL_2_0 = "vel[2,0]"
-    AMP_0_0 = "amp[0,0]"
-    AMP_1_0 = "amp[1,0]"
-    AMP_2_0 = "amp[2,0]"
-    CORR_0_0 = "corr[0,0]"
-    CORR_1_0 = "corr[1,0]"
-    CORR_2_0 = "corr[2,0]"
+    VEL_0_0 = "vel_0_0"
+    VEL_1_0 = "vel_1_0"
+    VEL_2_0 = "vel_2_0"
+    AMP_0_0 = "amp_0_0"
+    AMP_1_0 = "amp_1_0"
+    AMP_2_0 = "amp_2_0"
+    CORR_0_0 = "corr_0_0"
+    CORR_1_0 = "corr_1_0"
+    CORR_2_0 = "corr_2_0"
 
 
-class Vel3dkParserDataParticle(WfpParticle):
+class WfpVel3dkDataParticle(WfpParticle):
     """
     """
+    _data_particle_type = DataParticleType.WFP_VEL3D
     def _build_parsed_values(self):
-        match = VEL_DATA_MATCHER.match(self.raw_data)   
+        match = VEL_DATA_MATCHER.match(self.raw_data)
+
         if not match:
             raise SampleException("WfpParserDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
 
@@ -421,66 +422,129 @@ class Vel3dkParserDataParticle(WfpParticle):
             corr_2_0 = float(match.group(25))
 
         except (ValueError, TypeError, IndexError) as ex:
+            log.error("OFFENDING LINE = " + str(self.raw_data))
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
 
         result = [{DataParticleKey.VALUE_ID: WfpParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: timestamp},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.SOUND_VELOCITY,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.SOUND_VELOCITY,
                    DataParticleKey.VALUE: sound_velocity},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.TEMPERATURE,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.TEMPERATURE,
                    DataParticleKey.VALUE: temperature},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.HEADING,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.HEADING,
                    DataParticleKey.VALUE: heading},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.PITCH,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.PITCH,
                    DataParticleKey.VALUE: pitch},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.ROLL,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.ROLL,
                    DataParticleKey.VALUE: roll},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.MAGNETIC_H_X,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.MAGNETIC_H_X,
                    DataParticleKey.VALUE: magnHx},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.MAGNETIC_H_Y,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.MAGNETIC_H_Y,
                    DataParticleKey.VALUE: magnHy},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.MAGNETIC_H_Z,
-                   DataParticleKey.VALUE: magnHy},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.BEAMS,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.MAGNETIC_H_Z,
+                   DataParticleKey.VALUE: magnHz},
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.BEAMS,
                    DataParticleKey.VALUE: beams},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.CELLS,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.CELLS,
                    DataParticleKey.VALUE: cells},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.BEAM_1,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.BEAM_1,
                    DataParticleKey.VALUE: beam1},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.BEAM_2,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.BEAM_2,
                    DataParticleKey.VALUE: beam2},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.BEAM_3,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.BEAM_3,
                    DataParticleKey.VALUE: beam3},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.BEAM_4,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.BEAM_4,
                    DataParticleKey.VALUE: beam4},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.BEAM_5,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.BEAM_5,
                    DataParticleKey.VALUE: beam5},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.VEL_0_0,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.VEL_0_0,
                    DataParticleKey.VALUE: vel_0_0},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.VEL_1_0,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.VEL_1_0,
                    DataParticleKey.VALUE: vel_1_0},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.VEL_2_0,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.VEL_2_0,
                    DataParticleKey.VALUE: vel_2_0},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.AMP_0_0,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.AMP_0_0,
                    DataParticleKey.VALUE: amp_0_0},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.AMP_1_0,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.AMP_1_0,
                    DataParticleKey.VALUE: amp_1_0},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.AMP_2_0,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.AMP_2_0,
                    DataParticleKey.VALUE: amp_2_0},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.CORR_0_0,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.CORR_0_0,
                    DataParticleKey.VALUE: corr_0_0},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.CORR_1_0,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.CORR_1_0,
                    DataParticleKey.VALUE: corr_1_0},
-                  {DataParticleKey.VALUE_ID: Vel3dkParserDataParticleKey.CORR_2_0,
+                  {DataParticleKey.VALUE_ID: WfpVel3dkDataParticleKey.CORR_2_0,
                    DataParticleKey.VALUE: corr_2_0}]
         log.trace('Vel3dkParserDataParticle RETURNING %s', result)
         return result
 
 
-class Vel3dkParser(BufferLoadingParser):
+class Vel3dkParser(WfpParser):
     """
     """
+    def __init__(self,
+                 config,
+                 state,
+                 stream_handle,
+                 state_callback,
+                 publish_callback,
+                 *args, **kwargs):
 
+        self._timestamp = 0.0
+        self._record_buffer = [] # holds tuples of (record, state)
+        self._read_state = {StateKey.POSITION:0}
+
+        super(BufferLoadingParser, self).__init__(config,
+                                          stream_handle,
+                                          state,
+                                          partial(StringChunker.regex_sieve_function,
+                                                  regex_list=[VEL_DATA_MATCHER]),
+                                          state_callback,
+                                          publish_callback,
+                                          *args,
+                                          **kwargs)
+
+        if state:
+            self.set_state(self._state)
+
+    def parse_chunks(self):
+        """
+        Parse out any pending data chunks in the chunker. If
+        it is a valid data piece, build a particle, update the position and
+        timestamp. Go until the chunker has no more valid data.
+        @retval a list of tuples with sample particles encountered in this
+            parsing, plus the state. An empty list of nothing was parsed.
+        """
+
+        result_particles = []
+
+        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+        non_data = None
+
+        # sieve looks for timestamp, update and increment position
+        while (chunk != None):
+            log.trace("got A chunk -> " + str(chunk))
+            data_match = VEL_DATA_MATCHER.match(chunk)
+
+            if data_match:
+                log.trace("DATA MATCH!")
+                # particle-ize the data block received, return the record
+                sample = self._extract_sample(self._particle_class, VEL_DATA_MATCHER, chunk, self._timestamp)
+                if sample:
+                    log.trace("SAMPLE!!!")
+
+                    # create particle
+                    self._increment_state(end)
+
+                    result_particles.append((sample, copy.copy(self._read_state)))
+            else:
+                log.error("Unhandled chunk: %s", chunk)
+                #raise SampleException("Unhandled chunk: %s", chunk)
+
+            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
+
+        return result_particles
 
 

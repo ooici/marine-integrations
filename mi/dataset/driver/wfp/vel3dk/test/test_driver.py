@@ -1,9 +1,9 @@
 """
-@package mi.dataset.driver.wfp.ctdpfk.test.test_driver
-@file marine-integrations/mi/dataset/driver/wfp/ctdpfk/test/test_driver.py
+@package mi.dataset.driver.wfp.vel3dk.test.test_driver
+@file marine-integrations/mi/dataset/driver/wfp/vel3dk/test/test_driver.py
 @author Bill French (template)
 @author Roger Unwin 
-@brief Test cases for wfp/ctdpfk driver
+@brief Test cases for wfp/vel3dk driver
 
 USAGE:
  Make tests verbose and provide stdout
@@ -42,11 +42,11 @@ from mi.idk.exceptions import SampleTimeout
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverEvent
-from mi.dataset.parser.ctdpfk import CtdpfkParser
-from mi.dataset.parser.ctdpfk import CtdpfkParserDataParticle
-from mi.dataset.driver.wfp.ctdpfk.driver import WfpCTDPFKDataSetDriver
-from mi.dataset.parser.test.test_ctdpfk import CtdpfkParserUnitTestCase
+from mi.dataset.parser.wfp_parser import Vel3dkParser
+from mi.dataset.parser.wfp_parser import WfpVel3dkDataParticle
+from mi.dataset.parser.test.test_wfp_parser import WfpParserUnitTestCase
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
+from mi.dataset.driver.wfp.vel3dk.driver import WfpVel3dkDataSetDriver
 
 from pyon.agent.agent import ResourceAgentState
 
@@ -56,12 +56,12 @@ from interface.objects import ResourceAgentErrorEvent
 from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 DataSetTestCase.initialize(
-    driver_module='mi.dataset.driver.wfp.ctdpfk.driver',
-    driver_class="WfpCTDPFKDataSetDriver",
+    driver_module='mi.dataset.driver.wfp.vel3dk.driver',
+    driver_class="WfpVel3dkDataSetDriver",
 
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = WfpCTDPFKDataSetDriver.stream_config(),
+    agent_packet_config = WfpVel3dkDataSetDriver.stream_config(),
     startup_config = {
         'harvester':
         {
@@ -73,7 +73,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM='ctdpfk_parsed'
+SAMPLE_STREAM ='vel3d_k_parsed'
 
 ###############################################################################
 #                                INT TESTS                                   #
@@ -93,7 +93,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         an exception.
         """
         with self.assertRaises(ConfigurationException):
-            self.driver = WfpCTDPFKDataSetDriver({},
+            self.driver = WfpVel3dkDataSetDriver({},
                 self.memento,
                 self.data_callback,
                 self.state_callback,
@@ -103,7 +103,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Verify that we can get, set, and report all driver parameters.
         """
-        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
+        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT,
+                           DriverParameter.PUBLISHER_POLLING_INTERVAL,
+                           DriverParameter.RECORDS_PER_SECOND]
         (res_cmds, res_params) = self.driver.get_resource_capabilities()
 
         # Ensure capabilities are as expected
@@ -160,7 +162,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 DriverParameter.BATCHED_PARTICLE_COUNT: 3,
             }
         }
-        self.driver = WfpCTDPFKDataSetDriver(
+        self.driver = WfpVel3dkDataSetDriver(
             cfg,
             self.memento,
             self.data_callback,
@@ -182,7 +184,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         }
 
         with self.assertRaises(KeyError):
-            self.driver = WfpCTDPFKDataSetDriver(
+            self.driver = WfpVel3dkDataSetDriver(
                 cfg,
                 self.memento,
                 self.data_callback,
@@ -201,38 +203,39 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('test_data_1.txt', "DATA001.TXT")
-        self.assert_data(CtdpfkParserDataParticle, 'test_data_1.txt.result.yml', count=1, timeout=10)
+        log.error("*** WfpParadkDataParticle = " + repr(WfpVel3dkDataParticle))
+        self.assert_data(WfpVel3dkDataParticle, 'test_data_1.txt.result.yml', count=1, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('test_data_3.txt', "DATA002.TXT")
-        self.assert_data(CtdpfkParserDataParticle, 'test_data_3.txt.result.yml', count=8, timeout=10)
+        self.assert_data(WfpVel3dkDataParticle, 'test_data_3.txt.result.yml', count=8, timeout=10)
 
         self.clear_async_data()
-        self.create_sample_data('C0000181.TXT', "DATA003.TXT")
-        self.assert_data(CtdpfkParserDataParticle, count=303, timeout=300) # 20
+        self.create_sample_data('A0000202.TXT', "DATA003.TXT")
+        self.assert_data(WfpVel3dkDataParticle, count=11, timeout=30) # 20
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
         self.clear_async_data()
         self.create_sample_data('test_data_1.txt', "DATA004.TXT")
-        self.assert_data(CtdpfkParserDataParticle, count=1, timeout=10)
+        self.assert_data(WfpVel3dkDataParticle, count=1, timeout=10)
 
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
         """
+
         # Create and store the new driver state
-        #"""
         self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.TXT',
                         DataSourceConfigKey.PARSER: {'position': 201, 'timestamp': 3575062804.0}}
-        self.driver = WfpCTDPFKDataSetDriver(
+        self.driver = WfpVel3dkDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
             self.data_callback,
             self.state_callback,
             self.exception_callback)
-        #"""
+
         # create some data to parse
         self.clear_async_data()
         self.create_sample_data('test_data_1.txt', "DATA001.TXT")
@@ -241,7 +244,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(CtdpfkParserDataParticle, 'test_data_3.txt.partial_results.yml', count=5, timeout=10)
+        self.assert_data(WfpVel3dkDataParticle, 'test_data_3B.txt.partial_results.yml', count=5, timeout=10)
 
 
 ###############################################################################
@@ -280,10 +283,10 @@ class QualificationTest(DataSetQualificationTestCase):
         there was speculation this was due to blocking behavior in the agent.
         https://jira.oceanobservatories.org/tasks/browse/OOIION-1284
         """
-        self.create_sample_data('C0000181.TXT', 'C0000181.TXT')
+        self.create_sample_data('A0000202.TXT', 'A0000202.TXT')
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,303,120)
+        result = self.get_samples(SAMPLE_STREAM, 271, 10)
 
     def test_stop_start(self):
         """
@@ -335,7 +338,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 9)
+        result = self.get_samples(SAMPLE_STREAM, 9, timeout=30)
         self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
         # Verify an event was raised and we are in our retry state

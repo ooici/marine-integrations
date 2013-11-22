@@ -48,7 +48,6 @@ from mi.dataset.parser.test.test_wfp_parser import WfpParserUnitTestCase
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
 from mi.dataset.driver.wfp.engineering.driver import WfpEngineeringDataSetDriver
 
-from mi.dataset.parser.wfp_parser import WfpEngineeringDataParticle
 from pyon.agent.agent import ResourceAgentState
 
 from interface.objects import CapabilityType

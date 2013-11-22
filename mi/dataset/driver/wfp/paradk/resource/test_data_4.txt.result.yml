@@ -7,51 +7,35 @@ data:
   - _index: 1
     _new_sequence: True
     timestamp: '2013-04-15T14:22:02Z'
-    total_volume_scattering_coefficient: 117.0
-    fluorometric_chlorophyll_a_concentration: 52.0
-    colored_dissolved_organic_matter_concentration: 94.0
+    photosynthetically_active_radiation: 5.21
 
   - _index: 2
     timestamp: '2013-04-15T14:22:10Z'
-    total_volume_scattering_coefficient: 114.0
-    fluorometric_chlorophyll_a_concentration: 52.0
-    colored_dissolved_organic_matter_concentration: 97.0
+    photosynthetically_active_radiation: 0.0
 
   - _index: 3
     timestamp: '2013-04-15T14:22:17Z'
-    total_volume_scattering_coefficient: 116.0
-    fluorometric_chlorophyll_a_concentration: 52.0
-    colored_dissolved_organic_matter_concentration: 94.0
+    photosynthetically_active_radiation: 0.0
 
   - _index: 4
     _new_sequence: True
     timestamp: '2013-04-15T14:22:24Z'
-    total_volume_scattering_coefficient: 113.0
-    fluorometric_chlorophyll_a_concentration: 53.0
-    colored_dissolved_organic_matter_concentration: 94.0
+    photosynthetically_active_radiation: 0.0
 
   - _index: 5
     _new_sequence: True
     timestamp: '2013-04-15T14:22:30Z'
-    total_volume_scattering_coefficient: 113.0
-    fluorometric_chlorophyll_a_concentration: 53.0
-    colored_dissolved_organic_matter_concentration: 93.0
+    photosynthetically_active_radiation: 0.0
 
   - _index: 6
     timestamp: '2013-04-15T14:22:37Z'
-    total_volume_scattering_coefficient: 113.0
-    fluorometric_chlorophyll_a_concentration: 51.0
-    colored_dissolved_organic_matter_concentration: 94.0
+    photosynthetically_active_radiation: 0.0
 
   - _index: 7
     _new_sequence: True
     timestamp: '2013-04-15T14:22:43Z'
-    total_volume_scattering_coefficient: 114.0
-    fluorometric_chlorophyll_a_concentration: 53.0
-    colored_dissolved_organic_matter_concentration: 96.0
+    photosynthetically_active_radiation: 0.0
 
   - _index: 8
     timestamp: '2013-04-15T14:22:50Z'
-    total_volume_scattering_coefficient: 113.0
-    fluorometric_chlorophyll_a_concentration: 52.0
-    colored_dissolved_organic_matter_concentration: 91.0
+    photosynthetically_active_radiation: 0.0

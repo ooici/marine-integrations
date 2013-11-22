@@ -16,13 +16,13 @@ data:
 
   - _index: 3
     timestamp: 3575024557.0
-    photosynthetically_active_radiation: 7.63
+    photosynthetically_active_radiation: 0.000
 
   - _index: 4
     timestamp: 3575024563.0
-    photosynthetically_active_radiation: 6.11
+    photosynthetically_active_radiation: 0.000
 
   - _index: 5
     timestamp: 3575024570.0
-    photosynthetically_active_radiation: 4.59
+    photosynthetically_active_radiation: 0.000
     

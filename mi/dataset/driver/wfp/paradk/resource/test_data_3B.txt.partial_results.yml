@@ -8,11 +8,11 @@ data:
   - _index: 1
     _new_sequence: True
     timestamp: 3575024530.0
-    photosynthetically_active_radiation: 0.000
+    photosynthetically_active_radiation: 0.0
 
   - _index: 2
     timestamp: 3575024537.0
-    photosynthetically_active_radiation: 0.000
+    photosynthetically_active_radiation: 0.0
 
   - _index: 3
     timestamp: 3575024544.0
@@ -24,5 +24,5 @@ data:
 
   - _index: 5
     timestamp: 3575024557.0
-    photosynthetically_active_radiation: 7.63
+    photosynthetically_active_radiation: 0.0
     
