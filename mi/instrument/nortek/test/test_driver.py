@@ -585,7 +585,6 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 
         # construct the expected particle
         expected_particle = {
-            DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
             DataParticleKey.STREAM_NAME: NortekDataParticleType.HARDWARE_CONFIG,
@@ -611,7 +610,6 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 
         # construct the expected particle
         expected_particle = {
-            DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
             DataParticleKey.STREAM_NAME: NortekDataParticleType.HEAD_CONFIG,
@@ -637,7 +635,6 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 
         # construct the expected particle
         expected_particle = {
-            DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
             DataParticleKey.STREAM_NAME: NortekDataParticleType.USER_CONFIG,
@@ -663,7 +660,6 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 
         # construct the expected particle
         expected_particle = {
-            DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
             DataParticleKey.STREAM_NAME: NortekDataParticleType.CLOCK,
@@ -689,7 +685,6 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 
         # construct the expected particle
         expected_particle = {
-            DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
             DataParticleKey.STREAM_NAME: NortekDataParticleType.BATTERY,
@@ -715,7 +710,6 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 
         # construct the expected particle
         expected_particle = {
-            DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
             DataParticleKey.STREAM_NAME: NortekDataParticleType.ID_STRING,
