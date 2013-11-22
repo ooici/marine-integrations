@@ -1,0 +1,55 @@
+# Result data after parsing test_data_1.txt
+
+header:
+  particle_object: FlortdParserDataParticle
+  particle_type: flortd_parsed
+
+data:
+  - _index: 1
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:05'
+    date_string: '07/24/13'
+    time_string: '06:00:05'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 78
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 72
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 51
+    raw_internal_temp: 553
+  - _index: 2
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T12:00:06'
+    date_string: '07/24/13'
+    time_string: '12:00:06'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 169
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 127
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 58
+    raw_internal_temp: 553
+  - _index: 3
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T18:00:06'
+    date_string: '07/24/13'
+    time_string: '18:00:06'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 262
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 84
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 55
+    raw_internal_temp: 555
+  - _index: 4
+    _new_sequence: False
+    internal_timestamp: '2013-07-25T00:00:06'
+    date_string: '07/25/13'
+    time_string: '00:00:06'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 159
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 95
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 59
+    raw_internal_temp: 554

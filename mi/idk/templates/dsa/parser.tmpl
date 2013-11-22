@@ -1,0 +1,125 @@
+#!/usr/bin/env python
+
+"""
+@package ${driver_module}
+@file ${file}
+@author ${author}
+@brief Parser for the ${driver_name} dataset driver
+Release notes:
+
+${release_notes}
+"""
+
+__author__ = '${author}'
+__license__ = 'Apache 2.0'
+
+import re
+import ntplib
+
+from mi.core.log import get_logger ; log = get_logger()
+from mi.core.common import BaseEnum
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+from mi.core.exceptions import SampleException, DatasetParserException
+from mi.dataset.dataset_parser import Parser
+
+# *** Need to define data regex for this parser ***
+DATA_REGEX = ''
+DATA_MATCHER = re.compile(DATA_REGEX)
+
+class DataParticleType(BaseEnum):
+    SAMPLE = '${full_instrument_lower}_parsed'
+
+class ${full_instrument_first}ParserDataParticleKey(BaseEnum):
+
+class StateKey(BaseEnum):
+    TIMESTAMP='timestamp' #holds the most recent data sample timestamp
+
+class ${full_instrument_first}ParserDataParticle(DataParticle):
+    """
+    Class for parsing data from the ${driver_name} instrument
+    """
+
+    _data_particle_type = DataParticleType.SAMPLE
+    
+    def _build_parsed_values(self):
+        """
+        Take something in the data format and turn it into
+        a particle with the appropriate tag.
+        @throws SampleException If there is a problem with sample creation
+        """
+        pass
+
+    def __eq__(self, arg):
+        """
+        Quick equality check for testing purposes. If they have the same raw
+        data, timestamp, and new sequence, they are the same enough for this 
+        particle
+        """
+        if ((self.raw_data == arg.raw_data) and \
+            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
+             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) and \
+            (self.contents[DataParticleKey.NEW_SEQUENCE] == \
+             arg.contents[DataParticleKey.NEW_SEQUENCE])):
+            return True
+        else:
+            if self.raw_data != arg.raw_data:
+                log.debug('Raw data does not match')
+            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
+                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
+                log.debug('Timestamp does not match')
+            elif self.contents[DataParticleKey.NEW_SEQUENCE] != \
+                 arg.contents[DataParticleKey.NEW_SEQUENCE]:
+                log.debug('Sequence does not match')
+            return False
+
+class ${full_instrument_first}Parser(Parser):
+
+    def set_state(self, state_obj):
+        """
+        Set the value of the state object for this parser
+        @param state_obj The object to set the state to. 
+        @throws DatasetParserException if there is a bad state structure
+        """
+        if not isinstance(state_obj, dict):
+            raise DatasetParserException("Invalid state structure")
+        self._timestamp = state_obj[StateKey.TIMESTAMP]
+        self._state = state_obj
+        self._read_state = state_obj
+
+    def _increment_state(self, timestamp):
+        """
+        Increment the parser state
+        @param timestamp The timestamp completed up to that position
+        """
+        self._read_state[StateKey.TIMESTAMP] = timestamp
+
+    def parse_chunks(self):
+        """
+        Parse out any pending data chunks in the chunker. If
+        it is a valid data piece, build a particle, update the position and
+        timestamp. Go until the chunker has no more valid data.
+        @retval a list of tuples with sample particles encountered in this
+            parsing, plus the state. An empty list of nothing was parsed.
+        """            
+        result_particles = []
+        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+        non_data = None
+
+        while (chunk != None):
+            data_match = DATA_MATCHER.match(chunk)
+            if data_match
+                # particle-ize the data block received, return the record
+                sample = self._extract_sample(self._particle_class, DATA_MATCHER, chunk, self._timestamp)
+                if sample:
+                    # create particle
+                    log.trace("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
+                    self._increment_state(end, self._timestamp)    
+                    result_particles.append((sample, copy.copy(self._read_state)))
+
+            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
+
+        return result_particles
+
+
+

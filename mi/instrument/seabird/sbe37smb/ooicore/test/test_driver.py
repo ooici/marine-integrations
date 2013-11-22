@@ -1273,6 +1273,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         # If this assert fails, then two of tte enumerations have an identical value...
         return match == outer_match
 
+    @unittest.skip("Tested in the base class")
     def test_direct_access_telnet_mode_command(self):
         """
         @brief This test verifies that the Instrument Driver
@@ -1562,7 +1563,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
             ResourceAgentEvent.GO_DIRECT_ACCESS
         ]
 
-        agt_pars_all = ['example', 'streams', 'pubrate', 'alerts', 'driver_pid', 'aggstatus']
+        agt_pars_all = ['example', 'streams', 'pubrate', 'alerts', 'driver_pid', 'driver_name', 'aggstatus']
 
         res_cmds_all =[
             SBE37ProtocolEvent.ACQUIRE_STATUS,

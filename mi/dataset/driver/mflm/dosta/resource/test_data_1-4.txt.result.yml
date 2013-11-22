@@ -1,0 +1,97 @@
+# Result data after parsing test_data_1.txt
+
+header:
+  particle_object: DostadParserDataParticle
+  particle_type: dostad_parsed
+
+data:
+  - _index: 1
+    _new_sequence: False
+    internal_timestamp: '2013-07-23T23:15:01'
+    product_number: 4831
+    serial_number: 128
+    estimated_oxygen: 302.636
+    air_saturation: 98.918
+    optode_temperature: 16.355
+    calibrated_phase: 30.771
+    temp_compensated_phase: 30.771
+    blue_phase: 36.199
+    red_phase: 5.429
+    blue_amplitude: 1309.9
+    red_amplitude: 1175.7
+    raw_temp: 299.6
+  - _index: 2
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T00:00:01'
+    product_number: 4831
+    serial_number: 128
+    estimated_oxygen: 317.073
+    air_saturation: 98.515
+    optode_temperature: 14.004
+    calibrated_phase: 31.299
+    temp_compensated_phase: 31.299
+    blue_phase: 36.647
+    red_phase: 5.349
+    blue_amplitude: 1338.5
+    red_amplitude: 1212.4
+    raw_temp: 375.8
+  - _index: 3
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:01'
+    product_number: 4831
+    serial_number: 128
+    estimated_oxygen: 326.544
+    air_saturation: 96.726
+    optode_temperature: 11.873
+    calibrated_phase: 31.965
+    temp_compensated_phase: 31.965
+    blue_phase: 37.134
+    red_phase: 5.169
+    blue_amplitude: 1370.7
+    red_amplitude: 1245.9
+    raw_temp: 444.4
+  - _index: 4
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T12:00:02'
+    product_number: 4831
+    serial_number: 128
+    estimated_oxygen: 332.060
+    air_saturation: 99.617
+    optode_temperature: 12.432
+    calibrated_phase: 31.490
+    temp_compensated_phase: 31.490
+    blue_phase: 36.812
+    red_phase: 5.323
+    blue_amplitude: 1026.0
+    red_amplitude: 1100.0
+    raw_temp: 426.5
+  - _index: 5
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T18:00:02'
+    product_number: 4831
+    serial_number: 128
+    estimated_oxygen: 354.515
+    air_saturation: 101.592
+    optode_temperature: 10.440
+    calibrated_phase: 31.666
+    temp_compensated_phase: 31.666
+    blue_phase: 36.930
+    red_phase: 5.263
+    blue_amplitude: 1020.1
+    red_amplitude: 1123.0
+    raw_temp: 490.0
+  - _index: 6
+    _new_sequence: False
+    internal_timestamp: '2013-07-25T00:00:02'
+    product_number: 4831
+    serial_number: 128
+    estimated_oxygen: 337.540
+    air_saturation: 100.172
+    optode_temperature: 11.955
+    calibrated_phase: 31.521
+    temp_compensated_phase: 31.521
+    blue_phase: 36.805
+    red_phase: 5.284
+    blue_amplitude: 983.8
+    red_amplitude: 1092.6
+    raw_temp: 441.7

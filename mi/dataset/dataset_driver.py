@@ -160,12 +160,22 @@ class DataSetDriver(object):
     def _stop_sampling(self):
         raise NotImplementedException('virtual method needs to be specialized')
 
+    def _is_sampling(self):
+        """
+        Currently the drivers only have two states, command and streaming and
+        all resource commands are common, either start or stop autosample.
+        Therefore we didn't implement an enitre state machine to manage states
+        and commands.  If it does get more complex than this we should take the
+        time to implement a state machine to add some flexibility
+        """
+        raise NotImplementedException('virtual method needs to be specialized')
+
     def cmd_dvr(self, cmd, *args, **kwargs):
         log.warn("DRIVER: cmd_dvr %s", cmd)
 
-        resource_cmd = args[0]
-
         if cmd == 'execute_resource':
+            resource_cmd = args[0]
+
             if resource_cmd == DriverEvent.START_AUTOSAMPLE:
                 return (ResourceAgentState.STREAMING, None)
 
@@ -189,6 +199,9 @@ class DataSetDriver(object):
         elif cmd == 'disconnect':
             pass
 
+        elif cmd == 'initialize':
+            pass
+
         else:
             log.error("Unhandled command: %s", cmd)
             raise InstrumentStateException("Unhandled command: %s" % cmd)
@@ -203,7 +216,14 @@ class DataSetDriver(object):
         @raises NotImplementedException if not implemented by subclass.
         """
         res_params = self._param_dict.get_keys()
-        return [[], res_params]
+        res_cmds = [DriverEvent.STOP_AUTOSAMPLE, DriverEvent.START_AUTOSAMPLE]
+
+        if current_state and self._is_sampling():
+            res_cmds = [DriverEvent.STOP_AUTOSAMPLE]
+        elif current_state and not self._is_sampling():
+            res_cmds = [DriverEvent.START_AUTOSAMPLE]
+
+        return [res_cmds, res_params]
 
     def set_resource(self, *args, **kwargs):
         """
@@ -361,6 +381,15 @@ class SimpleDataSetDriver(DataSetDriver):
         super(SimpleDataSetDriver, self).__init__(config, memento, data_callback, state_callback, exception_callback)
 
         self._init_state(memento)
+
+    def _is_sampling(self):
+        """
+        Are we currently sampling?
+        """
+        if self._harvester:
+            return True
+        else:
+            return False
 
     def _start_sampling(self):
         # just a little nap before we start working.  Giving the agent time

@@ -1,0 +1,19 @@
+# Result data after parsing test_data_1.txt
+
+header:
+  particle_object: FlortdParserDataParticle
+  particle_type: flortd_parsed
+
+data:
+  - _index: 1
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T00:00:06'
+    date_string: '07/24/13'
+    time_string: '00:00:06'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 85
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 50
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 51
+    raw_internal_temp: 548

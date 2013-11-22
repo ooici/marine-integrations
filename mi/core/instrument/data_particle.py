@@ -96,8 +96,10 @@ class DataParticle(object):
             DataParticleKey.DRIVER_TIMESTAMP: ntplib.system_to_ntp_time(time.time()),
             DataParticleKey.PREFERRED_TIMESTAMP: preferred_timestamp,
             DataParticleKey.QUALITY_FLAG: quality_flag,
-            DataParticleKey.NEW_SEQUENCE: new_sequence
         }
+
+        if new_sequence is not None:
+            self.contents[DataParticleKey.NEW_SEQUENCE] = new_sequence
 
         self.raw_data = raw_data
 

@@ -21,21 +21,22 @@ from nose.plugins.attrib import attr
 from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
+from mi.idk.exceptions import SampleTimeout
 
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
+from ${driver_module} import ${constructor}
+from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_first}ParserDataParticle
 
-# Fill in the blanks to initialize data set test case
+# Fill in driver details
 DataSetTestCase.initialize(
-    driver_module=''
-    driver_class=''
-
-    agent_preload_id = '',
-    agent_resource_id = '',
-    agent_name = '',
-    agent_packet_config = [''],
+    driver_module='${driver_module}',
+    driver_class='${constructor}',
+    agent_resource_id = '123xyz',
+    agent_name = 'Agent007',
+    agent_packet_config = ${constructor}.stream_config(),
     startup_config = {
         'harvester':
         {
@@ -45,8 +46,9 @@ DataSetTestCase.initialize(
         },
         'parser': {}
     }
-}
+)
 
+SAMPLE_STREAM = '${full_instrument_lower}_parsed'
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -55,8 +57,24 @@ DataSetTestCase.initialize(
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
-        
-    def setUp(self):
+ 
+    def test_get(self):
+        """
+        Test that we can get data from files.  Verify that the driver
+        sampling can be started and stopped
+        """
+        pass
+
+    def test_stop_resume(self):
+        """
+        Test the ability to stop and restart the process
+        """
+        pass
+
+    def test_sequences(self):
+        """
+        Test new sequence flags are set correctly
+        """
         pass
 
 ###############################################################################
@@ -69,10 +87,30 @@ class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):
         super(QualificationTest, self).setUp()
 
-    def test_initialize(self):
+    def test_publish_path(self):
         """
-        Test that we can start the container and initialize the dataset agent.
+        Setup an agent/driver/harvester/parser and verify that data is
+        published out the agent
         """
-        self.assert_initialize()
-        self.assert_stop_sampling()
-        self.assert_reset()
+        pass
+
+    def test_large_import(self):
+        """
+        Test importing a large number of samples from the file at once
+        """
+        pass
+
+    def test_stop_start(self):
+        """
+        Test the agents ability to start data flowing, stop, then restart
+        at the correct spot.
+        """
+        pass
+
+    def test_parser_exception(self):
+        """
+        Test an exception is raised after the driver is started during
+        record parsing.
+        """
+        pass
+

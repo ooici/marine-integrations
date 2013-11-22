@@ -142,11 +142,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clean_file()
 
         # Create and store the new driver state
-        self.memento = {DataSourceConfigKey.HARVESTER: {'last_filesize': 893,
-                                                        'last_checksum': 'b859e40320ac396a5991d80a655bc161'},
+        self.memento = {DataSourceConfigKey.HARVESTER: {'last_filesize': 500,
+                                                        'last_checksum': '36cd31b3ae1c90eb5b1a0ed7d7be6512'},
                         DataSourceConfigKey.PARSER: {'in_process_data': [],
-                                                     'unprocessed_data':[[0,50], [374,432], [892,893]],
-                                                     'timestamp': 3583656001.0}}
+                                                     'unprocessed_data':[[0,12], [336,394], [467,500]],
+                                                     'timestamp': 3583612801.0}}
         self.driver = MflmCTDMODataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
@@ -199,8 +199,10 @@ class IntegrationTest(DataSetIntegrationTestCase):
                          count=12, timeout=10)
 
         # start over now, using step 4, make sure sequence flags just account for
-        # missing data in file (there are some sections of bad data that don't
-        # match in headers, [0-50], [374-432], [1197-1471]
+        # missing data in file 
+        # note that node59p1_step4.dat has been doctored from the original file to
+        # take out one data section in between two CT packets (3rd and 4th) so there
+        # could be two continuous packets (no new seq)
         self.driver.stop_sampling()
         # reset the parser and harvester states
         self.driver.clear_states()
@@ -336,13 +338,14 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)
-    @unittest.skip('Not working currently')
+
     def test_parser_exception(self):
         """
-        Test an exception raised after the driver is started during
+        Test an exception is raised after the driver is started during
         record parsing.
         """
         self.clean_file()
+        # file contains invalid sample values
         self.create_sample_data('node59p1_bad.dat', "node59p1.dat")
 
         self.assert_initialize()

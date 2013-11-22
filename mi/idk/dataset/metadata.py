@@ -112,6 +112,7 @@ class Metadata(mi.idk.metadata.Metadata):
         self.driver_name_versioned = None
         self.entry_point_group = None
         self.versioned_constructor = None
+        self.full_instrument_name = None
         
         log.debug("Constructing dataset metadata")
 
@@ -140,6 +141,10 @@ class Metadata(mi.idk.metadata.Metadata):
         self.version = yamlInput['driver_metadata'].get('version', 0)
         # constructor must match driver class constructor name in driver.py
         self.constructor = yamlInput['driver_metadata'].get('constructor')
+        if 'full_instrument_name' in yamlInput['driver_metadata']:
+            self.full_instrument_name = yamlInput['driver_metadata'].get('full_instrument_name')
+        else:
+            self.full_instrument_name = None
         self._generate_versioned_metadata()
 
     def _generate_versioned_metadata(self):
@@ -164,6 +169,8 @@ class Metadata(mi.idk.metadata.Metadata):
         """
         print( "Driver Path: " + self.driver_path )
         print( "Driver Name: " + self.driver_name )
+        if self.full_instrument_name != None:
+            print( "Full Instrument Name: " + self.full_instrument_name )
         print( "Author: " + self.author )
         print( "Email: " + self.email )
         print( "Release Notes: \n" + self.notes )
@@ -184,7 +191,8 @@ class Metadata(mi.idk.metadata.Metadata):
                                 'driver_name': self.driver_name,
                                 'release_notes': self.notes,
                                 'version': self.version,
-                                'constructor': self.constructor
+                                'constructor': self.constructor,
+                                'full_instrument_name': self.full_instrument_name,
                           }
         }, default_flow_style=False)
 
@@ -194,6 +202,8 @@ class Metadata(mi.idk.metadata.Metadata):
         """
         self.driver_path = prompt.text( 'Driver Path', self.driver_path )
         self.driver_name = prompt.text( 'Driver Name', self.driver_name )
+        self.full_instrument_name = prompt.text( 'Full Instrument Name (Class and Series)',
+                                                self.full_instrument_name )
         self.version = prompt.text( 'Driver Version', self.version )
         self.author = prompt.text( 'Author', self.author )
         self.email = prompt.text( 'Email', self.email )

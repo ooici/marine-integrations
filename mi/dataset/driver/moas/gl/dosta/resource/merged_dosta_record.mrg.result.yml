@@ -4,7 +4,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-09-05T02:48:19.09106'
     m_present_time: 1378349299.09106
     m_present_secs_into_mission: 121204
@@ -31,7 +31,7 @@ data:
     sci_oxy4_oxygen: 241.865
     sci_oxy4_saturation: 95.848
   - _index: 4
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-09-05T02:47:18.77789'
     m_present_time: 1378349238.77789
     m_present_secs_into_mission: 121144

@@ -19,7 +19,7 @@ import ntplib
 from dateutil import parser
 from mi.core.log import get_logger ; log = get_logger()
 
-from mi.dataset.parser.mflm import MflmParser, HEADER_MATCHER
+from mi.dataset.parser.mflm import MflmParser, SIO_HEADER_MATCHER
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
@@ -61,16 +61,26 @@ class CtdmoParserDataParticle(DataParticle):
         try:
             # convert binary to hex ascii string
             asciihex = binascii.b2a_hex(match.group(0))
+            log.debug('Converting data %s', asciihex)
             # just convert directly from hex-ascii to int
             temp_num = int(asciihex[2:7], 16)
-            temp = (temp_num / 10000) - 10
+            temp = (float(temp_num) / 10000.0) - 10
+            log.debug('Hex %s to temp num %d converted to temp %f', asciihex[2:7], temp_num, temp)
+            if temp > 50 or temp < -10:
+                raise ValueError('Temperature %f outside reasonable range of -10 to 50 C'%temp)
             cond_num = int(asciihex[7:12], 16)
-            cond = (cond_num / 100000) - .5
+            cond = (float(cond_num) / 100000.0) - .5
+            log.debug('Hex %s to cond num %d to conductivity %f', asciihex[7:12], cond_num, cond)
+            if cond > 15 or cond < 0:
+                raise ValueError('Conductivity %f is outside reasonable range of .005 to 15'%cond)
             # need to swap pressure bytes
             press_byte_swap = asciihex[14:16] + asciihex[12:14]
             press_num = int(press_byte_swap, 16)
             pressure_range = .6894757 * (1000 - 14)
-            press = (press_num * pressure_range / (.85 * 65536)) - (.05 * pressure_range)
+            press = (float(press_num) * pressure_range / (.85 * 65536.0)) - (.05 * pressure_range)
+            log.debug('Hex %s convert to press num %d to pressure %f', press_byte_swap, press_num, press)
+            if press > 10900 or press < 0:
+                raise ValueError('Pressure %f is outside reasonable range of 0 to 10900 dbar'%press)
 
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
@@ -91,15 +101,19 @@ class CtdmoParserDataParticle(DataParticle):
         data, timestamp, and new sequence, they are the same enough for this particle
         """
         if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) and \
-            (self.contents[DataParticleKey.NEW_SEQUENCE] == arg.contents[DataParticleKey.NEW_SEQUENCE])):
+            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
+             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) and \
+            (self.contents[DataParticleKey.NEW_SEQUENCE] == \
+             arg.contents[DataParticleKey.NEW_SEQUENCE])):
             return True
         else:
             if self.raw_data != arg.raw_data:
                 log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
+            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
+            arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
                 log.debug('Timestamp does not match')
-            elif self.contents[DataParticleKey.NEW_SEQUENCE] != arg.contents[DataParticleKey.NEW_SEQUENCE]:
+            elif self.contents[DataParticleKey.NEW_SEQUENCE] != \
+            arg.contents[DataParticleKey.NEW_SEQUENCE]:
                 log.debug('Sequence does not match')
             return False
 
@@ -151,23 +165,25 @@ class CtdmoParser(MflmParser):
             parsing, plus the state. An empty list of nothing was parsed.
         """            
         result_particles = []
+        (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
         # all non-data packets will be read along with all the data, so we can't just use the fact that
         # there is or is not non-data to determine when a new sequence should occur.  The non-data will
-        # keep getting shifted lower as things get cleaned out, and when it reaches the 0 index the non-data
-        # is actually next
-        (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
+        # keep getting shifted lower as actual data get cleaned out, so as long as the end of non-data
+        # is before the start of the data it counts
         non_data_flag = False
-        if non_data is not None and non_start is 0:
+        if non_data is not None and non_end <= start:
             non_data_flag = True
 
         sample_count = 0
         prev_sample = None
+        new_seq = 0
 
         while (chunk != None):
-            header_match = HEADER_MATCHER.match(chunk)
+            header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
             prev_sample = None
+            new_seq = 0
             if header_match.group(1) == self._instrument_id:
                 # Check for missing data between records
                 if non_data_flag or self._new_seq_flag:
@@ -176,7 +192,9 @@ class CtdmoParser(MflmParser):
                     # that we have made a new sequence
                     non_data_flag = False
                     self._new_seq_flag = False
-                    self.start_new_sequence()
+                    # No longer starting new sequences on gaps. for now.
+                    #self.start_new_sequence()
+                    new_seq = 1
 
                 # need to do special processing on data to handle escape sequences
                 # replace 0x182b with 0x2b and 0x1858 into 0x18
@@ -186,10 +204,10 @@ class CtdmoParser(MflmParser):
 
                 for data_match in DATA_MATCHER.finditer(chunk):
                     # check if the end of the last sample connects to the start of the next sample
-                    #if prev_sample is not None:
-                    #    if data_match.start(0) != prev_sample:
-                    #        log.error('start sample %d is not next to previous %d', data_match.start(0), prev_sample)
-                    #        raise SampleException('Samples do not line up, bad data found')
+                    if prev_sample is not None:
+                        if data_match.start(0) != prev_sample:
+                            log.error('extra data found between samples, leaving out the rest of this chunk')
+                            break
                     prev_sample = data_match.end(0)
                     # the timestamp is part of the data, pull out the time stamp
                     # convert from binary to hex string
@@ -212,10 +230,11 @@ class CtdmoParser(MflmParser):
                         sample_count += 1
             # keep track of how many samples were found in this chunk
             self._chunk_sample_count.append(sample_count)
-            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+            self._chunk_new_seq.append(new_seq)
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
+            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
             # need to set a flag in case we read a chunk not matching the instrument ID and overwrite the non_data
-            if non_data is not None and non_start is 0:
+            if non_data is not None and non_end <= start:
                 non_data_flag = True
 
         return result_particles
