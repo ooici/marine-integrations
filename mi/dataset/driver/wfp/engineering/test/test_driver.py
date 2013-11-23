@@ -98,7 +98,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 self.data_callback,
                 self.state_callback,
                 self.exception_callback)
-
+    @unittest.skip("Has this test been rendered un-needed?")
     def test_parameters(self):
         """
         Verify that we can get, set, and report all driver parameters.

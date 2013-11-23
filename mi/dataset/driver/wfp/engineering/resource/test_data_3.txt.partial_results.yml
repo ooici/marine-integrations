@@ -6,7 +6,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     timestamp: 3575024544.0
     current: 189.0 
     voltage: 10.5

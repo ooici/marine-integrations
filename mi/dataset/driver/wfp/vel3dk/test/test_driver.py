@@ -98,7 +98,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 self.data_callback,
                 self.state_callback,
                 self.exception_callback)
-
+            
+    @unittest.skip("Has this test been rendered un-needed?")
     def test_parameters(self):
         """
         Verify that we can get, set, and report all driver parameters.
@@ -244,7 +245,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(WfpVel3dkDataParticle, 'test_data_3B.txt.partial_results.yml', count=5, timeout=10)
+        self.assert_data(WfpVel3dkDataParticle, 'test_data_3B.txt.partial_results.yml', count=5, timeout=20)
 
 
 ###############################################################################

@@ -6,7 +6,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     timestamp: 3575024522.0
     photosynthetically_active_radiation: 5.21
 

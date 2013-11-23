@@ -6,7 +6,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     timestamp: 3575024530.0
     colored_dissolved_organic_matter_concentration: 97.0
     fluorometric_chlorophyll_a_concentration: 52.0

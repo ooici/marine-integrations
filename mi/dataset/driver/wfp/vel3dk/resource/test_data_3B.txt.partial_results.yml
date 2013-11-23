@@ -6,7 +6,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     timestamp: 3575093415.0
     sound_velocity: 1500.0
     temperature: 16.45

@@ -236,12 +236,10 @@ class WfpParser(BufferLoadingParser):
                  state_callback,
                  publish_callback,
                  *args, **kwargs):
-        log.error("IN WfpParser.__init__ 1")
 
         self._timestamp = 0.0
         self._record_buffer = [] # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION:0}
-        log.error("IN WfpParser.__init__ 2")
         super(WfpParser, self).__init__(config,
                                           stream_handle,
                                           state,
@@ -251,7 +249,6 @@ class WfpParser(BufferLoadingParser):
                                           publish_callback,
                                           *args,
                                           **kwargs)
-        log.error("IN WfpParser.__init__ 3 ")
         if state:
             self.set_state(self._state)
 
