@@ -10,8 +10,8 @@ data:
     internal_timestamp: '2013-07-24T06:00:01'
     product_number: 4831
     serial_number: 128
-    estimated_oxygen: 326.544
-    air_saturation: 96.726
+    estimated_oxygen_concentration: 326.544
+    estimated_oxygen_saturation: 96.726
     optode_temperature: 11.873
     calibrated_phase: 31.965
     temp_compensated_phase: 31.965
@@ -19,4 +19,4 @@ data:
     red_phase: 5.169
     blue_amplitude: 1370.7
     red_amplitude: 1245.9
-    raw_temp: 444.4
+    raw_temperature: 444.4
