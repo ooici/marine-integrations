@@ -49,7 +49,7 @@ from mi.core.common import InstErrorCode, BaseEnum
 NEWLINE = '\n\r'
 
 # default timeout.
-TIMEOUT = 10
+TIMEOUT = 60
 # set up the 'structure' lengths (in bytes) and sync/id/size constants   
 USER_CONFIG_LEN = 512
 USER_CONFIG_SYNC_BYTES = '\xa5\x00\x00\x01'
