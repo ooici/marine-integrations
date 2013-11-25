@@ -13,6 +13,7 @@ ${release_notes}
 __author__ = '${author}'
 __license__ = 'Apache 2.0'
 
+import copy
 import re
 import ntplib
 
@@ -57,9 +58,7 @@ class ${full_instrument_first}ParserDataParticle(DataParticle):
         """
         if ((self.raw_data == arg.raw_data) and \
             (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) and \
-            (self.contents[DataParticleKey.NEW_SEQUENCE] == \
-             arg.contents[DataParticleKey.NEW_SEQUENCE])):
+             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
             return True
         else:
             if self.raw_data != arg.raw_data:
@@ -67,9 +66,6 @@ class ${full_instrument_first}ParserDataParticle(DataParticle):
             elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
                  arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
                 log.debug('Timestamp does not match')
-            elif self.contents[DataParticleKey.NEW_SEQUENCE] != \
-                 arg.contents[DataParticleKey.NEW_SEQUENCE]:
-                log.debug('Sequence does not match')
             return False
 
 class ${full_instrument_first}Parser(Parser):
@@ -107,7 +103,7 @@ class ${full_instrument_first}Parser(Parser):
 
         while (chunk != None):
             data_match = DATA_MATCHER.match(chunk)
-            if data_match
+            if data_match:
                 # particle-ize the data block received, return the record
                 sample = self._extract_sample(self._particle_class, DATA_MATCHER, chunk, self._timestamp)
                 if sample:
