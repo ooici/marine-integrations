@@ -269,12 +269,15 @@ class ResultSet(object):
         elif not particle_timestamp and expected_time:
             errors.append("particle_timestamp expected, but not defined in particle")
 
-        # If we have a timestamp AND expect one then compare values
-        elif (particle_timestamp and
-              (particle_timestamp - self._string_to_ntp_date_time(expected_time)) > allow_diff):
-            errors.append("expected internal_timestamp mismatch, %.9f != %.9f (%.9f)" %
-                (self._string_to_ntp_date_time(expected_time), particle_timestamp,
-                 self._string_to_ntp_date_time(expected_time)- particle_timestamp))
+        elif particle_timestamp:
+            expected = self._string_to_ntp_date_time(expected_time)
+            ts_diff =  abs(particle_timestamp - self._string_to_ntp_date_time(expected_time))
+            log.debug("verify timestamp: abs(%s - %s) = %s", expected, particle_timestamp, ts_diff)
+
+            if ts_diff > allow_diff:
+                errors.append("expected internal_timestamp mismatch, %.9f != %.9f (%.9f)" %
+                              (expected, particle_timestamp, ts_diff))
+            log.debug("Timestamp match: %s ~= %s", expected, particle_timestamp)
 
         # verify the stream name
         particle_stream = particle_dict['stream_name']

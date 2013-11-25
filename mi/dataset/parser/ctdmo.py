@@ -28,9 +28,10 @@ class DataParticleType(BaseEnum):
     SAMPLE = 'ctdmo_parsed'
     
 class CtdmoParserDataParticleKey(BaseEnum):
-    TEMPERATURE = "temperature"
+    TEMPERATURE = "temp"
     CONDUCTIVITY = "conductivity"
     PRESSURE = "pressure"
+    CTD_TIME = "ctd_time"
 
 # the [\x16-\x40] is because we need more than just \x0d to correctly
 # identify the split between samples, the data might have \x0d in it also,
@@ -82,6 +83,13 @@ class CtdmoParserDataParticle(DataParticle):
             if press > 10900 or press < 0:
                 raise ValueError('Pressure %f is outside reasonable range of 0 to 10900 dbar'%press)
 
+            asciihextime = binascii.b2a_hex(match.group(1))
+            # reverse byte order in time hex string
+            timehex_reverse = asciihextime[6:8] + asciihextime[4:6] + \
+            asciihextime[2:4] + asciihextime[0:2]
+            # time is in seconds since Jan 1 2000, convert to timestamp
+            internal_time = int(timehex_reverse, 16)
+
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
@@ -91,7 +99,9 @@ class CtdmoParserDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.CONDUCTIVITY,
                    DataParticleKey.VALUE: cond},
                   {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.PRESSURE,
-                   DataParticleKey.VALUE: press}]
+                   DataParticleKey.VALUE: press},
+                  {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.CTD_TIME,
+                   DataParticleKey.VALUE: internal_time}]
         log.trace('CtdmoParserDataParticle: particle=%s', result)
         return result
 
@@ -144,12 +154,18 @@ class CtdmoParser(MflmParser):
         @param ts_str The timestamp string in the format "mm/dd/yyyy hh:mm:ss"
         @retval The NTP4 timestamp
         """
-        # get seconds since jan 1 2000 (local timezone)
-        local_dt_2000 = parser.parse("2000-01-01T00:00:00.00Z")
-        elapse_2000 = float(local_dt_2000.strftime("%s.%f"))
+        log.debug("Convert seconds since 2000: %d", sec_since_2000)
+
+        # get seconds since jan 1 2000 (gmt timezone)
+        gmt_dt_2000 = parser.parse("2000-01-01T00:00:00.00Z")
+        elapse_2000 = float(gmt_dt_2000.strftime("%s.%f"))
+        log.debug("elapse since 2000: %s", elapse_2000)
+
         # get seconds since jan 1 1970 (local timezone)
         local_dt_1970 = parser.parse("1970-01-01T00:00:00.00Z")
         elapse_1970 = float(local_dt_1970.strftime("%s.%f"))
+        log.debug("elaspe since 1970: %s", elapse_1970)
+
         # convert from epoch in 2000 to epoch in 1970, GMT
         sec_since_1970 = sec_since_2000 + elapse_2000 - elapse_1970
         ntptime = ntplib.system_to_ntp_time(sec_since_1970)
