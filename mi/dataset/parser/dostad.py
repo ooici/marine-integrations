@@ -26,8 +26,8 @@ class DataParticleType(BaseEnum):
 class DostadParserDataParticleKey(BaseEnum):
     PRODUCT_NUMBER = 'product_number'
     SERIAL_NUMBER = 'serial_number'
-    ESTIMATED_OXYGEN = 'estimated_oxygen'
-    AIR_SATURATION = 'air_saturation'
+    ESTIMATED_OXYGEN = 'estimated_oxygen_concentration'
+    AIR_SATURATION = 'estimated_oxygen_saturation'
     OPTODE_TEMPERATURE = 'optode_temperature'
     CALIBRATED_PHASE = 'calibrated_phase'
     TEMP_COMPENSATED_PHASE = 'temp_compensated_phase'
@@ -35,7 +35,7 @@ class DostadParserDataParticleKey(BaseEnum):
     RED_PHASE = 'red_phase'
     BLUE_AMPLITUDE = 'blue_amplitude'
     RED_AMPLITUDE = 'red_amplitude'
-    RAW_TEMP = 'raw_temp'
+    RAW_TEMP = 'raw_temperature'
     
 DATA_REGEX = b'\xff\x11\x25\x11(\d+)\t(\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t' \
              '(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\x0d\x0a'
