@@ -136,15 +136,17 @@ class Issmcnsm_dostadParserDataParticle(DataParticle):
         particle
         """
         if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
+            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
+             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP] < .0000001)):
             return True
         else:
             if self.raw_data != arg.raw_data:
                 log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
+            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
+                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP] >= .0000001:
+                log.debug('Timestamp %f and %f do not match',
+                          self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
+                          arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
             return False
 
 class Issmcnsm_dostadParser(BufferLoadingParser):
@@ -251,7 +253,6 @@ class Issmcnsm_dostadParser(BufferLoadingParser):
             data_increment = end
 
         while (chunk != None):
-            log.debug("Checking chunk %s", chunk)
             data_match = DATA_MATCHER.match(chunk)
             if data_match:
                 # time is inside the data regex
