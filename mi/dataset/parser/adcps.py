@@ -22,6 +22,7 @@ from mi.dataset.parser.mflm import MflmParser, SIO_HEADER_MATCHER
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, DatasetParserException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+from mi.core.time import string_to_ntp_date_time
 
 class DataParticleType(BaseEnum):
     SAMPLE = 'adcps_parsed'
@@ -91,15 +92,19 @@ class AdcpsParserDataParticle(DataParticle):
                                                                                      len(match.group(0))))
             date_fields = struct.unpack('HBBBBBB', match.group(0)[11:19])
             date_str = self.unpack_date(match.group(0)[11:19])
+
             log.debug('unpacked date string %s', date_str)
+            sec_since_1900 = string_to_ntp_date_time(date_str)
+
             # get seconds from 1990 to 1970
-            elapse_1900 = float(parser.parse("1900-01-01T00:00:00.00Z").strftime("%s.%f"))
-            # get seconds 
-            elapse_date = float(parser.parse(date_str).strftime("%s.%f"))
+            #elapse_1900 = float(parser.parse("1900-01-01T00:00:00.00Z").strftime("%s.%f"))
+            # get seconds
+            #log.debug("Parse date str: %s", date_str)
+            #elapse_date = float(parser.parse(date_str).strftime("%s.%f"))
             # subtract seconds from 1900 to 1970 to convert to seconds since 1900
-            sec_since_1900 = round((elapse_date - elapse_1900)*100)/100
-            log.debug('calculated seconds since 1900 %f', sec_since_1900)
-            # create a string with the right number of shorts to unpack 
+            #sec_since_1900 = round((elapse_date - elapse_1900)*100)/100
+            #log.debug('calculated seconds since 1900 %f', sec_since_1900)
+            # create a string with the right number of shorts to unpack
             struct_format = '>'
             for i in range(0,nbins):
                 struct_format = struct_format + 'h'
@@ -186,6 +191,8 @@ class AdcpsParserDataParticle(DataParticle):
 
         log.debug('AdcpsParserDataParticle: particle=%s', result)
         return result
+
+
 
     def __eq__(self, arg):
         """

@@ -1017,7 +1017,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
         list of common agent parameters
         @return: list of agent parameters
         '''
-        return ['aggstatus', 'alerts', 'driver_name', 'driver_pid', 'example', 'pubrate', 'streams']
+        return ['aggstatus', 'alerts', 'child_agg_status', 'driver_name', 'driver_pid', 'example', 'pubrate', 'streams']
 
     def _common_agent_commands(self, agent_state):
         '''
