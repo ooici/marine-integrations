@@ -1,0 +1,52 @@
+# Result data after parsing test_data_2.txt
+#
+header:
+  particle_object: Issmcnsm_dostadParserDataParticle
+  particle_type: issmcnsm_dostad_parsed
+
+data:
+  - _index: 1
+    _new_sequence: False
+    internal_timestamp: '2013-10-12T00:00:21.862Z'
+    product_number: 4831
+    serial_number: 135
+    estimated_oxygen: 323.141
+    air_saturation: 101.136
+    optode_temperature: 14.337
+    calibrated_phase: 31.581
+    temp_compensated_phase: 31.581
+    blue_phase: 40.362
+    red_phase: 8.781
+    blue_amplitude: 1078.9
+    red_amplitude: 1067.3
+    raw_temp: 245.4
+  - _index: 2
+    _new_sequence: False
+    internal_timestamp: '2013-10-12T00:00:23.862Z'
+    product_number: 4831
+    serial_number: 135
+    estimated_oxygen: 323.126
+    air_saturation: 101.131
+    optode_temperature: 14.337
+    calibrated_phase: 31.581
+    temp_compensated_phase: 31.581
+    blue_phase: 40.363
+    red_phase: 8.782
+    blue_amplitude: 1078.8
+    red_amplitude: 1066.3
+    raw_temp: 245.4
+  - _index: 3
+    _new_sequence: False
+    internal_timestamp: '2013-10-12T00:00:25.862Z'
+    product_number: 4831
+    serial_number: 135
+    estimated_oxygen: 323.109
+    air_saturation: 101.126
+    optode_temperature: 14.337
+    calibrated_phase: 31.582
+    temp_compensated_phase: 31.582
+    blue_phase: 40.363
+    red_phase: 8.782
+    blue_amplitude: 1078.7
+    red_amplitude: 1065.4
+    raw_temp: 245.3

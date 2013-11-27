@@ -202,7 +202,7 @@ class Metadata(mi.idk.metadata.Metadata):
         """
         self.driver_path = prompt.text( 'Driver Path', self.driver_path )
         self.driver_name = prompt.text( 'Driver Name', self.driver_name )
-        self.full_instrument_name = prompt.text( 'Full Instrument Name (Class and Series)',
+        self.full_instrument_name = prompt.text( 'Parser Name (Site(s), Class, Series))',
                                                 self.full_instrument_name )
         self.version = prompt.text( 'Driver Version', self.version )
         self.author = prompt.text( 'Author', self.author )

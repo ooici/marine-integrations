@@ -63,6 +63,7 @@ class DirectoryPoller(ConditionPoller):
             raise ValueError('%s is not a directory' % self._directory)
 
         filenames = glob.glob(self._path)
+        filenames.sort()
         # files, but no change since last time
         if self._last_filename and filenames and filenames[-1]==self._last_filename:
             return None

@@ -8,21 +8,16 @@ data:
   - _index: 1
     _new_sequence: False
     internal_timestamp: '2013-07-24T00:00:01Z'
-    temp: 13.071000000000002
-    conductivity: 3.8369
-    pressure: 5.476113615122074
-    ctd_time: 427939201
-  - _index: 2
-    _new_sequence: False
-    internal_timestamp: '2013-07-24T00:00:01Z'
-    temp: 14.425699999999999
-    conductivity: 9.999999999998899e-05
-    pressure: 0.06980604804443402
-    ctd_time: 427939201
-  - _index: 3
-    _new_sequence: False
-    internal_timestamp: '2013-07-24T00:00:01Z'
+    inductive_id: 55
     temp: 13.470199999999998
     conductivity: 4.0000000000040004e-05
     pressure: 0.05760219349121343
     ctd_time: 427939201
+  - _index: 2
+    _new_sequence: False
+    internal_timestamp: '2013-07-24T06:00:01Z'
+    inductive_id: 55
+    temp: 11.9326
+    conductivity: 4.0000000000040004e-05
+    pressure: 0.04539833893798573
+    ctd_time: 427960801
