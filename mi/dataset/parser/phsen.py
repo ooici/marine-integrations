@@ -35,7 +35,7 @@ class PhsenParserDataParticleKey(BaseEnum):
     UNIQUE_ID = 'unique_id'
     RECORD_LENGTH = 'record_length'
     RECORD_TYPE = 'record_type'
-    RECORD_TIME = 'record_time'
+    RECORD_TIME = 'record_time_1904_uint32'
     THERMISTOR_START = 'thermistor_start'
     REFERENCE_LIGHT_MEASUREMENT = 'reference_light_measurement'
     LIGHT_MEASUREMENT = 'light_measurement'
