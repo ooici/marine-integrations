@@ -15,7 +15,9 @@ data:
     firmware_version: 50
     firmware_revision: 40
     real_time_clock: [2013, 7, 25, 9, 26, 16, 97]
-    ensemble_start_time: 3583733176.97
+    ensemble_start_time:
+      value: 3583733176.97
+      round: 2
     heading: 14975
     pitch: -159
     roll: 10

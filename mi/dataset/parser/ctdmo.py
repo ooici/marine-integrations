@@ -21,16 +21,18 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.parser.mflm import MflmParser, SIO_HEADER_MATCHER
 from mi.core.common import BaseEnum
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, DatasetParserException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
 class DataParticleType(BaseEnum):
     SAMPLE = 'ctdmo_parsed'
     
 class CtdmoParserDataParticleKey(BaseEnum):
-    TEMPERATURE = "temperature"
+    INDUCTIVE_ID = "inductive_id"
+    TEMPERATURE = "temp"
     CONDUCTIVITY = "conductivity"
     PRESSURE = "pressure"
+    CTD_TIME = "ctd_time"
 
 # the [\x16-\x40] is because we need more than just \x0d to correctly
 # identify the split between samples, the data might have \x0d in it also,
@@ -62,6 +64,7 @@ class CtdmoParserDataParticle(DataParticle):
             # convert binary to hex ascii string
             asciihex = binascii.b2a_hex(match.group(0))
             log.debug('Converting data %s', asciihex)
+            induct_id = int(asciihex[0:2], 16)
             # just convert directly from hex-ascii to int
             temp_num = int(asciihex[2:7], 16)
             temp = (float(temp_num) / 10000.0) - 10
@@ -82,16 +85,27 @@ class CtdmoParserDataParticle(DataParticle):
             if press > 10900 or press < 0:
                 raise ValueError('Pressure %f is outside reasonable range of 0 to 10900 dbar'%press)
 
+            asciihextime = binascii.b2a_hex(match.group(1))
+            # reverse byte order in time hex string
+            timehex_reverse = asciihextime[6:8] + asciihextime[4:6] + \
+            asciihextime[2:4] + asciihextime[0:2]
+            # time is in seconds since Jan 1 2000, convert to timestamp
+            internal_time = int(timehex_reverse, 16)
+
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
 
-        result = [{DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.TEMPERATURE,
+        result = [{DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.INDUCTIVE_ID,
+                   DataParticleKey.VALUE: induct_id},
+                  {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.TEMPERATURE,
                    DataParticleKey.VALUE: temp},
                   {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.CONDUCTIVITY,
                    DataParticleKey.VALUE: cond},
                   {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.PRESSURE,
-                   DataParticleKey.VALUE: press}]
+                   DataParticleKey.VALUE: press},
+                  {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.CTD_TIME,
+                   DataParticleKey.VALUE: internal_time}]
         log.trace('CtdmoParserDataParticle: particle=%s', result)
         return result
 
@@ -102,19 +116,16 @@ class CtdmoParserDataParticle(DataParticle):
         """
         if ((self.raw_data == arg.raw_data) and \
             (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) and \
-            (self.contents[DataParticleKey.NEW_SEQUENCE] == \
-             arg.contents[DataParticleKey.NEW_SEQUENCE])):
+             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
             return True
         else:
             if self.raw_data != arg.raw_data:
                 log.debug('Raw data does not match')
             elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
-            elif self.contents[DataParticleKey.NEW_SEQUENCE] != \
-            arg.contents[DataParticleKey.NEW_SEQUENCE]:
-                log.debug('Sequence does not match')
+                log.debug('Timestamp %s and %s do not match',
+                          self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
+                          arg.contents[DataParticleKey.INTERNAL_TIMESTAMP] )
             return False
 
 
@@ -136,6 +147,8 @@ class CtdmoParser(MflmParser):
                                           'CT',
                                           *args,
                                           **kwargs)
+        if not 'inductive_id' in config:
+            raise DatasetParserException("Parser config is missing inductive ID")
 
     @staticmethod
     def _convert_time_to_timestamp(sec_since_2000):
@@ -144,14 +157,15 @@ class CtdmoParser(MflmParser):
         @param ts_str The timestamp string in the format "mm/dd/yyyy hh:mm:ss"
         @retval The NTP4 timestamp
         """
-        # get seconds since jan 1 2000 (local timezone)
-        local_dt_2000 = parser.parse("2000-01-01T00:00:00.00Z")
-        elapse_2000 = float(local_dt_2000.strftime("%s.%f"))
-        # get seconds since jan 1 1970 (local timezone)
-        local_dt_1970 = parser.parse("1970-01-01T00:00:00.00Z")
-        elapse_1970 = float(local_dt_1970.strftime("%s.%f"))
+        log.debug("Convert seconds since 2000: %d", sec_since_2000)
+
+        # get seconds since jan 1 2000 (gmt timezone)
+        gmt_dt_2000 = parser.parse("2000-01-01T00:00:00.00Z")
+        elapse_2000 = float(gmt_dt_2000.strftime("%s.%f"))
+        log.debug("elapse since 2000: %s", elapse_2000)
+
         # convert from epoch in 2000 to epoch in 1970, GMT
-        sec_since_1970 = sec_since_2000 + elapse_2000 - elapse_1970
+        sec_since_1970 = sec_since_2000 + elapse_2000 - time.timezone
         ntptime = ntplib.system_to_ntp_time(sec_since_1970)
         log.debug("seconds since 1970 %d, ntptime %s", sec_since_1970, ntptime)
         return ntptime
@@ -211,23 +225,26 @@ class CtdmoParser(MflmParser):
                     prev_sample = data_match.end(0)
                     # the timestamp is part of the data, pull out the time stamp
                     # convert from binary to hex string
-                    asciihextime = binascii.b2a_hex(data_match.group(1))
-                    # reverse byte order in time hex string
-                    timehex_reverse = asciihextime[6:8] + asciihextime[4:6] + \
-                    asciihextime[2:4] + asciihextime[0:2]
-                    # time is in seconds since Jan 1 2000, convert to timestamp
-                    log.trace("time in hex:%s, in seconds:%d", timehex_reverse,
-                              int(timehex_reverse, 16))
-                    self._timestamp = self._convert_time_to_timestamp(int(timehex_reverse, 16))
-                    # particle-ize the data block received, return the record
-                    sample = self._extract_sample(CtdmoParserDataParticle,
-                                                  DATA_MATCHER,
-                                                  data_match.group(0),
-                                                  self._timestamp)
-                    if sample:
-                        # create particle
-                        result_particles.append(sample)
-                        sample_count += 1
+                    asciihex_id = binascii.b2a_hex(data_match.group(0)[0:1])
+                    induct_id = int(asciihex_id, 16)
+                    if induct_id == self._config.get('inductive_id'):
+                        asciihextime = binascii.b2a_hex(data_match.group(1))
+                        # reverse byte order in time hex string
+                        timehex_reverse = asciihextime[6:8] + asciihextime[4:6] + \
+                        asciihextime[2:4] + asciihextime[0:2]
+                        # time is in seconds since Jan 1 2000, convert to timestamp
+                        log.trace("time in hex:%s, in seconds:%d", timehex_reverse,
+                                  int(timehex_reverse, 16))
+                        self._timestamp = self._convert_time_to_timestamp(int(timehex_reverse, 16))
+                        # particle-ize the data block received, return the record
+                        sample = self._extract_sample(CtdmoParserDataParticle,
+                                                      DATA_MATCHER,
+                                                      data_match.group(0),
+                                                      self._timestamp)
+                        if sample:
+                            # create particle
+                            result_particles.append(sample)
+                            sample_count += 1
             # keep track of how many samples were found in this chunk
             self._chunk_sample_count.append(sample_count)
             self._chunk_new_seq.append(new_seq)

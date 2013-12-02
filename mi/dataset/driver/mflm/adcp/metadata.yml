@@ -5,4 +5,4 @@ driver_metadata:
   driver_path: mflm/adcp
   email: ehahn@bbn.com
   release_notes: Initial version.
-  version: 0.0.1
+  version: 0.0.2
