@@ -526,28 +526,34 @@ class DataSetQualificationTestCase(DataSetTestCase):
         Cleanup after the test completes or fails
         """
         log.debug("Starting test cleanup")
-        self.assert_reset()
+        #self.assert_reset()
         self.event_subscribers.stop()
         self.data_subscribers.stop_data_subscribers()
         self.instrument_agent_manager.stop_container()
 
         log.debug("Test complete and all cleaned up.")
 
-    def init_dataset_agent_client(self):
+    def init_dataset_agent_client(self, bootmode=None):
         log.info("Start Dataset Agent Client")
 
         # Start instrument agent client.
-        self.instrument_agent_manager.start_client(
+        result = self.instrument_agent_manager.start_client(
             name=self.test_config.agent_name,
             module=self.test_config.agent_module,
             cls=self.test_config.agent_class,
             config=self._agent_config(),
             resource_id=self.test_config.agent_resource_id,
             deploy_file=self.test_config.container_deploy_file,
-            bootmode='reset'
+            bootmode=bootmode
         )
 
+        log.debug("DSA Initialized.  Result: %s", result)
         self.dataset_agent_client = self.instrument_agent_manager.instrument_agent_client
+        log.debug("DSA Client.  Result: %s", self.dataset_agent_client)
+
+    def stop_dataset_agent_client(self):
+        log.debug("Stopping dataset agent. ff")
+        self.instrument_agent_manager.stop_client()
 
     def get_samples(self, stream_name, sample_count = 1, timeout = 10):
         """
@@ -759,6 +765,30 @@ class DataSetQualificationTestCase(DataSetTestCase):
             to.cancel()
 
         log.info("Expected event detected: %s", event)
+
+    def test_autosample_recover(self):
+        """
+        Verify that if we stop the agent without stopping sampling first then
+        the next agent startup will restore to streaming.
+        """
+        # First verify the happy path.  We start sampling, stop then reset
+        # On reinit state should still be command mode
+        self.assert_initialize()
+        self.assert_start_sampling()
+        self.assert_stop_sampling()
+        self.assert_reset()
+
+        self.assert_initialize()
+        self.assert_agent_state(ResourceAgentState.COMMAND)
+
+        # Now start sampling and then just reset the instrument agent.
+        # When we reinitialize go_active should put us in streaming mode.
+        self.assert_start_sampling()
+        self.assert_reset()
+
+        self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
+        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
+        self.assert_agent_state(ResourceAgentState.STREAMING)
 
     def test_initialize(self):
         """
@@ -1108,3 +1138,28 @@ class DataSetQualificationTestCase(DataSetTestCase):
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)
+
+    def test_autosample_recover(self):
+        """
+        Verify that if we stop the agent without stopping sampling first then
+        the next agent startup will restore to streaming.
+        """
+        # First verify the happy path.  We start sampling, stop then reset
+        # On reinit state should still be command mode
+        self.assert_initialize()
+        self.assert_stop_sampling()
+
+        log.debug("stop data set agent")
+        self.stop_dataset_agent_client()
+
+        log.debug("restart data set agent")
+        self.init_dataset_agent_client(bootmode='restart')
+        self.assert_state_change(ResourceAgentState.COMMAND, 10)
+
+        # Now start sampling and then just reset the instrument agent.
+        # When we reinitialize go_active should put us in streaming mode.
+        self.assert_start_sampling()
+        self.stop_dataset_agent_client()
+
+        self.init_dataset_agent_client(bootmode='restart')
+        self.assert_state_change(ResourceAgentState.STREAMING, 10)
