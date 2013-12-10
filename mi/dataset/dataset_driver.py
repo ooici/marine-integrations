@@ -18,9 +18,13 @@ from mi.core.exceptions import DataSourceLocationException
 from mi.core.exceptions import ConfigurationException
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import NotImplementedException
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
+from mi.core.instrument.driver_dict import DriverDict
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import Parameter
 from mi.core.common import BaseEnum
@@ -126,13 +130,18 @@ class DataSetDriver(object):
         self._publisher_thread = None
 
         self._verify_config()
-        self._param_dict = ProtocolParameterDict()
 
         # Updated my set_resource, defaults defined in build_param_dict
         self._polling_interval = None
         self._generate_particle_count = None
         self._particle_count_per_second = None
 
+        self._param_dict = ProtocolParameterDict()
+        self._cmd_dict = ProtocolCommandDict()
+        self._driver_dict = DriverDict()
+
+        self._build_command_dict()
+        self._build_driver_dict()
         self._build_param_dict()
 
     def shutdown(self):
@@ -285,6 +294,22 @@ class DataSetDriver(object):
 
         return result
 
+    def get_config_metadata(self):
+        """
+        Return the configuration metadata object in JSON format
+        @retval The description of the parameters, commands, and driver info
+        in a JSON string
+        @see https://confluence.oceanobservatories.org/display/syseng/CIAD+MI+SV+Instrument+Driver-Agent+parameter+and+command+metadata+exchange
+        """
+        log.debug("Getting metadata from driver...")
+        log.debug("Getting metadata dict from protocol...")
+        return_dict = {}
+        return_dict[ConfigMetadataKey.DRIVER] = self._driver_dict.generate_dict()
+        return_dict[ConfigMetadataKey.COMMANDS] = self._cmd_dict.generate_dict()
+        return_dict[ConfigMetadataKey.PARAMETERS] = self._param_dict.generate_dict()
+
+        return return_dict
+
     def _verify_config(self):
         """
         virtual method to verify the supplied driver configuration is value.  Must
@@ -293,6 +318,19 @@ class DataSetDriver(object):
         raises an ConfigurationException when a configuration error is detected.
         """
         raise NotImplementedException('virtual methond needs to be specialized')
+
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with options
+        """
+        pass
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+        self._cmd_dict.add(DriverEvent.START_AUTOSAMPLE, display_name="start autosample")
+        self._cmd_dict.add(DriverEvent.STOP_AUTOSAMPLE, display_name="stop autosample")
 
     def _build_param_dict(self):
         """
@@ -304,6 +342,7 @@ class DataSetDriver(object):
                 int,
                 value=60,
                 type=ParameterDictType.INT,
+                visibility=ParameterDictVisibility.IMMUTABLE,
                 display_name="Records Per Second",
                 description="Number of records to process per second")
         )
@@ -314,6 +353,7 @@ class DataSetDriver(object):
                 float,
                 value=1,
                 type=ParameterDictType.FLOAT,
+                visibility=ParameterDictVisibility.IMMUTABLE,
                 display_name="Harvester Polling Interval",
                 description="Duration in minutes to wait before checking for new files.")
         )
@@ -324,6 +364,7 @@ class DataSetDriver(object):
                 int,
                 value=1,
                 type=ParameterDictType.INT,
+                visibility=ParameterDictVisibility.IMMUTABLE,
                 display_name="Batched Particle Count",
                 description="Number of particles to batch before sending to the agent")
         )

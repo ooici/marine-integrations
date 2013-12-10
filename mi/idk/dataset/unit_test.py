@@ -12,6 +12,7 @@ import shutil
 from mi.core.log import get_logger ; log = get_logger()
 
 import unittest
+from pprint import PrettyPrinter
 
 from mi.core.unit_test import MiIntTestCase
 from mi.core.unit_test import ParticleTestMixin
@@ -34,7 +35,7 @@ from mi.idk.dataset.metadata import Metadata
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
 from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
-from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+from mi.dataset.dataset_driver import DataSourceConfigKey, DriverParameter
 from mi.core.instrument.instrument_driver import DriverEvent
 
 from interface.objects import ResourceAgentConnectionLostErrorEvent
@@ -490,6 +491,37 @@ class DataSetIntegrationTestCase(DataSetTestCase):
 
         with self.assertRaises(KeyError):
             self._get_driver_object(config=cfg)
+
+    def test_schema(self):
+        """
+        Test the driver schema
+        """
+        config_json = self.driver.get_config_metadata()
+        log.debug("config: %s", PrettyPrinter().pformat(config_json))
+
+        ###
+        # Driver
+        ###
+        driver = config_json.get('driver')
+        self.assertEqual(driver, {})
+
+        ###
+        # Commands
+        ###
+        cmds = config_json.get('commands')
+        self.assertIsNotNone(cmds)
+        self.assertIsNotNone(cmds.get(DriverEvent.START_AUTOSAMPLE))
+        self.assertIsNotNone(cmds.get(DriverEvent.STOP_AUTOSAMPLE))
+
+        ###
+        # Parameters
+        ###
+        params = config_json.get('parameters')
+        self.assertIsNotNone(params)
+        self.assertIsNotNone(params.get(DriverParameter.RECORDS_PER_SECOND))
+        self.assertIsNotNone(params.get(DriverParameter.PUBLISHER_POLLING_INTERVAL))
+        self.assertIsNotNone(params.get(DriverParameter.BATCHED_PARTICLE_COUNT))
+
 
 class DataSetQualificationTestCase(DataSetTestCase):
     """
@@ -1016,6 +1048,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
         # go get the active capabilities
         retval = self.dataset_agent_client.get_capabilities()
         agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
+        log.debug("Get capabilities retval: %s", retval)
 
         log.debug("Agent Commands: %s ", str(agt_cmds))
         log.debug("Compared to: %s", expected_agent_cmd)
