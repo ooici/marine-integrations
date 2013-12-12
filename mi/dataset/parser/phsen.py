@@ -69,15 +69,11 @@ class PhsenParserDataParticle(DataParticle):
             rec_type = int(match.group(0)[9:11], 16)
             rec_time = int(match.group(0)[11:19], 16)
             therm_start = int(match.group(0)[19:23], 16)
-            if therm_start < 0 or therm_start > 4096:
-                raise ValueError('Thermistor start %d is out of expected range 0-4096', therm_start)
             ref_meas = []
             for i in range(0, 16):
                 start_idx = 23 + i*4
                 end_idx = 23 + (i+1)*4
                 this_ref = int(match.group(0)[start_idx:end_idx], 16)
-                if this_ref < 0 or this_ref > 4096:
-                    raise ValueError('Reference light measurement %d is out of expected range 0-4096', this_ref)
                 ref_meas.append(this_ref)
 
             light_meas = []
@@ -86,14 +82,10 @@ class PhsenParserDataParticle(DataParticle):
                     start_idx = 87 + i*16 + s*4
                     end_idx = 87 + i*16 + (s+1)*4
                     this_meas = int(match.group(0)[start_idx:end_idx], 16)
-                    if this_meas < 0 or this_meas > 4096:
-                        raise ValueError('Light measurement %d is out of expected range 0-4096', this_meas)
                     light_meas.append(this_meas)
             # there are 2 non-used characters, skip from 455 to 459
             volt_batt = int(match.group(0)[459:463], 16)
             therm_end = int(match.group(0)[463:467], 16)
-            if therm_end < 0 or therm_end > 4096:
-                raise ValueError('Thermistor end %d is out of expected range 0-4096', therm_end)
             chksum = int(match.group(0)[467:469], 16)
 
             # calculate the checksum and compare with the received checksum
@@ -102,7 +94,7 @@ class PhsenParserDataParticle(DataParticle):
                 sum_bytes += int(match.group(0)[i:i+2], 16)
             calc_chksum = sum_bytes & 255
             if calc_chksum != chksum:
-                raise ValueError('Calculated checksum %d does not match received %d', calc_chksum, chksum)
+                raise ValueError('Calculated internal checksum %d does not match received %d', calc_chksum, chksum)
 
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
@@ -139,9 +131,7 @@ class PhsenParserDataParticle(DataParticle):
         """
         if ((self.raw_data == arg.raw_data) and \
             (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) and \
-            (self.contents[DataParticleKey.NEW_SEQUENCE] == \
-             arg.contents[DataParticleKey.NEW_SEQUENCE])):
+             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
             return True
         else:
             if self.raw_data != arg.raw_data:
@@ -149,9 +139,6 @@ class PhsenParserDataParticle(DataParticle):
             elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
                  arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
                 log.debug('Timestamp does not match')
-            elif self.contents[DataParticleKey.NEW_SEQUENCE] != \
-                 arg.contents[DataParticleKey.NEW_SEQUENCE]:
-                log.debug('Sequence does not match')
             return False
 
 class PhsenParser(MflmParser):

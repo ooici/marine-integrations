@@ -67,24 +67,11 @@ class FlortdParserDataParticle(DataParticle):
             date_str = date_match.group(1)
             time_str = date_match.group(2)
             wav_beta = int(match.group(2))
-            if wav_beta not in [470, 532, 650, 700]:
-                raise ValueError('Measured wavelength beta %d is not one of the expected values (470,532,650,700)' %
-                                 wav_beta)
             beta = int(match.group(3))
-            if beta < 0 or beta > 4120:
-                raise ValueError('Beta %d counts are outside expected limits (0 to 4120)'% beta )
             wav_chl = int(match.group(4))
-            if wav_chl != 695:
-                raise ValueError('Measured wavelength clorophyll %d is not the expected value (695 nm)' % wav_chl)
             chl = int(match.group(5))
-            if chl < 0 or chl > 4120:
-                raise ValueError('Clorophyll %d counts are outside expected limits (0 to 4120)'% chl )
             wav_cdom = int(match.group(6))
-            if wav_cdom != 460:
-                raise ValueError('Measured wavelength cdom %d is not the expected value (460 nm)' % wav_cdom)
             cdom = int(match.group(7))
-            if cdom < 0 or cdom > 4120:
-                raise ValueError('CDOM %d counts are outside expected limits (0 to 4120)'% cdom )
             therm = int(match.group(8))
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
@@ -118,16 +105,15 @@ class FlortdParserDataParticle(DataParticle):
         data, timestamp, and new sequence, they are the same enough for this particle
         """
         if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) and \
-            (self.contents[DataParticleKey.NEW_SEQUENCE] == arg.contents[DataParticleKey.NEW_SEQUENCE])):
+            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
+             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
             return True
         else:
             if self.raw_data != arg.raw_data:
                 log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
+            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
+            arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
                 log.debug('Timestamp does not match')
-            elif self.contents[DataParticleKey.NEW_SEQUENCE] != arg.contents[DataParticleKey.NEW_SEQUENCE]:
-                log.debug('Sequence does not match')
             return False
 
 class FlortdParser(MflmParser):

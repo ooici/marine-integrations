@@ -61,24 +61,14 @@ class DostadParserDataParticle(DataParticle):
                                   parsed sample data [%s]", self.raw_data)
         try:
             prod_num = int(match.group(1))
-            if prod_num != 4831:
-                raise ValueError('Product number %d was not expected 4831' % prod_num)
             serial_num = int(match.group(2))
             est_oxygen = float(match.group(3))
             air_sat = float(match.group(4))
             optode_temp = float(match.group(5))
             calibrated_phase = float(match.group(6))
-            if calibrated_phase < -360.0 or calibrated_phase > 360.0:
-                raise ValueError('Calibrated phase %f it outside expected limits -360 to 360' % calibrated_phase)
             temp_compens_phase = float(match.group(7))
-            if temp_compens_phase < -360.0 or temp_compens_phase > 360.0:
-                raise ValueError('Temp compensated phase %f it outside expected limits -360 to 360' % temp_compens_phase)
             blue_phase = float(match.group(8))
-            if blue_phase < -360.0 or blue_phase > 360.0:
-                raise ValueError('Blue Phase %f it outside expected limits -360 to 360' % blue_phase)
             red_phase = float(match.group(9))
-            if red_phase < -360.0 or red_phase > 360.0:
-                raise ValueError('Red Phase %f it outside expected limits -360 to 360' % red_phase)
             blue_amp = float(match.group(10))
             red_amp = float(match.group(11))
             raw_temp = float(match.group(12))
@@ -121,16 +111,15 @@ class DostadParserDataParticle(DataParticle):
         data, timestamp, and new sequence, they are the same enough for this particle
         """
         if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) and \
-            (self.contents[DataParticleKey.NEW_SEQUENCE] == arg.contents[DataParticleKey.NEW_SEQUENCE])):
+            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
+             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
             return True
         else:
             if self.raw_data != arg.raw_data:
                 log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
+            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
+            arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
                 log.debug('Timestamp does not match')
-            elif self.contents[DataParticleKey.NEW_SEQUENCE] != arg.contents[DataParticleKey.NEW_SEQUENCE]:
-                log.debug('Sequence does not match')
             return False
 
 class DostadParser(MflmParser):

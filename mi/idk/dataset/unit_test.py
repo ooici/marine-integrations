@@ -798,30 +798,6 @@ class DataSetQualificationTestCase(DataSetTestCase):
 
         log.info("Expected event detected: %s", event)
 
-    def test_autosample_recover(self):
-        """
-        Verify that if we stop the agent without stopping sampling first then
-        the next agent startup will restore to streaming.
-        """
-        # First verify the happy path.  We start sampling, stop then reset
-        # On reinit state should still be command mode
-        self.assert_initialize()
-        self.assert_start_sampling()
-        self.assert_stop_sampling()
-        self.assert_reset()
-
-        self.assert_initialize()
-        self.assert_agent_state(ResourceAgentState.COMMAND)
-
-        # Now start sampling and then just reset the instrument agent.
-        # When we reinitialize go_active should put us in streaming mode.
-        self.assert_start_sampling()
-        self.assert_reset()
-
-        self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
-        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE)
-        self.assert_agent_state(ResourceAgentState.STREAMING)
-
     def test_initialize(self):
         """
         Test that we can start the container and initialize the dataset agent.
