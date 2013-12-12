@@ -163,7 +163,7 @@ class QualificationTest(DataSetQualificationTestCase):
         result = self.get_samples(SAMPLE_STREAM,171,120)
 
         self.create_sample_data('unit_192_2013_192_1_0.mrg')
-        result = self.get_samples(SAMPLE_STREAM,20,120)
+        gevent.sleep(10)
 
     def test_harvester_new_file_exception(self):
         self.assert_new_file_exception('unit_363_2013_245_6_6.mrg')
