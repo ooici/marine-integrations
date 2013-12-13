@@ -205,6 +205,9 @@ class DataSetDriver(object):
         elif cmd == 'get_resource':
             return self.get_resource(*args, **kwargs)
 
+        elif cmd == 'get_config_metadata':
+            return self.get_config_metadata(*args, **kwargs)
+
         elif cmd == 'disconnect':
             pass
 

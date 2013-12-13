@@ -67,6 +67,10 @@ class DataSetTestConfig(InstrumentDriverTestConfig):
         for property, value in vars(self).iteritems():
             log.debug("key: %s, value: %s", property, value)
 
+    def initialize_ingester_test(self, directory, runtime):
+        self.ingestion_directory = directory
+        self.ingestion_runtime = runtime
+
 
 class DataSetTestCase(MiIntTestCase):
     """
@@ -522,8 +526,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         self.assertIsNotNone(params.get(DriverParameter.PUBLISHER_POLLING_INTERVAL))
         self.assertIsNotNone(params.get(DriverParameter.BATCHED_PARTICLE_COUNT))
 
-
-class DataSetQualificationTestCase(DataSetTestCase):
+class DataSetAgentTestCase(DataSetTestCase):
     """
     Base class for dataset driver unit tests
     """
@@ -531,7 +534,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
         """
         Startup the container and start the agent.
         """
-        super(DataSetQualificationTestCase, self).setUp()
+        super(DataSetAgentTestCase, self).setUp()
 
         self.instrument_agent_manager = InstrumentAgentClient()
         self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
@@ -797,6 +800,11 @@ class DataSetQualificationTestCase(DataSetTestCase):
             to.cancel()
 
         log.info("Expected event detected: %s", event)
+
+class DataSetQualificationTestCase(DataSetAgentTestCase):
+    """
+    Base class for dataset driver unit tests
+    """
 
     def test_initialize(self):
         """
@@ -1172,3 +1180,39 @@ class DataSetQualificationTestCase(DataSetTestCase):
 
         self.init_dataset_agent_client(bootmode='restart')
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
+class DataSetIngestionTestCase(DataSetAgentTestCase):
+    """
+    Base class for dataset driver unit tests
+    """
+    def test_ingestion(self):
+        """
+        Test that will start a dataset agent and put it into streaming
+        mode.  Then run continually and ingest files until we exceed our
+        specified runtime.  No runtime means run perpetually.
+        """
+        directory = DataSetTestConfig().ingestion_directory
+        runtime = DataSetTestConfig().ingestion_runtime
+
+        sleeptime = 600
+        to = None
+
+        if runtime:
+            sleeptime = int(runtime)
+            to = gevent.Timeout(sleeptime)
+            to.start()
+
+        try:
+            # Now start the agent up and just hang out.
+            self.assert_initialize()
+
+            while True:
+                log.debug("In our event sleep loop.  just resting for a bit.")
+                gevent.sleep(sleeptime)
+
+        except Timeout:
+            log.info("Finished ingestion test as runtime has been exceeded")
+
+        finally:
+            if runtime:
+                to.cancel()

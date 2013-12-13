@@ -12,6 +12,7 @@ import re
 from glob import glob
 from mi.idk.config import Config
 
+DEFAULT_DIR='/tmp/dsa_ingest'
 
 def run():
     """
@@ -37,6 +38,8 @@ def run():
             success = app.run_integration()
         elif( opts.qualification ):
             success = app.run_qualification()
+        elif( opts.ingest ):
+            success = app.run_ingestion(opts.directory, opts.exit_time)
         else:
             success = app.run()
 
@@ -69,6 +72,13 @@ def parseArgs():
     parser = argparse.ArgumentParser(description="IDK Start Driver")
     parser.add_argument("-s", dest='suppress_stdout', action="store_true",
                         help="hide stdout" )
+    parser.add_argument("-g", dest='ingest', action="store_true",
+                        help="run ingestion test from directory" )
+    parser.add_argument("-d", dest='directory',
+                        help="ingestion directory for -g (DEFAULT: %s)" % DEFAULT_DIR,
+                        default=DEFAULT_DIR)
+    parser.add_argument("-x", dest='exit_time',
+                        help="ingestion runtime in seconds for -g (DEFAULT: None)")
     parser.add_argument("-u", dest='unit', action="store_true",
                         help="only run unit tests" )
     parser.add_argument("-i", dest='integration', action="store_true",
