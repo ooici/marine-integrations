@@ -71,8 +71,9 @@ class InstrumentAgentClient(object):
     Launch a capability container and instrument agent client
     """
     container = Container.instance
+    instrument_agent_pid = None
 
-    def start_client(self, name, module, cls, config, resource_id, deploy_file = DEFAULT_DEPLOY, message_headers=None, bootmode=None):
+    def start_client(self, name, module, cls, config, resource_id, deploy_file = DEFAULT_DEPLOY, bootmode=None):
         """
         @brief Start up the instrument agent client
         """
@@ -86,14 +87,17 @@ class InstrumentAgentClient(object):
         agent_config = deepcopy(config)
         agent_config['bootmode'] = bootmode
 
+        log.debug("Agent pid: %s", self.instrument_agent_pid)
+        log.debug("Bootmode: %s", bootmode)
         log.debug("Agent config: %s", agent_config)
-        instrument_agent_pid = container_client.spawn_process(
+
+        self.instrument_agent_pid = container_client.spawn_process(
             name=name,
             module=module,
             cls=cls,
             config=agent_config,
-            headers=message_headers)
-        log.info('Agent pid=%s.', instrument_agent_pid)
+            process_id=str(self.instrument_agent_pid))
+        log.info('Agent pid=%s.', self.instrument_agent_pid)
 
         ia_client = ResourceAgentClient(resource_id, process=FakeProcess())
 
@@ -101,6 +105,15 @@ class InstrumentAgentClient(object):
 
         self.instrument_agent_client = ia_client
 
+    def stop_client(self):
+        if self.instrument_agent_pid:
+            container_client = ContainerAgentClient(node=self.container.node,
+                name=self.container.name)
+            log.debug("Stopping agent client.")
+            container_client.terminate_process(self.instrument_agent_pid)
+
+        if self.instrument_agent_client:
+            self.instrument_agent_client = None
 
     def start_container(self, deploy_file = DEFAULT_DEPLOY, container_config = None):
         """

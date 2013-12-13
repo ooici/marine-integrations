@@ -12,6 +12,7 @@ import shutil
 from mi.core.log import get_logger ; log = get_logger()
 
 import unittest
+from pprint import PrettyPrinter
 
 from mi.core.unit_test import MiIntTestCase
 from mi.core.unit_test import ParticleTestMixin
@@ -34,7 +35,7 @@ from mi.idk.dataset.metadata import Metadata
 from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
 from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
-from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+from mi.dataset.dataset_driver import DataSourceConfigKey, DriverParameter
 from mi.core.instrument.instrument_driver import DriverEvent
 
 from interface.objects import ResourceAgentConnectionLostErrorEvent
@@ -65,6 +66,10 @@ class DataSetTestConfig(InstrumentDriverTestConfig):
         log.debug("Dataset Agent Test Config:")
         for property, value in vars(self).iteritems():
             log.debug("key: %s, value: %s", property, value)
+
+    def initialize_ingester_test(self, directory, runtime):
+        self.ingestion_directory = directory
+        self.ingestion_runtime = runtime
 
 
 class DataSetTestCase(MiIntTestCase):
@@ -491,7 +496,37 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         with self.assertRaises(KeyError):
             self._get_driver_object(config=cfg)
 
-class DataSetQualificationTestCase(DataSetTestCase):
+    def test_schema(self):
+        """
+        Test the driver schema
+        """
+        config_json = self.driver.get_config_metadata()
+        log.debug("config: %s", PrettyPrinter().pformat(config_json))
+
+        ###
+        # Driver
+        ###
+        driver = config_json.get('driver')
+        self.assertEqual(driver, {})
+
+        ###
+        # Commands
+        ###
+        cmds = config_json.get('commands')
+        self.assertIsNotNone(cmds)
+        self.assertIsNotNone(cmds.get(DriverEvent.START_AUTOSAMPLE))
+        self.assertIsNotNone(cmds.get(DriverEvent.STOP_AUTOSAMPLE))
+
+        ###
+        # Parameters
+        ###
+        params = config_json.get('parameters')
+        self.assertIsNotNone(params)
+        self.assertIsNotNone(params.get(DriverParameter.RECORDS_PER_SECOND))
+        self.assertIsNotNone(params.get(DriverParameter.PUBLISHER_POLLING_INTERVAL))
+        self.assertIsNotNone(params.get(DriverParameter.BATCHED_PARTICLE_COUNT))
+
+class DataSetAgentTestCase(DataSetTestCase):
     """
     Base class for dataset driver unit tests
     """
@@ -499,7 +534,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
         """
         Startup the container and start the agent.
         """
-        super(DataSetQualificationTestCase, self).setUp()
+        super(DataSetAgentTestCase, self).setUp()
 
         self.instrument_agent_manager = InstrumentAgentClient()
         self.instrument_agent_manager.start_container(deploy_file=self.test_config.container_deploy_file)
@@ -526,28 +561,34 @@ class DataSetQualificationTestCase(DataSetTestCase):
         Cleanup after the test completes or fails
         """
         log.debug("Starting test cleanup")
-        self.assert_reset()
+        #self.assert_reset()
         self.event_subscribers.stop()
         self.data_subscribers.stop_data_subscribers()
         self.instrument_agent_manager.stop_container()
 
         log.debug("Test complete and all cleaned up.")
 
-    def init_dataset_agent_client(self):
+    def init_dataset_agent_client(self, bootmode=None):
         log.info("Start Dataset Agent Client")
 
         # Start instrument agent client.
-        self.instrument_agent_manager.start_client(
+        result = self.instrument_agent_manager.start_client(
             name=self.test_config.agent_name,
             module=self.test_config.agent_module,
             cls=self.test_config.agent_class,
             config=self._agent_config(),
             resource_id=self.test_config.agent_resource_id,
             deploy_file=self.test_config.container_deploy_file,
-            bootmode='reset'
+            bootmode=bootmode
         )
 
+        log.debug("DSA Initialized.  Result: %s", result)
         self.dataset_agent_client = self.instrument_agent_manager.instrument_agent_client
+        log.debug("DSA Client.  Result: %s", self.dataset_agent_client)
+
+    def stop_dataset_agent_client(self):
+        log.debug("Stopping dataset agent. ff")
+        self.instrument_agent_manager.stop_client()
 
     def get_samples(self, stream_name, sample_count = 1, timeout = 10):
         """
@@ -759,6 +800,11 @@ class DataSetQualificationTestCase(DataSetTestCase):
             to.cancel()
 
         log.info("Expected event detected: %s", event)
+
+class DataSetQualificationTestCase(DataSetAgentTestCase):
+    """
+    Base class for dataset driver unit tests
+    """
 
     def test_initialize(self):
         """
@@ -986,6 +1032,7 @@ class DataSetQualificationTestCase(DataSetTestCase):
         # go get the active capabilities
         retval = self.dataset_agent_client.get_capabilities()
         agt_cmds, agt_pars, res_cmds, res_iface, res_pars = sort_capabilities(retval)
+        log.debug("Get capabilities retval: %s", retval)
 
         log.debug("Agent Commands: %s ", str(agt_cmds))
         log.debug("Compared to: %s", expected_agent_cmd)
@@ -1108,3 +1155,64 @@ class DataSetQualificationTestCase(DataSetTestCase):
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)
+
+    def test_autosample_recover(self):
+        """
+        Verify that if we stop the agent without stopping sampling first then
+        the next agent startup will restore to streaming.
+        """
+        # First verify the happy path.  We start sampling, stop then reset
+        # On reinit state should still be command mode
+        self.assert_initialize()
+        self.assert_stop_sampling()
+
+        log.debug("stop data set agent")
+        self.stop_dataset_agent_client()
+
+        log.debug("restart data set agent")
+        self.init_dataset_agent_client(bootmode='restart')
+        self.assert_state_change(ResourceAgentState.COMMAND, 10)
+
+        # Now start sampling and then just reset the instrument agent.
+        # When we reinitialize go_active should put us in streaming mode.
+        self.assert_start_sampling()
+        self.stop_dataset_agent_client()
+
+        self.init_dataset_agent_client(bootmode='restart')
+        self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
+class DataSetIngestionTestCase(DataSetAgentTestCase):
+    """
+    Base class for dataset driver unit tests
+    """
+    def test_ingestion(self):
+        """
+        Test that will start a dataset agent and put it into streaming
+        mode.  Then run continually and ingest files until we exceed our
+        specified runtime.  No runtime means run perpetually.
+        """
+        directory = DataSetTestConfig().ingestion_directory
+        runtime = DataSetTestConfig().ingestion_runtime
+
+        sleeptime = 600
+        to = None
+
+        if runtime:
+            sleeptime = int(runtime)
+            to = gevent.Timeout(sleeptime)
+            to.start()
+
+        try:
+            # Now start the agent up and just hang out.
+            self.assert_initialize()
+
+            while True:
+                log.debug("In our event sleep loop.  just resting for a bit.")
+                gevent.sleep(sleeptime)
+
+        except Timeout:
+            log.info("Finished ingestion test as runtime has been exceeded")
+
+        finally:
+            if runtime:
+                to.cancel()

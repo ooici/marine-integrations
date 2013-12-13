@@ -10,11 +10,13 @@ __license__ = 'Apache 2.0'
 import sys
 import inspect
 import nose
+import os
 
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger ; log = get_logger()
 
 import mi.idk.nose_test
+from mi.idk.config import Config
 from mi.idk.nose_test import IDKTestClasses
 from mi.idk.exceptions import IDKException
 
@@ -23,6 +25,8 @@ from mi.idk.dataset.driver_generator import DriverGenerator
 from mi.idk.dataset.unit_test import DataSetUnitTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
+from mi.idk.dataset.unit_test import DataSetIngestionTestCase
+from mi.idk.dataset.unit_test import DataSetTestConfig
 
 class DSATestClasses(BaseEnum):
     """
@@ -31,12 +35,15 @@ class DSATestClasses(BaseEnum):
     UNIT = DataSetUnitTestCase
     INT  = DataSetIntegrationTestCase
     QUAL = DataSetQualificationTestCase
+    INGEST = DataSetIngestionTestCase
 
 class NoseTest(mi.idk.nose_test.NoseTest):
 
     def __init__(self, metadata, testname = None, log_file=None, suppress_stdout = False, noseargs = None, launch_data_monitor=False):
         mi.idk.nose_test.NoseTest.__init__(self, metadata, testname, log_file,
                                            suppress_stdout, launch_data_monitor)
+
+        self._ingest_test_class = 'DataSetIngestionTestCase'
 
     def _init_test(self, metadata):
         """
@@ -129,6 +136,41 @@ class NoseTest(mi.idk.nose_test.NoseTest):
             self._log("No unit tests to run")
             return True
 
+    def _ingest_test_module_param(self):
+        '''
+        Module name and test to run
+        @return: module name and optional test as string
+        '''
+        result = "%s:%s" % (self._ingest_test_filename(), self._ingest_test_class)
+        if(self._testname): result = "%s.%s" % (result, self._testname)
+        return result
+
+    def _ingest_test_filename(self):
+        return os.path.join(Config().base_dir(), "mi", "idk", "dataset", "unit_test.py")
+
+    def run_ingestion(self, directory, runtime):
+        """
+        @brief Run a dataset agent and ingest files from the specified directory.  If
+        runtime is set then stop running after x seconds.
+        """
+        self._log("Running ingestion test, directory: %s, runtime: %s" % (directory, runtime))
+
+        # Dynamically load the driver test module so the IDK singleton is initialized
+        test_module = __import__(self._driver_test_module())
+
+        # Adjust the harvester config to point to the new directory
+        DataSetTestConfig().driver_startup_config['harvester']['directory'] = directory
+
+        # Add ingestion parameters to the singleton
+        DataSetTestConfig().initialize_ingester_test(directory, runtime)
+
+        args=[sys.argv[0]]
+        args += [self._ingest_test_module_param()]
+        module = "%s.%s" % ('mi.idk.dataset.unit_test', 'DataSetIngestionTestCase')
+
+        self._log(" ==> module: " + module)
+        self._log(" ==> args: %s" % args)
+
+        return self._run_nose(module, args)
 
 
-    
