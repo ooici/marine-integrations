@@ -1,0 +1,12 @@
+ 
+
+ Profile 202
+
+MM-DD-YYYY HH:MM:SS    ,Sndm/s,TmpC,Heading,Pitch,Roll,magnHx,magnHy,magnHz,Beams,Cells,Beam1,Beam2,Beam3,Beam4,Beam5,Vel[0,0],Vel[1,0],Vel[2,0],Amp[0,0],Amp[1,0],Amp[2,0],Corr[0,0],Corr[1,0],Corr[2,0]
+
+04-16-2013 09:30:15.875,1500.0000,16.4500,12.7000,0.3000,-0.8000,16345,39,49,3,1,1,2,4,0,0,4.75900,4.69500,4.69300,059,062,057,028,043,033
+
+ Profile 202
+  AquaDopp2 turned on at 04/16/2013 09:30:01
+  AquaDopp2 turned off at 04/16/2013 09:34:52
+ 

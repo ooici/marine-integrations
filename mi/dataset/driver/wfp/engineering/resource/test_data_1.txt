@@ -1,0 +1,14 @@
+
+ Profile 152
+
+ Sensors were turned on at  04/15/2013 14:20:02
+ Vehicle began profiling at 04/15/2013 14:22:02
+
+Date,[mA],[V],[dbar],Par[mV],scatSig,chlSig,CDOMSig
+04/15/2013 14:22:02,-2,10.8,7.630,0.00,117,52,94
+
+ Ramp exit:    SMOOTH RUNNING
+ Profile exit: TOP PRESSURE
+
+ Vehicle motion stopped at 04/15/2013 14:23:17
+ Sensor logging stopped at 04/15/2013 14:25:18

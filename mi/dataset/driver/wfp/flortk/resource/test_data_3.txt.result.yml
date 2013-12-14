@@ -2,55 +2,51 @@
 
 header:
   particle_object: WfpFlortkDataParticle
-  particle_type: wfp_e_file_flort_k
+  particle_type: wfp_flort_k_parsed
 
 data:
   - _index: 1
-    _new_sequence: True
-    internal_timestamp: '2013-04-15T14:22:02Z'
+    _new_sequence: False
+    timestamp: 3575024522.0
+    colored_dissolved_organic_matter_concentration: 94.0
+    fluorometric_chlorophyll_a_concentration: 52.0
     total_volume_scattering_coefficient: 117.0
-    fluorometric_chlorophyll_a_concentration: 52.0
-    colored_dissolved_organic_matter_concentration: 94.0
-
   - _index: 2
-    internal_timestamp: '2013-04-15T14:22:10Z'
-    total_volume_scattering_coefficient: 114.0
-    fluorometric_chlorophyll_a_concentration: 52.0
+    timestamp: 3575024530.0
     colored_dissolved_organic_matter_concentration: 97.0
-
-  - _index: 3
-    internal_timestamp: '2013-04-15T14:22:17Z'
-    total_volume_scattering_coefficient: 116.0
     fluorometric_chlorophyll_a_concentration: 52.0
-    colored_dissolved_organic_matter_concentration: 94.0
-
-  - _index: 4
-    internal_timestamp: '2013-04-15T14:22:24Z'
-    total_volume_scattering_coefficient: 113.0
-    fluorometric_chlorophyll_a_concentration: 53.0
-    colored_dissolved_organic_matter_concentration: 94.0
-
-  - _index: 5
-    internal_timestamp: '2013-04-15T14:22:30Z'
-    total_volume_scattering_coefficient: 113.0
-    fluorometric_chlorophyll_a_concentration: 53.0
-    colored_dissolved_organic_matter_concentration: 93.0
-
-  - _index: 6
-    internal_timestamp: '2013-04-15T14:22:37Z'
-    total_volume_scattering_coefficient: 113.0
-    fluorometric_chlorophyll_a_concentration: 51.0
-    colored_dissolved_organic_matter_concentration: 94.0
-
-  - _index: 7
-    internal_timestamp: '2013-04-15T14:22:43Z'
     total_volume_scattering_coefficient: 114.0
-    fluorometric_chlorophyll_a_concentration: 53.0
-    colored_dissolved_organic_matter_concentration: 96.0
-
-  - _index: 8
-    internal_timestamp: '2013-04-15T14:22:50Z'
-    total_volume_scattering_coefficient: 113.0
+  - _index: 3
+    timestamp: 3575024537.0
+    colored_dissolved_organic_matter_concentration: 94.0
     fluorometric_chlorophyll_a_concentration: 52.0
+    total_volume_scattering_coefficient: 116.0
+  - _index: 4
+    timestamp: 3575024544.0
+    colored_dissolved_organic_matter_concentration: 94.0
+    fluorometric_chlorophyll_a_concentration: 53.0
+    total_volume_scattering_coefficient: 113.0
+  - _index: 5
+    timestamp: 3575024550.0
+    colored_dissolved_organic_matter_concentration: 93.0
+    fluorometric_chlorophyll_a_concentration: 53.0
+    total_volume_scattering_coefficient: 113.0
+  - _index: 6
+    timestamp: 3575024557.0
+    colored_dissolved_organic_matter_concentration: 94.0
+    fluorometric_chlorophyll_a_concentration: 51.0
+    total_volume_scattering_coefficient: 113.0
+  - _index: 7
+    timestamp: 3575024563.0
+    colored_dissolved_organic_matter_concentration: 96.0
+    fluorometric_chlorophyll_a_concentration: 53.0
+    total_volume_scattering_coefficient: 114.0
+  - _index: 8
+    timestamp: 3575024570.0
     colored_dissolved_organic_matter_concentration: 91.0
+    fluorometric_chlorophyll_a_concentration: 52.0
+    total_volume_scattering_coefficient: 113.0
+    
+
+
 

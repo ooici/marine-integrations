@@ -1,0 +1,9 @@
+driver_metadata:
+  author: Roger Unwin
+  constructor: IssmRiNUTNRBDataSetDriver
+  driver_name: CE_ISSM_RI_NUTNR_B
+  driver_path: issm/nutnrb
+  email: raunwin@ucsd.edu
+  full_instrument_name: nutnrb
+  release_notes: test
+  version: 0.0.1

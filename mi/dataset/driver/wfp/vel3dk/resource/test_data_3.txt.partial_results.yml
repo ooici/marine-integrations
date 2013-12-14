@@ -1,0 +1,143 @@
+# Result data after parsing test_data_3.txt 
+
+
+header:
+  particle_object: WfpVel3dkDataParticle
+  particle_type: vel3d_k_parsed
+
+data:
+  - _index: 1
+    _new_sequence: False
+    timestamp: 3575093418.0
+    sound_velocity: 1500.0
+    temperature: 16.45
+    heading: 13.1
+    pitch: 0.3
+    roll: -0.6
+    magnHx: 16470.0
+    magnHy: -26.0
+    magnHz: 53.0
+    beams: 3.0
+    cells: 1.0
+    beam1: 1.0
+    beam2: 2.0
+    beam3: 4.0
+    beam4: 0.0
+    beam5: 0.0
+    vel_0_0: 5.835
+    vel_1_0: 1.238
+    vel_2_0: 4.756
+    amp_0_0: 58.0
+    amp_1_0: 62.0
+    amp_2_0: 59.0
+    corr_0_0: 27.0
+    corr_1_0: 45.0
+    corr_2_0: 33.0
+
+  - _index: 2
+    timestamp: 3575093419.0
+    sound_velocity: 1500.0
+    temperature: 16.45
+    heading: 12.8
+    pitch: 0.3
+    roll: -0.8
+    magnHx: 16439.0
+    magnHy: 33.0
+    magnHz: 57.0
+    beams: 3.0
+    cells: 1.0
+    beam1: 1.0
+    beam2: 2.0
+    beam3: 4.0
+    beam4: 0.0
+    beam5: 0.0
+    vel_0_0: -4.145
+    vel_1_0: 3.502
+    vel_2_0: 5.792
+    amp_0_0: 57.0
+    amp_1_0: 62.0
+    amp_2_0: 57.0
+    corr_0_0: 27.0
+    corr_1_0: 45.0
+    corr_2_0: 32.0
+
+  - _index: 3
+    timestamp: 3575093420.0
+    sound_velocity: 1500.0
+    temperature: 16.46
+    heading: 12.4
+    pitch: 0.4
+    roll: -0.8
+    magnHx: 16466.0
+    magnHy: 41.0
+    magnHz: 79.0
+    beams: 3.0
+    cells: 1.0
+    beam1: 1.0
+    beam2: 2.0
+    beam3: 4.0
+    beam4: 0.0
+    beam5: 0.0
+    vel_0_0: 16.112
+    vel_1_0: 1.262
+    vel_2_0: 4.677
+    amp_0_0: 58.0
+    amp_1_0: 62.0
+    amp_2_0: 59.0
+    corr_0_0: 26.0
+    corr_1_0: 46.0
+    corr_2_0: 27.0
+
+  - _index: 4
+    timestamp: 3575093421.0
+    sound_velocity: 1500.0
+    temperature: 16.45
+    heading: 13.5
+    pitch: 0.4
+    roll: -0.7
+    magnHx: 16478.0
+    magnHy: -6.0
+    magnHz: 75.0
+    beams: 3.0
+    cells: 1.0
+    beam1: 1.0
+    beam2: 2.0
+    beam3: 4.0
+    beam4: 0.0
+    beam5: 0.0
+    vel_0_0: 4.731
+    vel_1_0: 0.111
+    vel_2_0: 4.723
+    amp_0_0: 59.0
+    amp_1_0: 62.0
+    amp_2_0: 60.0 
+    corr_0_0: 26.0
+    corr_1_0: 44.0
+    corr_2_0: 34.0
+
+  - _index: 5
+    timestamp: 3575093422.0
+    sound_velocity: 1500.0
+    temperature: 16.46
+    heading: 12.5
+    pitch: 0.3
+    roll: -0.7
+    magnHx: 16460.0
+    magnHy: 15.0
+    magnHz: 67.0
+    beams: 3.0
+    cells: 1.0
+    beam1: 1.0
+    beam2: 2.0
+    beam3: 4.0
+    beam4: 0.0
+    beam5: 0.0
+    vel_0_0: 5.76
+    vel_1_0: 1.213
+    vel_2_0: 4.694
+    amp_0_0: 59.0
+    amp_1_0: 62.0
+    amp_2_0: 59.0
+    corr_0_0: 29.0
+    corr_1_0: 42.0
+    corr_2_0: 34.0

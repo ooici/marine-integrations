@@ -1,0 +1,19 @@
+# Result data after parsing test_data_1.log 
+
+header:
+  particle_object: NutnrbDataParticle
+  particle_type: nutnrb_parsed
+
+data:
+  - _index: 1
+    _new_sequence: False
+    frame_header: 'SAT'
+    frame_type: 'NLC'
+    serial_number: '0239'
+    date_of_sample: 2012348
+    time_of_sample: 15.518666
+    nitrate_concentration: -5.48
+    aux_fitting_1: 20.38 
+    aux_fitting_2: -31.12
+    aux_fitting_3: 0.59
+    rms_error: 0.000231
