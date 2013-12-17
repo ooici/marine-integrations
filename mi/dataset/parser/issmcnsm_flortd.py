@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.issmcnsm_dostad
-@file marine-integrations/mi/dataset/parser/issmcnsm_dostad.py
+@package mi.dataset.parser.issmcnsm_flortd
+@file marine-integrations/mi/dataset/parser/issmcnsm_flortd.py
 @author Emily Hahn
-@brief Parser for the issmcnsm_dosta dataset driver
+@brief Parser for the issmcnsm_flort dataset driver
 Release notes:
 
 Initial release
@@ -27,41 +27,43 @@ from mi.core.exceptions import SampleException, DatasetParserException
 from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.core.instrument.chunker import StringChunker
 
-TIME_REGEX = r'(\d{4})/(\d\d)/(\d\d) (\d\d):(\d\d):(\d\d.\d{3}) '
-TIME_MATCHER = re.compile(TIME_REGEX)
+# there are two timestamps, the log timestamp and data timestamp
+# the internal timestamp uses the regex for the log timestamp
+DATA_TIME_REGEX = r'(\d\d/\d\d/\d\d)\t(\d\d:\d\d:\d\d)\t'
+DATA_TIME_MATCHER = re.compile(DATA_TIME_REGEX)
 
-DATA_REGEX = r'\d{4}/\d\d/\d\d \d\d:\d\d:\d\d.\d{3} (\d+)\t(\d+)\t(\d+.\d+)\t(\d+.\d+)\t' \
-             '(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d)\t(\d+.\d)\t(\d+.\d)\r'
+LOG_TIME_REGEX = r'(\d{4})/(\d\d)/(\d\d) (\d\d):(\d\d):(\d\d.\d{3}) '
+LOG_TIME_MATCHER = re.compile(LOG_TIME_REGEX)
+
+DATA_REGEX = r'\d{4}/\d\d/\d\d \d\d:\d\d:\d\d.\d{3} (\d\d/\d\d/\d\d\t\d\d:\d\d:\d\d\t)' \
+             '(\d+)\t(\d+)\t(\d+)\t(\d+)\t(\d+)\t(\d+)\t(\d+)\r'
 DATA_MATCHER = re.compile(DATA_REGEX)
 
 class DataParticleType(BaseEnum):
-    SAMPLE = 'issmcnsm_dostad_parsed'
+    SAMPLE = 'issmcnsm_flortd_parsed'
 
-class Issmcnsm_dostadParserDataParticleKey(BaseEnum):
-    PRODUCT_NUMBER = 'product_number'
-    SERIAL_NUMBER = 'serial_number'
-    ESTIMATED_OXYGEN = 'estimated_oxygen'
-    AIR_SATURATION = 'air_saturation'
-    OPTODE_TEMPERATURE = 'optode_temperature'
-    CALIBRATED_PHASE = 'calibrated_phase'
-    TEMP_COMPENSATED_PHASE = 'temp_compensated_phase'
-    BLUE_PHASE = 'blue_phase'
-    RED_PHASE = 'red_phase'
-    BLUE_AMPLITUDE = 'blue_amplitude'
-    RED_AMPLITUDE = 'red_amplitude'
-    RAW_TEMP = 'raw_temp'
+class Issmcnsm_flortdParserDataParticleKey(BaseEnum):
+    DATE_STRING = 'date_string'
+    TIME_STRING = 'time_string'
+    MEASUREMENT_WAVELENGTH_BETA = 'measurement_wavelength_beta'
+    RAW_SIGNAL_BETA = 'raw_signal_beta'
+    MEASUREMENT_WAVELENTH_CHL = 'measurement_wavelength_chl'
+    RAW_SIGNAL_CHL = 'raw_signal_chl'
+    MEASUREMENT_WAVELENGTH_CDOM = 'measurement_wavelength_cdom'
+    RAW_SIGNAL_CDOM = 'raw_signal_cdom'
+    RAW_INTERNAL_TEMP = 'raw_internal_temp'
 
 class StateKey(BaseEnum):
     TIMESTAMP='timestamp' #holds the most recent data sample timestamp
     POSITION='position' #hold the current file position
 
-class Issmcnsm_dostadParserDataParticle(DataParticle):
+class Issmcnsm_flortdParserDataParticle(DataParticle):
     """
-    Class for parsing data from the issmcnsm_dosta instrument
+    Class for parsing data from the issmcnsm_flort instrument
     """
 
     _data_particle_type = DataParticleType.SAMPLE
-
+    
     def _build_parsed_values(self):
         """
         Take something in the data format and turn it into
@@ -71,52 +73,45 @@ class Issmcnsm_dostadParserDataParticle(DataParticle):
         # match the data inside the wrapper
         match = DATA_MATCHER.match(self.raw_data)
         if not match:
-            raise SampleException("Issmcnsm_dostadParserDataParticle: No regex match of \
+            raise SampleException("Issmcnsm_flortdParserDataParticle: No regex match of \
                                   parsed sample data [%s]", self.raw_data)
         try:
-            prod_num = int(match.group(1))
-            serial_num = int(match.group(2))
-            est_oxygen = float(match.group(3))
-            air_sat = float(match.group(4))
-            optode_temp = float(match.group(5))
-            calibrated_phase = float(match.group(6))
-            temp_compens_phase = float(match.group(7))
-            blue_phase = float(match.group(8))
-            red_phase = float(match.group(9))
-            blue_amp = float(match.group(10))
-            red_amp = float(match.group(11))
-            raw_temp = float(match.group(12))
-
+            date_match = DATA_TIME_MATCHER.match(match.group(1))
+            if not date_match:
+                raise ValueError('Date does not match MM/DD/YY\tHH:MM:SS format')
+            date_str = date_match.group(1)
+            time_str = date_match.group(2)
+            wav_beta = int(match.group(2))
+            beta = int(match.group(3))
+            wav_chl = int(match.group(4))
+            chl = int(match.group(5))
+            wav_cdom = int(match.group(6))
+            cdom = int(match.group(7))
+            therm = int(match.group(8))
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
 
-        result = [{DataParticleKey.VALUE_ID: Issmcnsm_dostadParserDataParticleKey.PRODUCT_NUMBER,
-                   DataParticleKey.VALUE: prod_num},
-                  {DataParticleKey.VALUE_ID: Issmcnsm_dostadParserDataParticleKey.SERIAL_NUMBER,
-                   DataParticleKey.VALUE: serial_num},
-                  {DataParticleKey.VALUE_ID: Issmcnsm_dostadParserDataParticleKey.ESTIMATED_OXYGEN,
-                   DataParticleKey.VALUE: est_oxygen},
-                  {DataParticleKey.VALUE_ID: Issmcnsm_dostadParserDataParticleKey.AIR_SATURATION,
-                   DataParticleKey.VALUE: air_sat},
-                  {DataParticleKey.VALUE_ID: Issmcnsm_dostadParserDataParticleKey.OPTODE_TEMPERATURE,
-                   DataParticleKey.VALUE: optode_temp},
-                  {DataParticleKey.VALUE_ID: Issmcnsm_dostadParserDataParticleKey.CALIBRATED_PHASE,
-                   DataParticleKey.VALUE: calibrated_phase},
-                  {DataParticleKey.VALUE_ID: Issmcnsm_dostadParserDataParticleKey.TEMP_COMPENSATED_PHASE,
-                   DataParticleKey.VALUE: temp_compens_phase},
-                  {DataParticleKey.VALUE_ID: Issmcnsm_dostadParserDataParticleKey.BLUE_PHASE,
-                   DataParticleKey.VALUE: blue_phase},
-                  {DataParticleKey.VALUE_ID: Issmcnsm_dostadParserDataParticleKey.RED_PHASE,
-                   DataParticleKey.VALUE: red_phase},
-                  {DataParticleKey.VALUE_ID: Issmcnsm_dostadParserDataParticleKey.BLUE_AMPLITUDE,
-                   DataParticleKey.VALUE: blue_amp},
-                  {DataParticleKey.VALUE_ID: Issmcnsm_dostadParserDataParticleKey.RED_AMPLITUDE,
-                   DataParticleKey.VALUE: red_amp},
-                  {DataParticleKey.VALUE_ID: Issmcnsm_dostadParserDataParticleKey.RAW_TEMP,
-                   DataParticleKey.VALUE: raw_temp}]
+        result = [{DataParticleKey.VALUE_ID: Issmcnsm_flortdParserDataParticleKey.DATE_STRING,
+                   DataParticleKey.VALUE: date_str},
+                  {DataParticleKey.VALUE_ID: Issmcnsm_flortdParserDataParticleKey.TIME_STRING,
+                   DataParticleKey.VALUE: time_str},
+                  {DataParticleKey.VALUE_ID: Issmcnsm_flortdParserDataParticleKey.MEASUREMENT_WAVELENGTH_BETA,
+                   DataParticleKey.VALUE: wav_beta},
+                  {DataParticleKey.VALUE_ID: Issmcnsm_flortdParserDataParticleKey.RAW_SIGNAL_BETA,
+                   DataParticleKey.VALUE: beta},
+                  {DataParticleKey.VALUE_ID: Issmcnsm_flortdParserDataParticleKey.MEASUREMENT_WAVELENTH_CHL,
+                   DataParticleKey.VALUE: wav_chl},
+                  {DataParticleKey.VALUE_ID: Issmcnsm_flortdParserDataParticleKey.RAW_SIGNAL_CHL,
+                   DataParticleKey.VALUE: chl},
+                  {DataParticleKey.VALUE_ID: Issmcnsm_flortdParserDataParticleKey.MEASUREMENT_WAVELENGTH_CDOM,
+                   DataParticleKey.VALUE: wav_cdom},
+                  {DataParticleKey.VALUE_ID: Issmcnsm_flortdParserDataParticleKey.RAW_SIGNAL_CDOM,
+                   DataParticleKey.VALUE: cdom},
+                  {DataParticleKey.VALUE_ID: Issmcnsm_flortdParserDataParticleKey.RAW_INTERNAL_TEMP,
+                   DataParticleKey.VALUE: therm}]
 
-        log.debug('Issmcnsm_dostadParserDataParticle: particle=%s', result)
+        log.debug('Issmcnsm_flortdParserDataParticle: particle=%s', result)
         return result
 
     def __eq__(self, arg):
@@ -127,20 +122,19 @@ class Issmcnsm_dostadParserDataParticle(DataParticle):
         """
         if ((self.raw_data == arg.raw_data) and \
             (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP] < .0000001)):
+             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP] < .00001)):
             return True
         else:
             if self.raw_data != arg.raw_data:
                 log.debug('Raw data does not match')
             elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP] >= .0000001:
+                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP] >= .00001:
                 log.debug('Timestamp %f and %f do not match',
                           self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
                           arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
-            return False
 
-class Issmcnsm_dostadParser(BufferLoadingParser):
-
+class Issmcnsm_flortdParser(BufferLoadingParser):
+    
     def __init__(self,
                  config,
                  state,
@@ -148,7 +142,7 @@ class Issmcnsm_dostadParser(BufferLoadingParser):
                  state_callback,
                  publish_callback,
                  *args, **kwargs):
-        super(Issmcnsm_dostadParser, self).__init__(config,
+        super(Issmcnsm_flortdParser, self).__init__(config,
                                                     stream_handle,
                                                     state,
                                                     partial(StringChunker.regex_sieve_function,
@@ -210,7 +204,7 @@ class Issmcnsm_dostadParser(BufferLoadingParser):
         @param ts_str The timestamp string in the format "yyyy/mm/dd hh:mm:ss.sss"
         @retval The NTP4 timestamp
         """
-        match = TIME_MATCHER.match(ts_str)
+        match = LOG_TIME_MATCHER.match(ts_str)
         if not match:
             raise ValueError("Invalid time format: %s" % ts_str)
 
@@ -243,6 +237,7 @@ class Issmcnsm_dostadParser(BufferLoadingParser):
             data_increment = end
 
         while (chunk != None):
+            log.debug('checking chunk %s', chunk)
             data_match = DATA_MATCHER.match(chunk)
             if data_match:
                 # time is inside the data regex

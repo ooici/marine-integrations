@@ -322,22 +322,4 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    def test_parser_exception(self):
-        """
-        Test an exception is raised after the driver is started during
-        record parsing.
-        """
-        self.clean_file()
-        # file contains invalid sample values
-        self.create_sample_data('node59p1_bad.dat', "node59p1.dat")
-
-        self.assert_initialize()
-
-        self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 5)
-        self.assert_sample_queue_size(SAMPLE_STREAM, 0)
-
-        # Verify an event was raised and we are in our retry state
-        self.assert_event_received(ResourceAgentErrorEvent, 10)
-        self.assert_state_change(ResourceAgentState.STREAMING, 10)
 

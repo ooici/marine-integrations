@@ -29,7 +29,7 @@ class DataParticleType(BaseEnum):
     
 class CtdmoParserDataParticleKey(BaseEnum):
     INDUCTIVE_ID = "inductive_id"
-    TEMPERATURE = "temp"
+    TEMPERATURE = "temperature"
     CONDUCTIVITY = "conductivity"
     PRESSURE = "pressure"
     CTD_TIME = "ctd_time"
@@ -67,23 +67,10 @@ class CtdmoParserDataParticle(DataParticle):
             induct_id = int(asciihex[0:2], 16)
             # just convert directly from hex-ascii to int
             temp_num = int(asciihex[2:7], 16)
-            temp = (float(temp_num) / 10000.0) - 10
-            log.debug('Hex %s to temp num %d converted to temp %f', asciihex[2:7], temp_num, temp)
-            if temp > 50 or temp < -10:
-                raise ValueError('Temperature %f outside reasonable range of -10 to 50 C'%temp)
             cond_num = int(asciihex[7:12], 16)
-            cond = (float(cond_num) / 100000.0) - .5
-            log.debug('Hex %s to cond num %d to conductivity %f', asciihex[7:12], cond_num, cond)
-            if cond > 15 or cond < 0:
-                raise ValueError('Conductivity %f is outside reasonable range of .005 to 15'%cond)
             # need to swap pressure bytes
             press_byte_swap = asciihex[14:16] + asciihex[12:14]
             press_num = int(press_byte_swap, 16)
-            pressure_range = .6894757 * (1000 - 14)
-            press = (float(press_num) * pressure_range / (.85 * 65536.0)) - (.05 * pressure_range)
-            log.debug('Hex %s convert to press num %d to pressure %f', press_byte_swap, press_num, press)
-            if press > 10900 or press < 0:
-                raise ValueError('Pressure %f is outside reasonable range of 0 to 10900 dbar'%press)
 
             asciihextime = binascii.b2a_hex(match.group(1))
             # reverse byte order in time hex string
@@ -99,11 +86,11 @@ class CtdmoParserDataParticle(DataParticle):
         result = [{DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.INDUCTIVE_ID,
                    DataParticleKey.VALUE: induct_id},
                   {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.TEMPERATURE,
-                   DataParticleKey.VALUE: temp},
+                   DataParticleKey.VALUE: temp_num},
                   {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.CONDUCTIVITY,
-                   DataParticleKey.VALUE: cond},
+                   DataParticleKey.VALUE: cond_num},
                   {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.PRESSURE,
-                   DataParticleKey.VALUE: press},
+                   DataParticleKey.VALUE: press_num},
                   {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.CTD_TIME,
                    DataParticleKey.VALUE: internal_time}]
         log.trace('CtdmoParserDataParticle: particle=%s', result)

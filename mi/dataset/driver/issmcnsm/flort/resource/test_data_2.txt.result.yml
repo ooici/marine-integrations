@@ -1,0 +1,51 @@
+# Result data after parsing test_data_2.flort.log
+
+header:
+  particle_object: Issmcnsm_flortdParserDataParticle
+  particle_type: issmcnsm_flortd_parsed
+
+data:
+  - _index: 1
+    internal_timestamp: '2013-11-07T23:10:47.269Z'
+    date_string: '03/06/13'
+    time_string: '23:08:53'
+    measurement_wavelength_beta: 700 
+    raw_signal_beta: 4130
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 926
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 4130 
+    raw_internal_temp: 539
+  - _index: 2
+    internal_timestamp: '2013-11-07T23:10:48.401Z'
+    date_string: '03/06/13'
+    time_string: '23:08:55'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 4130
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 927
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 4130
+    raw_internal_temp: 539
+  - _index: 3
+    internal_timestamp: '2013-11-07T23:10:49.535Z'
+    date_string: '03/06/13'
+    time_string: '23:08:56'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 4130
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 925
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 4130
+    raw_internal_temp: 539
+  - _index: 4
+    internal_timestamp: '2013-11-07T23:10:50.667Z'
+    date_string: '03/06/13'
+    time_string: '23:08:57'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 4130
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 927
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 4130
+    raw_internal_temp: 539

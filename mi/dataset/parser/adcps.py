@@ -98,12 +98,10 @@ class AdcpsParserDataParticle(DataParticle):
 
             # get seconds from 1990 to 1970
             #elapse_1900 = float(parser.parse("1900-01-01T00:00:00.00Z").strftime("%s.%f"))
-            # get seconds
-            #log.debug("Parse date str: %s", date_str)
             #elapse_date = float(parser.parse(date_str).strftime("%s.%f"))
             # subtract seconds from 1900 to 1970 to convert to seconds since 1900
             #sec_since_1900 = round((elapse_date - elapse_1900)*100)/100
-            #log.debug('calculated seconds since 1900 %f', sec_since_1900)
+
             # create a string with the right number of shorts to unpack
             struct_format = '>'
             for i in range(0,nbins):
@@ -124,15 +122,6 @@ class AdcpsParserDataParticle(DataParticle):
             temp = fields[10]
             # pressure in units of daPa (= .01 kPa)
             pressure = fields[11]
-
-            if heading < 0 or heading > 35999:
-                raise ValueError('Heading outside of expected range 0 to 359.99 deg')
-            if pitch < -6000 or pitch > 6000:
-                raise ValueError('Pitch outside of expected range +/- 60.0 deg')
-            if roll < -6000 or roll > 6000:
-                raise ValueError('Roll outside of expected range +/- 60.0 deg')
-            if temp < -500 or temp > 4000:
-                raise ValueError('Temperature outside expected range -5.0 to 40.0 deg C')
 
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
