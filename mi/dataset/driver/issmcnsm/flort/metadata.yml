@@ -1,0 +1,9 @@
+driver_metadata:
+  author: Emily Hahn
+  constructor: IssmCnsmFLORTDDataSetDriver
+  driver_name: issmcnsm_flort
+  driver_path: issmcnsm/flort
+  email: ehahn@bbn.com
+  full_instrument_name: issmcnsm_flortd
+  release_notes: Initial release
+  version: 0.0.1

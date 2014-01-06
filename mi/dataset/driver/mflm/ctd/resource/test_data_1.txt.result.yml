@@ -9,15 +9,15 @@ data:
     _new_sequence: False
     internal_timestamp: '2013-07-24T00:00:01Z'
     inductive_id: 55
-    temp: 13.470199999999998
-    conductivity: 4.0000000000040004e-05
-    pressure: 0.05760219349121343
+    temperature: 234702
+    conductivity: 50004
+    pressure: 2790
     ctd_time: 427939201
   - _index: 2
     _new_sequence: False
     internal_timestamp: '2013-07-24T06:00:01Z'
     inductive_id: 55
-    temp: 11.9326
-    conductivity: 4.0000000000040004e-05
-    pressure: 0.04539833893798573
+    temperature: 219326
+    conductivity: 50004
+    pressure: 2789
     ctd_time: 427960801

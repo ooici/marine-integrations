@@ -1,0 +1,29 @@
+# Result data after parsing test_data_1.flort.log
+
+header:
+  particle_object: Issmcnsm_flortdParserDataParticle
+  particle_type: issmcnsm_flortd_parsed
+
+data:
+  - _index: 1
+    internal_timestamp: '2013-11-07T23:10:45.004Z'
+    date_string: '03/06/13'
+    time_string: '23:08:51'
+    measurement_wavelength_beta: 700 
+    raw_signal_beta: 4130
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 928
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 4130 
+    raw_internal_temp: 540
+  - _index: 2
+    internal_timestamp: '2013-11-07T23:10:46.136Z'
+    date_string: '03/06/13'
+    time_string: '23:08:52'
+    measurement_wavelength_beta: 700
+    raw_signal_beta: 4130
+    measurement_wavelength_chl: 695
+    raw_signal_chl: 929
+    measurement_wavelength_cdom: 460
+    raw_signal_cdom: 4130
+    raw_internal_temp: 540
