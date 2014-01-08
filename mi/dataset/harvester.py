@@ -346,15 +346,10 @@ class SortingDirectoryPoller(ConditionPoller):
         sorted_tuple = sorted(split_names)
         # put the filenames back to string format
         sorted_filenames = []
-        i = 0
+
         for fn in sorted_tuple:
-            # recombine files with underscores
-            this_file = ''
-            for item in fn:
-                this_file = this_file + str(item) + '_'
-            # remove the last underscore, and add the file extension back in
-            sorted_filenames.append(this_file[:-1] + '.' + file_extension[1])
-            i += 1
+            # Retrieve original name from end of sorted component list
+            sorted_filenames.append(fn[len(fn) - 1])
 
         log.trace("sorted %s", sorted_filenames)
         return sorted_filenames
@@ -372,6 +367,9 @@ class SortingDirectoryPoller(ConditionPoller):
             except ValueError:
                 # ignore error
                 pass
+        # append the full filename to the end where it shouldn't 
+        # interfere with the sorting
+        split_name.append(filename)
         return split_name
 
 
