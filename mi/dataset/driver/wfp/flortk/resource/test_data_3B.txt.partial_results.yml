@@ -1,0 +1,37 @@
+# Result data after parsing test_data_3.txt 
+
+header:
+  particle_object: WfpFlortkDataParticle
+  particle_type: wfp_flort_k_parsed
+
+data:
+  - _index: 1
+    _new_sequence: False
+    timestamp: 3575024530.0
+    colored_dissolved_organic_matter_concentration: 97.0
+    fluorometric_chlorophyll_a_concentration: 52.0
+    total_volume_scattering_coefficient: 114.0
+
+  - _index: 2
+    timestamp: 3575024537.0
+    colored_dissolved_organic_matter_concentration: 94.0
+    fluorometric_chlorophyll_a_concentration: 52.0
+    total_volume_scattering_coefficient: 116.0
+
+  - _index: 3
+    timestamp: 3575024544.0
+    colored_dissolved_organic_matter_concentration: 94.0
+    fluorometric_chlorophyll_a_concentration: 53.0
+    total_volume_scattering_coefficient: 113.0
+
+  - _index: 4
+    timestamp: 3575024550.0
+    colored_dissolved_organic_matter_concentration: 93.0
+    fluorometric_chlorophyll_a_concentration: 53.0
+    total_volume_scattering_coefficient: 113.0
+
+  - _index: 5
+    timestamp: 3575024557.0
+    colored_dissolved_organic_matter_concentration: 94.0
+    fluorometric_chlorophyll_a_concentration: 51.0
+    total_volume_scattering_coefficient: 113.0

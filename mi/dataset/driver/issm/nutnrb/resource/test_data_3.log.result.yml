@@ -1,0 +1,105 @@
+# Result data after parsing test_data_3.log 
+
+header:
+  particle_object: NutnrbDataParticle
+  particle_type: nutnrb_parsed
+
+data:
+  - _index: 1
+    _new_sequence: False
+    frame_header: 'SAT'
+    frame_type: 'NLC'
+    serial_number: '0239'
+    date_of_sample: 2012348
+    time_of_sample: 15.518666
+    nitrate_concentration: -5.48
+    aux_fitting_1: 20.38 
+    aux_fitting_2: -31.12
+    aux_fitting_3: 0.59
+    rms_error: 0.000231
+
+  - _index: 2
+    frame_header: 'SAT'
+    frame_type: 'NLC'
+    serial_number: '0239'
+    date_of_sample: 2012348
+    time_of_sample: 15.519024
+    nitrate_concentration: -6.38
+    aux_fitting_1: 24.24
+    aux_fitting_2: -37.41
+    aux_fitting_3: 0.61
+    rms_error: 0.000191
+
+  - _index: 3
+    frame_header: 'SAT'
+    frame_type: 'NLC'
+    serial_number: '0239'
+    date_of_sample: 2012348
+    time_of_sample: 15.519397
+    nitrate_concentration: -6.77
+    aux_fitting_1: 24.8
+    aux_fitting_2: -38.0
+    aux_fitting_3: 0.62
+    rms_error: 0.000203
+
+  - _index: 4
+    frame_header: 'SAT'
+    frame_type: 'NLC'
+    serial_number: '0239'
+    date_of_sample: 2012348
+    time_of_sample: 15.51977
+    nitrate_concentration: -5.28
+    aux_fitting_1: 18.39
+    aux_fitting_2: -27.76
+    aux_fitting_3: 0.59
+    rms_error: 0.000212
+
+  - _index: 5
+    frame_header: 'SAT'
+    frame_type: 'NLC'
+    serial_number: '0239'
+    date_of_sample: 2012348
+    time_of_sample: 15.520128
+    nitrate_concentration: -7.57
+    aux_fitting_1: 32.65
+    aux_fitting_2: -51.28
+    aux_fitting_3: 0.62
+    rms_error: 0.000186
+
+  - _index: 6
+    frame_header: 'SAT'
+    frame_type: 'NLC'
+    serial_number: '0239'
+    date_of_sample: 2012348
+    time_of_sample: 15.520501
+    nitrate_concentration: -6.17
+    aux_fitting_1: 24.43
+    aux_fitting_2: -37.71
+    aux_fitting_3: 0.6
+    rms_error: 0.000218
+
+  - _index: 7
+    frame_header: 'SAT'
+    frame_type: 'NLC'
+    serial_number: '0239'
+    date_of_sample: 2012348
+    time_of_sample: 15.520875
+    nitrate_concentration: -5.59
+    aux_fitting_1: 18.68
+    aux_fitting_2: -28.01
+    aux_fitting_3: 0.6
+    rms_error: 0.000166
+
+  - _index: 8
+    frame_header: 'SAT'
+    frame_type: 'NLC'
+    serial_number: '0239'
+    date_of_sample: 2012348
+    time_of_sample: 15.521232
+    nitrate_concentration: -7.3
+    aux_fitting_1: 30.87
+    aux_fitting_2: -48.21
+    aux_fitting_3: 0.62
+    rms_error: 0.000235
+    
+

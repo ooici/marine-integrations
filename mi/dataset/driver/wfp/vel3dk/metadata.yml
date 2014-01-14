@@ -1,7 +1,7 @@
 driver_metadata:
   version: 0.0.1
   author: Roger Unwin
-  constructor: WfpVEL3DKDataSetDriver
+  constructor: WfpVel3dkDataSetDriver
   driver_name: wfp_vel3dk
   driver_path: wfp/vel3dk
   release_notes: 

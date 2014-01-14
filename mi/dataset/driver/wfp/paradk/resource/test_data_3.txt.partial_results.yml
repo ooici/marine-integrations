@@ -2,27 +2,27 @@
 
 header:
   particle_object: WfpParadkDataParticle
-  particle_type: wfp_e_file_parad_k
+  particle_type: wfp_parad_k_parsed
 
 data:
   - _index: 1
-    _new_sequence: True
-    internal_timestamp: '2013-04-15T14:22:24Z'
+    _new_sequence: False
+    timestamp: 3575024544.0
     photosynthetically_active_radiation: 0.000
 
   - _index: 2
-    internal_timestamp: '2013-04-15T14:22:30Z'
+    timestamp: 3575024550.0
     photosynthetically_active_radiation: 0.000
 
   - _index: 3
-    internal_timestamp: '2013-04-15T14:22:37Z'
-    photosynthetically_active_radiation: 7.630
+    timestamp: 3575024557.0
+    photosynthetically_active_radiation: 0.000
 
   - _index: 4
-    internal_timestamp: '2013-04-15T14:22:43Z'
-    photosynthetically_active_radiation: 6.110
+    timestamp: 3575024563.0
+    photosynthetically_active_radiation: 0.000
 
   - _index: 5
-    internal_timestamp: '2013-04-15T14:22:50Z'
-    photosynthetically_active_radiation: 4.590
+    timestamp: 3575024570.0
+    photosynthetically_active_radiation: 0.000
     
