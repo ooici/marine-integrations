@@ -30,7 +30,7 @@ from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-from mi.dataset.dataset_driver import DriverParameter
+from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 
 from mi.dataset.driver.mflm.adcp.driver import MflmADCPSDataSetDriver
 from mi.dataset.parser.adcps import AdcpsParserDataParticle
@@ -48,13 +48,14 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = MflmADCPSDataSetDriver.stream_config(),
     startup_config = {
-        'harvester':
+        DataSourceConfigKey.HARVESTER:
         {
-            'directory': '/tmp/dsatest',
-            'pattern': 'node59p1.dat',
-            'frequency': 1,
+            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+            DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
+            DataSetDriverConfigKeys.FREQUENCY: 1,
         },
-        'parser': {}
+        DataSourceConfigKey.PARSER: {}
     }
 )
 
@@ -102,13 +103,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(AdcpsParserDataParticle, count=2, timeout=10)
 
         self.driver.stop_sampling()
-        # reset the parser and harvester states
-        self.driver.clear_states()
-        self.driver.start_sampling()
-
-        self.clear_async_data()
-        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
-        self.assert_data(AdcpsParserDataParticle, count=1, timeout=10)
         
     def test_harvester_new_file_exception(self):
         """
@@ -123,7 +117,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Start sampling and watch for an exception
         self.driver.start_sampling()
 
-        self.assert_exception(IOError)
+        self.assert_exception(ValueError)
 
         # At this point the harvester thread is dead.  The agent
         # exception handle should handle this case.
@@ -133,13 +127,21 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test the ability to stop and restart the process
         """
         self.clean_file()
+        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
+        driver_config = self._driver_config()['startup_config']
+        fullfile = os.path.join(driver_config['harvester']['directory'],
+                            driver_config['harvester']['pattern'])
+        mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
-        self.memento = {DataSourceConfigKey.HARVESTER: {'last_filesize': 1300,
-                                                        'last_checksum': 'e56e28e6bd67c6b00c6702c9f9a13f93'},
-                        DataSourceConfigKey.PARSER: {'in_process_data': [],
+        self.memento = {DriverStateKey.FILE_SIZE: 1300,
+                        DriverStateKey.FILE_CHECKSUM: 'e56e28e6bd67c6b00c6702c9f9a13f93',
+                        DriverStateKey.FILE_MOD_DATE: mod_time,
+                        DriverStateKey.PARSER_STATE: {'in_process_data': [],
                                                      'unprocessed_data':[[0,32], [222,871], [1257,1300]],
-                                                     'timestamp': 3583725976.97}}
+                                                     'timestamp': 3583725976.97
+                                                     }
+        }
         self.driver = MflmADCPSDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
@@ -168,8 +170,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.start_sampling()
 
-        self.clear_async_data()
-
         # step 2 contains 2 blocks, start with this and get both since we used them
         # separately in other tests (no new sequences)
         self.clear_async_data()
@@ -194,9 +194,17 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # start over now, using step 4, make sure sequence flags just account for
         # missing data in file (there are some sections of bad data that don't
         # match in headers, [0-32], [222-871], [1833-2000]
-        self.driver.stop_sampling()
-        # reset the parser and harvester states
-        self.driver.clear_states()
+        self.driver.shutdown()
+
+        # Reset the driver with no memento
+        self.memento = None
+        self.driver = MflmADCPSDataSetDriver(
+            self._driver_config()['startup_config'],
+            self.memento,
+            self.data_callback,
+            self.state_callback,
+            self.exception_callback)
+
         self.driver.start_sampling()
 
         self.clear_async_data()

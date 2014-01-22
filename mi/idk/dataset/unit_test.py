@@ -177,6 +177,35 @@ class DataSetTestCase(MiIntTestCase):
             raise IDKException("'data_dir' is not a directory")
 
         return data_dir
+    
+    def create_data_storage_dir(self):
+        """
+        Verify the test data directory is created and exists.  Return the path to
+        the directory.
+        @return: path to data directory
+        @raise: IDKConfigMissing no harvester config
+        @raise: IDKException if data_dir exists, but not a directory
+        """
+        startup_config = self._driver_config().get('startup_config')
+        if not startup_config:
+            raise IDKConfigMissing("Driver config missing 'startup_config'")
+
+        harvester_config = startup_config.get('harvester')
+        if not harvester_config:
+            raise IDKConfigMissing("Startup config missing 'harvester' config")
+
+        data_dir = harvester_config.get("storage_directory")
+        if not data_dir:
+            raise IDKConfigMissing("Harvester config missing 'storage_directory'")
+
+        if not os.path.exists(data_dir):
+            log.debug("Creating data dir: %s", data_dir)
+            os.makedirs(data_dir)
+
+        elif not os.path.isdir(data_dir):
+            raise IDKException("'data_dir' is not a directory")
+
+        return data_dir
 
     def remove_sample_dir(self):
         """
@@ -191,9 +220,13 @@ class DataSetTestCase(MiIntTestCase):
         Remove all files from the sample data directory
         """
         data_dir = self.create_data_dir()
+        stored_data_dir = self.create_data_storage_dir()
 
         log.debug("Clean all data from %s", data_dir)
         remove_all_files(data_dir)
+
+        log.debug("Clean all data from %s", stored_data_dir)
+        remove_all_files(stored_data_dir)
 
     def create_sample_data(self, filename, dest_filename=None, mode=0644, create=True):
         """
@@ -271,8 +304,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         self.data_callback_result = []
         self.exception_callback_result = []
 
-        self.memento = {DataSourceConfigKey.HARVESTER: {},
-                        DataSourceConfigKey.PARSER: {}}
+        self.memento = {}
 
         self.driver = self._get_driver_object()
 
@@ -300,7 +332,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         self.data_callback_result = []
         self.exception_callback_result = []
 
-    def assert_exception(self, exception_class, timeout=10):
+    def assert_exception(self, exception_class, timeout=35):
         """
         Wait for an exception in the exception callback queue
         """
@@ -420,7 +452,10 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         """
         Verify that we can get, set, and report all driver parameters.
         """
-        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
+        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT,
+                           DriverParameter.PUBLISHER_POLLING_INTERVAL,
+                           DriverParameter.RECORDS_PER_SECOND,
+                           DriverParameter.FILE_MOD_DONE_WAIT_SECONDS]
         (res_cmds, res_params) = self.driver.get_resource_capabilities()
 
         # Ensure capabilities are as expected
@@ -434,29 +469,34 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
         self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 1)
         self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
+        self.assertEqual(params[DriverParameter.FILE_MOD_DONE_WAIT_SECONDS], 30)
 
         # Try set resource individually
         self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 2})
         self.driver.set_resource({DriverParameter.PUBLISHER_POLLING_INTERVAL: 2})
         self.driver.set_resource({DriverParameter.RECORDS_PER_SECOND: 59})
+        self.driver.set_resource({DriverParameter.FILE_MOD_DONE_WAIT_SECONDS: 19})
 
         params = self.driver.get_resource(DriverParameter.ALL)
         log.debug("Get Resources Result: %s", params)
         self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 2)
         self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 2)
         self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 59)
+        self.assertEqual(params[DriverParameter.FILE_MOD_DONE_WAIT_SECONDS], 19)
 
         # Try set resource in bulk
         self.driver.set_resource(
             {DriverParameter.BATCHED_PARTICLE_COUNT: 1,
              DriverParameter.PUBLISHER_POLLING_INTERVAL: .1,
-             DriverParameter.RECORDS_PER_SECOND: 60})
+             DriverParameter.RECORDS_PER_SECOND: 60,
+             DriverParameter.FILE_MOD_DONE_WAIT_SECONDS: 25})
 
         params = self.driver.get_resource(DriverParameter.ALL)
         log.debug("Get Resources Result: %s", params)
         self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
         self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .1)
         self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
+        self.assertEqual(params[DriverParameter.FILE_MOD_DONE_WAIT_SECONDS], 25)
 
         # Set with some bad values
         with self.assertRaises(InstrumentParameterException):
@@ -475,6 +515,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
                 DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
                 DriverParameter.RECORDS_PER_SECOND: 3,
                 DriverParameter.BATCHED_PARTICLE_COUNT: 3,
+                DriverParameter.FILE_MOD_DONE_WAIT_SECONDS: 40,
             }
         }
         self.driver = self._get_driver_object(config=cfg)
@@ -484,6 +525,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 3)
         self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .2)
         self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 3)
+        self.assertEqual(params[DriverParameter.FILE_MOD_DONE_WAIT_SECONDS], 40)
 
         # Finally verify we get a KeyError when sending in bad config keys
         cfg[DataSourceConfigKey.DRIVER] = {
@@ -525,6 +567,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         self.assertIsNotNone(params.get(DriverParameter.RECORDS_PER_SECOND))
         self.assertIsNotNone(params.get(DriverParameter.PUBLISHER_POLLING_INTERVAL))
         self.assertIsNotNone(params.get(DriverParameter.BATCHED_PARTICLE_COUNT))
+        self.assertIsNotNone(params.get(DriverParameter.FILE_MOD_DONE_WAIT_SECONDS))
 
 class DataSetAgentTestCase(DataSetTestCase):
     """
@@ -612,6 +655,7 @@ class DataSetAgentTestCase(DataSetTestCase):
                len(self.data_subscribers.samples_received.get(stream_name))):
                 log.trace("get_samples() received sample #%d!", i)
                 result.append(self.data_subscribers.samples_received[stream_name].pop(0))
+                log.debug('Popping received sample')
                 i += 1
 
             # Check for timeout
@@ -852,7 +896,10 @@ class DataSetQualificationTestCase(DataSetAgentTestCase):
             return agt_cmds, agt_pars, res_cmds, res_iface, res_pars
 
         log.debug("Initialize the agent")
-        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
+        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT,
+                           DriverParameter.PUBLISHER_POLLING_INTERVAL,
+                           DriverParameter.RECORDS_PER_SECOND,
+                           DriverParameter.FILE_MOD_DONE_WAIT_SECONDS]
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         log.debug("Call get capabilities")
@@ -1057,7 +1104,10 @@ class DataSetQualificationTestCase(DataSetAgentTestCase):
         list of common resource parameters
         @return: list of resource parameters
         '''
-        return [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
+        return [DriverParameter.BATCHED_PARTICLE_COUNT,
+                DriverParameter.PUBLISHER_POLLING_INTERVAL,
+                DriverParameter.RECORDS_PER_SECOND,
+                DriverParameter.FILE_MOD_DONE_WAIT_SECONDS]
 
     def _common_agent_parameters(self):
         '''

@@ -15,10 +15,16 @@ __license__ = 'Apache 2.0'
 import os
 import glob
 import hashlib
+import time
+import re
+
+from threading import Thread
+from gevent.event import Event
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.poller import DirectoryPoller, ConditionPoller
 from mi.core.common import BaseEnum
+from mi.dataset.dataset_driver import DriverStateKey
 
 
 class Harvester(object):
@@ -42,287 +48,124 @@ class Harvester(object):
 ## other pollers that check HTTP, FTP or other methods of finding data may be
 ## added here down the road
 
+# used to determine if we should do integer sorting of the files
+NUMBER_UNDERSCORE_MATCHER = re.compile(r'\d_\d')
 
-class AdditiveSequentialFileHarvester(DirectoryPoller, Harvester):
+class SingleDirectoryPoller(ConditionPoller):
     """
-    Poll a single directory looking for new files with the directory poller.
+    Monitor a single directory to see if new files have appeared or if files have changed.
+    When a change is found this information will be returned through the callback.
+    @param config - harvester configuration dictionary
+    @param file_mod_wait - integer time to wait after files have been modified
+    @param memento - previous harvester state dictionary
+    @param callback - function to callback when a change in files has occured
+    @param exception_callback - function to callback when an exception occurs
+    @param interval - polling interval for checking this directory
     """
-    def __init__(self, config, memento, file_callback, exception_callback):
-        if not isinstance(config, dict):
-            raise TypeError("Config object must be a dict")
-
+    def __init__(self, config, file_mod_wait, memento, callback, exception_callback=None, interval=1):
         directory = config.get('directory')
-        pattern = config.get('pattern')
-
-        log.debug("Start directory poller path: %s, pattern: %s", directory, pattern)
-        self.callback = file_callback
-        self.last_file_completed = memento
-        DirectoryPoller.__init__(self,
-                                 directory,
-                                 pattern,
-                                 self.on_new_files,
-                                 exception_callback,
-                                 config.get('frequency', 1))
-
-    def on_new_files(self, files):
-        """
-        New files have been found, open each file and process it in the callback
-        """
-        for file in files:
-            log.debug("Found new file: %s", file)
-            if file>self.last_file_completed:
-                log.debug("Found new file and state verified: %s", file)
-                log.debug("File callback: %s", self.callback)
-                with open(file, 'rb') as f:
-                    self.callback(f, file)
-
-
-class AdditiveSequentialModifyingFileHarvester(AdditiveSequentialFileHarvester):
-    """
-    Poll a single directory looking for new files with the directory poller.
-    """
-    def __init__(self, config, memento, file_callback, exception_callback, file_preprocessing_callback):
-        self.file_preprocessing_callback = file_preprocessing_callback
-        AdditiveSequentialFileHarvester.__init__(self, config, memento, file_callback, exception_callback)
-
-    def on_new_files(self, files):
-        """
-        New files have been found, open each file and process it in the callback
-        """
-        for file in files:
-
-            if file > self.last_file_completed:
-                fixed_file = self.file_preprocessing_callback(file)
-                log.debug("Found new file: %s", fixed_file)
-
-                with open(fixed_file, 'rb') as f:
-                    self.callback(f, file)
-
-
-class FilePoller(ConditionPoller):
-    """
-    poll a single file to determine if that file has had additional data appended to it
-    """
-
-    def __init__(self, directory, filename, last_read_offset, callback, exception_callback=None, interval=1):
-        """
-        @param directory directory of the file to monitor
-        @param filename name of the file to monitor
-        @param last_read_offset offset of the last byte read in this file (can be None)
-        @param callback the callback to call when new data has been found in the file
-        @param exception_callback the callback to call when an exception has occurred
-        @param interval the interval between checking on the file in seconds
-        """
-        try:
-            if not os.path.isdir(directory):
-                raise ValueError('%s is not an existing directory'%directory)
-            self._file = directory + '/' + filename
-            self._last_offset = last_read_offset
-            super(FilePoller,self).__init__(self._check_for_data, callback, exception_callback, interval)
-        except:
-            log.error('failed init?', exc_info=True)
-
-    def _check_for_data(self):
-        """
-        find out how the last file offset relates to the current file size.
-        If it is less than the current file size, return the file
-        """
-        filesize = os.path.getsize(self._file)
-        # files, but no change since last time
-        log.debug("Checking file size, size is %d, last offset is %s",
-                  filesize, str(self._last_offset))
-        if filesize == 0:
-            # file is empty
-            return None
-        if self._last_offset and filesize and filesize==self._last_offset:
-            # no change since last filesize
-            return None
-        self._last_offset = filesize
-        return self._file
-
-
-class SingleFileHarvester(FilePoller, Harvester):
-    """
-    Poll a single file to determine if data has been appended to the file
-    """
-    def __init__(self, config, last_read_offset, data_callback, exception_callback):
-        """
-        @param config a configuration dictionary containing harvester config
-        @param last_read_offset offset of the last byte read in this file (can be None)
-        @param data_callback the callback to call when new data has been found in the file
-        @param exception_callback the callback to call when an exception has occurred
-        """
-        if not isinstance(config, dict):
-            raise TypeError("Config object must be a dict")
-
-        self.callback = data_callback
-
-        FilePoller.__init__(self,
-                            config['directory'],
-                            config['filename'],
-                            last_read_offset,
-                            self.on_new_data,
-                            exception_callback,
-                            config.get('frequency', 1))
-
-    def on_new_data(self, fullfile):
-        """
-        When new data has been found, open the file and seek to the last
-        offset if there is one
-        """
-        if fullfile:
-            filesize = os.path.getsize(fullfile)
-            with open(fullfile, 'rb') as f:
-                self.callback(f, filesize)
-
-
-class FileChangeHarvesterMementoKey(BaseEnum):
-    LAST_FILESIZE = "last_filesize"
-    LAST_CHECKSUM = "last_checksum"
-
-
-class FileChangePoller(ConditionPoller):
-    """
-    poll a single file to determine if that file has had additional data appended to it or has
-    had the data within the file changed
-    """
-
-    def __init__(self, directory, filename, last_size, last_checksum, callback, exception_callback=None, interval=1):
-        """
-        @param directory directory of the file to monitor
-        @param filename name of the file to monitor
-        @param last_size offset of the last byte read in this file (can be None)
-        @param last_checkum the checksum of the previously read file (can be None)
-        @param callback the callback to call when new data has been found in the file
-        @param exception_callback the callback to call when an exception has occurred
-        @param interval the interval between checking on the file in seconds
-        """
+        wildcard = config.get('pattern')
         if not os.path.isdir(directory):
             raise ValueError('%s is not a directory'%directory)
-        try:
-            self._file = directory + '/' + filename
-            self._last_size = last_size
-            self._last_checksum = last_checksum
-            super(FileChangePoller,self).__init__(self._check_for_data,
-                                                  callback, exception_callback,
-                                                  interval)
-        except:
-            log.error('failed init?', exc_info=True)
-
-    def _check_for_data(self):
-        """
-        find out how the last file offset relates to the current file size.
-        If it is less than the current file size, return the file.  Also
-        compare the file checksums, if it is different than the previous
-        checksum return the file.
-        """
-        if not os.path.isfile(self._file):
-            # file does not exist yet
-            return None
-        filesize = os.path.getsize(self._file)
-        # files, but no change since last time
-        log.debug("Checking file size, size is %d, last size was %s",
-                  filesize, str(self._last_size))
-        if filesize == 0:
-            # file is empty
-            return None
-        # calculate the checksum
-        with open(self._file) as filehandle:
-            data = filehandle.read()
-            md5_checksum = hashlib.md5(data).hexdigest()
-        if self._last_size and filesize and \
-        filesize==self._last_size and \
-        self._last_checksum is not None and \
-        self._last_checksum == md5_checksum:
-            # file size and checksums are the same
-            return None
-        # checksum or file size is different
-        self._last_checksum = md5_checksum
-        self._last_size = filesize
-        return self._file
-
-
-class SingleFileChangeHarvester(FileChangePoller, Harvester):
-    """
-    Poll a single file to determine if data has been appended to the file,
-    or the data in the file has been changed
-    """
-
-    def __init__(self, config, memento, data_callback, exception_callback):
-        """
-        @param config a configuration dictionary containing harvester config
-        @param last_read_offset offset of the last byte read in this file (can be None)
-        @param last_checksum checksum of the last file read (can be None)
-        @param data_callback the callback to call when new data has been found in the file
-        @param exception_callback the callback to call when an exception has occurred
-        """
-        if not isinstance(config, dict):
-            raise TypeError("Config object must be a dict")
-        if not isinstance(memento, dict):
-            raise TypeError("Momento must be a dict")
-
-        self.callback = data_callback
-        last_size = None
-        last_checksum = None
-        if memento != {}:
-            last_size = memento[FileChangeHarvesterMementoKey.LAST_FILESIZE]
-            last_checksum = memento[FileChangeHarvesterMementoKey.LAST_CHECKSUM]
-
-        FileChangePoller.__init__(self,
-                                  config['directory'],
-                                  config['pattern'],
-                                  last_size,
-                                  last_checksum,
-                                  self.on_new_data,
-                                  exception_callback,
-                                  config.get('frequency', 1))
-
-    def on_new_data(self, fullfile):
-        """
-        When new data has been found, open the file and seek to the last
-        offset if there is one
-        """
-        if fullfile:
-            filesize = os.path.getsize(fullfile)
-            with open(fullfile, 'rb') as f:
-                self.callback(f, filesize)
-
-
-class SortingDirectoryPoller(ConditionPoller):
-    """
-    poll for new files added to a single directory that match a wildcard pattern.
-    expects files to be added which can have several separate IDs separated with underscores
-    these will be sorted from left to right as integers instead of ascii.
-    """
-    def __init__(self, directory, wildcard, callback, exception_callback=None, interval=1):
-        if not os.path.isdir(directory):
-            raise ValueError('%s is not a directory'%directory)
+        log.debug("Start directory poller path: %s, pattern: %s", directory, wildcard)
+        # driver state is not a new instance of memento, it is the same here as in the driver
+        self._driver_state = memento
         self._path = directory + '/' + wildcard
-        self._last_filename = None
-        super(SortingDirectoryPoller,self).__init__(self._check_for_files, callback, exception_callback, interval)
+        self.file_mod_wait = file_mod_wait
+        # this queue holds the names of the files that have been sent to the driver.  Each time the harvester
+        # restarts, the queue is emptied so all files that have not been ingested can be added and sent again,
+        # but this keeps the harvester from sending the same files over and over to not be put in the driver queue
+        self.sent_to_driver_queue = []
+        super(SingleDirectoryPoller,self).__init__(self._check_for_files, callback,
+                                                   exception_callback, interval)
 
     def _check_for_files(self):
-        unsorted_filenames = glob.glob(self._path)      
-        filenames = self.sort_files(unsorted_filenames)
-        # files, but no change since last time
-        if self._last_filename and filenames and filenames[-1]==self._last_filename:
-            return None
-        # no files yet, just like last time
-        if not self._last_filename and not filenames:
-            return None
-        if self._last_filename:
-            # if the last filename has been deleted, who knows where we are, just return all the files
-            try:
-                position = filenames.index(self._last_filename) # raises ValueError if file was removed
-                out = filenames[position+1:]
-            except ValueError:
-                log.debug("Lost previous last filename %s", self._last_filename)
-                out = filenames
-        else:
-            out = filenames
-        self._last_filename = filenames[-1]
-        log.trace('found files: %r', out)
-        return out
+        """
+        Find any new or modified files and update the harvester state
+        """
+        filenames = glob.glob(self._path)
+        # if there are underscores in the filename, sort by ascii rather than 
+        if len(filenames) > 0 and NUMBER_UNDERSCORE_MATCHER.search(filenames[0]):
+            filenames = self.sort_files(filenames)
+            
+        new_files = []
+        modified_files = False
+        # loop over all files in the directory and compare their state to that in the harvester state dictionary
+        for i_file in filenames:
+            mod_time = os.path.getmtime(i_file)
+            # check if the file has not been modified in the last X seconds
+            if (mod_time + self.file_mod_wait) < time.time():
+                file_name = os.path.basename(i_file)
+                # find if this file already exists in the found files
+                if file_name in self._driver_state and self._driver_state[file_name][DriverStateKey.INGESTED]:
+                    # this file has been ingested (file size and date will only be available for ingested files)
+                    file_size = os.path.getsize(i_file)
+                    if self._driver_state[file_name][DriverStateKey.FILE_SIZE] != file_size or \
+                    self._driver_state[file_name][DriverStateKey.FILE_MOD_DATE] != mod_time:
+                       # this file has been ingested, but the file size and times don't match, confirm that
+                       # the checksum is different
+                        with open(i_file, 'rb') as filehandle:
+                            md5_checksum = hashlib.md5(filehandle.read()).hexdigest()
+                        if self._driver_state[file_name][DriverStateKey.FILE_CHECKSUM] != md5_checksum:
+                            # ingested file has been modified!
+                            if DriverStateKey.MODIFIED_STATE in self._driver_state[file_name]:
+                                # this file has been modified before
+                                old_state = self._driver_state[file_name][DriverStateKey.MODIFIED_STATE]
+                                if old_state[DriverStateKey.FILE_SIZE] != file_size or \
+                                old_state[DriverStateKey.FILE_MOD_DATE] != mod_time or \
+                                old_state[DriverStateKey.FILE_CHECKSUM] != md5_checksum:
+                                    # this file has changed since its previous modification, update the
+                                    # modified state
+                                    # TODO provide notification to the user
+                                    self._driver_state[file_name][DriverStateKey.MODIFIED_STATE] = {
+                                        DriverStateKey.FILE_SIZE: file_size,
+                                        DriverStateKey.FILE_MOD_DATE: mod_time,
+                                        DriverStateKey.FILE_CHECKSUM: md5_checksum,
+                                        }
+                                    # set the flag for the callback that we need to store the driver state
+                                    modified_files = True
+                            else:
+                                # this is the first time this file has been modified
+                                # TODO provide notification to the user
+                                self._driver_state[file_name][DriverStateKey.MODIFIED_STATE] = {
+                                    DriverStateKey.FILE_SIZE: file_size,
+                                    DriverStateKey.FILE_MOD_DATE: mod_time,
+                                    DriverStateKey.FILE_CHECKSUM: md5_checksum,
+                                    }
+                                # set the flag for the callback that we need to store the driver state
+                                modified_files = True
+                else:
+                    # send all files that have not been ingested yet, but keep track in a queue so
+                    # duplicates are not sent
+                    if file_name not in self.sent_to_driver_queue:
+                        # only send this file once
+                        self.sent_to_driver_queue.append(file_name)
+                        new_files.append(file_name)
+                    if file_name not in self._driver_state:
+                        # initialize the driver state
+                        # Note: because the memento came from the driver state from the dataset driver,
+                        # updating the driver state here also updates it in the dataset driver
+                        file_size = os.path.getsize(i_file)
+                        with open(i_file, 'rb') as filehandle:
+                            md5_checksum = hashlib.md5(filehandle.read()).hexdigest()
+                        self._driver_state[file_name] = {
+                            DriverStateKey.FILE_SIZE: file_size,
+                            DriverStateKey.FILE_MOD_DATE: mod_time,
+                            DriverStateKey.FILE_CHECKSUM: md5_checksum,
+                            DriverStateKey.INGESTED: False,
+                            DriverStateKey.PARSER_STATE: None
+                            }
+
+        log.trace('found new files: %r, modified_files: %r', new_files, modified_files)
+        return (new_files, modified_files)
+    
+    def set_file_mod_wait_time(self, new_wait_time):
+        """
+        Change the time to wait for a file to stop being modified before
+        it is considered complete
+        """
+        self.file_mod_wait = new_wait_time
+        log.debug('file mod wait time set to %d', new_wait_time)
 
     def sort_files(self, filenames):
         """
@@ -346,7 +189,7 @@ class SortingDirectoryPoller(ConditionPoller):
         sorted_tuple = sorted(split_names)
         # put the filenames back to string format
         sorted_filenames = []
-
+        
         for fn in sorted_tuple:
             # Retrieve original name from end of sorted component list
             sorted_filenames.append(fn[len(fn) - 1])
@@ -367,46 +210,157 @@ class SortingDirectoryPoller(ConditionPoller):
             except ValueError:
                 # ignore error
                 pass
-        # append the full filename to the end where it shouldn't 
-        # interfere with the sorting
+        # append the full filename to the end where it shouldn't interfere with the sorting
         split_name.append(filename)
         return split_name
-
-
-class SortingDirectoryHarvester(SortingDirectoryPoller, Harvester):
+    
+class SingleDirectoryHarvester(SingleDirectoryPoller, Harvester):
     """
-    Poll a single directory looking for new files with the directory poller.
+    Poll a single directory looking for new files with the single directory poller.
+    @param config - harvester configuration dictionary
+    @param file_mod_wait - integer time to wait after files have been modified
+    @param memento - previous harvester state dictionary
+    @param file_callback - function to callback when a not ingested file has been found
+    @param modified_callback - function to callback when a modified ingested file has been found
+    @param exception_callback - function to callback when an exception occurs
     """
-    def __init__(self, config, memento, file_callback, exception_callback):
+    def __init__(self, config, file_mod_wait_time, memento, file_callback,
+                 modified_callback, exception_callback):
         if not isinstance(config, dict):
             raise TypeError("Config object must be a dict")
-
+        if memento is None:
+            memento = {}
+        if not isinstance(memento, dict):
+            raise TypeError("memento object must be a dict")
+        if not isinstance(file_mod_wait_time, int) or file_mod_wait_time < 0:
+            raise TypeError("File modification wait time must be an integer 0 or greater")
+        self.directory = config.get('directory')
         self.callback = file_callback
-        self.last_file_completed = memento
-        SortingDirectoryPoller.__init__(self,
-                                 config['directory'],
-                                 config['pattern'],
-                                 self.on_new_files,
-                                 exception_callback,
-                                 config.get('frequency', 1))
+        self.modified_callback = modified_callback
+        SingleDirectoryPoller.__init__(self,
+                                    config,
+                                    file_mod_wait_time,
+                                    memento,
+                                    self.on_new_files,
+                                    exception_callback,
+                                    config.get('frequency', 1))
 
-    def on_new_files(self, files):
+    def on_new_files(self, file_tuple):
         """
-        New files have been found, open each file and process it in the callback
+        New files or modified files have been found.  The new files includes all files that
+        have not been ingested, so duplicates may be passed back.  Filter this in the
+        dataset driver. 
         """
-        for fn in files:
+        (new_files, modified_files) = file_tuple
+        if modified_files:
+            # if there are modified files, need to update the driver state
+            self.modified_callback()
+        # update the new files    
+        for this_file in new_files:
+            log.debug("Found new file: %s", this_file)
+            self.callback(this_file)
 
-            if self.last_file_completed:
-                # sort the last file and new file into int list form so they will
-                # evalulate > not as ascii strings but as integers
-                fn_int_list = SortingDirectoryPoller.ascii_to_int_list(fn)
-                last_file_int_list = SortingDirectoryPoller.ascii_to_int_list(self.last_file_completed)
-                if fn_int_list > last_file_int_list:
-                    with open(fn, 'rb') as f:
-                        self.callback(f, fn)
-            else:
-                # there is no last file completed, so this file must be new, return it
-                with open(fn, 'rb') as f:
-                    self.callback(f, fn)
+class SingleFilePoller(ConditionPoller):
+    """
+    Monitor a single file to see if it changes
+    @param config - harvester configuration dictionary
+    @param file_mod_wait - integer time to wait after files have been modified
+    @param memento - previous harvester state dictionary
+    @param callback - function to callback when a file change is found
+    @param exception_callback - function to callback when an exception occurs
+    @param interval - polling interval for checking this file
+    """
+    def __init__(self, config, file_mod_wait, memento, callback, exception_callback=None, interval=1):
+        directory = config.get('directory')
+        self._filename = config.get('pattern')
+        if not os.path.isdir(directory):
+            raise ValueError('%s is not a directory'%directory)
+        self._path = directory + '/' + self._filename
+        if os.path.exists(self._path) and not os.access(self._path, os.R_OK):
+            raise ValueError('%s exists but is not readable'%self._path)
+        self.file_mod_wait = file_mod_wait
+        self._driver_state = {}
+        if DriverStateKey.FILE_SIZE in memento:
+            self._driver_state[DriverStateKey.FILE_SIZE] = memento.get(DriverStateKey.FILE_SIZE)
+            self._driver_state[DriverStateKey.FILE_MOD_DATE] = memento.get(DriverStateKey.FILE_MOD_DATE)
+            self._driver_state[DriverStateKey.FILE_CHECKSUM] = memento.get(DriverStateKey.FILE_CHECKSUM)
+        log.debug("Start file poller path: %s, initial state: %s", self._path, self._driver_state)
+        super(SingleFilePoller,self).__init__(self._check_for_changes, callback,
+                                                   exception_callback, interval)
 
+    def _check_for_changes(self):
+        """
+        Find any new or modified files and update the harvester state
+        """
+        new_driver_state = None
+        if os.path.exists(self._path):
+            mod_time = os.path.getmtime(self._path)
+            file_size = os.path.getsize(self._path)
+            # check if the file has not been modified in the last X seconds
+            if (mod_time + self.file_mod_wait) < time.time():
+                if DriverStateKey.FILE_SIZE in self._driver_state:
+                    # this file has been found previously, compare the state
+                    log.trace('Comparing driver state to %s', self._driver_state)
+                    if self._driver_state[DriverStateKey.FILE_SIZE] != file_size or \
+                        self._driver_state[DriverStateKey.FILE_MOD_DATE] != mod_time:
+                        # size or time is different, confirm with checksum
+                        with open(self._path, 'rb') as filehandle:
+                            md5_checksum = hashlib.md5(filehandle.read()).hexdigest()
+                        if self._driver_state[DriverStateKey.FILE_CHECKSUM] != md5_checksum:
+                            # file is different, update the state
+                            self._driver_state[DriverStateKey.FILE_SIZE] = file_size
+                            self._driver_state[DriverStateKey.FILE_MOD_DATE] = mod_time
+                            self._driver_state[DriverStateKey.FILE_CHECKSUM] = md5_checksum
+                            
+                            new_driver_state = {DriverStateKey.FILE_SIZE: file_size,
+                                                DriverStateKey.FILE_MOD_DATE: mod_time,
+                                                DriverStateKey.FILE_CHECKSUM: md5_checksum}
+                else:
+                    # no driver state yet, first time opening this file
+                    with open(self._path, 'rb') as filehandle:
+                        md5_checksum = hashlib.md5(filehandle.read()).hexdigest()
+                    self._driver_state[DriverStateKey.FILE_SIZE] = file_size
+                    self._driver_state[DriverStateKey.FILE_MOD_DATE] = mod_time
+                    self._driver_state[DriverStateKey.FILE_CHECKSUM] = md5_checksum
+                    
+                    new_driver_state = {DriverStateKey.FILE_SIZE: file_size,
+                                        DriverStateKey.FILE_MOD_DATE: mod_time,
+                                        DriverStateKey.FILE_CHECKSUM: md5_checksum}
+        return new_driver_state
+    
+class SingleFileHarvester(SingleFilePoller, Harvester):
+    """
+    Poll a single file looking for changes to that file.
+    @param config - harvester configuration dictionary
+    @param file_mod_wait - integer time to wait after files have been modified
+    @param memento - previous harvester state dictionary
+    @param file_callback - function to callback when a file change is found
+    @param exception_callback - function to callback when an exception occurs
+    """
+    def __init__(self, config, file_mod_wait_time, memento, file_callback, exception_callback):
+        if not isinstance(config, dict):
+            raise TypeError("Config object must be a dict")
+        if memento is None:
+            memento = {}
+        if not isinstance(memento, dict):
+            raise TypeError("memento object must be a dict")
+        if not isinstance(file_mod_wait_time, int) or file_mod_wait_time < 0:
+            raise TypeError("File modification wait time must be an integer 0 or greater")
+        self.directory = config.get('directory')
+        self.callback = file_callback
+        SingleFilePoller.__init__(self,
+                                config,
+                                file_mod_wait_time,
+                                memento,
+                                self.on_changed_file,
+                                exception_callback,
+                                config.get('frequency', 1))
+
+    def on_changed_file(self, new_state):
+        """
+        The file has changed.  
+        """
+        if new_state:
+            log.trace("File state changed to %s", new_state)
+            self.callback(new_state)
 
