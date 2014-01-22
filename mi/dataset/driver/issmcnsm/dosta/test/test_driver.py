@@ -50,6 +50,7 @@ DataSetTestCase.initialize(
             DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
             DataSetDriverConfigKeys.PATTERN: '*.dosta.log',
             DataSetDriverConfigKeys.FREQUENCY: 1,
+            DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 30,
         },
         DataSourceConfigKey.PARSER: {}
     }

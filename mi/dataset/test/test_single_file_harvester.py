@@ -25,7 +25,8 @@ FILENAME = 'testfile.txt'
 CONFIG = {DataSetDriverConfigKeys.DIRECTORY: TESTDIR,
           DataSetDriverConfigKeys.STORAGE_DIRECTORY: STOREDIR,
           DataSetDriverConfigKeys.PATTERN: FILENAME,
-          DataSetDriverConfigKeys.FREQUENCY: 2}
+          DataSetDriverConfigKeys.FREQUENCY: 2,
+          DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 15}
 
 
 @attr('INT', group='eoi')
@@ -69,8 +70,7 @@ class TestSingleFileHarvester(MiUnitTest):
 
         # start the harvester from scratch
         memento = None
-        file_mod_wait_time = 15
-        file_harvester = SingleFileHarvester(CONFIG, file_mod_wait_time, memento, 
+        file_harvester = SingleFileHarvester(CONFIG, memento, 
                                              self.new_data_found_callback,
                                              self.harvester_exception_callback)
         file_harvester.start()
@@ -93,8 +93,7 @@ class TestSingleFileHarvester(MiUnitTest):
 
         # start the harvester with data in the file
         file_offset = None
-        file_mod_wait_time = 15
-        file_harvester = SingleFileHarvester(CONFIG, file_mod_wait_time, file_offset, 
+        file_harvester = SingleFileHarvester(CONFIG, file_offset, 
                                              self.new_data_found_callback,
                                              self.harvester_exception_callback)
         file_harvester.start()
@@ -121,8 +120,7 @@ class TestSingleFileHarvester(MiUnitTest):
         self.starting_lines = 2
 
         # start the harvester at the end of the current data
-        file_mod_wait_time = 15
-        file_harvester = SingleFileHarvester(CONFIG, file_mod_wait_time, memento, 
+        file_harvester = SingleFileHarvester(CONFIG, memento, 
                                              self.new_data_found_callback,
                                              self.harvester_exception_callback)
         file_harvester.start()
@@ -147,8 +145,7 @@ class TestSingleFileHarvester(MiUnitTest):
 
         # start the harvester from scratch
         memento = None
-        file_mod_wait_time = 15
-        file_harvester = SingleFileHarvester(CONFIG, file_mod_wait_time, memento, 
+        file_harvester = SingleFileHarvester(CONFIG, memento, 
                                              self.new_data_found_callback,
                                              self.harvester_exception_callback)
         file_harvester.start()
@@ -166,7 +163,7 @@ class TestSingleFileHarvester(MiUnitTest):
             if file_found_time > 60:
                 raise Exception("Timeout waiting to find file")
 
-	if file_found_time < file_mod_wait_time:
+	if file_found_time < CONFIG.get(DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME):
 	    # we found the file before the mod time, this is bad!
 	    file_harvester.shutdown()
 	    self.fail('Files found in %s seconds' % file_found_time)
@@ -179,13 +176,13 @@ class TestSingleFileHarvester(MiUnitTest):
         """
         # bad config
         config = "blah"
-        file_mod_wait_time = 15
-        self.assertRaises(TypeError, SingleFileHarvester, (config, file_mod_wait_time, None, 
+        self.assertRaises(TypeError, SingleFileHarvester, (config, None, 
                                                            self.new_data_found_callback,
                                                            self.harvester_exception_callback))
         # bad file mod wait time
-        file_mod_wait_time = -5
-        self.assertRaises(TypeError, SingleFileHarvester, (CONFIG, file_mod_wait_time, None,
+        config = CONFIG.copy()
+        config[DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME] = -5
+        self.assertRaises(TypeError, SingleFileHarvester, (CONFIG, None,
                                                            self.new_data_found_callback,
                                                            self.harvester_exception_callback))
 

@@ -454,8 +454,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         """
         expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT,
                            DriverParameter.PUBLISHER_POLLING_INTERVAL,
-                           DriverParameter.RECORDS_PER_SECOND,
-                           DriverParameter.FILE_MOD_DONE_WAIT_SECONDS]
+                           DriverParameter.RECORDS_PER_SECOND]
         (res_cmds, res_params) = self.driver.get_resource_capabilities()
 
         # Ensure capabilities are as expected
@@ -469,34 +468,29 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
         self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 1)
         self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
-        self.assertEqual(params[DriverParameter.FILE_MOD_DONE_WAIT_SECONDS], 30)
 
         # Try set resource individually
         self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 2})
         self.driver.set_resource({DriverParameter.PUBLISHER_POLLING_INTERVAL: 2})
         self.driver.set_resource({DriverParameter.RECORDS_PER_SECOND: 59})
-        self.driver.set_resource({DriverParameter.FILE_MOD_DONE_WAIT_SECONDS: 19})
 
         params = self.driver.get_resource(DriverParameter.ALL)
         log.debug("Get Resources Result: %s", params)
         self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 2)
         self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 2)
         self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 59)
-        self.assertEqual(params[DriverParameter.FILE_MOD_DONE_WAIT_SECONDS], 19)
 
         # Try set resource in bulk
         self.driver.set_resource(
             {DriverParameter.BATCHED_PARTICLE_COUNT: 1,
              DriverParameter.PUBLISHER_POLLING_INTERVAL: .1,
-             DriverParameter.RECORDS_PER_SECOND: 60,
-             DriverParameter.FILE_MOD_DONE_WAIT_SECONDS: 25})
+             DriverParameter.RECORDS_PER_SECOND: 60})
 
         params = self.driver.get_resource(DriverParameter.ALL)
         log.debug("Get Resources Result: %s", params)
         self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
         self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .1)
         self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
-        self.assertEqual(params[DriverParameter.FILE_MOD_DONE_WAIT_SECONDS], 25)
 
         # Set with some bad values
         with self.assertRaises(InstrumentParameterException):
@@ -514,8 +508,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
             DataSourceConfigKey.DRIVER: {
                 DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
                 DriverParameter.RECORDS_PER_SECOND: 3,
-                DriverParameter.BATCHED_PARTICLE_COUNT: 3,
-                DriverParameter.FILE_MOD_DONE_WAIT_SECONDS: 40,
+                DriverParameter.BATCHED_PARTICLE_COUNT: 3
             }
         }
         self.driver = self._get_driver_object(config=cfg)
@@ -525,7 +518,6 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 3)
         self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .2)
         self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 3)
-        self.assertEqual(params[DriverParameter.FILE_MOD_DONE_WAIT_SECONDS], 40)
 
         # Finally verify we get a KeyError when sending in bad config keys
         cfg[DataSourceConfigKey.DRIVER] = {
@@ -567,7 +559,6 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         self.assertIsNotNone(params.get(DriverParameter.RECORDS_PER_SECOND))
         self.assertIsNotNone(params.get(DriverParameter.PUBLISHER_POLLING_INTERVAL))
         self.assertIsNotNone(params.get(DriverParameter.BATCHED_PARTICLE_COUNT))
-        self.assertIsNotNone(params.get(DriverParameter.FILE_MOD_DONE_WAIT_SECONDS))
 
 class DataSetAgentTestCase(DataSetTestCase):
     """
@@ -898,8 +889,7 @@ class DataSetQualificationTestCase(DataSetAgentTestCase):
         log.debug("Initialize the agent")
         expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT,
                            DriverParameter.PUBLISHER_POLLING_INTERVAL,
-                           DriverParameter.RECORDS_PER_SECOND,
-                           DriverParameter.FILE_MOD_DONE_WAIT_SECONDS]
+                           DriverParameter.RECORDS_PER_SECOND]
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
         log.debug("Call get capabilities")
@@ -1106,8 +1096,7 @@ class DataSetQualificationTestCase(DataSetAgentTestCase):
         '''
         return [DriverParameter.BATCHED_PARTICLE_COUNT,
                 DriverParameter.PUBLISHER_POLLING_INTERVAL,
-                DriverParameter.RECORDS_PER_SECOND,
-                DriverParameter.FILE_MOD_DONE_WAIT_SECONDS]
+                DriverParameter.RECORDS_PER_SECOND]
 
     def _common_agent_parameters(self):
         '''

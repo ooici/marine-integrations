@@ -44,13 +44,12 @@ class IssmCnsmDOSTADDataSetDriver(SimpleDataSetDriver):
         )
         return self._parser
 
-    def _build_harvester(self, driver_state, file_mod_wait_time):
+    def _build_harvester(self, driver_state):
         """
         Build and return the harvester
         """
         self._harvester = SingleDirectoryHarvester(
             self._harvester_config,
-            file_mod_wait_time,
             driver_state,
             self._new_file_callback,
             self._modified_file_callback,

@@ -61,6 +61,7 @@ DataSetTestCase.initialize(
             DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
             DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
             DataSetDriverConfigKeys.FREQUENCY: 1,
+            DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 30,
         },
         DataSourceConfigKey.PARSER: {'inductive_id': 55}
     }

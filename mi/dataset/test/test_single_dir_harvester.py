@@ -24,7 +24,8 @@ STOREDIR = '/tmp/stored_dsatest'
 CONFIG = {DataSetDriverConfigKeys.DIRECTORY: TESTDIR,
           DataSetDriverConfigKeys.STORAGE_DIRECTORY: STOREDIR,
 	  DataSetDriverConfigKeys.PATTERN: '*.txt',
-	  DataSetDriverConfigKeys.FREQUENCY: 5}
+	  DataSetDriverConfigKeys.FREQUENCY: 5,
+	  DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 30}
 
 INDICIES = ['363_2013_0245_6_8', '363_2013_0245_6_9', '363_2013_0245_6_10', '363_2013_0245_6_11', 
             '363_2013_0245_7_0', '363_2013_0245_7_1', '363_2013_0245_7_10', '363_2013_0246_0_0',
@@ -64,11 +65,10 @@ class TestSingleDirHarvester(MiUnitTest):
 
         # start the harvester from scratch
         memento = None
-	file_mod_wait_time = 30
-        file_harvester = SingleDirectoryHarvester(CONFIG, file_mod_wait_time, memento,
-                                                         self.new_file_found_callback,
-							 self.modified_files_found_callback,
-                                                         self.file_exception_callback)
+        file_harvester = SingleDirectoryHarvester(CONFIG, memento,
+                                                self.new_file_found_callback,
+						self.modified_files_found_callback,
+                                                self.file_exception_callback)
         file_harvester.start()
         file_harvester.shutdown()
 
@@ -79,11 +79,12 @@ class TestSingleDirHarvester(MiUnitTest):
         """
         # start the harvester from scratch
         memento = None
-        file_mod_wait_time = 10
-        file_harvester = SingleDirectoryHarvester(CONFIG, file_mod_wait_time, memento,
-                                                         self.new_file_found_callback,
-							 self.modified_files_found_callback,
-                                                         self.file_exception_callback)
+	config = CONFIG.copy()
+	config[DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME] = 10
+        file_harvester = SingleDirectoryHarvester(CONFIG, memento,
+                                                self.new_file_found_callback,
+						self.modified_files_found_callback,
+                                                self.file_exception_callback)
         file_harvester.start()
 
         # start a new event which will increase the file index using INDICIES
@@ -106,15 +107,15 @@ class TestSingleDirHarvester(MiUnitTest):
         """
         config = {DataSetDriverConfigKeys.DIRECTORY: TESTDIR,
 		  DataSetDriverConfigKeys.STORAGE_DIRECTORY: TESTDIR,
-		  DataSetDriverConfigKeys.PATTERN: CONFIG[DataSetDriverConfigKeys.PATTERN]}
+		  DataSetDriverConfigKeys.PATTERN: CONFIG[DataSetDriverConfigKeys.PATTERN],
+		  DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 15}
 
         # start the harvester from scratch
         memento = None
-        file_mod_wait_time = 15
-        file_harvester = SingleDirectoryHarvester(config, file_mod_wait_time, memento,
-                                                         self.new_file_found_callback,
-							 self.modified_files_found_callback,
-                                                         self.file_exception_callback)
+        file_harvester = SingleDirectoryHarvester(config, memento,
+                                                  self.new_file_found_callback,
+						  self.modified_files_found_callback,
+                                                  self.file_exception_callback)
         file_harvester.start()
 
         # start a new event which will increase the file index using INDICIES
@@ -128,19 +129,47 @@ class TestSingleDirHarvester(MiUnitTest):
 
         file_harvester.shutdown()
 
+    def test_harvester_without_mod_time(self):
+        """
+        Test that we can use a default frequency
+        """
+        config = {DataSetDriverConfigKeys.DIRECTORY: TESTDIR,
+		  DataSetDriverConfigKeys.STORAGE_DIRECTORY: TESTDIR,
+		  DataSetDriverConfigKeys.PATTERN: CONFIG[DataSetDriverConfigKeys.PATTERN],
+		  DataSetDriverConfigKeys.FREQUENCY: 5}
+
+        # start the harvester from scratch
+        memento = None
+        file_harvester = SingleDirectoryHarvester(config, memento,
+                                                  self.new_file_found_callback,
+						  self.modified_files_found_callback,
+                                                  self.file_exception_callback)
+        file_harvester.start()
+
+        # start a new event which will increase the file index using INDICIES
+        self.directory_filler = gevent.spawn(self.fill_directory_with_files,
+                                             CONFIG[DataSetDriverConfigKeys.DIRECTORY],
+                                             CONFIG[DataSetDriverConfigKeys.PATTERN], 0, 2)
+
+        # Wait for two sets of new files to be discovered
+        self.wait_for_file(0, 2)
+        self.wait_for_file(self.found_file_count, 2)
+
+        file_harvester.shutdown()
+
     def test_harvester_multi_file(self):
         """
         Set the timing so the harvester finds multiple new files at once
         """
-	config = CONFIG
+	config = CONFIG.copy()
 	config[DataSetDriverConfigKeys.FREQUENCY] = 1
+	config[DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME] = 15
         # start the harvester from scratch
         memento = None
-        file_mod_wait_time = 15
-        file_harvester = SingleDirectoryHarvester(config, file_mod_wait_time, memento,
-                                                         self.new_file_found_callback,
-							 self.modified_files_found_callback,
-                                                         self.file_exception_callback)
+        file_harvester = SingleDirectoryHarvester(config, memento,
+                                                  self.new_file_found_callback,
+						  self.modified_files_found_callback,
+                                                  self.file_exception_callback)
         file_harvester.start()
 
         # set the file filler to generate files with only .5 secs between,
@@ -164,11 +193,10 @@ class TestSingleDirHarvester(MiUnitTest):
 	Test that the file mod wait time is actually waiting before finding files
 	"""
 	memento = None
-        file_mod_wait_time = 30
-        file_harvester = SingleDirectoryHarvester(CONFIG, file_mod_wait_time, memento,
-                                                         self.new_file_found_callback,
-							 self.modified_files_found_callback,
-                                                         self.file_exception_callback)
+        file_harvester = SingleDirectoryHarvester(CONFIG, memento,
+                                                  self.new_file_found_callback,
+						  self.modified_files_found_callback,
+                                                  self.file_exception_callback)
 	file_harvester.start()
 	# put a file in the directory, the mod time will be the create time
 	self.fill_directory_with_files(CONFIG[DataSetDriverConfigKeys.DIRECTORY],
@@ -183,7 +211,7 @@ class TestSingleDirHarvester(MiUnitTest):
             if file_found_time > 60:
                 raise Exception("Timeout waiting to find file")
 
-	if file_found_time < file_mod_wait_time:
+	if file_found_time < CONFIG.get(DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME):
 	    # we found the file before the mod time, this is bad!
 	    file_harvester.shutdown()
 	    self.fail('Files found in %s seconds' % file_found_time)
@@ -216,11 +244,12 @@ class TestSingleDirHarvester(MiUnitTest):
 		   filename_2: metadata_2
 		    }
         log.debug("starting with memento %s", memento)
-        file_mod_wait_time = 15
-        file_harvester = SingleDirectoryHarvester(CONFIG, file_mod_wait_time, memento,
-                                                         self.new_file_found_callback,
-							 self.modified_files_found_callback,
-                                                         self.file_exception_callback)
+	config = CONFIG.copy()
+	config[DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME] = 15
+        file_harvester = SingleDirectoryHarvester(CONFIG, memento,
+                                                  self.new_file_found_callback,
+						  self.modified_files_found_callback,
+                                                  self.file_exception_callback)
         file_harvester.start()
 
         # start a new event which will increase the file index using INDICIES
@@ -265,11 +294,12 @@ class TestSingleDirHarvester(MiUnitTest):
 		   filename_2: metadata_2
 		    }
         log.debug("starting with memento %s", memento)
-        file_mod_wait_time = 10
-        file_harvester = SingleDirectoryHarvester(CONFIG, file_mod_wait_time, memento,
-                                                         self.new_file_found_callback,
-							 self.modified_files_found_callback,
-                                                         self.file_exception_callback)
+	config = CONFIG.copy()
+	config[DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME] = 10
+        file_harvester = SingleDirectoryHarvester(CONFIG, memento,
+                                                  self.new_file_found_callback,
+						  self.modified_files_found_callback,
+                                                  self.file_exception_callback)
         file_harvester.start()
 
         # start a new event which will increase the file index using INDICIES
@@ -313,11 +343,12 @@ class TestSingleDirHarvester(MiUnitTest):
 		   filename_2: metadata_2
 		    }
         log.debug("starting with memento %s", memento)
-        file_mod_wait_time = 15
-        file_harvester = SingleDirectoryHarvester(CONFIG, file_mod_wait_time, memento,
-                                                         self.new_file_found_callback,
-							 self.modified_files_found_callback,
-                                                         self.file_exception_callback)
+	config = CONFIG.copy()
+	config[DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME] = 15
+        file_harvester = SingleDirectoryHarvester(CONFIG, memento,
+                                                  self.new_file_found_callback,
+						  self.modified_files_found_callback,
+                                                  self.file_exception_callback)
         file_harvester.start()
 	
 	file_path = os.path.join(CONFIG[DataSetDriverConfigKeys.DIRECTORY], filename_1)
@@ -339,15 +370,15 @@ class TestSingleDirHarvester(MiUnitTest):
         Verify exceptions
         """
         config = "blah"
-	file_mod_wait_time = 30
 	memento = None
-        self.assertRaises(TypeError, SingleDirectoryHarvester, (config, file_mod_wait_time, memento,
+        self.assertRaises(TypeError, SingleDirectoryHarvester, (config, memento,
                                                          self.new_file_found_callback,
 							 self.modified_files_found_callback,
                                                          self.file_exception_callback))
 
-	file_mod_wait_time = -5
-        self.assertRaises(TypeError, SingleDirectoryHarvester, (CONFIG, file_mod_wait_time, memento,
+	config = CONFIG.copy()
+	config[DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME] = -5
+        self.assertRaises(TypeError, SingleDirectoryHarvester, (config, memento,
                                                          self.new_file_found_callback,
 							 self.modified_files_found_callback,
                                                          self.file_exception_callback))

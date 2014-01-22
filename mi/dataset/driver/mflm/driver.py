@@ -37,13 +37,12 @@ class MflmDataSetDriver(SingleFileDataSetDriver):
     def _build_parser(self, parser_state, infile):
         raise NotImplementedException("Must write build_parser()!")
 
-    def _build_harvester(self, driver_state, file_mod_wait_time):
+    def _build_harvester(self, driver_state):
         """
         Build and return the harvester
         """
         self._harvester = SingleFileHarvester(
             self._harvester_config,
-            file_mod_wait_time,
             driver_state,
             self._file_changed_callback,
             self._exception_callback

@@ -62,16 +62,18 @@ class SingleDirectoryPoller(ConditionPoller):
     @param exception_callback - function to callback when an exception occurs
     @param interval - polling interval for checking this directory
     """
-    def __init__(self, config, file_mod_wait, memento, callback, exception_callback=None, interval=1):
+    def __init__(self, config, memento, callback, exception_callback=None, interval=1, file_mod_wait=30):
         directory = config.get('directory')
         wildcard = config.get('pattern')
         if not os.path.isdir(directory):
             raise ValueError('%s is not a directory'%directory)
+        self.file_mod_wait = file_mod_wait
+        if not isinstance(self.file_mod_wait, int) or self.file_mod_wait < 0:
+            raise TypeError("File modification wait time must be an integer 0 or greater")
         log.debug("Start directory poller path: %s, pattern: %s", directory, wildcard)
         # driver state is not a new instance of memento, it is the same here as in the driver
         self._driver_state = memento
         self._path = directory + '/' + wildcard
-        self.file_mod_wait = file_mod_wait
         # this queue holds the names of the files that have been sent to the driver.  Each time the harvester
         # restarts, the queue is emptied so all files that have not been ingested can be added and sent again,
         # but this keeps the harvester from sending the same files over and over to not be put in the driver queue
@@ -158,14 +160,6 @@ class SingleDirectoryPoller(ConditionPoller):
 
         log.trace('found new files: %r, modified_files: %r', new_files, modified_files)
         return (new_files, modified_files)
-    
-    def set_file_mod_wait_time(self, new_wait_time):
-        """
-        Change the time to wait for a file to stop being modified before
-        it is considered complete
-        """
-        self.file_mod_wait = new_wait_time
-        log.debug('file mod wait time set to %d', new_wait_time)
 
     def sort_files(self, filenames):
         """
@@ -224,26 +218,22 @@ class SingleDirectoryHarvester(SingleDirectoryPoller, Harvester):
     @param modified_callback - function to callback when a modified ingested file has been found
     @param exception_callback - function to callback when an exception occurs
     """
-    def __init__(self, config, file_mod_wait_time, memento, file_callback,
-                 modified_callback, exception_callback):
+    def __init__(self, config, memento, file_callback, modified_callback, exception_callback):
         if not isinstance(config, dict):
             raise TypeError("Config object must be a dict")
         if memento is None:
             memento = {}
         if not isinstance(memento, dict):
             raise TypeError("memento object must be a dict")
-        if not isinstance(file_mod_wait_time, int) or file_mod_wait_time < 0:
-            raise TypeError("File modification wait time must be an integer 0 or greater")
-        self.directory = config.get('directory')
         self.callback = file_callback
         self.modified_callback = modified_callback
         SingleDirectoryPoller.__init__(self,
                                     config,
-                                    file_mod_wait_time,
                                     memento,
                                     self.on_new_files,
                                     exception_callback,
-                                    config.get('frequency', 1))
+                                    config.get('frequency', 1),
+                                    config.get('file_mod_wait_time', 30))
 
     def on_new_files(self, file_tuple):
         """
@@ -270,7 +260,7 @@ class SingleFilePoller(ConditionPoller):
     @param exception_callback - function to callback when an exception occurs
     @param interval - polling interval for checking this file
     """
-    def __init__(self, config, file_mod_wait, memento, callback, exception_callback=None, interval=1):
+    def __init__(self, config, memento, callback, exception_callback=None, interval=1, file_mod_wait=30):
         directory = config.get('directory')
         self._filename = config.get('pattern')
         if not os.path.isdir(directory):
@@ -279,6 +269,8 @@ class SingleFilePoller(ConditionPoller):
         if os.path.exists(self._path) and not os.access(self._path, os.R_OK):
             raise ValueError('%s exists but is not readable'%self._path)
         self.file_mod_wait = file_mod_wait
+        if not isinstance(self.file_mod_wait, int) or self.file_mod_wait < 0:
+            raise TypeError("File modification wait time must be an integer 0 or greater")
         self._driver_state = {}
         if DriverStateKey.FILE_SIZE in memento:
             self._driver_state[DriverStateKey.FILE_SIZE] = memento.get(DriverStateKey.FILE_SIZE)
@@ -337,24 +329,21 @@ class SingleFileHarvester(SingleFilePoller, Harvester):
     @param file_callback - function to callback when a file change is found
     @param exception_callback - function to callback when an exception occurs
     """
-    def __init__(self, config, file_mod_wait_time, memento, file_callback, exception_callback):
+    def __init__(self, config, memento, file_callback, exception_callback):
         if not isinstance(config, dict):
             raise TypeError("Config object must be a dict")
         if memento is None:
             memento = {}
         if not isinstance(memento, dict):
             raise TypeError("memento object must be a dict")
-        if not isinstance(file_mod_wait_time, int) or file_mod_wait_time < 0:
-            raise TypeError("File modification wait time must be an integer 0 or greater")
-        self.directory = config.get('directory')
         self.callback = file_callback
         SingleFilePoller.__init__(self,
                                 config,
-                                file_mod_wait_time,
                                 memento,
                                 self.on_changed_file,
                                 exception_callback,
-                                config.get('frequency', 1))
+                                config.get('frequency', 1),
+                                config.get('file_mod_wait_time', 30))
 
     def on_changed_file(self, new_state):
         """

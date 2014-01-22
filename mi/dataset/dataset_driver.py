@@ -52,7 +52,6 @@ class DriverParameter(BaseEnum):
     RECORDS_PER_SECOND = 'records_per_second'
     PUBLISHER_POLLING_INTERVAL = 'publisher_polling_interval'
     BATCHED_PARTICLE_COUNT = 'batched_particle_count'
-    FILE_MOD_DONE_WAIT_SECONDS = 'file_mod_done_wait_seconds'
 
 class DataSourceLocation(object):
     """
@@ -98,6 +97,7 @@ class DataSetDriverConfigKeys(BaseEnum):
     STORAGE_DIRECTORY = "storage_directory"
     PATTERN = "pattern"
     FREQUENCY = "frequency"
+    FILE_MOD_WAIT_TIME = "file_mod_wait_time"
     HARVESTER = "harvester"
     PARSER = "parser"
     MODULE = "module"
@@ -127,13 +127,13 @@ class DataSetDriver(object):
             'storage_directory': '/tmp/stored_dsatest',
             'pattern': '*.txt',
             'frequency': 1,
+            'file_mod_wait_time': 30,
         },
         'parser': {}
         'driver': {
             'records_per_second'
             'harvester_polling_interval'
             'batched_particle_count'
-            'file_mod_done_wait_seconds'
         }
     }
     """
@@ -144,7 +144,6 @@ class DataSetDriver(object):
         self._exception_callback = exception_callback
         self._memento = memento
         self._publisher_thread = None
-        self._harvester = None
 
         self._verify_config()
 
@@ -152,7 +151,6 @@ class DataSetDriver(object):
         self._polling_interval = None
         self._generate_particle_count = None
         self._particle_count_per_second = None
-        self._file_mod_done_wait_time = None
 
         self._param_dict = ProtocolParameterDict()
         self._cmd_dict = ProtocolCommandDict()
@@ -267,8 +265,7 @@ class DataSetDriver(object):
 
         log.trace("set_resource: iterate through params: %s", params)
         for (key, val) in params.iteritems():
-            if key in [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.RECORDS_PER_SECOND,
-                       DriverParameter.FILE_MOD_DONE_WAIT_SECONDS]:
+            if key in [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.RECORDS_PER_SECOND]:
                 if not isinstance(val, int): raise InstrumentParameterException("%s must be an integer" % key)
             if key in [DriverParameter.PUBLISHER_POLLING_INTERVAL]:
                 if not isinstance(val, (int, float)): raise InstrumentParameterException("%s must be an float" % key)
@@ -282,12 +279,9 @@ class DataSetDriver(object):
         self._generate_particle_count = self._param_dict.get(DriverParameter.BATCHED_PARTICLE_COUNT)
         self._particle_count_per_second = self._param_dict.get(DriverParameter.RECORDS_PER_SECOND)
         self._polling_interval = self._param_dict.get(DriverParameter.PUBLISHER_POLLING_INTERVAL)
-        self._file_mod_done_wait_time = self._param_dict.get(DriverParameter.FILE_MOD_DONE_WAIT_SECONDS)
         log.trace("Driver Parameters: %s, %s, %s", self._polling_interval, self._particle_count_per_second,
-                  self._generate_particle_count, self._file_mod_done_wait_time)
-        if self._harvester != None and DriverParameter.FILE_MOD_DONE_WAIT_SECONDS in params.keys():
-            # if the file modification wait time has changed, need to update it in the harvester
-            self._harvester.set_file_mod_wait_time(self._file_mod_done_wait_time)
+                  self._generate_particle_count)
+
 
     def get_resource(self, *args, **kwargs):
         """
@@ -396,17 +390,6 @@ class DataSetDriver(object):
                 description="Number of particles to batch before sending to the agent")
         )
 
-        self._param_dict.add_parameter(
-            Parameter(
-                DriverParameter.FILE_MOD_DONE_WAIT_SECONDS,
-                int,
-                value=30,
-                type=ParameterDictType.INT,
-                visibility=ParameterDictVisibility.IMMUTABLE,
-                display_name="File Modification Done Wait Seconds",
-                description="Seconds to wait after a file is modified before that file is considered complete")
-        )
-
         config = self._config.get(DataSourceConfigKey.DRIVER, {})
         log.debug("set_resource on startup with: %s", config)
         self.set_resource(config)
@@ -451,6 +434,7 @@ class SimpleDataSetDriver(DataSetDriver):
     content into a single parser.  The hope is this class can be used for 80% of the drivers
     we implement.
     """
+    _harvester = None
     _new_file_queue = []
     _driver_state = None
 
@@ -472,7 +456,7 @@ class SimpleDataSetDriver(DataSetDriver):
         # just a little nap before we start working.  Giving the agent time
         # to respond.
         try:
-            self._harvester = self._build_harvester(self._driver_state, self._file_mod_done_wait_time)
+            self._harvester = self._build_harvester(self._driver_state)
             self._harvester.start()
         except Exception as e:
             log.debug("Exception detected when starting sampling: %s", e, exc_info=True)
@@ -493,7 +477,7 @@ class SimpleDataSetDriver(DataSetDriver):
     def _build_parser(self, memento, infile):
         raise NotImplementedException('virtual method needs to be specialized')
 
-    def _build_harvester(self, memento, file_mod_wait_time):
+    def _build_harvester(self, memento):
         raise NotImplementedException('virtual method needs to be specialized')
 
     def _verify_config(self):
@@ -636,7 +620,6 @@ class SingleFileDataSetDriver(SimpleDataSetDriver):
     Simple data set driver handles cases where we are watching a single file and pushing the
     content into a single parser.
     """
-    _driver_state = None
     _in_process_state = None
     _next_driver_state = None
 
