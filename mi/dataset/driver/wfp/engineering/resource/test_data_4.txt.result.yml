@@ -1,0 +1,51 @@
+# Result data after parsing test_data_3.txt 
+
+header:
+  particle_object: WfpEngineeringDataParticle
+  particle_type: wfp_engineering_parsed
+  
+data:
+  - _index: 1
+    _new_sequence: True
+    timestamp: '2013-04-15T14:22:02Z'
+    current: -2.0
+    voltage: 10.8
+    
+  - _index: 2
+    timestamp: '2013-04-15T14:22:10Z'
+    current: -2.0
+    voltage: 10.8
+
+  - _index: 3
+    timestamp: '2013-04-15T14:22:17Z'
+    current: -2.0
+    voltage: 10.8
+    
+  - _index: 4
+    _new_sequence: True
+    timestamp: '2013-04-15T14:22:24Z'
+    current: -2.0
+    voltage: 10.8
+    
+  - _index: 5
+    _new_sequence: True
+    timestamp: '2013-04-15T14:22:30Z'
+    current: -2.0
+    voltage: 10.8
+    
+  - _index: 6
+    timestamp: '2013-04-15T14:22:37Z'
+    current: -2.0
+    voltage: 10.8
+    
+  - _index: 7
+    _new_sequence: True
+    timestamp: '2013-04-15T14:22:43Z'
+    current: -2.0
+    voltage: 10.8
+    
+  - _index: 8
+    timestamp: '2013-04-15T14:22:50Z'
+    current: -2.0
+    voltage: 10.8
+    

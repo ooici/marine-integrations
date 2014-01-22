@@ -195,6 +195,7 @@ class SBE54tpsStatusDataParticleKey(BaseEnum):
     BYTES_USED = "bytes_used"
     BYTES_FREE = "bytes_free"
 
+
 class SBE54tpsStatusDataParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
@@ -265,7 +266,7 @@ class SBE54tpsStatusDataParticle(DataParticle):
 
                         # str
                         if key in [
-                            SBE54tpsStatusDataParticleKey.DEVICE_TYPE,
+                            SBE54tpsStatusDataParticleKey.DEVICE_TYPE
                         ]:
                             single_var_matches[key] = val
 
@@ -292,6 +293,7 @@ class SBE54tpsStatusDataParticle(DataParticle):
                             # yyyy-mm-ddThh:mm:ss
                             single_var_matches[key] = val
                             py_timestamp = time.strptime(val, "%Y-%m-%dT%H:%M:%S")
+                            #log.error("unix_timestamp = " + str(time.mktime(py_timestamp)))
                             self.set_internal_timestamp(unix_time=time.mktime(py_timestamp))
 
                         else:
@@ -825,6 +827,7 @@ class SBE54tpsSampleDataParticleKey(BaseEnum):
     PRESSURE = "absolute_pressure" # psi
     PRESSURE_TEMP = "pressure_temp"
 
+
 class SBE54tpsSampleDataParticle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
@@ -875,8 +878,7 @@ class SBE54tpsSampleDataParticle(DataParticle):
 
                         # str
                         if key in [
-                            SBE54tpsSampleDataParticleKey.SAMPLE_TYPE,
-                            SBE54tpsSampleDataParticleKey.INST_TIME
+                            SBE54tpsSampleDataParticleKey.SAMPLE_TYPE
                         ]:
                             log.debug("SAMPLE_TYPE = %s", val)
                             single_var_matches[key] = val
@@ -896,13 +898,17 @@ class SBE54tpsSampleDataParticle(DataParticle):
 
                         # date_time
                         elif key in [
+                            SBE54tpsSampleDataParticleKey.INST_TIME
                         ]:
                             # <Time>2012-11-07T12:21:25</Time>
                             # yyyy-mm-ddThh:mm:ss
                             text_timestamp = val
                             py_timestamp = time.strptime(text_timestamp, "%Y-%m-%dT%H:%M:%S")
                             timestamp = ntplib.system_to_ntp_time(time.mktime(py_timestamp))
-                            single_var_matches[key] = timestamp
+                            #log.error("unix_timestamp = " + str(time.mktime(py_timestamp)))
+                            self.set_internal_timestamp(unix_time=time.mktime(py_timestamp))
+
+                            single_var_matches[key] = val
 
                         else:
                             raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")
@@ -1023,7 +1029,9 @@ class SBE54tpsSampleRefOscDataParticle(DataParticle):
                             # yyyy-mm-ddThh:mm:ss
                             single_var_matches[key] = val
                             py_timestamp = time.strptime(val, "%Y-%m-%dT%H:%M:%S")
-                            self.set_internal_timestamp(time.mktime(py_timestamp))
+
+                            #log.error("unix_timestamp = " + str(time.mktime(py_timestamp)))
+                            self.set_internal_timestamp(unix_time=time.mktime(py_timestamp))
 
                         else:
                             raise SampleException("Unknown variable type in SBE54tpsConfigurationDataParticle._build_parsed_values")

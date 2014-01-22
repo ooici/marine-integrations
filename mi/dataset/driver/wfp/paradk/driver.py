@@ -1,37 +1,39 @@
 """
-@package mi.dataset.driver.hypm.ctd.driver
-@file marine-integrations/mi/dataset/driver/hypm/ctd/driver.py
-@author Bill French
-@brief Driver for the hypm/ctd
+@package mi.dataset.driver.wfp.paradk.driver
+@file marine-integrations/mi/dataset/driver/wfp/paradk/driver.py
+@author Roger Unwin
+@brief Driver for the wfp/paradk
 Release notes:
 
 initial release
 """
 
-__author__ = 'Bill French'
+__author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
 
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
-from mi.dataset.parser.ctdpf import CtdpfParser
-from mi.dataset.parser.ctdpf import CtdpfParserDataParticle
+from mi.dataset.parser.wfp_parser import ParadkParser
+from mi.dataset.parser.wfp_parser import WfpParadkDataParticle
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
 
 
-class HypmCTDPFDataSetDriver(SimpleDataSetDriver):
+class WfpPARADKDataSetDriver(SimpleDataSetDriver):
     @classmethod
     def stream_config(cls):
-        return [CtdpfParserDataParticle.type()]
+        return [WfpParadkDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
         config = self._parser_config
         config.update({
-            'particle_module': 'mi.dataset.parser.ctdpf',
-            'particle_class': 'CtdpfParserDataParticle'
+            'particle_module': 'mi.dataset.parser.wfp_parser',
+            'particle_class': 'WfpParadkDataParticle'
         })
+
         log.debug("MYCONFIG: %s", config)
-        self._parser = CtdpfParser(
+
+        self._parser = ParadkParser(
             config,
             parser_state,
             infile,

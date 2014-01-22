@@ -1,9 +1,8 @@
 """
-@package mi.dataset.driver.hypm.ctd.driver
-@file marine-integrations/mi/dataset/driver/wfp/vel3dk/driver.py
-@author Bill French
+@package mi.dataset.driver.wfp.paradk.driver
+@file marine-integrations/mi/dataset/driver/wfp/paradk/driver.py
 @author Roger Unwin
-@brief Driver for the wfp/vel3d-k
+@brief Driver for the wfp/paradk
 Release notes:
 
 initial release
@@ -15,23 +14,25 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
-from mi.dataset.parser.vel3dk import Vel3dkParser
-from mi.dataset.parser.vel3dk import Vel3dkParserDataParticle
+from mi.dataset.parser.wfp_parser import Vel3dkParser
+from mi.dataset.parser.wfp_parser import WfpVel3dkDataParticle
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
 
 
-class WfpVEL3DKDataSetDriver(SimpleDataSetDriver):
+class WfpVel3dkDataSetDriver(SimpleDataSetDriver):
     @classmethod
     def stream_config(cls):
-        return [Vel3dkParserDataParticle.type()]
+        return [WfpVel3dkDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
         config = self._parser_config
         config.update({
-            'particle_module': 'mi.dataset.parser.vel3dk',
-            'particle_class': 'Vel3dkParserDataParticle'
+            'particle_module': 'mi.dataset.parser.wfp_parser',
+            'particle_class': 'WfpVel3dkDataParticle'
         })
+
         log.debug("MYCONFIG: %s", config)
+
         self._parser = Vel3dkParser(
             config,
             parser_state,

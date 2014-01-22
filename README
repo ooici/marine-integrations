@@ -20,9 +20,26 @@ INSTALL prequisite software for COI-services
 - homebrew
     /usr/bin/ruby <(curl -fsSkL raw.github.com/mxcl/homebrew/go)
     brew doctor
+    brew tap homebrew/science
+
+- python 2.7.x
+    > brew install python --framework --universal
+
 - git 1.7.7: Use brew or download the Mac or Linux installer and run it
-- libevent libyaml zeromq couchdb python rabbitmq hdf5 pkg-config netcdf freetype, if not already present:
-    brew install libevent libyaml zeromq couchdb python rabbitmq hdf5 pkg-config netcdf freetype spatialindex
+
+- libevent libyaml zeromq rabbitmq hdf5 pkg-config netcdf freetype spatialindex udunits, if not already present:
+    brew install libevent libyaml zeromq rabbitmq hdf5 pkg-config netcdf freetype spatialindex udunits
+
+- Install Postgres with Homebrew (PostgreSQL is the default but CouchDB is possible)
+    brew install postgres postgis
+
+    If you have trouble with the installation, please see:
+    https://confluence.oceanobservatories.org/display/CIDev/Postgres+Datastore
+    https://confluence.oceanobservatories.org/display/CIDev/M112+Geospatial+Search
+
+- Once Postgres is running, add an ion user
+    createuser ion
+
 - pip
     easy_install pip
 - virtualenv

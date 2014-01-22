@@ -6,7 +6,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
+    _new_sequence: False
     internal_timestamp: '2013-04-16T01:00:05Z'
     conductivity: 1.5283
     temperature: 16.3603

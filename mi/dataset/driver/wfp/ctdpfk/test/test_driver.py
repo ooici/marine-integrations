@@ -43,11 +43,11 @@ from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKe
 from mi.dataset.dataset_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.dataset.parser.ctdpfk import CtdpfkParser
+from mi.dataset.parser.ctdpfk import CtdpfkParserDataParticle
+from mi.dataset.driver.wfp.ctdpfk.driver import WfpCTDPFKDataSetDriver
 from mi.dataset.parser.test.test_ctdpfk import CtdpfkParserUnitTestCase
 from mi.dataset.harvester import AdditiveSequentialFileHarvester
-from mi.dataset.driver.wfp.ctdpfk.driver import WfpCTDPFKDataSetDriver
 
-from mi.dataset.parser.ctdpfk import CtdpfkParserDataParticle
 from pyon.agent.agent import ResourceAgentState
 
 from interface.objects import CapabilityType
@@ -99,6 +99,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 self.state_callback,
                 self.exception_callback)
 
+    @unittest.skip("Has this test been rendered un-needed?")
     def test_parameters(self):
         """
         Verify that we can get, set, and report all driver parameters.

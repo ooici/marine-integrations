@@ -1,0 +1,8 @@
+driver_metadata:
+  version: 0.0.1
+  author: Roger Unwin
+  constructor: WfpEngineeringDataSetDriver
+  driver_name: wfp_engineering
+  driver_path: wfp/engineering
+  release_notes: 
+  email: raunwin@ucsd.edu

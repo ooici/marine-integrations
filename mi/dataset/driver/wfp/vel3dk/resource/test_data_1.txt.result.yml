@@ -1,0 +1,34 @@
+# Result data after parsing test_data_1.txt 
+
+header:
+  particle_object: WfpVel3dkDataParticle
+  particle_type: vel3d_k_parsed
+
+data:
+  - _index: 1
+    _new_sequence: False
+    timestamp: 3575093415.0
+    sound_velocity: 1500.0
+    temperature: 16.45
+    heading: 12.7
+    pitch: 0.3
+    roll: -0.8
+    magnHx: 16345.0
+    magnHy: 39.0
+    magnHz: 49.0
+    beams: 3.0
+    cells: 1.0
+    beam1: 1.0
+    beam2: 2.0
+    beam3: 4.0
+    beam4: 0.0
+    beam5: 0.0
+    vel_0_0: 4.759
+    vel_1_0: 4.695
+    vel_2_0: 4.693
+    amp_0_0: 59.0
+    amp_1_0: 62.0
+    amp_2_0: 57.0
+    corr_0_0: 28.0
+    corr_1_0: 43.0
+    corr_2_0: 33.0
