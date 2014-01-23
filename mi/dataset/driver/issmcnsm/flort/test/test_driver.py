@@ -16,6 +16,9 @@ __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
 import unittest
+import os
+import hashlib
+import gevent
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -26,7 +29,7 @@ from mi.idk.exceptions import SampleTimeout
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
-from mi.dataset.dataset_driver import DataSourceConfigKey
+from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 
 from pyon.agent.agent import ResourceAgentState
@@ -42,13 +45,14 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = IssmCnsmFLORTDDataSetDriver.stream_config(),
     startup_config = {
-        'harvester':
+        DataSourceConfigKey.HARVESTER:
         {
-            'directory': '/tmp/dsatest',
-            'pattern': '*.flort.log',
-            'frequency': 1,
+            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+            DataSetDriverConfigKeys.PATTERN: '*.flort.log',
+            DataSetDriverConfigKeys.FREQUENCY: 1,
         },
-        'parser': {}
+        DataSourceConfigKey.PARSER: {}
     }
 )
 
@@ -96,9 +100,24 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to restart the process
         """
-        # Create and store the new driver state, after completed reading 20130101.dosta.log
-        self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/20130101.flort.log',
-                        DataSourceConfigKey.PARSER: None}
+        self.create_sample_data('test_data_1.flort.log', "20130101.flort.log")
+        startup_config = self._driver_config()['startup_config']
+        file_path = os.path.join(startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY),
+                                 "20130101.flort.log")
+        # need to reset file mod time since file is created again
+        mod_time = os.path.getmtime(file_path)
+        file_size = os.path.getsize(file_path)
+        with open(file_path) as filehandle:
+	    md5_checksum = hashlib.md5(filehandle.read()).hexdigest()
+        # Create and store the new driver state, after completed reading 20130101.flort.log
+        # Note, since file is ingested, parser state is not looked at, in a real run there would be a state in there
+        self.memento = {'20130101.flort.log':{'ingested': True,
+                                              'file_mod_date': mod_time,
+                                              'file_checksum': md5_checksum,
+                                              'file_size': file_size,
+                                              'parser_state': {}
+                                            }
+        }
         self.driver = IssmCnsmFLORTDDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
@@ -108,7 +127,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data('test_data_1.flort.log', "20130101.flort.log")
+
         self.create_sample_data('test_data_2.flort.log', "20130102.flort.log")
 
         self.driver.start_sampling()
@@ -120,9 +139,40 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to restart the process in the middle of a file
         """
+        self.create_sample_data('test_data_1.flort.log', "20130101.flort.log")
+        self.create_sample_data('test_data_2.flort.log', "20130102.flort.log")
+
+        startup_config = self._driver_config()['startup_config']
+        file_path_1 = os.path.join(startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY),
+                                 "20130101.flort.log")
+        # need to reset file mod time since file is created again
+        mod_time_1 = os.path.getmtime(file_path_1)
+        file_size_1 = os.path.getsize(file_path_1)
+        with open(file_path_1) as filehandle:
+	    md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
+        file_path_2 = os.path.join(startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY),
+                                 "20130102.flort.log")
+        # need to reset file mod time since file is created again
+        mod_time_2 = os.path.getmtime(file_path_2)
+        file_size_2 = os.path.getsize(file_path_2)
+        with open(file_path_2) as filehandle:
+	    md5_checksum_2 = hashlib.md5(filehandle.read()).hexdigest()
+        # Create and store the new driver state, after completed reading 20130101.flort.log
+        # Note, since file 20130101 is ingested, parser state is not looked at, in a real run there would be a state in there
+        self.memento = {'20130101.flort.log':{'ingested': True,
+                                              'file_mod_date': mod_time_1,
+                                              'file_checksum': md5_checksum_1,
+                                              'file_size': file_size_1,
+                                              'parser_state': {}
+                                            },
+                        '20130102.flort.log':{'ingested': False,
+                                              'file_mod_date': mod_time_2,
+                                              'file_checksum': md5_checksum_2,
+                                              'file_size': file_size_2,
+                                              'parser_state': {'position': 146, 'timestamp': 3592854648.401}
+                        }
+        }
         # Create and store the new driver state, after completed reading  20130101.dosta.log
-        self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/20130101.flort.log',
-                        DataSourceConfigKey.PARSER: {'position': 146, 'timestamp': 3592854648.401}}
         self.driver = IssmCnsmFLORTDDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
@@ -132,13 +182,69 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data('test_data_1.flort.log', "20130101.flort.log")
-        self.create_sample_data('test_data_2.flort.log', "20130102.flort.log")
 
         self.driver.start_sampling()
 
         # verify data is produced
         self.assert_data(Issmcnsm_flortdParserDataParticle, 'test_data_2.txt.partial-result.yml', count=2, timeout=10)
+
+    def test_modified(self):
+        """
+        Test for detection of an ingested file that has been modifed after ingestion
+        """
+        self.create_sample_data('test_data_1.flort.log', "20130101.flort.log")
+
+        startup_config = self._driver_config()['startup_config']
+        directory = startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY)
+        file_path = os.path.join(directory, "20130101.flort.log")
+        # need to reset file mod time since file is created again
+        mod_time = os.path.getmtime(file_path)
+        file_size = os.path.getsize(file_path)
+        with open(file_path) as filehandle:
+	    md5_checksum = hashlib.md5(filehandle.read()).hexdigest()
+        # Create and store the new driver state, after completed reading  20130101.flort.log
+        self.memento = {'20130101.flort.log':{'ingested': True,
+                                              'file_mod_date': mod_time,
+                                              'file_checksum': md5_checksum,
+                                              'file_size': file_size,
+                                              'parser_state': {}
+                                            }
+        }
+
+        self.driver = IssmCnsmFLORTDDataSetDriver(
+            self._driver_config()['startup_config'],
+            self.memento,
+            self.data_callback,
+            self.state_callback,
+            self.exception_callback)
+
+        # create some data to parse
+        self.clear_async_data()
+
+        self.driver.start_sampling()
+
+        # overwrite the old 20130101.flort.log file
+        # NOTE: this does not make you wait until file mod time, since it copies the original file
+        # modification time, not when you copy the file in running this test
+        self.create_sample_data('test_data_2.flort.log', "20130101.flort.log")
+
+        to = gevent.Timeout(30)
+        to.start()
+        done = False
+        try:
+            while(not done):
+                if 'modified_state' in self.driver._driver_state['20130101.flort.log']:
+                    log.debug("Found modified state %s", self.driver._driver_state['20130101.flort.log'].get('modified_state' ))
+                    done = True
+
+                if not done:
+                    log.debug("modification not detected yet, sleep some more...")
+                    gevent.sleep(5)
+        except Timeout:
+            log.error("Failed to find modified file after ingestion")
+            self.fail("Failed to find modified file after ingestion")
+        finally:
+            to.cancel()
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

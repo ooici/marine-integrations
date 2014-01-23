@@ -16,7 +16,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.dataset_driver import SimpleDataSetDriver
 from mi.dataset.parser.ctdpf import CtdpfParser
 from mi.dataset.parser.ctdpf import CtdpfParserDataParticle
-from mi.dataset.harvester import AdditiveSequentialFileHarvester
+from mi.dataset.harvester import SingleDirectoryHarvester
 
 
 class HypmCTDPFDataSetDriver(SimpleDataSetDriver):
@@ -41,13 +41,16 @@ class HypmCTDPFDataSetDriver(SimpleDataSetDriver):
 
         return self._parser
 
-    def _build_harvester(self, harvester_state):
-        self._harvester = AdditiveSequentialFileHarvester(
+    def _build_harvester(self, driver_state):
+        """
+        Build and return the harvester
+        """
+        self._harvester = SingleDirectoryHarvester(
             self._harvester_config,
-            harvester_state,
+            driver_state,
             self._new_file_callback,
+            self._modified_file_callback,
             self._exception_callback
         )
-
         return self._harvester
 

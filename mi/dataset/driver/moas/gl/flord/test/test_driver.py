@@ -17,6 +17,8 @@ __license__ = 'Apache 2.0'
 
 import gevent
 import unittest
+import os
+import hashlib
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -31,7 +33,7 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.idk.exceptions import SampleTimeout
 
-from mi.dataset.dataset_driver import DataSourceConfigKey
+from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 from mi.dataset.driver.moas.gl.flord.driver import FLORDDataSetDriver
 
@@ -48,13 +50,14 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = FLORDDataSetDriver.stream_config(),
     startup_config = {
-        'harvester':
+        DataSourceConfigKey.HARVESTER:
         {
-            'directory': '/tmp/dsatest',
-            'pattern': '*.mrg',
-            'frequency': 1,
+            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+            DataSetDriverConfigKeys.PATTERN: '*.mrg',
+            DataSetDriverConfigKeys.FREQUENCY: 1,
         },
-        'parser': {}
+        DataSourceConfigKey.PARSER: {}
     }
 )
 
@@ -95,14 +98,40 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to stop and restart the process
         """
+        self.create_sample_data('single_flord_record.mrg', "unit_363_2013_245_6_8.mrg")
+        self.create_sample_data('multiple_flord_record.mrg', "unit_363_2013_245_6_9.mrg")
+        startup_config = self._driver_config()['startup_config']
+        directory = startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY)
+        file_path_1 = os.path.join(directory, "unit_363_2013_245_6_8.mrg")
+        # need to reset file mod time since file is created again
+        mod_time_1 = os.path.getmtime(file_path_1)
+        file_size_1 = os.path.getsize(file_path_1)
+        with open(file_path_1) as filehandle:
+	    md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
+        file_path_2 = os.path.join(directory, "unit_363_2013_245_6_9.mrg")
+        mod_time_2 = os.path.getmtime(file_path_2)
+        file_size_2 = os.path.getsize(file_path_2)
+        with open(file_path_2) as filehandle:
+	    md5_checksum_2 = hashlib.md5(filehandle.read()).hexdigest()
+
         # Create and store the new driver state
-        state = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/unit_363_2013_245_6_8.mrg',
-                 DataSourceConfigKey.PARSER: {'position': 1987}}
+        state = {'unit_363_2013_245_6_8.mrg':{'ingested': True,
+                                              'file_mod_date': mod_time_1,
+                                              'file_checksum': md5_checksum_1,
+                                              'file_size': file_size_1,
+                                              'parser_state': {'position': file_size_1}
+                                            },
+                'unit_363_2013_245_6_9.mrg':{'ingested': False,
+                                              'file_mod_date': mod_time_2,
+                                              'file_checksum': md5_checksum_2,
+                                              'file_size': file_size_2,
+                                              'parser_state': {'position': 1987}
+                                            }
+        }
         self.driver = self._get_driver_object(memento=state)
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data('multiple_flord_record.mrg', "unit_363_2013_245_6_9.mrg")
         self.create_sample_data('single_flord_record.mrg', "unit_363_2013_245_6_10.mrg")
 
         self.driver.start_sampling()

@@ -29,7 +29,7 @@ from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-from mi.dataset.dataset_driver import DriverParameter
+from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 
 from mi.dataset.driver.mflm.flort.driver import MflmFLORTDDataSetDriver
 from mi.dataset.parser.flortd import FlortdParserDataParticle
@@ -46,13 +46,14 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = MflmFLORTDDataSetDriver.stream_config(),
     startup_config = {
-        'harvester':
+        DataSourceConfigKey.HARVESTER:
         {
-            'directory': '/tmp/dsatest',
-            'pattern': 'node59p1.dat',
-            'frequency': 1,
+            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+            DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
+            DataSetDriverConfigKeys.FREQUENCY: 1,
         },
-        'parser': {}
+        DataSourceConfigKey.PARSER: {}
     }
 )
 
@@ -104,8 +105,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(FlortdParserDataParticle, count=4, timeout=10)
 
         self.driver.stop_sampling()
-        # reset the parser and harvester states
-        self.driver.clear_states()
+        # Reset the driver with no memento
+        self.memento = None
+        self.driver = MflmFLORTDDataSetDriver(
+            self._driver_config()['startup_config'],
+            self.memento,
+            self.data_callback,
+            self.state_callback,
+            self.exception_callback)
         self.driver.start_sampling()
 
         self.clear_async_data()
@@ -125,7 +132,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Start sampling and watch for an exception
         self.driver.start_sampling()
 
-        self.assert_exception(IOError)
+        self.assert_exception(ValueError)
 
         # At this point the harvester thread is dead.  The agent
         # exception handle should handle this case.
@@ -135,13 +142,21 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test the ability to stop and restart the process
         """
         self.clean_file()
+        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
+        driver_config = self._driver_config()['startup_config']
+        fullfile = os.path.join(driver_config['harvester']['directory'],
+                            driver_config['harvester']['pattern'])
+        mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
-        self.memento = {DataSourceConfigKey.HARVESTER: {'last_filesize': 300,
-                                                        'last_checksum': 'a640fd577c65ed07ed67f1d2e73d34e2'},
-                        DataSourceConfigKey.PARSER: {'in_process_data': [],
+        self.memento = {DriverStateKey.FILE_SIZE: 300,
+                        DriverStateKey.FILE_CHECKSUM: 'a640fd577c65ed07ed67f1d2e73d34e2',
+                        DriverStateKey.FILE_MOD_DATE: mod_time,
+                        DriverStateKey.PARSER_STATE: {'in_process_data': [],
                                                      'unprocessed_data':[[0,69], [197,300]],
-                                                     'timestamp': 3583610106.0}}
+                                                     'timestamp': 3583610106.0}
+                        }
+
         self.driver = MflmFLORTDDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
@@ -194,8 +209,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # missing data in file (there are some sections of bad data that don't
         # match in headers
         self.driver.stop_sampling()
-        # reset the parser and harvester states
-        self.driver.clear_states()
+        self.memento = None
+        self.driver = MflmFLORTDDataSetDriver(
+            self._driver_config()['startup_config'],
+            self.memento,
+            self.data_callback,
+            self.state_callback,
+            self.exception_callback)
         self.driver.start_sampling()
 
         self.clear_async_data()

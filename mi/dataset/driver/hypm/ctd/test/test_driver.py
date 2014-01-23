@@ -19,6 +19,7 @@ import unittest
 import gevent
 import os
 import time
+import hashlib
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -39,11 +40,10 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-from mi.dataset.dataset_driver import DriverParameter
+from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.dataset.parser.ctdpf import CtdpfParser
 from mi.dataset.parser.test.test_ctdpf import CtdpfParserUnitTestCase
-from mi.dataset.harvester import AdditiveSequentialFileHarvester
 from mi.dataset.driver.hypm.ctd.driver import HypmCTDPFDataSetDriver
 
 from mi.dataset.parser.ctdpf import CtdpfParserDataParticle
@@ -62,13 +62,14 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = HypmCTDPFDataSetDriver.stream_config(),
     startup_config = {
-        'harvester':
+        DataSourceConfigKey.HARVESTER:
         {
-            'directory': '/tmp/dsatest',
-            'pattern': '*.txt',
-            'frequency': 1,
+            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+            DataSetDriverConfigKeys.PATTERN: '*.txt',
+            DataSetDriverConfigKeys.FREQUENCY: 1,
         },
-        'parser': {}
+        DataSourceConfigKey.PARSER: {}
     }
 )
 
@@ -127,8 +128,39 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test the ability to stop and restart the process
         """
         # Create and store the new driver state
-        self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.txt',
-                        DataSourceConfigKey.PARSER: {'position': 209, 'timestamp': 3583861265.0}}
+        self.create_sample_data('test_data_1.txt', "DATA001.txt")
+        self.create_sample_data('test_data_3.txt', "DATA002.txt")
+
+        startup_config = self._driver_config()['startup_config']
+        file_path_1 = os.path.join(startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY),
+                                  "DATA001.txt")
+        # need to reset file mod time since file is created again
+        mod_time_1 = os.path.getmtime(file_path_1)
+        file_size_1 = os.path.getsize(file_path_1)
+        with open(file_path_1) as filehandle:
+	    md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
+        file_path_2 = os.path.join(startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY),
+                                   "DATA002.txt")
+        # need to reset file mod time since file is created again
+        mod_time_2 = os.path.getmtime(file_path_2)
+        file_size_2 = os.path.getsize(file_path_2)
+        with open(file_path_2) as filehandle:
+	    md5_checksum_2 = hashlib.md5(filehandle.read()).hexdigest()
+        # Create and store the new driver state, after completed reading "DATA001.txt"
+        # Note, since file "DATA001.txt" is ingested, parser state is not looked at, in a real run there would be a state in there
+        self.memento = {"DATA001.txt":{'ingested': True,
+                                    'file_mod_date': mod_time_1,
+                                    'file_checksum': md5_checksum_1,
+                                    'file_size': file_size_1,
+                                    'parser_state': {}
+                                    },
+                        "DATA002.txt":{'ingested': False,
+                                       'file_mod_date': mod_time_2,
+                                       'file_checksum': md5_checksum_2,
+                                       'file_size': file_size_2,
+                                       'parser_state': {'position': 209, 'timestamp': 3583861265.0}
+                                    }
+                        }
         self.driver = HypmCTDPFDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
@@ -138,8 +170,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data('test_data_1.txt', "DATA001.txt")
-        self.create_sample_data('test_data_3.txt', "DATA002.txt")
 
         self.driver.start_sampling()
 
