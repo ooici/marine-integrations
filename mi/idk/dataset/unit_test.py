@@ -294,6 +294,10 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         for d in data:
             self.data_callback_result.append(d)
 
+    def event_callback(self, **kwargs):
+        log.debug("Event callback: %s", kwargs, exc_info=True)
+        self.event_callback_result.append(kwargs)
+
     def exception_callback(self, ex):
         log.debug("Exception callback: %s", ex, exc_info=True)
         self.exception_callback_result.append(ex)
@@ -302,6 +306,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         super(DataSetIntegrationTestCase, self).setUp()
         self.state_callback_result = []
         self.data_callback_result = []
+        self.event_callback_result = []
         self.exception_callback_result = []
 
         self.memento = {}
@@ -315,12 +320,13 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         memento = kwargs.get('memento', self.memento)
         data_callback = kwargs.get('data_callback', self.data_callback)
         state_callback = kwargs.get('state_callback', self.state_callback)
+        event_callback = kwargs.get('event_callback', self.event_callback)
         exception_callback = kwargs.get('exception_callback', self.exception_callback)
 
         module_object = __import__(self.test_config.driver_module, fromlist=[self.test_config.driver_class])
         class_object = getattr(module_object, self.test_config.driver_class)
 
-        driver = class_object(config, memento, data_callback, state_callback, exception_callback)
+        driver = class_object(config, memento, data_callback, state_callback, event_callback, exception_callback)
         return driver
 
     def _stop_driver(self):
@@ -330,6 +336,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
     def clear_async_data(self):
         self.state_callback_result = []
         self.data_callback_result = []
+        self.event_callback_result = []
         self.exception_callback_result = []
 
     def assert_exception(self, exception_class, timeout=35):

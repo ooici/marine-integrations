@@ -13,11 +13,13 @@ __license__ = 'Apache 2.0'
 import os
 import gevent
 import shutil
+import hashlib
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import DataSourceLocationException
 from mi.core.exceptions import ConfigurationException
+from mi.core.exceptions import SampleException
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import ConfigMetadataKey
@@ -137,10 +139,11 @@ class DataSetDriver(object):
         }
     }
     """
-    def __init__(self, config, memento, data_callback, state_callback, exception_callback):
+    def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
         self._config = config
         self._data_callback = data_callback
         self._state_callback = state_callback
+        self._event_callback = event_callback
         self._exception_callback = exception_callback
         self._memento = memento
         self._publisher_thread = None
@@ -427,6 +430,25 @@ class DataSetDriver(object):
     def _new_file_exception(self):
         raise NotImplementedException('virtual methond needs to be specialized')
 
+    def _raise_new_file_event(self, name):
+        """
+        Raise a ResourceAgentIOEvent when a new file is detected.  Add file stats
+        to the payload of the event.
+        """
+        s = os.stat(name)
+        checksum = ""
+        with open(name, 'rb') as filehandle:
+            checksum = hashlib.md5(filehandle.read()).hexdigest()
+
+        stats = {
+            'name': name,
+            'size': s.st_size,
+            'mod': s.st_mtime,
+            'md5_checksum': checksum
+        }
+
+        self._event_callback(event_type="ResourceAgentIOEvent", source_type="new file", stats=stats)
+
 
 class SimpleDataSetDriver(DataSetDriver):
     """
@@ -438,8 +460,8 @@ class SimpleDataSetDriver(DataSetDriver):
     _new_file_queue = []
     _driver_state = None
 
-    def __init__(self, config, memento, data_callback, state_callback, exception_callback):
-        super(SimpleDataSetDriver, self).__init__(config, memento, data_callback, state_callback, exception_callback)
+    def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
+        super(SimpleDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback, exception_callback)
 
         self._init_state(memento)
 
@@ -525,39 +547,47 @@ class SimpleDataSetDriver(DataSetDriver):
         We have a file that we want to parse.  Stand up the parser and do some work.
         @param file_name: name of the file to parse
         """
-        log.debug('got file, driver state %s', self._driver_state)
-        directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
-        storage_directory = self._harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY)
-        shutil.copy2(os.path.join(directory, file_name), storage_directory)
-        log.info("Copied file %s from %s to %s" % (file_name, directory, storage_directory))
-        count = 1
-        delay = None
+        try:
+            log.debug('got file, driver state %s', self._driver_state)
+            directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
+            storage_directory = self._harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY)
+            shutil.copy2(os.path.join(directory, file_name), storage_directory)
+            log.info("Copied file %s from %s to %s" % (file_name, directory, storage_directory))
+            count = 1
+            delay = None
 
-        if self._generate_particle_count:
-            # Calculate the delay between grabbing records to publish.
-            delay = float(1) / float(self._particle_count_per_second) * float(self._generate_particle_count)
-            count = self._generate_particle_count
 
-        self._file_in_process = file_name
+            if self._generate_particle_count:
+                # Calculate the delay between grabbing records to publish.
+                delay = float(1) / float(self._particle_count_per_second) * float(self._generate_particle_count)
+                count = self._generate_particle_count
 
-        # Open the copied file in the storage directory so we know the file won't be
-        # changed while we are reading it
-        handle = open(os.path.join(storage_directory, file_name), 'rb')
+            self._file_in_process = file_name
 
-        # the file directory is initialized in the harvester, so it will exist by this point
-        parser = self._build_parser(self._driver_state[file_name][DriverStateKey.PARSER_STATE], handle)
+            # Open the copied file in the storage directory so we know the file won't be
+            # changed while we are reading it
+            path = os.path.join(storage_directory, file_name)
+            self._raise_new_file_event(path)
+            handle = open(path)
 
-        while(True):
-            result = parser.get_records(count)
-            if result:
-                log.trace("Record parsed: %r delay: %f", result, delay)
-                if delay:
-                    gevent.sleep(delay)
-            else:
-                break
+            # the file directory is initialized in the harvester, so it will exist by this point
+            parser = self._build_parser(self._driver_state[file_name][DriverStateKey.PARSER_STATE], handle)
 
-        self._save_ingested_file_state(file_name)
-        self._file_in_process = None
+            while(True):
+                result = parser.get_records(count)
+                if result:
+                    log.trace("Record parsed: %r delay: %f", result, delay)
+                    if delay:
+                        gevent.sleep(delay)
+                else:
+                    break
+
+        except SampleException as e:
+            raise e
+
+        finally:
+            self._save_ingested_file_state(file_name)
+            self._file_in_process = None
 
     def _save_parser_state(self, state):
         """
@@ -671,7 +701,9 @@ class SingleFileDataSetDriver(SimpleDataSetDriver):
 
         # Open the copied file in the storage directory so we know the file won't be
         # changed while we are reading it
-        handle = open(os.path.join(storage_directory, self._filename), 'rb')
+        path = os.path.join(storage_directory, self._filename)
+        self._raise_new_file_event(path)
+        handle = open(path)
 
         # the directory harvester uses file_name keys, the single file harvester does not
         # the file directory is initialized in the harvester, so it will exist by this point
