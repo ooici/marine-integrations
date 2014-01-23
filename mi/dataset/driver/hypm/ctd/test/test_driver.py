@@ -120,6 +120,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 self.memento,
                 self.data_callback,
                 self.state_callback,
+                self.event_callback,
                 self.exception_callback)
 
     def test_stop_resume(self):
@@ -134,6 +135,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
             self.memento,
             self.data_callback,
             self.state_callback,
+            self.event_callback,
             self.exception_callback)
 
         # create some data to parse
