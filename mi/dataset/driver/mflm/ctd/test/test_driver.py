@@ -29,7 +29,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-from mi.dataset.dataset_driver import DriverParameter
+from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.idk.dataset.unit_test import DataSetTestCase
@@ -55,13 +55,15 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = MflmCTDMODataSetDriver.stream_config(),
     startup_config = {
-        'harvester':
+        DataSourceConfigKey.HARVESTER:
         {
-            'directory': '/tmp/dsatest',
-            'pattern': 'node59p1.dat',
-            'frequency': 1,
+            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+            DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
+            DataSetDriverConfigKeys.FREQUENCY: 1,
+            DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 30,
         },
-        'parser': {'inductive_id': 55}
+        DataSourceConfigKey.PARSER: {'inductive_id': 55}
     }
 )
 
@@ -86,12 +88,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
     def test_get(self):
         self.clean_file()
+        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
 
         self.clear_async_data()
-        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
         self.assert_data(CtdmoParserDataParticle, 'test_data_1.txt.result.yml',
                          count=2, timeout=10)
 
@@ -109,13 +111,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(CtdmoParserDataParticle, count=2, timeout=10)
 
         self.driver.stop_sampling()
-        # reset the parser and harvester states
-        self.driver.clear_states()
-        self.driver.start_sampling()
-
-        self.clear_async_data()
-        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
-        self.assert_data(CtdmoParserDataParticle, count=2, timeout=10)
 
     def test_harvester_new_file_exception(self):
         """
@@ -130,7 +125,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Start sampling and watch for an exception
         self.driver.start_sampling()
 
-        self.assert_exception(IOError)
+        self.assert_exception(ValueError)
 
         # At this point the harvester thread is dead.  The agent
         # exception handle should handle this case.
@@ -140,13 +135,21 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test the ability to stop and restart the process
         """
         self.clean_file()
+        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
+        driver_config = self._driver_config()['startup_config']
+        fullfile = os.path.join(driver_config['harvester']['directory'],
+                            driver_config['harvester']['pattern'])
+        mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
-        self.memento = {DataSourceConfigKey.HARVESTER: {'last_filesize': 6000,
-                                                        'last_checksum': 'aa1cc1aa816e99e11d8e88fc56f887e7'},
-                        DataSourceConfigKey.PARSER: {'in_process_data': [],
+        self.memento = {DriverStateKey.FILE_SIZE: 6000,
+                        DriverStateKey.FILE_CHECKSUM: 'aa1cc1aa816e99e11d8e88fc56f887e7',
+                        DriverStateKey.FILE_MOD_DATE: mod_time,
+                        DriverStateKey.PARSER_STATE: {'in_process_data': [],
                                                      'unprocessed_data':[[0, 12], [336, 394], [467, 2010], [5544, 6000]],
-                                                     'timestamp': 3583634401.0}}
+                                                     'timestamp': 3583634401.0
+                                                     }
+                        }
         self.driver = MflmCTDMODataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
@@ -172,15 +175,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
 
         self.clean_file()
+        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
 
         self.driver.start_sampling()
-
-        self.clear_async_data()
 
         # step 2 contains 2 blocks, start with this and get both since we used them
         # separately in other tests (no new sequences)
         self.clear_async_data()
-        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
         self.assert_data(CtdmoParserDataParticle, 'test_data_1.txt.result.yml',
                          count=2, timeout=10)
 

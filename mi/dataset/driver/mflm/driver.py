@@ -13,23 +13,22 @@ __license__ = 'Apache 2.0'
 
 import hashlib
 import gevent
+import shutil
+import os
 
 from mi.core.log import get_logger ; log = get_logger()
 
-from mi.dataset.dataset_driver import SimpleDataSetDriver
+from mi.dataset.dataset_driver import SingleFileDataSetDriver
+from mi.dataset.dataset_driver import DriverStateKey, DataSetDriverConfigKeys
 from mi.dataset.parser.mflm import StateKey
-from mi.dataset.harvester import SingleFileChangeHarvester, FileChangeHarvesterMementoKey
+from mi.dataset.harvester import SingleFileHarvester
 
 
-class MflmDataSetDriver(SimpleDataSetDriver):
+class MflmDataSetDriver(SingleFileDataSetDriver):
     def __init__(self, config, memento, data_callback, state_callback, exception_callback):
         super(MflmDataSetDriver, self).__init__(config, memento, data_callback,
                                                 state_callback, exception_callback)
-        # need to override initialization of states to be a dict
-        if self._harvester_state == None:
-            self._harvester_state = {}
-        if self._parser_state == None:
-            self._parser_state = {}
+
 
     @classmethod
     def stream_config(cls):
@@ -38,72 +37,70 @@ class MflmDataSetDriver(SimpleDataSetDriver):
     def _build_parser(self, parser_state, infile):
         raise NotImplementedException("Must write build_parser()!")
 
-    def _build_harvester(self, harvester_state):
+    def _build_harvester(self, driver_state):
         """
         Build and return the harvester
         """
-        self._harvester = SingleFileChangeHarvester(
+        self._harvester = SingleFileHarvester(
             self._harvester_config,
-            harvester_state,
-            self._new_file_callback,
+            driver_state,
+            self._file_changed_callback,
             self._exception_callback
         )     
         return self._harvester
 
-    def clear_states(self):
-        """
-        Clear both the parser and harvester states
-        """
-        self._parser_state = {}
-        self._harvester_state = {}
-
-    def _got_file(self, file_tuple):
+    def _got_file(self):
         """
         We have a file that we want to parse.  Stand up the parser and do some work.
         @param file_tuple: (file_handle, file_size) tuple returned by the harvester
         """
-        handle, size = file_tuple
-        log.info("Detected new file, handle: %r, size: %d", handle, size)
+        log.debug('in mflm got file, driver state %s, next state %s', self._driver_state, self._next_driver_state)
+        self._in_process_state = self._next_driver_state
+        directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
+        storage_directory = self._harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY)
+        shutil.copy2(os.path.join(directory, self._filename), storage_directory)
+        log.info("Copied file %s from %s to %s" % (self._filename, directory, storage_directory))
         count = 1
         delay = None
 
         # Calulate the delay between grabbing records to publish.
         if self._generate_particle_count:
             delay = float(1) / float(self._particle_count_per_second) * float(self._generate_particle_count)
-
-        if self._generate_particle_count:
             count = self._generate_particle_count
 
-        # For some reason when adding the handle to the _new_file_queue the file
-        # handle is closed.  Haven't had a chance to investigate, but this hack
-        # re-opens the file.
-        handle = open(handle.name, handle.mode)
-        data = handle.read()
-        checksum = hashlib.md5(data).hexdigest()
-        # reset position after reading data to calculate checksum
-        handle.seek(0)
+        # Open the copied file in the storage directory so we know the file won't be
+        # changed while we are reading it
+        handle = open(os.path.join(storage_directory, self._filename), 'rb')
+
         # need to check if the file has grown larger, if it has update the last
         # unprocessed data index
-        log.debug('About to check parser state %s', self._parser_state)
-        if self._parser_state != {} and \
-        self._parser_state[StateKey.UNPROCESSED_DATA][-1][1] < size:
-            last_size = self._harvester_state[FileChangeHarvesterMementoKey.LAST_FILESIZE]
-            new_parser_state = self._parser_state
+        parser_state = self._driver_state.get(DriverStateKey.PARSER_STATE)
+        if parser_state != None and \
+            parser_state[StateKey.UNPROCESSED_DATA][-1][1] < self._next_driver_state[DriverStateKey.FILE_SIZE]:
+            last_size = self._driver_state[DriverStateKey.FILE_SIZE]
+            new_parser_state = parser_state
             # the file is larger, need to update last unprocessed index
             # set the new parser unprocessed data state
             if last_size == new_parser_state[StateKey.UNPROCESSED_DATA][-1][1]:
                 # if the last unprocessed is the last file size, just increase the last index
-                log.debug('Replacing last unprocessed parser with %d', size)
-                new_parser_state[StateKey.UNPROCESSED_DATA][-1][1] = size
+                log.debug('Replacing last unprocessed parser with %d',
+                          self._next_driver_state[DriverStateKey.FILE_SIZE])
+                new_parser_state[StateKey.UNPROCESSED_DATA][-1][1] = self._next_driver_state[DriverStateKey.FILE_SIZE]
             elif last_size  > new_parser_state[StateKey.UNPROCESSED_DATA][-1][1]:
                 # if we processed past the last file size, append a new unprocessed block
                 # that goes from the last file size to the new file size
-                log.debug('Appending new unprocessed parser %d,%d', last_size, size)
-                new_parser_state[StateKey.UNPROCESSED_DATA].append([last_size, size])
-            log.debug("Saving new parser state %s", new_parser_state)
+                log.debug('Appending new unprocessed parser %d,%d', last_size,
+                          self._next_driver_state[DriverStateKey.FILE_SIZE])
+                new_parser_state[StateKey.UNPROCESSED_DATA].append([last_size,
+                                                                    self._next_driver_state[DriverStateKey.FILE_SIZE]])
             self._save_parser_state(new_parser_state)
 
-        parser = self._build_parser(self._parser_state, handle)
+        parser_state = None
+        if isinstance(self._driver_state.get(DriverStateKey.PARSER_STATE), dict):
+            # make sure we are not linking
+            parser_state = self._driver_state.get(DriverStateKey.PARSER_STATE).copy()
+        log.debug('Making parser with state %s', parser_state)
+        parser = self._build_parser(parser_state, handle)
 
         while(True):
             result = parser.get_records(count)
@@ -114,33 +111,5 @@ class MflmDataSetDriver(SimpleDataSetDriver):
             else:
                 break
 
-        # Once we have successfully imported the file reset the parser state
-        # and store the harvester state.
-        state = {FileChangeHarvesterMementoKey.LAST_FILESIZE: size,
-                 FileChangeHarvesterMementoKey.LAST_CHECKSUM: checksum}
-        self._save_harvester_state(state)
+        self._save_ingested_file_state()
 
-    def _save_harvester_state(self, state):
-        """
-        Store the harvester state in the driver when a file is successfully parsed.
-        Don't reset the parser state since we are just working with one file here.
-        @param filename: file name we successfully parsed and imported.
-        """
-        log.debug("saving harvester state: %r", state)
-        self._harvester_state = state
-        self._save_driver_state()
-
-    def _new_file_callback(self, file_handle, file_size):
-        """
-        Callback used by the harvester called when a new file is detected.  Store the
-        file handle and filename in a queue.
-        @param file_handle: file handle to the new found file.
-        @param file_name: file name of the found file.
-        """
-        index = len(self._new_file_queue)
-
-        log.trace("Add new file to the new file queue: handle: %r, size: %d", file_handle, file_size)
-        self._new_file_queue.append((file_handle, file_size))
-
-        count = len(self._new_file_queue)
-        log.trace("Current new file queue length: %d", count)
