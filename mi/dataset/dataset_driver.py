@@ -430,6 +430,13 @@ class DataSetDriver(object):
     def _new_file_exception(self):
         raise NotImplementedException('virtual methond needs to be specialized')
 
+    def _sample_exception_callback(self, exception):
+        """
+        Publish an event when a sample exception is detected
+        """
+        self._event_callback(event_type="ResourceAgentErrorEvent", error_msg = "%s" % exception)
+
+
     def _raise_new_file_event(self, name):
         """
         Raise a ResourceAgentIOEvent when a new file is detected.  Add file stats

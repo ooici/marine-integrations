@@ -118,12 +118,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
         mod_time_1 = os.path.getmtime(file_path_1)
         file_size_1 = os.path.getsize(file_path_1)
         with open(file_path_1) as filehandle:
-	    md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
+            md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
         file_path_2 = os.path.join(directory, "unit_363_2013_245_6_9.mrg")
         mod_time_2 = os.path.getmtime(file_path_2)
         file_size_2 = os.path.getsize(file_path_2)
         with open(file_path_2) as filehandle:
-	    md5_checksum_2 = hashlib.md5(filehandle.read()).hexdigest()
+            md5_checksum_2 = hashlib.md5(filehandle.read()).hexdigest()
 
         # Create and store the new driver state
         state = {'unit_363_2013_245_6_8.mrg':{'ingested': True,
@@ -149,6 +149,39 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # verify data is produced
         self.assert_data(GgldrCtdgvDelayedDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=4, timeout=10)
+
+    def test_bad_sample(self):
+        """
+        Test a bad sample.  To do this we set a state to the middle of a record
+        """
+        # create some data to parse
+        self.clear_async_data()
+
+        self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_6_9.mrg")
+
+        startup_config = self._driver_config()['startup_config']
+        directory = startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY)
+        file_path_1 = os.path.join(directory, "unit_363_2013_245_6_9.mrg")
+        # need to reset file mod time since file is created again
+        mod_time_1 = os.path.getmtime(file_path_1)
+        file_size_1 = os.path.getsize(file_path_1)
+        with open(file_path_1) as filehandle:
+            md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
+
+        # Create and store the new driver state
+        state = {'unit_363_2013_245_6_9.mrg':{'ingested': False,
+                                              'file_mod_date': mod_time_1,
+                                              'file_checksum': md5_checksum_1,
+                                              'file_size': file_size_1,
+                                              'parser_state': {'position': 2506}
+                                            },
+        }
+        self.driver = self._get_driver_object(memento=state)
+
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(GgldrCtdgvDelayedDataParticle, 'bad_sample_ctdgv_record.mrg.result.yml', count=3, timeout=10)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

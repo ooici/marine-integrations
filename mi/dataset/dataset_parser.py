@@ -14,13 +14,13 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.exceptions import DatasetParserException, NotImplementedException
+from mi.core.exceptions import SampleException, NotImplementedException
 
 class Parser(object):
     """ abstract class to show API needed for plugin poller objects """
 
     def __init__(self, config, stream_handle, state, sieve_fn,
-                 state_callback, publish_callback):
+                 state_callback, publish_callback, exception_callback = None):
         """
         @param config The configuration parameters to feed into the parser
         @param stream_handle An already open file-like filehandle
@@ -34,12 +34,16 @@ class Parser(object):
         @param publish_callback The callback from the agent driver (and
            ultimately from the agent) where we send our sample particle to
            be published into ION
+        @param exception_callback The callback from the agent driver (and
+           ultimately from the agent) where we send our error events to
+           be published into ION
         """
         self._chunker = StringChunker(sieve_fn)
         self._stream_handle = stream_handle
         self._state = state
         self._state_callback = state_callback
         self._publish_callback = publish_callback
+        self._exception_callback = exception_callback
         self._config = config
         #self._new_sequence = True
 
@@ -100,15 +104,24 @@ class Parser(object):
         @retval return a raw particle if a sample was found, else None
         """
         particle = None
-        if regex is None or regex.match(line):
-            particle = particle_class(line, internal_timestamp=timestamp,
-                                      preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP, new_sequence=self._new_sequence)
 
-            if self._new_sequence:
-                self._new_sequence = False
+        try:
+            if regex is None or regex.match(line):
+                particle = particle_class(line, internal_timestamp=timestamp,
+                                          preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP, new_sequence=self._new_sequence)
+
+                if self._new_sequence:
+                    self._new_sequence = False
+
+        except SampleException as e:
+            log.error("Sample exception detected: %s line: %s", e, line)
+            if self._exception_callback:
+                self._exception_callback(e)
+            else:
+                raise e
 
         return particle
-    
+
 class BufferLoadingParser(Parser):
     """
     This class loads data values into a record buffer, then offers up

@@ -375,6 +375,7 @@ class GliderParser(BufferLoadingParser):
                  stream_handle,
                  state_callback,
                  publish_callback,
+                 exception_callback,
                  *args, **kwargs):
 
         self._stream_handle = stream_handle
@@ -394,10 +395,11 @@ class GliderParser(BufferLoadingParser):
                                                    regex_list=[record_regex]),
                                            state_callback,
                                            publish_callback,
+                                           exception_callback,
                                            *args,
                                            **kwargs)
         if state:
-            self.set_state(self._state)
+            self.set_state(state)
 
     def _read_header(self):
         """
@@ -496,6 +498,10 @@ class GliderParser(BufferLoadingParser):
         self._header_dict['num_of_bytes'] = num_of_bytes
 
         log.debug("Label count: %d", len(self._header_dict['labels']))
+        log.debug("Data units: %s", self._header_dict['data_units'])
+        log.debug("Bytes: %s", self._header_dict['num_of_bytes'])
+
+        log.debug("End of header, position: %d", self._stream_handle.tell())
 
     def set_state(self, state_obj):
         """
@@ -515,6 +521,7 @@ class GliderParser(BufferLoadingParser):
         self._read_state = state_obj
 
         # seek to it
+        log.debug("seek to position: %d", state_obj[StateKey.POSITION])
         self._stream_handle.seek(state_obj[StateKey.POSITION])
 
     def _increment_state(self, increment):
@@ -623,22 +630,33 @@ class GliderParser(BufferLoadingParser):
         while data_record is not None:
             log.debug("data record: %s", data_record)
             if self._sample_regex.match(data_record):
+                exception_detected = False
+
                 # parse the data record into a data dictionary to pass to the
                 # particle class
-                data_dict = self._read_data(data_record)
+                try:
+                    data_dict = self._read_data(data_record)
+                except SampleException as e:
+                    exception_detected = True
+                    self._exception_callback(e)
 
                 # from the parsed data, m_present_time is the unix timestamp
                 try:
-                    record_time = data_dict['m_present_time']['Data']
-                    timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
-                    log.debug("Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
+                    if not exception_detected:
+                        record_time = data_dict['m_present_time']['Data']
+                        timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
+                        log.debug("Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
                 except KeyError:
-                    raise SampleException("unable to find timestamp in data")
+                    exception_detected = True
+                    self._exception_callback(SampleException("unable to find timestamp in data"))
 
-                if self._has_science_data(data_dict):
+                if exception_detected:
+                    # We are done processing this record if we have detected an exception
+                    pass
+
+                elif self._has_science_data(data_dict):
                     # create the particle
                     particle = self._extract_sample(self._particle_class, None, data_dict, timestamp)
-                    self._increment_state(end)
                     result_particles.append((particle, copy.copy(self._read_state)))
                 else:
                     log.debug("No science data found in particle. %s", data_dict)
@@ -647,8 +665,9 @@ class GliderParser(BufferLoadingParser):
                 log.debug("Only whitespace detected in record.  Ignoring.")
             else:
                 log.error("Data record did not match data pattern.  Failed parsing: '%s'", data_record)
-                raise SampleException("data record does not match sample pattern")
+                self._exception_callback(SampleException("data record does not match sample pattern: '%s'" % data_record))
 
+            self._increment_state(end)
             (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
         # publish the results
