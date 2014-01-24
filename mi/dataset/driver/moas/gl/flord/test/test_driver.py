@@ -31,7 +31,7 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.idk.exceptions import SampleTimeout
 
-from mi.dataset.dataset_driver import DataSourceConfigKey
+from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 from mi.dataset.driver.moas.gl.flord.driver import FLORDDataSetDriver
 
@@ -48,13 +48,14 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = FLORDDataSetDriver.stream_config(),
     startup_config = {
-        'harvester':
+        DataSourceConfigKey.HARVESTER:
         {
-            'directory': '/tmp/dsatest',
-            'pattern': '*.mrg',
-            'frequency': 1,
+            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+            DataSetDriverConfigKeys.PATTERN: '*.mrg',
+            DataSetDriverConfigKeys.FREQUENCY: 1,
         },
-        'parser': {}
+        DataSourceConfigKey.PARSER: {}
     }
 )
 
@@ -95,20 +96,44 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to stop and restart the process
         """
+        path_1 = self.create_sample_data('single_flord_record.mrg', "unit_363_2013_245_6_8.mrg")
+        path_2 = self.create_sample_data('multiple_flord_record.mrg', "unit_363_2013_245_6_9.mrg")
+
         # Create and store the new driver state
-        state = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/unit_363_2013_245_6_8.mrg',
-                 DataSourceConfigKey.PARSER: {'position': 1987}}
+        state = {
+            'unit_363_2013_245_6_8.mrg': self.get_file_state(path_1, True, 1160),
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path_2, False, 1987)
+        }
         self.driver = self._get_driver_object(memento=state)
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data('multiple_flord_record.mrg', "unit_363_2013_245_6_9.mrg")
-        self.create_sample_data('single_flord_record.mrg', "unit_363_2013_245_6_10.mrg")
 
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrFlordDelayedDataParticle, 'merged_flord_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_data(GgldrFlordDelayedDataParticle, 'merged_flord_record.mrg.result.yml', count=3, timeout=10)
+
+    def test_bad_sample(self):
+        """
+        Test a bad sample.  To do this we set a state to the middle of a record
+        """
+        # create some data to parse
+        self.clear_async_data()
+
+        path = self.create_sample_data('multiple_flord_record.mrg', "unit_363_2013_245_6_9.mrg")
+
+        # Create and store the new driver state
+        state = {
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 1300),
+        }
+        self.driver = self._get_driver_object(memento=state)
+
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(GgldrFlordDelayedDataParticle, 'bad_sample_flord_record.mrg.result.yml', count=3, timeout=10)
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
