@@ -109,46 +109,23 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to stop and restart the process
         """
-        self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_8.mrg")
-        self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_6_9.mrg")
-        startup_config = self._driver_config()['startup_config']
-        directory = startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY)
-        file_path_1 = os.path.join(directory, "unit_363_2013_245_6_8.mrg")
-        # need to reset file mod time since file is created again
-        mod_time_1 = os.path.getmtime(file_path_1)
-        file_size_1 = os.path.getsize(file_path_1)
-        with open(file_path_1) as filehandle:
-            md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
-        file_path_2 = os.path.join(directory, "unit_363_2013_245_6_9.mrg")
-        mod_time_2 = os.path.getmtime(file_path_2)
-        file_size_2 = os.path.getsize(file_path_2)
-        with open(file_path_2) as filehandle:
-            md5_checksum_2 = hashlib.md5(filehandle.read()).hexdigest()
+        path_1 = self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_8.mrg")
+        path_2 = self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_6_9.mrg")
 
         # Create and store the new driver state
-        state = {'unit_363_2013_245_6_8.mrg':{'ingested': True,
-                                              'file_mod_date': mod_time_1,
-                                              'file_checksum': md5_checksum_1,
-                                              'file_size': file_size_1,
-                                              'parser_state': {'position': file_size_1}
-                                            },
-                        'unit_363_2013_245_6_9.mrg':{'ingested': False,
-                                              'file_mod_date': mod_time_2,
-                                              'file_checksum': md5_checksum_2,
-                                              'file_size': file_size_2,
-                                              'parser_state': {'position': 2600}
-                                            }
+        state = {
+            'unit_363_2013_245_6_8.mrg': self.get_file_state(path_1, True, 1160),
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path_2, False, 2600)
         }
         self.driver = self._get_driver_object(memento=state)
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_10.mrg")
 
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_data(GgldrCtdgvDelayedDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=3, timeout=10)
 
     def test_bad_sample(self):
         """
@@ -157,24 +134,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # create some data to parse
         self.clear_async_data()
 
-        self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_6_9.mrg")
-
-        startup_config = self._driver_config()['startup_config']
-        directory = startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY)
-        file_path_1 = os.path.join(directory, "unit_363_2013_245_6_9.mrg")
-        # need to reset file mod time since file is created again
-        mod_time_1 = os.path.getmtime(file_path_1)
-        file_size_1 = os.path.getsize(file_path_1)
-        with open(file_path_1) as filehandle:
-            md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
+        path = self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_6_9.mrg")
 
         # Create and store the new driver state
-        state = {'unit_363_2013_245_6_9.mrg':{'ingested': False,
-                                              'file_mod_date': mod_time_1,
-                                              'file_checksum': md5_checksum_1,
-                                              'file_size': file_size_1,
-                                              'parser_state': {'position': 2506}
-                                            },
+        state = {
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 2506),
         }
         self.driver = self._get_driver_object(memento=state)
 

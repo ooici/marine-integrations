@@ -9,6 +9,8 @@ import os
 import time
 import gevent
 import shutil
+import hashlib
+
 from mi.core.log import get_logger ; log = get_logger()
 
 import unittest
@@ -270,6 +272,27 @@ class DataSetTestCase(MiIntTestCase):
         os.chmod(dest_path, mode)
 
         return dest_path
+
+    def get_file_state(self, path, ingested = False, position = None):
+        """
+        Create a state object for a file.  If a position is passed then add a parser state as well.
+        """
+        mod_time = os.path.getmtime(path)
+        file_size = os.path.getsize(path)
+        with open(path) as filehandle:
+            md5_checksum = hashlib.md5(filehandle.read()).hexdigest()
+
+        parser_state = {}
+        if position:
+            parser_state = {'position': position}
+
+        return {
+                   'ingested': ingested,
+                   'file_mod_date': mod_time,
+                   'file_checksum': md5_checksum,
+                   'file_size': file_size,
+                   'parser_state': parser_state
+        }
 
 class DataSetUnitTestCase(DataSetTestCase):
     """

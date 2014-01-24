@@ -35,13 +35,3 @@ data:
     sci_water_cond: 4.00949
     sci_water_pressure: 0.83
     sci_water_temp: 15.136
-  - _index: 4
-    _new_sequence: False
-    internal_timestamp: '2013-09-05T02:47:21.82962'
-    m_present_time: 1378349241.82962
-    m_present_secs_into_mission: 121147
-    sci_m_present_time: 1378349241.82962
-    sci_m_present_secs_into_mission: 121147
-    sci_water_cond: 4.03096
-    sci_water_pressure: 0.021
-    sci_water_temp: 15.3683
