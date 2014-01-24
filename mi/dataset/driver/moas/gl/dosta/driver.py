@@ -17,7 +17,7 @@ log = get_logger()
 from mi.dataset.dataset_driver import SimpleDataSetDriver
 from mi.dataset.parser.glider import GliderParser
 from mi.dataset.parser.glider import GgldrDostaDelayedDataParticle
-from mi.dataset.harvester import SortingDirectoryHarvester
+from mi.dataset.harvester import SingleDirectoryHarvester
 
 
 class DOSTADataSetDriver(SimpleDataSetDriver):
@@ -37,16 +37,18 @@ class DOSTADataSetDriver(SimpleDataSetDriver):
             parser_state,
             infile,
             self._save_parser_state,
-            self._data_callback
+            self._data_callback,
+            self._sample_exception_callback
         )
 
         return self._parser
 
     def _build_harvester(self, harvester_state):
-        self._harvester = SortingDirectoryHarvester(
+        self._harvester = SingleDirectoryHarvester(
             self._harvester_config,
             harvester_state,
             self._new_file_callback,
+            self._modified_file_callback,
             self._exception_callback
         )
 
