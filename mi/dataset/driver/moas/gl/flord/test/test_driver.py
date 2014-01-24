@@ -125,7 +125,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Create and store the new driver state
         state = {
-            'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 1300),
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 1960),
         }
         self.driver = self._get_driver_object(memento=state)
 
