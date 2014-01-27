@@ -38,6 +38,7 @@ class DataSourceConfigKey(BaseEnum):
     HARVESTER = 'harvester'
     PARSER = 'parser'
     DRIVER = 'driver'
+    RESOURCE_ID = 'resource_id'
 
 class DriverStateKey(BaseEnum):
     VERSION = 'version'
@@ -517,6 +518,7 @@ class SimpleDataSetDriver(DataSetDriver):
         """
         errors = []
         log.debug("Driver Config: %s", self._config)
+        self._resource_id = self._config.get(DataSourceConfigKey.RESOURCE_ID)
 
         harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
 
@@ -530,15 +532,16 @@ class SimpleDataSetDriver(DataSetDriver):
         else:
             errors.append("missing 'harvester' config")
 
+        if not self._resource_id:
+            errors.append("Missing '%s' from config" % DataSourceConfigKey.RESOURCE_ID)
+
         if errors:
             log.error("Driver configuration error: %r", errors)
             raise ConfigurationException("driver configuration errors: %r", errors)
 
-        def _nextfile_callback(self):
-            pass
-
         self._harvester_config = harvester_config
         self._parser_config = self._config.get(DataSourceConfigKey.PARSER)
+
 
     def _poll(self):
         """
@@ -564,9 +567,8 @@ class SimpleDataSetDriver(DataSetDriver):
         destdir = os.path.join(storage_directory, basedir.lstrip('/'))
         log.debug("DestDir: %s", destdir)
 
-        destpath = os.path.join(destdir, filename)
+        destpath = os.path.join(destdir, "%s.%s" % (filename, self._resource_id))
         log.debug("DestPath: %s", destpath)
-
 
         if os.path.isdir(destdir):
             log.debug("path exists, '%s'", destdir)
@@ -581,9 +583,12 @@ class SimpleDataSetDriver(DataSetDriver):
                 log.error("Failed to create stage directory '%s': %s", destdir, str(e))
                 return
 
-        log.info("Copy file %s from %s to %s" % (filename, path, destpath))
-        if not shutil.copy2(path, destpath):
-            log.error("failed to copy datafile to storage, dest: '%s'", destpath)
+        if os.path.exists(destpath):
+            log.error("'%s' exists, not overwriting", destpath)
+        else:
+            log.debug("Copy file %s from %s to %s" % (filename, path, destpath))
+            if not shutil.copy2(path, destpath):
+                log.error("failed to copy datafile to storage, dest: '%s'", destpath)
 
     def _got_file(self, file_name):
         """
@@ -610,6 +615,7 @@ class SimpleDataSetDriver(DataSetDriver):
             # changed while we are reading it
             path = os.path.join(directory, file_name)
             self._raise_new_file_event(path)
+            log.debug("Open new data source file: %s", path)
             handle = open(path)
 
             # the file directory is initialized in the harvester, so it will exist by this point

@@ -19,6 +19,7 @@ import gevent
 import unittest
 import os
 import hashlib
+import shutil
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -55,6 +56,7 @@ from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 DATADIR='/tmp/dsatest'
 STORAGEDIR='/tmp/stored_dsatest'
+RESOURCE_ID='ctdgv'
 
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.moas.gl.ctdgv.driver',
@@ -64,6 +66,7 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = CTDGVDataSetDriver.stream_config(),
     startup_config = {
+        DataSourceConfigKey.RESOURCE_ID: RESOURCE_ID,
         DataSourceConfigKey.HARVESTER:
         {
             DataSetDriverConfigKeys.DIRECTORY: DATADIR,
@@ -158,6 +161,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Directory doesn't exist, but we have write permissions
         ###
         log.debug("Test ingest if storage directory doesn't exist")
+        self.clear_async_data()
         if os.path.isdir(STORAGEDIR):
             os.rmdir(STORAGEDIR)
 
@@ -167,6 +171,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         dest_file_1 ="unit_363_2013_245_6_9.mrg"
         dest_file_2 ="unit_363_2013_245_6_10.mrg"
         dest_file_3 ="unit_363_2013_245_6_11.mrg"
+        dest_file_4 ="unit_363_2013_245_6_12.mrg"
         result_file = "multiple_ctdgv_record.mrg.result.yml"
 
         path = self.create_sample_data(source_file, dest_file_1)
@@ -177,7 +182,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # verify data is produced
         self.assert_data(GgldrCtdgvDelayedDataParticle, result_file, count=4, timeout=10)
 
-        dest_path_1 = os.path.join(storage_dir, dest_file_1)
+        dest_path_1 = os.path.join(storage_dir, "%s.%s" % (dest_file_1, RESOURCE_ID))
         log.debug("Dest Path 1: %s", dest_path_1)
 
         # verify the file was staged properly
@@ -187,6 +192,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Directory doesn't exist and we have no write permission in the directory
         ###
         log.debug("Test ingest if storage directory with bad permissions")
+        self.clear_async_data()
         self.clear_sample_data()
         path = self.create_sample_data(source_file, dest_file_2)
         new_storagedir = os.path.join(STORAGEDIR, 'newdir')
@@ -224,6 +230,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Path exists, but it is a file not a directory
         ###
         log.debug("Test ingest if storage directory exists, but is a file")
+        self.clear_async_data()
         self.clear_sample_data()
         path = self.create_sample_data(source_file, dest_file_3)
         if os.path.isdir(STORAGEDIR):
@@ -239,6 +246,40 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.assertTrue(os.path.isfile(STORAGEDIR))
 
+        ###
+        # Destination file already exists.  Make sure it isn't overwritten
+        ###
+        log.debug("Test ingest ensure file isn't overwritten")
+        self.clear_async_data()
+        self.clear_sample_data()
+
+        dest_path_4 = os.path.join(storage_dir, "%s.%s" % (dest_file_4, RESOURCE_ID))
+        os.unlink(STORAGEDIR)
+        self.assertFalse(os.path.exists(STORAGEDIR))
+
+        log.debug("Making directories: %s", storage_dir)
+        os.makedirs(storage_dir)
+
+        # Write a file.
+        with open(dest_path_4, 'a') as outfile:
+            outfile.write("Hello")
+
+        self.assertTrue(os.path.isfile(dest_path_4))
+
+        path = self.create_sample_data(source_file, dest_file_4)
+        self.driver = self._get_driver_object()
+
+        self.driver.start_sampling()
+
+        self.assert_data(GgldrCtdgvDelayedDataParticle, count=4, timeout=10)
+
+        # verify the file was staged properly
+        self.assertTrue(os.path.exists(dest_path_4))
+
+        content = None
+        with open(dest_path_4) as infile:
+            content = infile.readlines()
+        self.assertEqual(["Hello"], content)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
