@@ -20,6 +20,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import DataSourceLocationException
 from mi.core.exceptions import ConfigurationException
 from mi.core.exceptions import SampleException
+from mi.core.exceptions import DatasetHarvesterException
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import ConfigMetadataKey
@@ -549,6 +550,31 @@ class SimpleDataSetDriver(DataSetDriver):
         if(count > 0):
             self._got_file(self._new_file_queue.pop(0))
 
+    def _stage_input_file(self, filename):
+        """
+        Store a file from the input directory in storage directory
+        """
+        directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
+        storage_directory = self._harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY)
+
+        if os.path.isdir(storage_directory):
+            log.debug("path exists, '%s'", storage_directory)
+        else:
+            if os.path.exists(storage_directory):
+                log.error("storage directory exists and is not a directory. '%s'", storage_directory)
+
+            log.debug("storage path doesn't exist, creating '%s'", storage_directory)
+            try:
+                os.makedirs(storage_directory)
+            except Exception as e:
+                log.error("Failed to create stage directory '%s': %s", storage_directory, str(e))
+                return
+
+        log.info("Copy file %s from %s to %s" % (filename, directory, storage_directory))
+        dest = os.path.join(storage_directory, filename)
+        if not shutil.copy2(os.path.join(directory, filename), storage_directory):
+            log.error("failed to copy datafile to storage, dest: '%s'", dest)
+
     def _got_file(self, file_name):
         """
         We have a file that we want to parse.  Stand up the parser and do some work.
@@ -557,12 +583,11 @@ class SimpleDataSetDriver(DataSetDriver):
         try:
             log.debug('got file, driver state %s', self._driver_state)
             directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
-            storage_directory = self._harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY)
-            shutil.copy2(os.path.join(directory, file_name), storage_directory)
-            log.info("Copied file %s from %s to %s" % (file_name, directory, storage_directory))
+
+            self._stage_input_file(file_name)
+
             count = 1
             delay = None
-
 
             if self._generate_particle_count:
                 # Calculate the delay between grabbing records to publish.
@@ -573,7 +598,7 @@ class SimpleDataSetDriver(DataSetDriver):
 
             # Open the copied file in the storage directory so we know the file won't be
             # changed while we are reading it
-            path = os.path.join(storage_directory, file_name)
+            path = os.path.join(directory, file_name)
             self._raise_new_file_event(path)
             handle = open(path)
 

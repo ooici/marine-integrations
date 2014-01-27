@@ -102,6 +102,8 @@ class DataSetTestCase(MiIntTestCase):
         if not self.test_config.initialized:
             return TestNotInitialized(msg="Tests non initialized. Missing DataSetTestCase.initialize(...)?")
 
+        log.debug("Driver Config: %s", self._driver_config())
+
         self.clear_sample_data()
 
     def _driver_config(self):
@@ -180,7 +182,7 @@ class DataSetTestCase(MiIntTestCase):
 
         return data_dir
     
-    def create_data_storage_dir(self):
+    def get_data_storage_dir(self):
         """
         Verify the test data directory is created and exists.  Return the path to
         the directory.
@@ -196,16 +198,12 @@ class DataSetTestCase(MiIntTestCase):
         if not harvester_config:
             raise IDKConfigMissing("Startup config missing 'harvester' config")
 
+        log.debug("Harvester config: %s", harvester_config)
         data_dir = harvester_config.get("storage_directory")
         if not data_dir:
             raise IDKConfigMissing("Harvester config missing 'storage_directory'")
 
-        if not os.path.exists(data_dir):
-            log.debug("Creating data dir: %s", data_dir)
-            os.makedirs(data_dir)
-
-        elif not os.path.isdir(data_dir):
-            raise IDKException("'data_dir' is not a directory")
+        log.debug("Data dir: %s", data_dir)
 
         return data_dir
 
@@ -222,13 +220,14 @@ class DataSetTestCase(MiIntTestCase):
         Remove all files from the sample data directory
         """
         data_dir = self.create_data_dir()
-        stored_data_dir = self.create_data_storage_dir()
+        stored_data_dir = self.get_data_storage_dir()
 
         log.debug("Clean all data from %s", data_dir)
         remove_all_files(data_dir)
 
         log.debug("Clean all data from %s", stored_data_dir)
-        remove_all_files(stored_data_dir)
+        if os.path.isdir(stored_data_dir):
+            remove_all_files(stored_data_dir)
 
     def create_sample_data(self, filename, dest_filename=None, mode=0644, create=True):
         """
