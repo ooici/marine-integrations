@@ -550,30 +550,40 @@ class SimpleDataSetDriver(DataSetDriver):
         if(count > 0):
             self._got_file(self._new_file_queue.pop(0))
 
-    def _stage_input_file(self, filename):
+    def _stage_input_file(self, path):
         """
         Store a file from the input directory in storage directory
         """
-        directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
         storage_directory = self._harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY)
+        log.debug("Storage Dir: %s", storage_directory)
 
-        if os.path.isdir(storage_directory):
-            log.debug("path exists, '%s'", storage_directory)
+        filename = os.path.basename(path)
+        basedir = os.path.dirname(path)
+        log.debug("Filename: %s", filename)
+
+        destdir = os.path.join(storage_directory, basedir.lstrip('/'))
+        log.debug("DestDir: %s", destdir)
+
+        destpath = os.path.join(destdir, filename)
+        log.debug("DestPath: %s", destpath)
+
+
+        if os.path.isdir(destdir):
+            log.debug("path exists, '%s'", destdir)
         else:
-            if os.path.exists(storage_directory):
-                log.error("storage directory exists and is not a directory. '%s'", storage_directory)
+            if os.path.exists(destdir):
+                log.error("storage directory exists and is not a directory. '%s'", destdir)
 
-            log.debug("storage path doesn't exist, creating '%s'", storage_directory)
+            log.debug("storage path doesn't exist, creating '%s'", destdir)
             try:
-                os.makedirs(storage_directory)
+                os.makedirs(destdir)
             except Exception as e:
-                log.error("Failed to create stage directory '%s': %s", storage_directory, str(e))
+                log.error("Failed to create stage directory '%s': %s", destdir, str(e))
                 return
 
-        log.info("Copy file %s from %s to %s" % (filename, directory, storage_directory))
-        dest = os.path.join(storage_directory, filename)
-        if not shutil.copy2(os.path.join(directory, filename), storage_directory):
-            log.error("failed to copy datafile to storage, dest: '%s'", dest)
+        log.info("Copy file %s from %s to %s" % (filename, path, destpath))
+        if not shutil.copy2(path, destpath):
+            log.error("failed to copy datafile to storage, dest: '%s'", destpath)
 
     def _got_file(self, file_name):
         """
@@ -584,7 +594,7 @@ class SimpleDataSetDriver(DataSetDriver):
             log.debug('got file, driver state %s', self._driver_state)
             directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
 
-            self._stage_input_file(file_name)
+            self._stage_input_file(os.path.join(directory, file_name))
 
             count = 1
             delay = None

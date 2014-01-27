@@ -6,6 +6,7 @@
 
 import os
 import shlex
+import shutil
 import subprocess
 
 from mi.idk.config import Config
@@ -69,9 +70,12 @@ def remove_all_files(dir_name):
     """
     for file_name in os.listdir(dir_name):
         file_path = os.path.join(dir_name, file_name)
-        if not os.path.isfile(file_path):
-            raise RuntimeError("%s is not a file", file_path)
+        if os.path.isdir(file_path):
+            shutil.rmtree(file_path)
+        else:
+            os.unlink(file_path)
 
-    for file_name in os.listdir(dir_name):
-        file_path = os.path.join(dir_name, file_name)
-        os.unlink(file_path)
+    if os.path.exists(dir_name):
+        for file_name in os.listdir(dir_name):
+            file_path = os.path.join(dir_name, file_name)
+            os.unlink(file_path)

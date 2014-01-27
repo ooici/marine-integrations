@@ -161,6 +161,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         if os.path.isdir(STORAGEDIR):
             os.rmdir(STORAGEDIR)
 
+        storage_dir = os.path.join(STORAGEDIR, DATADIR.lstrip('/'))
+
         source_file = "multiple_ctdgv_record.mrg"
         dest_file_1 ="unit_363_2013_245_6_9.mrg"
         dest_file_2 ="unit_363_2013_245_6_10.mrg"
@@ -175,8 +177,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # verify data is produced
         self.assert_data(GgldrCtdgvDelayedDataParticle, result_file, count=4, timeout=10)
 
+        dest_path_1 = os.path.join(storage_dir, dest_file_1)
+        log.debug("Dest Path 1: %s", dest_path_1)
+
         # verify the file was staged properly
-        self.assertTrue(os.path.exists(os.path.join(STORAGEDIR, dest_file_1)))
+        self.assertTrue(os.path.exists(dest_path_1))
 
         ###
         # Directory doesn't exist and we have no write permission in the directory
