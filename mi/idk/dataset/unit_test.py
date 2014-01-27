@@ -532,6 +532,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         # Try to configure with the driver startup config
         driver_config = self._driver_config()['startup_config']
         cfg = {
+            DataSourceConfigKey.RESOURCE_ID: 'xxxxxxxx',
             DataSourceConfigKey.HARVESTER: driver_config.get(DataSourceConfigKey.HARVESTER),
             DataSourceConfigKey.PARSER: driver_config.get(DataSourceConfigKey.PARSER),
             DataSourceConfigKey.DRIVER: {

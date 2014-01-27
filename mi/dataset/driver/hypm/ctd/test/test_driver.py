@@ -28,31 +28,24 @@ from mi.core.log import get_logger ; log = get_logger()
 from exceptions import Exception
 
 from mi.idk.dataset.unit_test import DataSetTestCase
-from mi.idk.dataset.unit_test import DataSetTestConfig
-from mi.idk.dataset.unit_test import DataSetUnitTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.core.exceptions import ConfigurationException
-from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentParameterException
 from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.dataset.parser.ctdpf import CtdpfParser
-from mi.dataset.parser.test.test_ctdpf import CtdpfParserUnitTestCase
-from mi.dataset.harvester import AdditiveSequentialFileHarvester
 from mi.dataset.driver.hypm.ctd.driver import HypmCTDPFDataSetDriver
 
 from mi.dataset.parser.ctdpf import CtdpfParserDataParticle
 from pyon.agent.agent import ResourceAgentState
 
-from interface.objects import CapabilityType
-from interface.objects import AgentCapability
 from interface.objects import ResourceAgentErrorEvent
-from interface.objects import ResourceAgentConnectionLostErrorEvent
+
+DATADIR='/tmp/dsatest'
+STORAGEDIR='/tmp/stored_dsatest'
+RESOURCE_ID='ctdpf'
 
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.hypm.ctd.driver',
@@ -62,13 +55,15 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = HypmCTDPFDataSetDriver.stream_config(),
     startup_config = {
-        'harvester':
+        DataSourceConfigKey.RESOURCE_ID: RESOURCE_ID,
+        DataSourceConfigKey.HARVESTER:
         {
-            'directory': '/tmp/dsatest',
-            'pattern': '*.txt',
-            'frequency': 1,
+            DataSetDriverConfigKeys.DIRECTORY: DATADIR,
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: STORAGEDIR,
+            DataSetDriverConfigKeys.PATTERN: '*.txt',
+            DataSetDriverConfigKeys.FREQUENCY: 1,
         },
-        'parser': {}
+        DataSourceConfigKey.PARSER: {}
     }
 )
 
@@ -127,21 +122,27 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to stop and restart the process
         """
-        # Create and store the new driver state
-        self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.txt',
-                        DataSourceConfigKey.PARSER: {'position': 209, 'timestamp': 3583861265.0}}
-        self.driver = HypmCTDPFDataSetDriver(
-            self._driver_config()['startup_config'],
-            self.memento,
-            self.data_callback,
-            self.state_callback,
-            self.event_callback,
-            self.exception_callback)
-
         # create some data to parse
         self.clear_async_data()
         self.create_sample_data('test_data_1.txt', "DATA001.txt")
         self.create_sample_data('test_data_3.txt', "DATA002.txt")
+
+        # Create and store the new driver state
+        self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.txt',
+                        DataSourceConfigKey.PARSER: {'position': 209, 'timestamp': 3583861265.0}}
+        state = {
+            'DATA001.txt': self.get_file_state('/tmp/dsatest/DATA001.txt', True),
+            'DATA002.txt': self.get_file_state('/tmp/dsatest/DATA002.txt', False, 209),
+        }
+        state['DATA002.txt']['parser_state']['timestamp'] = 3583861265.0
+
+        self.driver = HypmCTDPFDataSetDriver(
+            self._driver_config()['startup_config'],
+            state,
+            self.data_callback,
+            self.state_callback,
+            self.event_callback,
+            self.exception_callback)
 
         self.driver.start_sampling()
 
