@@ -142,9 +142,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.create_sample_data('test_data_1.txt', "DATA001.txt")
         self.create_sample_data('test_data_3.txt', "DATA002.txt")
 
-        # Create and store the new driver state
-        self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.txt',
-                        DataSourceConfigKey.PARSER: {'position': 209, 'timestamp': 3583861265.0}}
         state = {
             'DATA001.txt': self.get_file_state('/tmp/dsatest/DATA001.txt', True),
             'DATA002.txt': self.get_file_state('/tmp/dsatest/DATA002.txt', False, 209),
@@ -163,6 +160,21 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # verify data is produced
         self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.partial_results.yml', count=5, timeout=10)
+
+    def test_bad_sample(self):
+        """
+        Test a bad sample.  To do this we set a state to the middle of a record
+        """
+        self.clear_sample_data()
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.clear_async_data()
+        self.create_sample_data('bad_sample_data.txt', "DATA001.txt")
+        self.assert_data(CtdpfParserDataParticle, 'bad_sample_data.txt.result.yml', count=2, timeout=10)
+        gevent.sleep(5)
+
 
 ###############################################################################
 
@@ -233,6 +245,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.create_sample_data('test_data_3.txt', 'DATA003.txt')
             # Now read the first three records of the second file then stop
             result = self.get_samples(SAMPLE_STREAM, 3)
+            log.debug("Time to stop sampling")
             self.assert_stop_sampling()
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
