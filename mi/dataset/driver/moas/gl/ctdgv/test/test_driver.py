@@ -19,6 +19,7 @@ import gevent
 import unittest
 import os
 import hashlib
+import shutil
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -53,6 +54,10 @@ from interface.objects import AgentCapability
 from interface.objects import ResourceAgentErrorEvent
 from interface.objects import ResourceAgentConnectionLostErrorEvent
 
+DATADIR='/tmp/dsatest'
+STORAGEDIR='/tmp/stored_dsatest'
+RESOURCE_ID='ctdgv'
+
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.moas.gl.ctdgv.driver',
     driver_class="CTDGVDataSetDriver",
@@ -61,10 +66,11 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = CTDGVDataSetDriver.stream_config(),
     startup_config = {
+        DataSourceConfigKey.RESOURCE_ID: RESOURCE_ID,
         DataSourceConfigKey.HARVESTER:
         {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+            DataSetDriverConfigKeys.DIRECTORY: DATADIR,
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: STORAGEDIR,
             DataSetDriverConfigKeys.PATTERN: '*.mrg',
             DataSetDriverConfigKeys.FREQUENCY: 1,
         },
@@ -109,46 +115,171 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to stop and restart the process
         """
-        self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_8.mrg")
-        self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_6_9.mrg")
-        startup_config = self._driver_config()['startup_config']
-        directory = startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY)
-        file_path_1 = os.path.join(directory, "unit_363_2013_245_6_8.mrg")
-        # need to reset file mod time since file is created again
-        mod_time_1 = os.path.getmtime(file_path_1)
-        file_size_1 = os.path.getsize(file_path_1)
-        with open(file_path_1) as filehandle:
-	    md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
-        file_path_2 = os.path.join(directory, "unit_363_2013_245_6_9.mrg")
-        mod_time_2 = os.path.getmtime(file_path_2)
-        file_size_2 = os.path.getsize(file_path_2)
-        with open(file_path_2) as filehandle:
-	    md5_checksum_2 = hashlib.md5(filehandle.read()).hexdigest()
+        path_1 = self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_8.mrg")
+        path_2 = self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_6_9.mrg")
 
         # Create and store the new driver state
-        state = {'unit_363_2013_245_6_8.mrg':{'ingested': True,
-                                              'file_mod_date': mod_time_1,
-                                              'file_checksum': md5_checksum_1,
-                                              'file_size': file_size_1,
-                                              'parser_state': {'position': file_size_1}
-                                            },
-                        'unit_363_2013_245_6_9.mrg':{'ingested': False,
-                                              'file_mod_date': mod_time_2,
-                                              'file_checksum': md5_checksum_2,
-                                              'file_size': file_size_2,
-                                              'parser_state': {'position': 2600}
-                                            }
+        state = {
+            'unit_363_2013_245_6_8.mrg': self.get_file_state(path_1, True, 1160),
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path_2, False, 2600)
         }
         self.driver = self._get_driver_object(memento=state)
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_10.mrg")
 
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_data(GgldrCtdgvDelayedDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=3, timeout=10)
+
+    def test_bad_sample(self):
+        """
+        Test a bad sample.  To do this we set a state to the middle of a record
+        """
+        # create some data to parse
+        self.clear_async_data()
+
+        path = self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_6_9.mrg")
+
+        # Create and store the new driver state
+        state = {
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 2506),
+        }
+        self.driver = self._get_driver_object(memento=state)
+
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(GgldrCtdgvDelayedDataParticle, 'bad_sample_ctdgv_record.mrg.result.yml', count=3, timeout=10)
+
+    def test_missing_storage(self):
+        """
+        Verify that we can work when the storage directory doesn't exists
+        """
+        ###
+        # Directory doesn't exist, but we have write permissions
+        ###
+        log.debug("Test ingest if storage directory doesn't exist")
+        self.clear_async_data()
+        if os.path.isdir(STORAGEDIR):
+            os.rmdir(STORAGEDIR)
+
+        storage_dir = os.path.join(STORAGEDIR, DATADIR.lstrip('/'))
+
+        source_file = "multiple_ctdgv_record.mrg"
+        dest_file_1 ="unit_363_2013_245_6_9.mrg"
+        dest_file_2 ="unit_363_2013_245_6_10.mrg"
+        dest_file_3 ="unit_363_2013_245_6_11.mrg"
+        dest_file_4 ="unit_363_2013_245_6_12.mrg"
+        result_file = "multiple_ctdgv_record.mrg.result.yml"
+
+        path = self.create_sample_data(source_file, dest_file_1)
+        self.driver = self._get_driver_object()
+
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(GgldrCtdgvDelayedDataParticle, result_file, count=4, timeout=10)
+
+        dest_path_1 = os.path.join(storage_dir, "%s.%s" % (dest_file_1, RESOURCE_ID))
+        log.debug("Dest Path 1: %s", dest_path_1)
+
+        # verify the file was staged properly
+        self.assertTrue(os.path.exists(dest_path_1))
+
+        ###
+        # Directory doesn't exist and we have no write permission in the directory
+        ###
+        log.debug("Test ingest if storage directory with bad permissions")
+        self.clear_async_data()
+        self.clear_sample_data()
+        path = self.create_sample_data(source_file, dest_file_2)
+        new_storagedir = os.path.join(STORAGEDIR, 'newdir')
+
+        if os.path.isdir(STORAGEDIR):
+            os.rmdir(STORAGEDIR)
+
+        def cleandir():
+            try:
+                os.rmdir(STORAGEDIR)
+            except:
+                pass
+
+            try:
+                os.unlink(STORAGEDIR)
+            except:
+                pass
+
+        self.addCleanup(cleandir)
+        self.addCleanup(self.clear_sample_data)
+
+        os.makedirs(STORAGEDIR, mode=0000)
+
+        config = self._driver_config()['startup_config']
+        config[DataSourceConfigKey.HARVESTER][DataSetDriverConfigKeys.STORAGE_DIRECTORY] = new_storagedir
+        self._get_driver_object(config=config)
+        self.driver.start_sampling()
+
+        self.assert_data(GgldrCtdgvDelayedDataParticle, result_file, count=4, timeout=10)
+
+        self.assertFalse(os.path.exists(new_storagedir))
+        os.rmdir(STORAGEDIR)
+
+        ###
+        # Path exists, but it is a file not a directory
+        ###
+        log.debug("Test ingest if storage directory exists, but is a file")
+        self.clear_async_data()
+        self.clear_sample_data()
+        path = self.create_sample_data(source_file, dest_file_3)
+        if os.path.isdir(STORAGEDIR):
+            os.rmdir(STORAGEDIR)
+
+        with file(STORAGEDIR, 'a'):
+            os.utime(STORAGEDIR, None)
+
+        self._get_driver_object()
+        self.driver.start_sampling()
+
+        self.assert_data(GgldrCtdgvDelayedDataParticle, result_file, count=4, timeout=10)
+
+        self.assertTrue(os.path.isfile(STORAGEDIR))
+
+        ###
+        # Destination file already exists.  Make sure it isn't overwritten
+        ###
+        log.debug("Test ingest ensure file isn't overwritten")
+        self.clear_async_data()
+        self.clear_sample_data()
+
+        dest_path_4 = os.path.join(storage_dir, "%s.%s" % (dest_file_4, RESOURCE_ID))
+        os.unlink(STORAGEDIR)
+        self.assertFalse(os.path.exists(STORAGEDIR))
+
+        log.debug("Making directories: %s", storage_dir)
+        os.makedirs(storage_dir)
+
+        # Write a file.
+        with open(dest_path_4, 'a') as outfile:
+            outfile.write("Hello")
+
+        self.assertTrue(os.path.isfile(dest_path_4))
+
+        path = self.create_sample_data(source_file, dest_file_4)
+        self.driver = self._get_driver_object()
+
+        self.driver.start_sampling()
+
+        self.assert_data(GgldrCtdgvDelayedDataParticle, count=4, timeout=10)
+
+        # verify the file was staged properly
+        self.assertTrue(os.path.exists(dest_path_4))
+
+        content = None
+        with open(dest_path_4) as infile:
+            content = infile.readlines()
+        self.assertEqual(["Hello"], content)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

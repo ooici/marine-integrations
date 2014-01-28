@@ -20,6 +20,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import DataSourceLocationException
 from mi.core.exceptions import ConfigurationException
 from mi.core.exceptions import SampleException
+from mi.core.exceptions import DatasetHarvesterException
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import ConfigMetadataKey
@@ -37,6 +38,7 @@ class DataSourceConfigKey(BaseEnum):
     HARVESTER = 'harvester'
     PARSER = 'parser'
     DRIVER = 'driver'
+    RESOURCE_ID = 'resource_id'
 
 class DriverStateKey(BaseEnum):
     VERSION = 'version'
@@ -430,6 +432,13 @@ class DataSetDriver(object):
     def _new_file_exception(self):
         raise NotImplementedException('virtual methond needs to be specialized')
 
+    def _sample_exception_callback(self, exception):
+        """
+        Publish an event when a sample exception is detected
+        """
+        self._event_callback(event_type="ResourceAgentErrorEvent", error_msg = "%s" % exception)
+
+
     def _raise_new_file_event(self, name):
         """
         Raise a ResourceAgentIOEvent when a new file is detected.  Add file stats
@@ -509,6 +518,7 @@ class SimpleDataSetDriver(DataSetDriver):
         """
         errors = []
         log.debug("Driver Config: %s", self._config)
+        self._resource_id = self._config.get(DataSourceConfigKey.RESOURCE_ID)
 
         harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
 
@@ -522,15 +532,16 @@ class SimpleDataSetDriver(DataSetDriver):
         else:
             errors.append("missing 'harvester' config")
 
+        if not self._resource_id:
+            errors.append("Missing '%s' from config" % DataSourceConfigKey.RESOURCE_ID)
+
         if errors:
             log.error("Driver configuration error: %r", errors)
             raise ConfigurationException("driver configuration errors: %r", errors)
 
-        def _nextfile_callback(self):
-            pass
-
         self._harvester_config = harvester_config
         self._parser_config = self._config.get(DataSourceConfigKey.PARSER)
+
 
     def _poll(self):
         """
@@ -542,6 +553,43 @@ class SimpleDataSetDriver(DataSetDriver):
         if(count > 0):
             self._got_file(self._new_file_queue.pop(0))
 
+    def _stage_input_file(self, path):
+        """
+        Store a file from the input directory in storage directory
+        """
+        storage_directory = self._harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY)
+        log.debug("Storage Dir: %s", storage_directory)
+
+        filename = os.path.basename(path)
+        basedir = os.path.dirname(path)
+        log.debug("Filename: %s", filename)
+
+        destdir = os.path.join(storage_directory, basedir.lstrip('/'))
+        log.debug("DestDir: %s", destdir)
+
+        destpath = os.path.join(destdir, "%s.%s" % (filename, self._resource_id))
+        log.debug("DestPath: %s", destpath)
+
+        if os.path.isdir(destdir):
+            log.debug("path exists, '%s'", destdir)
+        else:
+            if os.path.exists(destdir):
+                log.error("storage directory exists and is not a directory. '%s'", destdir)
+
+            log.debug("storage path doesn't exist, creating '%s'", destdir)
+            try:
+                os.makedirs(destdir)
+            except Exception as e:
+                log.error("Failed to create stage directory '%s': %s", destdir, str(e))
+                return
+
+        if os.path.exists(destpath):
+            log.error("'%s' exists, not overwriting", destpath)
+        else:
+            log.debug("Copy file %s from %s to %s" % (filename, path, destpath))
+            if not shutil.copy2(path, destpath):
+                log.error("failed to copy datafile to storage, dest: '%s'", destpath)
+
     def _got_file(self, file_name):
         """
         We have a file that we want to parse.  Stand up the parser and do some work.
@@ -550,12 +598,11 @@ class SimpleDataSetDriver(DataSetDriver):
         try:
             log.debug('got file, driver state %s', self._driver_state)
             directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
-            storage_directory = self._harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY)
-            shutil.copy2(os.path.join(directory, file_name), storage_directory)
-            log.info("Copied file %s from %s to %s" % (file_name, directory, storage_directory))
+
+            self._stage_input_file(os.path.join(directory, file_name))
+
             count = 1
             delay = None
-
 
             if self._generate_particle_count:
                 # Calculate the delay between grabbing records to publish.
@@ -566,8 +613,9 @@ class SimpleDataSetDriver(DataSetDriver):
 
             # Open the copied file in the storage directory so we know the file won't be
             # changed while we are reading it
-            path = os.path.join(storage_directory, file_name)
+            path = os.path.join(directory, file_name)
             self._raise_new_file_event(path)
+            log.debug("Open new data source file: %s", path)
             handle = open(path)
 
             # the file directory is initialized in the harvester, so it will exist by this point

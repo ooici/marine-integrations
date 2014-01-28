@@ -17,8 +17,6 @@ __license__ = 'Apache 2.0'
 
 import gevent
 import unittest
-import os
-import hashlib
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -39,10 +37,8 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.dataset.parser.glider import GliderParser
-from mi.dataset.parser.test.test_glider import GliderParserUnitTestCase
+from mi.dataset.dataset_driver import DriverParameter
+
 from mi.dataset.driver.moas.gl.dosta.driver import DOSTADataSetDriver
 
 from mi.dataset.parser.glider import GgldrDostaDelayedDataParticle
@@ -109,48 +105,43 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to stop and restart the process
         """
-        # create sample data files
-        self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_8.mrg")
-        self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_6_9.mrg")
-        # get file metadata for use in the state dictionary
-        startup_config = self._driver_config()['startup_config']
-        directory = startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY)
-        file_path_1 = os.path.join(directory, "unit_363_2013_245_6_8.mrg")
-        # need to reset file mod time since file is created again
-        mod_time_1 = os.path.getmtime(file_path_1)
-        file_size_1 = os.path.getsize(file_path_1)
-        with open(file_path_1) as filehandle:
-	    md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
-        file_path_2 = os.path.join(directory, "unit_363_2013_245_6_9.mrg")
-        mod_time_2 = os.path.getmtime(file_path_2)
-        file_size_2 = os.path.getsize(file_path_2)
-        with open(file_path_2) as filehandle:
-	    md5_checksum_2 = hashlib.md5(filehandle.read()).hexdigest()
+        path_1 = self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_8.mrg")
+        path_2 = self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_6_9.mrg")
 
         # Create and store the new driver state
-        state = {'unit_363_2013_245_6_8.mrg':{'ingested': True,
-                                              'file_mod_date': mod_time_1,
-                                              'file_checksum': md5_checksum_1,
-                                              'file_size': file_size_1,
-                                              'parser_state': {'position': file_size_1}
-                                            },
-                'unit_363_2013_245_6_9.mrg':{'ingested': False,
-                                              'file_mod_date': mod_time_2,
-                                              'file_checksum': md5_checksum_2,
-                                              'file_size': file_size_2,
-                                              'parser_state': {'position': 2288}
-                                            }
+        state = {
+            'unit_363_2013_245_6_8.mrg': self.get_file_state(path_1, True, 1160),
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path_2, False, 2288)
         }
         self.driver = self._get_driver_object(memento=state)
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_10.mrg")
 
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrDostaDelayedDataParticle, 'merged_dosta_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_data(GgldrDostaDelayedDataParticle, 'merged_dosta_record.mrg.result.yml', count=3, timeout=10)
+
+    def test_bad_sample(self):
+        """
+        Test a bad sample.  To do this we set a state to the middle of a record
+        """
+        # create some data to parse
+        self.clear_async_data()
+
+        path = self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_6_9.mrg")
+
+        # Create and store the new driver state
+        state = {
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 2250),
+        }
+        self.driver = self._get_driver_object(memento=state)
+
+        self.driver.start_sampling()
+
+        # verify data is produced
+        self.assert_data(GgldrDostaDelayedDataParticle, 'bad_sample_dosta_record.mrg.result.yml', count=3, timeout=10)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
