@@ -29,30 +29,31 @@ from mi.core.log import get_logger ; log = get_logger()
 from exceptions import Exception
 
 from mi.idk.dataset.unit_test import DataSetTestCase
-from mi.idk.dataset.unit_test import DataSetTestConfig
-from mi.idk.dataset.unit_test import DataSetUnitTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.core.exceptions import ConfigurationException
-from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentParameterException
 from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+<<<<<<< HEAD
 from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.dataset.parser.ctdpf import CtdpfParser
 from mi.dataset.parser.test.test_ctdpf import CtdpfParserUnitTestCase
+=======
+from mi.dataset.dataset_driver import DriverParameter
+>>>>>>> upstream/master
 from mi.dataset.driver.hypm.ctd.driver import HypmCTDPFDataSetDriver
 
 from mi.dataset.parser.ctdpf import CtdpfParserDataParticle
 from pyon.agent.agent import ResourceAgentState
 
-from interface.objects import CapabilityType
-from interface.objects import AgentCapability
 from interface.objects import ResourceAgentErrorEvent
-from interface.objects import ResourceAgentConnectionLostErrorEvent
+
+DATADIR='/tmp/dsatest'
+STORAGEDIR='/tmp/stored_dsatest'
+RESOURCE_ID='ctdpf'
 
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.hypm.ctd.driver',
@@ -62,10 +63,18 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = HypmCTDPFDataSetDriver.stream_config(),
     startup_config = {
+<<<<<<< HEAD
         DataSourceConfigKey.HARVESTER:
         {
             DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
             DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+=======
+        DataSourceConfigKey.RESOURCE_ID: RESOURCE_ID,
+        DataSourceConfigKey.HARVESTER:
+        {
+            DataSetDriverConfigKeys.DIRECTORY: DATADIR,
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: STORAGEDIR,
+>>>>>>> upstream/master
             DataSetDriverConfigKeys.PATTERN: '*.txt',
             DataSetDriverConfigKeys.FREQUENCY: 1,
         },
@@ -128,50 +137,27 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to stop and restart the process
         """
-        # Create and store the new driver state
+        # create some data to parse
+        self.clear_async_data()
         self.create_sample_data('test_data_1.txt', "DATA001.txt")
         self.create_sample_data('test_data_3.txt', "DATA002.txt")
 
-        startup_config = self._driver_config()['startup_config']
-        file_path_1 = os.path.join(startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY),
-                                  "DATA001.txt")
-        # need to reset file mod time since file is created again
-        mod_time_1 = os.path.getmtime(file_path_1)
-        file_size_1 = os.path.getsize(file_path_1)
-        with open(file_path_1) as filehandle:
-	    md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
-        file_path_2 = os.path.join(startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY),
-                                   "DATA002.txt")
-        # need to reset file mod time since file is created again
-        mod_time_2 = os.path.getmtime(file_path_2)
-        file_size_2 = os.path.getsize(file_path_2)
-        with open(file_path_2) as filehandle:
-	    md5_checksum_2 = hashlib.md5(filehandle.read()).hexdigest()
-        # Create and store the new driver state, after completed reading "DATA001.txt"
-        # Note, since file "DATA001.txt" is ingested, parser state is not looked at, in a real run there would be a state in there
-        self.memento = {"DATA001.txt":{'ingested': True,
-                                    'file_mod_date': mod_time_1,
-                                    'file_checksum': md5_checksum_1,
-                                    'file_size': file_size_1,
-                                    'parser_state': {}
-                                    },
-                        "DATA002.txt":{'ingested': False,
-                                       'file_mod_date': mod_time_2,
-                                       'file_checksum': md5_checksum_2,
-                                       'file_size': file_size_2,
-                                       'parser_state': {'position': 209, 'timestamp': 3583861265.0}
-                                    }
-                        }
+        # Create and store the new driver state
+        self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.txt',
+                        DataSourceConfigKey.PARSER: {'position': 209, 'timestamp': 3583861265.0}}
+        state = {
+            'DATA001.txt': self.get_file_state('/tmp/dsatest/DATA001.txt', True),
+            'DATA002.txt': self.get_file_state('/tmp/dsatest/DATA002.txt', False, 209),
+        }
+        state['DATA002.txt']['parser_state']['timestamp'] = 3583861265.0
+
         self.driver = HypmCTDPFDataSetDriver(
             self._driver_config()['startup_config'],
-            self.memento,
+            state,
             self.data_callback,
             self.state_callback,
             self.event_callback,
             self.exception_callback)
-
-        # create some data to parse
-        self.clear_async_data()
 
         self.driver.start_sampling()
 

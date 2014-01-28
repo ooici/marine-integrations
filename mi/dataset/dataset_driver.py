@@ -587,8 +587,10 @@ class SimpleDataSetDriver(DataSetDriver):
             log.error("'%s' exists, not overwriting", destpath)
         else:
             log.debug("Copy file %s from %s to %s" % (filename, path, destpath))
-            if not shutil.copy2(path, destpath):
-                log.error("failed to copy datafile to storage, dest: '%s'", destpath)
+            try:
+                shutil.copy2(path, destpath)
+            except Exception as e:
+                log.error("failed to copy datafile to storage, (%s) dest: '%s'", (str(e), destpath))
 
     def _got_file(self, file_name):
         """
