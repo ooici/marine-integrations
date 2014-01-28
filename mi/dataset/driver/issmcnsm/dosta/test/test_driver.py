@@ -36,6 +36,8 @@ from interface.objects import ResourceAgentErrorEvent
 from mi.dataset.driver.issmcnsm.dosta.driver import IssmCnsmDOSTADDataSetDriver
 from mi.dataset.parser.issmcnsm_dostad import Issmcnsm_dostadParserDataParticle
 
+RESOURCE_ID = 'dostad'
+
 # Fill in driver details
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.issmcnsm.dosta.driver',
@@ -44,6 +46,7 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = IssmCnsmDOSTADDataSetDriver.stream_config(),
     startup_config = {
+        DataSourceConfigKey.RESOURCE_ID: RESOURCE_ID,
         DataSourceConfigKey.HARVESTER:
         {
             DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
@@ -100,25 +103,18 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to restart the process
         """
-        self.create_sample_data('test_data_1.dosta.log', "20130101.dosta.log")
-        startup_config = self._driver_config()['startup_config']
-        file_path = os.path.join(startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY),
-                                 "20130101.dosta.log")
-        # need to reset file mod time since file is created again
-        mod_time = os.path.getmtime(file_path)
-        # Create and store the new driver state, after completed reading  20130101.dosta.log
-        self.memento = {'20130101.dosta.log':{'ingested': True,
-                                              'file_mod_date': mod_time,
-                                              'file_checksum': 'a1e53b6d3617b2b701121b32bd451be5',
-                                              'file_size': 192,
-                                              'parser_state': {'position': 190, 'timestamp': 3590524817.862}
-                                            }
+        file_path = self.create_sample_data('test_data_1.dosta.log', "20130101.dosta.log")
+        self.memento = {
+            '20130101.dosta.log': self.get_file_state(file_path, True, 190),
         }
+        self.memento['20130101.dosta.log']['parser_state']['timestamp'] = 3590524817.862
+
         self.driver = IssmCnsmDOSTADDataSetDriver(
-            startup_config,
+            self._driver_config()['startup_config'],
             self.memento,
             self.data_callback,
             self.state_callback,
+            self.event_callback,
             self.exception_callback)
 
         # create some data to parse
@@ -134,36 +130,22 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to restart the process in the middle of a file
         """
-        self.create_sample_data('test_data_1.dosta.log', "20130101.dosta.log")
-        self.create_sample_data('test_data_2.dosta.log', "20130102.dosta.log")
+        path_1 = self.create_sample_data('test_data_1.dosta.log', "20130101.dosta.log")
+        path_2 = self.create_sample_data('test_data_2.dosta.log', "20130102.dosta.log")
 
-        startup_config = self._driver_config()['startup_config']
-        directory = startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY)
-        file_path_1 = os.path.join(directory, "20130101.dosta.log")
-        # need to reset file mod time since file is created again
-        mod_time_1 = os.path.getmtime(file_path_1)
-        file_path_2 = os.path.join(directory, "20130102.dosta.log")
-        mod_time_2 = os.path.getmtime(file_path_2)
-        # Create and store the new driver state, after completed reading  20130101.dosta.log
-        self.memento = {'20130101.dosta.log':{'ingested': True,
-                                              'file_mod_date': mod_time_1,
-                                              'file_checksum': 'a1e53b6d3617b2b701121b32bd451be5',
-                                              'file_size': 192,
-                                              'parser_state': {'position': 190, 'timestamp': 3590524817.862}
-                                            },
-                        '20130102.dosta.log':{'ingested': False,
-                                              'file_mod_date': mod_time_1,
-                                              'file_checksum': '7552d0f001c7c6e95bc42492832c2dad',
-                                              'file_size': 503,
-                                              'parser_state': {'position': 191, 'timestamp': 3590524819.861}
-                                            }
+        self.memento = {
+            '20130101.dosta.log': self.get_file_state(path_1, True, 190),
+            '20130102.dosta.log': self.get_file_state(path_2, False, 191)
         }
+        self.memento['20130101.dosta.log']['parser_state']['timestamp'] = 3590524817.862
+        self.memento['20130102.dosta.log']['parser_state']['timestamp'] = 3590524819.861
 
         self.driver = IssmCnsmDOSTADDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
             self.data_callback,
             self.state_callback,
+            self.event_callback,
             self.exception_callback)
 
         # create some data to parse
@@ -178,28 +160,19 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test for detection of an ingested file that has been modifed after ingestion
         """
-        self.create_sample_data('test_data_1.dosta.log', "20130101.dosta.log")
+        file_path = self.create_sample_data('test_data_1.dosta.log', "20130101.dosta.log")
 
-        startup_config = self._driver_config()['startup_config']
-        directory = startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY)
-        file_path_1 = os.path.join(directory, "20130101.dosta.log")
-        # need to reset file mod time since file is created again
-        mod_time_1 = os.path.getmtime(file_path_1)
-
-        # Create and store the new driver state, after completed reading  20130101.dosta.log
-        self.memento = {'20130101.dosta.log':{'ingested': True,
-                                              'file_mod_date': mod_time_1,
-                                              'file_checksum': 'a1e53b6d3617b2b701121b32bd451be5',
-                                              'file_size': 192,
-                                              'parser_state': {'position': 190, 'timestamp': 3590524817.862}
-                                            }
+        self.memento = {
+            '20130101.dosta.log': self.get_file_state(file_path, True, 190),
         }
+        self.memento['20130101.dosta.log']['parser_state']['timestamp'] = 3590524817.862
 
         self.driver = IssmCnsmDOSTADDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
             self.data_callback,
             self.state_callback,
+            self.event_callback,
             self.exception_callback)
 
         # create some data to parse
