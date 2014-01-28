@@ -17,9 +17,6 @@ __license__ = 'Apache 2.0'
 
 import unittest
 import gevent
-import os
-import time
-import hashlib
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -36,14 +33,7 @@ from mi.core.exceptions import ConfigurationException
 from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-<<<<<<< HEAD
-from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.dataset.parser.ctdpf import CtdpfParser
-from mi.dataset.parser.test.test_ctdpf import CtdpfParserUnitTestCase
-=======
 from mi.dataset.dataset_driver import DriverParameter
->>>>>>> upstream/master
 from mi.dataset.driver.hypm.ctd.driver import HypmCTDPFDataSetDriver
 
 from mi.dataset.parser.ctdpf import CtdpfParserDataParticle
@@ -63,18 +53,11 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = HypmCTDPFDataSetDriver.stream_config(),
     startup_config = {
-<<<<<<< HEAD
-        DataSourceConfigKey.HARVESTER:
-        {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
-=======
         DataSourceConfigKey.RESOURCE_ID: RESOURCE_ID,
         DataSourceConfigKey.HARVESTER:
         {
             DataSetDriverConfigKeys.DIRECTORY: DATADIR,
             DataSetDriverConfigKeys.STORAGE_DIRECTORY: STORAGEDIR,
->>>>>>> upstream/master
             DataSetDriverConfigKeys.PATTERN: '*.txt',
             DataSetDriverConfigKeys.FREQUENCY: 1,
         },
