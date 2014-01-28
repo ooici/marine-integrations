@@ -40,6 +40,10 @@ from pyon.agent.agent import ResourceAgentState
 
 from interface.objects import ResourceAgentErrorEvent
 
+DATADIR='/tmp/dsatest'
+STORAGEDIR='/tmp/stored_dsatest'
+RESOURCE_ID='flord'
+
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.moas.gl.flord.driver',
     driver_class="FLORDDataSetDriver",
@@ -48,10 +52,11 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = FLORDDataSetDriver.stream_config(),
     startup_config = {
+        DataSourceConfigKey.RESOURCE_ID: RESOURCE_ID,
         DataSourceConfigKey.HARVESTER:
         {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+            DataSetDriverConfigKeys.DIRECTORY: DATADIR,
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: STORAGEDIR,
             DataSetDriverConfigKeys.PATTERN: '*.mrg',
             DataSetDriverConfigKeys.FREQUENCY: 1,
         },
