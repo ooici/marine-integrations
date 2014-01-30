@@ -153,6 +153,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # verify data is produced
         self.assert_data(GgldrCtdgvDelayedDataParticle, 'bad_sample_ctdgv_record.mrg.result.yml', count=3, timeout=10)
 
+    @unittest.skip('skip until this feature is implemented')
     def test_missing_storage(self):
         """
         Verify that we can work when the storage directory doesn't exists
