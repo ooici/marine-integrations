@@ -17,8 +17,6 @@ __license__ = 'Apache 2.0'
 
 import unittest
 import gevent
-import os
-import time
 
 from nose.plugins.attrib import attr
 from mock import Mock

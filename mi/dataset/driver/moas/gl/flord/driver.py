@@ -43,14 +43,16 @@ class FLORDDataSetDriver(SimpleDataSetDriver):
 
         return self._parser
 
-    def _build_harvester(self, harvester_state):
+    def _build_harvester(self, driver_state):
+        """
+        Build and return the harvester
+        """
         self._harvester = SingleDirectoryHarvester(
             self._harvester_config,
-            harvester_state,
+            driver_state,
             self._new_file_callback,
             self._modified_file_callback,
             self._exception_callback
         )
-
         return self._harvester
 

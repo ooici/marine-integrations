@@ -20,6 +20,7 @@ import unittest
 import gevent
 import os
 import time
+import hashlib
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -45,7 +46,6 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.dataset.parser.wfp_parser import ParadkParser
 from mi.dataset.parser.wfp_parser import WfpParadkDataParticle
 from mi.dataset.parser.test.test_wfp_parser import WfpParserUnitTestCase
-from mi.dataset.harvester import AdditiveSequentialFileHarvester
 from mi.dataset.driver.wfp.paradk.driver import WfpPARADKDataSetDriver
 
 from pyon.agent.agent import ResourceAgentState
@@ -63,13 +63,14 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = WfpPARADKDataSetDriver.stream_config(),
     startup_config = {
-        'harvester':
+        DataSourceConfigKey.HARVESTER:
         {
-            'directory': '/tmp/dsatest',
-            'pattern': '*.TXT',
-            'frequency': 1,
+            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+            DataSetDriverConfigKeys.PATTERN: '*.TXT',
+            DataSetDriverConfigKeys.FREQUENCY: 1,
         },
-        'parser': {}
+        DataSourceConfigKey.PARSER: {}
     }
 )
 
@@ -94,99 +95,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         with self.assertRaises(ConfigurationException):
             self.driver = WfpPARADKDataSetDriver({},
-                self.memento,
-                self.data_callback,
-                self.state_callback,
-                self.exception_callback)
-
-    @unittest.skip("Has this test been rendered un-needed?")
-    def test_parameters(self):
-        """
-        Verify that we can get, set, and report all driver parameters.
-        """
-        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT,
-                           DriverParameter.PUBLISHER_POLLING_INTERVAL,
-                           DriverParameter.RECORDS_PER_SECOND]
-        (res_cmds, res_params) = self.driver.get_resource_capabilities()
-
-        # Ensure capabilities are as expected
-        self.assertEqual(len(res_cmds), 0)
-        self.assertEqual(len(res_params), len(expected_params))
-        self.assertEqual(sorted(res_params), sorted(expected_params))
-
-        # Verify default values are as expected.
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 1)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
-
-        # Try set resource individually
-        self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 2})
-        self.driver.set_resource({DriverParameter.PUBLISHER_POLLING_INTERVAL: 2})
-        self.driver.set_resource({DriverParameter.RECORDS_PER_SECOND: 59})
-
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 2)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 2)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 59)
-
-        # Try set resource in bulk
-        self.driver.set_resource(
-            {DriverParameter.BATCHED_PARTICLE_COUNT: 1,
-             DriverParameter.PUBLISHER_POLLING_INTERVAL: .1,
-             DriverParameter.RECORDS_PER_SECOND: 60})
-
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .1)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
-
-        # Set with some bad values
-        with self.assertRaises(InstrumentParameterException):
-            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 'a'})
-        with self.assertRaises(InstrumentParameterException):
-            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: -1})
-        with self.assertRaises(InstrumentParameterException):
-            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 0})
-
-        # Try to configure with the driver startup config
-        driver_config = self._driver_config()['startup_config']
-        cfg = {
-            DataSourceConfigKey.HARVESTER: driver_config.get(DataSourceConfigKey.HARVESTER),
-            DataSourceConfigKey.PARSER: driver_config.get(DataSourceConfigKey.PARSER),
-            DataSourceConfigKey.DRIVER: {
-                DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
-                DriverParameter.RECORDS_PER_SECOND: 3,
-                DriverParameter.BATCHED_PARTICLE_COUNT: 3,
-            }
-        }
-        self.driver = WfpPARADKDataSetDriver(
-            cfg,
-            self.memento,
-            self.data_callback,
-            self.state_callback,
-            self.exception_callback)
-
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 3)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .2)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 3)
-
-        # Finally verify we get a KeyError when sending in bad config keys
-        cfg[DataSourceConfigKey.DRIVER] = {
-            DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
-            DriverParameter.RECORDS_PER_SECOND: 3,
-            DriverParameter.BATCHED_PARTICLE_COUNT: 3,
-            'something_extra': 1
-        }
-
-        with self.assertRaises(KeyError):
-            self.driver = WfpPARADKDataSetDriver(
-                cfg,
                 self.memento,
                 self.data_callback,
                 self.state_callback,
@@ -226,21 +134,46 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to stop and restart the process
         """
+        self.create_sample_data('test_data_1.txt', "DATA001.TXT")
+        self.create_sample_data('test_data_3.txt', "DATA002.TXT")
+        # get file metadata for use in the state dictionary
+        startup_config = self._driver_config()['startup_config']
+        directory = startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY)
+        file_path_1 = os.path.join(directory, "DATA001.TXT")
+        # need to reset file mod time since file is created again
+        mod_time_1 = os.path.getmtime(file_path_1)
+        file_size_1 = os.path.getsize(file_path_1)
+        with open(file_path_1) as filehandle:
+	    md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
+        file_path_2 = os.path.join(directory, "DATA002.TXT")
+        mod_time_2 = os.path.getmtime(file_path_2)
+        file_size_2 = os.path.getsize(file_path_2)
+        with open(file_path_2) as filehandle:
+	    md5_checksum_2 = hashlib.md5(filehandle.read()).hexdigest()
 
         # Create and store the new driver state
-        self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.TXT',
-                        DataSourceConfigKey.PARSER: {'position': 201, 'timestamp': 3575062804.0}}
+        state = {"DATA001.TXT":{'ingested': True,
+                                'file_mod_date': mod_time_1,
+                                'file_checksum': md5_checksum_1,
+                                'file_size': file_size_1,
+                                'parser_state': {}
+                            },
+                "DATA002.TXT":{'ingested': False,
+                               'file_mod_date': mod_time_2,
+                               'file_checksum': md5_checksum_2,
+                               'file_size': file_size_2,
+                               'parser_state': {'position': 201, 'timestamp': 3575062804.0}
+                            }
+        }
         self.driver = WfpPARADKDataSetDriver(
             self._driver_config()['startup_config'],
-            self.memento,
+            state,
             self.data_callback,
             self.state_callback,
             self.exception_callback)
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data('test_data_1.txt', "DATA001.TXT")
-        self.create_sample_data('test_data_3.txt', "DATA002.TXT")
 
         self.driver.start_sampling()
 

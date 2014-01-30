@@ -20,6 +20,7 @@ import unittest
 import gevent
 import os
 import time
+import hashlib
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -38,11 +39,10 @@ from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentParameterException
 from mi.idk.exceptions import SampleTimeout
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-from mi.dataset.dataset_driver import DriverParameter
+from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.dataset.parser.nutnrb import NutnrbDataParticle
 from mi.dataset.driver.issm.nutnrb.driver import IssmRiNUTNRBDataSetDriver
-from mi.dataset.harvester import AdditiveSequentialFileHarvester
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import CapabilityType
 from interface.objects import AgentCapability
@@ -57,13 +57,14 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = IssmRiNUTNRBDataSetDriver.stream_config(),
     startup_config = {
-        'harvester':
+        DataSourceConfigKey.HARVESTER:
         {
-            'directory': '/tmp/dsatest',
-            'pattern': '*.log',
-            'frequency': 1,
+            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+            DataSetDriverConfigKeys.PATTERN: '*.log',
+            DataSetDriverConfigKeys.FREQUENCY: 1,
         },
-        'parser': {}
+        DataSourceConfigKey.PARSER: {}
     }
 )
 
@@ -88,96 +89,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         with self.assertRaises(ConfigurationException):
             self.driver = IssmRiNUTNRBDataSetDriver({},
-                self.memento,
-                self.data_callback,
-                self.state_callback,
-                self.exception_callback)
-
-    def test_parameters(self):
-        """
-        Verify that we can get, set, and report all driver parameters.
-        """
-        expected_params = [DriverParameter.BATCHED_PARTICLE_COUNT, DriverParameter.PUBLISHER_POLLING_INTERVAL, DriverParameter.RECORDS_PER_SECOND]
-        (res_cmds, res_params) = self.driver.get_resource_capabilities()
-
-        # Ensure capabilities are as expected
-        self.assertEqual(len(res_cmds), 1) # ['DRIVER_EVENT_START_AUTOSAMPLE']
-        self.assertEqual(len(res_params), len(expected_params))
-        self.assertEqual(sorted(res_params), sorted(expected_params))
-
-        # Verify default values are as expected.
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 1)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
-
-        # Try set resource individually
-        self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 2})
-        self.driver.set_resource({DriverParameter.PUBLISHER_POLLING_INTERVAL: 2})
-        self.driver.set_resource({DriverParameter.RECORDS_PER_SECOND: 59})
-
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 2)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], 2)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 59)
-
-        # Try set resource in bulk
-        self.driver.set_resource(
-            {DriverParameter.BATCHED_PARTICLE_COUNT: 1,
-             DriverParameter.PUBLISHER_POLLING_INTERVAL: .1,
-             DriverParameter.RECORDS_PER_SECOND: 60})
-
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 1)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .1)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 60)
-
-        # Set with some bad values
-        with self.assertRaises(InstrumentParameterException):
-            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 'a'})
-        with self.assertRaises(InstrumentParameterException):
-            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: -1})
-        with self.assertRaises(InstrumentParameterException):
-            self.driver.set_resource({DriverParameter.BATCHED_PARTICLE_COUNT: 0})
-
-        # Try to configure with the driver startup config
-        driver_config = self._driver_config()['startup_config']
-        cfg = {
-            DataSourceConfigKey.HARVESTER: driver_config.get(DataSourceConfigKey.HARVESTER),
-            DataSourceConfigKey.PARSER: driver_config.get(DataSourceConfigKey.PARSER),
-            DataSourceConfigKey.DRIVER: {
-                DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
-                DriverParameter.RECORDS_PER_SECOND: 3,
-                DriverParameter.BATCHED_PARTICLE_COUNT: 3,
-            }
-        }
-        self.driver = IssmRiNUTNRBDataSetDriver(
-            cfg,
-            self.memento,
-            self.data_callback,
-            self.state_callback,
-            self.exception_callback)
-
-        params = self.driver.get_resource(DriverParameter.ALL)
-        log.debug("Get Resources Result: %s", params)
-        self.assertEqual(params[DriverParameter.BATCHED_PARTICLE_COUNT], 3)
-        self.assertEqual(params[DriverParameter.PUBLISHER_POLLING_INTERVAL], .2)
-        self.assertEqual(params[DriverParameter.RECORDS_PER_SECOND], 3)
-
-        # Finally verify we get a KeyError when sending in bad config keys
-        cfg[DataSourceConfigKey.DRIVER] = {
-            DriverParameter.PUBLISHER_POLLING_INTERVAL: .2,
-            DriverParameter.RECORDS_PER_SECOND: 3,
-            DriverParameter.BATCHED_PARTICLE_COUNT: 3,
-            'something_extra': 1
-        }
-
-        with self.assertRaises(KeyError):
-            self.driver = IssmRiNUTNRBDataSetDriver(
-                cfg,
                 self.memento,
                 self.data_callback,
                 self.state_callback,
@@ -216,10 +127,39 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to stop and restart the process
         """
-        # Create and store the new driver state
-
-        self.memento = {DataSourceConfigKey.HARVESTER: '/tmp/dsatest/DATA001.log',
-                        DataSourceConfigKey.PARSER: {'position': 2628}}
+        self.create_sample_data('test_data_1.log', "DATA001.log")
+        self.create_sample_data('test_data_3.log', "DATA002.log")
+        # get file metadata for use in state memento
+        startup_config = self._driver_config()['startup_config']
+        file_path_1 = os.path.join(startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY),
+                                  "DATA001.log")
+        # need to reset file mod time since file is created again
+        mod_time_1 = os.path.getmtime(file_path_1)
+        file_size_1 = os.path.getsize(file_path_1)
+        with open(file_path_1) as filehandle:
+	    md5_checksum_1 = hashlib.md5(filehandle.read()).hexdigest()
+        file_path_2 = os.path.join(startup_config[DataSourceConfigKey.HARVESTER].get(DataSetDriverConfigKeys.DIRECTORY),
+                                   "DATA002.log")
+        # need to reset file mod time since file is created again
+        mod_time_2 = os.path.getmtime(file_path_2)
+        file_size_2 = os.path.getsize(file_path_2)
+        with open(file_path_2) as filehandle:
+	    md5_checksum_2 = hashlib.md5(filehandle.read()).hexdigest()
+        # Create and store the new driver state, after completed reading "DATA001.log"
+        # Note, since file "DATA001.log" is ingested, parser state is not looked at, in a real run there would be a state in there
+        self.memento = {"DATA001.log":{'ingested': True,
+                                    'file_mod_date': mod_time_1,
+                                    'file_checksum': md5_checksum_1,
+                                    'file_size': file_size_1,
+                                    'parser_state': {}
+                                    },
+                        "DATA002.log":{'ingested': False,
+                                       'file_mod_date': mod_time_2,
+                                       'file_checksum': md5_checksum_2,
+                                       'file_size': file_size_2,
+                                       'parser_state': {'position': 2628}
+                                    }
+                        }
         self.driver = IssmRiNUTNRBDataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,
@@ -229,8 +169,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data('test_data_1.log', "DATA001.log")
-        self.create_sample_data('test_data_3.log', "DATA002.log")
 
         self.driver.start_sampling()
 
