@@ -1,8 +1,9 @@
 driver_metadata:
-  author: Stuart Pearce & Chris Wingard
   driver_name: glider_engineering
+  version: 0.0.8
+  full_instrument_name: null
+  author: Stuart Pearce & Chris Wingard
   driver_path: moas/gl/engineering
-  email: spearce@coas.oregonstate.edu
   release_notes: initial release
-  version: 0.0.7
+  email: spearce@coas.oregonstate.edu
   constructor: EngDataSetDriver
