@@ -518,22 +518,18 @@ class SimpleDataSetDriver(DataSetDriver):
         """
         errors = []
         log.debug("Driver Config: %s", self._config)
-        self._resource_id = self._config.get(DataSourceConfigKey.RESOURCE_ID)
 
         harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
 
         if harvester_config:
             if not harvester_config.get(DataSetDriverConfigKeys.DIRECTORY):
                 errors.append("harvester config missing 'directory")
-            if not harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY):
-                errors.append("harvester config missing 'storage_directory")
+            #if not harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY):
+            #    errors.append("harvester config missing 'storage_directory")
             if not harvester_config.get(DataSetDriverConfigKeys.PATTERN):
                 errors.append("harvester config missing 'pattern")
         else:
             errors.append("missing 'harvester' config")
-
-        if not self._resource_id:
-            errors.append("Missing '%s' from config" % DataSourceConfigKey.RESOURCE_ID)
 
         if errors:
             log.error("Driver configuration error: %r", errors)
@@ -601,7 +597,8 @@ class SimpleDataSetDriver(DataSetDriver):
             log.debug('got file, driver state %s', self._driver_state)
             directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
 
-            self._stage_input_file(os.path.join(directory, file_name))
+            # Removed this for the time being to get new driver code out.  May bring this back in the future
+            #self._stage_input_file(os.path.join(directory, file_name))
 
             count = 1
             delay = None
