@@ -21,13 +21,15 @@ from mi.dataset.dataset_driver import DriverStateKey, DataSetDriverConfigKeys
 
 TESTDIR = '/tmp/dsatest'
 STOREDIR = '/tmp/stored_dsatest'
-CONFIG = {DataSetDriverConfigKeys.DIRECTORY: TESTDIR,
-          DataSetDriverConfigKeys.STORAGE_DIRECTORY: STOREDIR,
-	  DataSetDriverConfigKeys.PATTERN: '*.txt',
-	  DataSetDriverConfigKeys.FREQUENCY: 5,
-	  DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 30}
+CONFIG = {
+    DataSetDriverConfigKeys.DIRECTORY: TESTDIR,
+    DataSetDriverConfigKeys.STORAGE_DIRECTORY: STOREDIR,
+	DataSetDriverConfigKeys.PATTERN: '*.txt',
+	DataSetDriverConfigKeys.FREQUENCY: 5,
+	DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 30
+}
 
-INDICIES = ['363_2013_0245_6_8', '363_2013_0245_6_9', '363_2013_0245_6_10', '363_2013_0245_6_11', 
+INDICIES = ['363_2013_0245_6_8', '363_2013_0245_6_9', '363_2013_0245_6_10', '363_2013_0245_6_11',
             '363_2013_0245_7_0', '363_2013_0245_7_1', '363_2013_0245_7_10', '363_2013_0246_0_0',
             '363_2013_0246_7_0', '363_2013_0246_7_1', '363_2014_0012_0_0', '363_2014_0012_0_1', ]
 
@@ -37,19 +39,19 @@ class TestSingleDirHarvester(MiUnitTest):
     found_modified_count = 0
 
     def setUp(self):
-	"""
+        """
         reset counters and ensure we have test directories in place
         """
-	log.info('*** Starting test %s ***', self._testMethodName)
+        log.info('*** Starting test %s ***', self._testMethodName)
         self.found_file_count = 0
-	self.found_modified_count = 0
+        self.found_modified_count = 0
         if(not os.path.exists(TESTDIR)):
             os.makedirs(TESTDIR)
-	self.clean_directory(TESTDIR, CONFIG[DataSetDriverConfigKeys.PATTERN])
+        self.clean_directory(TESTDIR, CONFIG[DataSetDriverConfigKeys.PATTERN])
         
         if(not os.path.exists(STOREDIR)):
             os.makedirs(STOREDIR)
-	self.clean_directory(STOREDIR, CONFIG[DataSetDriverConfigKeys.PATTERN])
+        self.clean_directory(STOREDIR, CONFIG[DataSetDriverConfigKeys.PATTERN])
 
     def tearDown(self):
         """
@@ -79,11 +81,11 @@ class TestSingleDirHarvester(MiUnitTest):
         """
         # start the harvester from scratch
         memento = None
-	config = CONFIG.copy()
-	config[DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME] = 10
+        config = CONFIG.copy()
+        config[DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME] = 10
         file_harvester = SingleDirectoryHarvester(CONFIG, memento,
                                                 self.new_file_found_callback,
-						self.modified_files_found_callback,
+						                        self.modified_files_found_callback,
                                                 self.file_exception_callback)
         file_harvester.start()
 
@@ -114,7 +116,7 @@ class TestSingleDirHarvester(MiUnitTest):
         memento = None
         file_harvester = SingleDirectoryHarvester(config, memento,
                                                   self.new_file_found_callback,
-						  self.modified_files_found_callback,
+						                          self.modified_files_found_callback,
                                                   self.file_exception_callback)
         file_harvester.start()
 
@@ -161,14 +163,14 @@ class TestSingleDirHarvester(MiUnitTest):
         """
         Set the timing so the harvester finds multiple new files at once
         """
-	config = CONFIG.copy()
-	config[DataSetDriverConfigKeys.FREQUENCY] = 1
-	config[DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME] = 15
+        config = CONFIG.copy()
+        config[DataSetDriverConfigKeys.FREQUENCY] = 1
+        config[DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME] = 15
         # start the harvester from scratch
         memento = None
         file_harvester = SingleDirectoryHarvester(config, memento,
                                                   self.new_file_found_callback,
-						  self.modified_files_found_callback,
+                                                  self.modified_files_found_callback,
                                                   self.file_exception_callback)
         file_harvester.start()
 
