@@ -22,7 +22,7 @@ from mi.core.log import get_logger ; log = get_logger()
 # part we can ignore this. See initialize_ion_int_tests() for implementation.
 # If you DO care about couch content make sure you do a force_clean when needed.
 from pyon.core import bootstrap
-bootstrap.testing = False
+bootstrap.testing = True
 
 from copy import deepcopy
 
