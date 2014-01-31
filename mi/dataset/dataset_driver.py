@@ -519,14 +519,14 @@ class SimpleDataSetDriver(DataSetDriver):
         errors = []
         log.debug("Driver Config: %s", self._config)
 
-        harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
+        self._harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
 
-        if harvester_config:
-            if not harvester_config.get(DataSetDriverConfigKeys.DIRECTORY):
+        if self._harvester_config:
+            if not self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY):
                 errors.append("harvester config missing 'directory")
             #if not harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY):
             #    errors.append("harvester config missing 'storage_directory")
-            if not harvester_config.get(DataSetDriverConfigKeys.PATTERN):
+            if not self._harvester_config.get(DataSetDriverConfigKeys.PATTERN):
                 errors.append("harvester config missing 'pattern")
         else:
             errors.append("missing 'harvester' config")
@@ -535,7 +535,6 @@ class SimpleDataSetDriver(DataSetDriver):
             log.error("Driver configuration error: %r", errors)
             raise ConfigurationException("driver configuration errors: %r", errors)
 
-        self._harvester_config = harvester_config
         self._parser_config = self._config.get(DataSourceConfigKey.PARSER)
 
 
