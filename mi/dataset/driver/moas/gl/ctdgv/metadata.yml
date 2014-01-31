@@ -1,8 +1,9 @@
 driver_metadata:
-  version: 0.1.4
-  author: Stuart Pearce & Chris Wingard
-  constructor: CTDGVDataSetDriver
   driver_name: glider_ctdgv
+  version: 0.1.5
+  full_instrument_name: null
+  author: Stuart Pearce & Chris Wingard
   driver_path: moas/gl/ctdgv
   release_notes: initial release
   email: spearce@coas.oregonstate.edu
+  constructor: CTDGVDataSetDriver
