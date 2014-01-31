@@ -1,5 +1,5 @@
 driver_metadata:
-  version: 0.0.11
+  version: 0.1.0
   author: Bill French
   constructor: HypmCTDPFDataSetDriver
   driver_name: hypm_ctd
