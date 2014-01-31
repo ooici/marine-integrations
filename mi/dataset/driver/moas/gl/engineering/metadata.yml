@@ -4,5 +4,5 @@ driver_metadata:
   driver_path: moas/gl/engineering
   email: spearce@coas.oregonstate.edu
   release_notes: initial release
-  version: 0.0.8
+  version: 0.0.9
   constructor: EngDataSetDriver

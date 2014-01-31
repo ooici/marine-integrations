@@ -156,6 +156,7 @@ class DataSetDriver(object):
         self._polling_interval = None
         self._generate_particle_count = None
         self._particle_count_per_second = None
+        self._resource_id = None
 
         self._param_dict = ProtocolParameterDict()
         self._cmd_dict = ProtocolCommandDict()
@@ -421,7 +422,7 @@ class DataSetDriver(object):
                 self._poll()
                 gevent.sleep(self._polling_interval)
         except Exception as e:
-            log.error("Exception in publisher thread: %s", e)
+            log.error("Exception in publisher thread (resource id: %s): %s", self._resource_id, e)
             self._exception_callback(e)
 
         log.debug("publisher thread detected shutdown request")
@@ -474,6 +475,8 @@ class SimpleDataSetDriver(DataSetDriver):
 
         self._init_state(memento)
 
+        self._ingest_directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
+
     def _is_sampling(self):
         """
         Are we currently sampling?
@@ -520,6 +523,7 @@ class SimpleDataSetDriver(DataSetDriver):
         log.debug("Driver Config: %s", self._config)
 
         self._harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
+        self._resource_id = self._config.get(DataSourceConfigKey.RESOURCE_ID)
 
         if self._harvester_config:
             if not self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY):
@@ -594,7 +598,15 @@ class SimpleDataSetDriver(DataSetDriver):
         """
         try:
             log.debug('got file, driver state %s', self._driver_state)
+
             directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
+
+            if directory != self._ingest_directory:
+                log.error("Detected harvester configuration change. Resource ID: %s Original: %s, new: %s",
+                          self._resource_id,
+                          self._ingest_directory,
+                          directory
+                )
 
             # Removed this for the time being to get new driver code out.  May bring this back in the future
             #self._stage_input_file(os.path.join(directory, file_name))
