@@ -63,6 +63,7 @@ class SingleDirectoryPoller(ConditionPoller):
     @param interval - polling interval for checking this directory
     """
     def __init__(self, config, memento, callback, exception_callback=None, interval=1, file_mod_wait=30):
+        log.debug("Initialize harvester with config: %s", config)
         directory = config.get('directory')
         wildcard = config.get('pattern')
         if not os.path.isdir(directory):
@@ -74,6 +75,8 @@ class SingleDirectoryPoller(ConditionPoller):
         # driver state is not a new instance of memento, it is the same here as in the driver
         self._driver_state = memento
         self._path = directory + '/' + wildcard
+        log.debug("Starting harvester with directory pattern: %s", self._path)
+
         # this queue holds the names of the files that have been sent to the driver.  Each time the harvester
         # restarts, the queue is emptied so all files that have not been ingested can be added and sent again,
         # but this keeps the harvester from sending the same files over and over to not be put in the driver queue
