@@ -353,47 +353,6 @@ class QualificationTest(DataSetQualificationTestCase):
         result = self.data_subscribers.get_samples(SAMPLE_STREAM)
         self.assert_data_values(result, 'single_ctdgv_record.mrg.result.yml')
 
-    def test_dual_driver(self):
-        """
-        Test two drivers rumnning simultaneously
-        """
-        self.assert_initialize()
-
-        log.debug("Starting second instance of the same agent.")
-        dsa_client1 = self.get_dsa_client()
-        dsa_client2 = self._get_second_agent()
-        log.debug("Dataset agent #2, %s", dsa_client2)
-
-        self.set_dsa_client(dsa_client2)
-        #self.assert_initialize()
-
-        self.assert_agent_command(ResourceAgentEvent.INITIALIZE, client=dsa_client2)
-
-        self.set_dsa_client(dsa_client1)
-
-        log.debug("Creating some sample files for DSA Client #1")
-        self.create_sample_data('single_ctdgv_record.mrg', 'unit_363_2013_245_6_9.mrg')
-
-        result = self.data_subscribers.get_samples(SAMPLE_STREAM)
-        self.assert_data_values(result, 'single_ctdgv_record.mrg.result.yml')
-
-    def _get_second_agent(self):
-        agent_name = self.test_config.agent_name + "_1"
-
-        agent_config = copy.deepcopy(self._agent_config())
-        log.debug("Agent Config")
-
-        dir = agent_config['driver_config']['startup_config']['harvester']['directory'] + "_1"
-        agent_config['driver_config']['startup_config']['harvester']['directory']  = dir
-
-        resource_id = self.test_config.agent_resource_id + "_1"
-        agent_config['driver_config']['startup_config']['resource_id'] = resource_id
-
-        agent_config['agent']['resource_id'] = resource_id
-
-        log.debug("Starting second agent with config: %s", agent_config)
-        return self.get_dataset_agent_client(config=agent_config, resource_id=resource_id, agent_name=agent_name)
-
     @unittest.skip('foo')
     def test_stop_start(self):
         """
