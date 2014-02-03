@@ -88,7 +88,11 @@ class SingleDirectoryPoller(ConditionPoller):
         """
         Find any new or modified files and update the harvester state
         """
-        filenames = glob.glob(self._path)
+        filenames = []
+
+        if os.path.exists(os.path.dirname(self._path)):
+            filenames = glob.glob(self._path)
+
         # if there are underscores in the filename, sort by ascii rather than 
         if len(filenames) > 0 and NUMBER_UNDERSCORE_MATCHER.search(filenames[0]):
             filenames = self.sort_files(filenames)
