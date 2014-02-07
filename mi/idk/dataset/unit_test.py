@@ -633,22 +633,40 @@ class DataSetAgentTestCase(DataSetTestCase):
         log.debug("Test complete and all cleaned up.")
 
     def init_dataset_agent_client(self, bootmode=None):
+        self.set_dsa_client(self.get_dataset_agent_client(bootmode))
+        log.debug("DSA Client.  Result: %s", self.dataset_agent_client)
+
+    def get_dataset_agent_client(self, bootmode=None, config=None, resource_id=None, agent_name=None):
         log.info("Start Dataset Agent Client")
+
+        if config is None:
+            config = self._agent_config()
+
+        if resource_id is None:
+            resource_id = self.test_config.agent_resource_id
+
+        if agent_name is None:
+            agent_name = self.test_config.agent_name
 
         # Start instrument agent client.
         result = self.instrument_agent_manager.start_client(
-            name=self.test_config.agent_name,
+            name=agent_name,
             module=self.test_config.agent_module,
             cls=self.test_config.agent_class,
-            config=self._agent_config(),
-            resource_id=self.test_config.agent_resource_id,
+            config=config,
+            resource_id=resource_id,
             deploy_file=self.test_config.container_deploy_file,
             bootmode=bootmode
         )
 
         log.debug("DSA Initialized.  Result: %s", result)
-        self.dataset_agent_client = self.instrument_agent_manager.instrument_agent_client
-        log.debug("DSA Client.  Result: %s", self.dataset_agent_client)
+        return self.instrument_agent_manager.instrument_agent_client
+
+    def set_dsa_client(self, client):
+        self.dataset_agent_client = client
+
+    def get_dsa_client(self):
+        return self.dataset_agent_client
 
     def stop_dataset_agent_client(self):
         log.debug("Stopping dataset agent. ff")
@@ -714,7 +732,7 @@ class DataSetAgentTestCase(DataSetTestCase):
         '''
         Walk through DSA states to get to streaming mode from uninitialized
         '''
-        log.debug("Initialize DataSet agent")
+        log.debug("Initialize DataSet agent, %s", self.dataset_agent_client)
         cmd = AgentCommand(command=ResourceAgentEvent.INITIALIZE)
         retval = self.dataset_agent_client.execute_agent(cmd)
         state = self.dataset_agent_client.get_agent_state()
@@ -787,14 +805,17 @@ class DataSetAgentTestCase(DataSetTestCase):
         state = self.dataset_agent_client.get_agent_state()
         self.assertEqual(state, target_state)
 
-    def assert_agent_command(self, command, args=None, timeout=None):
+    def assert_agent_command(self, command, args=None, timeout=None, client=None):
         """
         Verify an agent command
         @param command: driver command to execute
         @param args: kwargs to pass to the agent command object
         """
+        if client is None:
+            client = self.dataset_agent_client
+
         cmd = AgentCommand(command=command, kwargs=args)
-        retval = self.dataset_agent_client.execute_agent(cmd, timeout=timeout)
+        retval = client.execute_agent(cmd, timeout=timeout)
 
     def assert_resource_command(self, command, args=None, timeout=None):
         """

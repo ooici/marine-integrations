@@ -20,6 +20,7 @@ import unittest
 import os
 import hashlib
 import shutil
+import copy
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -48,6 +49,7 @@ from mi.dataset.driver.moas.gl.ctdgv.driver import CTDGVDataSetDriver
 
 from mi.dataset.parser.glider import GgldrCtdgvDelayedDataParticle
 from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import ResourceAgentEvent
 
 from interface.objects import CapabilityType
 from interface.objects import AgentCapability
@@ -152,6 +154,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # verify data is produced
         self.assert_data(GgldrCtdgvDelayedDataParticle, 'bad_sample_ctdgv_record.mrg.result.yml', count=3, timeout=10)
+
 
     @unittest.skip('skip until this feature is implemented')
     def test_missing_storage(self):
@@ -327,6 +330,28 @@ class QualificationTest(DataSetQualificationTestCase):
 
     def test_harvester_new_file_exception(self):
         self.assert_new_file_exception('unit_363_2013_245_6_6.mrg')
+
+    def test_lost_connection(self):
+        """
+        Test a parser exception and verify that the lost connection logic works
+        """
+        self.assert_initialize()
+
+        path = self.create_sample_data('single_ctdgv_record.mrg', 'unit_363_2013_245_6_9.mrg', mode=0000)
+
+        self.assert_state_change(ResourceAgentState.LOST_CONNECTION)
+
+        # Sleep long enough to let the first reconnect happen and fail again.
+        gevent.sleep(30)
+
+        # Resolve the issue
+        os.chmod(path, 0755)
+
+        # We should transition back to streaming and stay there.
+        self.assert_state_change(ResourceAgentState.STREAMING, timeout=180)
+
+        result = self.data_subscribers.get_samples(SAMPLE_STREAM)
+        self.assert_data_values(result, 'single_ctdgv_record.mrg.result.yml')
 
     @unittest.skip('foo')
     def test_stop_start(self):

@@ -14,6 +14,8 @@ import os
 import gevent
 import shutil
 import hashlib
+import copy
+import traceback
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import InstrumentParameterException
@@ -142,7 +144,7 @@ class DataSetDriver(object):
     }
     """
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
-        self._config = config
+        self._config = copy.deepcopy(config)
         self._data_callback = data_callback
         self._state_callback = state_callback
         self._event_callback = event_callback
@@ -156,6 +158,7 @@ class DataSetDriver(object):
         self._polling_interval = None
         self._generate_particle_count = None
         self._particle_count_per_second = None
+        self._resource_id = None
 
         self._param_dict = ProtocolParameterDict()
         self._cmd_dict = ProtocolCommandDict()
@@ -421,7 +424,7 @@ class DataSetDriver(object):
                 self._poll()
                 gevent.sleep(self._polling_interval)
         except Exception as e:
-            log.error("Exception in publisher thread: %s", e)
+            log.error("Exception in publisher thread (resource id: %s): %s", self._resource_id, traceback.format_exc(e))
             self._exception_callback(e)
 
         log.debug("publisher thread detected shutdown request")
@@ -465,14 +468,19 @@ class SimpleDataSetDriver(DataSetDriver):
     content into a single parser.  The hope is this class can be used for 80% of the drivers
     we implement.
     """
-    _harvester = None
-    _new_file_queue = []
-    _driver_state = None
-
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
+        self._new_file_queue = []
+
         super(SimpleDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback, exception_callback)
+        self._harvester = None
+        self._driver_state = None
 
         self._init_state(memento)
+
+        self._ingest_directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
+
+        self._resource_id = self._config.get(DataSourceConfigKey.RESOURCE_ID)
+        log.debug("Resource ID: %s", self._resource_id)
 
     def _is_sampling(self):
         """
@@ -519,14 +527,13 @@ class SimpleDataSetDriver(DataSetDriver):
         errors = []
         log.debug("Driver Config: %s", self._config)
 
-        harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
-
-        if harvester_config:
-            if not harvester_config.get(DataSetDriverConfigKeys.DIRECTORY):
+        self._harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
+        if self._harvester_config:
+            if not self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY):
                 errors.append("harvester config missing 'directory")
             #if not harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY):
             #    errors.append("harvester config missing 'storage_directory")
-            if not harvester_config.get(DataSetDriverConfigKeys.PATTERN):
+            if not self._harvester_config.get(DataSetDriverConfigKeys.PATTERN):
                 errors.append("harvester config missing 'pattern")
         else:
             errors.append("missing 'harvester' config")
@@ -535,7 +542,6 @@ class SimpleDataSetDriver(DataSetDriver):
             log.error("Driver configuration error: %r", errors)
             raise ConfigurationException("driver configuration errors: %r", errors)
 
-        self._harvester_config = harvester_config
         self._parser_config = self._config.get(DataSourceConfigKey.PARSER)
 
 
@@ -547,6 +553,7 @@ class SimpleDataSetDriver(DataSetDriver):
         count = len(self._new_file_queue)
         log.trace("Checking for new files in queue, count: %d", count)
         if(count > 0):
+            log.debug("New file detected, resource_id: %s, array addr: %s", self._resource_id, id(self._new_file_queue))
             self._got_file(self._new_file_queue.pop(0))
 
     def _stage_input_file(self, path):
@@ -594,8 +601,16 @@ class SimpleDataSetDriver(DataSetDriver):
         @param file_name: name of the file to parse
         """
         try:
-            log.debug('got file, driver state %s', self._driver_state)
+            log.debug('got file, resource_id: %s, driver state %s', self._resource_id, self._driver_state)
+
             directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
+
+            if directory != self._ingest_directory:
+                log.error("Detected harvester configuration change. Resource ID: %s Original: %s, new: %s",
+                          self._resource_id,
+                          self._ingest_directory,
+                          directory
+                )
 
             # Removed this for the time being to get new driver code out.  May bring this back in the future
             #self._stage_input_file(os.path.join(directory, file_name))
@@ -613,6 +628,7 @@ class SimpleDataSetDriver(DataSetDriver):
             # Open the copied file in the storage directory so we know the file won't be
             # changed while we are reading it
             path = os.path.join(directory, file_name)
+
             self._raise_new_file_event(path)
             log.debug("Open new data source file: %s", path)
             handle = open(path)
@@ -674,10 +690,10 @@ class SimpleDataSetDriver(DataSetDriver):
         filename in a queue.
         @param file_name: file name of the found file.
         """
-        log.debug('got new file callback, driver state %s', self._driver_state)
+        log.debug('got new file callback, resource_id, %s, driver state %s', self._resource_id, self._driver_state)
         # check for duplicates, don't add it if it is already there
         if file_name not in self._new_file_queue:
-            log.trace("Add new file to the new file queue: name: %s", file_name)
+            log.debug("Add new file to the new file queue: resource_id: %s, queue addr: %s, name: %s", self._resource_id, id(self._new_file_queue), file_name)
             self._new_file_queue.append(file_name)
 
             count = len(self._new_file_queue)
