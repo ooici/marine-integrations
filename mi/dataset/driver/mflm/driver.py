@@ -25,9 +25,9 @@ from mi.dataset.harvester import SingleFileHarvester
 
 
 class MflmDataSetDriver(SingleFileDataSetDriver):
-    def __init__(self, config, memento, data_callback, state_callback, exception_callback):
+    def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
         super(MflmDataSetDriver, self).__init__(config, memento, data_callback,
-                                                state_callback, exception_callback)
+                                                state_callback, event_callback, exception_callback)
 
 
     @classmethod

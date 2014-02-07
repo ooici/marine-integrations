@@ -717,8 +717,8 @@ class SingleFileDataSetDriver(SimpleDataSetDriver):
     _in_process_state = None
     _next_driver_state = None
 
-    def __init__(self, config, memento, data_callback, state_callback, exception_callback):
-        super(SingleFileDataSetDriver, self).__init__(config, memento, data_callback, state_callback, exception_callback)
+    def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
+        super(SingleFileDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback, exception_callback)
 
         self._filename = self._harvester_config.get(DataSetDriverConfigKeys.PATTERN)
 

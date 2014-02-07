@@ -48,6 +48,7 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = MflmADCPSDataSetDriver.stream_config(),
     startup_config = {
+        DataSourceConfigKey.RESOURCE_ID: 'adcps',
         DataSourceConfigKey.HARVESTER:
         {
             DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
@@ -147,6 +148,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
             self.memento,
             self.data_callback,
             self.state_callback,
+            self.event_callback,
             self.exception_callback)
 
         # create some data to parse
@@ -203,6 +205,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
             self.memento,
             self.data_callback,
             self.state_callback,
+            self.event_callback,
             self.exception_callback)
 
         self.driver.start_sampling()

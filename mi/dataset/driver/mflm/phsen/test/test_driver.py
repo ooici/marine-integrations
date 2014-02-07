@@ -113,6 +113,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
             self.memento,
             self.data_callback,
             self.state_callback,
+            self.event_callback,
             self.exception_callback)
         self.driver.start_sampling()
 
@@ -163,6 +164,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
             self.memento,
             self.data_callback,
             self.state_callback,
+            self.event_callback,
             self.exception_callback)
 
         # create some data to parse
@@ -217,6 +219,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
             self.memento,
             self.data_callback,
             self.state_callback,
+            self.event_callback,
             self.exception_callback)
         self.driver.start_sampling()
 
