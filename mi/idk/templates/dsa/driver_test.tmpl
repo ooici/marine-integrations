@@ -26,6 +26,7 @@ from mi.idk.exceptions import SampleTimeout
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
+from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 
 from ${driver_module} import ${constructor}
 from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_first}ParserDataParticle
@@ -38,13 +39,14 @@ DataSetTestCase.initialize(
     agent_name = 'Agent007',
     agent_packet_config = ${constructor}.stream_config(),
     startup_config = {
-        'harvester':
+        DataSourceConfigKey.RESOURCE_ID: '${full_instrument_lower}',
+        DataSourceConfigKey.HARVESTER:
         {
-            'directory': '/tmp/dsatest',
-            'pattern': '',
-            'frequency': 1,
+            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
+            DataSetDriverConfigKeys.PATTERN: '',
+            DataSetDriverConfigKeys.FREQUENCY: 1,
         },
-        'parser': {}
+        DataSourceConfigKey.PARSER: {}
     }
 )
 

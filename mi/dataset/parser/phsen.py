@@ -37,8 +37,8 @@ class PhsenParserDataParticleKey(BaseEnum):
     RECORD_TYPE = 'record_type'
     RECORD_TIME = 'record_time_1904_uint32'
     THERMISTOR_START = 'thermistor_start'
-    REFERENCE_LIGHT_MEASUREMENT = 'reference_light_measurement'
-    LIGHT_MEASUREMENT = 'light_measurement'
+    REFERENCE_LIGHT_MEASUREMENTS = 'reference_light_measurements'
+    LIGHT_MEASUREMENTS = 'light_measurements'
     VOLTAGE_BATTERY = 'voltage_battery'
     THERMISTOR_END = 'thermistor_end'
     CHECKSUM = 'checksum'
@@ -110,9 +110,9 @@ class PhsenParserDataParticle(DataParticle):
                    DataParticleKey.VALUE: rec_time},
                   {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.THERMISTOR_START,
                    DataParticleKey.VALUE: therm_start},
-                  {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.REFERENCE_LIGHT_MEASUREMENT,
+                  {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.REFERENCE_LIGHT_MEASUREMENTS,
                    DataParticleKey.VALUE: list(ref_meas)},
-                  {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.LIGHT_MEASUREMENT,
+                  {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.LIGHT_MEASUREMENTS,
                    DataParticleKey.VALUE: list(light_meas)},
                   {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.VOLTAGE_BATTERY,
                    DataParticleKey.VALUE: volt_batt},
