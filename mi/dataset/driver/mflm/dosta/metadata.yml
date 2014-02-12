@@ -1,8 +1,8 @@
 driver_metadata:
+  version: 0.0.6
   author: Emily Hahn
   constructor: MflmDOSTADDataSetDriver
   driver_name: mflm_dosta
   driver_path: mflm/dosta
-  email: ehahn@bbn.com
   release_notes: initial release
-  version: 0.0.4
+  email: ehahn@bbn.com
