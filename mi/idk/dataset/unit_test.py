@@ -200,8 +200,6 @@ class DataSetTestCase(MiIntTestCase):
 
         log.debug("Harvester config: %s", harvester_config)
         data_dir = harvester_config.get("storage_directory")
-        if not data_dir:
-            raise IDKConfigMissing("Harvester config missing 'storage_directory'")
 
         log.debug("Data dir: %s", data_dir)
 
@@ -225,8 +223,9 @@ class DataSetTestCase(MiIntTestCase):
         log.debug("Clean all data from %s", data_dir)
         remove_all_files(data_dir)
 
+        # storage dir might not be in use
         log.debug("Clean all data from %s", stored_data_dir)
-        if os.path.isdir(stored_data_dir):
+        if stored_data_dir and os.path.isdir(stored_data_dir):
             remove_all_files(stored_data_dir)
 
     def create_sample_data(self, filename, dest_filename=None, mode=0644, create=True):

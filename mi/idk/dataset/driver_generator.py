@@ -70,20 +70,14 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
         @brief file name of the parser
         @retval parser filename
         """
-        if self.metadata.full_instrument_name == None:
-            print( "Please provide the full instrument name (class and series)")
-            self.metadata.full_instrument_name = prompt.text( 'Instrument name' )
-        return "%s.py" % self.metadata.full_instrument_name
+        return "%s.py" % self.metadata.driver_name.lower()
 
     def parser_test_filename(self):
         """
         @brief file name of the parser tests
         @retval parser test filename
         """
-        if self.metadata.full_instrument_name == None:
-            print( "Please provide the full instrument name (class and series)")
-            self.metadata.full_instrument_name = prompt.text( 'Instrument name' )
-        return "test_%s.py" % self.metadata.full_instrument_name
+        return "test_%s.py" % self.metadata.driver_name.lower()
 
     def parser_dir(self):
         """
@@ -155,13 +149,13 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
         """
         return re.sub('.*?marine-integrations', 'marine-integrations', self.parser_test_path())
 
-    def full_instrument_name_first_cap(self):
+    def driver_name_first_cap(self):
         """
         @brief full instrument name with first letter capitalized
         @retval full instrument name with first letter capitalized
         """
-        return self.metadata.full_instrument_name[0].upper() + \
-        self.metadata.full_instrument_name[1:].lower()
+        return self.metadata.driver_name[0].upper() + \
+        self.metadata.driver_name[1:].lower()
 
     ###
     #   Private Methods
@@ -189,8 +183,8 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
             'driver_path': self.metadata.driver_path,
             'release_notes': self.metadata.notes,
             'constructor': self.metadata.constructor,
-            'full_instrument_lower': self.metadata.full_instrument_name.lower(),
-            'full_instrument_first': self.full_instrument_name_first_cap(),
+            'full_instrument_lower': self.metadata.driver_name.lower(),
+            'full_instrument_first': self.driver_name_first_cap(),
         }
 
     def _parser_template_data(self):
@@ -206,8 +200,8 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
             'driver_path': self.metadata.driver_path,
             'release_notes': self.metadata.notes,
             'constructor': self.metadata.constructor,
-            'full_instrument_lower': self.metadata.full_instrument_name.lower(),
-            'full_instrument_first': self.full_instrument_name_first_cap(),
+            'full_instrument_lower': self.metadata.driver_name.lower(),
+            'full_instrument_first': self.driver_name_first_cap(),
         }
 
     def _test_template_data(self):
@@ -226,8 +220,8 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
             'author': self.metadata.author,
             'driver_name': self.metadata.driver_name,
             'constructor': self.metadata.constructor,
-            'full_instrument_lower': self.metadata.full_instrument_name.lower(),
-            'full_instrument_first': self.full_instrument_name_first_cap(),
+            'full_instrument_lower': self.metadata.driver_name.lower(),
+            'full_instrument_first': self.driver_name_first_cap(),
         }
 
     def _parser_test_template_data(self):
@@ -245,8 +239,8 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
             'file': self.parser_test_relative_path(),
             'author': self.metadata.author,
             'driver_name': self.metadata.driver_name,
-            'full_instrument_lower': self.metadata.full_instrument_name.lower(),
-            'full_instrument_first': self.full_instrument_name_first_cap()
+            'full_instrument_lower': self.metadata.driver_name.lower(),
+            'full_instrument_first': self.driver_name_first_cap()
         }
 
 
