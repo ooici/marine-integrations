@@ -441,6 +441,20 @@ class InstrumentProtocol(object):
             self._add_scheduler_job(name)
 
     #############################################################
+    # Gap recovery logic
+    #############################################################
+    def _start_gap_recovery(self, *args, **kwargs):
+        """
+        Currently this is just a mock implementation so the agent
+        tests could be put in place.  Before this code goes into
+        production it needs to be completed.
+
+        Start a new gap recovery thread to publish samples.
+        """
+        raise NotImplementedException("Needs to be implemented")
+
+
+    #############################################################
     # Configuration logic
     #############################################################
 
