@@ -1,9 +1,8 @@
 driver_metadata:
+  version: 0.0.3
   author: Emily Hahn
   constructor: MflmPHSENDataSetDriver
   driver_name: mflm_phsen
   driver_path: mflm/phsen
-  email: ehahn@bbn.com
-  full_instrument_name: phsen
   release_notes: initial release
-  version: 0.0.2
+  email: ehahn@bbn.com
