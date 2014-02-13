@@ -1527,6 +1527,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._cmd_dict.add(SBE37Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
         self._cmd_dict.add(SBE37Capability.ACQUIRE_CONFIGURATION, display_name="get configuration data")
         self._cmd_dict.add(SBE37Capability.ACQUIRE_SAMPLE, display_name="acquire sample")
+        self._cmd_dict.add(SBE37Capability.GAP_RECOVERY, display_name="recover gap data")
 
     def _build_param_dict(self):
         """
