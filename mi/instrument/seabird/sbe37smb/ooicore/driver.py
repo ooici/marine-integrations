@@ -14,8 +14,8 @@ import base64
 import logging
 import time
 import re
-import datetime
 from threading import Timer
+from threading import Thread
 import string
 import ntplib
 import json
@@ -99,9 +99,11 @@ class SBE37ProtocolEvent(BaseEnum):
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
+    GAP_RECOVERY = DriverEvent.GAP_RECOVERY
+    GAP_RECOVERY_COMPLETE = DriverEvent.GAP_RECOVERY_COMPLETE
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS                     # DS
     ACQUIRE_CONFIGURATION = "PROTOCOL_EVENT_ACQUIRE_CONFIGURATION"  # DC
-    
+
 class SBE37Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
@@ -112,6 +114,7 @@ class SBE37Capability(BaseEnum):
     TEST = SBE37ProtocolEvent.TEST
     ACQUIRE_STATUS  = SBE37ProtocolEvent.ACQUIRE_STATUS
     ACQUIRE_CONFIGURATION = SBE37ProtocolEvent.ACQUIRE_CONFIGURATION
+    GAP_RECOVERY = SBE37ProtocolEvent.GAP_RECOVERY
 
 # Device specific parameters.
 class SBE37Parameter(DriverParameter):
@@ -693,6 +696,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.ACQUIRE_CONFIGURATION, self._handler_command_acquire_configuration)
         self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.INIT_PARAMS, self._handler_command_init_params)
+        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.GAP_RECOVERY, self._handler_gap_recovery)
+        self._protocol_fsm.add_handler(SBE37ProtocolState.COMMAND, SBE37ProtocolEvent.GAP_RECOVERY_COMPLETE, self._handler_gap_recovery_complete)
 
         
         self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.ENTER, self._handler_autosample_enter)
@@ -700,6 +705,8 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.GET, self._handler_command_autosample_test_get)
         self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.INIT_PARAMS, self._handler_autosample_init_params)
+        self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.GAP_RECOVERY, self._handler_gap_recovery)
+        self._protocol_fsm.add_handler(SBE37ProtocolState.AUTOSAMPLE, SBE37ProtocolEvent.GAP_RECOVERY_COMPLETE, self._handler_gap_recovery_complete)
 
         self._protocol_fsm.add_handler(SBE37ProtocolState.TEST, SBE37ProtocolEvent.ENTER, self._handler_test_enter)
         self._protocol_fsm.add_handler(SBE37ProtocolState.TEST, SBE37ProtocolEvent.EXIT, self._handler_test_exit)
@@ -1104,6 +1111,36 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
     # Common handlers.
     ########################################################################
 
+    def _handler_gap_recovery(self, *args, **kwargs):
+        """
+        Start the gap recovery process.
+        @param args[0] ntp64 timestamp indicating starting point of the gap
+        @param args[1] ntp64 timestamp indicating ending point of the gap
+        @throws InstrumentParameterException if missing or invalid parameter.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        self._start_gap_recovery(*args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_gap_recovery_complete(self, *args, **kwargs):
+        """
+        Start the gap recovery process.
+        @param args[0] ntp64 timestamp indicating starting point of the gap
+        @param args[1] ntp64 timestamp indicating ending point of the gap
+        @throws InstrumentParameterException if missing or invalid parameter.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        log.debug("Recovery complete. Stopping recovery thread.")
+
+        return (next_state, (next_agent_state, result))
+
     def _handler_command_autosample_test_get(self, *args, **kwargs):
         """
         Get device parameters from the parameter dict.
@@ -1254,6 +1291,50 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         result = self._do_cmd_resp(InstrumentCmds.DISPLAY_CALIBRATION, *args, **kwargs)
 
         return (next_state, (next_agent_state, result))
+
+    #############################################################
+    # Gap recovery logic
+    #############################################################
+    def _start_gap_recovery(self, *args, **kwargs):
+        """
+        Currently this is just a mock implementation so the agent
+        tests could be put in place.  Before this code goes into
+        production it needs to be completed.
+
+        Start a new gap recovery thread to publish samples.
+        """
+        start = args[0]
+        end = args[1]
+        log.debug("Start gap recovery, start: %s, end: %s", start, end)
+
+        sample_data = [
+            "#55.9044,41.40610, 572.170,   34.2583, 1505.948, 05 Feb 2013, 19:16:59",
+            "#55.9045,41.40611, 572.171,   34.2583, 1505.948, 05 Feb 2013, 19:17:00",
+            "#55.9046,41.40612, 572.172,   34.2583, 1505.948, 05 Feb 2013, 19:17:01",
+            "#55.9047,41.40613, 572.173,   34.2583, 1505.948, 05 Feb 2013, 19:17:02",
+            "#55.9048,41.40614, 572.174,   34.2583, 1505.948, 05 Feb 2013, 19:17:03",
+            "#55.9049,41.40615, 572.175,   34.2583, 1505.948, 05 Feb 2013, 19:17:04",
+            "#55.9050,41.40616, 572.176,   34.2583, 1505.948, 05 Feb 2013, 19:17:05",
+            "#55.9051,41.40617, 572.177,   34.2583, 1505.948, 05 Feb 2013, 19:17:06",
+            "#55.9052,41.40618, 572.178,   34.2583, 1505.948, 05 Feb 2013, 19:17:07",
+            "#55.9053,41.40619, 572.179,   34.2583, 1505.948, 05 Feb 2013, 19:17:08",
+        ]
+
+        def publish_fake_replay(self, start, end):
+            interval = (end - start) / float(len(sample_data))
+            timestamp = start
+
+            log.debug("Publish Fake Reply, start: %s, end: %s, interval: %s", start, end, interval)
+            for sample in sample_data:
+                log.debug("Publish fake record: %s", sample)
+                result = self._extract_sample(SBE37DataParticle, SAMPLE_PATTERN_MATCHER, sample, timestamp)
+                timestamp += interval
+                time.sleep(0.5)
+
+            self._protocol_fsm.on_event(SBE37ProtocolEvent.GAP_RECOVERY_COMPLETE)
+
+        self._recovery_thread = Thread(target=publish_fake_replay, args=(self,start, end))
+        self._recovery_thread.start()
 
 
     ########################################################################
@@ -1446,6 +1527,7 @@ class SBE37Protocol(CommandResponseInstrumentProtocol):
         self._cmd_dict.add(SBE37Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
         self._cmd_dict.add(SBE37Capability.ACQUIRE_CONFIGURATION, display_name="get configuration data")
         self._cmd_dict.add(SBE37Capability.ACQUIRE_SAMPLE, display_name="acquire sample")
+        self._cmd_dict.add(SBE37Capability.GAP_RECOVERY, display_name="recover gap data")
 
     def _build_param_dict(self):
         """

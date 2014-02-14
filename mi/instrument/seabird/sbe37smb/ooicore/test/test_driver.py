@@ -1231,12 +1231,52 @@ class SBEIntTestCase(SeaBirdIntegrationTest, SBEMixin):
         self.assert_initialize_driver()
         self.assert_get(SBE37Parameter.INTERVAL, 1)
 
+    def test_reachback_recovery(self):
+        """
+        Verify that reachback into old data.  Currently this is just spoofed in the driver.
+        """
+        self.assert_initialize_driver()
+        recovery_start = 1
+        recovery_end = 11
 
-#self._dvr_proc = self.driver_process
-#self._pagent = self.port_agent
-#self._dvr_client = self.driver_client
-#self._events = self.events
-#COMMS_CONFIG = self.port_agent_comm_config()
+        # Make sure the device parameters are set to sample frequently.
+        params = {
+            SBE37Parameter.NAVG : 1,
+            SBE37Parameter.INTERVAL : 5
+        }
+        reply = self.driver_client.cmd_dvr('set_resource', params)
+
+        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.START_AUTOSAMPLE)
+
+        # Test the driver is in autosample mode.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+        self.assertEqual(state, SBE37ProtocolState.AUTOSAMPLE)
+
+        reply = self.driver_client.cmd_dvr('execute_resource', SBE37Capability.GAP_RECOVERY, recovery_start, recovery_end)
+
+        # Enough time for a sample event to roll in.
+        gevent.sleep(12)
+
+        samples = self.get_sample_events(DataParticleType.PARSED)
+
+        recovered_particles = []
+
+        for sample in samples:
+            log.debug("Sample: %s", sample)
+            value = sample.get('value')
+            self.assertIsNotNone(value)
+
+            particle = json.loads(value)
+            self.assertIsNotNone(particle)
+
+            log.debug("PA Timestamp: %s", particle['port_timestamp'])
+
+            if particle['port_timestamp'] >= recovery_start and particle['port_timestamp'] <= recovery_end:
+                recovered_particles.append(particle)
+
+        # Ensure we detected all the samples we expect to recover.
+        self.assertEqual(len(recovered_particles), 10)
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #

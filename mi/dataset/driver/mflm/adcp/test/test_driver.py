@@ -143,13 +143,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
                                                      'timestamp': 3583725976.97
                                                      }
         }
-        self.driver = MflmADCPSDataSetDriver(
-            self._driver_config()['startup_config'],
-            self.memento,
-            self.data_callback,
-            self.state_callback,
-            self.event_callback,
-            self.exception_callback)
+
+        self.driver = self._get_driver_object(config=driver_config)
 
         # create some data to parse
         self.clear_async_data()
@@ -200,13 +195,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Reset the driver with no memento
         self.memento = None
-        self.driver = MflmADCPSDataSetDriver(
-            self._driver_config()['startup_config'],
-            self.memento,
-            self.data_callback,
-            self.state_callback,
-            self.event_callback,
-            self.exception_callback)
+        self.driver = self._get_driver_object()
 
         self.driver.start_sampling()
 
