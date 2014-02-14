@@ -44,7 +44,6 @@ class MflmDataSetDriver(SingleFileDataSetDriver):
         self._harvester = SingleFileHarvester(
             self._harvester_config,
             driver_state,
-            self._new_file_callback,
             self._file_changed_callback,
             self._exception_callback
         )     
