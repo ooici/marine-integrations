@@ -752,9 +752,12 @@ class SingleFileDataSetDriver(SimpleDataSetDriver):
         log.debug('in dataset driver got file, driver state %s, next state %s', self._driver_state, self._next_driver_state)
         self._in_process_state = self._next_driver_state
         directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
-        storage_directory = self._harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY)
-        shutil.copy2(os.path.join(directory, self._filename), storage_directory)
-        log.info("Copied file %s from %s to %s" % (self._filename, directory, storage_directory))
+
+        # removed storage directory usage for now, may bring back in the future
+        #storage_directory = self._harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY)
+        #shutil.copy2(os.path.join(directory, self._filename), storage_directory)
+        #log.info("Copied file %s from %s to %s" % (self._filename, directory, storage_directory))
+
         count = 1
         delay = None
 
@@ -765,7 +768,7 @@ class SingleFileDataSetDriver(SimpleDataSetDriver):
 
         # Open the copied file in the storage directory so we know the file won't be
         # changed while we are reading it
-        path = os.path.join(storage_directory, self._filename)
+        path = os.path.join(directory, self._filename)
         self._raise_new_file_event(path)
         handle = open(path)
 

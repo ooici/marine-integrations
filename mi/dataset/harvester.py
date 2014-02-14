@@ -336,7 +336,7 @@ class SingleFileHarvester(SingleFilePoller, Harvester):
     @param file_callback - function to callback when a file change is found
     @param exception_callback - function to callback when an exception occurs
     """
-    def __init__(self, config, memento, file_callback, modified_callback, exception_callback):
+    def __init__(self, config, memento, file_callback, exception_callback):
         if not isinstance(config, dict):
             raise TypeError("Config object must be a dict")
         if memento is None:
