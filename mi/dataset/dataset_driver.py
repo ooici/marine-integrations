@@ -651,7 +651,7 @@ class SimpleDataSetDriver(DataSetDriver):
         finally:
             self._file_in_process = None
 
-    def _save_parser_state(self, state):
+    def _save_parser_state(self, state, file_ingested):
         """
         Callback to store the parser state in the driver object.
         @param state: Object used by the parser to indicate position
@@ -660,11 +660,9 @@ class SimpleDataSetDriver(DataSetDriver):
         # this is for the directory harvester which uses file name keys
         self._driver_state[self._file_in_process][DriverStateKey.PARSER_STATE] = state
         # check if file has been completely parsed by comparing the parsed position and file size
-        if state and 'position' in state:
-            file_size = self._driver_state[self._file_in_process][DriverStateKey.FILE_SIZE]
-            if file_size <= (state.get('position') + 1):
-                log.debug("File %s fully parsed", self._file_in_process)
-                self._driver_state[self._file_in_process][DriverStateKey.INGESTED] = True
+        if file_ingested:
+            log.debug("File %s fully parsed", self._file_in_process)
+            self._driver_state[self._file_in_process][DriverStateKey.INGESTED] = True
         self._state_callback(self._driver_state)
 
     def _init_state(self, memento):

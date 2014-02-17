@@ -407,6 +407,17 @@ class DataSetIntegrationTestCase(DataSetTestCase):
 
             self.assertTrue(rs.verify(particles), msg="Failed data validation, check the logs.")
 
+    def assert_file_ingested(self, filename):
+        """
+        Assert that a particular file was ingested (useable by Single Directory driver, not Single File driver),
+        If the ingested flag is not set in the driver state for this file, fail the test
+        @ param filename name of the file to check that it was ingested using the ingested flag
+        """
+        log.debug("last state callback result %s", self.state_callback_result[-1])
+        last_state = self.state_callback_result[-1]
+        if not filename in last_state or not last_state[filename]['ingested']:
+            self.fail("File %s was not ingested" % filename)
+
     def get_samples(self, particle_class, count=1, timeout=10):
         to = gevent.Timeout(timeout)
         to.start()
