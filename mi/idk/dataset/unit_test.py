@@ -386,6 +386,32 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         finally:
             to.cancel()
 
+    def assert_event(self, event_class_str, timeout=35):
+        """
+        Wait for an event in the event callback queue
+        """
+        to = gevent.Timeout(timeout)
+        to.start()
+        done = False
+
+        try:
+            while not done:
+                for exp in self.event_callback_result:
+                    if 'event_type' in exp and exp.get('event_type') == event_class_str:
+                        log.info("Expected event detected: %s", exp)
+                        done = True
+
+                if not done:
+                    log.debug("No event detected yet, sleep for a bit")
+                    gevent.sleep(1)
+
+        except Timeout:
+            log.error("Failed to detect event %s", event_class_str)
+            self.fail("Event detection failed.")
+
+        finally:
+            to.cancel()
+
     def assert_data(self, particle_class, result_set_file=None, count=1, timeout=10):
         """
         Wait for a data particle in the data callback queue
@@ -417,6 +443,17 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         last_state = self.state_callback_result[-1]
         if not filename in last_state or not last_state[filename]['ingested']:
             self.fail("File %s was not ingested" % filename)
+
+    def assert_file_not_ingested(self, filename):
+        """
+        Assert that a particular file was not ingested (useable by Single Directory driver, not Single File driver),
+        If the ingested flag is set in the driver state for this file, fail the test
+        @ param filename name of the file to check that it was ingested using the ingested flag
+        """
+        log.debug("last state callback result %s", self.state_callback_result[-1])
+        last_state = self.state_callback_result[-1]
+        if filename in last_state and last_state[filename]['ingested']:
+            self.fail("File %s was ingested when we expected it not to be" % filename)
 
     def get_samples(self, particle_class, count=1, timeout=10):
         to = gevent.Timeout(timeout)

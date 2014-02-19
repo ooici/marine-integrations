@@ -57,9 +57,9 @@ class MflmDataSetDriver(SingleFileDataSetDriver):
         log.debug('in mflm got file, driver state %s, next state %s', self._driver_state, self._next_driver_state)
         self._in_process_state = self._next_driver_state
         directory = self._harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
-        storage_directory = self._harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY)
-        shutil.copy2(os.path.join(directory, self._filename), storage_directory)
-        log.info("Copied file %s from %s to %s" % (self._filename, directory, storage_directory))
+        #storage_directory = self._harvester_config.get(DataSetDriverConfigKeys.STORAGE_DIRECTORY)
+        #shutil.copy2(os.path.join(directory, self._filename), storage_directory)
+        #log.info("Copied file %s from %s to %s" % (self._filename, directory, storage_directory))
         count = 1
         delay = None
 
@@ -70,7 +70,7 @@ class MflmDataSetDriver(SingleFileDataSetDriver):
 
         # Open the copied file in the storage directory so we know the file won't be
         # changed while we are reading it
-        handle = open(os.path.join(storage_directory, self._filename), 'rb')
+        handle = open(os.path.join(directory, self._filename), 'rb')
 
         # need to check if the file has grown larger, if it has update the last
         # unprocessed data index

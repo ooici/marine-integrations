@@ -646,7 +646,9 @@ class SimpleDataSetDriver(DataSetDriver):
                     break
 
         except SampleException as e:
-            raise e
+            # need to mark the bad file as ingested so we don't re-ingest it
+            self._save_parser_state_after_error()
+            self._sample_exception_callback(e)
 
         finally:
             self._file_in_process = None
@@ -663,6 +665,15 @@ class SimpleDataSetDriver(DataSetDriver):
         if file_ingested:
             log.debug("File %s fully parsed", self._file_in_process)
             self._driver_state[self._file_in_process][DriverStateKey.INGESTED] = True
+        self._state_callback(self._driver_state)
+
+    def _save_parser_state_after_error(self):
+        """
+        If a file has a sample exception that has made it to the driver, this file is done,
+        mark it as ingested and save the state
+        """
+        log.debug("File %s fully parsed", self._file_in_process)
+        self._driver_state[self._file_in_process][DriverStateKey.INGESTED] = True
         self._state_callback(self._driver_state)
 
     def _init_state(self, memento):

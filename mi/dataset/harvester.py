@@ -94,9 +94,13 @@ class SingleDirectoryPoller(ConditionPoller):
             filenames = glob.glob(self._path)
 
         # if there are underscores in the filename, sort by ascii rather than 
-        if len(filenames) > 0 and NUMBER_UNDERSCORE_MATCHER.search(filenames[0]):
-            filenames = self.sort_files(filenames)
-            
+        if len(filenames) > 0:
+            if NUMBER_UNDERSCORE_MATCHER.search(filenames[0]):
+                filenames = self.sort_files(filenames)
+            else:
+                filenames.sort()
+
+        log.debug("found files %s", filenames)
         new_files = []
         modified_files = False
         # loop over all files in the directory and compare their state to that in the harvester state dictionary
