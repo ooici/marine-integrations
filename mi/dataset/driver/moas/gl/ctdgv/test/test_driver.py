@@ -102,16 +102,19 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_6.mrg")
         self.assert_data(GgldrCtdgvDelayedDataParticle, 'single_ctdgv_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_file_ingested("unit_363_2013_245_6_6.mrg")
 
         self.clear_async_data()
         self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_7_6.mrg")
         self.assert_data(GgldrCtdgvDelayedDataParticle, 'multiple_ctdgv_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_file_ingested("unit_363_2013_245_7_6.mrg")
 
         log.debug("Start second file ingestion")
         # Verify sort order isn't ascii, but numeric
         self.clear_async_data()
         self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
         self.assert_data(GgldrCtdgvDelayedDataParticle, count=171, timeout=30)
+        self.assert_file_ingested("unit_363_2013_245_10_6.mrg")
 
     def test_stop_resume(self):
         """
@@ -134,6 +137,28 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # verify data is produced
         self.assert_data(GgldrCtdgvDelayedDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=3, timeout=10)
+        self.assert_file_ingested("unit_363_2013_245_6_9.mrg")
+
+    def test_stop_start_ingest(self):
+        """
+        Test the ability to stop and restart sampling, and ingesting files in the correct order
+        """
+        # create some data to parse
+        self.clear_async_data()
+
+        self.driver.start_sampling()
+
+        self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_6.mrg")
+        self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_7_6.mrg")
+        self.assert_data(GgldrCtdgvDelayedDataParticle, 'single_ctdgv_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_file_ingested("unit_363_2013_245_6_6.mrg")
+        self.assert_file_not_ingested("unit_363_2013_245_7_6.mrg")
+
+        self.driver.stop_sampling()
+        self.driver.start_sampling()
+
+        self.assert_data(GgldrCtdgvDelayedDataParticle, 'multiple_ctdgv_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_file_ingested("unit_363_2013_245_7_6.mrg")
 
     def test_bad_sample(self):
         """
@@ -154,7 +179,23 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # verify data is produced
         self.assert_data(GgldrCtdgvDelayedDataParticle, 'bad_sample_ctdgv_record.mrg.result.yml', count=3, timeout=10)
+        self.assert_file_ingested("unit_363_2013_245_6_9.mrg")
 
+    def test_sample_exception(self):
+        """
+        test that a file is marked as parsed if it has a sample exception (which will happen with an empty file)
+        """
+        self.clear_async_data()
+
+        config = self._driver_config()['startup_config']['harvester']['pattern']
+        filename = config.replace("*", "foo")
+        self.create_sample_data(filename)
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+        # an event catches the sample exception
+        self.assert_event('ResourceAgentErrorEvent')
+        self.assert_file_ingested(filename)
 
     @unittest.skip('skip until this feature is implemented')
     def test_missing_storage(self):
@@ -325,12 +366,6 @@ class QualificationTest(DataSetQualificationTestCase):
 
         result = self.get_samples(SAMPLE_STREAM,171,120)
 
-        self.create_sample_data('unit_192_2013_192_1_0.mrg')
-        gevent.sleep(10)
-
-    def test_harvester_new_file_exception(self):
-        self.assert_new_file_exception('unit_363_2013_245_6_6.mrg')
-
     def test_lost_connection(self):
         """
         Test a parser exception and verify that the lost connection logic works
@@ -353,14 +388,13 @@ class QualificationTest(DataSetQualificationTestCase):
         result = self.data_subscribers.get_samples(SAMPLE_STREAM)
         self.assert_data_values(result, 'single_ctdgv_record.mrg.result.yml')
 
-    @unittest.skip('foo')
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        log.error("CONFIG: %s", self._agent_config())
-        self.create_sample_data('test_data_1.txt', 'DATA001.txt')
+        log.info("CONFIG: %s", self._agent_config())
+        self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_6.mrg")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -375,19 +409,68 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'test_data_1.txt.result.yml')
+            self.assert_data_values(result, 'single_ctdgv_record.mrg.result.yml')
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
-            self.create_sample_data('test_data_3.txt', 'DATA003.txt')
+            self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_7_6.mrg")
             # Now read the first three records of the second file then stop
-            result = self.get_samples(SAMPLE_STREAM, 3)
+            result = self.get_samples(SAMPLE_STREAM, 1)
+            log.debug("got result 1 %s", result)
             self.assert_stop_sampling()
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
             # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()
-            result = self.get_samples(SAMPLE_STREAM, 5)
-            self.assert_data_values(result, 'test_data_3.txt.partial_results.yml')
+            result = self.get_samples(SAMPLE_STREAM, 3)
+            log.debug("got result 2 %s", result)
+            self.assert_data_values(result, 'merged_ctdgv_record.mrg.result.yml')
+
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+    def test_shutdown_restart(self):
+        """
+        Test the agents ability to completely stop, then restart
+        at the correct spot.
+        """
+        log.info("CONFIG: %s", self._agent_config())
+        self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_6.mrg")
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # Verify we get one sample
+        try:
+            # Read the first file and verify the data
+            result = self.get_samples(SAMPLE_STREAM)
+            log.debug("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'single_ctdgv_record.mrg.result.yml')
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+
+            self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_7_6.mrg")
+            # Now read the first records of the second file then stop
+            result = self.get_samples(SAMPLE_STREAM, 1)
+            log.debug("got result 1 %s", result)
+            self.assert_stop_sampling()
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            # stop the agent
+            self.stop_dataset_agent_client()
+            # re-start the agent
+            self.init_dataset_agent_client()
+            #re-initialize
+            self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+            # Restart sampling and ensure we get the last 5 records of the file
+            self.assert_start_sampling()
+            result = self.get_samples(SAMPLE_STREAM, 3)
+            log.debug("got result 2 %s", result)
+            self.assert_data_values(result, 'merged_ctdgv_record.mrg.result.yml')
 
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
         except SampleTimeout as e:

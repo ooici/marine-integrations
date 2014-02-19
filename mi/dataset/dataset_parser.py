@@ -129,6 +129,7 @@ class BufferLoadingParser(Parser):
     to operate this way, but it can keep memory in check and smooth out
     stream inputs if they dont all come at once.
     """
+    file_complete = False
         
     def get_records(self, num_records):
         """
@@ -175,7 +176,11 @@ class BufferLoadingParser(Parser):
                 return_list.append(item[0])
             self._publish_sample(return_list)
             log.trace("Sending parser state [%s] to driver", self._state)
-            self._state_callback(self._state) # push new state to driver
+            file_ingested = False
+            if self.file_complete and len(self._record_buffer) == 0:
+                # file has been read completely and all records pulled out of the record buffer
+                file_ingested = True
+            self._state_callback(self._state, file_ingested) # push new state to driver
 
         return return_list
         
@@ -201,6 +206,7 @@ class BufferLoadingParser(Parser):
             self._chunker.add_chunk(data, self._timestamp)
             return len(data)
         else: # EOF
+            self.file_complete = True
             raise EOFError
 
     def parse_chunks(self):

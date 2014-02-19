@@ -532,7 +532,7 @@ class GliderParser(BufferLoadingParser):
 
         @param increment Number of bytes to increment the parser position.
         """
-        log.trace("Incrementing current state: %s with inc: %s",
+        log.debug("Incrementing current state: %s with inc: %s",
                   self._read_state, increment)
         self._read_state[StateKey.POSITION] += increment
         # Thomas, my monkey of a son, wanted this comment inserted in the code. -CW
@@ -657,17 +657,19 @@ class GliderParser(BufferLoadingParser):
                 elif self._has_science_data(data_dict):
                     # create the particle
                     particle = self._extract_sample(self._particle_class, None, data_dict, timestamp)
+                    self._increment_state(end)
                     result_particles.append((particle, copy.copy(self._read_state)))
                 else:
                     log.debug("No science data found in particle. %s", data_dict)
+                    self._increment_state(end)
 
             elif self._whitespace_regex.match(data_record):
                 log.debug("Only whitespace detected in record.  Ignoring.")
+                self._increment_state(end)
             else:
                 log.error("Data record did not match data pattern.  Failed parsing: '%s'", data_record)
                 self._exception_callback(SampleException("data record does not match sample pattern: '%s'" % data_record))
 
-            self._increment_state(end)
             (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
         # publish the results
