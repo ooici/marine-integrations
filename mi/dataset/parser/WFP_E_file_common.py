@@ -41,7 +41,6 @@ class DataParticleType(BaseEnum):
     # Data particle types for the WFP E file
     PARAD_K__STC_IMODEM_PARSED = 'parad_k__stc_imodem_parsed'
     FLORT_KN__STC_IMODEM_PARSED = 'flort_kn__stc_imodem_parsed'
-    WFP_ENG__STC_IMODEM_PARSED = 'wfp_eng__stc_imodem_parsed'
 
 
 class WfpEFileParser(BufferLoadingParser):
@@ -57,16 +56,21 @@ class WfpEFileParser(BufferLoadingParser):
         self._timestamp = 0.0
         self._record_buffer = [] # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION: 0}
-	self._parse_header()
         super(WfpEFileParser, self).__init__(config,
                                              stream_handle,
                                              state,
-                                             #TODO insert regex <- Maria,
+                                             partial(BinaryChunker.regex_sieve_function,
+                                                  regex_list=[PROFILE_MATCHER, DATA_SAMPLE_MATCHER]),
                                              state_callback,
                                              publish_callback,
                                              *args, **kwargs)
+
         if state:
-            self.set_state(self._state)
+	    if state[StateKey.POSITION] < HEADER_SIZE:
+		self._parse_header()
+            self.set_state(state)
+	else:
+	    self._parse_header()
 
     def set_state(self, state_obj):
 	"""
@@ -92,17 +96,39 @@ class WfpEFileParser(BufferLoadingParser):
 	# Maria
 	pass
 
-    def parse_record(self):
+    def parse_record(self, record):
 	"""
 	determine if this is a engineering or data record and parse
 	"""
-	# Maria
-	pass
+	# This needs to get implemented by each instrument, not here
+	if PROFILE_MATCHER.match(record):
+	    # only WFP needs this, Mike and Maria can just match DATA_SAMPLE_MATCHER
+	    sample = self._extract_sample()
+	else if DATA_SAMPLE_MATCHER.match(record):
+	    # send to each individual instrument particle
+	    sample = self._extract_sample(YourInstrumentParticle)
+	if sample:
+	    # update state, return particle
 
     def parse_chunks(self):
-	"""
-	parse wfp e file
-	"""
-	# Mike
-	pass
+        """
+        Parse out any pending data chunks in the chunker. If
+        it is a valid data piece, build a particle, update the position and
+        timestamp. Go until the chunker has no more valid data.
+        @retval a list of tuples with sample particles encountered in this
+            parsing, plus the state. An empty list of nothing was parsed.
+        """
+        result_particles = []
+        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+        non_data = None
+
+        while (chunk != None):
+            result_particle = parse_record(chunk)
+            if result_particle:
+                result_particles.append(result_particle)
+
+            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
+
+        return result_particles
 
