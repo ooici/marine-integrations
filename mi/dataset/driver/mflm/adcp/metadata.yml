@@ -1,8 +1,8 @@
 driver_metadata:
+  version: 0.0.4
   author: Emily Hahn
   constructor: MflmADCPSDataSetDriver
   driver_name: mflm_adcp
   driver_path: mflm/adcp
-  email: ehahn@bbn.com
   release_notes: Initial version.
-  version: 0.0.2
+  email: ehahn@bbn.com
