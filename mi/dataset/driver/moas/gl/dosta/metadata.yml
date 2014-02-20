@@ -1,8 +1,8 @@
 driver_metadata:
+  version: 0.1.2
   author: Stuart Pearce & Chris Wingard
+  constructor: DOSTADataSetDriver
   driver_name: glider_dosta
   driver_path: moas/gl/dosta
-  email: spearce@coas.oregonstate.edu
   release_notes: initial release
-  version: 0.1.1
-  constructor: DOSTADataSetDriver
+  email: spearce@coas.oregonstate.edu
