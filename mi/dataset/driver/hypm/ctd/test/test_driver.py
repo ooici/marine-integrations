@@ -87,14 +87,17 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data('test_data_1.txt', "DATA001.txt")
         self.assert_data(CtdpfParserDataParticle, 'test_data_1.txt.result.yml', count=1, timeout=10)
+        self.assert_file_ingested("DATA001.txt")
 
         self.clear_async_data()
         self.create_sample_data('test_data_3.txt', "DATA002.txt")
         self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.result.yml', count=8, timeout=10)
+        self.assert_file_ingested("DATA002.txt")
 
         self.clear_async_data()
         self.create_sample_data('DATA003.txt')
         self.assert_data(CtdpfParserDataParticle, count=436, timeout=20)
+        self.assert_file_ingested("DATA003.txt")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
@@ -102,6 +105,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data('test_data_1.txt', "DATA004.txt")
         self.assert_data(CtdpfParserDataParticle, count=1, timeout=10)
+        self.assert_file_ingested("DATA004.txt")
 
     def test_harvester_config_exception(self):
         """
@@ -143,6 +147,29 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # verify data is produced
         self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.partial_results.yml', count=5, timeout=10)
+        # verify we got the rest of the file
+        self.assert_file_ingested("DATA002.txt")
+
+    def test_stop_start_ingest(self):
+        """
+        Test the ability to stop and restart sampling, and ingesting files in the correct order
+        """
+        # create some data to parse
+        self.clear_async_data()
+        
+        self.driver.start_sampling()
+        
+        self.create_sample_data('test_data_1.txt', "DATA001.txt")
+        self.create_sample_data('test_data_3.txt', "DATA002.txt")
+        self.assert_data(CtdpfParserDataParticle, 'test_data_1.txt.result.yml', count=1, timeout=10)
+        self.assert_file_ingested("DATA001.txt")
+        self.assert_file_not_ingested("DATA002.txt")
+        
+        self.driver.stop_sampling()
+        self.driver.start_sampling()
+        
+        self.assert_data(CtdpfParserDataParticle, 'test_data_3.txt.result.yml', count=8, timeout=10)
+        self.assert_file_ingested("DATA002.txt")
 
     def test_bad_sample(self):
         """
@@ -157,6 +184,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.create_sample_data('bad_sample_data.txt', "DATA001.txt")
         self.assert_data(CtdpfParserDataParticle, 'bad_sample_data.txt.result.yml', count=2, timeout=10)
         gevent.sleep(5)
+        self.assert_file_ingested("DATA001.txt")
 
 
 ###############################################################################
@@ -231,6 +259,54 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("Time to stop sampling")
             self.assert_stop_sampling()
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+
+            # Restart sampling and ensure we get the last 5 records of the file
+            self.assert_start_sampling()
+            result = self.get_samples(SAMPLE_STREAM, 5)
+            self.assert_data_values(result, 'test_data_3.txt.partial_results.yml')
+
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+    def test_shutdown_restart(self):
+        """
+        Test the agents ability to start data flowing, stop the agent, then
+        restart the agent and read at the correct spot.
+        """
+        log.error("CONFIG: %s", self._agent_config())
+        self.create_sample_data('test_data_1.txt', 'DATA001.txt')
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second to give us time to stop
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # Verify we get one sample
+        try:
+            # Read the first file and verify the data
+            result = self.get_samples(SAMPLE_STREAM)
+            log.debug("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'test_data_1.txt.result.yml')
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+
+            self.create_sample_data('test_data_3.txt', 'DATA003.txt')
+            # Now read the first three records of the second file then stop
+            result = self.get_samples(SAMPLE_STREAM, 3)
+            log.debug("Time to stop sampling")
+            self.assert_stop_sampling()
+            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            
+            # stop the agent
+            self.stop_dataset_agent_client()
+            # re-start the agent
+            self.init_dataset_agent_client()
+            # re-initialize
+            self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
             # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()

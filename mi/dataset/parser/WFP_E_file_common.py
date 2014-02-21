@@ -56,6 +56,7 @@ class WfpEFileParser(BufferLoadingParser):
         self._timestamp = 0.0
         self._record_buffer = [] # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION: 0}
+	self._profile_start_stop_data = None
         super(WfpEFileParser, self).__init__(config,
                                              stream_handle,
                                              state,
@@ -89,12 +90,15 @@ class WfpEFileParser(BufferLoadingParser):
 	# Mike
         self._read_state[StateKey.Position] += increment
 
-    def _parse_header(self):
+    def _parse_header(self, header):
 	"""
 	parse the flags (just for error checking) and sensor /profiler time
 	"""
 	# Maria
-	pass
+	# need to store profile start and stop time to pass to WFP
+	match = START_TIME_MATCHER.match(header[])
+	if match:
+	    self._profile_start_stop_data = match.group(0)
 
     def parse_record(self, record):
 	"""

@@ -21,7 +21,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import SampleException, DatasetParserException
-from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, DATA_SAMPLE_MATCHER, PROFILE_MATCHER
+from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, DATA_SAMPLE_MATCHER, PROFILE_MATCHER, START_TIME_MATCHER
 from mi.dataset.dataset_parser import Parser
 
 
@@ -51,24 +51,32 @@ class Wfp_eng__stc_imodem_profilerParserDataParticle(DataParticle):
         a particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-        match = PROFILE_MATCHER.match(self.raw_data)
+        match_ss = START_TIME_MATCHER.match(self.raw_data[:8])
+        match_prof = PROFILE_MATCHER.match(self.raw_data[8:])
 
-        if not match:
+        if not match_ss or not match_prof:
             raise SampleException("Wfp_eng__stc_imodem_profilerParserDataParticle: No regex match of parsed sample data: [%s]",
                                   self.raw_data)
 
         try:
-            fields = struct.unpack('<ihhII', match.group(0))
-            indicator = int(fields[0])
-            ramp_status = int(fields[1])
-            profile_status = int(fields[2])
-            profile_stop = int(fields[3])
-            sensor_stop = int(fields[4])
+            fields_ss = struct.unpack('<II', match_ss.group(0))
+            sensor_start = int(fields_ss[0])
+            profile_start = int(fields_ss[1])
+            fields_prof = struct.unpack('<ihhII', match_prof.group(0))
+            indicator = int(fields_prof[0])
+            ramp_status = int(fields_prof[1])
+            profile_status = int(fields_prof[2])
+            profile_stop = int(fields_prof[3])
+            sensor_stop = int(fields_prof[4])
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
         
-        result = [{DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.INDICATOR,
+        result = [{DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.SENSOR_START,
+                   DataParticleKey.VALUE: sensor_start},
+                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.PROFILE_START,
+                   DataParticleKey.VALUE: profile_start},
+                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.INDICATOR,
                    DataParticleKey.VALUE: indicator},
                   {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.RAMP_STATUS,
                    DataParticleKey.VALUE: ramp_status},
@@ -172,8 +180,10 @@ class Wfp_eng__stc_imodemParser(WfpEFileParser):
         result_particle = []
 	if PROFILE_MATCHER.match(record):
 	    # send to WFP_eng_profiler if WFP
+            # the profiler data is made up of the start/stop profile time from the header and each profile record
+            profiler_data = self._profile_start_stop_data + record
 	    sample = self._extract_sample(Wfp_eng__stc_imodem_profilerParserDataParticle, PROFILE_MATCHER,
-                                          record, self._timestamp)
+                                          profiler_data, self._timestamp)
 	else if DATA_SAMPLE_MATCHER.match(record):
 	    # send to each individual instrument particle
 	    sample = self._extract_sample(Wfp_eng__stc_imodem_engineeringParserDataParticle, DATA_SAMPLE_MATCHER,
