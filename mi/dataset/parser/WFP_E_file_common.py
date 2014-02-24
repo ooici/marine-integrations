@@ -37,11 +37,6 @@ DATA_SAMPLE_MATCHER = re.compile(DATA_SAMPLE_REGEX)
 class StateKey(BaseEnum):
     POSITION = "position"
 
-class DataParticleType(BaseEnum):
-    # Data particle types for the WFP E file
-    PARAD_K__STC_IMODEM_PARSED = 'parad_k__stc_imodem_parsed'
-    FLORT_KN__STC_IMODEM_PARSED = 'flort_kn__stc_imodem_parsed'
-
 
 class WfpEFileParser(BufferLoadingParser):
 
@@ -77,8 +72,14 @@ class WfpEFileParser(BufferLoadingParser):
 	"""
 	initialize the state
 	"""
-	# Mike
-        pass
+	log.trace("Attempting to set state to: %s", state_obj)
+        if not isinstance(state_obj, dict):
+            raise DatasetParserException("Invalid state structure")
+        if not (StateKey.POSITION in state_obj):
+            raise DatasetParserException("Invalid state keys")
+        self._state = state_obj
+        self._read_state = state_obj
+        self._stream_handle.seek(state_obj[StateKey.POSITION])
 
     def increment_state(self, increment):
 	"""
@@ -87,7 +88,6 @@ class WfpEFileParser(BufferLoadingParser):
         been published.
         @ param increment number of bytes to increment parser position
 	"""
-	# Mike
         self._read_state[StateKey.Position] += increment
 
     def _parse_header(self, header):
@@ -95,7 +95,6 @@ class WfpEFileParser(BufferLoadingParser):
 	parse the flags (just for error checking) and sensor /profiler time
 	"""
 	# Maria
-	# need to store profile start and stop time to pass to WFP
 	match = START_TIME_MATCHER.match(header[])
 	if match:
 	    self._profile_start_stop_data = match.group(0)
@@ -122,6 +121,7 @@ class WfpEFileParser(BufferLoadingParser):
         @retval a list of tuples with sample particles encountered in this
             parsing, plus the state. An empty list of nothing was parsed.
         """
+	# Mike
         result_particles = []
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
         non_data = None

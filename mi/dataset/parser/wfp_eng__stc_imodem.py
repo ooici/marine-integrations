@@ -26,42 +26,38 @@ from mi.dataset.dataset_parser import Parser
 
 
 class DataParticleType(BaseEnum):
-    PROFILER_STATUS = 'wfp_eng__stc_imodem_profiler_status'
+    START_TIME = 'wfp_eng__stc_imodem_start_time'
+    STATUS = 'wfp_eng__stc_imodem_status'
     ENGINEERING = 'wfp_eng__stc_imodem_engineering'
 
-class Wfp_eng__stc_imodem_profilerParserDataParticleKey(BaseEnum):
-    SENSOR_START = 'sensor_start'
-    PROFILE_START = 'profile_start'
+class Wfp_eng__stc_imodem_statusParserDataParticleKey(BaseEnum):
     INDICATOR = 'indicator'
     RAMP_STATUS = 'ramp_status'
     PROFILE_STATUS = 'profile_status'
     SENSOR_STOP = 'sensor_stop'
     PROFILE_STOP = 'profile_stop'
+
     
-class Wfp_eng__stc_imodem_profilerParserDataParticle(DataParticle):
+class Wfp_eng__stc_imodem_statusParserDataParticle(DataParticle):
     """
     Class for parsing data from the WFP_ENG__STC_IMODEM data set
     """
 
-    _data_particle_type = DataParticleType.PROFILER_STATUS
-    
+    _data_particle_type = DataParticleType.STATUS
+
     def _build_parsed_values(self):
         """
         Take something in the data format and turn it into
         a particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-        match_ss = START_TIME_MATCHER.match(self.raw_data[:8])
-        match_prof = PROFILE_MATCHER.match(self.raw_data[8:])
+        match_prof = PROFILE_MATCHER.match(self.raw_data)
 
         if not match_ss or not match_prof:
-            raise SampleException("Wfp_eng__stc_imodem_profilerParserDataParticle: No regex match of parsed sample data: [%s]",
+            raise SampleException("Wfp_eng__stc_imodem_statusParserDataParticle: No regex match of parsed sample data: [%s]",
                                   self.raw_data)
 
         try:
-            fields_ss = struct.unpack('<II', match_ss.group(0))
-            sensor_start = int(fields_ss[0])
-            profile_start = int(fields_ss[1])
             fields_prof = struct.unpack('<ihhII', match_prof.group(0))
             indicator = int(fields_prof[0])
             ramp_status = int(fields_prof[1])
@@ -71,12 +67,8 @@ class Wfp_eng__stc_imodem_profilerParserDataParticle(DataParticle):
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
-        
-        result = [{DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.SENSOR_START,
-                   DataParticleKey.VALUE: sensor_start},
-                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.PROFILE_START,
-                   DataParticleKey.VALUE: profile_start},
-                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.INDICATOR,
+
+        result = [{DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.INDICATOR,
                    DataParticleKey.VALUE: indicator},
                   {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.RAMP_STATUS,
                    DataParticleKey.VALUE: ramp_status},
@@ -86,7 +78,7 @@ class Wfp_eng__stc_imodem_profilerParserDataParticle(DataParticle):
                    DataParticleKey.VALUE: sensor_stop},
                   {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.PROFILE_STOP,
                    DataParticleKey.VALUE: profile_stop}]
-        log.debug('Wfp_eng__stc_imodem_profilerParserDataParticle: particle=%s', result)
+        log.debug('Wfp_eng__stc_imodem_statusParserDataParticle: particle=%s', result)
         return result
 
     def __eq__(self, arg):
@@ -107,6 +99,64 @@ class Wfp_eng__stc_imodem_profilerParserDataParticle(DataParticle):
                 log.debug('Timestamp does not match')
             return False
 
+class Wfp_eng__stc_imodem_startParserDataParticleKey(BaseEnum):
+    SENSOR_START = 'sensor_start'
+    PROFILE_START = 'profile_start'
+
+class Wfp_eng__stc_imodem_startParserDataParticle(DataParticle):
+    """
+    Class for parsing data from the WFP_ENG__STC_IMODEM data set
+    """
+
+    _data_particle_type = DataParticleType.START_TIME
+
+    def _build_parsed_values(self):
+        """
+        Take something in the data format and turn it into
+        a particle with the appropriate tag.
+        @throws SampleException If there is a problem with sample creation
+        """
+        match_ss = START_TIME_MATCHER.match(self.raw_data)
+
+        if not match_ss or not match_prof:
+            raise SampleException("Wfp_eng__stc_imodem_startParserDataParticle: No regex match of parsed sample data: [%s]",
+                                  self.raw_data)
+
+        try:
+            fields_ss = struct.unpack('<II', match_ss.group(0))
+            sensor_start = int(fields_ss[0])
+            profile_start = int(fields_ss[1])
+        except (ValueError, TypeError, IndexError) as ex:
+            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
+                                  % (ex, match.group(0)))
+
+        result = [{DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.SENSOR_START,
+                   DataParticleKey.VALUE: sensor_start},
+                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.PROFILE_START,
+                   DataParticleKey.VALUE: profile_start}]
+        log.debug('Wfp_eng__stc_imodem_startParserDataParticle: particle=%s', result)
+        return result
+
+    def __eq__(self, arg):
+        """
+        Quick equality check for testing purposes. If they have the same raw
+        data, timestamp, and new sequence, they are the same enough for this 
+        particle
+        """
+        if ((self.raw_data == arg.raw_data) and \
+            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
+             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
+            return True
+        else:
+            if self.raw_data != arg.raw_data:
+                log.debug('Raw data does not match')
+            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
+                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
+                log.debug('Timestamp does not match')
+            return False
+
+
+
 class Wfp_eng__stc_imodem_engineeringParserDataParticleKey(BaseEnum):
     TIMESTAMP = 'timestamp'
     PROF_CURRENT = 'prof_current'
@@ -119,7 +169,7 @@ class Wfp_eng__stc_imodem_engineeringParserDataParticle(DataParticle):
     """
 
     _data_particle_type = DataParticleType.ENGINEERING
-    
+
     def _build_parsed_values(self):
         """
         Take something in the data format and turn it into
@@ -139,7 +189,7 @@ class Wfp_eng__stc_imodem_engineeringParserDataParticle(DataParticle):
         except(ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
-        
+
         result = [{DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_engineeringParserDataParticleKey.TIMESTAMP,
                    DataParticleKey.VALUE: indicator},
                   {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_engineeringParserDataParticleKey.PROF_CURRENT,
@@ -150,7 +200,6 @@ class Wfp_eng__stc_imodem_engineeringParserDataParticle(DataParticle):
                    DataParticleKey.VALUE: sensor_stop}]
         log.debug('Wfp_eng__stc_imodem_engineeringParserDataParticle: particle=%s', result)
         return result
-        
 
     def __eq__(self, arg):
         """
@@ -172,21 +221,39 @@ class Wfp_eng__stc_imodem_engineeringParserDataParticle(DataParticle):
 
 class Wfp_eng__stc_imodemParser(WfpEFileParser):
 
+    def parse_start_time(self, data):
+        """
+        Parse the start time of the profile and the sensor
+        """
+        if START_TIME_MATCHER.match(data):
+            self._timestamp = 0 # what to use for timestamp???
+            sample = self._extract_sample(Wfp_eng__stc_imodem_startParserDataParticle, START_TIME_MATCHER,
+                                          data, self._timestamp)
+            if sample:
+                # create particle
+                log.trace("Extracting sample %s with read_state: %s", data, self._read_state)
+                self._increment_state(end, self._timestamp)
+                result_particle = (sample, copy.copy(self._read_state))
+
     def parse_record(self, record):
-	"""
-	determine if this is a engineering or data record and parse
-	"""
+        """
+        determine if this is a engineering or data record and parse
+        """
         sample = None
         result_particle = []
-	if PROFILE_MATCHER.match(record):
-	    # send to WFP_eng_profiler if WFP
-            # the profiler data is made up of the start/stop profile time from the header and each profile record
-            profiler_data = self._profile_start_stop_data + record
-	    sample = self._extract_sample(Wfp_eng__stc_imodem_profilerParserDataParticle, PROFILE_MATCHER,
-                                          profiler_data, self._timestamp)
-	else if DATA_SAMPLE_MATCHER.match(record):
-	    # send to each individual instrument particle
-	    sample = self._extract_sample(Wfp_eng__stc_imodem_engineeringParserDataParticle, DATA_SAMPLE_MATCHER,
+        if PROFILE_MATCHER.match(record):
+            # send to WFP_eng_profiler if WFP
+            self._timestamp = 0 # what to use for timestamp???
+            sample = self._extract_sample(Wfp_eng__stc_imodem_profilerParserDataParticle, PROFILE_MATCHER,
+                                          record, self._timestamp)
+        else if DATA_SAMPLE_MATCHER.match(record):
+            # pull out the timestamp for this record
+            match = DATA_SAMPLE_MATCHER.match(record)
+            fields = struct.unpack('<I', match.group(0)[:4])
+            timestamp = int(fields[0])
+            self._timestamp = ntplib.system_to_ntp_time(timestamp)
+            log.debug("Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)
+            sample = self._extract_sample(Wfp_eng__stc_imodem_engineeringParserDataParticle, DATA_SAMPLE_MATCHER,
                                           record, self._timestamp)
         if sample:
             # create particle

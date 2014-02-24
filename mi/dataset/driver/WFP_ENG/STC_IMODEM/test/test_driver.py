@@ -29,7 +29,9 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 
 from mi.dataset.driver.WFP_ENG.STC_IMODEM.driver import WFP_ENG__STC_IMODEM_DataSetDriver
-from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodemParserDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_statusParserDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_startParserDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_engineeringParserDataParticle
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -43,7 +45,7 @@ DataSetTestCase.initialize(
         DataSourceConfigKey.HARVESTER:
         {
             DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.PATTERN: '',
+            DataSetDriverConfigKeys.PATTERN: 'E*.DAT',
             DataSetDriverConfigKeys.FREQUENCY: 1,
         },
         DataSourceConfigKey.PARSER: {}
@@ -65,7 +67,28 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver
         sampling can be started and stopped
         """
-        pass
+        self.clear_sample_data()
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.clear_async_data()
+        self.create_sample_data('first.DAT', "E0000001.DAT")
+        self.assert_data(Wfp_eng__stc_imodem_startParserDataParticle, 'first_start.result.yml', count=1, timeout=10)
+        self.assert_data(Wfp_eng__stc_imodem_engineeringParserDataParticle, 'first_eng.result.yml', count=1, timeout=10)
+
+        self.clear_async_data()
+        self.create_sample_data('second.DAT', "E0000002.DAT")
+        # start is the same particle here, just use the same results
+        self.assert_data(Wfp_eng__stc_imodem_startParserDataParticle, 'first_start.result.yml', count=1, timeout=10)
+        self.assert_data(Wfp_eng__stc_imodem_engineeringParserDataParticle, 'second_eng.result.yml', count=4, timeout=10)
+
+        self.clear_async_data()
+        self.create_sample_data('E0000303.DAT', "E0000303.DAT")
+        # start is the same particle here, just use the same results
+        self.assert_data(Wfp_eng__stc_imodem_startParserDataParticle, 'first_start.result.yml', count=1, timeout=10)
+        self.assert_data(Wfp_eng__stc_imodem_engineeringParserDataParticle, 'E0000303_eng.result.yml', count=31, timeout=10)
+        self.assert_data(Wfp_eng__stc_imodem_statusParserDataParticle, 'E0000303_status.result.yml', count=1, timeout=10)
 
     def test_stop_resume(self):
         """

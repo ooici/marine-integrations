@@ -16,13 +16,18 @@ import string
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
-from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodemParser, Wfp_eng__stc_imodemParserDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodemParser
+from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_statusParserDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_startParserDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_engineeringParserDataParticle
 
 class WFP_ENG__STC_IMODEM_DataSetDriver(SimpleDataSetDriver):
     
     @classmethod
     def stream_config(cls):
-        return [Wfp_eng__stc_imodemParserDataParticle.type()]
+        return [Wfp_eng__stc_imodem_statusParserDataParticle.type(),
+                Wfp_eng__stc_imodem_startParserDataParticle.type(),
+                Wfp_eng__stc_imodem_engineeringParserDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
         """
@@ -31,7 +36,9 @@ class WFP_ENG__STC_IMODEM_DataSetDriver(SimpleDataSetDriver):
         config = self._parser_config
         config.update({
             'particle_module': 'mi.dataset.parser.wfp_eng__stc_imodem',
-            'particle_class': 'Wfp_eng__stc_imodemParserDataParticle'
+            'particle_class': ['Wfp_eng__stc_imodem_statusParserDataParticle',
+                               'Wfp_eng__stc_imodem_startParserDataParticle',
+                               'Wfp_eng__stc_imodem_engineeringParserDataParticle']
         })
         log.debug("My Config: %s", config)
         self._parser = Wfp_eng__stc_imodemParser(
@@ -48,6 +55,11 @@ class WFP_ENG__STC_IMODEM_DataSetDriver(SimpleDataSetDriver):
         """
         Build and return the harvester
         """
-        # *** Replace the following with harvester initialization ***
-        self._harvester = None     
+        self._harvester = SingleDirectoryHarvester(
+            self._harvester_config,
+            driver_state,
+            self._new_file_callback,
+            self._modified_file_callback,
+            self._exception_callback
+        )
         return self._harvester
