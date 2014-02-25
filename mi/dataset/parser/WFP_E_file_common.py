@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.WFP_E_file
-@file mi/dataset/parser/WFP_E_file
+@package mi.dataset.parser.WFP_E_file_common
+@file mi/dataset/parser/WFP_E_file_common
 @author Emily Hahn, Mike Nicoletti, Maria Lutz
 @brief A common parser for the E file type of the wire following profiler
 """
@@ -12,6 +12,9 @@ __license__ = 'Apache 2.0'
 import re
 import time
 import ntplib
+import struct
+
+from functools import partial
 
 from mi.core.log import get_logger; log = get_logger()
 
@@ -19,19 +22,17 @@ from mi.core.common import BaseEnum
 from mi.core.instrument.chunker import BinaryChunker
 from mi.dataset.dataset_parser import BufferLoadingParser
 
-# Mike 
-FLAGS_REGEX = b''
-FLAG_MATCHER = re.compile(FLAGS_REGEX)
+HEADER_REGEX = b'([\x00-\x01]{16})([\x00-\xff]{8})'
+HEADER_MATCHER = re.compile(HEADER_REGEX)
 
-# Maria, the rest
-START_TIME_REGEX = b''
-START_TIME_MATCHER = re.compile(START_TIME_REGEX)
-
-PROFILE_REGEX = b''
+PROFILE_REGEX = b'\xff\xff\xff[\xfa-\xff][\x00-\xff]{12}'
 PROFILE_MATCHER = re.compile(PROFILE_REGEX)
 
-DATA_SAMPLE_REGEX = b''
+DATA_SAMPLE_REGEX = b'[\x00-\xff]{26}'
 DATA_SAMPLE_MATCHER = re.compile(DATA_SAMPLE_REGEX)
+
+HEADER_BYTES = 24
+SAMPLE_BYTES = 26
 
 
 class StateKey(BaseEnum):
@@ -51,7 +52,8 @@ class WfpEFileParser(BufferLoadingParser):
         self._timestamp = 0.0
         self._record_buffer = [] # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION: 0}
-	self._profile_start_stop_data = None
+        # store the profile start and sensor start times in case we need the data to calculate other timestamps
+        self._profile_start_stop_data = None
         super(WfpEFileParser, self).__init__(config,
                                              stream_handle,
                                              state,
@@ -62,17 +64,17 @@ class WfpEFileParser(BufferLoadingParser):
                                              *args, **kwargs)
 
         if state:
-	    if state[StateKey.POSITION] < HEADER_SIZE:
+	    self.set_state(state)
+	    if state[StateKey.POSITION] == 0:
 		self._parse_header()
-            self.set_state(state)
 	else:
 	    self._parse_header()
 
     def set_state(self, state_obj):
-	"""
-	initialize the state
-	"""
-	log.trace("Attempting to set state to: %s", state_obj)
+        """
+        initialize the state
+        """
+        log.trace("Attempting to set state to: %s", state_obj)
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
         if not (StateKey.POSITION in state_obj):
@@ -81,37 +83,50 @@ class WfpEFileParser(BufferLoadingParser):
         self._read_state = state_obj
         self._stream_handle.seek(state_obj[StateKey.POSITION])
 
-    def increment_state(self, increment):
-	"""
+    def _increment_state(self, increment):
+        """
         Increment the parser position by the given increment in bytes.
         This indicates what has been read from the file, not what has
         been published.
         @ param increment number of bytes to increment parser position
-	"""
-        self._read_state[StateKey.Position] += increment
+        """
+        self._read_state[StateKey.POSITION] += increment
 
-    def _parse_header(self, header):
-	"""
-	parse the flags (just for error checking) and sensor /profiler time
-	"""
-	# Maria
-	match = START_TIME_MATCHER.match(header[])
-	if match:
-	    self._profile_start_stop_data = match.group(0)
+    def _parse_header(self):
+        """
+        parse the flags and sensor / profiler start time from the header
+        """
+	# read the first bytes from the file
+	header = self._stream_handle.read(HEADER_BYTES)
+        match = HEADER_MATCHER.match(header)
+        if not match:
+            raise SampleException("File header does not match the header regex")
+	# update the state to show we have read the header
+	self.increment_state(HEADER_BYTES)
 
     def parse_record(self, record):
-	"""
-	determine if this is a engineering or data record and parse
-	"""
-	# This needs to get implemented by each instrument, not here
-	if PROFILE_MATCHER.match(record):
-	    # only WFP needs this, Mike and Maria can just match DATA_SAMPLE_MATCHER
-	    sample = self._extract_sample()
-	else if DATA_SAMPLE_MATCHER.match(record):
-	    # send to each individual instrument particle
-	    sample = self._extract_sample(YourInstrumentParticle)
-	if sample:
-	    # update state, return particle
+        """
+        determine if this is a engineering or data record and parse
+        FLORT and PARAD can copy paste this and insert their own data particle class
+        needs extending for WFP_ENG
+        """
+        result_particle = []
+        if DATA_SAMPLE_MATCHER.match(record):
+            # pull out the timestamp for this record
+            match = DATA_SAMPLE_MATCHER.match(record)
+            fields = struct.unpack('<I', match.group(0)[:4])
+            timestamp = int(fields[0])
+            self._timestamp = ntplib.system_to_ntp_time(timestamp)
+            log.debug("Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)
+            # INSERT YOUR DATA PARTICLE CLASS HERE
+            sample = self._extract_sample(data_particle_class, DATA_SAMPLE_MATCHER, record, self._timestamp)
+            if sample:
+                # create particle
+                log.trace("Extracting sample %s with read_state: %s", sample, self._read_state)
+                self._increment_state(SAMPLE_BYTES)
+                result_particle = (sample, copy.copy(self._read_state))
+
+        return result_particle
 
     def parse_chunks(self):
         """
@@ -121,13 +136,12 @@ class WfpEFileParser(BufferLoadingParser):
         @retval a list of tuples with sample particles encountered in this
             parsing, plus the state. An empty list of nothing was parsed.
         """
-	# Mike
         result_particles = []
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
         non_data = None
 
         while (chunk != None):
-            result_particle = parse_record(chunk)
+            result_particle = self.parse_record(chunk)
             if result_particle:
                 result_particles.append(result_particle)
 

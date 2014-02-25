@@ -16,14 +16,18 @@ __license__ = 'Apache 2.0'
 import copy
 import re
 import ntplib
+import struct
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import SampleException, DatasetParserException
-from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, DATA_SAMPLE_MATCHER, PROFILE_MATCHER, START_TIME_MATCHER
+from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, DATA_SAMPLE_MATCHER, HEADER_MATCHER, StateKey
+from mi.dataset.parser.WFP_E_file_common import HEADER_BYTES, SAMPLE_BYTES, PROFILE_MATCHER
 from mi.dataset.dataset_parser import Parser
 
+
+STATUS_BYTES = 16
 
 class DataParticleType(BaseEnum):
     START_TIME = 'wfp_eng__stc_imodem_start_time'
@@ -68,15 +72,15 @@ class Wfp_eng__stc_imodem_statusParserDataParticle(DataParticle):
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
 
-        result = [{DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.INDICATOR,
+        result = [{DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_statusParserDataParticleKey.INDICATOR,
                    DataParticleKey.VALUE: indicator},
-                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.RAMP_STATUS,
+                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_statusParserDataParticleKey.RAMP_STATUS,
                    DataParticleKey.VALUE: ramp_status},
-                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.PROFILE_STATUS,
+                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_statusParserDataParticleKey.PROFILE_STATUS,
                    DataParticleKey.VALUE: profile_status},
-                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.SENSOR_STOP,
+                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_statusParserDataParticleKey.SENSOR_STOP,
                    DataParticleKey.VALUE: sensor_stop},
-                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.PROFILE_STOP,
+                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_statusParserDataParticleKey.PROFILE_STOP,
                    DataParticleKey.VALUE: profile_stop}]
         log.debug('Wfp_eng__stc_imodem_statusParserDataParticle: particle=%s', result)
         return result
@@ -116,23 +120,24 @@ class Wfp_eng__stc_imodem_startParserDataParticle(DataParticle):
         a particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-        match_ss = START_TIME_MATCHER.match(self.raw_data)
+        match = HEADER_MATCHER.match(self.raw_data)
 
-        if not match_ss or not match_prof:
+        if not match:
             raise SampleException("Wfp_eng__stc_imodem_startParserDataParticle: No regex match of parsed sample data: [%s]",
                                   self.raw_data)
 
         try:
-            fields_ss = struct.unpack('<II', match_ss.group(0))
-            sensor_start = int(fields_ss[0])
-            profile_start = int(fields_ss[1])
+            fields = struct.unpack('<II', match.group(2))
+            sensor_start = int(fields[0])
+            profile_start = int(fields[1])
+	    log.debug('Unpacked sensor start %d, profile start %d', sensor_start, profile_start)
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
 
-        result = [{DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.SENSOR_START,
+        result = [{DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_startParserDataParticleKey.SENSOR_START,
                    DataParticleKey.VALUE: sensor_start},
-                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_profilerParserDataParticleKey.PROFILE_START,
+                  {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_startParserDataParticleKey.PROFILE_START,
                    DataParticleKey.VALUE: profile_start}]
         log.debug('Wfp_eng__stc_imodem_startParserDataParticle: particle=%s', result)
         return result
@@ -191,13 +196,13 @@ class Wfp_eng__stc_imodem_engineeringParserDataParticle(DataParticle):
                                   % (ex, match.group(0)))
 
         result = [{DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_engineeringParserDataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: indicator},
+                   DataParticleKey.VALUE: timestamp},
                   {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_engineeringParserDataParticleKey.PROF_CURRENT,
-                   DataParticleKey.VALUE: ramp_status},
+                   DataParticleKey.VALUE: profile_current},
                   {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_engineeringParserDataParticleKey.PROF_VOLTAGE,
-                   DataParticleKey.VALUE: profile_status},
+                   DataParticleKey.VALUE: profile_voltage},
                   {DataParticleKey.VALUE_ID: Wfp_eng__stc_imodem_engineeringParserDataParticleKey.PROF_PRESSURE,
-                   DataParticleKey.VALUE: sensor_stop}]
+                   DataParticleKey.VALUE: profile_pressure}]
         log.debug('Wfp_eng__stc_imodem_engineeringParserDataParticle: particle=%s', result)
         return result
 
@@ -221,19 +226,59 @@ class Wfp_eng__stc_imodem_engineeringParserDataParticle(DataParticle):
 
 class Wfp_eng__stc_imodemParser(WfpEFileParser):
 
-    def parse_start_time(self, data):
+    def __init__(self,
+                 config,
+                 state,
+                 stream_handle,
+                 state_callback,
+                 publish_callback,
+                 *args, **kwargs):
+	self._saved_header = None
+	super(Wfp_eng__stc_imodemParser, self).__init__(config,
+					    state,
+                                            stream_handle,
+                                            state_callback,
+                                            publish_callback,
+                                            *args, **kwargs)
+
+    def set_state(self, state_obj):
+        """
+        initialize the state
+        """
+        log.trace("Attempting to set state to: %s", state_obj)
+        if not isinstance(state_obj, dict):
+            raise DatasetParserException("Invalid state structure")
+        if not (StateKey.POSITION in state_obj):
+            raise DatasetParserException("Invalid state keys")
+	self._saved_header = None
+        self._state = state_obj
+        self._read_state = state_obj
+        self._stream_handle.seek(state_obj[StateKey.POSITION])
+
+    def _parse_header(self):
         """
         Parse the start time of the profile and the sensor
         """
-        if START_TIME_MATCHER.match(data):
-            self._timestamp = 0 # what to use for timestamp???
-            sample = self._extract_sample(Wfp_eng__stc_imodem_startParserDataParticle, START_TIME_MATCHER,
-                                          data, self._timestamp)
+	# read the first bytes from the file
+	header = self._stream_handle.read(HEADER_BYTES)
+	# parse the header
+        if HEADER_MATCHER.match(header):
+            match = HEADER_MATCHER.match(header)
+            # use the profile start time as the timestamp
+            fields = struct.unpack('<II', match.group(2))
+            timestamp = int(fields[1])
+            self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
+            sample = self._extract_sample(Wfp_eng__stc_imodem_startParserDataParticle, HEADER_MATCHER,
+                                          header, self._timestamp)
+	    # store this in case we need the data to calculate other timestamps
+            self._profile_start_stop_data = fields
             if sample:
                 # create particle
-                log.trace("Extracting sample %s with read_state: %s", data, self._read_state)
-                self._increment_state(end, self._timestamp)
-                result_particle = (sample, copy.copy(self._read_state))
+		self._increment_state(HEADER_BYTES)
+                log.debug("Extracting header %s with read_state: %s", sample, self._read_state)
+                self._saved_header = (sample, copy.copy(self._read_state))
+        else:
+            raise SampleException("File header does not match header regex")
 
     def parse_record(self, record):
         """
@@ -243,26 +288,54 @@ class Wfp_eng__stc_imodemParser(WfpEFileParser):
         result_particle = []
         if PROFILE_MATCHER.match(record):
             # send to WFP_eng_profiler if WFP
-            self._timestamp = 0 # what to use for timestamp???
-            sample = self._extract_sample(Wfp_eng__stc_imodem_profilerParserDataParticle, PROFILE_MATCHER,
+            self._timestamp = 0.0 # what to use for timestamp???
+            sample = self._extract_sample(Wfp_eng__stc_imodem_statusParserDataParticle, PROFILE_MATCHER,
                                           record, self._timestamp)
-        else if DATA_SAMPLE_MATCHER.match(record):
+	    self._increment_state(STATUS_BYTES)
+        elif DATA_SAMPLE_MATCHER.match(record):
             # pull out the timestamp for this record
             match = DATA_SAMPLE_MATCHER.match(record)
             fields = struct.unpack('<I', match.group(0)[:4])
             timestamp = int(fields[0])
-            self._timestamp = ntplib.system_to_ntp_time(timestamp)
+            self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
             log.debug("Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)
             sample = self._extract_sample(Wfp_eng__stc_imodem_engineeringParserDataParticle, DATA_SAMPLE_MATCHER,
                                           record, self._timestamp)
+	    self._increment_state(SAMPLE_BYTES)
         if sample:
             # create particle
-            log.trace("Extracting sample %s with read_state: %s", record, self._read_state)
-            self._increment_state(end, self._timestamp)    
+            log.trace("Extracting sample %s with read_state: %s", sample, self._read_state)
             result_particle = (sample, copy.copy(self._read_state))
                     
         return result_particle
 
+    def parse_chunks(self):
+        """
+        Parse out any pending data chunks in the chunker. If
+        it is a valid data piece, build a particle, update the position and
+        timestamp. Go until the chunker has no more valid data.
+        @retval a list of tuples with sample particles encountered in this
+            parsing, plus the state. An empty list of nothing was parsed.
+        """
+        result_particles = []
+
+	# header gets read in initialization, but need to send it back from parse_chunks
+	if self._saved_header:
+	    result_particles.append(self._saved_header)
+	    self._saved_header = None
+
+        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+        non_data = None
+
+        while (chunk != None):
+            result_particle = self.parse_record(chunk)
+            if result_particle:
+                result_particles.append(result_particle)
+
+            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
+            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
+
+        return result_particles
 
 
 
