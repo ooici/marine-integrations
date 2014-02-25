@@ -1,0 +1,20 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    internal_timestamp: 3595053721.000000
+    particle_object: Wfp_eng__stc_imodem_startParserDataParticle
+    particle_type: wfp_eng__stc_imodem_start_time
+    sensor_start: 1386064802
+    profile_start: 1386064921
+  - _index: 2
+    internal_timestamp: 3595053725.000000
+    particle_object: Wfp_eng__stc_imodem_engineeringParserDataParticle
+    particle_type: wfp_eng__stc_imodem_engineering
+    timestamp: 1386064925
+    prof_current: 0.0000000000000000
+    prof_voltage: 11.6384000778198242
+    prof_pressure: 0.0000000000000000
+

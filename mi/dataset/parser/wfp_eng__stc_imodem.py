@@ -57,12 +57,12 @@ class Wfp_eng__stc_imodem_statusParserDataParticle(DataParticle):
         """
         match_prof = PROFILE_MATCHER.match(self.raw_data)
 
-        if not match_ss or not match_prof:
+        if not match_prof:
             raise SampleException("Wfp_eng__stc_imodem_statusParserDataParticle: No regex match of parsed sample data: [%s]",
                                   self.raw_data)
 
         try:
-            fields_prof = struct.unpack('<ihhII', match_prof.group(0))
+            fields_prof = struct.unpack('>ihhII', match_prof.group(0))
             indicator = int(fields_prof[0])
             ramp_status = int(fields_prof[1])
             profile_status = int(fields_prof[2])
@@ -127,7 +127,7 @@ class Wfp_eng__stc_imodem_startParserDataParticle(DataParticle):
                                   self.raw_data)
 
         try:
-            fields = struct.unpack('<II', match.group(2))
+            fields = struct.unpack('>II', match.group(2))
             sensor_start = int(fields[0])
             profile_start = int(fields[1])
 	    log.debug('Unpacked sensor start %d, profile start %d', sensor_start, profile_start)
@@ -186,7 +186,7 @@ class Wfp_eng__stc_imodem_engineeringParserDataParticle(DataParticle):
             raise SampleException("Wfp_eng__stc_imodem_engineeringParserDataParticle: No regex match of parsed sample data: [%s]",
                                   self.raw_data)
         try:
-            fields = struct.unpack('<Ifff', match.group(0)[:16])
+            fields = struct.unpack('>Ifff', match.group(0)[:16])
             timestamp = int(fields[0])
             profile_current = float(fields[1])
             profile_voltage = float(fields[2])
@@ -250,6 +250,8 @@ class Wfp_eng__stc_imodemParser(WfpEFileParser):
             raise DatasetParserException("Invalid state structure")
         if not (StateKey.POSITION in state_obj):
             raise DatasetParserException("Invalid state keys")
+	self._chunker.clean_all_chunks()
+	self._record_buffer = []
 	self._saved_header = None
         self._state = state_obj
         self._read_state = state_obj
@@ -265,7 +267,7 @@ class Wfp_eng__stc_imodemParser(WfpEFileParser):
         if HEADER_MATCHER.match(header):
             match = HEADER_MATCHER.match(header)
             # use the profile start time as the timestamp
-            fields = struct.unpack('<II', match.group(2))
+            fields = struct.unpack('>II', match.group(2))
             timestamp = int(fields[1])
             self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
             sample = self._extract_sample(Wfp_eng__stc_imodem_startParserDataParticle, HEADER_MATCHER,
@@ -288,14 +290,18 @@ class Wfp_eng__stc_imodemParser(WfpEFileParser):
         result_particle = []
         if PROFILE_MATCHER.match(record):
             # send to WFP_eng_profiler if WFP
-            self._timestamp = 0.0 # what to use for timestamp???
+	    match = PROFILE_MATCHER.match(record)
+	    fields = struct.unpack('>ihhII', match.group(0))
+	    # use the profile stop time
+	    timestamp = int(fields[3])
+            self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
             sample = self._extract_sample(Wfp_eng__stc_imodem_statusParserDataParticle, PROFILE_MATCHER,
                                           record, self._timestamp)
 	    self._increment_state(STATUS_BYTES)
         elif DATA_SAMPLE_MATCHER.match(record):
             # pull out the timestamp for this record
             match = DATA_SAMPLE_MATCHER.match(record)
-            fields = struct.unpack('<I', match.group(0)[:4])
+            fields = struct.unpack('>I', match.group(0)[:4])
             timestamp = int(fields[0])
             self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
             log.debug("Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)

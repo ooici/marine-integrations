@@ -20,6 +20,7 @@ from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodemParser
 from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_statusParserDataParticle
 from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_startParserDataParticle
 from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_engineeringParserDataParticle
+from mi.dataset.harvester import SingleDirectoryHarvester
 
 class WFP_ENG__STC_IMODEM_DataSetDriver(SimpleDataSetDriver):
     

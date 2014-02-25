@@ -74,21 +74,16 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('first.DAT', "E0000001.DAT")
-        self.assert_data(Wfp_eng__stc_imodem_startParserDataParticle, 'first_start.result.yml', count=1, timeout=10)
-        self.assert_data(Wfp_eng__stc_imodem_engineeringParserDataParticle, 'first_eng.result.yml', count=1, timeout=10)
+        self.assert_data_multiple_class('first.result.yml', count=2, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('second.DAT', "E0000002.DAT")
-        # start is the same particle here, just use the same results
-        self.assert_data(Wfp_eng__stc_imodem_startParserDataParticle, 'first_start.result.yml', count=1, timeout=10)
-        self.assert_data(Wfp_eng__stc_imodem_engineeringParserDataParticle, 'second_eng.result.yml', count=4, timeout=10)
+        self.assert_data_multiple_class('second.result.yml', count=5, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('E0000303.DAT', "E0000303.DAT")
         # start is the same particle here, just use the same results
-        self.assert_data(Wfp_eng__stc_imodem_startParserDataParticle, 'first_start.result.yml', count=1, timeout=10)
-        self.assert_data(Wfp_eng__stc_imodem_engineeringParserDataParticle, 'E0000303_eng.result.yml', count=31, timeout=10)
-        self.assert_data(Wfp_eng__stc_imodem_statusParserDataParticle, 'E0000303_status.result.yml', count=1, timeout=10)
+        self.assert_data_multiple_class(count=34, timeout=10)
 
     def test_stop_resume(self):
         """

@@ -22,7 +22,7 @@ from mi.core.common import BaseEnum
 from mi.core.instrument.chunker import BinaryChunker
 from mi.dataset.dataset_parser import BufferLoadingParser
 
-HEADER_REGEX = b'([\x00-\x01]{16})([\x00-\xff]{8})'
+HEADER_REGEX = b'(\x00\x01\x00{7,7}\x01\x00\x01\x00{4,4})([\x00-\xff]{8,8})'
 HEADER_MATCHER = re.compile(HEADER_REGEX)
 
 PROFILE_REGEX = b'\xff\xff\xff[\xfa-\xff][\x00-\xff]{12}'
@@ -79,6 +79,8 @@ class WfpEFileParser(BufferLoadingParser):
             raise DatasetParserException("Invalid state structure")
         if not (StateKey.POSITION in state_obj):
             raise DatasetParserException("Invalid state keys")
+	self._chunker.clean_all_chunks()
+	self._record_buffer = []
         self._state = state_obj
         self._read_state = state_obj
         self._stream_handle.seek(state_obj[StateKey.POSITION])

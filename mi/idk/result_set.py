@@ -21,6 +21,7 @@ Result Set File Format:
   result files are yml formatted files with a header and data section.
   the data is stored in record elements with the key being the parameter name.
      - two special fields are internal_timestamp and _index.
+     - internal timestamp can be input in text string or ntp float format
 
 eg.
 
@@ -32,7 +33,6 @@ header:
 
 data:
   -  _index: 1
-     _new_sequence: True
      internal_timestamp: 07/26/2013 21:01:03
      temperature: 4.1870
      conductivity: 10.5914
@@ -45,8 +45,33 @@ data:
      pressure: 161.16
      oxygen: 2693.1
 
+If a driver returns multiple particle types, the particle type must be specified in each particle
+
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  -  _index: 1
+     particle_object: CtdpfParser1DataParticleKey
+     particle_type: ctdpf_parsed_1
+     internal_timestamp: 07/26/2013 21:01:03
+     temperature: 4.1870
+     conductivity: 10.5914
+     pressure: 161.06
+     oxygen: 2693.0
+  -  _index: 2
+     particle_object: CtdpfParser2DataParticleKey
+     particle_type: ctdpf_parsed_2
+     internal_timestamp: 07/26/2013 21:01:04
+     temperature: 4.1872
+     conductivity: 10.5414
+     pressure: 161.16
+     oxygen: 2693.1
+
 New sequence flag indicates that we are at the beginning of a new sequence of
-contiguous records.
+contiguous records, but these are not used currently.
+
 """
 
 __author__ = 'Bill French'
@@ -188,10 +213,14 @@ class ResultSet(object):
             errors.append("result set records != particles to verify (%d != %d)" %
                           (len(self._result_set_data), len(particles)))
 
-        for particle in particles:
-            if not self._verify_particle_type(particle):
-                log.error("particle type mismatch: %s", particle)
-                errors.append('particle type mismatch')
+        # if this driver returns multiple particle classes, type checking happens
+        # for each particle in _get_particle_data_errors
+        if self._result_set_header.get("particle_object") != 'MULTIPLE' and \
+        self._result_set_header.get("particle_type") != 'MULTIPLE':
+            for particle in particles:
+                if not self._verify_particle_type(particle):
+                    log.error("particle type mismatch: %s", particle)
+                    errors.append('particle type mismatch')
 
         if len(errors):
             self._add_to_report("Header verification failure")
@@ -240,6 +269,7 @@ class ResultSet(object):
             return True
 
         expected = self._result_set_header['particle_object']
+
         cls = particle.__class__.__name__
 
         if not issubclass(particle.__class__, DataParticle):
@@ -270,8 +300,12 @@ class ResultSet(object):
             errors.append("particle_timestamp expected, but not defined in particle")
 
         elif particle_timestamp:
-            expected = self._string_to_ntp_date_time(expected_time)
-            ts_diff =  abs(particle_timestamp - self._string_to_ntp_date_time(expected_time))
+            if isinstance(particle_timestamp, str):
+                expected = self._string_to_ntp_date_time(expected_time)
+            else:
+                # if not a string, timestamp should alread be in ntp
+                expected = particle_timestamp
+            ts_diff =  abs(particle_timestamp - expected)
             log.debug("verify timestamp: abs(%s - %s) = %s", expected, particle_timestamp, ts_diff)
 
             if ts_diff > allow_diff:
@@ -279,12 +313,14 @@ class ResultSet(object):
                               (expected, particle_timestamp, ts_diff))
             log.debug("Timestamp match: %s ~= %s", expected, particle_timestamp)
 
-        # verify the stream name
+        # verify the stream name, unless multiple are returned, type checking is done
+        # in get_particle_data_errors if so
         particle_stream = particle_dict['stream_name']
-        expected_stream =  self._result_set_header['particle_type']
-        if particle_stream != expected_stream:
-            errors.append("expected stream name mismatch: %s != %s" %
-                          (expected_stream, particle_stream))
+        if self._result_set_header['particle_type'] != 'MULTIPLE':
+            expected_stream =  self._result_set_header['particle_type']
+            if particle_stream != expected_stream:
+                errors.append("expected stream name mismatch: %s != %s" %
+                              (expected_stream, particle_stream))
 
         return errors
 
@@ -304,13 +340,31 @@ class ResultSet(object):
         if expected_new_sequence is None: expected_new_sequence = False
         if particle_new_sequence is None: particle_new_sequence = False
 
+        # particle object and particle type keys will only be present for drivers
+        # returning multiple particle types
+        if 'particle_object' in particle_def:
+            expected_object = particle_def.get('particle_object')
+            expected_type = particle_def.get('particle_type', None)
+            # if this is a dictionary can't compare classes
+            if not isinstance(particle, dict):
+                cls = particle.__class__.__name__
+                if not issubclass(particle.__class__, DataParticle):
+                    errors.append("Particle class %s is not a subclass of DataParticle" % particle.__class__)
+
+                if expected_object != cls:
+                    errors.append("Class mismatch, expected: %s, received: %s" % (expected_object, cls))
+
+                particle_stream = particle_dict['stream_name']
+                if particle_stream != expected_type:
+                    errors.append("Stream type mismatch, expected: %s, received: %s" % (expected_type, particle_stream))
+
         if expected_new_sequence != particle_new_sequence:
             errors.append("New sequence flag mismatch, expected: %s, received: %s" %
                           (expected_new_sequence, particle_new_sequence))
 
         expected_keys = []
         for (key, value) in particle_def.items():
-            if(key not in ['_index', '_new_sequence', 'internal_timestamp']):
+            if(key not in ['_index', '_new_sequence', 'internal_timestamp', 'particle_object', 'particle_type']):
                 expected_keys.append(key)
 
         particle_keys = []

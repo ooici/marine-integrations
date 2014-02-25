@@ -1,0 +1,44 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    internal_timestamp: 3595053721.000000
+    particle_object: Wfp_eng__stc_imodem_startParserDataParticle
+    particle_type: wfp_eng__stc_imodem_start_time
+    sensor_start: 1386064802
+    profile_start: 1386064921
+  - _index: 2
+    internal_timestamp: 3595053725.000000
+    particle_object: Wfp_eng__stc_imodem_engineeringParserDataParticle
+    particle_type: wfp_eng__stc_imodem_engineering
+    timestamp: 1386064925
+    prof_current: 0.0000000000000000
+    prof_voltage: 11.6384000778198242
+    prof_pressure: 0.0000000000000000
+  - _index: 3
+    internal_timestamp: 3595053729.000000
+    particle_object: Wfp_eng__stc_imodem_engineeringParserDataParticle
+    particle_type: wfp_eng__stc_imodem_engineering
+    timestamp: 1386064929
+    prof_current: 137.9490814208984375
+    prof_voltage: 11.5784006118774414
+    prof_pressure: 0.0000000000000000
+  - _index: 4
+    internal_timestamp: 3595053734.000000
+    particle_object: Wfp_eng__stc_imodem_engineeringParserDataParticle
+    particle_type: wfp_eng__stc_imodem_engineering
+    timestamp: 1386064934
+    prof_current: 377.2472839355468750
+    prof_voltage: 11.4471998214721680
+    prof_pressure: 0.0000000000000000
+  - _index: 5
+    internal_timestamp: 3595053738.000000
+    particle_object: Wfp_eng__stc_imodem_engineeringParserDataParticle
+    particle_type: wfp_eng__stc_imodem_engineering
+    timestamp: 1386064938
+    prof_current: 395.3518066406250000
+    prof_voltage: 11.4272003173828125
+    prof_pressure: 0.0000000000000000
+

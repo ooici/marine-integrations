@@ -208,7 +208,6 @@ class BufferLoadingParser(Parser):
         # read in some more data
         data = self._stream_handle.read(size)
         if data:
-            log.trace('Adding data chunk with timestamp %s', self._timestamp)
             self._chunker.add_chunk(data, self._timestamp)
             return len(data)
         else: # EOF
