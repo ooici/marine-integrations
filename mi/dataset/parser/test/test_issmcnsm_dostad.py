@@ -65,9 +65,10 @@ class Issmcnsm_dostadParserUnitTestCase(ParserUnitTestCase):
 2013/10/12 00:00:51.861 4831\t135\t322.889\t101.087\t14.351\t31.583\t31.583\t40.380\t8.796\t1077.4\t1057.4\t244.9\r
 """
 
-    def state_callback(self, state):
+    def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
+        self.file_ingested = file_ingested
 
     def pub_callback(self, pub):
         """ Call back method to watch what comes in via the publish callback """

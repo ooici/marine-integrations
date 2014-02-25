@@ -127,9 +127,10 @@ GPS2:
  42.2105, 13.4252,  143.63,   2830.6
  42.2110, 13.4350,  143.62,   2831.5
 """
-    def pos_callback(self, pos):
+    def pos_callback(self, pos, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         self.position_callback_value = pos
+        self.file_ingested = file_ingested
 
     def pub_callback(self, pub):
         """ Call back method to watch what comes in via the publish callback """
@@ -277,4 +278,4 @@ GPS2:
         self.assert_result(result, 137, self.base_timestamp, self.particle_a)
 
         result = self.parser.get_records(1)
-        self.assert_result(result, 194, self.base_timestamp+60, self.particle_e)
+        self.assert_result(result, 193, self.base_timestamp+60, self.particle_e)

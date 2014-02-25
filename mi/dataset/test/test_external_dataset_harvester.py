@@ -17,7 +17,7 @@ import glob
 from mi.core.log import get_logger ; log = get_logger()
 from nose.plugins.attrib import attr
 from mi.core.unit_test import MiUnitTest
-from mi.dataset.harvester import AdditiveSequentialFileHarvester
+from mi.dataset.harvester import SingleDirectoryHarvester
 
 # bin/nosetests -s -v --nologcapture mi.dataset.test.test_external_dataset_harvester
 
@@ -56,7 +56,7 @@ class TestExternalDatasetHarvester(MiUnitTest):
 
         # start the harvester from scratch
         memento = None
-        file_harvester = AdditiveSequentialFileHarvester(config, memento,
+        file_harvester = SingleDirectoryHarvester(config, memento,
                                                          self.new_file_found_callback,
                                                          self.file_exception_callback)
         file_harvester.start()
@@ -81,7 +81,7 @@ class TestExternalDatasetHarvester(MiUnitTest):
         """
         # start the harvester from scratch
         memento = None
-        file_harvester = AdditiveSequentialFileHarvester(CONFIG, memento,
+        file_harvester = SingleDirectoryHarvester(CONFIG, memento,
                                                          self.new_file_found_callback,
                                                          self.file_exception_callback)
         file_harvester.start()
@@ -110,7 +110,7 @@ class TestExternalDatasetHarvester(MiUnitTest):
         # start at index 2
         dir_files = glob.glob(CONFIG['directory'] + '/' + CONFIG['pattern'])
         memento = self.replace_file_index(dir_files[0], 2)
-        file_harvester = AdditiveSequentialFileHarvester(CONFIG, memento,
+        file_harvester = SingleDirectoryHarvester(CONFIG, memento,
                                                          self.new_file_found_callback,
                                                          self.file_exception_callback)
         file_harvester.start()
@@ -134,7 +134,7 @@ class TestExternalDatasetHarvester(MiUnitTest):
         """
         # start the harvester from scratch
         memento = None
-        file_harvester = AdditiveSequentialFileHarvester(CONFIG, memento,
+        file_harvester = SingleDirectoryHarvester(CONFIG, memento,
                                                          self.new_file_found_callback,
                                                          self.file_exception_callback)
         file_harvester.start()
@@ -158,7 +158,7 @@ class TestExternalDatasetHarvester(MiUnitTest):
         Verify exceptions
         """
         config = "blah"
-        self.assertRaises(TypeError, AdditiveSequentialFileHarvester,
+        self.assertRaises(TypeError, SingleDirectoryHarvester,
                                                         (config, None,
                                                          self.new_file_found_callback,
                                                          self.file_exception_callback))

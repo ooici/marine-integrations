@@ -311,10 +311,11 @@ class NutnrbParserUnitTestCase(ParserUnitTestCase):
 """
 
 
-    def state_callback(self, pos):
+    def state_callback(self, pos, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         log.trace("SETTING state_callback_value to " + str(pos))
         self.position_callback_value = pos
+        self.file_ingested = file_ingested
 
     def pub_callback(self, pub):
         """ Call back method to watch what comes in via the publish callback """
