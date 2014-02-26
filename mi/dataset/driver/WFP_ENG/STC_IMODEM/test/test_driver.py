@@ -1,8 +1,8 @@
 """
-@package mi.dataset.driver.moas.gl.dosta.test.test_driver
-@file marine-integrations/mi/dataset/driver/moas/gl/dosta/test/test_driver.py
-@author Bill French
-@brief Test cases for glider ctd data
+@package mi.dataset.driver.WFP_ENG.STC_IMODEM.test.test_driver
+@file marine-integrations/mi/dataset/driver/WFP_ENG/STC_IMODEM/driver.py
+@author Emily Hahn
+@brief Test cases for WFP_ENG__STC_IMODEM driver
 
 USAGE:
  Make tests verbose and provide stdout
@@ -12,75 +12,63 @@ USAGE:
        $ bin/dsa/test_driver -q [-t testname]
 """
 
-__author__ = 'Bill French'
+__author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
-import gevent
 import unittest
 
 from nose.plugins.attrib import attr
 from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
-
-from exceptions import Exception
-
-from mi.idk.dataset.unit_test import DataSetTestCase
-from mi.idk.dataset.unit_test import DataSetTestConfig
-from mi.idk.dataset.unit_test import DataSetUnitTestCase
-from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
-from mi.idk.dataset.unit_test import DataSetQualificationTestCase
-
-from mi.core.exceptions import ConfigurationException
-from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentParameterException
 from mi.idk.exceptions import SampleTimeout
 
+from mi.idk.dataset.unit_test import DataSetTestCase
+from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
+from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 
-from mi.dataset.driver.moas.gl.dosta.driver import DOSTADataSetDriver
-
-from mi.dataset.parser.glider import GgldrDostaDelayedDataParticle
+from mi.dataset.driver.WFP_ENG.STC_IMODEM.driver import WFP_ENG__STC_IMODEM_DataSetDriver
+from mi.dataset.parser.wfp_eng__stc_imodem import DataParticleType, Wfp_eng__stc_imodem_statusParserDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_startParserDataParticle
+from mi.dataset.parser.wfp_eng__stc_imodem import Wfp_eng__stc_imodem_engineeringParserDataParticle
 from pyon.agent.agent import ResourceAgentState
-
-from interface.objects import CapabilityType
-from interface.objects import AgentCapability
 from interface.objects import ResourceAgentErrorEvent
-from interface.objects import ResourceAgentConnectionLostErrorEvent
 
+# Fill in driver details
 DataSetTestCase.initialize(
-    driver_module='mi.dataset.driver.moas.gl.dosta.driver',
-    driver_class="DOSTADataSetDriver",
-
+    driver_module='mi.dataset.driver.WFP_ENG.STC_IMODEM.driver',
+    driver_class='WFP_ENG__STC_IMODEM_DataSetDriver',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = DOSTADataSetDriver.stream_config(),
+    agent_packet_config = WFP_ENG__STC_IMODEM_DataSetDriver.stream_config(),
     startup_config = {
+        DataSourceConfigKey.RESOURCE_ID: 'wfp_eng__stc_imodem',
         DataSourceConfigKey.HARVESTER:
         {
             DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
-            DataSetDriverConfigKeys.PATTERN: '*.mrg',
+            DataSetDriverConfigKeys.PATTERN: 'E*.DAT',
             DataSetDriverConfigKeys.FREQUENCY: 1,
         },
         DataSourceConfigKey.PARSER: {}
     }
 )
 
-SAMPLE_STREAM='ggldr_dosta_delayed'
-    
+SAMPLE_STREAMS = [DataParticleType.START_TIME, DataParticleType.STATUS, DataParticleType.ENGINEERING]
+
 ###############################################################################
-#                                UNIT TESTS                                   #
-# Device specific unit tests are for                                          #
+#                            INTEGRATION TESTS                                #
+# Device specific integration tests are for                                   #
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
+ 
     def test_get(self):
         """
-        Test that we can get data from files.  Verify that the driver sampling
-        can be started and stopped.
+        Test that we can get data from files.  Verify that the driver
+        sampling can be started and stopped
         """
         self.clear_sample_data()
 
@@ -88,30 +76,29 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         self.clear_async_data()
-        self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_6.mrg")
-        self.assert_data(GgldrDostaDelayedDataParticle, 'single_dosta_record.mrg.result.yml', count=1, timeout=10)
+        self.create_sample_data('first.DAT', "E0000001.DAT")
+        self.assert_data_multiple_class('first.result.yml', count=2, timeout=10)
 
         self.clear_async_data()
-        self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_7_6.mrg")
-        self.assert_data(GgldrDostaDelayedDataParticle, 'multiple_dosta_record.mrg.result.yml', count=4, timeout=10)
+        self.create_sample_data('second.DAT', "E0000002.DAT")
+        self.assert_data_multiple_class('second.result.yml', count=5, timeout=10)
 
-        log.debug("Start second file ingestion")
-        # Verify sort order isn't ascii, but numeric
         self.clear_async_data()
-        self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
-        self.assert_data(GgldrDostaDelayedDataParticle, count=172, timeout=30)
+        self.create_sample_data('E0000303.DAT', "E0000303.DAT")
+        # start is the same particle here, just use the same results
+        self.assert_data_multiple_class(count=34, timeout=10)
 
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
         """
-        path_1 = self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_8.mrg")
-        path_2 = self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_6_9.mrg")
+        path_1 = self.create_sample_data('first.DAT', "E0000001.DAT")
+        path_2 = self.create_sample_data('second.DAT', "E0000002.DAT")
 
         # Create and store the new driver state
         state = {
-            'unit_363_2013_245_6_8.mrg': self.get_file_state(path_1, True, 1160),
-            'unit_363_2013_245_6_9.mrg': self.get_file_state(path_2, False, 2288)
+            'E0000001.DAT': self.get_file_state(path_1, True, 50),
+            'E0000002.DAT': self.get_file_state(path_2, False, 76)
         }
         self.driver = self._get_driver_object(memento=state)
 
@@ -121,7 +108,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrDostaDelayedDataParticle, 'merged_dosta_record.mrg.result.yml', count=3, timeout=10)
+        self.assert_data_multiple_class('partial_second.result.yml', count=2, timeout=10)
 
     def test_stop_start_ingest(self):
         """
@@ -132,37 +119,17 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.start_sampling()
 
-        self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_6.mrg")
-        self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_7_6.mrg")
-        self.assert_data(GgldrDostaDelayedDataParticle, 'single_dosta_record.mrg.result.yml', count=1, timeout=10)
-        self.assert_file_ingested("unit_363_2013_245_6_6.mrg")
-        self.assert_file_not_ingested("unit_363_2013_245_7_6.mrg")
+        self.create_sample_data('first.DAT', "E0000001.DAT")
+        self.create_sample_data('second.DAT', "E0000002.DAT")
+        self.assert_data_multiple_class('first.result.yml', count=2, timeout=10)
+        self.assert_file_ingested("E0000001.DAT")
+        self.assert_file_not_ingested("E0000002.DAT")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data(GgldrDostaDelayedDataParticle, 'multiple_dosta_record.mrg.result.yml', count=4, timeout=10)
-        self.assert_file_ingested("unit_363_2013_245_7_6.mrg")
-
-    def test_bad_sample(self):
-        """
-        Test a bad sample.  To do this we set a state to the middle of a record
-        """
-        # create some data to parse
-        self.clear_async_data()
-
-        path = self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_6_9.mrg")
-
-        # Create and store the new driver state
-        state = {
-            'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 2250),
-        }
-        self.driver = self._get_driver_object(memento=state)
-
-        self.driver.start_sampling()
-
-        # verify data is produced
-        self.assert_data(GgldrDostaDelayedDataParticle, 'bad_sample_dosta_record.mrg.result.yml', count=3, timeout=10)
+        self.assert_data_multiple_class('second.result.yml', count=5, timeout=10)
+        self.assert_file_ingested("E0000002.DAT")
 
     def test_sample_exception(self):
         """
@@ -195,30 +162,42 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        self.create_sample_data('single_dosta_record.mrg', 'unit_363_2013_245_6_9.mrg')
-        self.assert_initialize()
+        self.create_sample_data('second.DAT', 'E0000001.DAT')
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # NOTE: If the processing is not slowed down here, the engineering samples are
+        # returned in the wrong order
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
 
         # Verify we get one sample
         try:
-            result = self.data_subscribers.get_samples(SAMPLE_STREAM)
-            log.debug("RESULT: %s", result)
+            result_eng = self.data_subscribers.get_samples(DataParticleType.ENGINEERING, 4)
+            log.debug("First RESULT: %s", result_eng)
+
+            result = self.data_subscribers.get_samples(DataParticleType.START_TIME)
+            log.debug("Second RESULT: %s", result)
+
+            result.extend(result_eng)
+            log.debug("Extended RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'single_dosta_record.mrg.result.yml')
+            self.assert_data_values(result, 'second.result.yml')
         except Exception as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
 
     def test_large_import(self):
         """
-        There is a bug when activating an instrument go_active times out and
-        there was speculation this was due to blocking behavior in the agent.
-        https://jira.oceanobservatories.org/tasks/browse/OOIION-1284
+        Test importing a large number of samples from the file at once
         """
-        self.create_sample_data('unit_363_2013_245_6_6.mrg')
+        self.create_sample_data('E0000303.DAT')
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,172,120)
+        # get results for each of the data particle streams
+        result1 = self.get_samples(DataParticleType.START_TIME,1,10)
+        result2 = self.get_samples(DataParticleType.ENGINEERING,32,120)
+        result3 = self.get_samples(DataParticleType.STATUS,1,10)
 
     def test_stop_start(self):
         """
@@ -226,7 +205,7 @@ class QualificationTest(DataSetQualificationTestCase):
         at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_6.mrg")
+        self.create_sample_data('first.DAT', "E0000001.DAT")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -237,38 +216,43 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.get_samples(SAMPLE_STREAM)
+            result = self.get_samples(DataParticleType.START_TIME)
+            result2 = self.get_samples(DataParticleType.ENGINEERING)
+            result.extend(result2)
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'single_dosta_record.mrg.result.yml')
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_data_values(result, 'first.result.yml')
+            self.assert_all_queue_empty()
 
-            self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_7_6.mrg")
+            self.create_sample_data('second.DAT', "E0000002.DAT")
             # Now read the first three records of the second file then stop
-            result = self.get_samples(SAMPLE_STREAM, 1)
+            result = self.get_samples(DataParticleType.START_TIME)
+            result2 = self.get_samples(DataParticleType.ENGINEERING, 2)
+            result.extend(result2)
             log.debug("got result 1 %s", result)
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_all_queue_empty()
 
             # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()
-            result = self.get_samples(SAMPLE_STREAM, 3)
-            log.debug("got result 2 %s", result)
-            self.assert_data_values(result, 'merged_dosta_record.mrg.result.yml')
+            result3 = self.get_samples(DataParticleType.ENGINEERING, 2)
+            log.debug("got result 2 %s", result3)
+            result.extend(result3)
+            self.assert_data_values(result, 'second.result.yml')
 
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_all_queue_empty()
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
     def test_shutdown_restart(self):
         """
-        Test the agents ability to completely stop, then restart
+        Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_6.mrg")
+        self.create_sample_data('first.DAT', "E0000001.DAT")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -279,51 +263,68 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.get_samples(SAMPLE_STREAM)
+            result = self.get_samples(DataParticleType.START_TIME)
+            result2 = self.get_samples(DataParticleType.ENGINEERING)
+            result.extend(result2)
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'single_dosta_record.mrg.result.yml')
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_data_values(result, 'first.result.yml')
+            self.assert_all_queue_empty()
 
-            self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_7_6.mrg")
-            # Now read the first records of the second file then stop
-            result = self.get_samples(SAMPLE_STREAM, 1)
+            self.create_sample_data('second.DAT', "E0000002.DAT")
+            # Now read the first three records of the second file then stop
+            result = self.get_samples(DataParticleType.START_TIME)
+            result2 = self.get_samples(DataParticleType.ENGINEERING, 2)
+            result.extend(result2)
             log.debug("got result 1 %s", result)
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_all_queue_empty()
+
             # stop the agent
             self.stop_dataset_agent_client()
             # re-start the agent
             self.init_dataset_agent_client()
             #re-initialize
             self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-            # Restart sampling and ensure we get the last 5 records of the file
+            # Restart sampling and ensure we get the last 2 records of the file
             self.assert_start_sampling()
-            result = self.get_samples(SAMPLE_STREAM, 3)
-            log.debug("got result 2 %s", result)
-            self.assert_data_values(result, 'merged_dosta_record.mrg.result.yml')
 
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            result3 = self.get_samples(DataParticleType.ENGINEERING, 2)
+            log.debug("got result 2 %s", result3)
+            result.extend(result3)
+            self.assert_data_values(result, 'second.result.yml')
+
+            self.assert_all_queue_empty()
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    @unittest.skip('foo')
+    def assert_all_queue_empty(self):
+        """
+        Assert the sample queue for all 3 data streams is empty
+        """
+        self.assert_sample_queue_size(DataParticleType.START_TIME, 0)
+        self.assert_sample_queue_size(DataParticleType.ENGINEERING, 0)
+        self.assert_sample_queue_size(DataParticleType.STATUS, 0)
+
+    @unittest.skip('test not finished yet')
     def test_parser_exception(self):
         """
-        Test an exception raised after the driver is started during
+        Test an exception is raised after the driver is started during
         record parsing.
         """
         self.clear_sample_data()
-        self.create_sample_data('test_data_2.txt', 'DATA002.txt')
+        self.create_sample_data('second.DAT', 'E0000002.DAT')
 
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 9)
-        self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+        result1 = self.get_samples(DataParticleType.START_TIME)
+        result2 = self.get_samples(DataParticleType.ENGINEERING, 4)
+        self.assert_all_queue_empty();
 
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 10)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
+

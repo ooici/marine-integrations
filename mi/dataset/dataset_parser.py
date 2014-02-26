@@ -55,7 +55,12 @@ class Parser(object):
         #build class from module and class name, then set the state
         if config.get("particle_module"):
             self._particle_module = __import__(config.get("particle_module"), fromlist = [config.get("particle_class")])
-            self._particle_class = getattr(self._particle_module, config.get("particle_class"))
+            # if there is more than one particle class for this parser, this cannot be used, need to hard code the
+            # particle class in the driver
+            try:
+                self._particle_class = getattr(self._particle_module, config.get("particle_class"))
+            except TypeError:
+                self._particle_class = None
         else:
             log.warn("No particle module specified in config")
 
