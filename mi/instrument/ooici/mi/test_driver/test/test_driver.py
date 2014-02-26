@@ -282,9 +282,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
         self.assert_stop_autosample()
 
-        samples = self.get_sample_events(DataParticleType.RAW)
-        self.assertGreater(len(samples), 0)
-
     def test_get_set_parameters(self):
         '''
         verify that all parameters can be get set properly, this includes
