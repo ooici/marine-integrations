@@ -500,7 +500,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
 
                 if not done:
                     log.debug("No particle detected yet, sleep for a bit")
-                    gevent.sleep(1)
+                    gevent.sleep(.5)
         except Timeout:
             log.error("Failed to detect particle %s, expected %d particles, found %d", particle_class, count, found)
             result = []
@@ -537,7 +537,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
 
                 if not done:
                     log.debug("No particle detected yet, sleep for a bit")
-                    gevent.sleep(1)
+                    gevent.sleep(.5)
         except Timeout:
             log.error("Failed to detect particle, expected %d particles, found %d", count, found)
             result = []
