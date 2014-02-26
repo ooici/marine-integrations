@@ -104,3 +104,15 @@ def string_to_ntp_date_time(datestr):
         log.debug("converting time string '%s', unix_ts: %s ntp: %s", datestr, gmt_sec, timestamp)
 
         return timestamp
+
+def time_to_ntp_date_time(unix_time=None):
+        """
+        return an NTP timestamp.  Currently this is a float, but should be a 64bit fixed point block.
+        TODO: Fix return value
+        @param unit_time: Unix time as returned from time.time()
+        """
+        if unix_time is None:
+            unix_time = time.time()
+
+        timestamp = ntplib.system_to_ntp_time(unix_time)
+        return float(timestamp)
