@@ -405,7 +405,7 @@ class DriverFileList:
                 
         # Add the resources directory __init__.py file, too. Without a .py file,
         # it can get forgotten by dependencies
-        # result.append(os.path.join(dirname(self.driver_file), "resource/__init__.py"))
+        result.append(os.path.join(dirname(self.driver_file), "resource/__init__.py"))
         return result
     
 class EggGenerator:
