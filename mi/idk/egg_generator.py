@@ -503,6 +503,7 @@ class EggGenerator:
         (only the lower versioned dir is included in the egg)
         @param files - a list of files to copy into the staging directory
         """
+        log.error(repr(files))
         # make two levels of versioned file directories, i.e.
         #     driverA_0_1 (= build_dir)
         #         driverA_0_1 (= versioned_dir)
@@ -544,7 +545,7 @@ class EggGenerator:
             #driver_file.write(new_contents)
             #driver_file.close()
 
-            
+
         # need to add mi-logging.yml special because it is not in cloned repo, only in local repository
         milog = "mi-logging.yml"
         dest = os.path.join(self._res_config_dir(), milog)
@@ -555,20 +556,16 @@ class EggGenerator:
         # make sure the destination directory exists, if it doesn't make it
         if not os.path.exists(destdir):
             os.makedirs(destdir)
-        # Now that it exists, make the package scanner find it           
-        self._create_file(os.path.join(self._res_dir(), "__init__.py"))
-        self._create_file(os.path.join(self._res_config_dir(), "__init__.py"))        
+
 
         shutil.copy(source, dest)
 
         # we need to make sure an init file is in the versioned dir and
         # resource directories so that find_packages() will look in here
-        init_file_list = [os.path.join(self._versioned_dir(), "__init__.py"),
-                          os.path.join(self._versioned_dir(), "res", "__init__.py"),
-                          os.path.join(self._versioned_dir(), "res", "config", "__init__.py")]
+        init_file_list = [os.path.join(self._versioned_dir(), "__init__.py")]
         for file in init_file_list:
             self._create_file(file)
-            
+
     @staticmethod
     def _create_file(file):
         """

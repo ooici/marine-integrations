@@ -505,9 +505,9 @@ class TestDriverEggGenerator(IDKPackageNose):
         files = [ 'mi/__init__.py',
                   'mi/idk/__init__.py',
                   'mi/idk/config.py',
-                  'res/config/mi-logging.yml',
-                  'res/config/__init__.py',
-                  'res/__init__.py'
+                  #'res/config/mi-logging.yml',
+                  #'res/config/__init__.py',
+                  #'res/__init__.py'
         ]
 
         egg_files = [
@@ -520,7 +520,7 @@ class TestDriverEggGenerator(IDKPackageNose):
             'EGG-INFO/zip-safe',
             'mi/main.py',
         ]
-
+        log.error(repr(files))
         egg_file = self._generator._build_egg(files)
         self.assertTrue(exists(egg_file))
 
