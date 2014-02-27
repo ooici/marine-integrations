@@ -514,36 +514,37 @@ class EggGenerator:
             os.makedirs(self._versioned_dir())
 
         for file in files:
-            dest = os.path.join(self._versioned_dir(), file)
-            destdir = dirname(dest)
-            source = os.path.join(self._repo_dir(), file)
-
-            # this one goes elsewhere so the InstrumentDict can find it
-            if basename(file) == 'strings.yml':
-                dest = os.path.join(self._res_dir(), basename(file))
+            if file not in ['res/config/__init__.py', 'res/__init__.py']:
+                dest = os.path.join(self._versioned_dir(), file)
                 destdir = dirname(dest)
-
-            log.debug(" Copy %s => %s" % (source, dest))
-            # make sure the destination directory exists, if it doesn't make it
-            if not os.path.exists(destdir):
-                os.makedirs(destdir)
-
-            shutil.copy(source, dest)
-
-            # replace mi in the copied files with the versioned driver module.mi
-            # this is necessary because the top namespace in the versioned files starts
-            # with the versioned driver name directory, not mi
-            #driver_file = open(dest, "r")
-            #contents = driver_file.read()
-            #driver_file.close()
-            #new_contents = re.sub(r'(^import |^from |\'|= )mi\.|res/config/mi-logging|\'mi\'',
-            #                      self._mi_replace,
-            #                      contents,
-            #                      count=0,
-            #                      flags=re.MULTILINE)
-            #driver_file = open(dest, "w")
-            #driver_file.write(new_contents)
-            #driver_file.close()
+                source = os.path.join(self._repo_dir(), file)
+    
+                # this one goes elsewhere so the InstrumentDict can find it
+                if basename(file) == 'strings.yml':
+                    dest = os.path.join(self._res_dir(), basename(file))
+                    destdir = dirname(dest)
+    
+                log.debug(" Copy %s => %s" % (source, dest))
+                # make sure the destination directory exists, if it doesn't make it
+                if not os.path.exists(destdir):
+                    os.makedirs(destdir)
+    
+                shutil.copy(source, dest)
+    
+                # replace mi in the copied files with the versioned driver module.mi
+                # this is necessary because the top namespace in the versioned files starts
+                # with the versioned driver name directory, not mi
+                #driver_file = open(dest, "r")
+                #contents = driver_file.read()
+                #driver_file.close()
+                #new_contents = re.sub(r'(^import |^from |\'|= )mi\.|res/config/mi-logging|\'mi\'',
+                #                      self._mi_replace,
+                #                      contents,
+                #                      count=0,
+                #                      flags=re.MULTILINE)
+                #driver_file = open(dest, "w")
+                #driver_file.write(new_contents)
+                #driver_file.close()
 
 
         # need to add mi-logging.yml special because it is not in cloned repo, only in local repository
@@ -562,7 +563,9 @@ class EggGenerator:
 
         # we need to make sure an init file is in the versioned dir and
         # resource directories so that find_packages() will look in here
-        init_file_list = [os.path.join(self._versioned_dir(), "__init__.py")]
+        init_file_list = [os.path.join(self._versioned_dir(), "__init__.py"),
+                          os.path.join(self._versioned_dir(), "res", "__init__.py"),
+                          os.path.join(self._versioned_dir(), "res", "config", "__init__.py")]
         for file in init_file_list:
             self._create_file(file)
 
