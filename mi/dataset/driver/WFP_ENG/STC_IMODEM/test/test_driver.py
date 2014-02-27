@@ -192,12 +192,25 @@ class QualificationTest(DataSetQualificationTestCase):
         Test importing a large number of samples from the file at once
         """
         self.create_sample_data('E0000303.DAT')
+        self.create_sample_data('E0000427.DAT')
+        self.assert_initialize()
+
+        # get results for each of the data particle streams
+        result1 = self.get_samples(DataParticleType.START_TIME,2,10)
+        result2 = self.get_samples(DataParticleType.ENGINEERING,64,40)
+        result3 = self.get_samples(DataParticleType.STATUS,2,10)
+
+    def test_status_in_middle(self):
+        """
+        This file has status particles in the middle and at the end
+        """
+        self.create_sample_data('E0000039.DAT')
         self.assert_initialize()
 
         # get results for each of the data particle streams
         result1 = self.get_samples(DataParticleType.START_TIME,1,10)
-        result2 = self.get_samples(DataParticleType.ENGINEERING,32,120)
-        result3 = self.get_samples(DataParticleType.STATUS,1,10)
+        result2 = self.get_samples(DataParticleType.ENGINEERING,53,40)
+        result3 = self.get_samples(DataParticleType.STATUS,7,10)
 
     def test_stop_start(self):
         """
@@ -308,20 +321,22 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_sample_queue_size(DataParticleType.ENGINEERING, 0)
         self.assert_sample_queue_size(DataParticleType.STATUS, 0)
 
-    @unittest.skip('test not finished yet')
     def test_parser_exception(self):
         """
         Test an exception is raised after the driver is started during
         record parsing.
         """
         self.clear_sample_data()
-        self.create_sample_data('second.DAT', 'E0000002.DAT')
+        self.create_sample_data('bad.DAT', 'E0000001.DAT')
+        self.create_sample_data('first.DAT', 'E0000002.DAT')
 
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result1 = self.get_samples(DataParticleType.START_TIME)
-        result2 = self.get_samples(DataParticleType.ENGINEERING, 4)
+        result = self.get_samples(DataParticleType.START_TIME)
+        result1 = self.get_samples(DataParticleType.ENGINEERING, 1)
+        result.extend(result1)
+        self.assert_data_values(result, 'first.result.yml')
         self.assert_all_queue_empty();
 
         # Verify an event was raised and we are in our retry state

@@ -22,12 +22,10 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import SampleException, DatasetParserException
-from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, DATA_SAMPLE_MATCHER, HEADER_MATCHER, StateKey
-from mi.dataset.parser.WFP_E_file_common import HEADER_BYTES, SAMPLE_BYTES, PROFILE_MATCHER
+from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, HEADER_MATCHER, StateKey
+from mi.dataset.parser.WFP_E_file_common import HEADER_BYTES, SAMPLE_BYTES, STATUS_BYTES, PROFILE_MATCHER
 from mi.dataset.dataset_parser import Parser
 
-
-STATUS_BYTES = 16
 
 class DataParticleType(BaseEnum):
     START_TIME = 'wfp_eng__stc_imodem_start_time'
@@ -130,7 +128,7 @@ class Wfp_eng__stc_imodem_startParserDataParticle(DataParticle):
             fields = struct.unpack('>II', match.group(2))
             sensor_start = int(fields[0])
             profile_start = int(fields[1])
-	    log.debug('Unpacked sensor start %d, profile start %d', sensor_start, profile_start)
+            log.debug('Unpacked sensor start %d, profile start %d', sensor_start, profile_start)
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
@@ -181,12 +179,12 @@ class Wfp_eng__stc_imodem_engineeringParserDataParticle(DataParticle):
         a particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-        match = DATA_SAMPLE_MATCHER.match(self.raw_data)
-        if not match:
-            raise SampleException("Wfp_eng__stc_imodem_engineeringParserDataParticle: No regex match of parsed sample data: [%s]",
+        # data sample can be any bytes, no need to check regex
+        if len(self.raw_data) < SAMPLE_BYTES:
+            raise SampleException("Wfp_eng__stc_imodem_engineeringParserDataParticle: Not enough bytes of sample data: [%s]",
                                   self.raw_data)
         try:
-            fields = struct.unpack('>Ifff', match.group(0)[:16])
+            fields = struct.unpack('>Ifff', self.raw_data[:16])
             timestamp = int(fields[0])
             profile_current = float(fields[1])
             profile_voltage = float(fields[2])
@@ -298,14 +296,13 @@ class Wfp_eng__stc_imodemParser(WfpEFileParser):
             sample = self._extract_sample(Wfp_eng__stc_imodem_statusParserDataParticle, PROFILE_MATCHER,
                                           record, self._timestamp)
 	    self._increment_state(STATUS_BYTES)
-        elif DATA_SAMPLE_MATCHER.match(record):
+        else:
             # pull out the timestamp for this record
-            match = DATA_SAMPLE_MATCHER.match(record)
-            fields = struct.unpack('>I', match.group(0)[:4])
+            fields = struct.unpack('>I', record[:4])
             timestamp = int(fields[0])
             self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
             log.debug("Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)
-            sample = self._extract_sample(Wfp_eng__stc_imodem_engineeringParserDataParticle, DATA_SAMPLE_MATCHER,
+            sample = self._extract_sample(Wfp_eng__stc_imodem_engineeringParserDataParticle, None,
                                           record, self._timestamp)
 	    self._increment_state(SAMPLE_BYTES)
         if sample:
