@@ -17,7 +17,7 @@ import struct
 from functools import partial
 
 from mi.core.log import get_logger; log = get_logger()
-
+from mi.core.exceptions import SampleException
 from mi.core.common import BaseEnum
 from mi.core.instrument.chunker import BinaryChunker
 from mi.dataset.dataset_parser import BufferLoadingParser
@@ -53,8 +53,6 @@ class WfpEFileParser(BufferLoadingParser):
         self._timestamp = 0.0
         self._record_buffer = [] # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION: 0}
-        # store the profile start and sensor start times in case we need the data to calculate other timestamps
-        self._profile_start_stop_data = None
         super(WfpEFileParser, self).__init__(config,
                                              stream_handle,
                                              state,
@@ -131,7 +129,7 @@ class WfpEFileParser(BufferLoadingParser):
         if not match:
             raise SampleException("File header does not match the header regex")
         # update the state to show we have read the header
-        self.increment_state(HEADER_BYTES)
+        self._increment_state(HEADER_BYTES)
 
     def parse_record(self, record):
         """
