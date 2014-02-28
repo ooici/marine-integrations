@@ -17,7 +17,7 @@ import struct
 from functools import partial
 
 from mi.core.log import get_logger; log = get_logger()
-
+from mi.core.exceptions import SampleException
 from mi.core.common import BaseEnum
 from mi.core.instrument.chunker import BinaryChunker
 from mi.dataset.dataset_parser import BufferLoadingParser
@@ -104,7 +104,7 @@ class WfpEFileParser(BufferLoadingParser):
         if not match:
             raise SampleException("File header does not match the header regex")
 	# update the state to show we have read the header
-	self.increment_state(HEADER_BYTES)
+	self._increment_state(HEADER_BYTES)
 
     def parse_record(self, record):
         """
