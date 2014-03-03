@@ -93,9 +93,9 @@ Date,[mA],[V],[dbar],Par[mV],scatSig,chlSig,CDOMSig
 """
 
 
-    def pos_callback(self, pos):
+    def pos_callback(self, pos, file_ingested):
         """ Call back method to watch what comes in via the position callback """
-        log.error("SETTING position_callback_value to " + str(pos))
+        self.file_ingested = file_ingested
         self.position_callback_value = pos
 
     def pub_callback(self, pub):

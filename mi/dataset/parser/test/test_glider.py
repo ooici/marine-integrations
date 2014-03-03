@@ -110,13 +110,18 @@ class GliderParserUnitTestCase(ParserUnitTestCase):
     """
     config = {}
 
-    def state_callback(self, state):
+    def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the state callback """
         self.state_callback_values.append(state)
+        self.file_ingested = file_ingested
 
     def pub_callback(self, particle):
         """ Call back method to watch what comes in via the publish callback """
         self.publish_callback_values.append(particle)
+
+    def error_callback(self, error):
+        """ Call back method to watch what comes in via the state callback """
+        self.error_callback_values.append(error)
 
     def setUp(self):
         ParserUnitTestCase.setUp(self)
@@ -144,7 +149,7 @@ class GliderParserUnitTestCase(ParserUnitTestCase):
         self.state_callback_values = []
         self.publish_callback_values = []
         self.parser = GliderParser(self.config, state, self.test_data,
-                                   self.state_callback, self.pub_callback)
+                                   self.state_callback, self.pub_callback, self.error_callback)
 
     def get_published_value(self):
         return self.publish_callback_values.pop(0)

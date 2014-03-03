@@ -69,9 +69,10 @@ class Issmcnsm_flortdParserUnitTestCase(ParserUnitTestCase):
 2013/11/07 23:11:00.857 03/06/13\t23:09:07\t700\t4130\t695\t927\t460\t4130\t538\r
 """
 
-    def state_callback(self, state):
+    def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
+        self.file_ingested = file_ingested
 
     def pub_callback(self, pub):
         """ Call back method to watch what comes in via the publish callback """
