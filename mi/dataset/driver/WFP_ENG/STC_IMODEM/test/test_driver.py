@@ -55,8 +55,6 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAMS = [DataParticleType.START_TIME, DataParticleType.STATUS, DataParticleType.ENGINEERING]
-
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 # Device specific integration tests are for                                   #
