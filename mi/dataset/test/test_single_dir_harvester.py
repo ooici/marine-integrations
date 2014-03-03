@@ -21,6 +21,7 @@ from mi.dataset.dataset_driver import DriverStateKey, DataSetDriverConfigKeys
 
 TESTDIR = '/tmp/dsatest'
 STOREDIR = '/tmp/stored_dsatest'
+BIG_FILE = 'mi/dataset/driver/moas/gl/engineering/resource/unit_363_2013_245_6_6.mrg'
 CONFIG = {
     DataSetDriverConfigKeys.DIRECTORY: TESTDIR,
     DataSetDriverConfigKeys.STORAGE_DIRECTORY: STOREDIR,
@@ -385,13 +386,33 @@ class TestSingleDirHarvester(MiUnitTest):
                                                          self.modified_files_found_callback,
                                                          self.file_exception_callback))
 
+    def test_harvester_1000(self):
+        """
+        The harvester is taking a really long time to run, find out how long for 1000 files
+        """
+        self.fill_directory_1000_files(CONFIG[DataSetDriverConfigKeys.PATTERN])
+        memento = None
+        config = CONFIG.copy()
+        config[DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME] = 1
+        file_harvester = SingleDirectoryHarvester(CONFIG, memento,
+                                                self.new_file_found_callback,
+                                                self.modified_files_found_callback,
+                                                self.file_exception_callback)
+        start_time = time.time()
+        file_harvester.start()
+
+        while(self.found_file_count < 1000):
+            self.wait_for_file(self.found_file_count, 5, 60)
+        end_time = time.time()
+        log.debug('harvester found all files in %s', (end_time - start_time))
+
     def clean_directory(self, data_directory, pattern = "*"):
         """
         Clean out the data directory of all files
         """
         dir_files = glob.glob(data_directory + '/' + pattern)
         for file_name in dir_files:
-            log.debug("Removing file %s", file_name)
+            #log.debug("Removing file %s", file_name)
             os.remove(file_name)
 
     def new_file_found_callback(self, file_name):
@@ -400,7 +421,6 @@ class TestSingleDirHarvester(MiUnitTest):
         to the parser, but from this test we don't have the parser, so just close the file. 
         """
         self.found_file_count += 1
-        log.info("New file in callback %s", file_name)
 
     def modified_files_found_callback(self):
         """
@@ -429,6 +449,12 @@ class TestSingleDirHarvester(MiUnitTest):
             open(next_file, 'a').close()
             log.debug("Added file %s to directory, index %d", next_file, start_idx + i)
         log.debug("Done with directory filler")
+
+    def fill_directory_1000_files(self, pattern):
+        for i in range(0, 1000):
+            next_file = TESTDIR + '/' + 'test_' + str(i) + pattern.replace('*', '')
+            shutil.copy(BIG_FILE, next_file)
+        log.debug("Done with long directory filler")
 
     def get_file_metadata(self, filename):
         """
