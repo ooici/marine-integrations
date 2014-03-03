@@ -215,8 +215,10 @@ class EggGenerator(mi.idk.egg_generator.EggGenerator):
             log.info("CMD: %s" % cmd)
             os.system(cmd)
 
+            # python filters out '__' from the egg name and turns it into '_', so if we have those in our
+            # driver name need to fix the egg name
             egg_file = "%s/dist/dsd_%s-%s-py2.7.egg" % (self._build_dir(),
-                                                        self.metadata.driver_name,
+                                                        self.metadata.driver_name.replace('__', '_'),
                                                         self.metadata.version)
             
             # Remove all pyc files from the egg.  There was a jira case that suggested
