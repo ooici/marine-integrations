@@ -1,0 +1,13 @@
+header:
+    particle_object: Parad_k_stc_imodemParserDataParticle
+    particle_type: parad_k__stc_imodem_instrument
+
+data:
+  - _index: 1
+    internal_timestamp: 3595053734.000000
+    wfp_timestamp: 1386064934
+    par_val_mv: 0.0000000000000000
+  - _index: 2
+    internal_timestamp: 3595053738.000000
+    wfp_timestamp: 1386064938
+    par_val_mv: 0.0000000000000000
