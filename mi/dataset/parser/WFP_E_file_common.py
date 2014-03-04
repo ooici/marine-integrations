@@ -128,6 +128,7 @@ class WfpEFileParser(BufferLoadingParser):
         match = HEADER_MATCHER.match(header)
         if not match:
             raise SampleException("File header does not match the header regex")
+
         # update the state to show we have read the header
         self._increment_state(HEADER_BYTES)
 
