@@ -54,13 +54,7 @@ class Parad_k_stc_imodemParserDataParticle(DataParticle):
         try:
             fields_prof = struct.unpack('>I f f f f h h h', self.raw_data)
             time_stamp = int(fields_prof[0])
-            #current = int(fields_prof[1])
-            #voltage = int(fields_prof[2])
-            #ressr = int(fields_prof[3])
             par_value = float(fields_prof[4])
-            #scatter = int(fields_prof[5])
-            #ch1 = int(fields_prof[6])
-            #CDOM = int(fields_prof[7])
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
@@ -69,9 +63,8 @@ class Parad_k_stc_imodemParserDataParticle(DataParticle):
                    DataParticleKey.VALUE: time_stamp},
                   {DataParticleKey.VALUE_ID: Parad_k_stc_imodemParserDataParticleKey.SENSOR_DATA,
                    DataParticleKey.VALUE: par_value}]
-        #result = [{DataParticleKey.VALUE_ID: Parad_k_stc_imodemParserDataParticleKey.SENSOR_DATA,
-        #           DataParticleKey.VALUE: par_value}]
-        log.debug('Parad_k_stc_imodem_statusParserDataParticle: particle=%s', result)
+
+        log.debug('Parad_k_stc_imodemParserDataParticle: particle=%s', result)
         return result
 
     def __eq__(self, arg):
@@ -86,19 +79,18 @@ class Parad_k_stc_imodemParserDataParticle(DataParticle):
             return True
         else:
             if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
+                log.debug('Parad_k_stc_imodemParserDataParticle: Raw data does not match')
             elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
                  arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
+                log.debug('Parad_k_stc_imodemParserDataParticle: Timestamp does not match')
             return False
 
 class Parad_k_stc_imodemParser(WfpEFileParser):
 
     def parse_record(self, record):
         """
-        determine if this is a engineering or data record and parse
-        FLORT and PARAD can copy paste this and insert their own data particle class
-        needs extending for WFP_ENG
+        This is a PARAD_K particle type, and below we pull the proper value from the
+        unpacked data
         """
         result_particle = []
         if len(record) >= SAMPLE_BYTES:
@@ -107,12 +99,12 @@ class Parad_k_stc_imodemParser(WfpEFileParser):
             fields = struct.unpack('>I', record[:4])
             timestamp = int(fields[0])
             self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
-            log.debug("Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)
-            # INSERT YOUR DATA PARTICLE CLASS HERE
+            log.debug("Parad_k_stc_imodemParserDataParticle: Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)
+            # PARAD_K Data
             sample = self._extract_sample(Parad_k_stc_imodemParserDataParticle, None, record, self._timestamp)
             if sample:
                 # create particle
-                log.trace("Extracting sample %s with read_state: %s", sample, self._read_state)
+                log.trace("Parad_k_stc_imodemParserDataParticle: Extracting sample %s with read_state: %s", sample, self._read_state)
                 self._increment_state(SAMPLE_BYTES)
                 result_particle = (sample, copy.copy(self._read_state))
 
