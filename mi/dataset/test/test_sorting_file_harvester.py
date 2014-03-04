@@ -15,7 +15,7 @@ import glob
 from mi.core.log import get_logger ; log = get_logger()
 from nose.plugins.attrib import attr
 from mi.core.unit_test import MiUnitTest
-from mi.dataset.harvester import SortingDirectoryHarvester
+from mi.dataset.harvester import SingleDirectoryHarvester
 
 #bin/nosetests -x -v mi/dataset/test/test_sorting_file_harvester.py
 TESTDIR = '/tmp/dsatest'
@@ -62,7 +62,7 @@ class TestSortingDirectoryHarvester(MiUnitTest):
 
         # start the harvester from scratch
         memento = None
-        file_harvester = SortingDirectoryHarvester(config, memento,
+        file_harvester = SingleDirectoryHarvester(config, memento,
                                                          self.new_file_found_callback,
                                                          self.file_exception_callback)
 
@@ -81,7 +81,7 @@ class TestSortingDirectoryHarvester(MiUnitTest):
         memento = None
 
         os.mkdir(TESTDIR)
-        file_harvester = SortingDirectoryHarvester(config, memento,
+        file_harvester = SingleDirectoryHarvester(config, memento,
                                                          self.new_file_found_callback,
                                                          self.file_exception_callback)
         file_harvester.start()
@@ -105,7 +105,7 @@ class TestSortingDirectoryHarvester(MiUnitTest):
 
         # start the harvester from scratch
         memento = None
-        file_harvester = SortingDirectoryHarvester(config, memento,
+        file_harvester = SingleDirectoryHarvester(config, memento,
                                                          self.new_file_found_callback,
                                                          self.file_exception_callback)
         file_harvester.start()
@@ -129,7 +129,7 @@ class TestSortingDirectoryHarvester(MiUnitTest):
         """
         # start the harvester from scratch
         memento = None
-        file_harvester = SortingDirectoryHarvester(CONFIG, memento,
+        file_harvester = SingleDirectoryHarvester(CONFIG, memento,
                                                    self.new_file_found_callback,
                                                    self.file_exception_callback)
         file_harvester.start()
@@ -162,7 +162,7 @@ class TestSortingDirectoryHarvester(MiUnitTest):
         # start at index 2
         memento = CONFIG['directory'] + '/' + 'unit_' + INDICIES[1] + CONFIG['pattern'].replace('*', '')
         log.debug("starting with memento %s", memento)
-        file_harvester = SortingDirectoryHarvester(CONFIG, memento,
+        file_harvester = SingleDirectoryHarvester(CONFIG, memento,
                                                    self.new_file_found_callback,
                                                    self.file_exception_callback)
         file_harvester.start()
@@ -193,7 +193,7 @@ class TestSortingDirectoryHarvester(MiUnitTest):
         
         # start the harvester from scratch
         memento = None
-        file_harvester = SortingDirectoryHarvester(CONFIG, memento,
+        file_harvester = SingleDirectoryHarvester(CONFIG, memento,
                                                     self.new_file_found_callback,
                                                     self.file_exception_callback)
         file_harvester.start()
@@ -219,7 +219,7 @@ class TestSortingDirectoryHarvester(MiUnitTest):
         Verify exceptions
         """
         config = "blah"
-        self.assertRaises(TypeError, SortingDirectoryHarvester,
+        self.assertRaises(TypeError, SingleDirectoryHarvester,
                                                         (config, None,
                                                          self.new_file_found_callback,
                                                          self.file_exception_callback))

@@ -405,7 +405,7 @@ class DriverFileList:
                 
         # Add the resources directory __init__.py file, too. Without a .py file,
         # it can get forgotten by dependencies
-        # result.append(os.path.join(dirname(self.driver_file), "resource/__init__.py"))
+        result.append(os.path.join(dirname(self.driver_file), "resource/__init__.py"))
         return result
     
 class EggGenerator:
@@ -503,6 +503,7 @@ class EggGenerator:
         (only the lower versioned dir is included in the egg)
         @param files - a list of files to copy into the staging directory
         """
+        log.error(repr(files))
         # make two levels of versioned file directories, i.e.
         #     driverA_0_1 (= build_dir)
         #         driverA_0_1 (= versioned_dir)
@@ -513,38 +514,39 @@ class EggGenerator:
             os.makedirs(self._versioned_dir())
 
         for file in files:
-            dest = os.path.join(self._versioned_dir(), file)
-            destdir = dirname(dest)
-            source = os.path.join(self._repo_dir(), file)
-
-            # this one goes elsewhere so the InstrumentDict can find it
-            if basename(file) == 'strings.yml':
-                dest = os.path.join(self._res_dir(), basename(file))
+            if file not in ['res/config/__init__.py', 'res/__init__.py']:
+                dest = os.path.join(self._versioned_dir(), file)
                 destdir = dirname(dest)
+                source = os.path.join(self._repo_dir(), file)
+    
+                # this one goes elsewhere so the InstrumentDict can find it
+                if basename(file) == 'strings.yml':
+                    dest = os.path.join(self._res_dir(), basename(file))
+                    destdir = dirname(dest)
+    
+                log.debug(" Copy %s => %s" % (source, dest))
+                # make sure the destination directory exists, if it doesn't make it
+                if not os.path.exists(destdir):
+                    os.makedirs(destdir)
+    
+                shutil.copy(source, dest)
+    
+                # replace mi in the copied files with the versioned driver module.mi
+                # this is necessary because the top namespace in the versioned files starts
+                # with the versioned driver name directory, not mi
+                #driver_file = open(dest, "r")
+                #contents = driver_file.read()
+                #driver_file.close()
+                #new_contents = re.sub(r'(^import |^from |\'|= )mi\.|res/config/mi-logging|\'mi\'',
+                #                      self._mi_replace,
+                #                      contents,
+                #                      count=0,
+                #                      flags=re.MULTILINE)
+                #driver_file = open(dest, "w")
+                #driver_file.write(new_contents)
+                #driver_file.close()
 
-            log.debug(" Copy %s => %s" % (source, dest))
-            # make sure the destination directory exists, if it doesn't make it
-            if not os.path.exists(destdir):
-                os.makedirs(destdir)
 
-            shutil.copy(source, dest)
-
-            # replace mi in the copied files with the versioned driver module.mi
-            # this is necessary because the top namespace in the versioned files starts
-            # with the versioned driver name directory, not mi
-            #driver_file = open(dest, "r")
-            #contents = driver_file.read()
-            #driver_file.close()
-            #new_contents = re.sub(r'(^import |^from |\'|= )mi\.|res/config/mi-logging|\'mi\'',
-            #                      self._mi_replace,
-            #                      contents,
-            #                      count=0,
-            #                      flags=re.MULTILINE)
-            #driver_file = open(dest, "w")
-            #driver_file.write(new_contents)
-            #driver_file.close()
-
-            
         # need to add mi-logging.yml special because it is not in cloned repo, only in local repository
         milog = "mi-logging.yml"
         dest = os.path.join(self._res_config_dir(), milog)
@@ -555,9 +557,7 @@ class EggGenerator:
         # make sure the destination directory exists, if it doesn't make it
         if not os.path.exists(destdir):
             os.makedirs(destdir)
-        # Now that it exists, make the package scanner find it           
-        self._create_file(os.path.join(self._res_dir(), "__init__.py"))
-        self._create_file(os.path.join(self._res_config_dir(), "__init__.py"))        
+
 
         shutil.copy(source, dest)
 
@@ -568,7 +568,7 @@ class EggGenerator:
                           os.path.join(self._versioned_dir(), "res", "config", "__init__.py")]
         for file in init_file_list:
             self._create_file(file)
-            
+
     @staticmethod
     def _create_file(file):
         """

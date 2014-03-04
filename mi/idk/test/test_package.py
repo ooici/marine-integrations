@@ -520,7 +520,7 @@ class TestDriverEggGenerator(IDKPackageNose):
             'EGG-INFO/zip-safe',
             'mi/main.py',
         ]
-
+        log.error(repr(files))
         egg_file = self._generator._build_egg(files)
         self.assertTrue(exists(egg_file))
 

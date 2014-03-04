@@ -1,0 +1,30 @@
+header:
+  particle_object: Flort_kn__stc_imodemParserDataParticle
+  particle_type: flort_kn__stc_imodem_instrument
+
+data:
+  - _index: 1
+    internal_timestamp: 3595053725.000000
+    wfp_timestamp: 1386064925
+    raw_signal_beta: 259
+    raw_signal_chl: 104
+    raw_signal_cdom: 78 
+  - _index: 2
+    internal_timestamp: 3595053729.000000
+    wfp_timestamp: 1386064929
+    raw_signal_beta: 242
+    raw_signal_chl: 99
+    raw_signal_cdom: 79
+  - _index: 3
+    internal_timestamp: 3595053734.000000
+    wfp_timestamp: 1386064934
+    raw_signal_beta: 194
+    raw_signal_chl: 94
+    raw_signal_cdom: 79
+  - _index: 4
+    internal_timestamp: 3595053738.000000
+    wfp_timestamp: 1386064938
+    raw_signal_beta: 180
+    raw_signal_chl: 110
+    raw_signal_cdom: 79
+ 

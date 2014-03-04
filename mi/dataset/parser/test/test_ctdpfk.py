@@ -158,9 +158,10 @@ mmho/cm,Celsius,dbars,hz
 1.5283,16.3603,0.970, 2749
 1.5282,16.3604,0.970, 2752
 """
-    def pos_callback(self, pos):
+    def pos_callback(self, pos, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         self.position_callback_value = pos
+        self.file_ingested = file_ingested
 
     def pub_callback(self, pub):
         """ Call back method to watch what comes in via the publish callback """
