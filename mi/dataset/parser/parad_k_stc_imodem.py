@@ -106,7 +106,7 @@ class Parad_k_stc_imodemParser(WfpEFileParser):
             
             fields = struct.unpack('>I', record[:4])
             timestamp = int(fields[0])
-            self._timestamp = ntplib.system_to_ntp_time(timestamp)
+            self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
             log.debug("Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)
             # INSERT YOUR DATA PARTICLE CLASS HERE
             sample = self._extract_sample(Parad_k_stc_imodemParserDataParticle, None, record, self._timestamp)
