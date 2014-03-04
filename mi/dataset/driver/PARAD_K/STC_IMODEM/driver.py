@@ -17,6 +17,7 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
 from mi.dataset.parser.parad_k_stc_imodem import Parad_k_stc_imodemParser, Parad_k_stc_imodemParserDataParticle
+from mi.dataset.harvester import SingleDirectoryHarvester
 
 class PARAD_K_STC_IMODEM_DataSetDriver(SimpleDataSetDriver):
     

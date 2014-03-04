@@ -25,9 +25,6 @@ from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import SampleException, DatasetParserException
 from mi.dataset.parser.WFP_E_file_common import WfpEFileParser, StateKey, SAMPLE_BYTES
 
-# *** Need to define data regex for this parser ***
-#DATA_REGEX = ''
-#DATA_MATCHER = re.compile(DATA_REGEX)
 
 class DataParticleType(BaseEnum):
     
@@ -36,7 +33,7 @@ class DataParticleType(BaseEnum):
 class Parad_k_stc_imodemParserDataParticleKey(BaseEnum):
 
     TIMESTAMP = 'wfp_timestamp' #holds the most recent data sample timestamp
-    SENSOR_DATA = 'par_val'
+    SENSOR_DATA = 'par_val_mv'
     
 class Parad_k_stc_imodemParserDataParticle(DataParticle):
     """
@@ -72,6 +69,8 @@ class Parad_k_stc_imodemParserDataParticle(DataParticle):
                    DataParticleKey.VALUE: time_stamp},
                   {DataParticleKey.VALUE_ID: Parad_k_stc_imodemParserDataParticleKey.SENSOR_DATA,
                    DataParticleKey.VALUE: par_value}]
+        #result = [{DataParticleKey.VALUE_ID: Parad_k_stc_imodemParserDataParticleKey.SENSOR_DATA,
+        #           DataParticleKey.VALUE: par_value}]
         log.debug('Parad_k_stc_imodem_statusParserDataParticle: particle=%s', result)
         return result
 
