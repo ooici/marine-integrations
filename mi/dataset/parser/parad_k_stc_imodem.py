@@ -33,7 +33,7 @@ class DataParticleType(BaseEnum):
 class Parad_k_stc_imodemParserDataParticleKey(BaseEnum):
 
     TIMESTAMP = 'wfp_timestamp' #holds the most recent data sample timestamp
-    SENSOR_DATA = 'par_val_mv'
+    SENSOR_DATA = 'par_val_v'
     
 class Parad_k_stc_imodemParserDataParticle(DataParticle):
     """
