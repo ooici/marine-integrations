@@ -1,8 +1,8 @@
 driver_metadata:
+  version: 0.0.2
   author: Mike Nicoletti
   constructor: PARAD_K_STC_IMODEM_DataSetDriver
   driver_name: PARAD_K_STC_IMODEM
   driver_path: PARAD_K/STC_IMODEM
-  email: mnicolet@bbn.com
   release_notes: New driver started for PARAD_K_STC_IMODEM
-  version: 0.0.1
+  email: mnicolet@bbn.com
