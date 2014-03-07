@@ -27,12 +27,24 @@ from mi.dataset.parser.rte_xx__stc import Rte_xx__stcParser, Rte_xx__stcParserDa
 @attr('UNIT', group='mi')
 class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
     
-    TEST_DATA = """    
+    TEST_DATA = """
 2013/11/16 20:35:35.965 [rte:DLOGP3]:3712-50060, RTE Control Board Firmware REV 1.0, 11/07/2013
 2013/11/16 20:35:35.999 [rte:DLOGP3]:>Standard Power Mode activated!
 2013/11/16 20:36:22.111 [rte:DLOGP3]:Instrument Started [No Initialize]
 2013/11/16 20:46:24.989 Coulombs = 1.1110C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.02V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
 2013/11/16 20:56:25.633 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
+2013/11/16 21:06:26.400 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
+2013/11/16 21:16:27.303 Coulombs = 1.1073C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
+2013/11/16 21:26:30.002 Coulombs = 1.1110C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
+2013/11/16 23:17:13.193 [rte:DLOGP3]:Instrument Stopped [No Initialize]
+"""
+
+    BAD_TEST_DATA = """
+2013/11/16 20:35:35.965 [rte:DLOGP3]:3712-50060, RTE Control Board Firmware REV 1.0, 11/07/2013
+2013/11/16 20:35:35.999 [rte:DLOGP3]:>Standard Power Mode activated!
+2013/11/16 20:36:22.111 [rte:DLOGP3]:Instrument Started [No Initialize]
+2013/11/16 20:46:24.989 Coulombs = 1.1110C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.02V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
+2013/11/16 20:56:25.633 Coulombs = 1.1055C, AVG Q_RTE CurrAnt = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
 2013/11/16 21:06:26.400 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
 2013/11/16 21:16:27.303 Coulombs = 1.1073C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
 2013/11/16 21:26:30.002 Coulombs = 1.1110C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
@@ -107,7 +119,7 @@ class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
             internal_timestamp=self.timestamp3)  
 
         self.timestamp4 = self._convert_string_to_timestamp('2013/11/16 21:16:27.303 ')
-        self.particle_b = Rte_xx__stcParserDataParticle(
+        self.particle_d = Rte_xx__stcParserDataParticle(
             "2013/11/16 21:16:27.303 Coulombs = 1.1073C, AVG Q_RTE Current = 0.002A, " \
             "AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1" ,
             internal_timestamp=self.timestamp4)
@@ -132,17 +144,17 @@ class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
                                             self.state_callback, self.pub_callback)
 
         result = self.parser.get_records(1)
-        self.assert_result(result, 394, self.timestamp1, self.particle_a)
+        self.assert_result(result, 390, self.timestamp1, self.particle_a)
         # 394 came from the code.  there is no way to know if this is correct.
 
         result = self.parser.get_records(1)
-        self.assert_result(result, 547, self.timestamp2, self.particle_b)
+        self.assert_result(result, 543, self.timestamp2, self.particle_b)
 
         result = self.parser.get_records(1)
-        self.assert_result(result, 700, self.timestamp3, self.particle_c)
+        self.assert_result(result, 696, self.timestamp3, self.particle_c)
 
         result = self.parser.get_records(1)
-        self.assert_result(result, 853, self.timestamp4, self.particle_d)
+        self.assert_result(result, 849, self.timestamp4, self.particle_d)
         
 
 
@@ -151,13 +163,32 @@ class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
         Read test data and pull out multiple data particles at one time.
         Assert that the results are those we expected.
         """
-        pass
+        self.stream_handle = StringIO(Rte_xx__stcParserUnitTestCase.TEST_DATA)
+        self.parser = Rte_xx__stcParser(self.config, self.start_state, self.stream_handle,
+                                            self.state_callback, self.pub_callback)
+
+        result = self.parser.get_records(4)
+        self.assertEqual(result, [self.particle_a, self.particle_b, self.particle_c, self.particle_d])
+        self.assertEqual(self.parser._state[StateKey.POSITION], 849)
+        self.assertEqual(self.state_callback_value[StateKey.POSITION], 849)
+        self.assertEqual(self.publish_callback_value[0], self.particle_a)
+        self.assertEqual(self.publish_callback_value[1], self.particle_b)
+        self.assertEqual(self.publish_callback_value[2], self.particle_c)
+        self.assertEqual(self.publish_callback_value[3], self.particle_d)
+
 
     def test_mid_state_start(self):
         """
         Test starting the parser in a state in the middle of processing
         """
-        pass
+        new_state = {StateKey.POSITION:544}
+        self.stream_handle = StringIO(Rte_xx__stcParserUnitTestCase.TEST_DATA)
+        self.parser = Rte_xx__stcParser(self.config, new_state, self.stream_handle,
+                                            self.state_callback, self.pub_callback)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 696, self.timestamp3, self.particle_c)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 849, self.timestamp4, self.particle_d)
 
     def test_set_state(self):
         """
@@ -165,10 +196,32 @@ class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
         reading data, as if new data has been found and the state has
         changed
         """
-        pass
+        new_state = {StateKey.POSITION:544}
+        self.stream_handle = StringIO(Rte_xx__stcParserUnitTestCase.TEST_DATA)
+        self.parser = Rte_xx__stcParser(self.config, self.start_state, self.stream_handle,
+                                            self.state_callback, self.pub_callback)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 390, self.timestamp1, self.particle_a)
+
+        self.parser.set_state(new_state)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 696, self.timestamp3, self.particle_c)
+        result = self.parser.get_records(1)
+        self.assert_result(result, 849, self.timestamp4, self.particle_d)
+
 
     def test_bad_data(self):
         """
         Ensure that bad data is skipped when it exists.
         """
-        pass
+        self.stream_handle = StringIO(Rte_xx__stcParserUnitTestCase.BAD_TEST_DATA)
+        self.parser = Rte_xx__stcParser(self.config, self.start_state, self.stream_handle,
+                                            self.state_callback, self.pub_callback)
+
+        result = self.parser.get_records(1)
+        self.assert_result(result, 390, self.timestamp1, self.particle_a)
+        # 394 came from the code.  there is no way to know if this is correct.
+
+        result = self.parser.get_records(1)
+        self.assert_result(result, 696, self.timestamp3, self.particle_c)
+
