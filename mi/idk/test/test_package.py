@@ -371,6 +371,9 @@ class TestDriverFileList(IDKPackageNose):
         files = filelist.files()
         #log.debug( "F: %s" % files)
 
+        log.error("ROGER")
+        log.error(repr(files))
+        log.error(repr(known_files))
         self.assertTrue(files == known_files)
 
     @unittest.skip("skip until all baseclass work complete")
