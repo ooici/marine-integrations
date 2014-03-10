@@ -338,7 +338,6 @@ class TestDriverFileList(IDKPackageNose):
         
         known_files = [
             '%s/res/test_file' % TESTDIR,
-            '%s/resource/__init__.py' % TESTDIR
         ]
         
         files = filelist._extra_files()
@@ -346,8 +345,6 @@ class TestDriverFileList(IDKPackageNose):
         #log.debug(sorted(files))
         #log.debug(sorted(known_files))
 
-        log.error("ROGER" + repr(files))
-        log.error("ROGER" + repr(known_files))
         self.assertTrue(files == known_files)
         
         
@@ -365,7 +362,6 @@ class TestDriverFileList(IDKPackageNose):
                       'mi/base3.py',
                       'mi/base4.py',
                       'mi/foo/__init__.py',
-                      'mi/foo/resource/__init__.py',
                       'mi/foo/impl.py',
                       'mi/foo/res/test_file',
                       'mi/foo/test/__init__.py',
@@ -375,8 +371,6 @@ class TestDriverFileList(IDKPackageNose):
         files = filelist.files()
         #log.debug( "F: %s" % files)
 
-        log.error("ROGER" + repr(files))
-        log.error("ROGER" + repr(known_files))
         self.assertTrue(files == known_files)
 
     @unittest.skip("skip until all baseclass work complete")
