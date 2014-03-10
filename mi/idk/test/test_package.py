@@ -345,7 +345,7 @@ class TestDriverFileList(IDKPackageNose):
         #log.debug(sorted(files))
         #log.debug(sorted(known_files))
 
-        self.assertTrue(files == known_files)
+        self.assertEqual(sorted(files), sorted(known_files))
         
         
     def test_list(self):
@@ -371,9 +371,6 @@ class TestDriverFileList(IDKPackageNose):
         files = filelist.files()
         #log.debug( "F: %s" % files)
 
-        log.error("ROGER")
-        log.error(repr(files))
-        log.error(repr(known_files))
         self.assertEqual(sorted(files), sorted(known_files))
 
     @unittest.skip("skip until all baseclass work complete")
