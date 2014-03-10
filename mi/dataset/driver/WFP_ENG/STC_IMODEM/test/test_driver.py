@@ -185,6 +185,61 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
 
+    def test_cp02pmuo(self):
+        """
+        Test with an example file from cp02pmuo platform
+        """
+        self.create_sample_data('CP02PMUO.DAT', 'E0000001.DAT')
+        self.assert_initialize()
+
+        result1 = self.get_samples(DataParticleType.START_TIME,1,10)
+        result2 = self.get_samples(DataParticleType.ENGINEERING,316,60)
+        result3 = self.get_samples(DataParticleType.STATUS,7,10)
+
+    def test_cp02pmui(self):
+        """
+        Test with an example file from cp02pmui platform
+        """
+        self.create_sample_data('CP02PMUI.DAT', 'E0000001.DAT')
+        self.assert_initialize()
+
+        result1 = self.get_samples(DataParticleType.START_TIME,1,10)
+        result2 = self.get_samples(DataParticleType.ENGINEERING,267,60)
+        result3 = self.get_samples(DataParticleType.STATUS,7,10)
+
+    def test_cp02pmci(self):
+        """
+        Test with an example file from cp02pmci platform
+        """
+        self.create_sample_data('CP02PMCI.DAT', 'E0000001.DAT')
+        self.assert_initialize()
+
+        result1 = self.get_samples(DataParticleType.START_TIME,1,10)
+        result2 = self.get_samples(DataParticleType.ENGINEERING,53,40)
+        result3 = self.get_samples(DataParticleType.STATUS,7,10)
+
+    def test_ce09ospm(self):
+        """
+        Test with an example file from ce09ospm platform
+        """
+        self.create_sample_data('CE09OSPM.DAT', 'E0000001.DAT')
+        self.assert_initialize()
+
+        result1 = self.get_samples(DataParticleType.START_TIME,1,10)
+        result2 = self.get_samples(DataParticleType.ENGINEERING,14,10)
+        result3 = self.get_samples(DataParticleType.STATUS,1,10)
+
+    def test_cp04ospm(self):
+        """
+        Test with an example file from cp04ospm platform
+        """
+        self.create_sample_data('CP04OSPM.DAT', 'E0000001.DAT')
+        self.assert_initialize()
+
+        result1 = self.get_samples(DataParticleType.START_TIME,1,10)
+        result2 = self.get_samples(DataParticleType.ENGINEERING,14,10)
+        result3 = self.get_samples(DataParticleType.STATUS,1,10)
+
     def test_large_import(self):
         """
         Test importing a large number of samples from the file at once

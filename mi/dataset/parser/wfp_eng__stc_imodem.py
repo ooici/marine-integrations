@@ -299,7 +299,7 @@ class Wfp_eng__stc_imodemParser(WfpEFileParser):
             fields = struct.unpack('>I', record[:4])
             timestamp = int(fields[0])
             self._timestamp = float(ntplib.system_to_ntp_time(timestamp))
-            log.debug("Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)
+            log.trace("Converting record timestamp %f to ntp timestamp %f", timestamp, self._timestamp)
             sample = self._extract_sample(Wfp_eng__stc_imodem_engineeringParserDataParticle, None,
                                           record, self._timestamp)
             self._increment_state(SAMPLE_BYTES)
