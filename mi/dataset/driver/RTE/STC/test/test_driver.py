@@ -155,8 +155,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data('full_test.data', "RTE0000001.rte.log")
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
-        # NOTE: If the processing is not slowed down here, the engineering samples are
-        # returned in the wrong order
+        # slow down processing for tests
         self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
         self.assert_start_sampling()
 
@@ -180,7 +179,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         # get results for each of the data particle streams
-        result2 = self.get_samples(SAMPLE_STREAM,50,50)
+        result2 = self.get_samples(SAMPLE_STREAM,100,10)
 
     def test_stop_start(self):
         """
@@ -277,10 +276,4 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    def test_parser_exception(self):
-        """
-        Test an exception is raised after the driver is started during
-        record parsing.
-        """
-        pass
 

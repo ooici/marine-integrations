@@ -41,7 +41,7 @@ class RTE_xx__stc_DataSetDriver(SimpleDataSetDriver):
             infile,
             self._save_parser_state,
             self._data_callback,
-            #self._sample_exception_callback  #not sure if I need this JAR
+            #self._sample_exception_callback  not needed
         )
         return self._parser
 
@@ -59,3 +59,4 @@ class RTE_xx__stc_DataSetDriver(SimpleDataSetDriver):
     )        
     
         return self._harvester
+
