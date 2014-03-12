@@ -2,7 +2,7 @@
 
 header:
   particle_object: Rte_xx__stcParserDataParticle
-  particle_type: rte_xx__stc_parsed
+  particle_type: rte_xx__stc_instrument
 
 data:
   - _index: 1
