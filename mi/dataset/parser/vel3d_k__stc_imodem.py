@@ -268,7 +268,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         ##
         ## From the input file, get the parameters which define the inputs.
         ## 
-        self._read_state = state
+        self.set_state(state)
 
         (valid_flag_record, velocity_regex, end_of_velocity_regex, 
           self.velocity_format, self.velocity_record_size, 
@@ -276,13 +276,10 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
 
         ##
         ## Save the timestamp that will go into the data particles.
-        ## Initialize key variables.
         ## Create the pattern matcher for a velocity records.
         ##
         if valid_flag_record:
             self.time_on = int(time_fields[INDEX_TIME_ON])
-            self._timestamp = 0.0
-            self._record_buffer = []
 
             self.velocity_record_matcher = re.compile(velocity_regex)
             self.velocity_end_record_matcher = \
@@ -292,7 +289,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
           state, self.sieve_function, state_callback, publish_callback,
           exception_callback)
 
-     calculate_record_number(self):
+    def calculate_record_number(self):
         ##
         ## This function calculates the record number
         ## based on the current position in the file 
@@ -384,6 +381,8 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         """
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
+        self._timestamp = 0.0
+        self._record_buffer = []
         self._state = state_obj
         self._read_state = state_obj
         ## log.debug('SET POSITION %d', self._read_state[StateKey.POSITION])
