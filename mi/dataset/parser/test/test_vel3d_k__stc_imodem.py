@@ -16,39 +16,85 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.exceptions import SampleException, DatasetParserException
 from mi.dataset.parser.vel3d_k__stc_imodem import Vel3d_k__stc_imodemParser, Vel3d_k__stc_imodemTimeDataParticle, Vel3d_k__stc_imodemVelocityDataParticle, StateKey
 
-## First record from A000010.DEC sample file
+FLAG_RECORD_SIZE = 26 
+VELOCITY_RECORD_SIZE = 24  # fixed only for test data - variable in real life
+TIME_RECORD_SIZE = 8
+
+## First byte of flag record is bad.
+TEST_DATA_BAD_FLAG_RECORD = \
+  '\x09\x00\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' \
+  '\x01\x01\x01\x01\x01\x01\x01\x00\x00\x00' \
+  '\x71\x08\x1D\x10\x00\x11\xC3\x08\xC9\x0B\x60\x03\xF9\xFD\xFC\xE8' \
+  '\x52\x60\x53\x24\x53\x42\x40\x44' \
+  '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' \
+  '\x00\x00\x00\x00\x00\x00\x00\x00' \
+  '\x52\x48\x4E\x82\x52\x48\x4F\x9B'
+
+## Flag record is too short.
+TEST_DATA_SHORT_FLAG_RECORD = \
+  '\x01\x00\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+
+## Flag record, first velocity record, and time record
+## from A000010.DEC sample file. IDD has expected outputs.
 TEST_DATA_GOOD_1_REC = \
-  "\x01\x00\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" \
-  "\x01\x01\x01\x01\x01\x01\x01\x00\x00\x00" \
-  "\x71\x08\x1D\x10\x00\x11\xC3\x08\xC9\x0B\x60\x03\xF9\xFD\xFC\xE8" \
-  "\x52\x60\x53\x24\x53\x42\x40\x44" \
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" \
-  "\x00\x00\x00\x00\x00\x00\x00\x00" \
-  "\x52\x48\x4E\x82\x52\x48\x4F\x9B"
+  '\x01\x00\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' \
+  '\x01\x01\x01\x01\x01\x01\x01\x00\x00\x00' \
+  '\x71\x08\x1D\x10\x00\x11\xC3\x08\xC9\x0B\x60\x03\xF9\xFD\xFC\xE8' \
+  '\x52\x60\x53\x24\x53\x42\x40\x44' \
+  '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' \
+  '\x00\x00\x00\x00\x00\x00\x00\x00' \
+  '\x52\x48\x4E\x82\x52\x48\x4F\x9B'
 
-## First byte of flag record is bad
-TEST_DATA_BAD_1_REC = \
-  "\x09\x00\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" \
-  "\x01\x01\x01\x01\x01\x01\x01\x00\x00\x00" \
-  "\x71\x08\x1D\x10\x00\x11\xC3\x08\xC9\x0B\x60\x03\xF9\xFD\xFC\xE8" \
-  "\x52\x60\x53\x24\x53\x42\x40\x44" \
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" \
-  "\x00\x00\x00\x00\x00\x00\x00\x00" \
-  "\x52\x48\x4E\x82\x52\x48\x4F\x9B"
-
-## First and last record from A000010.DEC sample file
+## Flag record, first and last velocity record, and time record
+## from A000010.DEC sample file. IDD has expected outputs.
 TEST_DATA_GOOD_2_REC = \
-  "\x01\x00\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" \
-  "\x01\x01\x01\x01\x01\x01\x01\x00\x00\x00" \
-  "\x71\x08\x1D\x10\x00\x11\xC3\x08\xC9\x0B\x60\x03\xF9\xFD\xFC\xE8" \
-  "\x52\x60\x53\x24\x53\x42\x40\x44" \
-  "\x71\x08\x1D\x10\x04\x25\xC4\x08\xBF\x0B\x5E\x03\xF0\xFD" \
-  "\xFC\x26\x51\xF6\x51\xFC\x50\x43\x40\x45" \
-  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" \
-  "\x00\x00\x00\x00\x00\x00\x00\x00" \
-  "\x52\x48\x4E\x82\x52\x48\x4F\x9B"
+  '\x01\x00\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' \
+  '\x01\x01\x01\x01\x01\x01\x01\x00\x00\x00' \
+  '\x71\x08\x1D\x10\x00\x11\xC3\x08\xC9\x0B\x60\x03\xF9\xFD\xFC\xE8' \
+  '\x52\x60\x53\x24\x53\x42\x40\x44' \
+  '\x71\x08\x1D\x10\x04\x25\xC4\x08\xBF\x0B\x5E\x03\xF0\xFD' \
+  '\xFC\x26\x51\xF6\x51\xFC\x50\x43\x40\x45' \
+  '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' \
+  '\x00\x00\x00\x00\x00\x00\x00\x00' \
+  '\x52\x48\x4E\x82\x52\x48\x4F\x9B'
+
+## Flag record, many velocity records, and time record.
+## Multiple records are the first and last repeated in pairs.
+TEST_DATA_GOOD_BIG_FILE = \
+  '\x01\x00\x01\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' \
+  '\x01\x01\x01\x01\x01\x01\x01\x00\x00\x00' \
+  '\x71\x08\x1D\x10\x00\x11\xC3\x08\xC9\x0B\x60\x03\xF9\xFD\xFC\xE8' \
+  '\x52\x60\x53\x24\x53\x42\x40\x44' \
+  '\x71\x08\x1D\x10\x04\x25\xC4\x08\xBF\x0B\x5E\x03\xF0\xFD' \
+  '\xFC\x26\x51\xF6\x51\xFC\x50\x43\x40\x45' \
+  '\x71\x08\x1D\x10\x00\x11\xC3\x08\xC9\x0B\x60\x03\xF9\xFD\xFC\xE8' \
+  '\x52\x60\x53\x24\x53\x42\x40\x44' \
+  '\x71\x08\x1D\x10\x04\x25\xC4\x08\xBF\x0B\x5E\x03\xF0\xFD' \
+  '\xFC\x26\x51\xF6\x51\xFC\x50\x43\x40\x45' \
+  '\x71\x08\x1D\x10\x00\x11\xC3\x08\xC9\x0B\x60\x03\xF9\xFD\xFC\xE8' \
+  '\x52\x60\x53\x24\x53\x42\x40\x44' \
+  '\x71\x08\x1D\x10\x04\x25\xC4\x08\xBF\x0B\x5E\x03\xF0\xFD' \
+  '\xFC\x26\x51\xF6\x51\xFC\x50\x43\x40\x45' \
+  '\x71\x08\x1D\x10\x00\x11\xC3\x08\xC9\x0B\x60\x03\xF9\xFD\xFC\xE8' \
+  '\x52\x60\x53\x24\x53\x42\x40\x44' \
+  '\x71\x08\x1D\x10\x04\x25\xC4\x08\xBF\x0B\x5E\x03\xF0\xFD' \
+  '\xFC\x26\x51\xF6\x51\xFC\x50\x43\x40\x45' \
+  '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' \
+  '\x00\x00\x00\x00\x00\x00\x00\x00' \
+  '\x52\x48\x4E\x82\x52\x48\x4F\x9B'
+
+VELOCITY_1_GROUPS = (113, 8, 29, 16, 0, 17, 2243, 3017, 864, 
+  -519, -4, 21224, 21344, 21284, 66, 64, 68)
+
+VELOCITY_2_GROUPS = (113, 8, 29, 16, 4, 37, 2244, 3007, 862, 
+  -528, -4, 20774, 20982, 20732, 67, 64, 69)
+
+TIME_1_GROUPS = (1380470402, 1380470683, 1)
+TIME_2_GROUPS = (1380470402, 1380470683, 2)
+TIME_8_GROUPS = (1380470402, 1380470683, 8)
 
 @attr('UNIT', group='mi')
 class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
@@ -56,11 +102,11 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
     Vel3d_k__stc_imodem Parser unit test suite
     """
 
-
     def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the 
         position callback """
         self.state_callback_value = state
+        self.file_ingested = file_ingested
 
     def pub_callback(self, pub):
         """ Call back method to watch what comes in via the 
@@ -83,65 +129,237 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         self.publish_callback_value = None
         self.state = {StateKey.POSITION:0}
 
+        ##
+        ## This parser stores the groups from the data matcher in raw_data.
+        ##
+        self.expected_particle1 = Vel3d_k__stc_imodemVelocityDataParticle(
+          VELOCITY_1_GROUPS, internal_timestamp=1380470402.0)
+
+        self.expected_particle2 = Vel3d_k__stc_imodemVelocityDataParticle(
+          VELOCITY_2_GROUPS, internal_timestamp=1380470402.5)
+
+        self.expected_particle3 = Vel3d_k__stc_imodemVelocityDataParticle(
+          VELOCITY_1_GROUPS, internal_timestamp=1380470403.0)
+
+        self.expected_particle4 = Vel3d_k__stc_imodemVelocityDataParticle(
+          VELOCITY_2_GROUPS, internal_timestamp=1380470403.5)
+
+        self.expected_time1 = Vel3d_k__stc_imodemTimeDataParticle(
+          TIME_1_GROUPS, internal_timestamp=1380470402.0)
+
+        self.expected_time2 = Vel3d_k__stc_imodemTimeDataParticle(
+          TIME_2_GROUPS, internal_timestamp=1380470402.0)
+
+        self.expected_time9 = Vel3d_k__stc_imodemTimeDataParticle(
+          TIME_8_GROUPS, internal_timestamp=1380470402.0)
+
+    def verify_contents(self, actual_particle, expected_particle):
+        ## log.debug('EXP %s XXX', dir(expected_particle))
+        ## log.debug('ACT %s YYY', dir(actual_particle))
+        self.assertEqual(actual_particle, [expected_particle])
+        self.assert_(isinstance(self.publish_callback_value, list))
+        self.assertEqual(self.publish_callback_value[0], expected_particle)
+
+    def verify_file_info(self, expected_end_of_file, expected_file_position):
+        self.assertEqual(self.file_ingested, expected_end_of_file)
+        self.assertEqual(self.parser._state[StateKey.POSITION], 
+          expected_file_position)
+
     def test_simple(self):
         """
         Read test data and pull out data particles one at a time.
         Assert that the results are those we expected.
+        File is valid.  Has 1 velocity record.
         """
         log.info("=================== START SIMPLE ======================")
         log.info("Simple length %d", len(TEST_DATA_GOOD_1_REC))
         file = StringIO(TEST_DATA_GOOD_1_REC)
-        parser = Vel3d_k__stc_imodemParser(self.config, file, 
+        self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
           self.state, self.state_callback, self.pub_callback, None)
-        result = parser.get_records(1)
+
+        log.info("SIMPLE VERIFY VELOCITY RECORD 1")
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.expected_particle1)
+
+        expected_file_position = FLAG_RECORD_SIZE + VELOCITY_RECORD_SIZE
+        self.verify_file_info(False, expected_file_position)
+
+        log.info("SIMPLE VERIFY TIME RECORD")
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.expected_time1)
+
+        ## Must skip past the zero filled end of velocity record also.
+        expected_file_position += TIME_RECORD_SIZE + VELOCITY_RECORD_SIZE
+        self.verify_file_info(True, expected_file_position)
         log.info("=================== END SIMPLE ======================")
+
+    def test_get_some(self):
+        """
+        Read test data and pull out multiple data particles at one time.
+        Assert that the results are those we expected.
+        File is valid.  Has 2 velocity records.
+        """
+        log.info("=================== START SOME ======================")
+        log.info("Some length %d", len(TEST_DATA_GOOD_2_REC))
+        file = StringIO(TEST_DATA_GOOD_2_REC)
+        self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
+          self.state, self.state_callback, self.pub_callback, None)
+
+        log.info("SOME VERIFY VELOCITY RECORD 1")
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.expected_particle1)
+
+        expected_file_position = FLAG_RECORD_SIZE + VELOCITY_RECORD_SIZE
+        self.verify_file_info(False, expected_file_position)
+
+        log.info("SOME VERIFY VELOCITY RECORD 2")
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.expected_particle2)
+
+        expected_file_position += VELOCITY_RECORD_SIZE
+        self.verify_file_info(False, expected_file_position)
+
+        log.info("SOME VERIFY TIME RECORD")
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.expected_time2)
+
+        ## Must skip past the zero filled end of velocity record also.
+        expected_file_position += TIME_RECORD_SIZE + VELOCITY_RECORD_SIZE
+        self.verify_file_info(True, expected_file_position)
+        log.info("=================== END SOME ==========================")
 
     def test_get_many(self):
         """
         Read test data and pull out multiple data particles at one time.
         Assert that the results are those we expected.
+        File is valid.  Has many velocity records.
         """
         log.info("=================== START MANY ======================")
-        log.info("Many length %d", len(TEST_DATA_GOOD_2_REC))
-        file = StringIO(TEST_DATA_GOOD_2_REC)
-        parser = Vel3d_k__stc_imodemParser(self.config, file, 
+        log.info("Many length %d", len(TEST_DATA_GOOD_BIG_FILE))
+        file = StringIO(TEST_DATA_GOOD_BIG_FILE)
+        self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
           self.state, self.state_callback, self.pub_callback, None)
-        result = parser.get_records(1)
+
+        log.info("MANY VERIFY VELOCITY RECORD 1")
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.expected_particle1)
+
+        expected_file_position = FLAG_RECORD_SIZE + VELOCITY_RECORD_SIZE
+        self.verify_file_info(False, expected_file_position)
+
+        log.info("MANY VERIFY VELOCITY RECORD 2")
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.expected_particle2)
+
+        expected_file_position += VELOCITY_RECORD_SIZE
+        self.verify_file_info(False, expected_file_position)
+
+        log.info("MANY VERIFY VELOCITY RECORD 3")
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.expected_particle3)
+
+        expected_file_position += VELOCITY_RECORD_SIZE
+        self.verify_file_info(False, expected_file_position)
+
+        log.info("MANY VERIFY VELOCITY RECORD 4")
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.expected_particle4)
+
+        expected_file_position += VELOCITY_RECORD_SIZE
+        self.verify_file_info(False, expected_file_position)
+
+        log.info("MANY SKIPPING")
+        skip_result = self.parser.get_records(4)
+        expected_file_position += 4 * VELOCITY_RECORD_SIZE
+
+        log.info("MANY VERIFY TIME RECORD")
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.expected_time9)
+
+        ## Must skip past the zero filled end of velocity record also.
+        expected_file_position += \
+          TIME_RECORD_SIZE + VELOCITY_RECORD_SIZE
+        self.verify_file_info(True, expected_file_position)
         log.info("=================== END MANY ==========================")
 
     def test_mid_state_start(self):
         """
         Test starting the parser in a state in the middle of processing
         """
-        ##
-        ## This parser does not support starting in the middle of a file
-        ## because it assumes the flag record is the first one to be
-        ## processed.
-        ##
-        pass
+        log.info("=================== START MID-STATE ======================")
+        log.info("Mid-state length %d", len(TEST_DATA_GOOD_BIG_FILE))
+        file = StringIO(TEST_DATA_GOOD_BIG_FILE)
+
+        position = FLAG_RECORD_SIZE + (2 * VELOCITY_RECORD_SIZE)
+        new_state = {StateKey.POSITION: position}
+
+        self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
+          new_state, self.state_callback, self.pub_callback, None)
+
+        ## This should get record 3.
+        log.info("MID-STATE AFTER RECORD 2, POSITION %d", 
+          self.parser._read_state[StateKey.POSITION])
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.expected_particle3)
+
+        expected_file_position = position + VELOCITY_RECORD_SIZE
+        self.verify_file_info(False, expected_file_position)
+        log.info("=================== END MID-STATE ======================")
 
     def test_set_state(self):
         """
         Test changing to a new state after initializing the parser and 
-        reading data, as if new data has been found and the state has
-        changed
+        reading data, as if new data has been found and the state has changed
         """
-        ##
-        ## This parser does not support starting in the middle of a file
-        ## because it assumes the flag record is the first one to be
-        ## processed.
-        ##
-        pass
+        log.info("=================== SET STATE ======================")
+        log.info("Set state length %d", len(TEST_DATA_GOOD_BIG_FILE))
+        file = StringIO(TEST_DATA_GOOD_BIG_FILE)
 
-    def test_bad_data(self):
-        """
-        Ensure that bad data is skipped when it exists.
-        """
-        log.info("=================== START BAD ======================")
-        log.info("Simple length %d", len(TEST_DATA_BAD_1_REC))
-        file = StringIO(TEST_DATA_BAD_1_REC)
-        parser = Vel3d_k__stc_imodemParser(self.config, file, 
+        self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
           self.state, self.state_callback, self.pub_callback, None)
-        result = parser.get_records(1)
-        log.info("=================== END BAD ======================")
+
+        log.info("SET STATE VERIFY VELOCITY RECORD 1")
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.expected_particle1)
+
+        expected_file_position = FLAG_RECORD_SIZE + VELOCITY_RECORD_SIZE
+        self.verify_file_info(False, expected_file_position)
+
+        ## Skip to record 4.
+        position = FLAG_RECORD_SIZE + (3 * VELOCITY_RECORD_SIZE)
+        new_state = {StateKey.POSITION: position}
+        self.parser.set_state(new_state)
+        log.info("SET STATE POSITION IS %d", 
+          self.parser._read_state[StateKey.POSITION])
+
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.expected_particle4)
+
+    def test_bad_flag_record(self):
+        """
+        Ensure that bad data is skipped when flag record is invalid.
+        This should raise an exception indicating that the Flag record
+        is invalid.
+        """
+        log.info("=================== START BAD FLAG ======================")
+        log.info("Bad length %d", len(TEST_DATA_BAD_FLAG_RECORD))
+        file = StringIO(TEST_DATA_BAD_FLAG_RECORD)
+        with self.assertRaises(SampleException):
+            self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
+              self.state, self.state_callback, self.pub_callback, None)
+        log.info("=================== END BAD FLAG ======================")
+
+    def test_short_flag_record(self):
+        """
+        Ensure that data is skipped when flag record is too short.
+        This should raise an exception indicating that end of file was
+        reached while reading the Flag record.
+        """
+        log.info("=================== START SHORT FLAG ======================")
+        log.info("Short length %d", len(TEST_DATA_SHORT_FLAG_RECORD))
+        file = StringIO(TEST_DATA_SHORT_FLAG_RECORD)
+        with self.assertRaises(SampleException):
+            self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
+              self.state, self.state_callback, self.pub_callback, None)
+        log.info("=================== END SHORT FLAG ======================")
 
