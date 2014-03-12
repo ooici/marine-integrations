@@ -268,8 +268,6 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         ##
         ## From the input file, get the parameters which define the inputs.
         ## 
-        self.set_state(state)
-
         (valid_flag_record, velocity_regex, end_of_velocity_regex, 
           self.velocity_format, self.velocity_record_size, 
           time_fields) = self.get_file_parameters(infile)
@@ -279,6 +277,9 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         ## Create the pattern matcher for a velocity records.
         ##
         if valid_flag_record:
+            self.infile = infile
+            self.set_state(state)
+
             self.time_on = int(time_fields[INDEX_TIME_ON])
 
             self.velocity_record_matcher = re.compile(velocity_regex)
@@ -352,12 +353,6 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
             record = infile.read(TIME_RECORD_SIZE)
             times = self.parse_time_record(record)
 
-            ##
-            ## Restore the file to where it was before we stared reading it.
-            ## 0 = from start of file.
-            ##
-            infile.seek(self._read_state[StateKey.POSITION], 0)  
-
         ##
         ## If the Flag record is invalid, we're done.
         ##
@@ -366,7 +361,6 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
             ## Restore the file to where it was before we stared reading it.
             ## 0 = from start of file.
             ##
-            infile.seek(self._read_state[StateKey.POSITION], 0)  
             log.debug("Invalid Flag record")
             raise SampleException("Invalid Flag record")
 
@@ -385,6 +379,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         self._record_buffer = []
         self._state = state_obj
         self._read_state = state_obj
+        self.infile.seek(self._read_state[StateKey.POSITION], 0)  
         ## log.debug('SET POSITION %d', self._read_state[StateKey.POSITION])
 
     def _increment_state(self, bytes_read):
@@ -623,35 +618,60 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
 
         return velocity_fields
 
-    def sieve_function(self, raw_data):        
+    def sieve_function(self, source):        
         """        
-        Sort through the raw data to extract blocks of data that 
+        Sort through the input source to extract blocks of data that 
         need processing.        
         This is needed instead of a regex because blocks are 
         identified by specific lengths in this binary file.        
-        This algorithm assumes that the velocity data records are longer than
-        the time record.  
+        This algorithm assumes that the velocity data records are 
+        longer than the time record.  
         """        
 
-        return_list = []     # array of tuples (start index, end index)
-        return_list.append((0, FLAG_RECORD_SIZE))
+        indices_list = []     # array of tuples (start index, end index)
 
-        data_index = FLAG_RECORD_SIZE
-        raw_data_len = len(raw_data)
-        valid_match = True
+        ##
+        ## If the first record is a valid Flag record, add it to the list.
+        ## The first record might not be a Flag record 
+        ## if the parser is being restarted in the middle of the file.
+        ## Note: If this parser is restarted with a file position in the
+        ## middle of a velocity record, results will be unpredictable.
+        ##
+        start_index = 0
+        flag_record = FLAG_RECORD_MATCHER.match(source)
+        if flag_record:
+            indices_list.append((0, FLAG_RECORD_SIZE))
+            start_index += FLAG_RECORD_SIZE
+
+        source_length = len(source)   # Total bytes to process
  
-        while data_index < raw_data_len and valid_match:
-            end = data_index + self.velocity_record_size
-            if self.velocity_record_matcher.match(raw_data[data_index:end]):
-                return_list.append((data_index, end))
-                data_index += self.velocity_record_size
-            else:
-                end = data_index + TIME_RECORD_SIZE
-                if TIME_RECORD_MATCHER.match(raw_data[data_index:end]):
-                    return_list.append((data_index, end))
-                    data_index += TIME_RECORD_SIZE
-                else:
-                    valid_match = False
+        ##
+        ## While there is more data to process and we haven't found
+        ## the Time record yet, add a start,end pair to the return list.
+        ##
+        while start_index < source_length:
 
-        return return_list
+            ##
+            ## Compute the end index for the next velocity record.
+            ##
+            end_index = start_index + self.velocity_record_size
+
+            ##
+            ## If there are enough bytes to make a velocity record,
+            ## add this start,end pair to the list.
+            ##
+            if end_index < source_length:
+                indices_list.append((start_index, end_index))
+                start_index = end_index
+
+            ##
+            ## If not big enough to be a Velocity record,
+            ## assume it's a Time record and any left-over bytes
+            ## will be ignored.
+            else:
+                end_index = start_index + TIME_RECORD_SIZE
+                indices_list.append((start_index, end_index))
+                start_index = end_index
+
+        return indices_list
 
