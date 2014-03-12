@@ -325,15 +325,20 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         expected_file_position = FLAG_RECORD_SIZE + VELOCITY_RECORD_SIZE
         self.verify_file_info(False, expected_file_position)
 
-        ## Skip to record 4.
+        ## Skip to velocity record 4.
         position = FLAG_RECORD_SIZE + (3 * VELOCITY_RECORD_SIZE)
         new_state = {StateKey.POSITION: position}
         self.parser.set_state(new_state)
-        log.info("SET STATE POSITION IS %d", 
+        log.info("SET STATE SKIPPING TO POSITION %d", 
           self.parser._read_state[StateKey.POSITION])
 
+        log.info("SET STATE VERIFY VELOCITY RECORD 4")
         result = self.parser.get_records(1)
         self.verify_contents(result, self.expected_particle4)
+
+        expected_file_position = position + VELOCITY_RECORD_SIZE
+        log.info("SET STATE EXPECTED POSITION %d", expected_file_position)
+        self.verify_file_info(False, expected_file_position)
 
     def test_bad_flag_record(self):
         """
@@ -342,7 +347,7 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         is invalid.
         """
         log.info("=================== START BAD FLAG ======================")
-        log.info("Bad length %d", len(TEST_DATA_BAD_FLAG_RECORD))
+        log.info("Bad Flag length %d", len(TEST_DATA_BAD_FLAG_RECORD))
         file = StringIO(TEST_DATA_BAD_FLAG_RECORD)
         with self.assertRaises(SampleException):
             self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
@@ -356,7 +361,7 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         reached while reading the Flag record.
         """
         log.info("=================== START SHORT FLAG ======================")
-        log.info("Short length %d", len(TEST_DATA_SHORT_FLAG_RECORD))
+        log.info("Short Flag length %d", len(TEST_DATA_SHORT_FLAG_RECORD))
         file = StringIO(TEST_DATA_SHORT_FLAG_RECORD)
         with self.assertRaises(SampleException):
             self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
