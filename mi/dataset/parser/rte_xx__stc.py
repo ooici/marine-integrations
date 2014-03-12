@@ -51,7 +51,7 @@ class DataParticleType(BaseEnum):
 class Rte_xx__stcParserDataParticleKey(BaseEnum):
     RTE_TIME = 'rte_time'
     RTE_COULOMBS = 'rte_coulombs'
-    RTE_AVG_Q_CURRENT = 'rte_avg_q_ current'
+    RTE_AVG_Q_CURRENT = 'rte_avg_q_current'
     RTE_AVG_VOLTAGE = 'rte_avg_voltage'
     RTE_AVG_SUPPLY_VOLTAGE = 'rte_avg_supply_voltage'
     RTE_HITS = 'rte_hits'
@@ -97,19 +97,19 @@ class Rte_xx__stcParserDataParticle(DataParticle):
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
         
-        result = [{DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticle.RTE_TIME,
+        result = [{DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_TIME,
                    DataParticleKey.VALUE: date_str},
-                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticle.RTE_COULOMBS,
+                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_COULOMBS,
                    DataParticleKey.VALUE: coulomb_value},
-                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticle.RTE_AVG_Q_CURRENT,
+                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_AVG_Q_CURRENT,
                    DataParticleKey.VALUE: avg_q_current_value},
-                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticle.RTE_AVG_VOLTAGE,
+                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_AVG_VOLTAGE,
                    DataParticleKey.VALUE: avg_voltage_value},
-                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticle.RTE_AVG_SUPPLY_VOLTAGE,
+                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_AVG_SUPPLY_VOLTAGE,
                    DataParticleKey.VALUE: avg_supply_voltage_value},
-                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticle.RTE_HITS,
+                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_HITS,
                    DataParticleKey.VALUE: rte_hits_value},
-                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticle.RTE_STATE,
+                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_STATE,
                    DataParticleKey.VALUE: rte_state_value}]
          
         log.debug('Rte_xx__stcParserDataParticle: particle=%s', result)

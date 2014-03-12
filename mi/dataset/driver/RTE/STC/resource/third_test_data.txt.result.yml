@@ -9,7 +9,7 @@ data:
     internal_timestamp: '2013-11-16T21:26:30.002Z'
     rte_time: '2013/11/16 21:26:30.002'
     rte_coulombs: 1.1110
-    rte_avg_q_ current: 0.002
+    rte_avg_q_current: 0.002
     rte_avg_voltage: 12.03 
     rte_avg_supply_voltage: 12.11
     rte_hits: 0

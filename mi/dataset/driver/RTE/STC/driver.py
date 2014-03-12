@@ -50,12 +50,12 @@ class RTE_xx__stc_DataSetDriver(SimpleDataSetDriver):
         Build and return the harvester
         """
         
-            self._harvester = SingleDirectoryHarvester(
-            self._harvester_config,
-            driver_state,
-            self._new_file_callback,
-            self._modified_file_callback,
-            self._exception_callback
-        )        
+        self._harvester = SingleDirectoryHarvester(
+        self._harvester_config,
+        driver_state,
+        self._new_file_callback,
+        self._modified_file_callback,
+        self._exception_callback
+    )        
     
         return self._harvester
