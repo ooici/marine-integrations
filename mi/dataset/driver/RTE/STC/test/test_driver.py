@@ -55,7 +55,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM = 'rte_xx__stc_parsed'
+SAMPLE_STREAM = 'rte_xx__stc_instrument'
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #

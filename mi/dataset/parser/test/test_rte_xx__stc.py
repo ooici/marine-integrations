@@ -145,8 +145,7 @@ class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
 
         result = self.parser.get_records(1)
         self.assert_result(result, 390, self.timestamp1, self.particle_a)
-        # 394 came from the code.  there is no way to know if this is correct.
-
+ 
         result = self.parser.get_records(1)
         self.assert_result(result, 543, self.timestamp2, self.particle_b)
 
@@ -220,8 +219,7 @@ class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
 
         result = self.parser.get_records(1)
         self.assert_result(result, 390, self.timestamp1, self.particle_a)
-        # 394 came from the code.  there is no way to know if this is correct.
-
+ 
         result = self.parser.get_records(1)
         self.assert_result(result, 696, self.timestamp3, self.particle_c)
 

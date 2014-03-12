@@ -27,13 +27,10 @@ from mi.core.exceptions import SampleException, DatasetParserException
 from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.core.instrument.chunker import StringChunker
 
-# *** Need to define data regex for this parser ***
-
 # This is an example of the input string
 #             2013/11/16 20:46:24.989 Coulombs = 1.1110C,
 #             AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.02V,
 #             AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
-
 
 
 DATA_REGEX = r'(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d.\d{3}) (Coulombs) = (\d+.\d+)C, '\
@@ -46,7 +43,7 @@ LOG_TIME_MATCHER = re.compile(LOG_TIME_REGEX)
 
 
 class DataParticleType(BaseEnum):
-    SAMPLE = 'rte_xx__stc_parsed'
+    SAMPLE = 'rte_xx__stc_instrument'
 
 class Rte_xx__stcParserDataParticleKey(BaseEnum):
     RTE_TIME = 'rte_time'
