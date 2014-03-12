@@ -26,7 +26,6 @@ __license__ = 'Apache 2.0'
 
 import copy
 import re
-## sgm used? import ntplib
 
 from mi.core.log import get_logger; log = get_logger()
 from mi.core.common import BaseEnum
@@ -51,8 +50,6 @@ FLAG_RECORD_MATCHER = re.compile(FLAG_RECORD_REGEX)
 INDEX_FLAG_Time = 0                     # Index into the flags for time field
 OUTPUT_TIME_SIZE = 6                    # 6 bytes for the output time field
 
-velocity_record_size = 42   # max possible bytes, will be overridden
-
 TIME_RECORD_SIZE = 8                   # bytes
 TIME_RECORD_REGEX = b'[\x00-\xFF]{8}'  # 8 bytes of any hex value
 TIME_FORMAT = '>2I'                    # 2 32-bit unsigned integers big endian
@@ -68,49 +65,46 @@ TIMESTAMP_FORMAT = "%m/%d/%Y %H:%M:%S"   # mm/dd/yyyy hh:mm:ss
 ##
 ## vel3d_parameters is a table containing the following parameters
 ## for the VEL3D data:
-##   An expected True/False flag, indicating whether or not data 
-##     is to be collected (as specified in the IDD).
 ##   The actual True/False flag from the received flag record.
 ##   The number of bytes for the field.
 ##   A format expression component to be added to the velocity data
 ##     format if that data item is to be collected.
 ##   A text string (key) used when generating the output data particle.
 ##
-INDEX_EXPECTED_FLAG = 0
-INDEX_ACTUAL_FLAG = 1
-INDEX_DATA_BYTES = 2
-INDEX_FORMAT = 3
-INDEX_KEY = 4
+INDEX_ACTUAL_FLAG = 0
+INDEX_DATA_BYTES = 1
+INDEX_FORMAT = 2
+INDEX_KEY = 3
 
 vel3d_parameters = \
 [ 
-  # Expected Actual Bytes Format Key
-  [True,    True,   6,   '6b',  'date_time_array'], 
-  [False,   False,  2,   'H',   'vel3d_k_soundSpeed'], 
-  [True,    True,   2,   'h',   'vel3d_k_temp_c'], 
-  [True,    True,   2,   'H',   'vel3d_k_heading'], 
-  [True,    True,   2,   'h',   'vel3d_k_pitch'], 
-  [True,    True,   2,   'h',   'vel3d_k_roll'], 
-  [False,   False,  2,   'h',   'vel3d_k_mag_x'], 
-  [False,   False,  2,   'h',   'vel3d_k_mag_y'], 
-  [False,   False,  2,   'h',   'vel3d_k_mag_z'], 
-  [False,   False,  1,   'B',   'vel3d_k_beams'], 
-  [False,   False,  1,   'B',   'vel3d_k_cells'], 
-  [False,   False,  1,   'B',   'vel3d_k_beam1'], 
-  [False,   False,  1,   'B',   'vel3d_k_beam2'], 
-  [False,   False,  1,   'B',   'vel3d_k_beam3'], 
-  [False,   False,  1,   'B',   'vel3d_k_beam4'], 
-  [False,   False,  1,   'B',   'vel3d_k_beam5'], 
-  [True,    True,   1,   'b',   'vel3d_k_v_scale'], 
-  [True,    True,   2,   'h',   'vel3d_k_vel0'], 
-  [True,    True,   2,   'h',   'vel3d_k_vel1'], 
-  [True,    True,   2,   'h',   'vel3d_k_vel2'], 
-  [True,    True,   1,   'B',   'vel3d_k_amp0'], 
-  [True,    True,   1,   'B',   'vel3d_k_amp1'], 
-  [True,    True,   1,   'B',   'vel3d_k_amp2'], 
-  [False,   False,  1,   'B',   'vel3d_k_cor0'], 
-  [False,   False,  1,   'B',   'vel3d_k_cor1'], 
-  [False,   False,  1,   'B',   'vel3d_k_cor2'], 
+  ## Actual Bytes Format Key
+    [False,  6,   '6b',  'date_time_array'], 
+    [False,  2,   'H',   'vel3d_k_soundSpeed'], 
+    [False,  2,   'h',   'vel3d_k_temp_c'], 
+    [False,  2,   'H',   'vel3d_k_heading'], 
+    [False,  2,   'h',   'vel3d_k_pitch'], 
+    [False,  2,   'h',   'vel3d_k_roll'], 
+    [False,  2,   'h',   'vel3d_k_mag_x'], 
+    [False,  2,   'h',   'vel3d_k_mag_y'], 
+    [False,  2,   'h',   'vel3d_k_mag_z'], 
+    [False,  1,   'B',   'vel3d_k_beams'], 
+    [False,  1,   'B',   'vel3d_k_cells'], 
+    [False,  1,   'B',   'vel3d_k_beam1'], 
+    [False,  1,   'B',   'vel3d_k_beam2'], 
+    [False,  1,   'B',   'vel3d_k_beam3'], 
+    [False,  1,   'B',   'vel3d_k_beam4'], 
+    [False,  1,   'B',   'vel3d_k_beam5'], 
+    [False,  1,   'b',   'vel3d_k_v_scale'], 
+    [False,  2,   'h',   'vel3d_k_vel0'], 
+    [False,  2,   'h',   'vel3d_k_vel1'], 
+    [False,  2,   'h',   'vel3d_k_vel2'], 
+    [False,  1,   'B',   'vel3d_k_amp0'], 
+    [False,  1,   'B',   'vel3d_k_amp1'], 
+    [False,  1,   'B',   'vel3d_k_amp2'], 
+    [False,  1,   'B',   'vel3d_k_cor0'], 
+    [False,  1,   'B',   'vel3d_k_cor1'], 
+    [False,  1,   'B',   'vel3d_k_cor2']
 ]
 
 
@@ -180,10 +174,13 @@ class Vel3d_k__stc_imodemTimeDataParticle(DataParticle):
             return True
         else:
             if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
+                log.debug('Time Raw data %s does not match %s',
+                  self.raw_data, arg.raw_data)
             elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
                  arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
+                log.debug('Time Timestamp %f does not match %f',
+                  self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
+                  arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
             return False
 
 
@@ -247,43 +244,45 @@ class Vel3d_k__stc_imodemVelocityDataParticle(DataParticle):
             return True
         else:
             if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
+                log.debug('Velocity Raw data does not match')
             elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
                  arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
+                log.debug('Velocity Timestamp %f does not match %f',
+                  self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
+                  arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
             return False
 
 
 class Vel3d_k__stc_imodemParser(BufferLoadingParser):
 
     end_of_velocity_records = False
-    valid_flag_record = False
     velocity_format = ''        # Unpacking format for Velocity data fields
-    velocity_records = 0        # Number of Velocity data records in the file
     velocity_record_size = 0    # Number of bytes in a Velocity data record
     velocity_record_matcher = re.compile('')
     velocity_end_record_matcher = re.compile('')
     time_on = 0
-    particle_timestamp = 0
     _timestamp = 0.0
 
     def __init__(self, config, infile, state, 
       state_callback, publish_callback, exception_callback):
         ##
         ## From the input file, get the parameters which define the inputs.
-        ## Update the file position with the number of bytes which were read.
         ## 
-        (self.valid_flag_record, velocity_regex, end_of_velocity_regex, 
-          self.velocity_format, self.velocity_record_size, bytes_read, 
+        self._read_state = state
+
+        (valid_flag_record, velocity_regex, end_of_velocity_regex, 
+          self.velocity_format, self.velocity_record_size, 
           time_fields) = self.get_file_parameters(infile)
 
         ##
         ## Save the timestamp that will go into the data particles.
+        ## Initialize key variables.
+        ## Create the pattern matcher for a velocity records.
         ##
-        if self.valid_flag_record:
+        if valid_flag_record:
             self.time_on = int(time_fields[INDEX_TIME_ON])
-            self.particle_timestamp = self.time_on
-            self._read_state = {StateKey.POSITION: bytes_read}
+            self._timestamp = 0.0
+            self._record_buffer = []
 
             self.velocity_record_matcher = re.compile(velocity_regex)
             self.velocity_end_record_matcher = \
@@ -293,44 +292,54 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
           state, self.sieve_function, state_callback, publish_callback,
           exception_callback)
 
+     calculate_record_number(self):
+        ##
+        ## This function calculates the record number
+        ## based on the current position in the file 
+        ## and the size of each velocity data record.
+        ##
+        return (self._read_state[StateKey.POSITION] - FLAG_RECORD_SIZE) / \
+          self.velocity_record_size
+
+    def calculate_timestamp(self):
+        ##
+        ## This function calculates the timestamp 
+        ## based on the current position in the file 
+        ## and the size of each velocity data record.
+        ##
+        return ((self.calculate_record_number() - 1) * SAMPLE_RATE) + \
+          self.time_on
+
     def get_file_parameters(self, infile):
         ##
         ## This function reads the Flag record and Time record
         ## from the input file.
-        ## The VEL3D data has a Flag record which does not produce a data
-        ## particle, so that record needs to be read and processed outside 
-        ## of the normal parser/chunker processing.
         ## The Flag record determines the record length and format of
         ## the Velocity data records.
         ##
-        bytes_read = 0
-        end_of_file = False
         record_size = 0
         regex_velocity_record = ''
         regex_end_velocity_record = ''
         times = []
-        valid_record = False
         format_unpack_velocity = ''
 
         ##
-        ## Keep searching until there is a valid Flag record or 
-        ## end of file is reached.
+        ## Read the Flag record.
         ##
-        while not valid_record and not end_of_file:
-            record = infile.read(FLAG_RECORD_SIZE)
+        infile.seek(0, 0)  # 0 = from start of file
+        record = infile.read(FLAG_RECORD_SIZE)
 
-            ##
-            ## Check for end of file.
-            ## If not reached, check for and parse a Flag record.
-            ##
-            if record == '':
-                end_of_file = True
-                log.debug("EOF reading for flag record")
-            else:
-                bytes_read += FLAG_RECORD_SIZE
-                (valid_record, regex_velocity_record, 
-                  regex_end_velocity_record, format_unpack_velocity, 
-                  record_size) = self.parse_flag_record(record)
+        ##
+        ## Check for end of file.
+        ## If not reached, check for and parse a Flag record.
+        ##
+        if len(record) != FLAG_RECORD_SIZE:
+            log.debug("EOF reading for flag record")
+            raise SampleException("EOF reading for flag record")
+        
+        (valid_record, regex_velocity_record, 
+          regex_end_velocity_record, format_unpack_velocity, 
+          record_size) = self.parse_flag_record(record)
 
         ##
         ## If there is a valid Flag record, process the Time record.
@@ -338,19 +347,34 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         if valid_record:
             ##
             ## Read the Time record which is at the very end of the file.
+            ## Note that we don't care if the number of bytes between the
+            ## Flag record and the Time record is consistent with
+            ## the flags from the Flag record.
             ##
             infile.seek(0 - TIME_RECORD_SIZE, 2)  # 2 = from end of file
             record = infile.read(TIME_RECORD_SIZE)
             times = self.parse_time_record(record)
 
             ##
-            ## Go back to just after the Flag record.
+            ## Restore the file to where it was before we stared reading it.
+            ## 0 = from start of file.
             ##
-            infile.seek(bytes_read, 0)  # 0 = from start of file
+            infile.seek(self._read_state[StateKey.POSITION], 0)  
 
-        return valid_record, regex_velocity_record, \
-          regex_end_velocity_record, format_unpack_velocity, \
-          record_size, bytes_read, times
+        ##
+        ## If the Flag record is invalid, we're done.
+        ##
+        else:
+            ##
+            ## Restore the file to where it was before we stared reading it.
+            ## 0 = from start of file.
+            ##
+            infile.seek(self._read_state[StateKey.POSITION], 0)  
+            log.debug("Invalid Flag record")
+            raise SampleException("Invalid Flag record")
+
+        return valid_record, regex_velocity_record, regex_end_velocity_record, \
+          format_unpack_velocity, record_size, times
 
     def set_state(self, state_obj):
         """
@@ -362,6 +386,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
             raise DatasetParserException("Invalid state structure")
         self._state = state_obj
         self._read_state = state_obj
+        ## log.debug('SET POSITION %d', self._read_state[StateKey.POSITION])
 
     def _increment_state(self, bytes_read):
         """
@@ -369,6 +394,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         @param bytes_read The number of bytes just read
         """
         self._read_state[StateKey.POSITION] += bytes_read
+        ## log.debug('INCR POSITION %d', self._read_state[StateKey.POSITION])
 
     def parse_chunks(self):
         """
@@ -382,80 +408,76 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
         non_data = None
 
-        if self.valid_flag_record:
-            while chunk is not None:
-                ##
-                ## If we haven't reached the end of the velocity records,
-                ## see if this next record is the last one (all zeroes).
-                ##
-                if not self.end_of_velocity_records:
-                    record = self.velocity_end_record_matcher.match(chunk)
-                    bytes_read = self.velocity_record_size
-
-                    ##
-                    ## A velocity data record of all zeroes does not generate
-                    ## a data particle.
-                    ##
-                    if record:
-                        self.end_of_velocity_records = True
-                        self._increment_state(bytes_read)
-                        log.debug("Match Velocity end test OK")
-                    else:
-                        ##
-                        ## It wasn't an end of velocity record.
-                        ## Generate a data particle for this record and add
-                        ## it to the end of the particles collected so far.
-                        ##
-                        velocity_fields = self.parse_velocity_record(chunk)
-                        particle = self._extract_sample(
-                          Vel3d_k__stc_imodemVelocityDataParticle,
-                          None, velocity_fields, self.particle_timestamp)
-
-                        self.particle_timestamp += SAMPLE_RATE
-                        self.velocity_records += 1
-                        self._increment_state(bytes_read)
-                        if self.velocity_records < 3:
-                            log.debug("Velocity Particle %s", 
-                            particle.raw_data)
-
-                        result_particles.append((particle,
-                          copy.copy(self._read_state)))
+        while chunk is not None:
+            ##
+            ## Discard the Flag record since it has already been processed.
+            ##
+            if FLAG_RECORD_MATCHER.match(chunk):
+                self._increment_state(FLAG_RECORD_SIZE)
+            ##
+            ## If we haven't reached the end of the velocity records,
+            ## see if this next record is the last one (all zeroes).
+            ##
+            elif not self.end_of_velocity_records:
+                velocity_end = self.velocity_end_record_matcher.match(chunk)
+                self._increment_state(self.velocity_record_size)
 
                 ##
-                ## If we have read the end of velocity data records,
-                ## the next record is the Time data record.
-                ## Generate the data particle and
-                ## add it to the end of the particles collected so far.
+                ## A velocity data record of all zeroes does not generate
+                ## a data particle.
                 ##
+                if velocity_end:
+                    self.end_of_velocity_records = True
+                    ## log.debug("Match Velocity end test OK")
                 else:
-                    log.debug("Match time test")
-                    time_fields = self.parse_time_record(chunk)
-                    bytes_read = TIME_RECORD_SIZE
-                    if time_fields is not None:
-                        ##
-                        ## Convert the tuple to a list, add the number of
-                        ## velocity records received, and convert back to 
-                        ## a tuple.
-                        ##
-                        time_list = list(time_fields)
-                        time_list.append(self.velocity_records)
-                        time_fields = tuple(time_list)
-                        particle = \
-                          self._extract_sample(
-                            Vel3d_k__stc_imodemTimeDataParticle, 
-                          None, time_fields, self.time_on)
+                    ##
+                    ## It wasn't an end of velocity record.
+                    ## Generate a data particle for this record and add
+                    ## it to the end of the particles collected so far.
+                    ##
+                    velocity_fields = self.parse_velocity_record(chunk)
+                    ### log.info('XXX %s XXX)', velocity_fields)
 
-                        self._increment_state(bytes_read)
-                        log.debug("Time particle %s", particle.raw_data)
-                        result_particles.append((particle,
-                          copy.copy(self._read_state)))
+                    particle = self._extract_sample(
+                      Vel3d_k__stc_imodemVelocityDataParticle,
+                      None, velocity_fields, self.calculate_timestamp())
 
-                (timestamp, chunk, start, 
-                  end) = self._chunker.get_next_data_with_index()
-                (nd_timestamp, 
-                  non_data) = self._chunker.get_next_non_data(clean=True)
+                    result_particles.append((particle,
+                      copy.copy(self._read_state)))
 
-        log.debug("Generated %d particles", len(result_particles))
+            ##
+            ## If we have read the end of velocity data records,
+            ## the next record is the Time data record.
+            ## Generate the data particle and
+            ## add it to the end of the particles collected so far.
+            ##
+            else:
+                time_fields = self.parse_time_record(chunk)
+                if time_fields is not None:
+                    ##
+                    ## Convert the tuple to a list, add the number of
+                    ## velocity records received (not counting the end of
+                    ## Velocity record, and convert back to a tuple.
+                    ##
+                    time_list = list(time_fields)
+                    time_list.append(self.calculate_record_number() - 1)
+                    time_fields = tuple(time_list)
+                    ### log.info('XXX %s XXX)', time_fields)
+                    particle = self._extract_sample(
+                      Vel3d_k__stc_imodemTimeDataParticle, 
+                      None, time_fields, self.time_on)
+
+                    ## log.debug("Time particle %s", particle.raw_data)
+                    self._increment_state(TIME_RECORD_SIZE)
+                    result_particles.append((particle,
+                      copy.copy(self._read_state)))
+
+            (timestamp, chunk, start, 
+              end) = self._chunker.get_next_data_with_index()
+            (nd_timestamp, 
+              non_data) = self._chunker.get_next_non_data(clean=True)
+
+        ## log.debug("Generated %d particles", len(result_particles))
         return result_particles
 
     ##
@@ -493,7 +515,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
             valid_flag_record = True
             flags = struct.unpack(FLAG_FORMAT, 
               flag_record.group(0)[0:FLAG_RECORD_SIZE])
-            log.debug("Flag record %s", flags)
+            ## log.debug("Flag record %s", flags)
 
             ##
             ## The format string for unpacking the velocity data record
@@ -538,8 +560,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
             ##
             regex_velocity_record = "[\\x00-\\xFF]{%d}" % record_length
             regex_end_velocity_record = "[\\x00]{%d}" % record_length
-            log.debug("Vel regex %s", regex_velocity_record)
-            log.debug("Vel end regex %s", regex_end_velocity_record)
+            ## log.debug("Vel regex %s", regex_velocity_record)
 
         return valid_flag_record, regex_velocity_record, \
           regex_end_velocity_record, format_unpack_velocity, record_length
@@ -614,9 +635,9 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         """        
 
         return_list = []     # array of tuples (start index, end index)
-        #return_list.append((0, FLAG_RECORD_SIZE))
+        return_list.append((0, FLAG_RECORD_SIZE))
 
-        data_index = 0
+        data_index = FLAG_RECORD_SIZE
         raw_data_len = len(raw_data)
         valid_match = True
  
