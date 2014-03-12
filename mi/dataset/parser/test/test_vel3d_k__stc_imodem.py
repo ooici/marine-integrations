@@ -150,7 +150,7 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         self.expected_time2 = Vel3d_k__stc_imodemTimeDataParticle(
           TIME_2_GROUPS, internal_timestamp=1380470402.0)
 
-        self.expected_time9 = Vel3d_k__stc_imodemTimeDataParticle(
+        self.expected_time8 = Vel3d_k__stc_imodemTimeDataParticle(
           TIME_8_GROUPS, internal_timestamp=1380470402.0)
 
     def verify_contents(self, actual_particle, expected_particle):
@@ -274,7 +274,7 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
 
         log.info("MANY VERIFY TIME RECORD")
         result = self.parser.get_records(1)
-        self.verify_contents(result, self.expected_time9)
+        self.verify_contents(result, self.expected_time8)
 
         ## Must skip past the zero filled end of velocity record also.
         expected_file_position += \
@@ -327,17 +327,15 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
 
         ## Skip to velocity record 4.
         position = FLAG_RECORD_SIZE + (3 * VELOCITY_RECORD_SIZE)
+        log.info("SET STATE SKIPPING TO POSITION %d", position)
         new_state = {StateKey.POSITION: position}
         self.parser.set_state(new_state)
-        log.info("SET STATE SKIPPING TO POSITION %d", 
-          self.parser._read_state[StateKey.POSITION])
 
         log.info("SET STATE VERIFY VELOCITY RECORD 4")
         result = self.parser.get_records(1)
         self.verify_contents(result, self.expected_particle4)
 
         expected_file_position = position + VELOCITY_RECORD_SIZE
-        log.info("SET STATE EXPECTED POSITION %d", expected_file_position)
         self.verify_file_info(False, expected_file_position)
 
     def test_bad_flag_record(self):
