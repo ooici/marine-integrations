@@ -255,14 +255,6 @@ class Vel3d_k__stc_imodemVelocityDataParticle(DataParticle):
 
 class Vel3d_k__stc_imodemParser(BufferLoadingParser):
 
-    end_of_velocity_records = False
-    velocity_format = ''        # Unpacking format for Velocity data fields
-    velocity_record_size = 0    # Number of bytes in a Velocity data record
-    velocity_record_matcher = re.compile('')
-    velocity_end_record_matcher = re.compile('')
-    time_on = 0
-    _timestamp = 0.0
-
     def __init__(self, config, infile, state, 
       state_callback, publish_callback, exception_callback):
         ##
@@ -273,16 +265,27 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
           time_fields) = self.get_file_parameters(infile)
 
         ##
-        ## Save the timestamp that will go into the data particles.
-        ## Create the pattern matcher for a velocity records.
+        ## If the Flag record was valid,
+        ## save the timestamp that will go into the data particles and
+        ## create the pattern matchers for the Velocity record.
         ##
         if valid_flag_record:
+            self._timestamp = 0.0
             self.infile = infile
-            self.set_state(state)
+            if state:
+                self.set_state(state)
 
+            self.end_of_velocity_records = False
             self.time_on = int(time_fields[INDEX_TIME_ON])
 
+            ##
+            ## This one will match any Velocity record.
+            ##
             self.velocity_record_matcher = re.compile(velocity_regex)
+
+            ##
+            ## This one checks for the end of the Velocity record.
+            ##
             self.velocity_end_record_matcher = \
               re.compile(end_of_velocity_regex)
 
@@ -291,35 +294,29 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
           exception_callback)
 
     def calculate_record_number(self):
-        ##
-        ## This function calculates the record number
-        ## based on the current position in the file 
-        ## and the size of each velocity data record.
-        ##
+        """
+        This function calculates the record number based on the current 
+        position in the file and the size of each velocity data record.
+        """
         return (self._read_state[StateKey.POSITION] - FLAG_RECORD_SIZE) / \
           self.velocity_record_size
 
     def calculate_timestamp(self):
-        ##
-        ## This function calculates the timestamp 
-        ## based on the current position in the file 
-        ## and the size of each velocity data record.
-        ##
+        """
+        This function calculates the timestamp based on the current 
+        position in the file and the size of each velocity data record.
+        """
         return ((self.calculate_record_number() - 1) * SAMPLE_RATE) + \
           self.time_on
 
     def get_file_parameters(self, infile):
-        ##
-        ## This function reads the Flag record and Time record
-        ## from the input file.
-        ## The Flag record determines the record length and format of
-        ## the Velocity data records.
-        ##
-        record_size = 0
-        regex_velocity_record = ''
-        regex_end_velocity_record = ''
-        times = []
-        format_unpack_velocity = ''
+        """
+        This function reads the Flag record and Time record
+        from the input file.
+        The Flag record determines the record length and format of
+        the Velocity data records.
+        The Time record is needed to get the initial timestamp.
+        """
 
         ##
         ## Read the Flag record.
@@ -379,7 +376,9 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         self._record_buffer = []
         self._state = state_obj
         self._read_state = state_obj
+        log.debug("SEEK %d", self._read_state[StateKey.POSITION])
         self.infile.seek(self._read_state[StateKey.POSITION], 0)  
+        self.end_of_velocity_records = False
         ## log.debug('SET POSITION %d', self._read_state[StateKey.POSITION])
 
     def _increment_state(self, bytes_read):
@@ -409,7 +408,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
             if FLAG_RECORD_MATCHER.match(chunk):
                 self._increment_state(FLAG_RECORD_SIZE)
             ##
-            ## If we haven't reached the end of the velocity records,
+            ## If we haven't reached the end of the Velocity record,
             ## see if this next record is the last one (all zeroes).
             ##
             elif not self.end_of_velocity_records:
@@ -425,7 +424,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
                     ## log.debug("Match Velocity end test OK")
                 else:
                     ##
-                    ## It wasn't an end of velocity record.
+                    ## It wasn't an end of Velocity record.
                     ## Generate a data particle for this record and add
                     ## it to the end of the particles collected so far.
                     ##
@@ -450,7 +449,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
                 if time_fields is not None:
                     ##
                     ## Convert the tuple to a list, add the number of
-                    ## velocity records received (not counting the end of
+                    ## Velocity record received (not counting the end of
                     ## Velocity record, and convert back to a tuple.
                     ##
                     time_list = list(time_fields)
@@ -474,22 +473,23 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         ## log.debug("Generated %d particles", len(result_particles))
         return result_particles
 
-    ##
-    ## This function parses the Flag record.
-    ## A Flag record consists of 26 binary bytes, 
-    ## with each byte being either 0 or 1.
-    ## Each byte corresponds to a data item in the Velocity record.
-    ## Then we use the received Flag record fields to override
-    ## the expected flag fields.
-    ## Returns:
-    ##   True/False indicating whether or not the flag record is valid.
-    ##   A regular expression based on the received flag fields,
-    ##     (not expected flags) to be used in pattern matching.
-    ##   A regular expression for detecting end of velocity records.
-    ##   A format based on the flag fields, to be used to unpack the data.
-    ##   The number of bytes expected in each velocity data record.
-    ##
     def parse_flag_record(self, record):
+        """
+        This function parses the Flag record.
+        A Flag record consists of 26 binary bytes, 
+        with each byte being either 0 or 1.
+        Each byte corresponds to a data item in the Velocity record.
+        Then we use the received Flag record fields to override
+        the expected flag fields.
+        Returns:
+          True/False indicating whether or not the flag record is valid.
+          A regular expression based on the received flag fields,
+            to be used in pattern matching.
+          A regular expression for detecting end of Velocity record.
+          A format based on the flag fields, to be used to unpack the data.
+          The number of bytes expected in each velocity data record.
+        """
+
         ##
         ## See if we've got a valid flag record.
         ##
@@ -559,14 +559,15 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         return valid_flag_record, regex_velocity_record, \
           regex_end_velocity_record, format_unpack_velocity, record_length
 
-    ##
-    ## This function parses a Time record and returns 2 32-bit numbers.
-    ## A Time record consists of 8 bytes.
-    ## Offset  Bytes  Format  Field
-    ##  0      4      uint32  Time_on
-    ##  4      4      uint32  Time_off
-    ##
     def parse_time_record(self, record):
+        """
+        This function parses a Time record and returns 2 32-bit numbers.
+        A Time record consists of 8 bytes.
+        Offset  Bytes  Format  Field
+         0      4      uint32  Time_on
+         4      4      uint32  Time_off
+        """
+
         time_record = TIME_RECORD_MATCHER.match(record)
         if not time_record:
             time_data = None
@@ -576,39 +577,42 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
 
         return time_data
 
-    ##
-    ## This function parses a velocity data record.
-    ## A velocity data record consists of up to 42 bytes.
-    ## Valid fields are indicated by the flag record.
-    ## Offset  Bytes  Format  Field
-    ##  0      6      byte    Time
-    ##  6      2      uint    SoundSpeed
-    ##  8      2      int     TempC
-    ## 10      2      uint    Heading
-    ## 12      2      int     Pitch
-    ## 14      2      int     Roll
-    ## 16      2      int     magX
-    ## 18      2      int     magY
-    ## 20      2      int     magZ
-    ## 22      1      ubyte   Beams
-    ## 23      1      ubyte   Cells
-    ## 24      1      ubyte   Beam1
-    ## 25      1      ubyte   Beam2
-    ## 26      1      ubyte   Beam3
-    ## 27      1      ubyte   Beam4
-    ## 28      1      ubyte   Beam5
-    ## 29      1      byte    VScale
-    ## 30      2      int     Vel0
-    ## 32      2      int     Vel1
-    ## 34      2      int     Vel2
-    ## 36      1      ubyte   Amp0
-    ## 37      1      ubyte   Amp1
-    ## 38      1      ubyte   Amp2
-    ## 39      1      ubyte   Cor0
-    ## 40      1      ubyte   Cor1
-    ## 41      1      ubyte   Cor2
-    ##
     def parse_velocity_record(self, record):
+        """
+        This function parses a Velocity data record.
+        A Velocity data record consists of up to 42 bytes,
+        with the actual size depending on which flags are set to True.
+        Valid fields are indicated by the Flag record.
+
+        Offset  Bytes  Format  Field
+         0      6      byte    Time
+         6      2      uint    SoundSpeed
+         8      2      int     TempC
+        10      2      uint    Heading
+        12      2      int     Pitch
+        14      2      int     Roll
+        16      2      int     magX
+        18      2      int     magY
+        20      2      int     magZ
+        22      1      ubyte   Beams
+        23      1      ubyte   Cells
+        24      1      ubyte   Beam1
+        25      1      ubyte   Beam2
+        26      1      ubyte   Beam3
+        27      1      ubyte   Beam4
+        28      1      ubyte   Beam5
+        29      1      byte    VScale
+        30      2      int     Vel0
+        32      2      int     Vel1
+        34      2      int     Vel2
+        36      1      ubyte   Amp0
+        37      1      ubyte   Amp1
+        38      1      ubyte   Amp2
+        39      1      ubyte   Cor0
+        40      1      ubyte   Cor1
+        41      1      ubyte   Cor2
+        """
+
         velocity_record = self.velocity_record_matcher.match(record)
         if not velocity_record:
             velocity_fields = None
@@ -635,7 +639,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         ## The first record might not be a Flag record 
         ## if the parser is being restarted in the middle of the file.
         ## Note: If this parser is restarted with a file position in the
-        ## middle of a velocity record, results will be unpredictable.
+        ## middle of a Velocity record, results will be unpredictable.
         ##
         start_index = 0
         flag_record = FLAG_RECORD_MATCHER.match(source)
@@ -646,18 +650,19 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         source_length = len(source)   # Total bytes to process
  
         ##
-        ## While there is more data to process and we haven't found
-        ## the Time record yet, add a start,end pair to the return list.
+        ## While there is more data to process and we haven't found the
+        ## Time record yet, add a start,end pair for each Velocity record
+        ## to the return list.
         ##
         while start_index < source_length:
 
             ##
-            ## Compute the end index for the next velocity record.
+            ## Compute the end index for the next Velocity record.
             ##
             end_index = start_index + self.velocity_record_size
 
             ##
-            ## If there are enough bytes to make a velocity record,
+            ## If there are enough bytes to make a Velocity record,
             ## add this start,end pair to the list.
             ##
             if end_index < source_length:
