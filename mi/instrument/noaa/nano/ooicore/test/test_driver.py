@@ -17,13 +17,15 @@ __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 import unittest
-import ntplib
 import time
 
+import ntplib
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger;
+
+log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -34,27 +36,19 @@ from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
 
-from interface.objects import AgentCommand
-
-from mi.core.instrument.logger_client import LoggerClient
-
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
-
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from mi.instrument.noaa.nano.ooicore.driver import InstrumentDriver
 from mi.instrument.noaa.nano.ooicore.driver import DataParticleType
 from mi.instrument.noaa.nano.ooicore.driver import NANODataParticleKey
 from mi.instrument.noaa.nano.ooicore.driver import NANODataParticle
 from mi.instrument.noaa.nano.ooicore.driver import NANOCommandResponse
-from mi.instrument.noaa.nano.ooicore.driver import NANOStatus_01_Particle
+from mi.instrument.noaa.nano.ooicore.driver import NANOStatus01Particle
 from mi.instrument.noaa.nano.ooicore.driver import InstrumentCommand
 from mi.instrument.noaa.nano.ooicore.driver import ProtocolState
 from mi.instrument.noaa.nano.ooicore.driver import ProtocolEvent
@@ -63,13 +57,10 @@ from mi.instrument.noaa.nano.ooicore.driver import Parameter
 from mi.instrument.noaa.nano.ooicore.driver import Protocol
 from mi.instrument.noaa.nano.ooicore.driver import Prompt
 from mi.instrument.noaa.nano.ooicore.driver import NEWLINE
-from mi.instrument.noaa.nano.ooicore.driver import NANO_COMMAND_STRING
 from mi.instrument.noaa.nano.ooicore.driver import NANO_DATA_ON
-from mi.instrument.noaa.nano.ooicore.driver import NANO_DATA_OFF
 from mi.instrument.noaa.nano.ooicore.driver import NANO_DUMP_SETTINGS
 
 from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentStateException
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 from pyon.core.exception import Conflict
@@ -877,9 +868,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         driver._protocol._got_chunk(DUMP_STATUS, ts)
 
         response = driver._protocol._get_response(timeout = 0, expected_prompt = 'Test')
-        self.assertTrue(isinstance(response[1], NANOStatus_01_Particle))
+        self.assertTrue(isinstance(response[1], NANOStatus01Particle))
 
-        
+
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.

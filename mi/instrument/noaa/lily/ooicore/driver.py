@@ -758,6 +758,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     # Superclass overrides for resource query.
     ########################################################################
 
+    # noinspection PyMethodMayBeStatic
     def get_resource_params(self):
         """
         Return list of device parameters available.
@@ -887,6 +888,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._auto_relevel = DEFAULT_AUTO_RELEVEL
         self._xtilt_relevel_trigger = DEFAULT_XTILT_TRIGGER
         self._ytilt_relevel_trigger = DEFAULT_YTILT_TRIGGER
+        self._last_data_timestamp = 0
 
         self.initialize_scheduler()
 
@@ -1249,6 +1251,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         if not build_handler:
             raise InstrumentProtocolException('Cannot build command: %s' % cmd)
 
+        # noinspection PyCallingNonCallable
         cmd_line = build_handler(cmd, *args)
 
         # Wakeup the device, pass up exception if timeout
@@ -1271,13 +1274,13 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         log.debug('done sending, getting response...')
         # Wait for the prompt, prepare result and return, timeout exception
-        (prompt, result) = self._get_response(timeout,
-                                              expected_prompt=expected_prompt)
+        prompt, result = self._get_response(timeout, expected_prompt=expected_prompt)
 
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
                        self._response_handlers.get(cmd, None)
         resp_result = None
         if resp_handler:
+            # noinspection PyCallingNonCallable
             resp_result = resp_handler(result, prompt)
 
         return resp_result

@@ -16,14 +16,15 @@ USAGE:
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
-import unittest
-import ntplib
 import time
 
+import ntplib
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger;
+
+log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -34,28 +35,20 @@ from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
 
-from interface.objects import AgentCommand
-
-from mi.core.instrument.logger_client import LoggerClient
-
 from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
-
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from mi.instrument.noaa.iris.ooicore.driver import InstrumentDriver
 from mi.instrument.noaa.iris.ooicore.driver import DataParticleType
 from mi.instrument.noaa.iris.ooicore.driver import IRISDataParticleKey
 from mi.instrument.noaa.iris.ooicore.driver import IRISDataParticle
 from mi.instrument.noaa.iris.ooicore.driver import IRISCommandResponse
-from mi.instrument.noaa.iris.ooicore.driver import IRISStatus_01_Particle
-from mi.instrument.noaa.iris.ooicore.driver import IRISStatus_02_Particle
+from mi.instrument.noaa.iris.ooicore.driver import IRISStatus01Particle
+from mi.instrument.noaa.iris.ooicore.driver import IRISStatus02Particle
 from mi.instrument.noaa.iris.ooicore.driver import InstrumentCommand
 from mi.instrument.noaa.iris.ooicore.driver import ProtocolState
 from mi.instrument.noaa.iris.ooicore.driver import ProtocolEvent
@@ -71,7 +64,6 @@ from mi.instrument.noaa.iris.ooicore.driver import IRIS_DUMP_01
 from mi.instrument.noaa.iris.ooicore.driver import IRIS_DUMP_02
 
 from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentStateException
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 from pyon.core.exception import Conflict
@@ -83,14 +75,14 @@ InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.noaa.iris.ooicore.driver',
     driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = '1D644T',
-    instrument_agent_name = 'noaa_iris_ooicore',
-    instrument_agent_packet_config = DataParticleType(),
+    instrument_agent_resource_id='1D644T',
+    instrument_agent_name='noaa_iris_ooicore',
+    instrument_agent_packet_config=DataParticleType(),
 
-    driver_startup_config = {}
+    driver_startup_config={}
 )
 
-GO_ACTIVE_TIMEOUT=180
+GO_ACTIVE_TIMEOUT = 180
 
 #################################### RULES ####################################
 #                                                                             #
@@ -109,7 +101,7 @@ GO_ACTIVE_TIMEOUT=180
 #   Driver constant definitions
 ###
 
-INVALID_SAMPLE  = "This is an invalid sample; it had better cause an exception." + NEWLINE
+INVALID_SAMPLE = "This is an invalid sample; it had better cause an exception." + NEWLINE
 VALID_SAMPLE_01 = "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
 VALID_SAMPLE_02 = "IRIS,2013/05/29 00:25:36, -0.0885, -0.7517,28.49,N8642" + NEWLINE
 
@@ -118,62 +110,62 @@ DATA_OFF_COMMAND_RESPONSE = "IRIS,2013/05/29 00:23:34," + IRIS_COMMAND_STRING + 
 DUMP_01_COMMAND_RESPONSE = "IRIS,2013/05/29 00:22:57," + IRIS_COMMAND_STRING + IRIS_DUMP_01 + NEWLINE
 DUMP_02_COMMAND_RESPONSE = "IRIS,2013/05/29 00:23:34," + IRIS_COMMAND_STRING + IRIS_DUMP_02 + NEWLINE
 
-BOTPT_FIREHOSE_01  = "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
-BOTPT_FIREHOSE_01  += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
-BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
-BOTPT_FIREHOSE_01  += "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
-BOTPT_FIREHOSE_01  += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
-BOTPT_FIREHOSE_01  += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
-BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
+BOTPT_FIREHOSE_01 = "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
+BOTPT_FIREHOSE_01 += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
+BOTPT_FIREHOSE_01 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
+BOTPT_FIREHOSE_01 += "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
+BOTPT_FIREHOSE_01 += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
+BOTPT_FIREHOSE_01 += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
+BOTPT_FIREHOSE_01 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 
 SIGNON_STATUS = \
-        "IRIS,2013/06/12 18:03:44,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N8642 ID01" + NEWLINE
+    "IRIS,2013/06/12 18:03:44,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N8642 ID01" + NEWLINE
 
 DUMP_01_STATUS = \
-        "IRIS,2013/06/19 21:13:00,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N3616 ID01" + NEWLINE + \
-        "IRIS,2013/06/12 18:03:44,*01: Vbias= 0.0000 0.0000 0.0000 0.0000" + NEWLINE + \
-        "IRIS,2013/06/12 18:03:44,*01: Vgain= 0.0000 0.0000 0.0000 0.0000" + NEWLINE + \
-        "IRIS,2013/06/12 18:03:44,*01: Vmin:  -2.50  -2.50   2.50   2.50" + NEWLINE + \
-        "IRIS,2013/06/12 18:03:44,*01: Vmax:   2.50   2.50   2.50   2.50" + NEWLINE + \
-        "IRIS,2013/06/12 18:03:44,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
-        "IRIS,2013/06/12 18:03:44,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
-        "IRIS,2013/06/12 18:03:44,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
-        "IRIS,2013/06/12 18:03:44,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
-        "IRIS,2013/06/12 18:03:44,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
-        "IRIS,2013/06/12 18:03:44,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
-        "IRIS,2013/06/12 18:03:44,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00" + NEWLINE + \
-        "IRIS,2013/06/12 18:03:44,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-" + NEWLINE
+    "IRIS,2013/06/19 21:13:00,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N3616 ID01" + NEWLINE + \
+    "IRIS,2013/06/12 18:03:44,*01: Vbias= 0.0000 0.0000 0.0000 0.0000" + NEWLINE + \
+    "IRIS,2013/06/12 18:03:44,*01: Vgain= 0.0000 0.0000 0.0000 0.0000" + NEWLINE + \
+    "IRIS,2013/06/12 18:03:44,*01: Vmin:  -2.50  -2.50   2.50   2.50" + NEWLINE + \
+    "IRIS,2013/06/12 18:03:44,*01: Vmax:   2.50   2.50   2.50   2.50" + NEWLINE + \
+    "IRIS,2013/06/12 18:03:44,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
+    "IRIS,2013/06/12 18:03:44,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
+    "IRIS,2013/06/12 18:03:44,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
+    "IRIS,2013/06/12 18:03:44,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE + \
+    "IRIS,2013/06/12 18:03:44,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
+    "IRIS,2013/06/12 18:03:44,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
+    "IRIS,2013/06/12 18:03:44,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00" + NEWLINE + \
+    "IRIS,2013/06/12 18:03:44,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-" + NEWLINE
 
 DUMP_02_STATUS = \
-        "IRIS,2013/06/12 23:55:09,*01: TBias: 8.85" + NEWLINE + \
-        "IRIS,2013/06/12 23:55:09,*Above 0.00(KZMinTemp): kz[0]=           0, kz[1]=           0" + NEWLINE + \
-        "IRIS,2013/06/12 23:55:09,*Below 0.00(KZMinTemp): kz[2]=           0, kz[3]=           0" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: ADCDelay:  310" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: PCA Model: 90009-01" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: Firmware Version: 5.2 Rev N" + NEWLINE + \
-        "LILY,2013/06/12 18:04:01,-330.000,-247.647,290.73, 24.50,11.88,N9656" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: X Ch Gain= 1.0000, Y Ch Gain= 1.0000, Temperature Gain= 1.0000" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: Output Mode: Degrees" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: Calibration performed in Degrees" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: Control: Off" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: Using RS232" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: Real Time Clock: Not Installed" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: Use RTC for Timing: No" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: External Flash Capacity: 0 Bytes(Not Installed)" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: Relay Thresholds:" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01:   Xpositive= 1.0000   Xnegative=-1.0000" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01:   Ypositive= 1.0000   Ynegative=-1.0000" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: Relay Hysteresis:" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01:   Hysteresis= 0.0000" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: Calibration method: Dynamic" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:01,*01: Positive Limit=26.25   Negative Limit=-26.25" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:02,*01: Calibration Points:025  X: Disabled  Y: Disabled" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:02,*01: Biaxial Sensor Type (0)" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:02,*01: ADC: 12-bit (internal)" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:02,*01: DAC Output Scale Factor: 0.10 Volts/Degree" + NEWLINE + \
-        "HEAT,2013/06/12 18:04:02,-001,0001,0024" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:02,*01: Total Sample Storage Capacity: 372" + NEWLINE + \
-        "IRIS,2013/06/12 18:04:02,*01: BAE Scale Factor:  2.88388 (arcseconds/bit)" + NEWLINE
+    "IRIS,2013/06/12 23:55:09,*01: TBias: 8.85" + NEWLINE + \
+    "IRIS,2013/06/12 23:55:09,*Above 0.00(KZMinTemp): kz[0]=           0, kz[1]=           0" + NEWLINE + \
+    "IRIS,2013/06/12 23:55:09,*Below 0.00(KZMinTemp): kz[2]=           0, kz[3]=           0" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: ADCDelay:  310" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: PCA Model: 90009-01" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: Firmware Version: 5.2 Rev N" + NEWLINE + \
+    "LILY,2013/06/12 18:04:01,-330.000,-247.647,290.73, 24.50,11.88,N9656" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: X Ch Gain= 1.0000, Y Ch Gain= 1.0000, Temperature Gain= 1.0000" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: Output Mode: Degrees" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: Calibration performed in Degrees" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: Control: Off" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: Using RS232" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: Real Time Clock: Not Installed" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: Use RTC for Timing: No" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: External Flash Capacity: 0 Bytes(Not Installed)" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: Relay Thresholds:" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01:   Xpositive= 1.0000   Xnegative=-1.0000" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01:   Ypositive= 1.0000   Ynegative=-1.0000" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: Relay Hysteresis:" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01:   Hysteresis= 0.0000" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: Calibration method: Dynamic" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:01,*01: Positive Limit=26.25   Negative Limit=-26.25" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:02,*01: Calibration Points:025  X: Disabled  Y: Disabled" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:02,*01: Biaxial Sensor Type (0)" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:02,*01: ADC: 12-bit (internal)" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:02,*01: DAC Output Scale Factor: 0.10 Volts/Degree" + NEWLINE + \
+    "HEAT,2013/06/12 18:04:02,-001,0001,0024" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:02,*01: Total Sample Storage Capacity: 372" + NEWLINE + \
+    "IRIS,2013/06/12 18:04:02,*01: BAE Scale Factor:  2.88388 (arcseconds/bit)" + NEWLINE
 
 
 ###############################################################################
@@ -189,38 +181,36 @@ DUMP_02_STATUS = \
 # methods for validating data particles.                                      #
 ###############################################################################
 class IRISTestMixinSub(DriverTestMixin):
-
-
-    TYPE      = ParameterTestConfigKey.TYPE
-    READONLY  = ParameterTestConfigKey.READONLY
-    STARTUP   = ParameterTestConfigKey.STARTUP
-    DA        = ParameterTestConfigKey.DIRECT_ACCESS
-    VALUE     = ParameterTestConfigKey.VALUE
-    REQUIRED  = ParameterTestConfigKey.REQUIRED
-    DEFAULT   = ParameterTestConfigKey.DEFAULT
-    STATES    = ParameterTestConfigKey.STATES
+    TYPE = ParameterTestConfigKey.TYPE
+    READONLY = ParameterTestConfigKey.READONLY
+    STARTUP = ParameterTestConfigKey.STARTUP
+    DA = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE = ParameterTestConfigKey.VALUE
+    REQUIRED = ParameterTestConfigKey.REQUIRED
+    DEFAULT = ParameterTestConfigKey.DEFAULT
+    STATES = ParameterTestConfigKey.STATES
 
     _driver_parameters = {
         # Parameters defined in the IOS
     }
-    
+
     _sample_parameters_01 = {
-        IRISDataParticleKey.TIME: {TYPE: float, VALUE: 3578801134.0, REQUIRED: True },
-        IRISDataParticleKey.X_TILT: {TYPE: float, VALUE: -0.0882, REQUIRED: True },
-        IRISDataParticleKey.Y_TILT: {TYPE: float, VALUE: -0.7524, REQUIRED: True },
-        IRISDataParticleKey.TEMP: {TYPE: float, VALUE: 28.45, REQUIRED: True },
-        IRISDataParticleKey.SN: {TYPE: unicode, VALUE: 'N8642', REQUIRED: True }
+        IRISDataParticleKey.TIME: {TYPE: float, VALUE: 3578801134.0, REQUIRED: True},
+        IRISDataParticleKey.X_TILT: {TYPE: float, VALUE: -0.0882, REQUIRED: True},
+        IRISDataParticleKey.Y_TILT: {TYPE: float, VALUE: -0.7524, REQUIRED: True},
+        IRISDataParticleKey.TEMP: {TYPE: float, VALUE: 28.45, REQUIRED: True},
+        IRISDataParticleKey.SN: {TYPE: unicode, VALUE: 'N8642', REQUIRED: True}
     }
 
     _sample_parameters_02 = {
-        IRISDataParticleKey.TIME: {TYPE: float, VALUE: 3578801136.0, REQUIRED: True },
-        IRISDataParticleKey.X_TILT: {TYPE: float, VALUE: -0.0885, REQUIRED: True },
-        IRISDataParticleKey.Y_TILT: {TYPE: float, VALUE: -0.7517, REQUIRED: True },
-        IRISDataParticleKey.TEMP: {TYPE: float, VALUE: 28.49, REQUIRED: True },
-        IRISDataParticleKey.SN: {TYPE: unicode, VALUE: 'N8642', REQUIRED: True }
+        IRISDataParticleKey.TIME: {TYPE: float, VALUE: 3578801136.0, REQUIRED: True},
+        IRISDataParticleKey.X_TILT: {TYPE: float, VALUE: -0.0885, REQUIRED: True},
+        IRISDataParticleKey.Y_TILT: {TYPE: float, VALUE: -0.7517, REQUIRED: True},
+        IRISDataParticleKey.TEMP: {TYPE: float, VALUE: 28.49, REQUIRED: True},
+        IRISDataParticleKey.SN: {TYPE: unicode, VALUE: 'N8642', REQUIRED: True}
     }
 
-    def assert_particle_sample_01(self, data_particle, verify_values = False):
+    def assert_particle_sample_01(self, data_particle, verify_values=False):
         '''
         Verify sample particle
         @param data_particle:  IRISDataParticle data particle
@@ -230,7 +220,7 @@ class IRISTestMixinSub(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.IRIS_PARSED, require_instrument_timestamp=True)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
 
-    def assert_particle_sample_02(self, data_particle, verify_values = False):
+    def assert_particle_sample_02(self, data_particle, verify_values=False):
         '''
         Verify sample particle
         @param data_particle:  IRISDataParticle data particle
@@ -240,7 +230,7 @@ class IRISTestMixinSub(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.IRIS_PARSED, require_instrument_timestamp=True)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_02, verify_values)
 
-    def assert_particle_sample_firehose(self, data_particle, verify_values = False):
+    def assert_particle_sample_firehose(self, data_particle, verify_values=False):
         '''
         Verify sample particle
         @param data_particle:  IRISDataParticle data particle
@@ -250,8 +240,9 @@ class IRISTestMixinSub(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.IRIS_PARSED, require_instrument_timestamp=True)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
 
-    def assert_particle_status(self, status_particle, verify_values = False):
+    def assert_particle_status(self, status_particle, verify_values=False):
         pass
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -305,6 +296,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     """
     Test the connection to the BOTPT
     """
+
     def test_connect(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
@@ -320,7 +312,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         client, no zmq driver process, no driver process; just own the driver)
         """
         driver = InstrumentDriver(self._got_data_event_callback)
-        
+
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
 
@@ -328,8 +320,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         Now configure the driver with the mock_port_agent, verifying
         that the driver transitions to the DISCONNECTED state
         """
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
         #self.assert_initialize_driver(driver)
 
         current_state = driver.get_resource_state()
@@ -346,21 +338,22 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     raises SampleException when an invalid sample is encountered
     and that it returns a result when a valid sample is encountered
     """
+
     def test_data_build_parsed_values(self):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
         sampleException = False
-        try:        
+        try:
             #driver._protocol._raw_data = "test that SampleException works"
             raw_data = INVALID_SAMPLE
             test_particle = IRISDataParticle(raw_data)
             test_particle._build_parsed_values()
-            
+
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
             sampleException = True
-            
+
         finally:
             self.assertTrue(sampleException)
 
@@ -374,7 +367,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         except SampleException as e:
             log.error('SampleException caught: %s.', e)
             sampleException = True
-            
+
         finally:
             """
             Assert that the sampleException was not called.  Also assert that
@@ -388,6 +381,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     Verify that check_data_on_off_response raises a SampleException given an
     invalid response, and that it returns True given a valid response
     """
+
     def test_check_command_response(self):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
@@ -396,11 +390,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         try:
             response = IRISCommandResponse(INVALID_SAMPLE)
             retValue = response.check_command_response(IRIS_DATA_ON)
-        
+
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
             sampleException = True
-            
+
         finally:
             self.assertTrue(sampleException)
 
@@ -408,11 +402,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         try:
             response = IRISCommandResponse(DATA_ON_COMMAND_RESPONSE)
             retValue = response.check_command_response(IRIS_DATA_ON)
-        
+
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
             sampleException = True
-            
+
         finally:
             self.assertFalse(sampleException)
             self.assertTrue(retValue)
@@ -421,11 +415,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         try:
             response = IRISCommandResponse(DATA_OFF_COMMAND_RESPONSE)
             retValue = response.check_command_response(IRIS_DATA_OFF)
-        
+
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
             sampleException = True
-            
+
         finally:
             self.assertFalse(sampleException)
             self.assertTrue(retValue)
@@ -434,11 +428,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         try:
             response = IRISCommandResponse(DUMP_01_COMMAND_RESPONSE)
             retValue = response.check_command_response(IRIS_DUMP_01)
-        
+
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
             sampleException = True
-            
+
         finally:
             self.assertFalse(sampleException)
             self.assertTrue(retValue)
@@ -447,11 +441,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         try:
             response = IRISCommandResponse(DUMP_02_COMMAND_RESPONSE)
             retValue = response.check_command_response(IRIS_DUMP_02)
-        
+
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
             sampleException = True
-            
+
         finally:
             self.assertFalse(sampleException)
             self.assertTrue(retValue)
@@ -463,11 +457,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         try:
             response = IRISCommandResponse(DUMP_02_COMMAND_RESPONSE)
             retValue = response.check_command_response(None)
-        
+
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
             sampleException = True
-            
+
         finally:
             self.assertFalse(sampleException)
             self.assertTrue(retValue)
@@ -475,6 +469,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     """
     Verify that the BOTPT IRIS driver publishes its particles correctly
     """
+
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
@@ -490,6 +485,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     Verify that the BOTPT IRIS driver publishes a particle correctly when the IRIS packet is 
     embedded in the stream of other BOTPT sensor output.
     """
+
     def test_firehose(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
@@ -503,6 +499,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     """
     Verify that the driver correctly parses the DATA_ON response
     """
+
     def test_data_on_response(self):
         """
         """
@@ -515,8 +512,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -541,7 +538,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
-        self.assertTrue(driver._protocol._get_response(expected_prompt = 
+        self.assertTrue(driver._protocol._get_response(expected_prompt=
                                                        IRIS_DATA_ON))
 
 
@@ -549,6 +546,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     Verify that the driver correctly parses the DATA_ON response works
     when a data packet is right in front of it
     """
+
     def test_data_on_response_with_data(self):
         """
         """
@@ -561,8 +559,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -588,7 +586,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
-        
+
         log.debug("DATA ON command response: %s", DATA_ON_COMMAND_RESPONSE)
         # Create and populate the port agent packet.
         port_agent_packet = PortAgentPacket()
@@ -598,12 +596,13 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
-        self.assertTrue(driver._protocol._get_response(expected_prompt = 
+        self.assertTrue(driver._protocol._get_response(expected_prompt=
                                                        IRIS_DATA_ON))
 
     """
     Verify that the driver correctly parses the DUMP-SETTINGS response
     """
+
     def test_status_01(self):
         """
         """
@@ -616,8 +615,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -690,7 +689,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         driver._protocol.got_data(port_agent_packet)
 
         port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N3616 ID01" + NEWLINE)
+        port_agent_packet.attach_data(
+            "IRIS,2013/06/19 21:46:54,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N3616 ID01" + NEWLINE)
         port_agent_packet.attach_timestamp(ts)
         port_agent_packet.pack_header()
         driver._protocol.got_data(port_agent_packet)
@@ -726,37 +726,43 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         driver._protocol.got_data(port_agent_packet)
 
         port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
+        port_agent_packet.attach_data(
+            "IRIS,2013/06/19 21:46:54,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
         port_agent_packet.attach_timestamp(ts)
         port_agent_packet.pack_header()
         driver._protocol.got_data(port_agent_packet)
 
         port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
+        port_agent_packet.attach_data(
+            "IRIS,2013/06/19 21:46:54,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
         port_agent_packet.attach_timestamp(ts)
         port_agent_packet.pack_header()
         driver._protocol.got_data(port_agent_packet)
 
         port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
+        port_agent_packet.attach_data(
+            "IRIS,2013/06/19 21:46:54,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
         port_agent_packet.attach_timestamp(ts)
         port_agent_packet.pack_header()
         driver._protocol.got_data(port_agent_packet)
 
         port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:54,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
+        port_agent_packet.attach_data(
+            "IRIS,2013/06/19 21:46:54,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
         port_agent_packet.attach_timestamp(ts)
         port_agent_packet.pack_header()
         driver._protocol.got_data(port_agent_packet)
 
         port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:55,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE)
+        port_agent_packet.attach_data(
+            "IRIS,2013/06/19 21:46:55,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE)
         port_agent_packet.attach_timestamp(ts)
         port_agent_packet.pack_header()
         driver._protocol.got_data(port_agent_packet)
 
         port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:55,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE)
+        port_agent_packet.attach_data(
+            "IRIS,2013/06/19 21:46:55,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE)
         port_agent_packet.attach_timestamp(ts)
         port_agent_packet.pack_header()
         driver._protocol.got_data(port_agent_packet)
@@ -768,13 +774,14 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         driver._protocol.got_data(port_agent_packet)
 
         port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("IRIS,2013/06/19 21:46:55,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-   " + NEWLINE)   
+        port_agent_packet.attach_data(
+            "IRIS,2013/06/19 21:46:55,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-   " + NEWLINE)
         port_agent_packet.attach_timestamp(ts)
         port_agent_packet.pack_header()
         driver._protocol.got_data(port_agent_packet)
 
         port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("IRIS,2013/06/19 22:04:55,*9900XY-DUMP-SETTINGS" + NEWLINE)   
+        port_agent_packet.attach_data("IRIS,2013/06/19 22:04:55,*9900XY-DUMP-SETTINGS" + NEWLINE)
         port_agent_packet.attach_timestamp(ts)
         port_agent_packet.pack_header()
         driver._protocol.got_data(port_agent_packet)
@@ -783,6 +790,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     """
     Verify that the driver correctly parses the DUMP2 response
     """
+
     def test_status_02(self):
         """
         """
@@ -795,8 +803,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -823,6 +831,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     """
     Verify that the driver correctly parses the DATA_OFF response
     """
+
     def test_data_off_response(self):
         """
         """
@@ -835,8 +844,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -861,13 +870,14 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
-        self.assertTrue(driver._protocol._get_response(expected_prompt = 
+        self.assertTrue(driver._protocol._get_response(expected_prompt=
                                                        IRIS_DATA_OFF))
 
 
     """
     Verify that the driver correctly parses the DUMP_SETTINGS response
     """
+
     def test_dump_settings_response(self):
         """
         """
@@ -880,8 +890,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -906,9 +916,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
-        response = driver._protocol._get_response(expected_prompt = 
-                                                       IRIS_DUMP_01)
-        
+        response = driver._protocol._get_response(expected_prompt=
+                                                  IRIS_DUMP_01)
+
         self.assertTrue(isinstance(response[1], IRISCommandResponse))
 
         log.debug("DUMP_SETTINGS_02 command response: %s", DUMP_02_COMMAND_RESPONSE)
@@ -924,8 +934,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
-        response = driver._protocol._get_response(expected_prompt = 
-                                                       IRIS_DUMP_02)
+        response = driver._protocol._get_response(expected_prompt=
+                                                  IRIS_DUMP_02)
         self.assertTrue(isinstance(response[1], IRISCommandResponse))
 
 
@@ -938,8 +948,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
             log.debug("my_send: data: %s, my_response: %s", data, my_response)
             driver._protocol._promptbuf += my_response
             return len(DATA_ON_COMMAND_RESPONSE)
+
         mock_port_agent.send.side_effect = my_send
-        
+
         # Put the driver into test mode
         driver.set_test_mode(True)
 
@@ -948,8 +959,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -964,7 +975,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         # Force the instrument into a known state
         self.assert_force_state(driver, DriverProtocolState.COMMAND)
 
-        result = driver._protocol._handler_command_start_autosample(timeout = 0)
+        result = driver._protocol._handler_command_start_autosample(timeout=0)
         ts = ntplib.system_to_ntp_time(time.time())
         result = driver._protocol._got_chunk(DATA_ON_COMMAND_RESPONSE, ts)
 
@@ -978,8 +989,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
             log.debug("my_send: data: %s, my_response: %s", data, my_response)
             driver._protocol._promptbuf += my_response
             return len(DATA_OFF_COMMAND_RESPONSE)
+
         mock_port_agent.send.side_effect = my_send
-        
+
         #self.assert_initialize_driver(driver)
 
         # Put the driver into test mode
@@ -990,8 +1002,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -1020,8 +1032,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
             log.debug("my_send: data: %s, my_response: %s", data, my_response)
             driver._protocol._promptbuf += my_response
             return len(DUMP_01_STATUS)
+
         mock_port_agent.send.side_effect = my_send
-        
+
         # Put the driver into test mode
         driver.set_test_mode(True)
 
@@ -1030,8 +1043,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -1046,7 +1059,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         # Force the instrument into a known state
         self.assert_force_state(driver, DriverProtocolState.AUTOSAMPLE)
 
-        result = driver._protocol._handler_command_autosample_dump01(timeout = 0)
+        result = driver._protocol._handler_command_autosample_dump01(timeout=0)
         tuple1 = result[1]
         status_string = tuple1[1]
         log.debug("STATUS_01 response: %r", status_string)
@@ -1061,8 +1074,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
             log.debug("my_send: data: %s, my_response: %s", data, my_response)
             driver._protocol._promptbuf += my_response
             return len(DUMP_02_STATUS)
+
         mock_port_agent.send.side_effect = my_send
-        
+
         # Put the driver into test mode
         driver.set_test_mode(True)
 
@@ -1071,8 +1085,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -1087,7 +1101,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         # Force the instrument into a known state
         self.assert_force_state(driver, DriverProtocolState.AUTOSAMPLE)
 
-        result = driver._protocol._handler_command_autosample_dump02(timeout = 0)
+        result = driver._protocol._handler_command_autosample_dump02(timeout=0)
         tuple1 = result[1]
         status_string = tuple1[1]
         log.debug("STATUS_02 response: %r", result)
@@ -1105,8 +1119,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -1132,10 +1146,10 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         driver._protocol._got_chunk(DUMP_01_STATUS, ts)
         driver._protocol._got_chunk(DUMP_01_COMMAND_RESPONSE, ts)
 
-        response = driver._protocol._get_response(timeout = 0)
-        self.assertTrue(isinstance(response[1], IRISStatus_01_Particle))
+        response = driver._protocol._get_response(timeout=0)
+        self.assertTrue(isinstance(response[1], IRISStatus01Particle))
 
-        
+
     def test_dump_02(self):
         mock_port_agent = Mock(spec=PortAgentClient)
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -1148,8 +1162,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -1175,10 +1189,10 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         result = driver._protocol._got_chunk(DUMP_02_STATUS, ts)
         result = driver._protocol._got_chunk(DUMP_02_COMMAND_RESPONSE, ts)
 
-        response = driver._protocol._get_response(timeout = 0)
-        self.assertTrue(isinstance(response[1], IRISStatus_02_Particle))
+        response = driver._protocol._get_response(timeout=0)
+        self.assertTrue(isinstance(response[1], IRISStatus02Particle))
 
-        
+
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.
@@ -1196,6 +1210,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         # Verify "BOGUS_CAPABILITY was filtered out
         self.assertEquals(sorted(driver_capabilities),
                           sorted(protocol._filter_capabilities(test_capabilities)))
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -1238,12 +1253,12 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
         self.assertEqual(response[1], IRIS_DATA_ON)
-        
+
         log.debug("DATA_ON returned: %r", response)
 
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
         self.assertEqual(response[1], IRIS_DATA_OFF)
-        
+
         log.debug("DATA_OFF returned: %r", response)
 
     def test_dump_01(self):
@@ -1257,7 +1272,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DUMP_01)
         log.debug("DUMP_01 returned: %r", response)
-        
+
     def test_dump_02(self):
         """
         @brief Test for acquiring status
@@ -1269,7 +1284,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DUMP_02)
         log.debug("DUMP_02 returned: %r", response)
-        
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -1296,7 +1311,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
     # Overridden because does not apply for this driver
     def test_discover(self):
         pass
-            
+
     def test_poll(self):
         '''
         No polling for a single sample
@@ -1315,6 +1330,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
         @brief Walk through all driver protocol states and verify capabilities
         returned by get_current_capabilities
         """
+
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -1334,7 +1350,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.DUMP_01,
                 ProtocolEvent.DUMP_02,
-                ],
+            ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }
@@ -1346,19 +1362,18 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
         ##################
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
             ProtocolEvent.STOP_AUTOSAMPLE,
-                ProtocolEvent.DUMP_01,
-                ProtocolEvent.DUMP_02,
-            ]
+            ProtocolEvent.DUMP_01,
+            ProtocolEvent.DUMP_02,
+        ]
 
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
         self.assert_stop_autosample()
 
 
-
-    def test_instrument_agent_common_state_model_lifecycle(self,  timeout=GO_ACTIVE_TIMEOUT):
+    def test_instrument_agent_common_state_model_lifecycle(self, timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief Test agent state transitions.
                This test verifies that the instrument agent can
