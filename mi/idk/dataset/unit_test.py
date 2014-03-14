@@ -498,9 +498,10 @@ class DataSetIntegrationTestCase(DataSetTestCase):
                         done = True
                         break
 
-                if not done:
+                # data_callback_result may get updated while counting particles, check again
+                if not done and self.data_callback_result == []:
                     log.debug("No particle detected yet, sleep for a bit")
-                    gevent.sleep(.5)
+                    gevent.sleep(1)
         except Timeout:
             log.error("Failed to detect particle %s, expected %d particles, found %d", particle_class, count, found)
             result = []
@@ -535,9 +536,10 @@ class DataSetIntegrationTestCase(DataSetTestCase):
                         done = True
                         break
 
-                if not done:
+                # data_callback_result may get updated while counting particles, check again
+                if not done and self.data_callback_result == []:
                     log.debug("No particle detected yet, sleep for a bit")
-                    gevent.sleep(.5)
+                    gevent.sleep(1)
         except Timeout:
             log.error("Failed to detect particle, expected %d particles, found %d", count, found)
             result = []
@@ -807,7 +809,7 @@ class DataSetAgentTestCase(DataSetTestCase):
 
             if(not self.data_subscribers.samples_received.has_key(stream_name) or
                len(self.data_subscribers.samples_received.get(stream_name)) == 0):
-                log.debug("No samples in the queue, sleep for a bit to let the queue fill up")
+                log.debug("No samples in queue, sleep for a bit")
                 gevent.sleep(.2)
 
         log.debug("get_samples() complete.  returning %d records", sample_count)
