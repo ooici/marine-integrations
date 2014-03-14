@@ -30,7 +30,7 @@ from mi.core.instrument.chunker import BinaryChunker
 
 
 ACCEL_ID = b'\xcb'
-RATE_ID = b'xcf'
+RATE_ID = b'\xcf'
 ACCEL_BYTES = 43
 RATE_BYTES = 31
 
@@ -116,16 +116,18 @@ class Mopak__stcAccelParserDataParticle(DataParticle):
         data, timestamp, and new sequence, they are the same enough for this 
         particle
         """
+        allowed_diff = .000001
         if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
+            (abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
+                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) < allowed_diff)):
             return True
         else:
             if self.raw_data != arg.raw_data:
                 log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
+            elif abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
+                     arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) > allowed_diff:
+                log.debug('Timestamp %s does not match %s', self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
+                          arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
             return False
 
 class Mopak__stcRateParserDataParticleKey(BaseEnum):
@@ -255,7 +257,7 @@ class Mopak__stcParser(BufferLoadingParser):
                     data_index += 1
             elif raw_data[data_index] == RATE_ID:
                 # start of rate record
-                if self.compare_checksum(raw_data[data_index+RATE_BYTES]):
+                if self.compare_checksum(raw_data[data_index:data_index+RATE_BYTES]):
                     return_list.append((data_index, data_index + RATE_BYTES))
                     data_index += RATE_BYTES
                 else:
@@ -264,10 +266,8 @@ class Mopak__stcParser(BufferLoadingParser):
                 data_index += 1
 
             remain_bytes = raw_data_len - data_index
-            # if the remaining bytes are less than the data accel bytes, all we might have left is a rate sample,
-            # if we don't we're done
-            if remain_bytes < ACCEL_BYTES or (remain_bytes < ACCEL_BYTES and remain_bytes > RATE_BYTES and \
-            not self.compare_checksum(raw_data[data_index+RATE_BYTES])):
+            # if the remaining bytes are less than the data rate bytes we're done
+            if remain_bytes < RATE_BYTES:
                 break
         return return_list
     
@@ -374,7 +374,6 @@ class Mopak__stcParser(BufferLoadingParser):
         
         # add in the utc start time
         time_secs = float(self._start_time_utc) + offset_secs
-        log.debug("offset time secs %f, ntp %f", time_secs, float(ntplib.system_to_ntp_time(time_secs)))
         # convert to ntp64
         return float(ntplib.system_to_ntp_time(time_secs))
 

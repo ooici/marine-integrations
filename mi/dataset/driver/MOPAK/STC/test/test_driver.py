@@ -80,6 +80,23 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.create_sample_data('second.mopak.log', "20140120_150004.mopak.log")
         self.assert_data_multiple_class('second.result.yml', count=2, timeout=10)
 
+    def test_get_rate(self):
+        """
+        Make a second test_get which uses a files having both accel and rate particles
+        """
+        self.clear_sample_data()
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.clear_async_data()
+        self.create_sample_data('first_rate.mopak.log', "20140313_191853.mopak.log")
+        self.assert_data_multiple_class('first_rate.result.yml', count=6, timeout=10)
+
+        self.clear_async_data()
+        self.create_sample_data('second_rate.mopak.log', "20140313_201853.mopak.log")
+        self.assert_data_multiple_class('second_rate.result.yml', count=3, timeout=10)
+
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
@@ -170,6 +187,46 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
 
+    def test_publish_path_rate(self):
+        """
+        Setup an agent/driver/harvester/parser and verify that data is
+        published out the agent
+        """
+        self.create_sample_data('first_rate.mopak.log', "20140313_191853.mopak.log")
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # NOTE: If the processing is not slowed down here, the samples are returned
+        # in the wrong order
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        # Verify we get one sample
+        try:
+            result = self.data_subscribers.get_samples(DataParticleType.ACCEL, 2)
+            result2 = self.data_subscribers.get_samples(DataParticleType.RATE, 4)
+            result.extend(result2)
+            log.debug("RESULT: %s", result)
+
+            # Verify values
+            self.assert_data_values(result, 'first_rate.result.yml')
+        except Exception as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
+
+    def test_harvester_new_file_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.
+
+        exception callback called.
+        """
+        config = self._driver_config()['startup_config']['harvester']['pattern']
+        # need to override this from base unit test class to not use 'foo' text,
+        # which produces an error since the name is needed to parse the file
+        filename = config.replace("*", "20140313_191853")
+
+        self.assert_new_file_exception(filename)
+
     def test_large_import(self):
         """
         Test importing a large number of samples from the file at once
@@ -178,7 +235,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         # get results for each of the data particle streams
-        result = self.get_samples(DataParticleType.ACCEL,1000,60)#11964,120)
+        result = self.get_samples(DataParticleType.ACCEL,11964,480)
 
     def test_stop_start(self):
         """
@@ -229,7 +286,7 @@ class QualificationTest(DataSetQualificationTestCase):
         at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('first_qual.mopak.log', "20140120_140004.mopak.log")
+        self.create_sample_data('first_rate.mopak.log', "20140313_191853.mopak.log")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -240,19 +297,23 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.get_samples(DataParticleType.ACCEL, 3)
+            result = self.get_samples(DataParticleType.ACCEL, 2)
+            result2 = self.data_subscribers.get_samples(DataParticleType.RATE, 4)
+            result.extend(result2)
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'first_qual.result.yml')
+            self.assert_data_values(result, 'first_rate.result.yml')
             self.assert_sample_queue_size(DataParticleType.ACCEL, 0)
+            self.assert_sample_queue_size(DataParticleType.RATE, 0)
 
-            self.create_sample_data('second_qual.mopak.log', "20140120_150004.mopak.log")
+            self.create_sample_data('second_rate.mopak.log', "20140313_201853.mopak.log")
             # Now read the first three records of the second file then stop
-            result = self.get_samples(DataParticleType.ACCEL, 2)
+            result = self.get_samples(DataParticleType.RATE, 1)
             log.debug("got result 1 %s", result)
             self.assert_stop_sampling()
             self.assert_sample_queue_size(DataParticleType.ACCEL, 0)
+            self.assert_sample_queue_size(DataParticleType.RATE, 0)
             
             # stop the agent
             self.stop_dataset_agent_client()
@@ -263,12 +324,13 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and ensure we get the last 2 records of the file
             self.assert_start_sampling()
-            result2 = self.get_samples(DataParticleType.ACCEL, 2)
+            result2 = self.get_samples(DataParticleType.RATE, 2)
             log.debug("got result 2 %s", result2)
             result.extend(result2)
-            self.assert_data_values(result, 'second_qual.result.yml')
+            self.assert_data_values(result, 'second_rate.result.yml')
 
             self.assert_sample_queue_size(DataParticleType.ACCEL, 0)
+            self.assert_sample_queue_size(DataParticleType.RATE, 0)
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
