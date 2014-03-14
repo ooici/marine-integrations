@@ -74,15 +74,19 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         self.clear_async_data()
-        self.create_sample_data('first.DAT', "A000010.DAT")
+
+        ## From sample file A0000010.DEC:
+        ## Flag record, first and last velocity record, time record.
+        self.create_sample_data('expected_flags_2_records.DEC', 
+          "A0000002.DEC")
         self.assert_data_multiple_class('first.result.yml', count=2, timeout=10)
 
         #self.clear_async_data()
-        #self.create_sample_data('second.DAT', "E0000002.DAT")
+        #self.create_sample_data('second.DEC', "E0000002.DEC")
         #self.assert_data_multiple_class('second.result.yml', count=5, timeout=10)
 
         #self.clear_async_data()
-        #self.create_sample_data('E0000303.DAT', "E0000303.DAT")
+        #self.create_sample_data('E0000303.DEC', "E0000303.DEC")
         # start is the same particle here, just use the same results
         #self.assert_data_multiple_class(count=34, timeout=10)
 
