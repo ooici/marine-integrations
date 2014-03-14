@@ -174,15 +174,13 @@ class Rte_xx__stcParser(BufferLoadingParser):
         # seek to the position
         self._stream_handle.seek(state_obj[StateKey.POSITION])
 
-
     def _increment_state(self, increment):
         """
         Increment the parser state
         @param timestamp The timestamp completed up to that position
         """
         self._read_state[StateKey.POSITION] += increment
-        log.debug("StateKey.POSITION = %s , increment was %d",self._read_state[StateKey.POSITION],increment)
-        
+
     @staticmethod
     def _convert_string_to_timestamp(ts_str):
         """
