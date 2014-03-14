@@ -29,7 +29,8 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 
 from mi.dataset.driver.VEL3D_K.stc_imodem.driver import VEL3D_K__stc_imodem_DataSetDriver
-from mi.dataset.parser.vel3d_k__stc_imodem import Vel3d_k__stc_imodemParserDataParticle
+from mi.dataset.parser.vel3d_k__stc_imodem import Vel3d_k__stc_imodemTimeDataParticle
+from mi.dataset.parser.vel3d_k__stc_imodem import Vel3d_k__stc_imodemVelocityDataParticle
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -43,7 +44,7 @@ DataSetTestCase.initialize(
         DataSourceConfigKey.HARVESTER:
         {
             DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.PATTERN: '',
+            DataSetDriverConfigKeys.PATTERN: 'A*.DEC',
             DataSetDriverConfigKeys.FREQUENCY: 1,
         },
         DataSourceConfigKey.PARSER: {}
@@ -65,7 +66,27 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test that we can get data from files.  Verify that the driver
         sampling can be started and stopped
         """
-        pass
+        log.info("=================== START INTEG GET ======================")
+
+        self.clear_sample_data()
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.clear_async_data()
+        self.create_sample_data('first.DAT', "A000010.DAT")
+        self.assert_data_multiple_class('first.result.yml', count=2, timeout=10)
+
+        #self.clear_async_data()
+        #self.create_sample_data('second.DAT', "E0000002.DAT")
+        #self.assert_data_multiple_class('second.result.yml', count=5, timeout=10)
+
+        #self.clear_async_data()
+        #self.create_sample_data('E0000303.DAT', "E0000303.DAT")
+        # start is the same particle here, just use the same results
+        #self.assert_data_multiple_class(count=34, timeout=10)
+
+        log.info("=================== END INTEG GET ======================")
 
     def test_stop_resume(self):
         """
