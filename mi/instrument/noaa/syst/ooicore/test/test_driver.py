@@ -12,16 +12,17 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
+from mi.core.instrument.data_particle import RawDataParticle
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
-import unittest
-
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+
+log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -30,21 +31,13 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 
-from interface.objects import AgentCommand
-
-from mi.core.instrument.logger_client import LoggerClient
-
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
 from pyon.core.exception import Conflict
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
-
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from mi.instrument.noaa.syst.ooicore.driver import InstrumentDriver
 from mi.instrument.noaa.syst.ooicore.driver import DataParticleType
@@ -57,7 +50,7 @@ from mi.instrument.noaa.syst.ooicore.driver import Protocol
 from mi.instrument.noaa.syst.ooicore.driver import Prompt
 from mi.instrument.noaa.syst.ooicore.driver import NEWLINE
 
-GO_ACTIVE_TIMEOUT=180
+GO_ACTIVE_TIMEOUT = 180
 
 ###
 #   Driver parameters for the tests
@@ -66,11 +59,11 @@ InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.noaa.syst.ooicore.driver',
     driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = 'DZWXL3',
-    instrument_agent_name = 'noaa_syst_ooicore',
-    instrument_agent_packet_config = DataParticleType(),
+    instrument_agent_resource_id='DZWXL3',
+    instrument_agent_name='noaa_syst_ooicore',
+    instrument_agent_packet_config=DataParticleType(),
 
-    driver_startup_config = {}
+    driver_startup_config={}
 )
 
 #################################### RULES ####################################
@@ -90,6 +83,7 @@ InstrumentDriverTestCase.initialize(
 #   Driver constant definitions
 ###
 
+
 ###############################################################################
 #                           DRIVER TEST MIXIN                                  #
 #     Defines a set of constants and assert methods used for data particle    #
@@ -103,17 +97,18 @@ InstrumentDriverTestCase.initialize(
 # methods for validating data particles.                                      #
 ###############################################################################
 class BOTPTTestMixinSub(DriverTestMixin):
-    def assertSampleDataParticle(self, data_particle):
-        '''
+    def assert_sample_data_particle(self, data_particle):
+        """
         Verify a particle is a know particle to this driver and verify the particle is
         correct
         @param data_particle: Data particle of unkown type produced by the driver
-        '''
-        if (isinstance(data_particle, RawDataParticle)):
+        """
+        if isinstance(data_particle, RawDataParticle):
             self.assert_particle_raw(data_particle)
         else:
             log.error("Unknown Particle Detected: %s" % data_particle)
             self.assertFalse(True)
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -133,7 +128,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BOTPTTestMixinSub):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
-
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -152,13 +146,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BOTPTTestMixinSub):
         # DHE: there are no capabilities so this next test would fail.
         #self.assert_enum_complete(Capability(), ProtocolEvent())
 
-
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
         """
-        chunker = StringChunker(Protocol.sieve_function)
-
+        StringChunker(Protocol.sieve_function)
 
     def test_got_data(self):
         """
@@ -167,10 +159,10 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BOTPTTestMixinSub):
         # Create and initialize the instrument driver with a mock port agent
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
-        
+
         self.assert_raw_particle_published(driver, True)
 
-
+    # noinspection PyProtectedMember
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.
@@ -202,7 +194,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-
     def assert_initialize_driver(self, final_state=DriverProtocolState.AUTOSAMPLE):
         """
         Walk an uninitialized driver through it's initialize process.  Verify the final
@@ -215,19 +206,19 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_current_state(DriverConnectionState.UNCONFIGURED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
 
         # Test the driver is configured for comms.
         self.assert_current_state(DriverConnectionState.DISCONNECTED)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('connect')
+        self.driver_client.cmd_dvr('connect')
 
         # Test the driver is in unknown state.
         self.assert_current_state(DriverProtocolState.UNKNOWN)
 
         # Configure driver for comms and transition to disconnected.
-        reply = self.driver_client.cmd_dvr('discover_state')
+        self.driver_client.cmd_dvr('discover_state')
 
         # Assert that this driver is in streaming mode
         state = self.driver_client.cmd_dvr('get_resource_state')
@@ -262,35 +253,33 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         self.assert_start_autosample()
         self.assert_reset()
 
-
     # Overridden because does not apply for this driver
     def test_discover(self):
         pass
-            
+
     # Overridden because does not apply for this driver
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test manually tests that the Instrument Driver properly supports direct access
+        to the physical instrument. (telnet mode)
         """
         pass
 
-
     # Overridden because does not apply for this driver
     def test_poll(self):
-        '''
+        """
         No polling for a single sample
-        '''
+        """
 
     # Overridden because does not apply for this driver
     def test_get_set_parameters(self):
-        '''
+        """
         verify that all parameters can be get set properly, this includes
         ensuring that read only parameters fail on set.
-        '''
+        """
         pass
 
-
-    def test_instrument_agent_common_state_model_lifecycle(self,  timeout=GO_ACTIVE_TIMEOUT):
+    def test_instrument_agent_common_state_model_lifecycle(self, timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief Test agent state transitions.
                This test verifies that the instrument agent can

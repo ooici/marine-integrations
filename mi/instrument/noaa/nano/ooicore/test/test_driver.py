@@ -16,14 +16,13 @@ USAGE:
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
-import unittest
 import time
 
 import ntplib
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger;
+from mi.core.log import get_logger
 
 log = get_logger()
 
@@ -58,7 +57,6 @@ from mi.instrument.noaa.nano.ooicore.driver import Protocol
 from mi.instrument.noaa.nano.ooicore.driver import Prompt
 from mi.instrument.noaa.nano.ooicore.driver import NEWLINE
 from mi.instrument.noaa.nano.ooicore.driver import NANO_DATA_ON
-from mi.instrument.noaa.nano.ooicore.driver import NANO_DUMP_SETTINGS
 
 from mi.core.exceptions import SampleException
 from pyon.agent.agent import ResourceAgentState
@@ -72,14 +70,14 @@ InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.noaa.nano.ooicore.driver',
     driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = '1D644T',
-    instrument_agent_name = 'noaa_nano_ooicore',
-    instrument_agent_packet_config = DataParticleType(),
+    instrument_agent_resource_id='1D644T',
+    instrument_agent_name='noaa_nano_ooicore',
+    instrument_agent_packet_config=DataParticleType(),
 
-    driver_startup_config = {}
+    driver_startup_config={}
 )
 
-GO_ACTIVE_TIMEOUT=180
+GO_ACTIVE_TIMEOUT = 180
 
 #################################### RULES ####################################
 #                                                                             #
@@ -98,17 +96,17 @@ GO_ACTIVE_TIMEOUT=180
 #   Driver constant definitions
 ###
 
-INVALID_SAMPLE  = "This is an invalid sample; it had better cause an exception." + NEWLINE
+INVALID_SAMPLE = "This is an invalid sample; it had better cause an exception." + NEWLINE
 VALID_SAMPLE_01 = "NANO,V,2013/08/22 22:48:36.013,13.888533,26.147947328" + NEWLINE
 VALID_SAMPLE_02 = "NANO,V,2013/08/22 23:13:36.000,13.884067,26.172926006" + NEWLINE
 
-BOTPT_FIREHOSE_01  = "NANO,V,2013/08/22 22:48:36.013,13.888533,26.147947328" + NEWLINE
-BOTPT_FIREHOSE_01  += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
-BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
+BOTPT_FIREHOSE_01 = "NANO,V,2013/08/22 22:48:36.013,13.888533,26.147947328" + NEWLINE
+BOTPT_FIREHOSE_01 += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
+BOTPT_FIREHOSE_01 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 #BOTPT_FIREHOSE_01  += "NANO,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
 #BOTPT_FIREHOSE_01  += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
-BOTPT_FIREHOSE_01  += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
-BOTPT_FIREHOSE_01  += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
+BOTPT_FIREHOSE_01 += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
+BOTPT_FIREHOSE_01 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 
 SET_TIME_RESPONSE = "NANO,*0001GR=08/28/13 18:15:15" + NEWLINE
 
@@ -124,33 +122,33 @@ DUMP_STATUS = \
     "NANO,*AA:7.161800     AC:7.290000     AH:160.0000     AM:0" + NEWLINE + \
     "NANO,*AP:0            AR:160.0000     BL:0            BR1:115200" + NEWLINE + \
     "NANO,*BR2:115200      BV:10.9         BX:112          C1:-9747.897" + NEWLINE + \
-    "NANO,*C2:288.5739     C3:27200.78     CF:BA0F         CM:4" + NEWLINE +  \
-    "NANO,*CS:7412         D1:.0572567     D2:.0000000     DH:2000.000" + NEWLINE +  \
-    "NANO,*DL:0            DM:0            DO:0            DP:6" + NEWLINE +  \
-    "NANO,*DZ:.0000000     EM:0            ET:0            FD:.153479" + NEWLINE +  \
-    "NANO,*FM:0            GD:0            GE:2            GF:0" + NEWLINE +  \
-    "NANO,*GP::            GT:1            IA1:8           IA2:12" + NEWLINE +  \
-    "NANO,*IB:0            ID:1            IE:0            IK:46" + NEWLINE +  \
-    "NANO,*IM:0            IS:5            IY:0            KH:0" + NEWLINE +  \
-    "NANO,*LH:2250.000     LL:.0000000     M1:13.880032    M3:14.090198" + NEWLINE +  \
-    "NANO,*MA:             MD:0            MU:             MX:0" + NEWLINE +  \
-    "NANO,*NO:0            OI:0            OP:2100.000     OR:1.00" + NEWLINE +  \
-    "NANO,*OY:1.000000     OZ:0            PA:.0000000     PC:.0000000" + NEWLINE +  \
-    "NANO,*PF:2000.000     PI:25           PL:2400.000     PM:1.000000" + NEWLINE +  \
-    "NANO,*PO:0            PR:238          PS:0            PT:N" + NEWLINE +  \
-    "NANO,*PX:3            RE:0            RS:5            RU:0" + NEWLINE +  \
-    "NANO,*SD:12           SE:0            SI:OFF          SK:0" + NEWLINE +  \
-    "NANO,*SL:0            SM:OFF          SP:0            ST:10" + NEWLINE +  \
-    "NANO,*SU:0            T1:30.00412     T2:1.251426     T3:50.64434" + NEWLINE +  \
-    "NANO,*T4:134.5816     T5:.0000000     TC:.6781681     TF:.00" + NEWLINE +  \
-    "NANO,*TH:1,P4;>OK     TI:25           TJ:2            TP:0" + NEWLINE +  \
-    "NANO,*TQ:1            TR:952          TS:1            TU:0" + NEWLINE +  \
-    "NANO,*U0:5.839037     UE:0            UF:1.000000" + NEWLINE +  \
-    "NANO,*UL:                             UM:user         UN:1" + NEWLINE +  \
-    "NANO,*US:0            VP:4            WI:Def=15:00-061311" + NEWLINE +  \
-    "NANO,*XC:8            XD:A            XM:1            XN:0" + NEWLINE +  \
-    "NANO,*XS:0011         XX:1            Y1:-3818.141    Y2:-10271.53" + NEWLINE +  \
-    "NANO,*Y3:.0000000     ZE:0            ZI:0            ZL:0" + NEWLINE +  \
+    "NANO,*C2:288.5739     C3:27200.78     CF:BA0F         CM:4" + NEWLINE + \
+    "NANO,*CS:7412         D1:.0572567     D2:.0000000     DH:2000.000" + NEWLINE + \
+    "NANO,*DL:0            DM:0            DO:0            DP:6" + NEWLINE + \
+    "NANO,*DZ:.0000000     EM:0            ET:0            FD:.153479" + NEWLINE + \
+    "NANO,*FM:0            GD:0            GE:2            GF:0" + NEWLINE + \
+    "NANO,*GP::            GT:1            IA1:8           IA2:12" + NEWLINE + \
+    "NANO,*IB:0            ID:1            IE:0            IK:46" + NEWLINE + \
+    "NANO,*IM:0            IS:5            IY:0            KH:0" + NEWLINE + \
+    "NANO,*LH:2250.000     LL:.0000000     M1:13.880032    M3:14.090198" + NEWLINE + \
+    "NANO,*MA:             MD:0            MU:             MX:0" + NEWLINE + \
+    "NANO,*NO:0            OI:0            OP:2100.000     OR:1.00" + NEWLINE + \
+    "NANO,*OY:1.000000     OZ:0            PA:.0000000     PC:.0000000" + NEWLINE + \
+    "NANO,*PF:2000.000     PI:25           PL:2400.000     PM:1.000000" + NEWLINE + \
+    "NANO,*PO:0            PR:238          PS:0            PT:N" + NEWLINE + \
+    "NANO,*PX:3            RE:0            RS:5            RU:0" + NEWLINE + \
+    "NANO,*SD:12           SE:0            SI:OFF          SK:0" + NEWLINE + \
+    "NANO,*SL:0            SM:OFF          SP:0            ST:10" + NEWLINE + \
+    "NANO,*SU:0            T1:30.00412     T2:1.251426     T3:50.64434" + NEWLINE + \
+    "NANO,*T4:134.5816     T5:.0000000     TC:.6781681     TF:.00" + NEWLINE + \
+    "NANO,*TH:1,P4;>OK     TI:25           TJ:2            TP:0" + NEWLINE + \
+    "NANO,*TQ:1            TR:952          TS:1            TU:0" + NEWLINE + \
+    "NANO,*U0:5.839037     UE:0            UF:1.000000" + NEWLINE + \
+    "NANO,*UL:                             UM:user         UN:1" + NEWLINE + \
+    "NANO,*US:0            VP:4            WI:Def=15:00-061311" + NEWLINE + \
+    "NANO,*XC:8            XD:A            XM:1            XN:0" + NEWLINE + \
+    "NANO,*XS:0011         XX:1            Y1:-3818.141    Y2:-10271.53" + NEWLINE + \
+    "NANO,*Y3:.0000000     ZE:0            ZI:0            ZL:0" + NEWLINE + \
     "NANO,*ZM:0            ZS:0            ZV:.0000000" + NEWLINE
 
 
@@ -167,65 +165,64 @@ DUMP_STATUS = \
 # methods for validating data particles.                                      #
 ###############################################################################
 class NANOTestMixinSub(DriverTestMixin):
-
-
-    TYPE      = ParameterTestConfigKey.TYPE
-    READONLY  = ParameterTestConfigKey.READONLY
-    STARTUP   = ParameterTestConfigKey.STARTUP
-    DA        = ParameterTestConfigKey.DIRECT_ACCESS
-    VALUE     = ParameterTestConfigKey.VALUE
-    REQUIRED  = ParameterTestConfigKey.REQUIRED
-    DEFAULT   = ParameterTestConfigKey.DEFAULT
-    STATES    = ParameterTestConfigKey.STATES
+    TYPE = ParameterTestConfigKey.TYPE
+    READONLY = ParameterTestConfigKey.READONLY
+    STARTUP = ParameterTestConfigKey.STARTUP
+    DA = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE = ParameterTestConfigKey.VALUE
+    REQUIRED = ParameterTestConfigKey.REQUIRED
+    DEFAULT = ParameterTestConfigKey.DEFAULT
+    STATES = ParameterTestConfigKey.STATES
 
     _driver_parameters = {
         # Parameters defined in the IOS
     }
-    
+
     _sample_parameters_01 = {
-        NANODataParticleKey.TIME: {TYPE: float, VALUE: 3586227216.0, REQUIRED: True },
-        NANODataParticleKey.PRESSURE: {TYPE: float, VALUE: 13.888533, REQUIRED: True },
-        NANODataParticleKey.TEMP: {TYPE: float, VALUE: 26.147947328, REQUIRED: True },
+        NANODataParticleKey.TIME: {TYPE: float, VALUE: 3586227216.0, REQUIRED: True},
+        NANODataParticleKey.PRESSURE: {TYPE: float, VALUE: 13.888533, REQUIRED: True},
+        NANODataParticleKey.TEMP: {TYPE: float, VALUE: 26.147947328, REQUIRED: True},
     }
 
     _sample_parameters_02 = {
-        NANODataParticleKey.TIME: {TYPE: float, VALUE: 3586227216.0, REQUIRED: True },
-        NANODataParticleKey.PRESSURE: {TYPE: float, VALUE: 13.884067, REQUIRED: True },
-        NANODataParticleKey.TEMP: {TYPE: float, VALUE: 26.172926006, REQUIRED: True },
+        NANODataParticleKey.TIME: {TYPE: float, VALUE: 3586227216.0, REQUIRED: True},
+        NANODataParticleKey.PRESSURE: {TYPE: float, VALUE: 13.884067, REQUIRED: True},
+        NANODataParticleKey.TEMP: {TYPE: float, VALUE: 26.172926006, REQUIRED: True},
     }
 
-    def assert_particle_sample_01(self, data_particle, verify_values = False):
-        '''
+    def assert_particle_sample_01(self, data_particle, verify_values=False):
+        """
         Verify sample particle
         @param data_particle:  NANODataParticle data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(NANODataParticleKey, self._sample_parameters_01)
         self.assert_data_particle_header(data_particle, DataParticleType.NANO_PARSED, require_instrument_timestamp=True)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
 
-    def assert_particle_sample_02(self, data_particle, verify_values = False):
-        '''
+    def assert_particle_sample_02(self, data_particle, verify_values=False):
+        """
         Verify sample particle
         @param data_particle:  NANODataParticle data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(NANODataParticleKey, self._sample_parameters_02)
         self.assert_data_particle_header(data_particle, DataParticleType.NANO_PARSED, require_instrument_timestamp=True)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_02, verify_values)
 
-    def assert_particle_sample_firehose(self, data_particle, verify_values = False):
-        '''
+    def assert_particle_sample_firehose(self, data_particle, verify_values=False):
+        """
         Verify sample particle
         @param data_particle:  NANODataParticle data particle
         @param verify_values:  bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_keys(NANODataParticleKey, self._sample_parameters_01)
         self.assert_data_particle_header(data_particle, DataParticleType.NANO_PARSED, require_instrument_timestamp=True)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
 
-    def assert_particle_status(self, status_particle, verify_values = False):
+    def assert_particle_status(self, status_particle, verify_values=False):
         pass
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -240,6 +237,7 @@ class NANOTestMixinSub(DriverTestMixin):
 #   Unit tests do not start up external processes like the port agent or      #
 #   driver process.                                                           #
 ###############################################################################
+# noinspection PyProtectedMember
 @attr('UNIT', group='mi')
 class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
     def setUp(self):
@@ -260,7 +258,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
-
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
@@ -271,35 +268,24 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         self.assert_chunker_sample(chunker, DUMP_STATUS)
         self.assert_chunker_sample(chunker, DUMP_STATUS)
 
-
-    """
-    Test the connection to the BOTPT
-    """
     def test_connect(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
         """
 
-        """
-        Create a mock port agent
-        """
         mock_port_agent = Mock(spec=PortAgentClient)
 
-        """
-        Instantiate the driver class directly (no driver client, no driver
-        client, no zmq driver process, no driver process; just own the driver)
-        """
+        # Instantiate the driver class directly (no driver client, no driver
+        # client, no zmq driver process, no driver process; just own the driver)
         driver = InstrumentDriver(self._got_data_event_callback)
-        
+
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
 
-        """
-        Now configure the driver with the mock_port_agent, verifying
-        that the driver transitions to the DISCONNECTED state
-        """
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        # Now configure the driver with the mock_port_agent, verifying
+        # that the driver transitions to the DISCONNECTED state
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
         #self.assert_initialize_driver(driver)
 
         current_state = driver.get_resource_state()
@@ -311,30 +297,30 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
-    """
-    Verify that the BOTPT NANO driver build_parsed_values method
-    raises SampleException when an invalid sample is encountered
-    and that it returns a result when a valid sample is encountered
-    """
     def test_data_build_parsed_values(self):
+        """
+        Verify that the BOTPT NANO driver build_parsed_values method
+        raises SampleException when an invalid sample is encountered
+        and that it returns a result when a valid sample is encountered
+        """
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
-        sampleException = False
-        try:        
+        sample_exception = False
+        try:
             #driver._protocol._raw_data = "test that SampleException works"
             raw_data = INVALID_SAMPLE
             test_particle = NANODataParticle(raw_data)
             test_particle._build_parsed_values()
-            
+
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
-            sampleException = True
-            
-        finally:
-            self.assertTrue(sampleException)
+            sample_exception = True
 
-        sampleException = False
+        finally:
+            self.assertTrue(sample_exception)
+
+        sample_exception = False
         result = None
         try:
             raw_data = VALID_SAMPLE_01
@@ -343,56 +329,55 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         except SampleException as e:
             log.error('SampleException caught: %s.', e)
-            sampleException = True
-            
+            sample_exception = True
+
         finally:
-            """
-            Assert that the sampleException was not called.  Also assert that
-            the result is a list.  Not getting into the details of the result
-            here; that's done elsewhere.
-            """
-            self.assertFalse(sampleException)
+            # Assert that the sampleException was not called.  Also assert that
+            # the result is a list.  Not getting into the details of the result
+            # here; that's done elsewhere.
+            self.assertFalse(sample_exception)
             self.assertTrue(isinstance(result, list))
 
-    """
-    Verify that check_data_on_off_response raises a SampleException given an
-    invalid response, and that it returns True given a valid response
-    """
     def test_check_command_response(self):
+        """
+        Verify that check_data_on_off_response raises a SampleException given an
+        invalid response, and that it returns True given a valid response
+        """
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
-        sampleException = False
+        sample_exception = False
         try:
             response = NANOCommandResponse(INVALID_SAMPLE)
-            retValue = response.check_command_response(NANO_DATA_ON)
-        
+            response.check_command_response(NANO_DATA_ON)
+
         except SampleException as e:
             log.debug('SampleException caught: %s.', e)
-            sampleException = True
-            
-        finally:
-            self.assertTrue(sampleException)
+            sample_exception = True
 
-    """
-    Verify that set_time response is handled
-    """
+        finally:
+            self.assertTrue(sample_exception)
+
     def test_set_time_response(self):
+        """
+        Verify that set_time response is handled
+        """
+        return_value = False
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
-        sampleException = False
         try:
             response = NANOCommandResponse(SET_TIME_RESPONSE)
-            retValue = response.check_command_response(NANO_DATA_ON)
-        
+            return_value = response.check_command_response(NANO_DATA_ON)
+
         except SampleException as e:
+            # TODO look at this
             log.debug('SampleException caught: %s.', e)
-            sampleException = True
-            
+            # sample_exception = True
+
         finally:
             #self.assertTrue(sampleException)
-            self.assertTrue(retValue)
+            self.assertTrue(return_value)
 
     def test_get_response_set_time_response(self):
         mock_port_agent = Mock(spec=PortAgentClient)
@@ -406,8 +391,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -429,7 +414,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         # acquire_status
         driver._protocol._got_chunk(SET_TIME_RESPONSE, ts)
 
-        response = driver._protocol._get_response(timeout = 0, expected_prompt = 'Test')
+        driver._protocol._get_response(timeout=0, expected_prompt='Test')
 
         # Force the instrument into command mode
         self.assert_force_state(driver, DriverProtocolState.AUTOSAMPLE)
@@ -438,12 +423,12 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         driver._protocol._got_chunk(SET_TIME_RESPONSE, ts)
 
-        response = driver._protocol._get_response(timeout = 0, expected_prompt = 'Test')
+        driver._protocol._get_response(timeout=0, expected_prompt='Test')
 
     def test_handler_set_time_response(self):
         mock_port_agent = Mock(spec=PortAgentClient)
         driver = InstrumentDriver(self._got_data_event_callback)
-        
+
         # Put the driver into test mode
         driver.set_test_mode(True)
 
@@ -452,8 +437,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -468,14 +453,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         # Force the instrument into a known state
         self.assert_force_state(driver, DriverProtocolState.COMMAND)
 
-        result = driver._protocol._handler_command_autosample_set_time(timeout = 0)
-        #result = driver._protocol._handler_command_autosample_set_time(timeout = 0)
-        ts = ntplib.system_to_ntp_time(time.time())
+        driver._protocol._handler_command_autosample_set_time(timeout=0)
+        driver._protocol._handler_command_autosample_set_time(timeout=0)
+        # TODO - Why is this here
+        # ts = ntplib.system_to_ntp_time(time.time())
 
-
-    """
-    Verify that the BOTPT NANO driver publishes its particles correctly
-    """
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
@@ -487,13 +469,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
         self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
 
-    """
-    Verify that the BOTPT NANO driver publishes a particle correctly when the NANO packet is 
-    embedded in the stream of other BOTPT sensor output.
-    """
     def test_firehose(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
+        Verify that the BOTPT NANO driver publishes a particle correctly when the NANO packet is
+        embedded in the stream of other BOTPT sensor output.
         """
         # Create and initialize the instrument driver with a mock port agent
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -501,12 +481,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
 
-
-    """
-    Verify that the driver correctly parses the DUMP-SETTINGS response
-    """
     def test_status_01(self):
         """
+        Verify that the driver correctly parses the DUMP-SETTINGS response
         """
         mock_port_agent = Mock(spec=PortAgentClient)
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -517,8 +494,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -535,204 +512,45 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         ts = ntplib.system_to_ntp_time(time.time())
 
         log.debug("DUMP_STATUS: %s", DUMP_STATUS)
-        # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(DUMP_STATUS)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
 
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("HEAT,2013/06/19 23:04:37,-001,0000,0026" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
+        data_list = [
+            DUMP_STATUS.rstrip(),
+            "HEAT,2013/06/19 23:04:37,-001,0000,0026",
+            "LILY,2013/06/19 23:04:38, -49.455,  34.009,193.91, 26.02,11.96,N9655",
+            "NANO,V,2013/06/19 23:04:38.000,13.987223,25.126694121",
+            "LILY,2013/06/19 23:04:39, -49.483,  33.959,193.85, 26.03,11.96,N9655",
+            "NANO,V,2013/06/19 23:04:39.000,13.987191,25.126709409",
+            "LILY,2013/06/19 23:04:40, -49.355,  33.956,193.79, 26.02,11.96,N9655",
+            "NANO,V,2013/06/19 23:04:40.000,13.987253,25.126725854",
+            "HEAT,2013/06/19 23:04:40,-001,0000,0026",
+            "NANO,2013/06/19 21:46:54,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N3616 ID01",
+            "NANO,V,2013/06/19 21:46:54.000,13.990480,25.027793612",
+            "NANO,2013/06/19 21:46:54,*01: Vbias= 0.0000 0.0000 0.0000 0.0000",
+            "NANO,2013/06/19 21:46:54,*01: Vgain= 0.0000 0.0000 0.0000 0.0000",
+            "NANO,2013/06/19 21:46:54,*01: Vmin:  -2.50  -2.50   2.50   2.50",
+            "NANO,2013/06/19 21:46:54,*01: Vmax:   2.50   2.50   2.50   2.50",
+            "NANO,2013/06/19 21:46:54,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000",
+            "NANO,2013/06/19 21:46:54,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000",
+            "NANO,2013/06/19 21:46:54,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000",
+            "NANO,2013/06/19 21:46:54,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000",
+            "NANO,2013/06/19 21:46:55,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0",
+            "NANO,2013/06/19 21:46:55,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0",
+            "NANO,2013/06/19 21:46:55,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00",
+            "NANO,2013/06/19 21:46:55,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-   ",
+            "NANO,2013/06/19 22:04:55,*9900XY-DUMP-SETTINGS",
+        ]
 
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("LILY,2013/06/19 23:04:38, -49.455,  34.009,193.91, 26.02,11.96,N9655" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,V,2013/06/19 23:04:38.000,13.987223,25.126694121" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("LILY,2013/06/19 23:04:39, -49.483,  33.959,193.85, 26.03,11.96,N9655" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,V,2013/06/19 23:04:39.000,13.987191,25.126709409" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("LILY,2013/06/19 23:04:40, -49.355,  33.956,193.79, 26.02,11.96,N9655" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,V,2013/06/19 23:04:40.000,13.987253,25.126725854" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("HEAT,2013/06/19 23:04:40,-001,0000,0026" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 21:46:54,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N3616 ID01" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,V,2013/06/19 21:46:54.000,13.990480,25.027793612" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        #driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 21:46:54,*01: Vbias= 0.0000 0.0000 0.0000 0.0000" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 21:46:54,*01: Vgain= 0.0000 0.0000 0.0000 0.0000" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 21:46:54,*01: Vmin:  -2.50  -2.50   2.50   2.50" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 21:46:54,*01: Vmax:   2.50   2.50   2.50   2.50" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 21:46:54,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 21:46:54,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 21:46:54,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 21:46:54,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 21:46:55,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 21:46:55,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 21:46:55,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00" + NEWLINE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 21:46:55,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-   " + NEWLINE)   
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data("NANO,2013/06/19 22:04:55,*9900XY-DUMP-SETTINGS" + NEWLINE)   
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
-
-
-    """
-    Verify that the driver correctly parses the DUMP_SETTINGS response
-    """
-    @unittest.skip("NANO doesn't send responses to commands")
-    def test_dump_settings_response(self):
-        """
-        """
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
-        ts = ntplib.system_to_ntp_time(time.time())
-
-        log.debug("DUMP_SETTINGS command response: %s", DUMP_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(DUMP_COMMAND_RESPONSE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
-        response = driver._protocol._get_response(expected_prompt = 
-                                                       NANO_DUMP_SETTINGS)
-        
-        self.assertTrue(isinstance(response[1], NANOCommandResponse))
-
+        for each in data_list:
+            # Create and populate the port agent packet.
+            port_agent_packet = PortAgentPacket()
+            port_agent_packet.attach_data(each + NEWLINE)
+            port_agent_packet.attach_timestamp(ts)
+            port_agent_packet.pack_header()
 
     def test_start_autosample(self):
         mock_port_agent = Mock(spec=PortAgentClient)
         driver = InstrumentDriver(self._got_data_event_callback)
-        
+
         # Put the driver into test mode
         driver.set_test_mode(True)
 
@@ -741,8 +559,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -757,8 +575,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         # Force the instrument into a known state
         self.assert_force_state(driver, DriverProtocolState.COMMAND)
 
-        result = driver._protocol._handler_command_start_autosample(timeout = 0)
-        ts = ntplib.system_to_ntp_time(time.time())
+        driver._protocol._handler_command_start_autosample(timeout=0)
+        # ts = ntplib.system_to_ntp_time(time.time())
 
     def test_stop_autosample(self):
         mock_port_agent = Mock(spec=PortAgentClient)
@@ -772,8 +590,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -788,9 +606,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         # Force the instrument into a known state
         self.assert_force_state(driver, DriverProtocolState.AUTOSAMPLE)
 
-        result = driver._protocol._handler_autosample_stop_autosample()
-        ts = ntplib.system_to_ntp_time(time.time())
-
+        driver._protocol._handler_autosample_stop_autosample()
+        # ts = ntplib.system_to_ntp_time(time.time())
 
     def test_status_01_handler(self):
         mock_port_agent = Mock(spec=PortAgentClient)
@@ -801,8 +618,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
             log.debug("my_send: data: %s, my_response: %s", data, my_response)
             driver._protocol._promptbuf += my_response
             return len(DUMP_STATUS)
+
         mock_port_agent.send.side_effect = my_send
-        
+
         # Put the driver into test mode
         driver.set_test_mode(True)
 
@@ -811,8 +629,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -827,7 +645,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         # Force the instrument into a known state
         self.assert_force_state(driver, DriverProtocolState.AUTOSAMPLE)
 
-        result = driver._protocol._handler_command_autosample_dump01(timeout = 0)
+        driver._protocol._handler_command_autosample_dump01(timeout=0)
 
     def test_dump_01(self):
         mock_port_agent = Mock(spec=PortAgentClient)
@@ -841,8 +659,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         # Now configure the driver with the mock_port_agent, verifying
         # that the driver transitions to that state
-        config = {'mock_port_agent' : mock_port_agent}
-        driver.configure(config = config)
+        config = {'mock_port_agent': mock_port_agent}
+        driver.configure(config=config)
 
         current_state = driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
@@ -867,9 +685,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         # acquire_status
         driver._protocol._got_chunk(DUMP_STATUS, ts)
 
-        response = driver._protocol._get_response(timeout = 0, expected_prompt = 'Test')
+        response = driver._protocol._get_response(timeout=0, expected_prompt='Test')
         self.assertTrue(isinstance(response[1], NANOStatus01Particle))
-
 
     def test_protocol_filter_capabilities(self):
         """
@@ -888,6 +705,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         # Verify "BOGUS_CAPABILITY was filtered out
         self.assertEquals(sorted(driver_capabilities),
                           sorted(protocol._filter_capabilities(test_capabilities)))
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -925,17 +743,15 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         self.assert_initialize_driver()
 
-        """
-        Set continuous data on 
-        """
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
+        # Set continuous data on
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
         #self.assertEqual(response[1], NANO_DATA_ON)
-        
+
         #log.debug("DATA_ON returned: %r", response)
 
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
         #self.assertEqual(response[1], NANO_DATA_OFF)
-        
+
         #log.debug("DATA_OFF returned: %r", response)
 
     def test_dump_01(self):
@@ -944,12 +760,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         self.assert_initialize_driver()
 
-        """
-        Issues acquire status command 
-        """
+        # Issues acquire status command
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DUMP_SETTINGS)
         log.debug("DUMP_SETTINGS returned: %r", response)
-        
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -976,25 +790,19 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, NANOTestMix
     # Overridden because does not apply for this driver
     def test_discover(self):
         pass
-            
+
     def test_poll(self):
-        '''
+        """
         No polling for a single sample
-        '''
+        """
 
     def test_get_set_parameters(self):
-        '''
+        """
         verify that all parameters can be get set properly, this includes
         ensuring that read only parameters fail on set.
-        '''
+        """
         self.assert_enter_command_mode()
 
-
-    def test_get_capabilities(self):
-        """
-        @brief Walk through all driver protocol states and verify capabilities
-        returned by get_current_capabilities
-        """
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -1013,7 +821,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, NANOTestMix
                 ProtocolEvent.SET,
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.DUMP_SETTINGS,
-                ],
+            ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }
@@ -1025,18 +833,16 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, NANOTestMix
         ##################
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
             ProtocolEvent.STOP_AUTOSAMPLE,
-                ProtocolEvent.DUMP_SETTINGS,
-            ]
+            ProtocolEvent.DUMP_SETTINGS,
+        ]
 
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
         self.assert_stop_autosample()
 
-
-
-    def test_instrument_agent_common_state_model_lifecycle(self,  timeout=GO_ACTIVE_TIMEOUT):
+    def test_instrument_agent_common_state_model_lifecycle(self, timeout=GO_ACTIVE_TIMEOUT):
         """
         @brief Test agent state transitions.
                This test verifies that the instrument agent can
@@ -1115,4 +921,3 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, NANOTestMix
         # Reset
         self.assert_agent_command(ResourceAgentEvent.RESET)
         self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
-
