@@ -11,9 +11,9 @@ This is the SYST driver, which handles the raw particles as well as the SYST par
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
-import string
+from mi.core.log import get_logger
 
-from mi.core.log import get_logger ; log = get_logger()
+log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
@@ -24,14 +24,12 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.data_particle import DataParticle
-from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 
 
 # newline.
-NEWLINE = '\r\n'
+NEWLINE = '\n'
 
 # default timeout.
 TIMEOUT = 10
@@ -40,19 +38,22 @@ TIMEOUT = 10
 #    Driver Constant Definitions
 ###
 
+
 class DataParticleType(BaseEnum):
     """
     Data particle types produced by this driver
     """
     RAW = CommonDataParticleType.RAW
 
+
 class ProtocolState(BaseEnum):
     """
     Instrument protocol states
     """
-    UNKNOWN     = DriverProtocolState.UNKNOWN
-    COMMAND     = DriverProtocolState.COMMAND
-    AUTOSAMPLE  = DriverProtocolState.AUTOSAMPLE
+    UNKNOWN = DriverProtocolState.UNKNOWN
+    COMMAND = DriverProtocolState.COMMAND
+    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
+
 
 class ProtocolEvent(BaseEnum):
     """
@@ -66,20 +67,24 @@ class ProtocolEvent(BaseEnum):
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     DISCOVER = DriverEvent.DISCOVER
 
+
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
+
 
 class Parameter(DriverParameter):
     """
     Device specific parameters.
     """
 
+
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
     """
+
 
 class InstrumentCommand(BaseEnum):
     """
@@ -102,6 +107,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
     """
+
     def __init__(self, evt_callback):
         """
         Driver constructor.
@@ -114,6 +120,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     # Superclass overrides for resource query.
     ########################################################################
 
+    # noinspection PyMethodMayBeStatic
     def get_resource_params(self):
         """
         Return list of device parameters available.
@@ -140,6 +147,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -152,7 +160,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Build protocol state machine.
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
-                            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+                                           ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
@@ -161,11 +169,13 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
+                                       self._handler_autosample_stop_autosample)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
+                                       self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
 
@@ -188,31 +198,32 @@ class Protocol(CommandResponseInstrumentProtocol):
         #
         self._chunker = StringChunker(Protocol.sieve_function)
 
-
+    # noinspection PyUnusedLocal
     @staticmethod
     def sieve_function(raw_data):
         """
         The method that splits samples
         """
-
         return_list = []
-
         return return_list
 
+    # noinspection PyMethodMayBeStatic
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
+        For each parameter key, add match string match lambda function,
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
 
+    # noinspection PyMethodMayBeStatic
     def _got_chunk(self, chunk):
         """
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
-        with the appropriate particle objects and REGEXes.
+        with the appropriate particle objects and regexes.
         """
 
+    # noinspection PyMethodMayBeStatic
     def _filter_capabilities(self, events):
         """
         Return a list of currently available capabilities.
@@ -223,6 +234,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Unknown handlers.
     ########################################################################
 
+    # noinspection PyUnusedLocal
     def _handler_unknown_enter(self, *args, **kwargs):
         """
         Enter unknown state.
@@ -231,12 +243,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+    # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def _handler_unknown_exit(self, *args, **kwargs):
         """
         Exit unknown state.
         """
         pass
 
+    # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state; can only be AUTOSAMPLE (instrument has no actual command mode).
@@ -247,12 +261,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.AUTOSAMPLE
         result = ResourceAgentState.STREAMING
 
-        return (next_state, result)
+        return next_state, result
 
     ########################################################################
     # Autosample handlers.
     ########################################################################
 
+    # noinspection PyUnusedLocal
     def _handler_autosample_enter(self, *args, **kwargs):
         """
         Enter autosample state.
@@ -262,25 +277,28 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+    # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def _handler_autosample_exit(self, *args, **kwargs):
         """
         Exit command state.
         """
         pass
 
+    # noinspection PyMethodMayBeStatic
     def _handler_autosample_stop_autosample(self):
         """
         """
         result = None
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
-        
-        return (next_state, (next_agent_state, result))
+
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Command handlers.
     ########################################################################
 
+    # noinspection PyUnusedLocal
     def _handler_command_enter(self, *args, **kwargs):
         """
         Enter command state.
@@ -294,6 +312,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+    # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         """
@@ -301,8 +320,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
+    # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def _handler_command_get(self, *args, **kwargs):
         """
         Get parameter
@@ -310,9 +330,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
+        return next_state, result
 
-        return (next_state, result)
-
+    # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def _handler_command_set(self, *args, **kwargs):
         """
         Set parameter
@@ -320,8 +340,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        return (next_state, result)
+        return next_state, result
 
+    # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def _handler_command_exit(self, *args, **kwargs):
         """
         Exit command state.

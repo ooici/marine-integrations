@@ -101,7 +101,7 @@ class BOTPTTestMixinSub(DriverTestMixin):
         """
         Verify a particle is a know particle to this driver and verify the particle is
         correct
-        @param data_particle: Data particle of unkown type produced by the driver
+        @param data_particle: Data particle of unknown type produced by the driver
         """
         if isinstance(data_particle, RawDataParticle):
             self.assert_particle_raw(data_particle)
@@ -131,7 +131,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BOTPTTestMixinSub):
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilites
+        do a little extra validation for the Capabilities
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(ProtocolState())
