@@ -1,8 +1,0 @@
-driver_metadata:
-  author: Steve Myerson (Raytheon)
-  constructor: VEL3D_K__stc_imodem_DataSetDriver
-  driver_name: VEL3D_K__stc_imodem
-  driver_path: VEL3D_K/stc_imodem
-  email: Steven_G_Myerson@raytheon.com
-  release_notes: Initial Release
-  version: 0.0.1
