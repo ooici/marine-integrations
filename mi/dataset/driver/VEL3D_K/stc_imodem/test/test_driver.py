@@ -77,9 +77,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         ## From sample file A0000010.DEC:
         ## Flag record, first and last velocity record, time record.
-        self.create_sample_data('expected_flags_2_records.DEC', 
-          "A0000002.DEC")
-        self.assert_data_multiple_class('first.result.yml', count=2, timeout=10)
+        self.create_sample_data('valid_A0000002.DEC', "A0000002.DEC")
+        self.assert_data_multiple_class('valid_A0000002.yml', 
+          count=3, timeout=10)
 
         #self.clear_async_data()
         #self.create_sample_data('second.DEC', "E0000002.DEC")
