@@ -270,10 +270,14 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         ## create the pattern matchers for the Velocity record.
         ##
         if valid_flag_record:
+            # log.info("VALID FLAG RECORD")
             self._timestamp = 0.0
             self.infile = infile
             if state:
                 self.set_state(state)
+            else:
+                initial_state = {StateKey.POSITION: 0}
+                self.set_state(initial_state)
 
             self.end_of_velocity_records = False
             self.time_on = int(time_fields[INDEX_TIME_ON])
@@ -345,10 +349,12 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
             ## Note that we don't care if the number of bytes between the
             ## Flag record and the Time record is consistent with
             ## the flags from the Flag record.
+            ## Put the file back at the beginning.
             ##
             infile.seek(0 - TIME_RECORD_SIZE, 2)  # 2 = from end of file
             record = infile.read(TIME_RECORD_SIZE)
             times = self.parse_time_record(record)
+            infile.seek(0, 0)  # 0 = from start of file
 
         ##
         ## If the Flag record is invalid, we're done.
@@ -372,11 +378,12 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         """
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
+        if not (StateKey.POSITION in state_obj):
+            raise DatasetParserException("Invalid state keys")
         self._timestamp = 0.0
         self._record_buffer = []
         self._state = state_obj
         self._read_state = state_obj
-        log.debug("SEEK %d", self._read_state[StateKey.POSITION])
         self.infile.seek(self._read_state[StateKey.POSITION], 0)  
         self.end_of_velocity_records = False
         ## log.debug('SET POSITION %d', self._read_state[StateKey.POSITION])
@@ -421,7 +428,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
                 ##
                 if velocity_end:
                     self.end_of_velocity_records = True
-                    ## log.debug("Match Velocity end test OK")
+                    #log.info("VELOCITY END")
                 else:
                     ##
                     ## It wasn't an end of Velocity record.
@@ -429,7 +436,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
                     ## it to the end of the particles collected so far.
                     ##
                     velocity_fields = self.parse_velocity_record(chunk)
-                    ### log.info('XXX %s XXX)', velocity_fields)
+                    #log.info("VELOCITY RECORD %s", velocity_fields)
 
                     particle = self._extract_sample(
                       Vel3d_k__stc_imodemVelocityDataParticle,
