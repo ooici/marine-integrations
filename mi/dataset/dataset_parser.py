@@ -135,6 +135,7 @@ class BufferLoadingParser(Parser):
     stream inputs if they dont all come at once.
     """
     file_complete = False
+    _record_buffer = []
         
     def get_records(self, num_records):
         """
@@ -146,6 +147,7 @@ class BufferLoadingParser(Parser):
         """
         if num_records <= 0:
             return []
+        log.debug("get_rec %d", len(self._record_buffer))
         try:
             while len(self._record_buffer) < num_records:
                 self._load_particle_buffer()        
