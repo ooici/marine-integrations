@@ -112,7 +112,7 @@ GO_ACTIVE_TIMEOUT = 180
 INVALID_SAMPLE = "This is an invalid sample; it had better cause an exception." + NL
 VALID_SAMPLE_01 = "LILY,2013/06/24 23:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NL
 VALID_SAMPLE_02 = "LILY,2013/06/24 23:36:04,-235.349,  26.082,194.26, 26.04,11.96,N9655" + NL
-#                 "LILY,2013/07/24 20:36:27,*  14.667,  81.642,185.21, 33.67,11.59,N9651" + NEWLINE
+#                 "LILY,2013/07/24 20:36:27,*  14.667,  81.642,185.21, 33.67,11.59,N9651" + NL
 
 
 DATA_ON_COMMAND_RESPONSE = "LILY,2013/05/29 00:23:34," + LILY_COMMAND_STRING + LILY_DATA_ON + NL
@@ -136,9 +136,6 @@ BOTPT_FIREHOSE_02 += "IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + 
 BOTPT_FIREHOSE_02 += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NL
 BOTPT_FIREHOSE_02 += "LILY,2013/06/24 23:36:02,-235.500,  25.930,194.30, 26.04,11.96,N9655" + NL
 BOTPT_FIREHOSE_02 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NL
-
-SIGNON_STATUS = \
-    "LILY,2013/06/24 23:35:41,*APPLIED GEOMECHANICS LILY Firmware V2.1 SN-N9655 ID01" + NL
 
 DUMP_01_STATUS = \
     "LILY,2013/06/24 23:35:41,*APPLIED GEOMECHANICS LILY Firmware V2.1 SN-N9655 ID01" + NL + \
@@ -317,10 +314,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         self.my_handler_entered = False
 
-        """
-        Define a test handler for the fsm to call that will set a variable that
-        we can then test to make sure the handler was called.
-        """
+        # Define a test handler for the fsm to call that will set a variable that
+        # we can then test to make sure the handler was called.
 
         def _my_handler_test(*args, **kwargs):
             next_state = None
@@ -338,7 +333,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilites
+        do a little extra validation for the Capabilities
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(ProtocolState())
@@ -346,7 +341,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(InstrumentCommand())
 
-        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
+        # Test capabilities for duplicates, them verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
@@ -361,8 +356,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         chunker = StringChunker(Protocol.command_autosample_sieve_function)
         self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
-        #self.assert_chunker_sample(chunker, SIGNON_STATUS)
-        self.assert_chunker_sample(chunker, SIGNON_STATUS + DUMP_01_STATUS)
+        self.assert_chunker_sample(chunker, DUMP_01_STATUS)
         self.assert_chunker_sample(chunker, DUMP_01_STATUS)
         self.assert_chunker_sample(chunker, DUMP_02_STATUS)
         self.assert_chunker_sample(chunker, DUMP_01_COMMAND_RESPONSE)
@@ -400,14 +394,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         driver.set_test_mode(True)
 
         self.assert_initialize_driver(driver)
-
-        #dict = {}
-        #dict[Parameter.XTILT_RELEVEL_TRIGGER] = 10
-
-        #driver._protocol._handler_command_set()
+        driver._protocol._handler_command_set({Parameter.XTILT_RELEVEL_TRIGGER: 10})
 
     def test_combined_samples(self):
-
         chunker = StringChunker(Protocol.command_autosample_sieve_function)
 
         sample = BOTPT_FIREHOSE_02
@@ -427,7 +416,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self.assertEqual(result, None)
 
     def test_leveling_status(self):
-
         chunker = StringChunker(Protocol.leveling_sieve_function)
 
         sample = LEVELING_STATUS
@@ -447,7 +435,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         """
         Verify sample data passed through the got data method produces the correct data particles
         """
-
         # Create a mock port agent
         mock_port_agent = Mock(spec=PortAgentClient)
 
@@ -482,37 +469,27 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
-        sample_exception = False
-        try:
-            #driver._protocol._raw_data = "test that SampleException works"
-            raw_data = INVALID_SAMPLE
-            test_particle = LILYDataParticle(raw_data, False)
-            test_particle._build_parsed_values()
+        items = [
+            (INVALID_SAMPLE, False),
+            (VALID_SAMPLE_01, True),
+            (VALID_SAMPLE_02, True),
+        ]
 
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sample_exception = True
-
-        finally:
-            self.assertTrue(sample_exception)
-
-        sample_exception = False
-        result = None
-        try:
-            raw_data = VALID_SAMPLE_01
-            test_particle = LILYDataParticle(raw_data, False)
-            result = test_particle._build_parsed_values()
-
-        except SampleException as e:
-            log.error('SampleException caught: %s.', e)
-            sample_exception = True
-
-        finally:
-            # Assert that the sampleException was not called.  Also assert that
-            # the result is a list.  Not getting into the details of the result
-            # here; that's done elsewhere.
-            self.assertFalse(sample_exception)
-            self.assertTrue(isinstance(result, list))
+        for raw_data, is_valid in items:
+            sample_exception = False
+            result = None
+            try:
+                test_particle = LILYDataParticle(raw_data, False)
+                result = test_particle._build_parsed_values()
+            except SampleException as e:
+                log.debug('SampleException caught: %s.', e)
+                sample_exception = True
+            finally:
+                if is_valid:
+                    self.assertFalse(sample_exception)
+                    self.assertTrue(isinstance(result, list))
+                else:
+                    self.assertTrue(sample_exception)
 
     def test_check_command_response(self):
         """
@@ -522,110 +499,32 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
-        return_value = False
-        sample_exception = False
-        try:
-            response = LILYCommandResponse(INVALID_SAMPLE)
-            return_value = response.check_command_response(LILY_DATA_ON)
+        items = [
+            (INVALID_SAMPLE, LILY_DATA_ON, False),
+            (DATA_ON_COMMAND_RESPONSE, LILY_DATA_ON, True),
+            (DATA_OFF_COMMAND_RESPONSE, LILY_DATA_OFF, True),
+            (DUMP_01_COMMAND_RESPONSE, LILY_DUMP_01, True),
+            (DUMP_02_COMMAND_RESPONSE, LILY_DUMP_02, True),
+            (DUMP_02_COMMAND_RESPONSE, None, True),
+            (START_LEVELING_COMMAND_RESPONSE, LILY_LEVEL_ON, True),
+            (STOP_LEVELING_COMMAND_RESPONSE, LILY_LEVEL_OFF, True)
+        ]
 
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sample_exception = True
-
-        finally:
-            self.assertTrue(sample_exception)
-
-        sample_exception = False
-        try:
-            response = LILYCommandResponse(DATA_ON_COMMAND_RESPONSE)
-            return_value = response.check_command_response(LILY_DATA_ON)
-
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sample_exception = True
-
-        finally:
-            self.assertFalse(sample_exception)
-            self.assertTrue(return_value)
-
-        sample_exception = False
-        try:
-            response = LILYCommandResponse(DATA_OFF_COMMAND_RESPONSE)
-            return_value = response.check_command_response(LILY_DATA_OFF)
-
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sample_exception = True
-
-        finally:
-            self.assertFalse(sample_exception)
-            self.assertTrue(return_value)
-
-        sample_exception = False
-        try:
-            response = LILYCommandResponse(DUMP_01_COMMAND_RESPONSE)
-            return_value = response.check_command_response(LILY_DUMP_01)
-
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sample_exception = True
-
-        finally:
-            self.assertFalse(sample_exception)
-            self.assertTrue(return_value)
-
-        sample_exception = False
-        try:
-            response = LILYCommandResponse(DUMP_02_COMMAND_RESPONSE)
-            return_value = response.check_command_response(LILY_DUMP_02)
-
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sample_exception = True
-
-        finally:
-            self.assertFalse(sample_exception)
-            self.assertTrue(return_value)
-
-        # Try it pass None as the expected response parameter
-        sample_exception = False
-        try:
-            response = LILYCommandResponse(DUMP_02_COMMAND_RESPONSE)
-            return_value = response.check_command_response(None)
-
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sample_exception = True
-
-        finally:
-            self.assertFalse(sample_exception)
-            self.assertTrue(return_value)
-
-        sample_exception = False
-        try:
-            response = LILYCommandResponse(START_LEVELING_COMMAND_RESPONSE)
-            return_value = response.check_command_response(LILY_LEVEL_ON)
-
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sample_exception = True
-
-        finally:
-            self.assertFalse(sample_exception)
-            self.assertTrue(return_value)
-
-        sample_exception = False
-        try:
-            response = LILYCommandResponse(STOP_LEVELING_COMMAND_RESPONSE)
-            return_value = response.check_command_response(LILY_LEVEL_OFF)
-
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sample_exception = True
-
-        finally:
-            self.assertFalse(sample_exception)
-            self.assertTrue(return_value)
+        for resp_data, expected_data, is_valid in items:
+            return_value = False
+            sample_exception = False
+            try:
+                response = LILYCommandResponse(resp_data)
+                return_value = response.check_command_response(expected_data)
+            except SampleException as e:
+                log.debug('SampleException caught')
+                sample_exception = True
+            finally:
+                if is_valid:
+                    self.assertFalse(sample_exception)
+                    self.assertTrue(return_value)
+                else:
+                    self.assertTrue(sample_exception)
 
     def test_got_data(self):
         """
@@ -689,8 +588,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
-        self.assertTrue(driver._protocol._get_response(expected_prompt=
-                                                       LILY_DATA_ON))
+        self.assertTrue(driver._protocol._get_response(expected_prompt=LILY_DATA_ON))
 
     def test_data_on_response_with_data(self):
         """
@@ -743,8 +641,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
-        self.assertTrue(driver._protocol._get_response(expected_prompt=
-                                                       LILY_DATA_ON))
+        self.assertTrue(driver._protocol._get_response(expected_prompt=LILY_DATA_ON))
 
     def test_status_01(self):
         """
@@ -887,8 +784,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
-        self.assertTrue(driver._protocol._get_response(expected_prompt=
-                                                       LILY_DATA_OFF))
+        self.assertTrue(driver._protocol._get_response(expected_prompt=LILY_DATA_OFF))
 
     def test_dump_settings_response(self):
         """
@@ -1201,7 +1097,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         response = driver._protocol._get_response(timeout=0)
         self.assertTrue(isinstance(response[1], LILYStatus02Particle))
 
-    @unittest.skip("Skipping for now because time is too long")
+    @unittest.skip('Skipped due to 130 second timeout')
     def test_leveling_timeout(self):
         mock_port_agent = Mock(spec=PortAgentClient)
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -1231,7 +1127,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self.assert_force_state(driver, DriverProtocolState.COMMAND)
 
         driver._protocol._handler_leveling_enter()
-        time.sleep(120)
+        time.sleep(130)
+        self.assertEqual(current_state, DriverProtocolState.COMMAND)
 
     def test_leveling_complete(self):
         mock_port_agent = Mock(spec=PortAgentClient)
@@ -1259,7 +1156,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
 
         # Force the instrument into command mode
-        self.assert_force_state(driver, ProtocolState.LEVELING)
+        self.assert_force_state(driver, ProtocolState.COMMAND_LEVELING)
 
         ts = ntplib.system_to_ntp_time(time.time())
 
@@ -1277,7 +1174,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         driver._protocol._got_coarse_chunk(DATA_ON_COMMAND_RESPONSE, ts)
 
         timeout = 10
-        target_state = ProtocolState.AUTOSAMPLE
+        target_state = ProtocolState.COMMAND
         end_time = time.time() + timeout
 
         while time.time() <= end_time:
@@ -1288,7 +1185,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
                 log.debug("state mismatch %s != %s, sleep for a bit", current_state, target_state)
                 time.sleep(2)
 
-        self.assertTrue(ProtocolState.AUTOSAMPLE == current_state)
+        self.assertTrue(ProtocolState.COMMAND == current_state)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -1342,11 +1239,58 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(Parameter.AUTO_RELEVEL, True)
         self.assert_get(Parameter.AUTO_RELEVEL, True)
 
-        self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 10)
-        self.assert_get(Parameter.XTILT_RELEVEL_TRIGGER, 10)
+        self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 200)
+        self.assert_get(Parameter.XTILT_RELEVEL_TRIGGER, 200)
 
-        self.assert_set(Parameter.YTILT_RELEVEL_TRIGGER, 10)
-        self.assert_get(Parameter.YTILT_RELEVEL_TRIGGER, 10)
+        self.assert_set(Parameter.YTILT_RELEVEL_TRIGGER, 200)
+        self.assert_get(Parameter.YTILT_RELEVEL_TRIGGER, 200)
+
+    def test_autosample_leveling(self):
+        """
+        @brief Test for autosample state leveling
+        """
+        # This test should be run PRIOR to test_auto_relevel, as it will
+        # increase the likelihood that the sensor will be out of level
+        # enough to trigger an auto-relevel.
+        self.assert_initialize_driver()
+
+        # Begin autosampling
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
+        log.debug('START_AUTOSAMPLE returned: %r', response)
+        self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
+
+        #Issue start leveling command
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
+        log.debug("START_LEVELING returned: %r", response)
+
+        self.assert_state_change(ProtocolState.AUTOSAMPLE_LEVELING, 30)
+
+        # Issue stop leveling command
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
+        log.debug("STOP_LEVELING returned: %r", response)
+
+        self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
+
+    def test_command_leveling(self):
+        """
+        @brief Test for command state leveling
+        """
+        # This test should be run PRIOR to test_auto_relevel, as it will
+        # increase the likelihood that the sensor will be out of level
+        # enough to trigger an auto-relevel.
+        self.assert_initialize_driver()
+
+        #Issue start leveling command
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
+        log.debug("START_LEVELING returned: %r", response)
+
+        self.assert_state_change(ProtocolState.COMMAND_LEVELING, 30)
+
+        # Issue stop leveling command
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
+        log.debug("STOP_LEVELING returned: %r", response)
+
+        self.assert_state_change(ProtocolState.COMMAND, 30)
 
     def test_auto_relevel(self):
         """
@@ -1354,15 +1298,23 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         self.assert_initialize_driver()
 
-        # Set the XTILT and YTILT to a low threshold so that the driver will
-        # automatically start the releveling operation
+        # Begin autosampling
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
+        log.debug('START_AUTOSAMPLE returned: %r', response)
+        self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
+
+        # Set the XTILT to a low threshold so that the driver will
+        # automatically start the re-leveling operation
+        # NOTE: This test MAY fail if the instrument is already
+        # below the autolevel threshold or if it completes
+        # leveling before the triggers have been reset to 300
 
         self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 5)
         self.assert_set(Parameter.YTILT_RELEVEL_TRIGGER, 5)
-        self.assert_state_change(ProtocolState.LEVELING, 60)
+        self.assert_state_change(ProtocolState.AUTOSAMPLE_LEVELING, 30)
 
         # Now set the XTILT and YTILT back to normal so that the driver will not
-        # automatically start the releveling operation
+        # automatically start the re-leveling operation
 
         self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 300)
         self.assert_set(Parameter.YTILT_RELEVEL_TRIGGER, 300)
@@ -1411,28 +1363,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DUMP_02)
         log.debug("DUMP_02 returned: %r", response)
 
-    def test_leveling(self):
-        """
-        @brief Test for leveling
-        """
-        self.assert_initialize_driver()
-
-        #Issue start leveling command
-
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
-        log.debug("START_LEVELING returned: %r", response)
-
-        self.assert_state_change(ProtocolState.LEVELING, 60)
-
-        time.sleep(5)
-
-        # Issue stop leveling command
-
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
-        log.debug("STOP_LEVELING returned: %r", response)
-
-        self.assert_state_change(ProtocolState.AUTOSAMPLE, 60)
-
     def test_leveling_complete(self):
         """
         @brief Test for leveling
@@ -1444,7 +1374,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
         log.debug("START_LEVELING returned: %r", response)
 
-        self.assert_state_change(ProtocolState.AUTOSAMPLE, 1000)
+        # Leveling should abort after 120 seconds
+        self.assert_state_change(ProtocolState.COMMAND, 130)
 
 
 ###############################################################################

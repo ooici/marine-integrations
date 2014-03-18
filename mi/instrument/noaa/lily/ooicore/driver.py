@@ -41,7 +41,6 @@ from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
-#from mi.core.driver_scheduler import DriverScheduler
 from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.core.driver_scheduler import DriverSchedulerConfigKey
 from mi.core.driver_scheduler import TriggerType
@@ -95,7 +94,8 @@ class ProtocolState(BaseEnum):
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    LEVELING = 'LILY_DRIVER_STATE_LEVELING'
+    COMMAND_LEVELING = 'LILY_DRIVER_STATE_COMMAND_LEVELING'
+    AUTOSAMPLE_LEVELING = 'LILY_DRIVER_STATE_AUTOSAMPLE_LEVELING'
 
 
 class ExportedInstrumentCommand(BaseEnum):
@@ -263,7 +263,7 @@ class LILYCommandResponse():
         whether the response from the sensor is valid (positive)
         or not.
         """
-        retval = False
+        return_value = False
 
         match = LILYCommandResponse.regex_compiled().match(self.raw_data)
 
@@ -271,21 +271,21 @@ class LILYCommandResponse():
             raise SampleException("No regex match of command response: [%s]" %
                                   self.raw_data)
         try:
-            #resp_time = match.group(1)
-            #timestamp = time.strptime(resp_time, "%Y/%m/%d %H:%M:%S")
+            resp_time = match.group(1)
+            time.strptime(resp_time, "%Y/%m/%d %H:%M:%S")
             self.lily_command_response = match.group(2)
             if expected_response is not None:
                 if self.lily_command_response == expected_response:
-                    retval = True
+                    return_value = True
             else:
-                retval = True
+                return_value = True
 
         except ValueError:
             raise SampleException("check_command_response: ValueError" +
                                   " while converting data: [%s]" %
                                   self.raw_data)
 
-        return retval
+        return return_value
 
 
 ###############################################################################
@@ -335,6 +335,7 @@ class LILYDataParticle(DataParticle):
         Serial Number = sn
     """
     _data_particle_type = DataParticleType.LILY_PARSED
+    _compiled_regex = None
 
     def __init__(self, raw_data, auto_relevel,
                  port_timestamp=None,
@@ -370,7 +371,9 @@ class LILYDataParticle(DataParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        return re.compile(LILYDataParticle.regex())
+        if LILYDataParticle._compiled_regex is None:
+            LILYDataParticle._compiled_regex = re.compile(LILYDataParticle.regex())
+        return LILYDataParticle._compiled_regex
 
     def _build_parsed_values(self):
         """
@@ -403,8 +406,8 @@ class LILYDataParticle(DataParticle):
             # initiate relevel.
 
             if self.auto_relevel:
-                if (abs(x_tilt) > LevelingTriggers.xtilt_relevel_trigger) \
-                        or (abs(y_tilt) > LevelingTriggers.ytilt_relevel_trigger):
+                if (abs(x_tilt) > LevelingTriggers.xtilt_relevel_trigger
+                    or abs(y_tilt) > LevelingTriggers.ytilt_relevel_trigger):
 
                     # initiate auto releveling
                     log.info("x_tilt: %f; y_tilt: %f.  Initiating relevel operation.", x_tilt, y_tilt)
@@ -451,6 +454,7 @@ class LILYStatusSignOnParticleKey(BaseEnum):
 
 class LILYStatusSignOnParticle(DataParticle):
     _data_particle_type = DataParticleType.LILY_STATUS
+    _compiled_regex = None
 
     @staticmethod
     def regex():
@@ -470,7 +474,9 @@ class LILYStatusSignOnParticle(DataParticle):
 
     @staticmethod
     def regex_compiled():
-        return re.compile(LILYStatusSignOnParticle.regex())
+        if LILYStatusSignOnParticle._compiled_regex is None:
+            LILYStatusSignOnParticle._compiled_regex = re.compile(LILYStatusSignOnParticle.regex())
+        return LILYStatusSignOnParticle._compiled_regex
 
     def _build_parsed_values(self):
         """        
@@ -491,9 +497,6 @@ class LILYStatusSignOnParticle(DataParticle):
         result = [
             {DataParticleKey.VALUE_ID: LILYStatusSignOnParticleKey.TIME,
              DataParticleKey.VALUE: ntp_timestamp},
-            # Add firmware version"
-            #{DataParticleKey.VALUE_ID: LILYSignOnParticleKey.SN,
-            # DataParticleKey.VALUE: sn}
         ]
 
         return result
@@ -501,6 +504,7 @@ class LILYStatusSignOnParticle(DataParticle):
 
 class LILYStatus01Particle(DataParticle):
     _data_particle_type = DataParticleType.LILY_STATUS
+    _compiled_regex = None
     lily_status_response = "No response found."
 
     @staticmethod
@@ -532,7 +536,9 @@ class LILYStatus01Particle(DataParticle):
 
     @staticmethod
     def regex_compiled():
-        return re.compile(LILYStatus01Particle.regex(), re.DOTALL)
+        if LILYStatus01Particle._compiled_regex is None:
+            LILYStatus01Particle._compiled_regex = re.compile(LILYStatus01Particle.regex(), re.DOTALL)
+        return LILYStatus01Particle._compiled_regex
 
     def _build_parsed_values(self):
         pass
@@ -555,6 +561,7 @@ class LILYStatus01Particle(DataParticle):
 # noinspection PyMethodMayBeStatic
 class LILYStatus02Particle(DataParticle):
     _data_particle_type = DataParticleType.LILY_STATUS
+    _compiled_regex = None
     lily_status_response = "No response found."
 
     @staticmethod
@@ -601,7 +608,9 @@ class LILYStatus02Particle(DataParticle):
 
     @staticmethod
     def regex_compiled():
-        return re.compile(LILYStatus02Particle.regex(), re.DOTALL)
+        if LILYStatus02Particle._compiled_regex is None:
+            LILYStatus02Particle._compiled_regex = re.compile(LILYStatus02Particle.regex(), re.DOTALL)
+        return LILYStatus02Particle._compiled_regex
 
     def encoders(self):
         return {}
@@ -641,6 +650,7 @@ class LILYLevelingParticleKey(BaseEnum):
 
 class LILYLevelingParticle(DataParticle):
     _data_particle_type = DataParticleType.LILY_RE_LEVELING
+    _compiled_regex = None
 
     @staticmethod
     def regex():
@@ -675,7 +685,9 @@ class LILYLevelingParticle(DataParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        return re.compile(LILYLevelingParticle.regex())
+        if LILYLevelingParticle._compiled_regex is None:
+            LILYLevelingParticle._compiled_regex = re.compile(LILYLevelingParticle.regex())
+        return LILYLevelingParticle._compiled_regex
 
     def _build_parsed_values(self):
         """
@@ -802,47 +814,55 @@ class Protocol(CommandResponseInstrumentProtocol):
                                            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        handlers = {
+            ProtocolState.UNKNOWN: [
+                (ProtocolEvent.ENTER, self._handler_unknown_enter),
+                (ProtocolEvent.EXIT, self._handler_unknown_exit),
+                (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
+            ],
+            ProtocolState.AUTOSAMPLE: [
+                (ProtocolEvent.ENTER, self._handler_autosample_enter),
+                (ProtocolEvent.EXIT, self._handler_autosample_exit),
+                (ProtocolEvent.GET, self._handler_command_get),
+                (ProtocolEvent.SET, self._handler_command_set),
+                (ProtocolEvent.DUMP_01, self._handler_command_autosample_dump01),
+                (ProtocolEvent.DUMP_02, self._handler_command_autosample_dump02),
+                (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
+                (ProtocolEvent.START_LEVELING, self._handler_autosample_start_leveling),
+                (ProtocolEvent.RESUME_LEVELING, self._handler_autosample_resume_leveling),
+            ],
+            ProtocolState.COMMAND: [
+                (ProtocolEvent.ENTER, self._handler_command_enter),
+                (ProtocolEvent.EXIT, self._handler_command_exit),
+                (ProtocolEvent.GET, self._handler_command_get),
+                (ProtocolEvent.SET, self._handler_command_set),
+                (ProtocolEvent.DUMP_01, self._handler_command_autosample_dump01),
+                (ProtocolEvent.DUMP_02, self._handler_command_autosample_dump02),
+                (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
+                (ProtocolEvent.START_LEVELING, self._handler_command_start_leveling),
+                (ProtocolEvent.RESUME_LEVELING, self._handler_command_resume_leveling),
+            ],
+            ProtocolState.COMMAND_LEVELING: [
+                (ProtocolEvent.ENTER, self._handler_leveling_enter),
+                (ProtocolEvent.GET, self._handler_command_get),
+                (ProtocolEvent.SET, self._handler_command_set),
+                (ProtocolEvent.STOP_LEVELING, self._handler_command_leveling_stop_leveling),
+                (ProtocolEvent.LEVELING_COMPLETE, self._handler_leveling_complete(ProtocolState.COMMAND)),
+                (ProtocolEvent.LEVELING_TIMEOUT, self._handler_leveling_timeout(ProtocolState.COMMAND)),
+            ],
+            ProtocolState.AUTOSAMPLE_LEVELING: [
+                (ProtocolEvent.ENTER, self._handler_leveling_enter),
+                (ProtocolEvent.GET, self._handler_command_get),
+                (ProtocolEvent.SET, self._handler_command_set),
+                (ProtocolEvent.STOP_LEVELING, self._handler_autosample_leveling_stop_leveling),
+                (ProtocolEvent.LEVELING_COMPLETE, self._handler_leveling_complete(ProtocolState.AUTOSAMPLE)),
+                (ProtocolEvent.LEVELING_TIMEOUT, self._handler_leveling_timeout(ProtocolState.AUTOSAMPLE)),
+            ]
+        }
 
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
-                                       self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.DUMP_01,
-                                       self._handler_command_autosample_dump01)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.DUMP_02,
-                                       self._handler_command_autosample_dump02)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.START_LEVELING,
-                                       self._handler_command_autosample_start_leveling)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.RESUME_LEVELING,
-                                       self._handler_command_autosample_resume_leveling)
-
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.DUMP_01,
-                                       self._handler_command_autosample_dump01)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.DUMP_02,
-                                       self._handler_command_autosample_dump02)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
-                                       self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_LEVELING,
-                                       self._handler_command_autosample_start_leveling)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.RESUME_LEVELING,
-                                       self._handler_command_autosample_resume_leveling)
-
-        self._protocol_fsm.add_handler(ProtocolState.LEVELING, ProtocolEvent.ENTER, self._handler_leveling_enter)
-        self._protocol_fsm.add_handler(ProtocolState.LEVELING, ProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.LEVELING, ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.LEVELING, ProtocolEvent.STOP_LEVELING,
-                                       self._handler_leveling_stop_leveling)
-        self._protocol_fsm.add_handler(ProtocolState.LEVELING, ProtocolEvent.LEVELING_COMPLETE,
-                                       self._handler_leveling_complete)
-        self._protocol_fsm.add_handler(ProtocolState.LEVELING, ProtocolEvent.LEVELING_TIMEOUT,
-                                       self._handler_leveling_timeout)
+        for state in handlers:
+            for event, handler in handlers[state]:
+                self._protocol_fsm.add_handler(state, event, handler)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -867,7 +887,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
-        # commands sent sent to device to be filtered in responses for telnet DA
+        # commands sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
         # Set up the chunkers: this driver uses the chunker in a hierarchical way.  The coarse
@@ -900,12 +920,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         The method that filters LILY coarse chunks
         """
-
         matchers = []
         return_list = []
-
-        # Not a good idea to be compiling these for every invocation of this
-        # method; they don't change.
 
         matchers.append(LILYCoarseChunk.regex_compiled())
 
@@ -953,7 +969,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         The method that splits samples
         """
-
         matchers = []
         return_list = []
 
@@ -967,6 +982,20 @@ class Protocol(CommandResponseInstrumentProtocol):
                 return_list.append((match.start(), match.end()))
 
         return return_list
+
+    def _handler_command_generic(self, command, next_state, next_agent_state, timeout, expected_prompt=None):
+        """
+        Generic method to command the instrument
+        """
+        log.debug('_handler_command: %s %s %s %s', command, next_state, next_agent_state, timeout)
+
+        if timeout is None:
+            result = self._do_cmd_resp(command, expected_prompt=expected_prompt)
+        else:
+            result = self._do_cmd_resp(command, expected_prompt=expected_prompt, timeout=timeout)
+
+        log.debug('%s response: %s', command, result)
+        return next_state, (next_agent_state, result)
 
     def _filter_capabilities(self, events):
         """
@@ -985,7 +1014,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
+        For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
@@ -1061,7 +1090,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         
         In this method all we do is call the coarse chunker.
         """
-
         data_length = port_agent_packet.get_data_length()
         data = port_agent_packet.get_data()
         timestamp = port_agent_packet.get_timestamp()
@@ -1082,17 +1110,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         has been filtered out of the firehose of BOTPT data.  At this point
         we don't know the purpose of the chunk.
         """
-
         log.debug("_got_coarse_chunk: %s", coarse_chunk)
+        current_state = self._protocol_fsm.get_current_state()
 
-        if (self._protocol_fsm.get_current_state() == ProtocolState.COMMAND) \
-                or (self._protocol_fsm.get_current_state() == ProtocolState.AUTOSAMPLE):
+        if current_state in [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]:
             self._command_autosample_chunker.add_chunk(coarse_chunk, timestamp)
             timestamp, chunk = self._command_autosample_chunker.get_next_data()
             while chunk:
                 self._got_command_autosample_chunk(chunk, timestamp)
                 timestamp, chunk = self._command_autosample_chunker.get_next_data()
-        elif self._protocol_fsm.get_current_state() == ProtocolState.LEVELING:
+        elif current_state in [ProtocolState.COMMAND_LEVELING, ProtocolState.AUTOSAMPLE_LEVELING]:
             self._leveling_chunker.add_chunk(coarse_chunk, timestamp)
             timestamp, chunk = self._leveling_chunker.get_next_data()
             while chunk:
@@ -1391,15 +1418,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Turn the lily data off
         """
-        log.debug("_handler_autosample_stop_autosample")
-
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF,
-                                   expected_prompt=LILY_DATA_OFF)
-
-        return next_state, (next_agent_state, result)
+        return self._handler_command_generic(InstrumentCommand.DATA_OFF,
+                                             ProtocolState.COMMAND,
+                                             ResourceAgentState.COMMAND,
+                                             None,
+                                             expected_prompt=LILY_DATA_OFF)
 
     ########################################################################
     # Command handlers.
@@ -1413,9 +1436,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         log.debug("_handler_command_enter")
 
-        # Command device to update parameters and send a config change event.
-        #self._update_params()
-
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -1424,7 +1444,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Get parameter
         """
-
         log.debug("_handler_command_get")
 
         next_state = None
@@ -1462,9 +1481,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         param_list = args[0]
 
-        log.error("^^^^^^^^^^^^^^^^^^^^ GOT HERE ^^^^^^^^^^^^^^^^^^^^^")
-        log.error("param_list: %r", param_list)
-
         for param in param_list:
             if param == Parameter.AUTO_RELEVEL:
                 new_auto_relevel = param_list[Parameter.AUTO_RELEVEL]
@@ -1474,7 +1490,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                     self._auto_relevel = new_auto_relevel
                     self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
                 else:
-                    log.info("BOTPT LILY Driver: auto_relevel already %b; not changing.", new_auto_relevel)
+                    log.info("BOTPT LILY Driver: auto_relevel already %d; not changing.", new_auto_relevel)
             elif param == Parameter.XTILT_RELEVEL_TRIGGER:
                 new_xtilt_relevel_trigger = param_list[Parameter.XTILT_RELEVEL_TRIGGER]
                 if new_xtilt_relevel_trigger != self._xtilt_relevel_trigger:
@@ -1507,16 +1523,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Turn the lily data on
         """
-        log.debug("_handler_command_start_autosample")
-
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-
-        # call _do_cmd_resp, passing our LILY_DATA_ON as the expected_prompt
-        result = self._do_cmd_resp(InstrumentCommand.DATA_ON,
-                                   expected_prompt=LILY_DATA_ON)
-
-        return next_state, (next_agent_state, result)
+        return self._handler_command_generic(InstrumentCommand.DATA_ON,
+                                             ProtocolState.AUTOSAMPLE,
+                                             ResourceAgentState.STREAMING,
+                                             None,
+                                             expected_prompt=LILY_DATA_ON)
 
     def _handler_command_exit(self, *args, **kwargs):
         """
@@ -1548,71 +1559,50 @@ class Protocol(CommandResponseInstrumentProtocol):
         }
 
         self.set_init_params(config)
-
         self._add_scheduler_event(ScheduledJob.LEVELING_TIMEOUT, ProtocolEvent.LEVELING_TIMEOUT)
 
-    def _handler_leveling_stop_leveling(self, *args, **kwargs):
+    def _handler_autosample_leveling_stop_leveling(self, *args, **kwargs):
         """
-        Take instrument out of leveling mode; according to the LILY Commands
-        document, we need to turn data on automatically (corresponds to 
-        AUTOSAMPLE).  
+        Take instrument out of leveling mode, returning to the previous state
         """
-        log.debug("_handler_leveling_stop_leveling")
 
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-        result = None
+        self._handler_command_generic(InstrumentCommand.STOP_LEVELING,
+                                      ProtocolState.AUTOSAMPLE,
+                                      ResourceAgentState.STREAMING,
+                                      None,
+                                      expected_prompt=LILY_LEVEL_OFF)
 
-        result = self._do_cmd_resp(InstrumentCommand.STOP_LEVELING,
-                                   expected_prompt=LILY_LEVEL_OFF)
+        return self._handler_command_start_autosample()
 
-        log.debug("STOP_LEVELING response: %s", result)
-
-        log.debug("Turning LILY data on and transitioning to AUTOSAMPLE.")
-        result = self._do_cmd_resp(InstrumentCommand.DATA_ON,
-                                   expected_prompt=LILY_DATA_ON)
-
-        log.debug("DATA_ON response: %s", result)
-
-        return next_state, (next_agent_state, result)
-
-    def _handler_leveling_complete(self, *args, **kwargs):
+    def _handler_command_leveling_stop_leveling(self, *args, **kwargs):
         """
-        Leveling is complete.  According to LILY Commands document, we 
-        need to turn data on automatically (enter AUTOSAMPLE)
-        @retval (next_state, result) tuple, (None, sample dict).
+        Take instrument out of leveling mode, return to COMMAND
         """
-        log.debug("_handler_leveling_complete")
+        return self._handler_command_generic(InstrumentCommand.STOP_LEVELING,
+                                             ProtocolState.COMMAND,
+                                             ResourceAgentState.COMMAND,
+                                             None,
+                                             expected_prompt=LILY_LEVEL_OFF)
 
-        try:
-            self._remove_scheduler(ScheduledJob.LEVELING_TIMEOUT)
+    def _handler_leveling_complete(self, parent_state=ProtocolState.COMMAND):
+        if parent_state == ProtocolState.COMMAND:
+            f = self._handler_command_leveling_stop_leveling
+        elif parent_state == ProtocolState.AUTOSAMPLE:
+            f = self._handler_autosample_leveling_stop_leveling
 
-        except KeyError:
-            log.error("_remove_scheduler could not find: %s",
-                      ScheduledJob.LEVELING_TIMEOUT)
+        def inner(*args, **kwds):
+            log.critical("_handler_leveling_complete")
 
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-        result = None
+            try:
+                self._remove_scheduler(ScheduledJob.LEVELING_TIMEOUT)
+            except KeyError:
+                log.error("_remove_scheduler could not find: %s", ScheduledJob.LEVELING_TIMEOUT)
 
-        log.debug("LILY reports leveling complete: sending STOP LEVELING.")
-        result = self._do_cmd_resp(InstrumentCommand.STOP_LEVELING,
-                                   expected_prompt=LILY_LEVEL_OFF)
+            return f()
 
-        log.debug("Turning LILY data on, transitioning to AUTOSAMPLE.")
+        return inner
 
-        result = self._do_cmd_resp(InstrumentCommand.DATA_ON,
-                                   expected_prompt=LILY_DATA_ON)
-
-        #result = self._do_cmd_no_resp(InstrumentCommand.DATA_ON)
-
-        #log.debug("DATA_ON response: %s", result)
-
-        self._async_agent_state_change(ResourceAgentState.STREAMING)
-
-        return next_state, next_agent_state
-
-    def _handler_leveling_timeout(self, *args, **kwargs):
+    def _handler_leveling_timeout(self, parent_state=ProtocolState.COMMAND):
         """
         The LILY leveling operation has timed out.  Do the following:
         - Send Stop Leveling command to LILY
@@ -1621,25 +1611,23 @@ class Protocol(CommandResponseInstrumentProtocol):
         - Send Alert to Marine Operator (?)
         - Flag subsequent data as "Axis out of range"
         """
-        log.error("_handler_leveling_timeout")
+        if parent_state == ProtocolState.COMMAND:
+            next_agent_state = ResourceAgentState.COMMAND
+        else:
+            next_agent_state = ResourceAgentState.STREAMING
 
-        self._remove_scheduler(ScheduledJob.LEVELING_TIMEOUT)
+        def inner(*args, **kwargs):
+            self._remove_scheduler(ScheduledJob.LEVELING_TIMEOUT)
+            result = None
 
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-        result = None
+            log.info("LILY leveling operation timed out: sending STOP LEVELING.")
+            result = self._do_cmd_resp(InstrumentCommand.STOP_LEVELING, expected_prompt=LILY_LEVEL_OFF)
 
-        log.info("LILY leveling operation timed out: sending STOP LEVELING.")
-        result = self._do_cmd_resp(InstrumentCommand.STOP_LEVELING,
-                                   expected_prompt=LILY_LEVEL_OFF)
+            log.info("LILY leveling operation timed out: sending DATA_ON.")
+            result = self._do_cmd_resp(InstrumentCommand.DATA_ON, expected_prompt=LILY_DATA_ON)
+            return parent_state, (next_agent_state, result)
 
-        log.debug("Turning LILY data on, transitioning to AUTOSAMPLE.")
-
-        log.info("LILY leveling operation timed out: sending DATA_ON.")
-        result = self._do_cmd_resp(InstrumentCommand.DATA_ON,
-                                   expected_prompt=LILY_DATA_ON)
-
-        return next_state, (next_agent_state, result)
+        return inner
 
     ########################################################################
     # Handlers common to Command and Autosample States.
@@ -1649,65 +1637,59 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Get device status
         """
-        log.debug("_handler_command_autosample_dump01")
-
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        timeout = kwargs.get('timeout')
-
-        if timeout is not None:
-            result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_01, timeout=timeout)
-        else:
-            result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_01)
-
-        log.debug("DUMP_SETTINGS_01 response: %s", result)
-
-        return next_state, (next_agent_state, result)
+        return self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_01,
+                                             None,
+                                             None,
+                                             kwargs.get('timeout'))
 
     def _handler_command_autosample_dump02(self, *args, **kwargs):
         """
         Get device status
         """
-        log.debug("_handler_command_autosample_dump02")
+        return self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_02,
+                                             None,
+                                             None,
+                                             kwargs.get('timeout'))
 
-        next_state = None
-        next_agent_state = None
-        result = None
-
-        result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_02)
-
-        log.debug("DUMP_SETTINGS_02 response: %s", result)
-
-        return next_state, (next_agent_state, result)
-
-    def _handler_command_autosample_start_leveling(self, *args, **kwargs):
+    def _handler_command_start_leveling(self, *args, **kwargs):
         """
         Put instrument into leveling mode
         """
-        log.debug("LILY handler_command_autosample_start_leveling.")
+        return self._handler_command_generic(InstrumentCommand.START_LEVELING,
+                                             ProtocolState.COMMAND_LEVELING,
+                                             ResourceAgentState.CALIBRATE,
+                                             kwargs.get('timeout'))
 
-        next_state = ProtocolState.LEVELING
-        next_agent_state = ResourceAgentState.CALIBRATE
-        result = None
-        log.debug("_handler_command_autosample_start_leveling")
+    def _handler_autosample_start_leveling(self, *args, **kwargs):
+        """
+        Put instrument into leveling mode
+        """
+        return self._handler_command_generic(InstrumentCommand.START_LEVELING,
+                                             ProtocolState.AUTOSAMPLE_LEVELING,
+                                             ResourceAgentState.CALIBRATE,
+                                             kwargs.get('timeout'))
 
-        result = self._do_cmd_resp(InstrumentCommand.START_LEVELING,
-                                   expected_prompt=LILY_LEVEL_ON)
-
-        log.debug("START_LEVELING response: %s", result)
-
-        return next_state, (next_agent_state, result)
-
-    def _handler_command_autosample_resume_leveling(self, *args, **kwargs):
+    def _handler_command_resume_leveling(self, *args, **kwargs):
         """
         Instrument was in leveling mode; sync up by putting driver in leveling
         state
         """
-        log.debug("LILY handler_command_autosample_resume_leveling.")
+        log.debug("LILY handler_command_resume_leveling.")
 
-        next_state = ProtocolState.LEVELING
+        next_state = ProtocolState.COMMAND_LEVELING
+        next_agent_state = ResourceAgentState.CALIBRATE
+        result = None
+
+        return next_state, (next_agent_state, result)
+
+    def _handler_autosample_resume_leveling(self, *args, **kwargs):
+        """
+        Instrument was in leveling mode; sync up by putting driver in leveling
+        state
+        """
+        log.debug("LILY handler_command_resume_leveling.")
+
+        next_state = ProtocolState.AUTOSAMPLE_LEVELING
         next_agent_state = ResourceAgentState.CALIBRATE
         result = None
 
