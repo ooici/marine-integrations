@@ -12,11 +12,11 @@ from StringIO import StringIO
 
 
 from mi.core.log import get_logger ; log = get_logger()
+from mi.core.exceptions import SampleException, DatasetParserException
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.exceptions import SampleException, DatasetParserException
 from mi.dataset.parser.vel3d_k__stc_imodem import Vel3d_k__stc_imodemParser, Vel3d_k__stc_imodemTimeDataParticle, Vel3d_k__stc_imodemVelocityDataParticle, StateKey
 
 FLAG_RECORD_SIZE = 26 
@@ -175,7 +175,7 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         log.info("Simple length %d", len(TEST_DATA_GOOD_1_REC))
         file = StringIO(TEST_DATA_GOOD_1_REC)
         self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
-          self.state, self.state_callback, self.pub_callback, None)
+          self.state, self.state_callback, self.pub_callback)
 
         log.info("SIMPLE VERIFY VELOCITY RECORD 1")
         result = self.parser.get_records(1)
@@ -203,7 +203,7 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         log.info("Some length %d", len(TEST_DATA_GOOD_2_REC))
         file = StringIO(TEST_DATA_GOOD_2_REC)
         self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
-          self.state, self.state_callback, self.pub_callback, None)
+          self.state, self.state_callback, self.pub_callback)
 
         log.info("SOME VERIFY VELOCITY RECORD 1")
         result = self.parser.get_records(1)
@@ -238,7 +238,7 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         log.info("Many length %d", len(TEST_DATA_GOOD_BIG_FILE))
         file = StringIO(TEST_DATA_GOOD_BIG_FILE)
         self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
-          self.state, self.state_callback, self.pub_callback, None)
+          self.state, self.state_callback, self.pub_callback)
 
         log.info("MANY VERIFY VELOCITY RECORD 1")
         result = self.parser.get_records(1)
@@ -293,7 +293,7 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         new_state = {StateKey.POSITION: position}
 
         self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
-          new_state, self.state_callback, self.pub_callback, None)
+          new_state, self.state_callback, self.pub_callback)
 
         ## This should get record 3.
         log.info("MID-STATE AFTER RECORD 2, POSITION %d", 
@@ -315,7 +315,7 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         file = StringIO(TEST_DATA_GOOD_BIG_FILE)
 
         self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
-          self.state, self.state_callback, self.pub_callback, None)
+          self.state, self.state_callback, self.pub_callback)
 
         log.info("SET STATE VERIFY VELOCITY RECORD 1")
         result = self.parser.get_records(1)
@@ -348,7 +348,7 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         file = StringIO(TEST_DATA_BAD_FLAG_RECORD)
         with self.assertRaises(SampleException):
             self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
-              self.state, self.state_callback, self.pub_callback, None)
+              self.state, self.state_callback, self.pub_callback)
         log.info("=================== END BAD FLAG ======================")
 
     def test_short_flag_record(self):
@@ -362,6 +362,6 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         file = StringIO(TEST_DATA_SHORT_FLAG_RECORD)
         with self.assertRaises(SampleException):
             self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
-              self.state, self.state_callback, self.pub_callback, None)
+              self.state, self.state_callback, self.pub_callback)
         log.info("=================== END SHORT FLAG ======================")
 
