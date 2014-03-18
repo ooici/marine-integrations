@@ -26,10 +26,10 @@ from mi.idk.exceptions import SampleTimeout
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
-from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 
+from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from ${driver_module} import ${constructor}
-from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_first}ParserDataParticle
+from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_camelcase}ParserDataParticle
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -73,6 +73,20 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         pass
 
+    def test_stop_start_resume(self):
+        """
+        Test the ability to stop and restart sampling, ingesting files in the
+        correct order
+        """
+        pass
+
+    def test_sample_exception(self):
+        """
+        Test a case that should produce a sample exception and confirm the
+        sample exception occurs
+        """
+        pass
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -80,8 +94,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-    def setUp(self):
-        super(QualificationTest, self).setUp()
 
     def test_publish_path(self):
         """
@@ -100,6 +112,13 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
+        """
+        pass
+
+    def test_shutdown_restart(self):
+        """
+        Test a full stop of the dataset agent, then restart the agent 
+        and confirm it restarts at the correct spot.
         """
         pass
 

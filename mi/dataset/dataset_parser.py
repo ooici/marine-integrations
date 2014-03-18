@@ -134,9 +134,35 @@ class BufferLoadingParser(Parser):
     to operate this way, but it can keep memory in check and smooth out
     stream inputs if they dont all come at once.
     """
-    file_complete = False
-    _record_buffer = []
-        
+
+    def __init__(self, config, stream_handle, state, sieve_fn,
+                 state_callback, publish_callback, exception_callback = None):
+        """
+        @param config The configuration parameters to feed into the parser
+        @param stream_handle An already open file-like filehandle
+        @param state The location in the file to start parsing from.
+           This reflects what has already been published.
+        @param sieve_fn A sieve function that might be added to a handler
+           to appropriate filter out the data
+        @param state_callback The callback method from the agent driver
+           (ultimately the agent) to call back when a state needs to be
+           updated
+        @param publish_callback The callback from the agent driver (and
+           ultimately from the agent) where we send our sample particle to
+           be published into ION
+        @param exception_callback The callback from the agent driver (and
+           ultimately from the agent) where we send our error events to
+           be published into ION
+        """
+        self._record_buffer = []
+        self._timestamp = 0.0
+        self.file_complete = False
+
+        super(BufferLoadingParser, self).__init__(config, stream_handle, state,
+                                                  sieve_fn, state_callback,
+                                                  publish_callback,
+                                                  exception_callback)
+
     def get_records(self, num_records):
         """
         Go ahead and execute the data parsing loop up to a point. This involves
@@ -147,14 +173,13 @@ class BufferLoadingParser(Parser):
         """
         if num_records <= 0:
             return []
-        log.debug("get_rec %d", len(self._record_buffer))
         try:
             while len(self._record_buffer) < num_records:
                 self._load_particle_buffer()        
         except EOFError:
             pass            
         return self._yank_particles(num_records)
-                
+
     def _yank_particles(self, num_records):
         """
         Get particles out of the buffer and publish them. Update the state
@@ -190,7 +215,7 @@ class BufferLoadingParser(Parser):
             self._state_callback(self._state, file_ingested) # push new state to driver
 
         return return_list
-        
+
     def _load_particle_buffer(self):
         """
         Load up the internal record buffer with some particles based on a

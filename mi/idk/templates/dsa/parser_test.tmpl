@@ -4,22 +4,24 @@
 @package ${test_module}
 @file ${file}
 @author ${author}
-@brief Test code for a ${full_instrument_first} data parser
+@brief Test code for a ${full_instrument_lower} data parser
 """
 
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import SampleException
+from mi.core.instrument.data_particle import DataParticleKey
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_first}Parser, ${full_instrument_first}ParserDataParticle, StateKey
+from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_camelcase}Parser, StateKey
+from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_camelcase}ParserDataParticle
 
 @attr('UNIT', group='mi')
-class ${full_instrument_first}ParserUnitTestCase(ParserUnitTestCase):
+class ${full_instrument_camelcase}ParserUnitTestCase(ParserUnitTestCase):
     """
-    ${full_instrument_first} Parser unit test suite
+    ${full_instrument_lower} Parser unit test suite
     """
     def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """
@@ -34,7 +36,7 @@ class ${full_instrument_first}ParserUnitTestCase(ParserUnitTestCase):
 	ParserUnitTestCase.setUp(self)
 	self.config = {
 	    DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.${full_instrument_lower}',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: '${full_instrument_first}ParserDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_CLASS: '${full_instrument_camelcase}ParserDataParticle'
 	    }
         # Define test data particles and their associated timestamps which will be 
         # compared with returned results
@@ -55,6 +57,12 @@ class ${full_instrument_first}ParserUnitTestCase(ParserUnitTestCase):
 	Read test data and pull out multiple data particles at one time.
 	Assert that the results are those we expected.
 	"""
+        pass
+
+    def test_long_stream(self):
+        """
+        Test a long stream 
+        """
         pass
 
     def test_mid_state_start(self):

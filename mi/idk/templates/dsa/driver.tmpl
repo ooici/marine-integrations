@@ -16,13 +16,13 @@ import string
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
-from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_first}Parser, ${full_instrument_first}ParserDataParticle
+from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_camelcase}Parser, ${full_instrument_camelcase}ParserDataParticle
 
 class ${constructor}(SimpleDataSetDriver):
     
     @classmethod
     def stream_config(cls):
-        return [${full_instrument_first}ParserDataParticle.type()]
+        return [${full_instrument_camelcase}ParserDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
         """
@@ -31,16 +31,19 @@ class ${constructor}(SimpleDataSetDriver):
         config = self._parser_config
         config.update({
             'particle_module': 'mi.dataset.parser.${full_instrument_lower}',
-            'particle_class': '${full_instrument_first}ParserDataParticle'
+            'particle_class': '${full_instrument_camelcase}ParserDataParticle'
         })
         log.debug("My Config: %s", config)
-        self._parser = ${full_instrument_first}Parser(
+        # if this parser should continue parsing more of a file after throwing
+        # a sample exception, the _sample_exception_callback should be used,
+        # otherwise this argument is not needed
+        self._parser = ${full_instrument_camelcase}Parser(
             config,
             parser_state,
             infile,
             self._save_parser_state,
             self._data_callback,
-            self._sample_exception_callback
+            self._sample_exception_callback # only use if needed, otherwise delete this line
         )
         return self._parser
 
