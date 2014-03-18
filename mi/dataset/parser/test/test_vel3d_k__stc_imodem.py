@@ -7,17 +7,18 @@
 @brief Test code for a Vel3d_k__stc_imodem data parser
 """
 
+import ntplib
+
 from nose.plugins.attrib import attr
 from StringIO import StringIO
 
-
-from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import SampleException, DatasetParserException
-
-from mi.dataset.test.test_parser import ParserUnitTestCase
-from mi.dataset.dataset_driver import DataSetDriverConfigKeys
+from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.data_particle import DataParticleKey
+
+from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.parser.vel3d_k__stc_imodem import Vel3d_k__stc_imodemParser, Vel3d_k__stc_imodemTimeDataParticle, Vel3d_k__stc_imodemVelocityDataParticle, StateKey
+from mi.dataset.test.test_parser import ParserUnitTestCase
 
 FLAG_RECORD_SIZE = 26 
 VELOCITY_RECORD_SIZE = 24  # fixed only for test data - variable in real life
@@ -132,26 +133,33 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         ##
         ## This parser stores the groups from the data matcher in raw_data.
         ##
+        ntptime = ntplib.system_to_ntp_time(1380470402.0)
         self.expected_particle1 = Vel3d_k__stc_imodemVelocityDataParticle(
-          VELOCITY_1_GROUPS, internal_timestamp=1380470402.0)
+          VELOCITY_1_GROUPS, internal_timestamp=ntptime)
 
+        ntptime = ntplib.system_to_ntp_time(1380470402.5)
         self.expected_particle2 = Vel3d_k__stc_imodemVelocityDataParticle(
-          VELOCITY_2_GROUPS, internal_timestamp=1380470402.5)
+          VELOCITY_2_GROUPS, internal_timestamp=ntptime)
 
+        ntptime = ntplib.system_to_ntp_time(1380470403.0)
         self.expected_particle3 = Vel3d_k__stc_imodemVelocityDataParticle(
-          VELOCITY_1_GROUPS, internal_timestamp=1380470403.0)
+          VELOCITY_1_GROUPS, internal_timestamp=ntptime)
 
+        ntptime = ntplib.system_to_ntp_time(1380470403.5)
         self.expected_particle4 = Vel3d_k__stc_imodemVelocityDataParticle(
-          VELOCITY_2_GROUPS, internal_timestamp=1380470403.5)
+          VELOCITY_2_GROUPS, internal_timestamp=ntptime)
 
+        ntptime = ntplib.system_to_ntp_time(1380470402.0)
         self.expected_time1 = Vel3d_k__stc_imodemTimeDataParticle(
-          TIME_1_GROUPS, internal_timestamp=1380470402.0)
+          TIME_1_GROUPS, internal_timestamp=ntptime)
 
+        ntptime = ntplib.system_to_ntp_time(1380470402.0)
         self.expected_time2 = Vel3d_k__stc_imodemTimeDataParticle(
-          TIME_2_GROUPS, internal_timestamp=1380470402.0)
+          TIME_2_GROUPS, internal_timestamp=ntptime)
 
+        ntptime = ntplib.system_to_ntp_time(1380470402.0)
         self.expected_time8 = Vel3d_k__stc_imodemTimeDataParticle(
-          TIME_8_GROUPS, internal_timestamp=1380470402.0)
+          TIME_8_GROUPS, internal_timestamp=ntptime)
 
     def verify_contents(self, actual_particle, expected_particle):
         ## log.debug('EXP %s XXX', dir(expected_particle))
