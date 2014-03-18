@@ -17,18 +17,23 @@ __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
 import unittest
-import gevent
 import time
 import re
 
-from interface.objects import AgentCapability
-from interface.objects import CapabilityType
+import gevent
 
-from nose.plugins.attrib import attr
+
+
+# from interface.objects import AgentCapability
+# from interface.objects import CapabilityType
+
+# from nose.plugins.attrib import attr
 from mock import Mock
 from nose.plugins.attrib import attr
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+
+log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -38,36 +43,37 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
-from mi.idk.unit_test import DriverStartupConfigKey
+# from mi.idk.unit_test import DriverStartupConfigKey
 
-from interface.objects import AgentCommand
+# from interface.objects import AgentCommand
 
-from mi.core.instrument.logger_client import LoggerClient
+# from mi.core.instrument.logger_client import LoggerClient
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverConnectionState
+# from mi.core.instrument.instrument_driver import DriverAsyncEvent
+# from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.instrument.instrument_driver import DriverParameter
+# from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.data_particle import DataParticleValue
+# from mi.core.instrument.data_particle import DataParticleKey
+# from mi.core.instrument.data_particle import DataParticleValue
 
-from mi.instrument.mclane.ras.ooicore.driver import InstrumentDriver
-from mi.instrument.mclane.ras.ooicore.driver import DataParticleType
-from mi.instrument.mclane.ras.ooicore.driver import Command
-from mi.instrument.mclane.ras.ooicore.driver import ProtocolState
-from mi.instrument.mclane.ras.ooicore.driver import ProtocolEvent
-from mi.instrument.mclane.ras.ooicore.driver import Capability
-from mi.instrument.mclane.ras.ooicore.driver import Parameter
-from mi.instrument.mclane.ras.ooicore.driver import Protocol
-from mi.instrument.mclane.ras.ooicore.driver import Prompt
-from mi.instrument.mclane.ras.ooicore.driver import NEWLINE
-from mi.instrument.mclane.ras.ooicore.driver import RASFL_SampleDataParticleKey
-from mi.instrument.mclane.ras.ooicore.driver import RASFL_SampleDataParticle
+from mi.instrument.mclane.rasfl.ras.driver import InstrumentDriver
+from mi.instrument.mclane.rasfl.ras.driver import DataParticleType
+from mi.instrument.mclane.rasfl.ras.driver import Command
+from mi.instrument.mclane.rasfl.ras.driver import ProtocolState
+from mi.instrument.mclane.rasfl.ras.driver import ProtocolEvent
+from mi.instrument.mclane.rasfl.ras.driver import Capability
+from mi.instrument.mclane.rasfl.ras.driver import Parameter
+from mi.instrument.mclane.rasfl.ras.driver import Protocol
+from mi.instrument.mclane.rasfl.ras.driver import Prompt
+from mi.instrument.mclane.rasfl.ras.driver import NEWLINE
+from mi.instrument.mclane.rasfl.ras.driver import RASFLSampleDataParticleKey
+from mi.instrument.mclane.rasfl.ras.driver import RASFLSampleDataParticle
 
-from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
-from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException, Conflict
+#from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
+from mi.core.exceptions import SampleException
+# from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException, Conflict
 from interface.objects import AgentCommand
 
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
@@ -75,7 +81,7 @@ from pyon.agent.agent import ResourceAgentEvent
 from pyon.agent.agent import ResourceAgentState
 from mi.idk.exceptions import IDKException
 
-from struct import pack
+# from struct import pack
 
 # Globals
 raw_stream_received = False
@@ -85,16 +91,16 @@ parsed_stream_received = False
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.mclane.ras.ooicore.driver',
+    driver_module='mi.instrument.mclane.rasfl.ras.driver',
     driver_class="InstrumentDriver",
-    instrument_agent_resource_id = 'DQPJJX',
-    instrument_agent_name = 'mclane_ras_ooicore',
-    instrument_agent_packet_config = DataParticleType(),
-    driver_startup_config = {},
+    instrument_agent_resource_id='DQPJJX',
+    instrument_agent_name='mclane_ras_ooicore',
+    instrument_agent_packet_config=DataParticleType(),
+    driver_startup_config={},
 )
 
 
- #################################### RULES ####################################
+#################################### RULES ####################################
 #                                                                             #
 # Common capabilities in the base class                                       #
 #                                                                             #
@@ -123,106 +129,101 @@ InstrumentDriverTestCase.initialize(
 # methods for validating data particles.
 ###############################################################################
 class UtilMixin(DriverTestMixin):
-    '''
+    """
     Mixin class used for storing data particle constants and common data assertion methods.
-    '''
+    """
     # Create some short names for the parameter test config
-    TYPE      = ParameterTestConfigKey.TYPE
-    READONLY  = ParameterTestConfigKey.READONLY
-    STARTUP   = ParameterTestConfigKey.STARTUP
-    DA        = ParameterTestConfigKey.DIRECT_ACCESS
-    VALUE     = ParameterTestConfigKey.VALUE
-    REQUIRED  = ParameterTestConfigKey.REQUIRED
-    DEFAULT   = ParameterTestConfigKey.DEFAULT
-    STATES    = ParameterTestConfigKey.STATES
+    TYPE = ParameterTestConfigKey.TYPE
+    READONLY = ParameterTestConfigKey.READONLY
+    STARTUP = ParameterTestConfigKey.STARTUP
+    DA = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE = ParameterTestConfigKey.VALUE
+    REQUIRED = ParameterTestConfigKey.REQUIRED
+    DEFAULT = ParameterTestConfigKey.DEFAULT
+    STATES = ParameterTestConfigKey.STATES
 
-    RASFL_STATUS_DATA = "Model: NEWLGR53" + NEWLINE +\
-                        "SerNum: 17DEC12" + NEWLINE +\
-                        "CfgDat: 17DEC12" + NEWLINE +\
-                        "Firmware: LOGR53 v4.11cf" + NEWLINE +\
-                        "RTClock: 2013/05/21  13:55:51" + NEWLINE +\
-                        "Logging Interval: 60; Current Tick: 6" + NEWLINE +\
-                        "R-interval: 1" + NEWLINE +\
-                        "Compact Flash Card present - Compact Flash OK!" + NEWLINE +\
-                        "Main Battery Voltage:  12.50" + NEWLINE +\
-                        "Failed last attempt to update PTT module" + NEWLINE +\
-                        "TMP failed" + NEWLINE +\
-                        "46B1BAD3E8E9FF7F9681300017D1F446ADBED76909FE7F9601200017D1F4706A" + NEWLINE +\
-                        "46A9BED82911FE7F9601400017D1F446A5C2D668F1FE7F9581400017D1F4FFA6" + NEWLINE +\
-                        "46A1BED628D9FE7F9581400017D1F4469DC2D7E8C1FE7F9501500017D1F40B4F" + NEWLINE +\
-                        "Sampling GO" + NEWLINE
-    
-    RASFL_SAMPLE_DATA1 = "1012.53  44.543  24.090    0.0    1.12  24.240  0.0000 32788.7   -0.03   -0.02  0.0000 12.50" + NEWLINE
-    RASFL_SAMPLE_DATA2 = "1013.53  44.543  24.090    0.0    1.12  24.240  0.0000 32788.7   -0.03   -0.02  0.0000 12.50" + NEWLINE
-    
+    # battery voltage request response - TODO not implemented
+    RASFL_BATTERY_DATA = "Battery: 29.9V [Alkaline, 18V minimum]" + NEWLINE
+
+    # bag capacity response - TODO not implemented
+    RASFL_CAPACITY_DATA = "Bag capacity: 500" + NEWLINE
+
+    RASFL_VERSION_DATA = \
+        "Version:" + NEWLINE + \
+        NEWLINE + \
+        "McLane Research Laboratories, Inc." + NEWLINE + \
+        "CF2 Adaptive Remote Sampler" + NEWLINE + \
+        "Version 3.02 of Jun  6 2013 15:38" + NEWLINE + \
+        "Pump type: Maxon 125ml" + NEWLINE + \
+        "Bag capacity: 500" + NEWLINE
+
+    # response from collect sample meta command (from FORWARD or REVERSE command)
+    RASFL_SAMPLE_DATA1 = "Status 00 |  75 100  25   4 |   1.5  90.7  90.7*  1 031514 001727 | 29.9 0" + NEWLINE
+    RASFL_SAMPLE_DATA2 = "Status 00 |  75 100  25   4 |   3.2 101.2 101.2*  2 031514 001728 | 29.9 0" + NEWLINE
+    RASFL_SAMPLE_DATA3 = "Result 00 |  75 100  25   4 |  77.2  98.5  99.1  47 031514 001813 | 29.8 1" + NEWLINE
+
     _driver_capabilities = {
         # capabilities defined in the IOS
-        Capability.CLOCK_SYNC : {STATES: [ProtocolState.COMMAND]},
+        Capability.CLOCK_SYNC: {STATES: [ProtocolState.COMMAND]},
     }
 
     ###
     # Parameter and Type Definitions
     ###
-    _driver_parameters = {Parameter.BATTERY: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: "30", REQUIRED: True},
-                          Parameter.SAMPLE_NUMBER: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 20, REQUIRED: True}}
+    _driver_parameters = {
+        Parameter.FLUSH_VOLUME: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 150, REQUIRED: True},
+        Parameter.FLUSH_FLOWRATE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 100, REQUIRED: True},
+        Parameter.FLUSH_MINFLOW: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 25, REQUIRED: True},
+        Parameter.FILL_VOLUME: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 425, REQUIRED: True},
+        Parameter.FILL_FLOWRATE: {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: 75, REQUIRED: True},
+        Parameter.FILL_MINFLOW: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 25, REQUIRED: True},
+        Parameter.REVERSE_VOLUME: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 75, REQUIRED: True},
+        Parameter.REVERSE_FLOWRATE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 100, REQUIRED: True},
+        Parameter.REVERSE_MINFLOW: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 25, REQUIRED: True}}
 
     ###
     # Data Particle Parameters
     ### 
     _sample_parameters = {
         # particle data defined in the OPTAA Driver doc
-        RASFL_SampleDataParticleKey.BAROMETRIC_PRESSURE : {'type': float, 'value': 1012.53},
-        RASFL_SampleDataParticleKey.RELATIVE_HUMIDITY : {'type': float, 'value': 44.543},
-        RASFL_SampleDataParticleKey.AIR_TEMPERATURE : {'type': float, 'value': 24.09},
-        RASFL_SampleDataParticleKey.LONGWAVE_IRRADIANCE : {'type': float, 'value': 0.0},
-        RASFL_SampleDataParticleKey.PRECIPITATION : {'type': float, 'value': 1.12},
-        RASFL_SampleDataParticleKey.SEA_SURFACE_TEMPERATURE : {'type': float, 'value': 24.24},
-        RASFL_SampleDataParticleKey.SEA_SURFACE_CONDUCTIVITY : {'type': float, 'value': 0.0},
-        RASFL_SampleDataParticleKey.SHORTWAVE_IRRADIANCE : {'type': float, 'value': 32788.7},
-        RASFL_SampleDataParticleKey.EASTWARD_WIND_VELOCITY : {'type': float, 'value': -0.03},
-        RASFL_SampleDataParticleKey.NORTHWARD_WIND_VELOCITY : {'type': float, 'value': -0.02}
-        }   
-                        
-# Driver Parameter Methods
+        RASFLSampleDataParticleKey.PORT: {'type': int, 'value': 0},
+        RASFLSampleDataParticleKey.VOLUME_COMMANDED: {'type': int, 'value': 75},
+        RASFLSampleDataParticleKey.FLOW_RATE_COMMANDED: {'type': int, 'value': 100},
+        RASFLSampleDataParticleKey.MIN_FLOW_COMMANDED: {'type': int, 'value': 25},
+        RASFLSampleDataParticleKey.VOLUME_ACTUAL: {'type': int, 'value': 1.5},
+        RASFLSampleDataParticleKey.FLOW_RATE_ACTUAL: {'type': int, 'value': 90.7},
+        RASFLSampleDataParticleKey.MIN_FLOW_ACTUAL: {'type': int, 'value': 90.7},
+        RASFLSampleDataParticleKey.TIMER: {'type': int, 'value': 1},
+        RASFLSampleDataParticleKey.DATE: {'type': int, 'value': 031514},
+        RASFLSampleDataParticleKey.TIME: {'type': int, 'value': 001727},
+        RASFLSampleDataParticleKey.BATTERY: {'type': float, 'value': 29.9},
+        RASFLSampleDataParticleKey.CODE: {'type': int, 'value': 0},
+    }
+
     ###
-    def assert_driver_parameters(self, current_parameters, verify_values = False, verify_sample_interval=False):
+    # Driver Parameter Methods
+    ###
+    def assert_driver_parameters(self, current_parameters, verify_values=False):
         """
         Verify that all driver parameters are correct and potentially verify values.
         @param current_parameters: driver parameters read from the driver instance
         @param verify_values: should we verify values against definition?
         """
         self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
-        if verify_sample_interval:
-            self.assertEqual(current_parameters[Parameter.SAMPLE_INTERVAL], 
-                             self._driver_parameters[Parameter.SAMPLE_INTERVAL][self.VALUE], 
-                             "sample_interval %d != expected value %d" %(current_parameters[Parameter.SAMPLE_INTERVAL],
-                                                          self._driver_parameters[Parameter.SAMPLE_INTERVAL][self.VALUE]))
-
-    def assert_sample_interval_parameter(self, current_parameters, verify_values = False):
-        """
-        Verify that sample_interval parameter is correct and potentially verify value.
-        @param current_parameters: driver parameters read from the driver instance
-        @param verify_values: should we verify values against definition?
-        """
-        self.assert_parameters(current_parameters, self._driver_parameters, False)
-        self.assertEqual(current_parameters[Parameter.SAMPLE_INTERVAL], 
-                         self._driver_parameters[Parameter.SAMPLE_INTERVAL][self.VALUE], 
-                         "sample_interval %d != expected value %d" %(current_parameters[Parameter.SAMPLE_INTERVAL],
-                                                      self._driver_parameters[Parameter.SAMPLE_INTERVAL][self.VALUE]))
 
     ###
     # Data Particle Parameters Methods
     ### 
-    def assert_data_particle_sample(self, data_particle, verify_values = False):
-        '''
+    def assert_data_particle_sample(self, data_particle, verify_values=False):
+        """
         Verify an optaa sample data particle
         @param data_particle: OPTAAA_SampleDataParticle data particle
         @param verify_values: bool, should we verify parameter values
-        '''
+        """
         self.assert_data_particle_header(data_particle, DataParticleType.METBK_PARSED)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
 
-    def assert_data_particle_status(self, data_particle, verify_values = False):
+    def assert_data_particle_status(self, data_particle, verify_values=False):
         """
         Verify an optaa status data particle
         @param data_particle: OPTAAA_StatusDataParticle data particle
@@ -230,8 +231,8 @@ class UtilMixin(DriverTestMixin):
         """
         self.assert_data_particle_header(data_particle, DataParticleType.RASFL_STATUS)
         self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
-        
-    def assert_particle_not_published(self, driver, sample_data, particle_assert_method, verify_values = False):
+
+    def assert_particle_not_published(self, driver, sample_data, particle_assert_method, verify_values=False):
         try:
             self.assert_particle_published(driver, sample_data, particle_assert_method, verify_values)
         except AssertionError as e:
@@ -241,7 +242,8 @@ class UtilMixin(DriverTestMixin):
                 raise e
         else:
             raise IDKException("assert_particle_not_published: particle was published")
-        
+
+
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
@@ -257,12 +259,12 @@ class UtilMixin(DriverTestMixin):
 ###############################################################################
 @attr('UNIT', group='mi')
 class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
-    
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
+    print '----- unit test -----'
 
-    @unittest.skip('not completed yet')
+    #@unittest.skip('not completed yet')
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -275,12 +277,11 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(Command())
 
-        # Test capabilities for duplicates, them verify that capabilities is a subset of protocol events
+        # Test capabilities for duplicates, then verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(Capability())
-        self.assert_enum_complete(Capability(), ProtocolEvent())  
+        self.assert_enum_complete(Capability(), ProtocolEvent())
 
 
-    @unittest.skip('not completed yet')
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
@@ -290,21 +291,25 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         self.assert_chunker_sample(chunker, self.RASFL_SAMPLE_DATA1)
         self.assert_chunker_sample_with_noise(chunker, self.RASFL_SAMPLE_DATA1)
         self.assert_chunker_fragmented_sample(chunker, self.RASFL_SAMPLE_DATA1)
-        self.assert_chunker_combined_sample(chunker, self.RASFL_SAMPLE_DATA1)        
-        
-        self.assert_chunker_sample(chunker, self.RASFL_STATUS_DATA)
-        self.assert_chunker_sample_with_noise(chunker, self.RASFL_STATUS_DATA)
-        self.assert_chunker_fragmented_sample(chunker, self.RASFL_STATUS_DATA)
-        self.assert_chunker_combined_sample(chunker, self.RASFL_STATUS_DATA)
+        self.assert_chunker_combined_sample(chunker, self.RASFL_SAMPLE_DATA1)
 
-    @unittest.skip('not completed yet')
+        self.assert_chunker_sample(chunker, self.RASFL_SAMPLE_DATA2)
+        self.assert_chunker_sample_with_noise(chunker, self.RASFL_SAMPLE_DATA2)
+        self.assert_chunker_fragmented_sample(chunker, self.RASFL_SAMPLE_DATA2)
+        self.assert_chunker_combined_sample(chunker, self.RASFL_SAMPLE_DATA2)
+
+        self.assert_chunker_sample(chunker, self.RASFL_SAMPLE_DATA3)
+        self.assert_chunker_sample_with_noise(chunker, self.RASFL_SAMPLE_DATA3)
+        self.assert_chunker_fragmented_sample(chunker, self.RASFL_SAMPLE_DATA3)
+        self.assert_chunker_combined_sample(chunker, self.RASFL_SAMPLE_DATA3)
+
     def test_corrupt_data_sample(self):
         # garbage is not okay
-        particle = RASFL_SampleDataParticle(self.RASFL_SAMPLE_DATA1.replace('-0.03', 'foo'),
-                                            port_timestamp = 3558720820.531179)
+        particle = RASFLSampleDataParticle(self.RASFL_SAMPLE_DATA1.replace('00', 'foo'),
+                                           port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
-         
+
     @unittest.skip('not completed yet')
     def test_got_data(self):
         """
@@ -319,13 +324,12 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         # validating data particles are published
         self.assert_particle_published(driver, self.RASFL_STATUS_DATA, self.assert_data_particle_status, True)
         self.assert_particle_published(driver, self.RASFL_SAMPLE_DATA1, self.assert_data_particle_sample, True)
-        
+
         # validate that a duplicate sample is not published
         self.assert_particle_not_published(driver, self.RASFL_SAMPLE_DATA1, self.assert_data_particle_sample, True)
-        
+
         # validate that a new sample is published
         self.assert_particle_published(driver, self.RASFL_SAMPLE_DATA2, self.assert_data_particle_sample, False)
-
 
     @unittest.skip('not completed yet')
     def test_protocol_filter_capabilities(self):
@@ -362,13 +366,14 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
                                     'DRIVER_EVENT_ACQUIRE_STATUS',
                                     'DRIVER_EVENT_CLOCK_SYNC',
                                     'DRIVER_EVENT_FLASH_STATUS'],
+            # no autosample for RAS/PPS
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
                                        'DRIVER_EVENT_GET',
                                        'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                        'DRIVER_EVENT_ACQUIRE_STATUS',
                                        'DRIVER_EVENT_CLOCK_SYNC',
                                        'DRIVER_EVENT_FLASH_STATUS'],
-            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 
+            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
                                           'EXECUTE_DIRECT']
         }
 
@@ -393,7 +398,6 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 ###############################################################################
 @attr('INT', group='mi')
 class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
-    
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
@@ -402,9 +406,9 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
 
         while end_time > time.time():
             if len(self.get_sample_events(particle_type)) > 0:
-                self.fail("assert_async_particle_not_generated: a particle of type %s was published" %particle_type)
+                self.fail("assert_async_particle_not_generated: a particle of type %s was published" % particle_type)
             time.sleep(.3)
-    
+
     def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample.
@@ -415,23 +419,25 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
 
         # test that sample particle is generated
         log.debug("test_autosample_particle_generation: waiting 60 seconds for instrument data")
-        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample, timeout=60)
-        
+        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample,
+                                              timeout=60)
+
         # take driver out of autosample mode
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
-        
+
         # test that sample particle is not generated
         log.debug("test_autosample_particle_generation: waiting 60 seconds for no instrument data")
         self.clear_events()
         self.assert_async_particle_not_generated(DataParticleType.METBK_PARSED, timeout=60)
-        
+
         # put driver back in autosample mode
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        
+
         # test that sample particle is generated
         log.debug("test_autosample_particle_generation: waiting 60 seconds for instrument data")
-        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample, timeout=60)
-        
+        self.assert_async_particle_generation(DataParticleType.METBK_PARSED, self.assert_data_particle_sample,
+                                              timeout=60)
+
 
     def test_parameters(self):
         """
@@ -449,7 +455,8 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.FLASH_STATUS)
-        regex = re.compile('Compact Flash Card present - Compact Flash OK!\r\n\r\r\nVolume in drive is .+ bytes free\r\r\n', re.DOTALL)
+        regex = re.compile(
+            'Compact Flash Card present - Compact Flash OK!\r\n\r\r\nVolume in drive is .+ bytes free\r\r\n', re.DOTALL)
         match = regex.match(reply[1])
 
         self.assertNotEqual(match, None, "TestINT.test_flash_status: status response not correct")
@@ -460,7 +467,8 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.FLASH_STATUS)
-        regex = re.compile('Compact Flash Card present - Compact Flash OK!\r\n\r\r\nVolume in drive is .+ bytes free\r\r\n', re.DOTALL)
+        regex = re.compile(
+            'Compact Flash Card present - Compact Flash OK!\r\n\r\r\nVolume in drive is .+ bytes free\r\r\n', re.DOTALL)
         match = regex.match(reply[1])
 
         self.assertNotEqual(match, None, "TestINT.test_flash_status: status response not correct")
@@ -475,7 +483,7 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.CLOCK)
-        
+
         # convert driver's time from formatted date/time string to seconds integer
         instrument_time = time.mktime(time.strptime(reply.get(Parameter.CLOCK).lower(), "%Y/%m/%d %H:%M:%S"))
 
@@ -498,7 +506,7 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
 
         reply = self.driver_client.cmd_dvr('get_resource', Parameter.CLOCK)
-        
+
         # convert driver's time from formatted date/time string to seconds integer
         instrument_time = time.mktime(time.strptime(reply.get(Parameter.CLOCK).lower(), "%Y/%m/%d %H:%M:%S"))
 
@@ -516,7 +524,9 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         Test that we can generate sample particle with command
         """
         self.assert_initialize_driver()
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.METBK_PARSED, self.assert_data_particle_sample)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.METBK_PARSED,
+                                        self.assert_data_particle_sample)
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -529,7 +539,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout = 10):
+    def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout=10):
         """
         Test observatory polling function.
 
@@ -556,7 +566,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         # Watch the parsed data queue and return once a sample
         # has been read or the default timeout has been reached.
-        samples = self.data_subscribers.get_samples(sampleQueue, 1, timeout = timeout)
+        samples = self.data_subscribers.get_samples(sampleQueue, 1, timeout=timeout)
         self.assertGreaterEqual(len(samples), 1)
         log.error("SAMPLE: %s" % samples)
 
@@ -566,12 +576,12 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         self.assert_reset()
         self.doCleanups()
-        
+
     def test_poll(self):
         '''
         poll for a single sample
         '''
-        self.assert_sample_polled(self.assert_data_particle_sample, 
+        self.assert_sample_polled(self.assert_data_particle_sample,
                                   DataParticleType.METBK_PARSED)
 
     def test_autosample(self):
@@ -581,7 +591,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         self.assert_sample_autosample(self.assert_data_particle_sample,
                                       DataParticleType.METBK_PARSED,
                                       sample_count=1,
-                                      timeout = 60)
+                                      timeout=60)
 
     def test_direct_access_telnet_mode(self):
         """
@@ -592,9 +602,9 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         # go into direct access
         self.assert_direct_access_start_telnet(timeout=600)
         self.tcp_client.send_data("#D\r\n")
-        if  not self.tcp_client.expect("\r\n"):
+        if not self.tcp_client.expect("\r\n"):
             self.fail("test_direct_access_telnet_mode: did not get expected response")
-        
+
         self.assert_direct_access_stop_telnet()
 
     @unittest.skip('Only enabled and used for manual testing of vendor SW')
@@ -606,20 +616,20 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         # go direct access
         cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-            kwargs={'session_type': DirectAccessTypes.vsp,
-                    'session_timeout':600,
-                    'inactivity_timeout':600})
+                           kwargs={'session_type': DirectAccessTypes.vsp,
+                                   'session_timeout': 600,
+                                   'inactivity_timeout': 600})
         retval = self.instrument_agent_client.execute_agent(cmd, timeout=600)
         log.warn("go_direct_access retval=" + str(retval.result))
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
-        
+
         print("test_direct_access_telnet_mode: waiting 120 seconds for manual testing")
         gevent.sleep(120)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        retval = self.instrument_agent_client.execute_agent(cmd) 
+        retval = self.instrument_agent_client.execute_agent(cmd)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
@@ -631,7 +641,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         """
         # Verify the agent is in command mode
         self.assert_enter_command_mode()
-        
+
         self.assert_start_autosample()
 
         # Now reset and try to discover.  This will stop the driver and cause it to re-discover which
@@ -646,7 +656,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         returned by get_current_capabilities
         """
         self.assert_enter_command_mode()
-        
+
         ##################
         #  Command Mode
         ##################
@@ -655,7 +665,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
             AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [
-                ProtocolEvent.GET, 
+                ProtocolEvent.GET,
                 ProtocolEvent.CLOCK_SYNC,
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.ACQUIRE_SAMPLE,
@@ -664,7 +674,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
-            }
+        }
 
         self.assert_capabilities(capabilities)
 
@@ -673,8 +683,8 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         ##################
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
-            ProtocolEvent.GET, 
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
+            ProtocolEvent.GET,
             ProtocolEvent.CLOCK_SYNC,
             ProtocolEvent.ACQUIRE_STATUS,
             ProtocolEvent.ACQUIRE_SAMPLE,
@@ -720,7 +730,8 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         # get the time from the driver
         check_new_params = self.instrument_agent_client.get_resource([Parameter.CLOCK])
         # convert driver's time from formatted date/time string to seconds integer
-        instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.CLOCK).lower(), "%Y/%m/%d  %H:%M:%S"))
+        instrument_time = time.mktime(
+            time.strptime(check_new_params.get(Parameter.CLOCK).lower(), "%Y/%m/%d  %H:%M:%S"))
 
         # need to convert local machine's time to date/time string and back to seconds to 'drop' the DST attribute so test passes
         # get time from local machine
@@ -730,14 +741,14 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         # Now verify that the time matches to within 5 seconds
         self.assertLessEqual(abs(instrument_time - local_time), 5)
-        
+
     @unittest.skip("doesn't pass because IA doesn't apply the startup parameters yet")
     def test_get_parameters(self):
         '''
         verify that parameters can be gotten properly
         '''
         self.assert_enter_command_mode()
-        
+
         reply = self.instrument_agent_client.get_resource(Parameter.ALL)
         self.assert_driver_parameters(reply, verify_sample_interval=True)
         
