@@ -240,7 +240,7 @@ class AdcpaParserUnitTestCase(ParserUnitTestCase):
     def tearDown(self):
         self.stream_handle.close()
 
-    def pos_callback(self, pos):
+    def pos_callback(self, pos, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         self.position_callback_value = pos
 
