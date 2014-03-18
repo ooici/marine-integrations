@@ -272,7 +272,7 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         expected_file_position += 3 * VELOCITY_RECORD_SIZE
         self.verify_file_info(False, expected_file_position)
 
-        ## Skip the next 4 velocity records.
+        ## Skip over the next 4 velocity records.
         log.info("MANY SKIPPING")
         skip_result = self.parser.get_records(4)
         expected_file_position += 4 * VELOCITY_RECORD_SIZE
@@ -320,9 +320,9 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         """
         log.info("=================== SET STATE ======================")
         log.info("Set state length %d", len(TEST_DATA_GOOD_BIG_FILE))
-        file = StringIO(TEST_DATA_GOOD_BIG_FILE)
+        my_file = StringIO(TEST_DATA_GOOD_BIG_FILE)
 
-        self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
+        self.parser = Vel3d_k__stc_imodemParser(self.config, my_file, 
           self.state, self.state_callback, self.pub_callback)
 
         log.info("SET STATE VERIFY VELOCITY RECORD 1")
@@ -340,7 +340,7 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
 
         log.info("SET STATE VERIFY VELOCITY RECORD 4")
         result = self.parser.get_records(1)
-        #self.verify_contents(result, self.expected_particle4)
+        self.verify_contents(result, self.expected_particle4)
 
         expected_file_position = position + VELOCITY_RECORD_SIZE
         self.verify_file_info(False, expected_file_position)
