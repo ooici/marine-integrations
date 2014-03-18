@@ -121,7 +121,7 @@ class TestResultSet(MiUnitTest):
         particle_a = CtdpfParserDataParticle("10.5914,  4.1870,  161.06,   2693.0",
                                              internal_timestamp=base_timestamp, new_sequence=True)
         particle_b = CtdpfParserDataParticle("10.5915,  4.1871,  161.07,   2693.1",
-                                             internal_timestamp=base_timestamp+1)
+                                             internal_timestamp=base_timestamp)
 
         self.assertTrue(rs.verify([particle_a, particle_b]))
         self.assertIsNone(rs.report())
@@ -168,7 +168,7 @@ class TestResultSet(MiUnitTest):
         particle_a = CtdpfParserDataParticle("10.5914,  4.1870,  161.06,   2693.0",
                                              internal_timestamp=base_timestamp, new_sequence=True).generate_dict()
         particle_b = CtdpfParserDataParticle("10.5915,  4.1871,  161.07,   2693.1",
-                                             internal_timestamp=base_timestamp+1).generate_dict()
+                                             internal_timestamp=base_timestamp).generate_dict()
 
         self.assertTrue(rs.verify([particle_a, particle_b]))
         self.assertIsNone(rs.report())

@@ -147,7 +147,7 @@ class ZmqDriverProcess(driver_process.DriverProcess):
             while not zmq_driver_process.stop_cmd_thread:
                 try:
                     msg = sock.recv_pyobj(flags=zmq.NOBLOCK)
-                    log.trace('Processing message %s', msg)
+                    #log.trace('Processing message %s', msg)
                     reply = zmq_driver_process.cmd_driver(msg)
                     # if operation raised exception, encode as triple
                     if isinstance(reply, Exception):
@@ -183,7 +183,7 @@ class ZmqDriverProcess(driver_process.DriverProcess):
             while not zmq_driver_process.stop_evt_thread:
                 try:
                     evt = zmq_driver_process.events.pop(0)
-                    log.trace('Event thread sending event %s',evt)
+                    #log.trace('Event thread sending event %s',evt)
                     while evt:
                         try:
                             if isinstance(evt, Exception):

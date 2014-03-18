@@ -49,7 +49,7 @@ class Harvester(object):
 ## added here down the road
 
 # used to determine if we should do integer sorting of the files
-NUMBER_UNDERSCORE_MATCHER = re.compile(r'\d_\d')
+NUMBER_UNDERSCORE_MATCHER = re.compile(r'_\d')
 
 class SingleDirectoryPoller(ConditionPoller):
     """
@@ -100,7 +100,6 @@ class SingleDirectoryPoller(ConditionPoller):
             else:
                 filenames.sort()
 
-        log.debug("found files %s", filenames)
         new_files = []
         modified_files = False
         # loop over all files in the directory and compare their state to that in the harvester state dictionary
@@ -129,7 +128,6 @@ class SingleDirectoryPoller(ConditionPoller):
                                 old_state[DriverStateKey.FILE_CHECKSUM] != md5_checksum:
                                     # this file has changed since its previous modification, update the
                                     # modified state
-                                    # TODO provide notification to the user
                                     self._driver_state[file_name][DriverStateKey.MODIFIED_STATE] = {
                                         DriverStateKey.FILE_SIZE: file_size,
                                         DriverStateKey.FILE_MOD_DATE: mod_time,
@@ -139,7 +137,6 @@ class SingleDirectoryPoller(ConditionPoller):
                                     modified_files = True
                             else:
                                 # this is the first time this file has been modified
-                                # TODO provide notification to the user
                                 self._driver_state[file_name][DriverStateKey.MODIFIED_STATE] = {
                                     DriverStateKey.FILE_SIZE: file_size,
                                     DriverStateKey.FILE_MOD_DATE: mod_time,
@@ -169,7 +166,7 @@ class SingleDirectoryPoller(ConditionPoller):
                             DriverStateKey.PARSER_STATE: None
                             }
 
-        log.trace('found new files: %r, modified_files: %r', new_files, modified_files)
+        log.debug('found new files: %r, modified_files: %r', new_files, modified_files)
         return (new_files, modified_files)
 
     def sort_files(self, filenames):
@@ -182,7 +179,6 @@ class SingleDirectoryPoller(ConditionPoller):
         if not filenames or len(filenames) < 2:
             return filenames
 
-        log.debug("LENGTH: %d", len(filenames))
         # this assumes all files have the same extension
         file_extension = filenames[0].split('.')
         split_names = ()
@@ -199,7 +195,6 @@ class SingleDirectoryPoller(ConditionPoller):
             # Retrieve original name from end of sorted component list
             sorted_filenames.append(fn[len(fn) - 1])
 
-        log.trace("sorted %s", sorted_filenames)
         return sorted_filenames
 
     @staticmethod
@@ -258,7 +253,6 @@ class SingleDirectoryHarvester(SingleDirectoryPoller, Harvester):
             self.modified_callback()
         # update the new files    
         for this_file in new_files:
-            log.debug("Found new file: %s", this_file)
             self.callback(this_file)
 
 class SingleFilePoller(ConditionPoller):

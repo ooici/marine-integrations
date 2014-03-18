@@ -413,6 +413,23 @@ class Chunker(object):
 
         return (next_time, next_block)
 
+    def clean_all_chunks(self):
+        """
+        Clean all data out of the non_data, raw, and data lists
+        """
+        # clear out any non matching data.
+        (nd_timestamp, non_data) = self.get_next_non_data(clean=True)
+        while non_data is not None:
+            (nd_timestamp, non_data) = self.get_next_non_data(clean=True)
+        # clean out raw data
+        (nd_timestamp, raw_data) = self.get_next_raw(clean=True)
+        while raw_data is not None:
+            (nd_timestamp, raw_data) = self.get_next_raw(clean=True)
+        # clean out data
+        (nd_timestamp, data) = self.get_next_data(clean=True)
+        while data is not None:
+            (nd_timestamp, data) = self.get_next_data(clean=True)
+
     @staticmethod
     def regex_sieve_function(raw_data, regex_list=[]):
         """

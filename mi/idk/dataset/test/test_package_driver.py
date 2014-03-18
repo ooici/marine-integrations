@@ -14,6 +14,7 @@ from mi.core.unit_test import MiUnitTest
 
 from mi.core.log import get_logger ; log = get_logger()
 from nose.plugins.attrib import attr
+import unittest
 
 import sys
 import os
@@ -175,6 +176,8 @@ class TestPackageDriver(MiUnitTest):
         for x in pkg_resources.iter_entry_points('drivers.dataset.fake_driver'):
             log.info("entry point:%s", x)
         """   
+
+    @unittest.skip("requires enter be pressed to run.")
     def test_package_driver_real(self):
         """
         Test with real hypm ctd driver code
@@ -188,7 +191,7 @@ class TestPackageDriver(MiUnitTest):
         # need to figure out how to find and delete
         if exists(current_dsa_path):
             os.remove(current_dsa_path)
-        
+        log.error(current_dsa_path)
         os.symlink(ctd_md_path, current_dsa_path)
         
         # create the metadata so we can use it for opening the egg 

@@ -55,7 +55,12 @@ class Parser(object):
         #build class from module and class name, then set the state
         if config.get("particle_module"):
             self._particle_module = __import__(config.get("particle_module"), fromlist = [config.get("particle_class")])
-            self._particle_class = getattr(self._particle_module, config.get("particle_class"))
+            # if there is more than one particle class for this parser, this cannot be used, need to hard code the
+            # particle class in the driver
+            try:
+                self._particle_class = getattr(self._particle_module, config.get("particle_class"))
+            except TypeError:
+                self._particle_class = None
         else:
             log.warn("No particle module specified in config")
 
@@ -90,7 +95,7 @@ class Parser(object):
         else:
             self._publish_callback([samples])
         
-    def _extract_sample(self, particle_class, regex, line, timestamp):
+    def _extract_sample(self, particle_class, regex, raw_data, timestamp):
         """
         Extract sample from a response line if present and publish
         parsed particle
@@ -100,21 +105,21 @@ class Parser(object):
             behavior from this routine
         @param regex The regular expression that matches a data sample if regex
                      is none then process every line
-        @param line string to match for sample.
+        @param raw_data data to input into this particle.
         @retval return a raw particle if a sample was found, else None
         """
         particle = None
 
         try:
-            if regex is None or regex.match(line):
-                particle = particle_class(line, internal_timestamp=timestamp,
+            if regex is None or regex.match(raw_data):
+                particle = particle_class(raw_data, internal_timestamp=timestamp,
                                           preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP, new_sequence=self._new_sequence)
 
                 if self._new_sequence:
                     self._new_sequence = False
 
         except SampleException as e:
-            log.error("Sample exception detected: %s line: %s", e, line)
+            log.error("Sample exception detected: %s raw data: %s", e, raw_data)
             if self._exception_callback:
                 self._exception_callback(e)
             else:

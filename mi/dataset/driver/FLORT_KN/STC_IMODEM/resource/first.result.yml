@@ -1,0 +1,11 @@
+header:
+  particle_object: Flort_kn__stc_imodemParserDataParticle
+  particle_type: flort_kn__stc_imodem_instrument
+
+data:
+  - _index: 1
+    internal_timestamp: 3595053725.000000
+    wfp_timestamp: 1386064925
+    raw_signal_beta: 259
+    raw_signal_chl: 104
+    raw_signal_cdom: 78  

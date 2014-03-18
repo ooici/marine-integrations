@@ -81,7 +81,7 @@ class TestUnitDataParticle(MiUnitTestCase):
                                 DataParticleKey.STREAM_NAME: TEST_PARTICLE_TYPE,
                                 DataParticleKey.PORT_TIMESTAMP: self.sample_port_timestamp,
                                 DataParticleKey.DRIVER_TIMESTAMP: self.sample_driver_timestamp,
-                                DataParticleKey.NEW_SEQUENCE: None,
+                                #DataParticleKey.NEW_SEQUENCE: None,
                                 DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.DRIVER_TIMESTAMP,
                                 DataParticleKey.QUALITY_FLAG: DataParticleValue.INVALID,
                                 DataParticleKey.VALUES: [
@@ -109,7 +109,7 @@ class TestUnitDataParticle(MiUnitTestCase):
                                DataParticleKey.INTERNAL_TIMESTAMP: self.sample_internal_timestamp,
                                DataParticleKey.PORT_TIMESTAMP: self.sample_port_timestamp,
                                DataParticleKey.DRIVER_TIMESTAMP: self.sample_driver_timestamp,
-                               DataParticleKey.NEW_SEQUENCE: None,
+                               #DataParticleKey.NEW_SEQUENCE: None,
                                DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
                                DataParticleKey.QUALITY_FLAG: "ok",
                                DataParticleKey.VALUES: [

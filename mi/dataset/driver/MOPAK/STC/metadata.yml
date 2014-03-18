@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Emily Hahn
+  constructor: MOPAK__STC_DataSetDriver
+  driver_name: MOPAK__STC
+  driver_path: MOPAK/STC
+  email: ehahn@bbn.com
+  release_notes: initial release
+  version: 0.0.1

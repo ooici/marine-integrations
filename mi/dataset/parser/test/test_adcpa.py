@@ -243,6 +243,7 @@ class AdcpaParserUnitTestCase(ParserUnitTestCase):
     def pos_callback(self, pos, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         self.position_callback_value = pos
+        self.file_ingested = file_ingested
 
     def pub_callback(self, pub):
         """ Call back method to watch what comes in via the publish callback """

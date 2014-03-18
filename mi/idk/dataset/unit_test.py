@@ -433,6 +433,26 @@ class DataSetIntegrationTestCase(DataSetTestCase):
 
             self.assertTrue(rs.verify(particles), msg="Failed data validation, check the logs.")
 
+    def assert_data_multiple_class(self, result_set_file=None, count=1, timeout=10):
+        """
+        Wait for a data particle in the data callback queue
+        @param result_set_file, filename containing definition of the resulting dataset
+        @param count, how many records to wait for
+        @param timeout, how long to wait for the records.
+        """
+        try:
+            particles = self.get_samples_any_class(count, timeout)
+        except Timeout:
+            log.error("Failed to detect particle, expected %d particles, found %d", count, found)
+            self.fail("particle detection failed. Expected %d, Found %d" % (count, found))
+
+        # Verify the data against the result data set definition
+        if result_set_file:
+            rs_file = self._get_source_data_file(result_set_file)
+            rs = ResultSet(rs_file)
+
+            self.assertTrue(rs.verify(particles), msg="Failed data validation, check the logs.")
+
     def assert_file_ingested(self, filename):
         """
         Assert that a particular file was ingested (useable by Single Directory driver, not Single File driver),
@@ -478,11 +498,50 @@ class DataSetIntegrationTestCase(DataSetTestCase):
                         done = True
                         break
 
-                if not done:
+                # data_callback_result may get updated while counting particles, check again
+                if not done and self.data_callback_result == []:
                     log.debug("No particle detected yet, sleep for a bit")
                     gevent.sleep(1)
         except Timeout:
             log.error("Failed to detect particle %s, expected %d particles, found %d", particle_class, count, found)
+            result = []
+        finally:
+            to.cancel()
+
+        log.debug("Samples found: %d, %s", len(result), result)
+        return result
+
+    def get_samples_any_class(self, count=1, timeout=10):
+        """
+        Get samples of any class
+        """
+        to = gevent.Timeout(timeout)
+        to.start()
+        result = []
+        found = 0
+        done = False
+
+        try:
+            while(not done):
+                current_found = 0
+                for i, data in enumerate(self.data_callback_result):
+                    index = i - current_found
+                    found += 1
+                    current_found += 1
+                    result.append(self.data_callback_result.pop(index))
+                    log.debug("Found sample index %d, #%d", index, found)
+
+                    if found >= count:
+                        log.debug("All done. %d >= %d", found, count)
+                        done = True
+                        break
+
+                # data_callback_result may get updated while counting particles, check again
+                if not done and self.data_callback_result == []:
+                    log.debug("No particle detected yet, sleep for a bit")
+                    gevent.sleep(1)
+        except Timeout:
+            log.error("Failed to detect particle, expected %d particles, found %d", count, found)
             result = []
         finally:
             to.cancel()
@@ -750,7 +809,7 @@ class DataSetAgentTestCase(DataSetTestCase):
 
             if(not self.data_subscribers.samples_received.has_key(stream_name) or
                len(self.data_subscribers.samples_received.get(stream_name)) == 0):
-                log.debug("No samples in the queue, sleep for a bit to let the queue fill up")
+                log.debug("No samples in queue, sleep for a bit")
                 gevent.sleep(.2)
 
         log.debug("get_samples() complete.  returning %d records", sample_count)

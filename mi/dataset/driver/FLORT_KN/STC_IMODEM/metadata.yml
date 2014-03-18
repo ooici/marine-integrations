@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Emily Hahn
+  constructor: FLORT_KN__STC_IMODEM_DataSetDriver
+  driver_name: FLORT_KN__STC_IMODEM
+  driver_path: FLORT_KN/STC_IMODEM
+  email: ehahn@bbn.com
+  release_notes: initial release
+  version: 0.0.1

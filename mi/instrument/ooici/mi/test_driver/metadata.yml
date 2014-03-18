@@ -1,0 +1,10 @@
+driver_metadata:
+  author: Bill French
+  driver_make: ooici
+  driver_model: mi
+  driver_name: test_driver
+  email: wfrench@ucsd.edu
+  release_notes: 'This driver is used for coi testing
+
+    '
+  version: 0.0.1

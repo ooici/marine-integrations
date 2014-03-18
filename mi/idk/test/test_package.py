@@ -338,7 +338,6 @@ class TestDriverFileList(IDKPackageNose):
         
         known_files = [
             '%s/res/test_file' % TESTDIR,
-            '%s/resource/__init__.py' % TESTDIR
         ]
         
         files = filelist._extra_files()
@@ -363,7 +362,6 @@ class TestDriverFileList(IDKPackageNose):
                       'mi/base3.py',
                       'mi/base4.py',
                       'mi/foo/__init__.py',
-                      'mi/foo/resource/__init__.py',
                       'mi/foo/impl.py',
                       'mi/foo/res/test_file',
                       'mi/foo/test/__init__.py',
@@ -520,7 +518,7 @@ class TestDriverEggGenerator(IDKPackageNose):
             'EGG-INFO/zip-safe',
             'mi/main.py',
         ]
-
+        log.error(repr(files))
         egg_file = self._generator._build_egg(files)
         self.assertTrue(exists(egg_file))
 

@@ -394,7 +394,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.NEW_SEQUENCE: None,
+            #DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.STREAM_NAME: DataParticleType.DIAGNOSTIC_HEADER,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
@@ -420,7 +420,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.NEW_SEQUENCE: None,
+            #DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.STREAM_NAME: DataParticleType.DIAGNOSTIC,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
@@ -446,7 +446,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.NEW_SEQUENCE: None,
+            #DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.STREAM_NAME: DataParticleType.VELOCITY,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,

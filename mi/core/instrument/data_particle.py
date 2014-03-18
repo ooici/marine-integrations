@@ -192,7 +192,7 @@ class DataParticle(object):
         result[DataParticleKey.STREAM_NAME] = self.data_particle_type()
         result[DataParticleKey.VALUES] = values
 
-        log.debug("Serialize result: %s", result)
+        #log.debug("Serialize result: %s", result)
         return result
         
     def generate(self, sorted=False):

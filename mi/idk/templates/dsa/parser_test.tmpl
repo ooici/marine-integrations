@@ -21,9 +21,10 @@ class ${full_instrument_first}ParserUnitTestCase(ParserUnitTestCase):
     """
     ${full_instrument_first} Parser unit test suite
     """
-    def state_callback(self, state):
+    def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
+        self.file_ingested_value = file_ingested
 
     def pub_callback(self, pub):
         """ Call back method to watch what comes in via the publish callback """
@@ -38,6 +39,7 @@ class ${full_instrument_first}ParserUnitTestCase(ParserUnitTestCase):
         # Define test data particles and their associated timestamps which will be 
         # compared with returned results
 
+        self.file_ingested_value = None
         self.state_callback_value = None
         self.publish_callback_value = None
 

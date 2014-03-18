@@ -1,0 +1,5 @@
+2013/11/16 20:35:35.965 [rte:DLOGP3]:3712-50060, RTE Control Board Firmware REV 1.0, 11/07/2013
+2013/11/16 20:35:35.999 [rte:DLOGP3]:>Standard Power Mode activated!
+2013/11/16 20:36:22.111 [rte:DLOGP3]:Instrument Started [No Initialize]
+2013/11/16 20:46:24.989 Coulombs = 1.1110C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.02V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
+2013/11/16 20:56:25.633 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1

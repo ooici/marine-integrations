@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Jeff Roy
+  constructor: RTE_xx__stc_DataSetDriver
+  driver_name: RTE_xx__stc
+  driver_path: RTE/STC
+  email: jeffrey_a_roy@raytheon.com
+  release_notes: Initial Release
+  version: 0.0.1
