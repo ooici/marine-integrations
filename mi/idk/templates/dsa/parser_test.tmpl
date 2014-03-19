@@ -18,6 +18,9 @@ from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_camelcase}Parser, StateKey
 from mi.dataset.parser.${full_instrument_lower} import ${full_instrument_camelcase}ParserDataParticle
 
+# The list of generated tests are the suggested tests, but there may
+# be other tests needed to fully test your parser
+
 @attr('UNIT', group='mi')
 class ${full_instrument_camelcase}ParserUnitTestCase(ParserUnitTestCase):
     """
