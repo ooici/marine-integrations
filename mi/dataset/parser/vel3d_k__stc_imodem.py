@@ -166,7 +166,7 @@ class Vel3d_k__stc_imodemTimeDataParticle(DataParticle):
                 log.debug('Time Raw data %s does not match %s',
                   self.raw_data, arg.raw_data)
             elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
+              arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
                 log.debug('Time Timestamp %f does not match %f',
                   self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
                   arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
@@ -239,7 +239,7 @@ class Vel3d_k__stc_imodemVelocityDataParticle(DataParticle):
             if self.raw_data != arg.raw_data:
                 log.debug('Velocity Raw data does not match')
             elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
+              arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
                 log.debug('Velocity Timestamp %f does not match %f',
                   self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
                   arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
@@ -253,7 +253,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
     # These will be overridden when the Flag record is read.
     #
     global flags
-    flags = [False for x in range (FLAG_RECORD_SIZE)]
+    flags = [False for x in range(FLAG_RECORD_SIZE)]
 
     def __init__(self, config, input_file, state, 
       state_callback, publish_callback):
