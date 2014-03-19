@@ -19,6 +19,7 @@ import ntplib
 
 from mi.core.log import get_logger
 
+
 log = get_logger()
 
 from mi.core.common import BaseEnum
@@ -34,9 +35,6 @@ from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
-
-# DHE: Might need this if we use multiline regex
-#from mi.instrument.noaa.driver import BOTPTParticle
 
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
@@ -128,10 +126,11 @@ class InstrumentCommand(BaseEnum):
 
 
 class IRISCommandResponse():
+    _compiled_regex = None
+
     def __init__(self, raw_data):
         """ 
-        Construct a IRISCommandResponse object 
-        
+        Construct a IRISCommandResponse object
         @param raw_data The raw data used in the particle
         """
         self.raw_data = raw_data
@@ -156,7 +155,9 @@ class IRISCommandResponse():
         get the compiled regex pattern
         @return: compiled re
         """
-        return re.compile(IRISCommandResponse.regex())
+        if IRISCommandResponse._compiled_regex is None:
+            IRISCommandResponse._compiled_regex = re.compile(IRISCommandResponse.regex())
+        return IRISCommandResponse._compiled_regex
 
     def check_command_response(self, expected_response):
         """
@@ -173,8 +174,6 @@ class IRISCommandResponse():
             raise SampleException("No regex match of command response: [%s]" %
                                   self.raw_data)
         try:
-            #resp_time = match.group(1)
-            #timestamp = time.strptime(resp_time, "%Y/%m/%d %H:%M:%S")
             self.iris_command_response = match.group(2)
             if expected_response is not None:
                 if self.iris_command_response == expected_response:
@@ -232,6 +231,7 @@ class IRISDataParticle(DataParticle):
         Serial Number = sn
     """
     _data_particle_type = DataParticleType.IRIS_PARSED
+    _compiled_regex = None
 
     @staticmethod
     def regex():
@@ -254,7 +254,9 @@ class IRISDataParticle(DataParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        return re.compile(IRISDataParticle.regex())
+        if IRISDataParticle._compiled_regex is None:
+            IRISDataParticle._compiled_regex = re.compile(IRISDataParticle.regex())
+        return IRISDataParticle._compiled_regex
 
     def _build_parsed_values(self):
         """
@@ -302,66 +304,9 @@ class IRISDataParticle(DataParticle):
 ###############################################################################
 # Status Particles
 ###############################################################################
-class IRISStatusSignOnParticleKey(BaseEnum):
-    MODEL = "model"
-    SN = "serial_number"
-    FIRMWARE_VERSION = "firmware_version"
-    IDENTITY = "identity"
-    TIME = "iris_time"
-
-
-class IRISStatusSignOnParticle(DataParticle):
-    _data_particle_type = DataParticleType.IRIS_STATUS
-
-    @staticmethod
-    def regex():
-        """
-        Example of output from display signon command (Note: we don't issue this command,
-        but the output is prepended to the DUMP-SETTINGS command):
-        
-        IRIS,2013/06/12 18:03:44,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N8642 ID01
-        """
-
-        pattern = r'IRIS,'  # pattern starts with IRIS '
-        pattern += r'(.*?),'  # group 1: time
-        pattern += r'\*APPLIED GEOMECHANICS'
-        pattern += r'.*?'  # non-greedy match of all the junk between
-        pattern += NEWLINE
-        return pattern
-
-    @staticmethod
-    def regex_compiled():
-        return re.compile(IRISStatusSignOnParticle.regex())
-
-    def _build_parsed_values(self):
-        """        
-        @throws SampleException If there is a problem with sample creation
-        """
-        match = IRISStatusSignOnParticle.regex_compiled().match(self.raw_data)
-
-        try:
-            iris_time = match.group(1)
-            timestamp = time.strptime(iris_time, "%Y/%m/%d %H:%M:%S")
-            self.set_internal_timestamp(unix_time=time.mktime(timestamp))
-            ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
-
-        except ValueError:
-            raise SampleException("ValueError while converting data: [%s]" %
-                                  self.raw_data)
-
-        result = [
-            {DataParticleKey.VALUE_ID: IRISStatusSignOnParticleKey.TIME,
-             DataParticleKey.VALUE: ntp_timestamp},
-            # Add firmware version"
-            #{DataParticleKey.VALUE_ID: IRISSignOnParticleKey.SN,
-            # DataParticleKey.VALUE: sn}
-        ]
-
-        return result
-
-
 class IRISStatus01Particle(DataParticle):
     _data_particle_type = DataParticleType.IRIS_STATUS
+    _compiled_regex = None
     iris_status_response = "No response found."
 
     @staticmethod
@@ -385,7 +330,6 @@ class IRISStatus01Particle(DataParticle):
         IRIS,2013/06/19 21:26:21,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00
         IRIS,2013/06/19 21:26:21,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-   
         """
-
         pattern = r'IRIS,'  # pattern starts with IRIS '
         pattern += r'(.*?),'  # group 1: time
         pattern += r'\*APPLIED GEOMECHANICS'
@@ -395,7 +339,9 @@ class IRISStatus01Particle(DataParticle):
 
     @staticmethod
     def regex_compiled():
-        return re.compile(IRISStatus01Particle.regex(), re.DOTALL)
+        if IRISStatus01Particle._compiled_regex is None:
+            IRISStatus01Particle._compiled_regex = re.compile(IRISStatus01Particle.regex(), re.DOTALL)
+        return IRISStatus01Particle._compiled_regex
 
     def _build_parsed_values(self):
         pass
@@ -412,11 +358,13 @@ class IRISStatus01Particle(DataParticle):
         object, and it then uses that to access the objects attribute that
         contains the response string.
         """
-        self.iris_status_response = self.raw_data
+        self.iris_status_response = NEWLINE.join([line for line in self.raw_data.split(NEWLINE)
+                                                  if line.startswith(IRIS_STRING)])
 
 
 class IRISStatus02Particle(DataParticle):
     _data_particle_type = DataParticleType.IRIS_STATUS
+    _compiled_regex = None
     iris_status_response = "No response found."
 
     @staticmethod
@@ -462,7 +410,9 @@ class IRISStatus02Particle(DataParticle):
 
     @staticmethod
     def regex_compiled():
-        return re.compile(IRISStatus02Particle.regex(), re.DOTALL)
+        if IRISStatus02Particle._compiled_regex is None:
+            IRISStatus02Particle._compiled_regex = re.compile(IRISStatus02Particle.regex(), re.DOTALL)
+        return IRISStatus02Particle._compiled_regex
 
     # noinspection PyMethodMayBeStatic
     def encoders(self):
@@ -483,7 +433,8 @@ class IRISStatus02Particle(DataParticle):
         object, and it then uses that to access the objects attribute that
         contains the response string.
         """
-        self.iris_status_response = self.raw_data
+        self.iris_status_response = NEWLINE.join([line for line in self.raw_data.split(NEWLINE)
+                                                  if line.startswith(IRIS_STRING)])
 
 
 ###############################################################################
@@ -531,12 +482,12 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 # Protocol
 ###########################################################################
 
+# noinspection PyMethodMayBeStatic, PyUnusedLocal
 class Protocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
-
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -551,40 +502,43 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
                                            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
+        handlers = {
+            ProtocolState.UNKNOWN: [
+                (ProtocolEvent.ENTER, self._handler_unknown_enter),
+                (ProtocolEvent.EXIT, self._handler_unknown_exit),
+                (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
+            ],
+            ProtocolState.AUTOSAMPLE: [
+                (ProtocolEvent.ENTER, self._handler_autosample_enter),
+                (ProtocolEvent.EXIT, self._handler_autosample_exit),
+                (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
+                (ProtocolEvent.DUMP_01, self._handler_command_autosample_dump01),
+                (ProtocolEvent.DUMP_02, self._handler_command_autosample_dump02),
+            ],
+            ProtocolState.COMMAND: [
+                (ProtocolEvent.ENTER, self._handler_command_enter),
+                (ProtocolEvent.EXIT, self._handler_command_exit),
+                (ProtocolEvent.GET, self._handler_command_get),
+                (ProtocolEvent.SET, self._handler_command_set),
+                (ProtocolEvent.DUMP_01, self._handler_command_autosample_dump01),
+                (ProtocolEvent.DUMP_02, self._handler_command_autosample_dump02),
+                (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
+            ],
+        }
+
+        for state in handlers:
+            for event, handler in handlers[state]:
+                self._protocol_fsm.add_handler(state, event, handler)
+
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
-
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
-                                       self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.DUMP_01,
-                                       self._handler_command_autosample_dump01)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.DUMP_02,
-                                       self._handler_command_autosample_dump02)
-
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.DUMP_01,
-                                       self._handler_command_autosample_dump01)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.DUMP_02,
-                                       self._handler_command_autosample_dump02)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
-                                       self._handler_command_start_autosample)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
 
         # Add build handlers for device commands.
-        self._add_build_handler(InstrumentCommand.DATA_ON, self._build_command)
-        self._add_build_handler(InstrumentCommand.DATA_OFF, self._build_command)
-        self._add_build_handler(InstrumentCommand.DUMP_SETTINGS_01, self._build_command)
-        self._add_build_handler(InstrumentCommand.DUMP_SETTINGS_02, self._build_command)
+        for command in InstrumentCommand.list():
+            self._add_build_handler(command, self._build_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCommand.DATA_ON, self._parse_data_on_off_resp)
@@ -600,13 +554,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        #
         self._chunker = StringChunker(Protocol.sieve_function)
 
         # set up the regexes now so we don't have to do it repeatedly
         self.data_regex = IRISDataParticle.regex_compiled()
         self.cmd_rsp_regex = IRISCommandResponse.regex_compiled()
-        self.signon_regex = IRISStatusSignOnParticle.regex_compiled()
         self.status_01_regex = IRISStatus01Particle.regex_compiled()
         self.status_02_regex = IRISStatus02Particle.regex_compiled()
         self._last_data_timestamp = 0
@@ -616,26 +568,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         The method that splits samples
         """
-
         matchers = []
         return_list = []
 
-        # """
-        # would be nice to be able to do this.
-        # matchers.append(self.data_regex)
-        # matchers.append(self.signon_regex)
-        # matchers.append(self.status_01_regex)
-        # matchers.append(self.status_02_regex)
-        # matchers.append(self.cmd_rsp_regex)
-        # """
-        #
-        # """
-        # Not a good idea to be compiling these for every invocation of this
-        # method; they don't change.
-        # """
-
         matchers.append(IRISDataParticle.regex_compiled())
-        #matchers.append(IRISStatusSignOnParticle.regex_compiled())
         matchers.append(IRISStatus01Particle.regex_compiled())
         matchers.append(IRISStatus02Particle.regex_compiled())
         matchers.append(IRISCommandResponse.regex_compiled())
@@ -660,7 +596,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         self._cmd_dict = ProtocolCommandDict()
 
-    # noinspection PyMethodMayBeStatic
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
@@ -670,7 +605,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Add parameter handlers to parameter dict.
         pass
 
-    # noinspection PyMethodMayBeStatic
     def add_to_buffer(self, data):
         """
         Overridden because most of the data coming to this driver
@@ -713,39 +647,29 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         log.debug("_got_chunk_: %s", chunk)
 
-        if (self.cmd_rsp_regex.match(chunk)
-            #or self.signon_regex.match(chunk) # currently not using the signon chunk
-            or self.status_01_regex.match(chunk)
-            or self.status_02_regex.match(chunk)):
+        if self.cmd_rsp_regex.match(chunk) or self.status_01_regex.match(chunk) or self.status_02_regex.match(chunk):
             self._my_add_to_buffer(chunk)
         else:
-            if not self._extract_sample(IRISDataParticle,
-                                        self.data_regex,
-                                        chunk, timestamp):
+            if not self._extract_sample(IRISDataParticle, self.data_regex, chunk, timestamp):
                 raise InstrumentProtocolException("Unhandled chunk")
 
-    # noinspection PyMethodMayBeStatic, PyUnusedLocal
     def _build_command(self, cmd, *args, **kwargs):
         command = cmd + NEWLINE
         log.debug("_build_command: command is: %s", command)
         return command
 
-    # noinspection PyMethodMayBeStatic
     def _parse_data_on_off_resp(self, response, prompt):
         log.debug("_parse_data_on_off_resp: response: %r; prompt: %s", response, prompt)
         return response.iris_command_response
 
-    # noinspection PyMethodMayBeStatic
     def _parse_status_01_resp(self, response, prompt):
         log.debug("_parse_status_01_resp: response: %r; prompt: %s", response, prompt)
         return response.iris_status_response
 
-    # noinspection PyMethodMayBeStatic
     def _parse_status_02_resp(self, response, prompt):
         log.debug("_parse_status_02_resp: response: %r; prompt: %s", response, prompt)
         return response.iris_status_response
 
-    # noinspection PyMethodMayBeStatic
     def _wakeup(self, timeout, delay=1):
         """
         Overriding _wakeup; does not apply to this instrument
@@ -763,7 +687,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param timeout The timeout in seconds
         @param expected_prompt Only consider the specific expected prompt as
         presented by this string
-        @throw InstrumentProtocolExecption on timeout
+        @throw InstrumentProtocolException on timeout
         """
         # Grab time for timeout and wait for response
 
@@ -778,11 +702,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 log.debug("_get_response() matched CommandResponse")
                 response.check_command_response(expected_prompt)
                 continuing = False
-                #elif self.signon_regex.match(self._promptbuf):
-                #response = IRISStatusSignOnParticle(self._promptbuf)
-                #log.debug("~~~~~~~~~ SignonResponse")
-
-                # Currently not using the signon particle.
             elif self.status_01_regex.match(self._promptbuf):
                 response = IRISStatus01Particle(self._promptbuf)
                 log.debug("_get_response() matched Status_01_Response")
@@ -806,7 +725,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Unknown handlers.
     ########################################################################
 
-    # noinspection PyUnusedLocal
     def _handler_unknown_enter(self, *args, **kwargs):
         """
         Enter unknown state.
@@ -815,21 +733,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def _handler_unknown_exit(self, *args, **kwargs):
         """
         Exit unknown state.
         """
         pass
 
-    # noinspection PyUnusedLocal
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state
         @retval (next_state, result)
         """
-        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF,
-                                   expected_prompt=IRIS_DATA_OFF)
+        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF, expected_prompt=IRIS_DATA_OFF)
 
         return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
@@ -837,17 +752,14 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Autosample handlers.
     ########################################################################
 
-    # noinspection PyUnusedLocal
     def _handler_autosample_enter(self, *args, **kwargs):
         """
         Enter autosample state.
         """
-
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def _handler_autosample_exit(self, *args, **kwargs):
         """
         Exit command state.
@@ -861,8 +773,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF,
-                                   expected_prompt=IRIS_DATA_OFF)
+        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF, expected_prompt=IRIS_DATA_OFF)
 
         return next_state, (next_agent_state, result)
 
@@ -870,7 +781,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Command handlers.
     ########################################################################
 
-    # noinspection PyUnusedLocal
     def _handler_command_enter(self, *args, **kwargs):
         """
         Enter command state.
@@ -884,7 +794,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def _handler_command_get(self, *args, **kwargs):
         """
         Get parameter
@@ -895,7 +804,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, result
 
-    # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def _handler_command_set(self, *args, **kwargs):
         """
         Set parameter
@@ -907,7 +815,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, result
 
-    # noinspection PyUnusedLocal
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Turn the iris data on
@@ -916,12 +823,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_agent_state = ResourceAgentState.STREAMING
 
         # call _do_cmd_resp, passing our IRIS_DATA_ON as the expected_prompt
-        result = self._do_cmd_resp(InstrumentCommand.DATA_ON,
-                                   expected_prompt=IRIS_DATA_ON)
+        result = self._do_cmd_resp(InstrumentCommand.DATA_ON, expected_prompt=IRIS_DATA_ON)
 
         return next_state, (next_agent_state, result)
 
-    # noinspection PyUnusedLocal,PyMethodMayBeStatic
     def _handler_command_exit(self, *args, **kwargs):
         """
         Exit command state.
@@ -932,7 +837,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Handlers common to Command and Autosample States.
     ########################################################################
 
-    # noinspection PyUnusedLocal
     def _handler_command_autosample_acquire_status(self, *args, **kwargs):
         """
         Get device status
@@ -948,7 +852,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, (next_agent_state, result)
 
-    # noinspection PyUnusedLocal
     def _handler_command_autosample_dump01(self, *args, **kwargs):
         """
         Get device status
@@ -969,7 +872,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, (next_agent_state, result)
 
-    # noinspection PyUnusedLocal
     def _handler_command_autosample_dump02(self, *args, **kwargs):
         """
         Get device status
