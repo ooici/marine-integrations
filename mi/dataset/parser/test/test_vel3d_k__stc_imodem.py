@@ -181,8 +181,8 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         """
         log.info("=================== START SIMPLE ======================")
         log.info("Simple length %d", len(TEST_DATA_GOOD_1_REC))
-        file = StringIO(TEST_DATA_GOOD_1_REC)
-        self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
+        input_file = StringIO(TEST_DATA_GOOD_1_REC)
+        self.parser = Vel3d_k__stc_imodemParser(self.config, input_file, 
           self.state, self.state_callback, self.pub_callback)
 
         log.info("SIMPLE VERIFY VELOCITY RECORD 1")
@@ -209,8 +209,8 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         """
         log.info("=================== START SOME ======================")
         log.info("Some length %d", len(TEST_DATA_GOOD_2_REC))
-        file = StringIO(TEST_DATA_GOOD_2_REC)
-        self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
+        input_file = StringIO(TEST_DATA_GOOD_2_REC)
+        self.parser = Vel3d_k__stc_imodemParser(self.config, input_file, 
           self.state, self.state_callback, self.pub_callback)
 
         log.info("SOME VERIFY VELOCITY RECORD 1")
@@ -244,8 +244,8 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         """
         log.info("=================== START MANY ======================")
         log.info("Many length %d", len(TEST_DATA_GOOD_BIG_FILE))
-        file = StringIO(TEST_DATA_GOOD_BIG_FILE)
-        self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
+        input_file = StringIO(TEST_DATA_GOOD_BIG_FILE)
+        self.parser = Vel3d_k__stc_imodemParser(self.config, input_file, 
           self.state, self.state_callback, self.pub_callback)
 
         log.info("MANY VERIFY VELOCITY RECORD 1")
@@ -294,13 +294,13 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         """
         log.info("=================== START MID-STATE ======================")
         log.info("Mid-state length %d", len(TEST_DATA_GOOD_BIG_FILE))
-        file = StringIO(TEST_DATA_GOOD_BIG_FILE)
+        input_file = StringIO(TEST_DATA_GOOD_BIG_FILE)
 
         ## Skip past the flag record and the first 2 velocity records.
         position = FLAG_RECORD_SIZE + (2 * VELOCITY_RECORD_SIZE)
         new_state = {StateKey.POSITION: position}
 
-        self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
+        self.parser = Vel3d_k__stc_imodemParser(self.config, input_file, 
           new_state, self.state_callback, self.pub_callback)
 
         ## This should get record 3.
@@ -320,9 +320,9 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         """
         log.info("=================== SET STATE ======================")
         log.info("Set state length %d", len(TEST_DATA_GOOD_BIG_FILE))
-        my_file = StringIO(TEST_DATA_GOOD_BIG_FILE)
+        input_file = StringIO(TEST_DATA_GOOD_BIG_FILE)
 
-        self.parser = Vel3d_k__stc_imodemParser(self.config, my_file, 
+        self.parser = Vel3d_k__stc_imodemParser(self.config, input_file, 
           self.state, self.state_callback, self.pub_callback)
 
         log.info("SET STATE VERIFY VELOCITY RECORD 1")
@@ -353,9 +353,9 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         """
         log.info("=================== START BAD FLAG ======================")
         log.info("Bad Flag length %d", len(TEST_DATA_BAD_FLAG_RECORD))
-        file = StringIO(TEST_DATA_BAD_FLAG_RECORD)
+        input_file = StringIO(TEST_DATA_BAD_FLAG_RECORD)
         with self.assertRaises(SampleException):
-            self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
+            self.parser = Vel3d_k__stc_imodemParser(self.config, input_file, 
               self.state, self.state_callback, self.pub_callback)
         log.info("=================== END BAD FLAG ======================")
 
@@ -367,9 +367,9 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         """
         log.info("=================== START SHORT FLAG ======================")
         log.info("Short Flag length %d", len(TEST_DATA_SHORT_FLAG_RECORD))
-        file = StringIO(TEST_DATA_SHORT_FLAG_RECORD)
+        input_file = StringIO(TEST_DATA_SHORT_FLAG_RECORD)
         with self.assertRaises(SampleException):
-            self.parser = Vel3d_k__stc_imodemParser(self.config, file, 
+            self.parser = Vel3d_k__stc_imodemParser(self.config, input_file, 
               self.state, self.state_callback, self.pub_callback)
         log.info("=================== END SHORT FLAG ======================")
 
