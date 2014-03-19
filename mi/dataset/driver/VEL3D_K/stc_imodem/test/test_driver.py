@@ -21,12 +21,16 @@ from nose.plugins.attrib import attr
 from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
+from mi.core.exceptions import SampleException, DatasetParserException
 from mi.idk.exceptions import SampleTimeout
 
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+
+from pyon.agent.agent import ResourceAgentState
+from interface.objects import ResourceAgentErrorEvent
 
 from mi.dataset.driver.VEL3D_K.stc_imodem.driver import VEL3D_K__stc_imodem_DataSetDriver
 from mi.dataset.parser.vel3d_k__stc_imodem import Vel3d_k__stc_imodemTimeDataParticle
@@ -63,40 +67,119 @@ class IntegrationTest(DataSetIntegrationTestCase):
  
     def test_get(self):
         """
-        Test that we can get data from files.  Verify that the driver
-        sampling can be started and stopped
+        Test that we can get data from multiple files.
         """
-        log.info("=================== START INTEG GET ======================")
+        log.info("================ START INTEG TEST GET =====================")
 
+        # Start sampling.
         self.clear_sample_data()
-
-        # Start sampling and watch for an exception
         self.driver.start_sampling()
-
         self.clear_async_data()
 
         ## From sample file A0000010.DEC:
         ## Flag record, first and last velocity record, time record.
+        log.info("========== FIRST FILE A0000002 INTEG TEST GET ============")
         self.create_sample_data('valid_A0000002.DEC', "A0000002.DEC")
         self.assert_data_multiple_class('valid_A0000002.yml', 
           count=3, timeout=10)
 
-        #self.clear_async_data()
-        #self.create_sample_data('second.DEC', "E0000002.DEC")
-        #self.assert_data_multiple_class('second.result.yml', count=5, timeout=10)
+        ## From sample file A0000010.DEC:
+        ## Flag record, first and last velocity records twice, time record.
+        log.info("========= SECOND FILE A0000004 INTEG TEST GET ============")
+        self.clear_async_data()
+        self.create_sample_data('valid_A0000004.DEC', "A0000004.DEC")
+        self.assert_data_multiple_class('valid_A0000004.yml', 
+          count=5, timeout=10)
 
-        #self.clear_async_data()
-        #self.create_sample_data('E0000303.DEC', "E0000303.DEC")
-        # start is the same particle here, just use the same results
-        #self.assert_data_multiple_class(count=34, timeout=10)
+        ## Made-up data with all flags set to True.
+        ## Field values may not be realistic.
+        log.info("========= THIRD FILE A0000003 INTEG TEST GET ============")
+        self.clear_async_data()
+        self.create_sample_data('all_A0000003.DEC', "A0000003.DEC")
+        self.assert_data_multiple_class('all_A0000003.yml', 
+          count=4, timeout=10)
+        log.info("================ END INTEG TEST GET ======================")
 
-        log.info("=================== END INTEG GET ======================")
+    def test_incomplete_file(self):
+        """
+        Test that we can handle a file missing the end of Velocity records.
+        Should generate a SampleException.
+        """
+        log.info("=========== START INTEG TEST INCOMPLETE  =================")
+
+        self.clear_sample_data()
+        self.clear_async_data()
+
+        ## From sample file A0000010.DEC:
+        ## Flag record, first and last velocity record, time record,
+        ## but the end of Velocity record (all zeroes) is missing.
+        filename = "A1000002.DEC"
+        self.create_sample_data('incomplete_A0000002.DEC', filename)
+
+        # Start sampling.
+        self.driver.start_sampling()
+
+        # an event catches the sample exception
+        self.assert_event('ResourceAgentErrorEvent')
+
+        # Verify that the entire file has been read.
+        self.assert_file_ingested(filename)
+
+        log.info("=========== END INTEG TEST INCOMPLETE  ====================")
+
+    def test_invalid_flag_record(self):
+        """
+        Test that we can handle a file with an invalid Flag record.
+        Should generate a SampleException.
+        """
+        log.info("=========== START INTEG TEST INVALID  ====================")
+
+        self.clear_sample_data()
+        self.clear_async_data()
+
+        ## Made-up data with all flags except the first set to True.
+        ## First flag is not a zero or one.
+        filename = "A1000003.DEC"
+        self.create_sample_data('invalid_A0000003.DEC', filename)
+
+        # Start sampling.
+        self.driver.start_sampling()
+
+        # an event catches the sample exception
+        self.assert_event('ResourceAgentErrorEvent')
+
+        # Verify that the entire file has been read.
+        self.assert_file_ingested(filename)
+        log.info("============== END INTEG TEST INVALID  ====================")
 
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
         """
-        pass
+        log.info("=========== START INTEG TEST STOP RESUME  ================")
+        filename_1 = "A0000002.DEC"
+        filename_2 = "A0000004.DEC"
+
+        path_1 = self.create_sample_data('valid_A0000002.DEC', filename_1)
+        path_2 = self.create_sample_data('valid_A0000004.DEC', filename_2)
+
+        # Create and store the new driver state
+        # Set status of file 1 to completely read.
+        # Set status of file 2 to start reading at record 3 of a 4 record file.
+        state = {
+            filename_1 : self.get_file_state(path_1, True, 50),
+            filename_2 : self.get_file_state(path_2, False, 74)
+        }
+        self.driver = self._get_driver_object(memento=state)
+
+        self.clear_async_data()
+        self.driver.start_sampling()
+
+        # Verify that data is produced 
+        # (last 2 velocity records plus time record).
+        self.assert_data_multiple_class('partial_A0000004.yml', 
+          count=3, timeout=10)
+        log.info("============== END INTEG TEST STOP RESUME  ================")
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -105,8 +188,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-    def setUp(self):
-        super(QualificationTest, self).setUp()
 
     def test_publish_path(self):
         """
