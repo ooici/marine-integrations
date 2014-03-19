@@ -7,6 +7,7 @@ Release notes:
 
 initial version
 """
+import functools
 
 __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
@@ -56,9 +57,9 @@ from mi.core.instrument.protocol_param_dict import ProtocolParameterDict, \
 
 NEWLINE = '\r\n'
 CONTROL_C = '\x03'
+NUM_PORTS = 48  # number of collection bags
 
 # default timeout.
-TIMEOUT = 10
 INTER_CHARACTER_DELAY = .2
 
 ####
@@ -77,7 +78,7 @@ class ProtocolState(BaseEnum):
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE  # TODO - not sure if this should be here
+    ACQUIRE_SAMPLE = 'DRIVER_STATE_ACQUIRE_SAMPLE'
 
 
 class ProtocolEvent(BaseEnum):
@@ -92,6 +93,7 @@ class ProtocolEvent(BaseEnum):
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     GET = DriverEvent.GET
     SET = DriverEvent.SET
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
 
 
@@ -101,6 +103,7 @@ class Capability(BaseEnum):
     """
     GET = ProtocolEvent.GET
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
+    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
 
 
 class Parameter(DriverParameter):
@@ -128,16 +131,8 @@ class Command(BaseEnum):
     BATTERY = 'battery'  # display battery voltage
     HOME = 'home'  # set the port to the home port (0)
     FORWARD = 'forward'  # start forward pump operation < volume flowrate minflow [time] >
+    REVERSE = 'reverse'  # reverse pump operation < volume flowrate minflow [time] >
     PORT = 'port'  # display current port or set valve to supplied position
-    # flush only on the home port
-    FLUSH = str('forward %s %s %s' %
-                (Parameter.FLUSH_VOLUME, Parameter.FLUSH_FLOWRATE, Parameter.FLUSH_MINFLOW))
-    # fill only on an available port - check before fill
-    FILL = str('forward %s %s %s' %
-               (Parameter.FILL_VOLUME, Parameter.FILL_FLOWRATE, Parameter.FILL_MINFLOW))
-    # reverse on the home port after fill
-    REVERSE = str('reverse %s %s %s' %
-                  (Parameter.REVERSE_VOLUME, Parameter.REVERSE_FLOWRATE, Parameter.REVERSE_MINFLOW))
 
 
 class Prompt(BaseEnum):
@@ -150,34 +145,31 @@ class Prompt(BaseEnum):
     ENTER_CTRL_C = 'Enter ^C now to wake up ...'
     COMMAND_INPUT = '>'
     UNRECOGNIZED_COMMAND = '] unrecognized command'
-    HOME = CR_NL  # TODO - what is the correct response prompt?
-    PORT = 'Port: '  # TODO - is partial string ok? May need regex
-    FORWARD = CR_NL  # TODO - what is the correct response prompt?
-    REVERSE = CR_NL  # TODO - what is the correct response prompt?
 
 
 class Response(BaseEnum):
     """
     Expected device response strings
     """
-    PORT = re.compile(r'PORT: \d+')  # e.g. PORT: 01
-    READY = re.compile(r'.* RAS .*>')  # e.g. 03/14/14 20:19:49 RAS ML12881-02>
-    # TODO add parsing for status
-    # e.g.
-    #              | --- command --- | ------------- result -------------- |
-    #     port   vol flo min  tl     vol flowr minfl sec mmddyy hhmmss   batt code
-    #Status 00 |  75 100  25   4 |   1.5  90.7  90.7*  1 031514 001727 | 29.9 0
+    HOME = re.compile(r'Port: 00')
+    PORT = re.compile(r'Port: \d+')  # e.g. Port: 01
+    READY = re.compile(r'^.* RAS ML.*>')  # e.g. 03/14/14 20:19:49 RAS ML12881-02>
+    # Result 00 |  75 100  25   4 |  77.2  98.5  99.1  47 031514 001813 | 29.8 1
+    PUMP = re.compile(r'Result\s+\d+\s+\|.*')
 
 
 class Timeout(BaseEnum):
     # TODO - do we want to poll for status (check each second for status) or do we want to wait for the completion of
     # the entire command?
     """
-    Timeouts for commands
+    Timeouts for commands  # TODO - calculate based on flow rate & volume
     """
-    FILL = 132
-    FLUSH = 33
-    REVERSE = 51
+    #HOME = 10
+    HOME = 30
+    FILL = 396
+    FLUSH = 99
+    CLEAR = 51
+    ACQUIRE_SAMPLE = FILL + FLUSH + CLEAR
 
 
 #####
@@ -201,6 +193,7 @@ class DataParticleType(BaseEnum):
     """
     Data particle types produced by this driver
     """
+    # TODO - define which commands will be published to user
     RAW = CommonDataParticleType.RAW
     RASFL_PARSED = 'rasfl_parsed'
     PUMP_STATUS = 'rasfl_pump_status'
@@ -211,6 +204,39 @@ class DataParticleType(BaseEnum):
 ###############################################################################
 # Data Particles
 ###############################################################################
+
+class RASFLVoltageDataParticleKey(BaseEnum):
+    VOLTAGE = 'battery_voltage'
+
+
+class RASFLVoltageDataParticle(DataParticle):
+    _data_particle_type = DataParticleType.RASFL_PARSED
+
+    # parse the battery return string, e.g.:
+    # Battery: 29.9V [Alkaline, 18V minimum]
+    @staticmethod
+    def regex():
+        exp = r'Battery:\s*(\d*\.*\d+)\s*'
+        return exp
+
+    @staticmethod
+    def regex_compiled():
+        return re.compile(RASFLVoltageDataParticle.regex(), re.DOTALL)
+
+    def _build_parsed_values(self):
+        match = self.regex_compiled().match(self.raw_data)
+
+        if not match:
+            raise SampleException("RASFL_VoltageDataParticle: No regex match of parsed sample data: [%s]",
+                                  self.raw_data)
+
+        result = [
+            {DataParticleKey.VALUE_ID: RASFLVoltageDataParticleKey.VOLTAGE,
+             DataParticleKey.VALUE: float(match.group(1))},
+        ]
+
+        return result
+
 
 # TODO - get the actual list of particles
 class RASFLVersionDataParticleKey(BaseEnum):
@@ -246,23 +272,26 @@ class RASFLVersionDataParticle(DataParticle):
             raise SampleException("RASFL_VersionDataParticle: No regex match of parsed sample data: [%s]",
                                   self.raw_data)
 
-        result = [{DataParticleKey.VALUE_ID: RASFLVersionDataParticleKey.VERSION,
-                   DataParticleKey.VALUE: str(match.group(1))},
-                  {DataParticleKey.VALUE_ID: RASFLVersionDataParticleKey.RELEASE_DATE,
-                   DataParticleKey.VALUE: str(match.group(2))},
-                  {DataParticleKey.VALUE_ID: RASFLVersionDataParticleKey.PUMP_TYPE,
-                   DataParticleKey.VALUE: str(match.group(3))},
-                  {DataParticleKey.VALUE_ID: RASFLVersionDataParticleKey.BAG_CAPACITY,
-                   DataParticleKey.VALUE: str(match.group(4))}]
+        result = [
+            {DataParticleKey.VALUE_ID: RASFLVersionDataParticleKey.VERSION,
+             DataParticleKey.VALUE: str(match.group(1))},
+            {DataParticleKey.VALUE_ID: RASFLVersionDataParticleKey.RELEASE_DATE,
+             DataParticleKey.VALUE: str(match.group(2))},
+            {DataParticleKey.VALUE_ID: RASFLVersionDataParticleKey.PUMP_TYPE,
+             DataParticleKey.VALUE: str(match.group(3))},
+            {DataParticleKey.VALUE_ID: RASFLVersionDataParticleKey.BAG_CAPACITY,
+             DataParticleKey.VALUE: str(match.group(4))},
+        ]
 
         return result
 
 
 class RASFLSampleDataParticleKey(BaseEnum):
     PORT = 'port'
-    VOLUME_COMMANDED = 'volume'
-    FLOW_RATE_COMMANDED = 'flow_rate'
-    MIN_FLOW_COMMANDED = 'min_flow'
+    VOLUME_COMMANDED = 'volume_commanded'
+    FLOW_RATE_COMMANDED = 'flow_rate_commanded'
+    MIN_FLOW_COMMANDED = 'min_flow_commanded'
+    TIME_LIMIT = 'time_limit'
     VOLUME_ACTUAL = 'volume'
     FLOW_RATE_ACTUAL = 'flow_rate'
     MIN_FLOW_ACTUAL = 'min_flow'
@@ -274,6 +303,10 @@ class RASFLSampleDataParticleKey(BaseEnum):
 
 
 # data particle for forward, reverse, and result commands
+#  e.g.:
+#                      --- command ---   -------- result -------------
+#     Result port  |  vol flow minf tlim  |  vol flow minf secs date-time  |  batt code
+#        Status 00 |  75 100  25   4 |   1.5  90.7  90.7*  1 031514 001727 | 29.9 0
 class RASFLSampleDataParticle(DataParticle):
     _data_particle_type = DataParticleType.RASFL_PARSED
 
@@ -283,21 +316,22 @@ class RASFLSampleDataParticle(DataParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        exp = str(r'[SR][te][as][tu][ul][st]\s*(\d+)' +  # PORT
-                  '(\d+)\s*\|\s*(\d+)' +  # VOLUME_COMMANDED
+        exp = str(r'(Status|Result)' +  # status is incremental, result is the last return from the command
+                  '\s*(\d+)\s*\|' +  # PORT
+                  '\s*(\d+)' +  # VOLUME_COMMANDED
                   '\s*(\d+)' +  # FLOW RATE COMMANDED
                   '\s*(\d+)' +  # MIN RATE COMMANDED
-                  '\s*(\d+)\s*\|' +  # TL - TODO
-                  '\s*(\d+\.\d+)' +  # VOLUME (actual)
-                  '\s*(\d+\.\d+)' +  # FLOW RATE (actual)
-                  '\s*(\d+\.\d+)' +  # MIN RATE (actual)
+                  '\s*(\d+)\s*\|' +  # TLIM - TODO
+                  '\s*(\d*\.?\d+)' +  # VOLUME (actual)
+                  '\s*(\d*\.?\d+)' +  # FLOW RATE (actual)
+                  '\s*(\d*\.?\d+)' +  # MIN RATE (actual)
                   '\*?' +
                   '\s*(\d+)' +  # elapsed time (seconds)
                   '\s*(\d+)' +  # MMDDYY (current date)
                   '\s*(\d+)\s*\|' +  # HHMMSS (current time)
-                  '\s*(\d+\.\d+)' +  # voltage (battery)
+                  '\s*(\d*\.?\d+)' +  # voltage (battery)
                   '\s*(\d+)' +  # code enumeration
-                  '\s*' + NEWLINE)
+                  '\s*')
         return exp
 
     @staticmethod
@@ -315,31 +349,33 @@ class RASFLSampleDataParticle(DataParticle):
             raise SampleException("RASFL_SampleDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
 
         result = [{DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.PORT,
-                   DataParticleKey.VALUE: int(match.group(1))},
-                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.VOLUME_COMMANDED,
                    DataParticleKey.VALUE: int(match.group(2))},
-                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.FLOW_RATE_COMMANDED,
+                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.VOLUME_COMMANDED,
                    DataParticleKey.VALUE: int(match.group(3))},
-                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.MIN_FLOW_COMMANDED,
+                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.FLOW_RATE_COMMANDED,
                    DataParticleKey.VALUE: int(match.group(4))},
-                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.VOLUME_ACTUAL,
+                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.MIN_FLOW_COMMANDED,
                    DataParticleKey.VALUE: int(match.group(5))},
-                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.FLOW_RATE_ACTUAL,
+                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.TIME_LIMIT,
                    DataParticleKey.VALUE: int(match.group(6))},
+                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.VOLUME_ACTUAL,
+                   DataParticleKey.VALUE: float(match.group(7))},
+                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.FLOW_RATE_ACTUAL,
+                   DataParticleKey.VALUE: float(match.group(8))},
                   {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.MIN_FLOW_ACTUAL,
-                   DataParticleKey.VALUE: int(match.group(7))},
+                   DataParticleKey.VALUE: float(match.group(9))},
                   {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.TIMER,
-                   DataParticleKey.VALUE: int(match.group(8))},
-                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.DATE,
-                   DataParticleKey.VALUE: int(match.group(9))},
-                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.TIME,
                    DataParticleKey.VALUE: int(match.group(10))},
+                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.DATE,
+                   DataParticleKey.VALUE: str(match.group(11))},
+                  {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.TIME,
+                   DataParticleKey.VALUE: str(match.group(12))},
                   {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.BATTERY,
-                   DataParticleKey.VALUE: int(match.group(11))},
+                   DataParticleKey.VALUE: float(match.group(13))},
                   {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.CODE,
-                   DataParticleKey.VALUE: int(match.group(12))}]
+                   DataParticleKey.VALUE: int(match.group(14))}]
 
-        log.critical("RASFL_SampleDataParticle._build_parsed_values: result=%s" % result)
+        log.critical("RASFL_SampleDataParticle._build_parsed_values: result=%s", result)
         return result
 
 
@@ -399,6 +435,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 # Protocol
 ###########################################################################
 
+# noinspection PyMethodMayBeStatic,PyUnusedLocal
 class Protocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol class
@@ -419,29 +456,43 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm = ThreadSafeFSM(ProtocolState, ProtocolEvent, ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        handlers = {
+            ProtocolState.UNKNOWN: [
+                (ProtocolEvent.ENTER, self._handler_unknown_enter),
+                (ProtocolEvent.EXIT, self._handler_unknown_exit),
+                (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
+            ],
+            ProtocolState.COMMAND: [
+                (ProtocolEvent.ENTER, self._handler_command_enter),
+                (ProtocolEvent.EXIT, self._handler_command_exit),
+                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
+                (ProtocolEvent.CLOCK_SYNC, self._handler_sync_clock),
+                (ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire),
+                (ProtocolEvent.GET, self._handler_get),
+                (ProtocolEvent.SET, self._handler_command_set),
+            ],
+            ProtocolState.ACQUIRE_SAMPLE: [
+                (ProtocolEvent.ENTER, self._handler_acquire_enter),
+                (ProtocolEvent.ACQUIRE_SAMPLE, self._handler_acquire_sample),
+                (ProtocolEvent.EXIT, self._handler_acquire_exit),
+                # TODO - do we want to allow abort (ctrl-C) in the middle of a collect?
+                #(ProtocolEvent.STOP, self._handler_acquire_interrupt),
+            ],
+            ProtocolState.DIRECT_ACCESS: [
+                (ProtocolEvent.ENTER, self._handler_direct_access_enter),
+                (ProtocolEvent.EXIT, self._handler_direct_access_exit),
+                (ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct),
+                (ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct),
+            ],
+        }
 
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,
-                                       self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_sync_clock)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
+        for state in handlers:
+            for event, handler in handlers[state]:
+                self._protocol_fsm.add_handler(state, event, handler)
 
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,
-                                       self._handler_direct_access_enter)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT,
-                                       self._handler_direct_access_exit)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT,
-                                       self._handler_direct_access_execute_direct)
-        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT,
-                                       self._handler_direct_access_stop_direct)
-
-        # Add build handlers for device commands.
-        self._add_build_handler(Command.BATTERY, self._build_simple_command)
+        # Add build handlers for device commands - we are only using simple commands
+        for cmd in Command.list():
+            self._add_build_handler(cmd, self._build_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(Command.BATTERY, self._parse_battery_response)
@@ -458,13 +509,14 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Start state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
-        self.flush_command = None
         self._sent_cmds = None
 
-        self.NUM_PORTS = 48  # number of collection bags
         # TODO - reset next_port on mechanical refresh of the RAS bags - how is the driver notified?
         # TODO - need to persist state for next_port to save driver restart
         self.next_port = 1  # next available port
+
+        self._do_cmd_resp = functools.partial(CommandResponseInstrumentProtocol._do_cmd_resp, self,
+                                              write_delay=INTER_CHARACTER_DELAY)
 
     @staticmethod
     def sieve_function(raw_data):
@@ -482,7 +534,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 return_list.append((match.start(), match.end()))
 
         if not return_list:
-            log.debug("sieve_function: raw_data=%s, return_list=%s" % (raw_data, return_list))
+            log.debug("sieve_function: raw_data=%s, return_list=%s", raw_data, return_list)
         return return_list
 
     def _got_chunk(self, chunk, timestamp):
@@ -490,7 +542,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
-        log.debug("_got_chunk: chunk=%s" % chunk)
+        log.debug("_got_chunk: chunk=%s", chunk)
         self._extract_sample(RASFLSampleDataParticle, RASFLSampleDataParticle.regex_compiled(), chunk, timestamp)
 
     def _filter_capabilities(self, events):
@@ -510,61 +562,36 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         fn = "apply_startup_params"
         config = self.get_startup_config()
-        log.debug("%s: startup config = %s" % (fn, config))
+        log.debug("%s: startup config = %s", fn, config)
 
-        if Parameter.FLUSH_VOLUME in config:
-            self._param_dict.set_value(Parameter.FLUSH_VOLUME, config[Parameter.FLUSH_VOLUME])
-        if Parameter.FLUSH_FLOWRATE in config:
-            self._param_dict.set_value(Parameter.FLUSH_FLOWRATE, config[Parameter.FLUSH_FLOWRATE])
-        if Parameter.FLUSH_MINFLOW in config:
-            self._param_dict.set_value(Parameter.FLUSH_MINFLOW, config[Parameter.FLUSH_MINFLOW])
-
-        if Parameter.FILL_VOLUME in config:
-            self._param_dict.set_value(Parameter.FILL_VOLUME, config[Parameter.FILL_VOLUME])
-        if Parameter.FILL_FLOWRATE in config:
-            self._param_dict.set_value(Parameter.FILL_FLOWRATE, config[Parameter.FILL_FLOWRATE])
-        if Parameter.FILL_MINFLOW in config:
-            self._param_dict.set_value(Parameter.FILL_MINFLOW, config[Parameter.FILL_MINFLOW])
-
-        if Parameter.REVERSE_VOLUME in config:
-            self._param_dict.set_value(Parameter.REVERSE_VOLUME, config[Parameter.REVERSE_VOLUME])
-        if Parameter.REVERSE_FLOWRATE in config:
-            self._param_dict.set_value(Parameter.REVERSE_FLOWRATE, config[Parameter.REVERSE_FLOWRATE])
-        if Parameter.REVERSE_MINFLOW in config:
-            self._param_dict.set_value(Parameter.REVERSE_MINFLOW, config[Parameter.REVERSE_MINFLOW])
+        for param in Parameter.list():
+            if param in config:
+                self._param_dict.set_value(param, config[param])
 
         log.debug("%s: new parameters", fn)
         for x in config:
             log.debug("  parameter %s: %s", x, config[x])
 
-        self.flush_command = '{0:s} {1:s} {2:s} {3:s}{4:s}' \
-            .format(Command.FORWARD,
-                    Parameter.FLUSH_VOLUME,
-                    Parameter.FLUSH_FLOWRATE,
-                    Parameter.FLUSH_MINFLOW,
-                    NEWLINE)
-
     ########################################################################
     # Unknown handlers.
     ########################################################################
 
-    def _handler_unknown_enter(self):
+    def _handler_unknown_enter(self, *args, **kwargs):
         """
         Enter unknown state.
         """
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        # TODO - read persistent data (next port)
 
-    @staticmethod
     def _handler_unknown_exit(self, *args, **kwargs):
         """
         Exit unknown state.
         """
         pass
 
-    @staticmethod
-    def _handler_unknown_discover():
+    def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state; can only be COMMAND (instrument has no actual AUTOSAMPLE mode).
         @retval (next_state, result), (ProtocolState.COMMAND, None) if successful.
@@ -577,7 +604,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_handler_unknown_discover: state = %s", next_state)
         return next_state, result
 
-    def _handler_collect_sample(self):
+    def _handler_acquire_exit(self, *args, **kwargs):
+        pass
+
+    def _handler_acquire_enter(self, *args, **kwargs):
         """
         Collect sample in the next available RAS sample port
         TODO - it's not clear how the agent will command collection of a RAS vice a PPS sample
@@ -585,43 +615,66 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval (next_state, result), (ProtocolState.COMMAND, None) if successful.
         """
 
-        next_state = None  # TODO - what should the next state be?
-        result = None  # TODO - what is the result?
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        self._protocol_fsm.on_event(ProtocolEvent.ACQUIRE_SAMPLE)
+
+    def _handler_acquire_sample(self, *args, **kwargs):
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+        result = None
+
+        flush_volume = self._param_dict.get_config_value(Parameter.FLUSH_VOLUME)
+        flush_flowrate = self._param_dict.get_config_value(Parameter.FLUSH_FLOWRATE)
+        flush_minflow = self._param_dict.get_config_value(Parameter.FLUSH_MINFLOW)
+
+        fill_volume = self._param_dict.get_config_value(Parameter.FILL_VOLUME)
+        fill_flowrate = self._param_dict.get_config_value(Parameter.FILL_FLOWRATE)
+        fill_minflow = self._param_dict.get_config_value(Parameter.FILL_MINFLOW)
+
+        clear_volume = self._param_dict.get_config_value(Parameter.REVERSE_VOLUME)
+        clear_flowrate = self._param_dict.get_config_value(Parameter.REVERSE_FLOWRATE)
+        clear_minflow = self._param_dict.get_config_value(Parameter.REVERSE_MINFLOW)
 
         # Sampling for RAS is comprised of multiple steps:
         try:
             # 1. Get next available port (if no available port, bail)
             # TODO - select the RAS sensor for commanding - should be part of network init on the RAS port
-            if self.next_port > self.NUM_PORTS:
-                raise InstrumentProtocolException('Unable to collect RAS sample - %s containers full' % self.NUM_PORTS)
+            if self.next_port > NUM_PORTS:
+                raise InstrumentProtocolException('Unable to collect RAS sample - %d containers full' % NUM_PORTS)
             # 2. Set to home port
-            self._do_cmd_resp(Command.HOME, expected_prompt=Prompt.HOME)
+            self._do_cmd_resp(Command.HOME, response_regex=Response.HOME, timeout=Timeout.HOME)
             # 3. flush intake (home port)
             # 4. wait 30 seconds
-            self._do_cmd_resp(Command.FLUSH, response_regex=Response.READY, timeout=Timeout.FLUSH)
+            log.debug('-----> flushing home port')
+            self._do_cmd_resp(Command.FORWARD, flush_volume, flush_flowrate, flush_minflow,
+                              response_regex=Response.PUMP, timeout=Timeout.FLUSH)
             # 5. switch to collection port (next available)
-            self._do_cmd_resp(str('%s %s' % (Command.PORT, self.next_port)), response_regex=Response.PORT)
+            self._do_cmd_resp(Command.PORT, self.next_port, response_regex=Response.PORT)
             # 6. fill sample (425 ml) - may be limited to bag capacity setting (check CAPACITY)
             # 7. wait 2 minutes
-            self._do_cmd_resp(Command.FILL, response_regex=Response.READY, timeout=Timeout.FILL)
+            log.debug('-----> collecting sample in port %d', self.next_port)
+            self._do_cmd_resp(Command.FORWARD, fill_volume, fill_flowrate, fill_minflow,
+                              response_regex=Response.PUMP, timeout=Timeout.FILL)
             self.next_port += 1
             # TODO - commit next_port to the agent for persistent data store
             # 8. return to home port
-            self._do_cmd_resp(Command.HOME, expected_prompt=Prompt.HOME)
+            self._do_cmd_resp(Command.HOME, response_regex=Response.HOME)
             # 9. reverse flush 75 ml to pump water from exhaust line through intake line
-            self._do_cmd_resp(Command.REVERSE, expected_prompt=Prompt.REVERSE, timeout=Timeout.REVERSE)
+            log.debug('-----> clearing home port')
+            self._do_cmd_resp(Command.REVERSE, clear_volume, clear_flowrate, clear_minflow,
+                              response_regex=Response.PUMP, timeout=Timeout.CLEAR)
 
         finally:
             pass  # TODO - cleanup as necessary
 
-        return next_state, result
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Command handlers.
     # just implemented to make DA possible, instrument has no actual command mode
     ########################################################################
 
-    def _handler_command_enter(self):
+    def _handler_command_enter(self, *args, **kwargs):
         """
         Enter command state.
         """
@@ -633,15 +686,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    @staticmethod
-    def _handler_command_exit():
+    def _handler_command_exit(self, *args, **kwargs):
         """
         Exit command state.
         """
         pass
 
-    @staticmethod
-    def _handler_command_set():
+    def _handler_command_set(self, *args, **kwargs):
         """
         no writable parameters so does nothing, just implemented to make framework happy
         """
@@ -650,8 +701,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
         return next_state, result
 
-    @staticmethod
-    def _handler_command_start_direct():
+    def _handler_command_start_direct(self, *args, **kwargs):
         """
         """
         result = None
@@ -664,7 +714,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Direct access handlers.
     ########################################################################
 
-    def _handler_direct_access_enter(self):
+    def _handler_direct_access_enter(self, *args, **kwargs):
         """
         Enter direct access state.
         """
@@ -674,8 +724,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._sent_cmds = []
 
-    @staticmethod
-    def _handler_direct_access_exit():
+    def _handler_direct_access_exit(self, *args, **kwargs):
         """
         Exit direct access state.
         """
@@ -689,8 +738,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, result
 
-    @staticmethod
-    def _handler_direct_access_stop_direct():
+    def _handler_direct_access_stop_direct(self, *args, **kwargs):
         result = None
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
@@ -701,7 +749,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     # general handlers.
     ########################################################################
 
-    def _handler_sync_clock(self):
+    def _handler_sync_clock(self, *args, **kwargs):
         """
         sync clock close to a second edge 
         @retval (next_state, (next_agent_state, result)) tuple, (None, (None, None)).
@@ -725,13 +773,18 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, (next_agent_state, result)
 
+    def _handler_command_acquire(self, *args, **kwargs):
+        next_state = ProtocolState.ACQUIRE_SAMPLE
+
+        return next_state, None
+
     ########################################################################
     # Private helpers.
     ########################################################################
 
     def _wakeup(self, wakeup_timeout=10, response_timeout=3):
         """
-        Over-ridden because waking this instrument up is a multi-step process with
+        Over-written because waking this instrument up is a multi-step process with
         two different requests required
         @param wakeup_timeout The timeout to wake the device.
         @param response_timeout The time to look for response to a wakeup attempt.
@@ -745,11 +798,11 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         while True:
             # Clear the prompt buffer.
-            log.debug("_wakeup: clearing promptbuf: %s" % self._promptbuf)
+            log.debug("_wakeup: clearing promptbuf: %s", self._promptbuf)
             self._promptbuf = ''
 
             # Send a command and wait delay amount for response.
-            log.debug('_wakeup: Sending command %s, delay=%s' % (command.encode("hex"), response_timeout))
+            log.debug('_wakeup: Sending command %s, delay=%s', command.encode("hex"), response_timeout)
             for char in command:
                 self._connection.send(char)
                 time.sleep(INTER_CHARACTER_DELAY)
@@ -758,7 +811,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 time.sleep(sleep_time)
                 if self._promptbuf.find(Prompt.COMMAND_INPUT) != -1:
                     # instrument is awake
-                    log.debug('_wakeup: got command input prompt %s' % Prompt.COMMAND_INPUT)
+                    log.debug('_wakeup: got command input prompt %s', Prompt.COMMAND_INPUT)
                     # add inter-character delay which _do_cmd_resp() incorrectly doesn't add to
                     # the start of a transmission
                     time.sleep(INTER_CHARACTER_DELAY)
@@ -771,12 +824,15 @@ class Protocol(CommandResponseInstrumentProtocol):
                     break
                 sleep_amount += sleep_time
                 if sleep_amount >= response_timeout:
-                    log.debug("_wakeup: expected response not received, buffer=%s" % self._promptbuf)
+                    log.debug("_wakeup: expected response not received, buffer=%s", self._promptbuf)
                     break
 
             if time.time() > starttime + wakeup_timeout:
                 raise InstrumentTimeoutException(
                     "_wakeup(): instrument failed to wakeup in %d seconds time" % wakeup_timeout)
+
+    def _build_command(self, cmd, *args):
+        return cmd + ' ' + ' '.join([str(x) for x in args]) + NEWLINE
 
     def _build_driver_dict(self):
         """
@@ -890,8 +946,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="reverse_min_flow",
                              visibility=ParameterDictVisibility.IMMUTABLE)
 
-    def _do_cmd_resp(self, cmd, *args, **kwargs):
-        CommandResponseInstrumentProtocol._do_cmd_resp(self, cmd, args, kwargs, write_delay=INTER_CHARACTER_DELAY)
+    # def _do_cmd_resp(self, cmd, *args, **kwargs):
+    #     kwargs['write_delay'] = INTER_CHARACTER_DELAY
+    #     CommandResponseInstrumentProtocol._do_cmd_resp(self, cmd, *args, **kwargs)
 
     def _update_params(self):
         """
@@ -899,7 +956,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
 
         log.debug("_update_params:")
-        self._do_cmd_resp(Command.BATTERY)
 
     def _parse_battery_response(self, response, prompt):
         """
@@ -908,7 +964,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.        
         @throws InstrumentProtocolException if battery command misunderstood.
         """
-        log.debug("_parse_battery_response: response=%s, prompt=%s" % (response, prompt))
+        log.debug("_parse_battery_response: response=%s, prompt=%s", response, prompt)
         if prompt == Prompt.UNRECOGNIZED_COMMAND:
             raise InstrumentProtocolException('battery command not recognized: %s.' % response)
 
