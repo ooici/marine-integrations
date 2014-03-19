@@ -537,7 +537,6 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         global flags
         flag_record = FLAG_RECORD_MATCHER.match(record)
         if not flag_record:
-            log.warn("Not a flag record")
             valid_flag_record = False
             regex_velocity_record = None
             regex_end_velocity_record = None
