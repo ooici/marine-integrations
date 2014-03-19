@@ -1305,19 +1305,16 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         # Set the XTILT to a low threshold so that the driver will
         # automatically start the re-leveling operation
-        # NOTE: This test MAY fail if the instrument is already
-        # below the autolevel threshold or if it completes
+        # NOTE: This test MAY fail if the instrument completes
         # leveling before the triggers have been reset to 300
 
-        self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 5)
-        self.assert_set(Parameter.YTILT_RELEVEL_TRIGGER, 5)
+        self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 0)
         self.assert_state_change(ProtocolState.AUTOSAMPLE_LEVELING, 30)
 
-        # Now set the XTILT and YTILT back to normal so that the driver will not
+        # Now set the XTILT back to normal so that the driver will not
         # automatically start the re-leveling operation
 
         self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 300)
-        self.assert_set(Parameter.YTILT_RELEVEL_TRIGGER, 300)
 
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
         self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
@@ -1327,7 +1324,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         @brief Test for turning data on
         """
         self.assert_initialize_driver()
-
+        time.sleep(150)
         # Set continuous data on
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
         self.assertEqual(response[1], LILY_DATA_ON)

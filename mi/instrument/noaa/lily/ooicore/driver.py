@@ -102,7 +102,6 @@ class ExportedInstrumentCommand(BaseEnum):
     DUMP_01 = "EXPORTED_INSTRUMENT_DUMP_SETTINGS"
     DUMP_02 = "EXPORTED_INSTRUMENT_DUMP_EXTENDED_SETTINGS"
     START_LEVELING = "EXPORTED_INSTRUMENT_START_LEVELING"
-    RESUME_LEVELING = "EXPORTED_INSTRUMENT_RESUME_LEVELING"
     STOP_LEVELING = "EXPORTED_INSTRUMENT_STOP_LEVELING"
 
 
@@ -120,7 +119,6 @@ class ProtocolEvent(BaseEnum):
     DUMP_01 = ExportedInstrumentCommand.DUMP_01
     DUMP_02 = ExportedInstrumentCommand.DUMP_02
     START_LEVELING = ExportedInstrumentCommand.START_LEVELING
-    RESUME_LEVELING = ExportedInstrumentCommand.RESUME_LEVELING
     STOP_LEVELING = ExportedInstrumentCommand.STOP_LEVELING
     LEVELING_COMPLETE = "PROTOCOL_EVENT_LEVELING_COMPLETE"
     LEVELING_TIMEOUT = "PROTOCOL_EVENT_LEVELING_TIMEOUT"
@@ -829,7 +827,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.DUMP_02, self._handler_command_autosample_dump02),
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
                 (ProtocolEvent.START_LEVELING, self._handler_autosample_start_leveling),
-                (ProtocolEvent.RESUME_LEVELING, self._handler_autosample_resume_leveling),
+                (ProtocolEvent.STOP_LEVELING, self._handler_autosample_leveling_stop_leveling),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -840,7 +838,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.DUMP_02, self._handler_command_autosample_dump02),
                 (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
                 (ProtocolEvent.START_LEVELING, self._handler_command_start_leveling),
-                (ProtocolEvent.RESUME_LEVELING, self._handler_command_resume_leveling),
+                (ProtocolEvent.STOP_LEVELING, self._handler_command_leveling_stop_leveling),
             ],
             ProtocolState.COMMAND_LEVELING: [
                 (ProtocolEvent.ENTER, self._handler_leveling_enter),
@@ -1186,8 +1184,8 @@ class Protocol(CommandResponseInstrumentProtocol):
             # might have just come active, and the instrument is already in
             # leveling)
             log.info("got_leveling_chunk() in command mode: sending event %s to fsm",
-                     ProtocolEvent.RESUME_LEVELING)
-            self.async_send_event(ProtocolEvent.RESUME_LEVELING)
+                     ProtocolEvent.STOP_LEVELING)
+            self.async_send_event(ProtocolEvent.STOP_LEVELING)
         else:
             if not self._extract_sample(LILYDataParticle,
                                         self.data_regex,
@@ -1668,29 +1666,3 @@ class Protocol(CommandResponseInstrumentProtocol):
                                              ProtocolState.AUTOSAMPLE_LEVELING,
                                              ResourceAgentState.CALIBRATE,
                                              kwargs.get('timeout'))
-
-    def _handler_command_resume_leveling(self, *args, **kwargs):
-        """
-        Instrument was in leveling mode; sync up by putting driver in leveling
-        state
-        """
-        log.debug("LILY handler_command_resume_leveling.")
-
-        next_state = ProtocolState.COMMAND_LEVELING
-        next_agent_state = ResourceAgentState.CALIBRATE
-        result = None
-
-        return next_state, (next_agent_state, result)
-
-    def _handler_autosample_resume_leveling(self, *args, **kwargs):
-        """
-        Instrument was in leveling mode; sync up by putting driver in leveling
-        state
-        """
-        log.debug("LILY handler_command_resume_leveling.")
-
-        next_state = ProtocolState.AUTOSAMPLE_LEVELING
-        next_agent_state = ResourceAgentState.CALIBRATE
-        result = None
-
-        return next_state, (next_agent_state, result)
