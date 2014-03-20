@@ -26,8 +26,6 @@ from mi.core.exceptions import SampleException, \
     InstrumentProtocolException, \
     InstrumentTimeoutException
 
-from mi.core.time import get_timestamp_delayed
-
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.chunker import StringChunker
@@ -61,6 +59,7 @@ NUM_PORTS = 48  # number of collection bags
 
 # default timeout.
 INTER_CHARACTER_DELAY = .2
+#INTER_CHARACTER_DELAY = 0.01
 
 ####
 #    Driver Constant Definitions
@@ -153,7 +152,8 @@ class Response(BaseEnum):
     """
     HOME = re.compile(r'Port: 00')
     PORT = re.compile(r'Port: \d+')  # e.g. Port: 01
-    READY = re.compile(r'^.* RAS ML.*>')  # e.g. 03/14/14 20:19:49 RAS ML12881-02>
+    #READY = re.compile(r'^.* RAS ML.*>')  # e.g. 03/14/14 20:19:49 RAS ML12881-02>
+    READY = re.compile(r'(\d+/\d+/\d+\s+\d+:\d+:\d+\s+)RAS (.*)>')  # e.g. 03/14/14 20:19:49 RAS ML12881-02>
     # Result 00 |  75 100  25   4 |  77.2  98.5  99.1  47 031514 001813 | 29.8 1
     PUMP = re.compile(r'Result\s+\d+\s+\|.*')
 
@@ -375,7 +375,6 @@ class RASFLSampleDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: RASFLSampleDataParticleKey.CODE,
                    DataParticleKey.VALUE: int(match.group(14))}]
 
-        log.critical("RASFL_SampleDataParticle._build_parsed_values: result=%s", result)
         return result
 
 
@@ -496,6 +495,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add response handlers for device commands.
         self._add_response_handler(Command.BATTERY, self._parse_battery_response)
+        self._add_response_handler(Command.CLOCK, self._parse_clock_response)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -517,6 +517,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._do_cmd_resp = functools.partial(CommandResponseInstrumentProtocol._do_cmd_resp, self,
                                               write_delay=INTER_CHARACTER_DELAY)
+        self._clock_set_offset = 0
 
     @staticmethod
     def sieve_function(raw_data):
@@ -757,21 +758,28 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
 
-        next_state = None
-        next_agent_state = None
-        result = None
+        cmd_len = len('clock 03/20/2014 17:14:55' + NEWLINE)
+        if self._clock_set_offset == 0:
+            self._clock_set_offset = cmd_len * INTER_CHARACTER_DELAY
 
-        time_format = "%Y/%m/%d %H:%M:%S"
-        str_val = get_timestamp_delayed(time_format)
+        time_format = "%m/%d/%Y %H:%M:%S"
+        str_val = time.strftime(time_format, time.gmtime(time.time() + self._clock_set_offset))
         log.debug("Setting instrument clock to '%s'", str_val)
-        #self._do_cmd_resp(Command.STOP, expected_prompt=Prompt.STOPPED)
-        try:
-            self._do_cmd_resp(Command.CLOCK, str_val, expected_prompt=Prompt.CR_NL)
-        finally:
-            # ensure that we try to start the instrument sampling again
-            self._do_cmd_resp(Command.GO, expected_prompt=Prompt.CR_NL)
 
-        return next_state, (next_agent_state, result)
+        try:
+            ras_time = self._do_cmd_resp(Command.CLOCK, str_val, response_regex=Response.READY)
+            log.debug('--- djm --- ras time %s', ras_time)
+            current_time = time.gmtime()
+            log.debug('--- djm --- current time %s', current_time)
+            diff = time.mktime(current_time) - time.mktime(ras_time)
+            log.debug('--- djm --- detected time lag of %d', diff)
+            latency = diff / 2
+            log.debug('--- djm --- latency %f', latency)
+        finally:
+            # TODO - this is probably not necessary
+            self._do_cmd_resp(Command.GO, response_regex=Response.READY)
+
+        return None, None
 
     def _handler_command_acquire(self, *args, **kwargs):
         next_state = ProtocolState.ACQUIRE_SAMPLE
@@ -972,3 +980,20 @@ class Protocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException('battery command not parsed: %s.' % response)
 
         return
+
+    def _parse_clock_response(self, response, prompt):
+        """
+        Parse handler for clock command.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if battery command misunderstood.
+        @retval the joined string from the regular expression match
+        """
+        # extract current time from response
+        ras_time_string = ' '.join(response.split()[:2])
+        time_format = "%m/%d/%y %H:%M:%S"
+        ras_time = time.strptime(ras_time_string, time_format)
+        ras_time = list(ras_time)
+        ras_time[-1] = 0  # tm_isdst field set to 0 - using GMT, no DST
+
+        return tuple(ras_time)
