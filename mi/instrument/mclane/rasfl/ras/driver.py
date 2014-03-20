@@ -8,6 +8,7 @@ Release notes:
 initial version
 """
 import functools
+import datetime
 
 __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
@@ -750,6 +751,27 @@ class Protocol(CommandResponseInstrumentProtocol):
     # general handlers.
     ########################################################################
 
+    def get_timestamp_delayed(self, fmt, delay=0):
+        """
+        Return a formatted date string of the current utc time,
+        but the string return is delayed until the next second
+        transition.
+
+        Formatting:
+        http://docs.python.org/library/time.html#time.strftime
+
+        @param fmt: strftime() format string
+        @return: formatted date string
+        @raise ValueError if format is None
+        """
+        if not fmt:
+            raise ValueError
+
+        now = datetime.datetime.utcnow() + datetime.timedelta(seconds=delay)
+        time.sleep((1e6 - now.microsecond) / 1e6)
+        now = datetime.datetime.utcnow() + datetime.timedelta(seconds=delay)
+        return now.strftime(fmt)
+
     def _handler_sync_clock(self, *args, **kwargs):
         """
         sync clock close to a second edge 
@@ -759,22 +781,19 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
 
         cmd_len = len('clock 03/20/2014 17:14:55' + NEWLINE)
-        if self._clock_set_offset == 0:
-            self._clock_set_offset = cmd_len * INTER_CHARACTER_DELAY
+        delay = cmd_len * INTER_CHARACTER_DELAY
 
         time_format = "%m/%d/%Y %H:%M:%S"
-        str_val = time.strftime(time_format, time.gmtime(time.time() + self._clock_set_offset))
+        str_val = self.get_timestamp_delayed(time_format, delay)
+        # str_val = time.strftime(time_format, time.gmtime(time.time() + self._clock_set_offset))
         log.debug("Setting instrument clock to '%s'", str_val)
 
         try:
             ras_time = self._do_cmd_resp(Command.CLOCK, str_val, response_regex=Response.READY)
-            log.debug('--- djm --- ras time %s', ras_time)
             current_time = time.gmtime()
-            log.debug('--- djm --- current time %s', current_time)
             diff = time.mktime(current_time) - time.mktime(ras_time)
-            log.debug('--- djm --- detected time lag of %d', diff)
-            latency = diff / 2
-            log.debug('--- djm --- latency %f', latency)
+            log.info('clock synched within %d seconds', diff)
+            #latency = diff / 2
         finally:
             # TODO - this is probably not necessary
             self._do_cmd_resp(Command.GO, response_regex=Response.READY)
