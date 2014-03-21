@@ -21,7 +21,6 @@ import time
 import ntplib
 from nose.plugins.attrib import attr
 from mock import Mock
-
 from mi.core.log import get_logger
 
 log = get_logger()
@@ -34,13 +33,9 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
-
-from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverConnectionState
-from mi.core.instrument.instrument_driver import DriverProtocolState
 
 from mi.instrument.noaa.heat.ooicore.driver import InstrumentDriver
 from mi.instrument.noaa.heat.ooicore.driver import DataParticleType
@@ -198,6 +193,15 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
+    def _send_port_agent_packet(self, data, ts, driver):
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data(data)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+
+        # Push the response into the driver
+        driver._protocol.got_data(port_agent_packet)
+
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -209,7 +213,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(InstrumentCommand())
 
-        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
+        # Test capabilities for duplicates, them verify that capabilities is a subset of proto events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
@@ -218,46 +222,22 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         Test the chunker and verify the particles created.
         """
         chunker = StringChunker(Protocol.sieve_function)
-
         self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
 
-    def test_connect(self):
+    def test_connect(self, initial_protocol_state=ProtocolState.COMMAND):
         """
-        Verify sample data passed through the got data method produces the correct data particles
+        Verify driver can transition to the COMMAND state
         """
-
-        # Create a mock port agent
-        mock_port_agent = Mock(spec=PortAgentClient)
-
-        # Instantiate the driver class directly (no driver client, no driver
-        # client, no zmq driver process, no driver process; just own the driver)
         driver = InstrumentDriver(self._got_data_event_callback)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to the DISCONNECTED state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-        #self.assert_initialize_driver(driver)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM UNKNOWN.
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
+        self.assert_initialize_driver(driver, initial_protocol_state)
+        return driver
 
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
         """
         # Create and initialize the instrument driver with a mock port agent
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
+        driver = self.test_connect()
 
         self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
         self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
@@ -269,50 +249,18 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         embedded in the stream of other BOTPT sensor output.
         """
         # Create and initialize the instrument driver with a mock port agent
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
-
+        driver = self.test_connect()
         self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
 
     def test_heat_on_response(self):
         """
         Verify that the driver correctly parses the HEAT_ON response
         """
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        driver = self.test_connect()
         ts = ntplib.system_to_ntp_time(time.time())
 
         log.debug("HEAT ON command response: %s", HEAT_ON_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(HEAT_ON_COMMAND_RESPONSE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
+        self._send_port_agent_packet(HEAT_ON_COMMAND_RESPONSE, ts, driver)
         self.assertTrue(driver._protocol._get_response(expected_prompt=TEST_HEAT_ON_DURATION_2))
 
     def test_heat_on_response_with_data(self):
@@ -320,129 +268,41 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         Verify that the driver correctly parses the HEAT_ON response with a
         data sample right in front of it
         """
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        driver = self.test_connect()
         ts = ntplib.system_to_ntp_time(time.time())
 
         log.debug("HEAT ON command response: %s", VALID_SAMPLE_01)
         # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(VALID_SAMPLE_01)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
+        self._send_port_agent_packet(VALID_SAMPLE_01, ts, driver)
 
         log.debug("HEAT ON command response: %s", HEAT_ON_COMMAND_RESPONSE)
         # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(HEAT_ON_COMMAND_RESPONSE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
-        self.assertTrue(driver._protocol._get_response(expected_prompt=
-                                                       TEST_HEAT_ON_DURATION_2))
+        self._send_port_agent_packet(HEAT_ON_COMMAND_RESPONSE, ts, driver)
+        self.assertTrue(driver._protocol._get_response(expected_prompt=TEST_HEAT_ON_DURATION_2))
 
     def test_heat_on(self):
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
+        driver = self.test_connect()
 
         def my_send(data):
             log.debug("my_send: %s", data)
             driver._protocol._promptbuf += HEAT_ON_COMMAND_RESPONSE
             return len(HEAT_ON_COMMAND_RESPONSE)
 
-        mock_port_agent.send.side_effect = my_send
-
-        # Put the driver into test mode
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        driver._connection.send.side_effect = my_send
 
         driver._protocol._handler_command_heat_on()
         ts = ntplib.system_to_ntp_time(time.time())
         driver._protocol._got_chunk(HEAT_ON_COMMAND_RESPONSE, ts)
 
     def test_heat_off(self):
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
+        driver = self.test_connect()
 
         def my_send(data):
             log.debug("my_send: %s", data)
             driver._protocol._promptbuf += HEAT_OFF_COMMAND_RESPONSE
             return 5
 
-        mock_port_agent.send.side_effect = my_send
-
-        #self.assert_initialize_driver(driver)
-
-        # Put the driver into test mode
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        driver._connection.send.side_effect = my_send
 
         driver._protocol._handler_command_heat_off()
         ts = ntplib.system_to_ntp_time(time.time())
