@@ -16,7 +16,6 @@ import re
 import time
 
 import ntplib
-
 from mi.core.log import get_logger
 
 
@@ -118,6 +117,8 @@ class InstrumentCommand(BaseEnum):
 
 
 class HEATCommandResponse():
+    _compiled_regex = None
+
     def __init__(self, raw_data):
         """ 
         Construct a HEATCommandResponse object 
@@ -145,7 +146,9 @@ class HEATCommandResponse():
         get the compiled regex pattern
         @return: compiled re
         """
-        return re.compile(HEATCommandResponse.regex())
+        if HEATCommandResponse._compiled_regex is None:
+            HEATCommandResponse._compiled_regex = re.compile(HEATCommandResponse.regex())
+        return HEATCommandResponse._compiled_regex
 
     def check_heat_on_off_response(self, heat_duration_value):
         """
@@ -210,6 +213,7 @@ class HEATDataParticle(DataParticle):
         Temp = tttt (integer degrees C)
     """
     _data_particle_type = DataParticleType.HEAT_PARSED
+    _compiled_regex = None
 
     @staticmethod
     def regex():
@@ -231,7 +235,9 @@ class HEATDataParticle(DataParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        return re.compile(HEATDataParticle.regex())
+        if HEATDataParticle._compiled_regex is None:
+            HEATDataParticle._compiled_regex = re.compile(HEATDataParticle.regex())
+        return HEATDataParticle._compiled_regex
 
     def _build_parsed_values(self):
         """
@@ -289,14 +295,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     machine.
     """
 
-    def __init__(self, evt_callback):
-        """
-        Driver constructor.
-        @param evt_callback Driver process event callback.
-        """
-        #Construct superclass.
-        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-
     ########################################################################
     # Superclass overrides for resource query.
     ########################################################################
@@ -344,23 +342,31 @@ class Protocol(CommandResponseInstrumentProtocol):
                                            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        handlers = {
+            ProtocolState.UNKNOWN: [
+                (ProtocolEvent.ENTER, self._handler_unknown_enter),
+                (ProtocolEvent.EXIT, self._handler_unknown_exit),
+                (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
+            ],
+            ProtocolState.AUTOSAMPLE: [
+                (ProtocolEvent.ENTER, self._handler_autosample_enter),
+                (ProtocolEvent.EXIT, self._handler_autosample_exit),
+                (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
+            ],
+            ProtocolState.COMMAND: [
+                (ProtocolEvent.ENTER, self._handler_command_enter),
+                (ProtocolEvent.EXIT, self._handler_command_exit),
+                (ProtocolEvent.GET, self._handler_command_get),
+                (ProtocolEvent.SET, self._handler_command_set),
+                (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
+                (ProtocolEvent.HEAT_ON, self._handler_command_heat_on),
+                (ProtocolEvent.HEAT_OFF, self._handler_command_heat_off),
+            ]
+        }
 
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
-                                       self._handler_autosample_stop_autosample)
-
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
-                                       self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.HEAT_ON, self._handler_command_heat_on)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.HEAT_OFF, self._handler_command_heat_off)
+        for state in handlers:
+            for event, handler in handlers[state]:
+                self._protocol_fsm.add_handler(state, event, handler)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -393,7 +399,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         The method that splits samples
         """
-
         matchers = []
         return_list = []
 
@@ -416,7 +421,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
+        For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
@@ -455,7 +460,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         
         @param data: bytes to add to the buffer
         """
-
         # Update the line and prompt buffers.
         self._linebuf += data
         self._promptbuf += data
@@ -470,7 +474,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         add_to_buffer that is called from got_data().  The reason is explained
         in comments in _my_add_to_buffer.
         """
-
         log.debug("_got_chunk_: %s", chunk)
         regex = HEATCommandResponse.regex_compiled()
         if regex.match(chunk):
