@@ -27,14 +27,24 @@ from mi.idk.exceptions import SampleTimeout
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
-from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+
+from mi.dataset.dataset_driver import \
+  DataSourceConfigKey, \
+  DataSetDriverConfigKeys, \
+  DriverParameter
 
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
 
-from mi.dataset.driver.VEL3D_K.stc_imodem.driver import VEL3D_K__stc_imodem_DataSetDriver
-from mi.dataset.parser.vel3d_k__stc_imodem import Vel3d_k__stc_imodemTimeDataParticle
-from mi.dataset.parser.vel3d_k__stc_imodem import Vel3d_k__stc_imodemVelocityDataParticle
+
+from mi.dataset.driver.VEL3D_K.stc_imodem.driver import \
+  VEL3D_K__stc_imodem_DataSetDriver
+
+from mi.dataset.parser.vel3d_k__stc_imodem import \
+  DataParticleType, \
+  Vel3d_k__stc_imodemTimeDataParticle, \
+  Vel3d_k__stc_imodemVelocityDataParticle
+
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -76,23 +86,23 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
         self.clear_async_data()
 
-        ## From sample file A0000010.DEC:
-        ## Flag record, first and last velocity record, time record.
+        # From sample file A0000010.DEC:
+        # Flag record, first and last velocity record, time record.
         log.info("========== FIRST FILE A0000002 INTEG TEST GET ============")
         self.create_sample_data('valid_A0000002.DEC', "A0000002.DEC")
         self.assert_data_multiple_class('valid_A0000002.yml', 
           count=3, timeout=10)
 
-        ## From sample file A0000010.DEC:
-        ## Flag record, first and last velocity records twice, time record.
+        # From sample file A0000010.DEC:
+        # Flag record, first and last velocity records twice, time record.
         log.info("========= SECOND FILE A0000004 INTEG TEST GET ============")
         self.clear_async_data()
         self.create_sample_data('valid_A0000004.DEC', "A0000004.DEC")
         self.assert_data_multiple_class('valid_A0000004.yml', 
           count=5, timeout=10)
 
-        ## Made-up data with all flags set to True.
-        ## Field values may not be realistic.
+        # Made-up data with all flags set to True.
+        # Field values may not be realistic.
         log.info("========= THIRD FILE A0000003 INTEG TEST GET ============")
         self.clear_async_data()
         self.create_sample_data('all_A0000003.DEC', "A0000003.DEC")
@@ -110,9 +120,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_sample_data()
         self.clear_async_data()
 
-        ## From sample file A0000010.DEC:
-        ## Flag record, first and last velocity record, time record,
-        ## but the end of Velocity record (all zeroes) is missing.
+        # From sample file A0000010.DEC:
+        # Flag record, first and last velocity record, time record,
+        # but the end of Velocity record (all zeroes) is missing.
         filename = "A1000002.DEC"
         self.create_sample_data('incomplete_A0000002.DEC', filename)
 
@@ -137,8 +147,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_sample_data()
         self.clear_async_data()
 
-        ## Made-up data with all flags except the first set to True.
-        ## First flag is not a zero or one.
+        # Made-up data with all flags except the first set to True.
+        # First flag is not a zero or one.
         filename = "A1000003.DEC"
         self.create_sample_data('invalid_A0000003.DEC', filename)
 
@@ -177,7 +187,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Verify that data is produced 
         # (last 2 velocity records plus time record).
-        self.assert_data_multiple_class('partial_A0000004.yml', 
+        self.assert_data_multiple_class('valid_partial_A0000004.yml', 
           count=3, timeout=10)
         log.info("============== END INTEG TEST STOP RESUME  ================")
 
@@ -189,30 +199,219 @@ class IntegrationTest(DataSetIntegrationTestCase):
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
 
-    def test_publish_path(self):
+    def test_incomplete_file(self):
         """
-        Setup an agent/driver/harvester/parser and verify that data is
-        published out the agent
+        Test that we can handle a file missing the end of Velocity records,
+        which means we'll run off the end of the file reading Velocity records.
+        Should generate a SampleException.
         """
-        pass
+        log.info("=========== START QUAL TEST INCOMPLETE FILE ===============")
+
+        # From sample file A0000010.DEC:
+        # Flag record, first and last velocity record, time record,
+        # but the end of Velocity record (all zeroes) is missing.
+        self.clear_sample_data()
+        self.event_subscribers.clear_events()
+        self.assert_initialize()
+        self.create_sample_data('incomplete_A0000002.DEC', "A1000002.DEC")
+
+        # Verify an event was raised and we are in our retry state.
+        self.verify_queue_empty()
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
+        log.info("=========== END QUAL TEST INCOMPLETE FILE ===============")
+
+    def test_invalid_flag_record(self):
+        """
+        Test that we can handle a file with an invalid Flag record.
+        Should generate a SampleException.
+        """
+        log.info("======== START QUAL TEST INVALID FLAG RECORD ==============")
+
+        # Made-up data with all flags except the first set to True.
+        # First flag is not a zero or one.
+        self.clear_sample_data()
+        self.event_subscribers.clear_events()
+        self.assert_initialize()
+        self.create_sample_data('invalid_A0000003.DEC', "A1000003.DEC")
+
+        # Verify an event was raised and we are in our retry state.
+        self.verify_queue_empty()
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
+        log.info("======== END QUAL TEST INVALID FLAG RECORD ==============")
 
     def test_large_import(self):
         """
-        Test importing a large number of samples from the file at once
+        Test importing a large number of samples from the file at once.
         """
-        pass
+        log.info("=========== START QUAL TEST LARGE IMPORT =================")
+
+        # The sample file referenced in the IDD.
+        # Contains 522 velocity data records.
+        self.create_sample_data('idd_A0000010.DEC', 'A0000010.DEC')
+        filesize = 522
+        records_per_second = 4
+        max_time = 2 * (filesize / records_per_second)
+
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+          {DriverParameter.RECORDS_PER_SECOND: records_per_second})
+        self.assert_start_sampling()
+
+        try:
+            self.get_samples(DataParticleType.VELOCITY_PARTICLE,
+              filesize, max_time)
+            self.get_samples(DataParticleType.TIME_PARTICLE, 1)
+            self.verify_queue_empty()
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+        log.info("=========== END QUAL TEST LARGE IMPORT =================")
+
+    def test_publish_path(self):
+        """
+        Setup an agent/driver/harvester/parser and verify that data is
+        published out the agent.
+        """
+        log.info("=========== START QUAL TEST PUBLISH PATH =================")
+        self.create_sample_data('valid_A0000004.DEC', "A0000004.DEC")
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+          {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        try:
+            # Verify that we get 4 velocity samples with the correct values.
+            result = self.data_subscribers.get_samples(
+              DataParticleType.VELOCITY_PARTICLE, 4)
+            self.assert_data_values(result, 'valid_no_time_A0000004.yml')
+
+            # Verify that we get the Time sample.
+            time_result = self.data_subscribers.get_samples(
+              DataParticleType.TIME_PARTICLE, 1)
+
+            # Combine the velocity and time samples and verify results.
+            result.extend(time_result)
+            self.assert_data_values(result, 'valid_A0000004.yml')
+
+        except Exception as e:
+            log.error("Exception trapped: %s", e)
+            self.fail("Sample timeout.")
+
+        log.info("=========== END QUAL TEST PUBLISH PATH =================")
+
+    def test_shutdown_restart(self):
+        """
+        Test the agents ability to start data flowing, shutdown, then restart
+        at the correct spot.
+        """
+        log.info("========== START QUAL TEST SHUTDOWN RESTART ===============")
+        self.create_sample_data('all_A0000003.DEC', "A0000003.DEC")
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+          {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+
+        try:
+            # Read the first file (3 velocity records) and verify the data.
+            result = self.get_samples(DataParticleType.VELOCITY_PARTICLE, 3)
+            time_result = self.get_samples(DataParticleType.TIME_PARTICLE, 1)
+            result.extend(time_result)
+
+            # Verify values
+            self.assert_data_values(result, 'all_A0000003.yml')
+            self.verify_queue_empty()
+
+            # Read the first 2 velocity records of the second file then stop.
+            self.create_sample_data('valid_A0000004.DEC', "A0000004.DEC")
+            result = self.get_samples(DataParticleType.VELOCITY_PARTICLE, 2)
+            self.assert_stop_sampling()
+            self.verify_queue_empty()
+
+            # Stop the agent
+            self.stop_dataset_agent_client()
+            # Re-start the agent
+            self.init_dataset_agent_client()
+            # Re-initialize
+            self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+            # Restart sampling and get the last 2 records of the file
+            # and combine with the previous ones we read.
+            self.assert_start_sampling()
+            result2 = self.get_samples(DataParticleType.VELOCITY_PARTICLE, 2)
+            result.extend(result2)
+
+            # Get the time record and combine with previous records.
+            time_result = self.data_subscribers.get_samples(
+              DataParticleType.TIME_PARTICLE, 1)
+            result.extend(time_result)
+            self.assert_data_values(result, 'valid_A0000004.yml')
+
+            self.verify_queue_empty()
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+        log.info("========== END QUAL TEST SHUTDOWN RESTART =================")
 
     def test_stop_start(self):
         """
         Test the agents ability to start data flowing, stop, then restart
         at the correct spot.
         """
-        pass
+        log.info("========== START QUAL TEST STOP START ===============")
+        self.create_sample_data('all_A0000003.DEC', "A0000003.DEC")
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+          {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
 
-    def test_parser_exception(self):
+        try:
+            # Read the first file (3 velocity records) and verify the data.
+            result = self.get_samples(DataParticleType.VELOCITY_PARTICLE, 3)
+            time_result = self.get_samples(DataParticleType.TIME_PARTICLE, 1)
+            result.extend(time_result)
+
+            # Verify values
+            self.assert_data_values(result, 'all_A0000003.yml')
+            self.verify_queue_empty()
+
+            # Read the first 2 velocity records of the second file then stop.
+            self.create_sample_data('valid_A0000004.DEC', "A0000004.DEC")
+            result = self.get_samples(DataParticleType.VELOCITY_PARTICLE, 2)
+            self.assert_stop_sampling()
+            self.verify_queue_empty()
+
+            # Restart sampling and get the last 2 records of the file
+            # and combine with the previous ones we read.
+            self.assert_start_sampling()
+            result2 = self.get_samples(DataParticleType.VELOCITY_PARTICLE, 2)
+            result.extend(result2)
+
+            # Get the time record and combine with previous records.
+            time_result = self.data_subscribers.get_samples(
+              DataParticleType.TIME_PARTICLE, 1)
+            result.extend(time_result)
+            self.assert_data_values(result, 'valid_A0000004.yml')
+
+            self.verify_queue_empty()
+
+        except SampleTimeout as e:
+            log.error("Exception trapped: %s", e, exc_info=True)
+            self.fail("Sample timeout.")
+
+        log.info("========== END QUAL TEST STOP START ===============")
+
+    def verify_queue_empty(self):
         """
-        Test an exception is raised after the driver is started during
-        record parsing.
+        Assert the sample queue for all data streams is empty.
         """
-        pass
+        self.assert_sample_queue_size(DataParticleType.VELOCITY_PARTICLE, 0)
+        self.assert_sample_queue_size(DataParticleType.TIME_PARTICLE, 0)
 

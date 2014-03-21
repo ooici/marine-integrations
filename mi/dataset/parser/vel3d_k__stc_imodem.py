@@ -28,6 +28,7 @@ import copy
 import ntplib
 import re
 import struct
+
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, DatasetParserException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
@@ -322,6 +323,24 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         return ((self.calculate_record_number() - 1) * SAMPLE_RATE) + \
           self.time_on
 
+    def get_block(self):
+        """
+        This function overwrites the get_block function in dataset_parser.py
+        to  read the entire file rather than break it into chunks.
+        Returns:
+          The length of data retrieved.
+        An EOFError is raised when the end of the file is reached.
+        """
+        # Read in data
+        data = self._stream_handle.read()
+        if data:
+            self._chunker.add_chunk(data, self._timestamp)
+            self.file_complete = True
+            return len(data)
+        else:  # EOF
+            self.file_complete = True
+            raise EOFError
+
     def get_file_parameters(self, input_file):
         """
         This function reads the Flag record and Time record
@@ -415,7 +434,6 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         """            
         result_particles = []
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-        non_data = None
 
         while chunk is not None:
             #
@@ -507,8 +525,6 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
 
             (timestamp, chunk, start, 
               end) = self._chunker.get_next_data_with_index()
-            (nd_timestamp, 
-              non_data) = self._chunker.get_next_non_data(clean=True)
 
         return result_particles
 

@@ -4,7 +4,7 @@ header:
 
 data:
   - _index: 1
-    internal_timestamp: 3589459202.0
+    internal_timestamp: 3589459203.000000
     particle_object: Vel3d_k__stc_imodemVelocityDataParticle
     particle_type: vel3d_k__stc_imodem_instrument
     date_time_array: [113, 8, 29, 16, 0, 17]
@@ -34,7 +34,7 @@ data:
     vel3d_k_cor1: !!null 
     vel3d_k_cor2: !!null
   - _index: 2
-    internal_timestamp: 3589459202.500000
+    internal_timestamp: 3589459203.500000
     particle_object: Vel3d_k__stc_imodemVelocityDataParticle
     particle_type: vel3d_k__stc_imodem_instrument
     date_time_array: [113, 8, 29, 16, 4, 37] 
@@ -69,4 +69,4 @@ data:
     particle_type: vel3d_k__stc_imodem_metadata
     vel3d_k_time_on: 1380470402
     vel3d_k_time_off: 1380470683
-    vel3d_k_number_of_records: 2
+    vel3d_k_number_of_records: 4

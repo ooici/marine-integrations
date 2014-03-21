@@ -46,8 +46,7 @@ class VEL3D_K__stc_imodem_DataSetDriver(SimpleDataSetDriver):
             infile,
             parser_state,
             self._save_parser_state,    # state_callback
-            self._data_callback,        # publish_callback
-            self._sample_exception_callback
+            self._data_callback         # publish_callback
         )
         return self._parser
 

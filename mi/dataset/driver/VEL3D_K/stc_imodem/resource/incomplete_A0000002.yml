@@ -4,7 +4,7 @@ header:
 
 data:
   - _index: 1
-    internal_timestamp: 3589459202.0
+    internal_timestamp: 3589459202.000000
     particle_object: Vel3d_k__stc_imodemVelocityDataParticle
     particle_type: vel3d_k__stc_imodem_instrument
     date_time_array: [113, 8, 29, 16, 0, 17]
