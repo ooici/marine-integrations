@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.mopak__stc
-@file marine-integrations/mi/dataset/parser/mopak__stc.py
+@package mi.dataset.parser.mopak_o_stc
+@file marine-integrations/mi/dataset/parser/mopak_o_stc.py
 @author Emily Hahn
-@brief Parser for the MOPAK__STC dataset driver
+@brief Parser for the mopak_o_stc dataset driver
 Release notes:
 
 initial release
@@ -41,7 +41,7 @@ class DataParticleType(BaseEnum):
     ACCEL = 'mopak_xx__stc_accel'
     RATE = 'mopak_xx__stc_rate'
 
-class Mopak__stcAccelParserDataParticleKey(BaseEnum):
+class MopakOStcAccelParserDataParticleKey(BaseEnum):
     MOPAK_ACCELX = 'mopak_accelx'
     MOPAK_ACCELY = 'mopak_accely'
     MOPAK_ACCELZ = 'mopak_accelz'
@@ -53,7 +53,7 @@ class Mopak__stcAccelParserDataParticleKey(BaseEnum):
     MOPAK_MAGZ = 'mopak_magz'
     MOPAK_TIMER = 'mopak_timer'
 
-class Mopak__stcAccelParserDataParticle(DataParticle):
+class MopakOStcAccelParserDataParticle(DataParticle):
     """
     Class for parsing data from the MOPAK__STC data set
     """
@@ -68,7 +68,7 @@ class Mopak__stcAccelParserDataParticle(DataParticle):
         """
         # match the data inside the wrapper
         if len(self.raw_data) < ACCEL_BYTES or self.raw_data[0] != ACCEL_ID:
-            raise SampleException("Mopak__stcAccelParserDataParticle: Not enough bytes provided in [%s]",
+            raise SampleException("MopakOStcAccelParserDataParticle: Not enough bytes provided in [%s]",
                                   self.raw_data)
         try:
             fields = struct.unpack('>fffffffffI', self.raw_data[1:ACCEL_BYTES-2])
@@ -86,28 +86,28 @@ class Mopak__stcAccelParserDataParticle(DataParticle):
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
         
-        result = [{DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_ACCELX,
+        result = [{DataParticleKey.VALUE_ID: MopakOStcAccelParserDataParticleKey.MOPAK_ACCELX,
                    DataParticleKey.VALUE: accelx},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_ACCELY,
+                  {DataParticleKey.VALUE_ID: MopakOStcAccelParserDataParticleKey.MOPAK_ACCELY,
                    DataParticleKey.VALUE: accely},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_ACCELZ,
+                  {DataParticleKey.VALUE_ID: MopakOStcAccelParserDataParticleKey.MOPAK_ACCELZ,
                    DataParticleKey.VALUE: accelz},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_ANG_RATEX,
+                  {DataParticleKey.VALUE_ID: MopakOStcAccelParserDataParticleKey.MOPAK_ANG_RATEX,
                    DataParticleKey.VALUE: ratex},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_ANG_RATEY,
+                  {DataParticleKey.VALUE_ID: MopakOStcAccelParserDataParticleKey.MOPAK_ANG_RATEY,
                    DataParticleKey.VALUE: ratey},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_ANG_RATEZ,
+                  {DataParticleKey.VALUE_ID: MopakOStcAccelParserDataParticleKey.MOPAK_ANG_RATEZ,
                    DataParticleKey.VALUE: ratez},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_MAGX,
+                  {DataParticleKey.VALUE_ID: MopakOStcAccelParserDataParticleKey.MOPAK_MAGX,
                    DataParticleKey.VALUE: magx},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_MAGY,
+                  {DataParticleKey.VALUE_ID: MopakOStcAccelParserDataParticleKey.MOPAK_MAGY,
                    DataParticleKey.VALUE: magy},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_MAGZ,
+                  {DataParticleKey.VALUE_ID: MopakOStcAccelParserDataParticleKey.MOPAK_MAGZ,
                    DataParticleKey.VALUE: magz},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_TIMER,
+                  {DataParticleKey.VALUE_ID: MopakOStcAccelParserDataParticleKey.MOPAK_TIMER,
                    DataParticleKey.VALUE: timer}]
 
-        log.trace('Mopak__stcAccelParserDataParticle: particle=%s', result)
+        log.trace('MopakOStcAccelParserDataParticle: particle=%s', result)
         return result
 
     def __eq__(self, arg):
@@ -130,7 +130,7 @@ class Mopak__stcAccelParserDataParticle(DataParticle):
                           arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
             return False
 
-class Mopak__stcRateParserDataParticleKey(BaseEnum):
+class MopakOStcRateParserDataParticleKey(BaseEnum):
     MOPAK_ROLL = 'mopak_roll'
     MOPAK_PITCH = 'mopak_pitch'
     MOPAK_YAW = 'mopak_yaw'
@@ -139,7 +139,7 @@ class Mopak__stcRateParserDataParticleKey(BaseEnum):
     MOPAK_ANG_RATEZ = 'mopak_ang_ratez'
     MOPAK_TIMER = 'mopak_timer'
 
-class Mopak__stcRateParserDataParticle(DataParticle):
+class MopakOStcRateParserDataParticle(DataParticle):
     """
     Class for parsing data from the MOPAK__STC data set
     """
@@ -154,7 +154,7 @@ class Mopak__stcRateParserDataParticle(DataParticle):
         """
         # match the data inside the wrapper
         if len(self.raw_data) < RATE_BYTES or self.raw_data[0] != RATE_ID:
-            raise SampleException("Mopak__stcRateParserDataParticle: Not enough bytes provided in [%s]",
+            raise SampleException("MopakOStcRateParserDataParticle: Not enough bytes provided in [%s]",
                                   self.raw_data)
         try:
             fields = struct.unpack('>ffffffI', self.raw_data[1:RATE_BYTES-2])
@@ -169,22 +169,22 @@ class Mopak__stcRateParserDataParticle(DataParticle):
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
         
-        result = [{DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_ROLL,
+        result = [{DataParticleKey.VALUE_ID: MopakOStcRateParserDataParticleKey.MOPAK_ROLL,
                    DataParticleKey.VALUE: roll},
-                  {DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_PITCH,
+                  {DataParticleKey.VALUE_ID: MopakOStcRateParserDataParticleKey.MOPAK_PITCH,
                    DataParticleKey.VALUE: pitch},
-                  {DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_YAW,
+                  {DataParticleKey.VALUE_ID: MopakOStcRateParserDataParticleKey.MOPAK_YAW,
                    DataParticleKey.VALUE: yaw},
-                  {DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_ANG_RATEX,
+                  {DataParticleKey.VALUE_ID: MopakOStcRateParserDataParticleKey.MOPAK_ANG_RATEX,
                    DataParticleKey.VALUE: ratex},
-                  {DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_ANG_RATEY,
+                  {DataParticleKey.VALUE_ID: MopakOStcRateParserDataParticleKey.MOPAK_ANG_RATEY,
                    DataParticleKey.VALUE: ratey},
-                  {DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_ANG_RATEZ,
+                  {DataParticleKey.VALUE_ID: MopakOStcRateParserDataParticleKey.MOPAK_ANG_RATEZ,
                    DataParticleKey.VALUE: ratez},
-                  {DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_TIMER,
+                  {DataParticleKey.VALUE_ID: MopakOStcRateParserDataParticleKey.MOPAK_TIMER,
                    DataParticleKey.VALUE: timer}]
 
-        log.debug('Mopak__stcAccelParserDataParticle: particle=%s', result)
+        log.debug('MopakOStcAccelParserDataParticle: particle=%s', result)
         return result
 
     def __eq__(self, arg):
@@ -205,7 +205,7 @@ class Mopak__stcRateParserDataParticle(DataParticle):
                 log.debug('Timestamp does not match')
             return False
 
-class Mopak__stcParser(BufferLoadingParser):
+class MopakOStcParser(BufferLoadingParser):
     
     def __init__(self,
                  config,
@@ -224,7 +224,7 @@ class Mopak__stcParser(BufferLoadingParser):
         local_seconds = time.mktime(file_datetime.timetuple())
         self._start_time_utc = local_seconds - time.timezone
         log.debug("starting at time %s", self._start_time_utc)
-        super(Mopak__stcParser, self).__init__(config,
+        super(MopakOStcParser, self).__init__(config,
                                                stream_handle,
                                                state,
                                                self.sieve_function,
@@ -337,7 +337,7 @@ class Mopak__stcParser(BufferLoadingParser):
                 # particle-ize the data block received, return the record
                 fields = struct.unpack('>I', chunk[37:41])
                 self._timestamp = self.timer_to_timestamp(int(fields[0]))
-                sample = self._extract_sample(Mopak__stcAccelParserDataParticle, None, chunk, self._timestamp)
+                sample = self._extract_sample(MopakOStcAccelParserDataParticle, None, chunk, self._timestamp)
                 if sample:
                     # increment state
                     self._increment_state(ACCEL_BYTES)
@@ -345,7 +345,7 @@ class Mopak__stcParser(BufferLoadingParser):
                 # particle-ize the data block received, return the record
                 fields = struct.unpack('>I', chunk[25:29])
                 self._timestamp = self.timer_to_timestamp(int(fields[0]))
-                sample = self._extract_sample(Mopak__stcRateParserDataParticle, None, chunk, self._timestamp)
+                sample = self._extract_sample(MopakOStcRateParserDataParticle, None, chunk, self._timestamp)
                 if sample:
                     # increment state
                     self._increment_state(RATE_BYTES)

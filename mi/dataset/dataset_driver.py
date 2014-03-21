@@ -860,3 +860,140 @@ class SingleFileDataSetDriver(SimpleDataSetDriver):
             return True
         return False
 
+class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
+
+    def __init__(config, memento, data_callback, state_callback, event_callback, exception_callback, data_keys):
+        self._data_keys = data_keys
+        self._init_queues(data_keys)
+
+        super(MultipleHarvesterDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
+                                                             exception_callback)
+        self._harvester = None
+        self._driver_state = None
+
+        self._init_state(memento)
+
+        self._resource_id = self._config.get(DataSourceConfigKey.RESOURCE_ID)
+        log.debug("Resource ID: %s", self._resource_id)
+
+    def _init_queues(self, keys):
+        self._new_file_queue = {}
+        for key in keys:
+            self._new_file_queue[key] = []
+
+    def _poll(self):
+        raise NotImplementedException('virtual method _poll needs to be specialized')
+
+    def _start_sampling(self):
+        # just a little nap before we start working.  Giving the agent time
+        # to respond.
+        try:
+            self._harvester = self._build_harvester(self._driver_state)
+            for harvester in self._harvester:
+                harvester.start()
+        except Exception as e:
+            log.debug("Exception detected when starting sampling: %s", e, exc_info=True)
+            self._exception_callback(e)
+
+    def _stop_sampling(self):
+        log.debug("Shutting down harvester")
+        if self._harvester:
+            for harvester in self._harvester:
+                if harvester and harvester.is_alive():
+                    log.debug("Stopping harvester %s thread", harvester)
+                    harvester.shutdown()
+            self._harvester = None
+        else:
+            log.debug("poller not running. no need to shutdown")
+
+    def _got_file(self, file_name, directory, builder):
+        """
+        We have a file that we want to parse.  Stand up the parser and do some work.
+        @param file_name: name of the file to parse
+        """
+        try:
+            log.debug('got file, resource_id: %s, driver state %s', self._resource_id, self._driver_state)
+
+            count = 1
+            delay = None
+
+            if self._generate_particle_count:
+                # Calculate the delay between grabbing records to publish.
+                delay = float(1) / float(self._particle_count_per_second) * float(self._generate_particle_count)
+                count = self._generate_particle_count
+
+            self._file_in_process = file_name
+
+            # Open the copied file in the storage directory so we know the file won't be
+            # changed while we are reading it
+            path = os.path.join(directory, file_name)
+
+            self._raise_new_file_event(path)
+            log.debug("Open new data source file: %s", path)
+            handle = open(path)
+
+            # the file directory is initialized in the harvester, so it will exist by this point
+            parser = builder(self._driver_state[file_name][DriverStateKey.PARSER_STATE], handle)
+
+            while(True):
+                result = parser.get_records(count)
+                if result:
+                    log.trace("Record parsed: %r delay: %f", result, delay)
+                    if delay:
+                        gevent.sleep(delay)
+                else:
+                    break
+        except SampleException as e:
+            # need to mark the bad file as ingested so we don't re-ingest it
+            self._save_parser_state_after_error()
+            self._sample_exception_callback(e)
+
+        finally:
+            self._file_in_process = None
+
+    def _new_file_callback(self, file_name, data_key):
+        """
+        Callback used by the single directory harvester called when a new file is detected.  Store the
+        filename in a queue.
+        @param file_name: file name of the found file.
+        """
+        log.debug('got new file callback, resource_id, %s, driver state %s', self._resource_id, self._driver_state)
+        # check for duplicates, don't add it if it is already there
+        if file_name not in self._new_file_queue[data_key]:
+            log.debug("Add new file to the new file queue: resource_id: %s, queue addr: %s, name: %s",
+                      self._resource_id,
+                      id(self._new_file_queue[data_key], file_name))
+            self._new_file_queue[data_key].append(file_name)
+
+            count = len(self._new_file_queue[data_key])
+            log.trace("Current new file queue length: %d", count)
+        # the harvester updates the driver state, make sure we save the newly found file state info
+        self._state_callback(self._driver_state)
+
+    def _verify_config(self):
+        """
+        Verify we have good configurations for the parser and harvester.
+        @raise: ConfigurationException if configuration is invalid
+        """
+        errors = []
+        log.debug("Driver Config: %s", self._config)
+
+        self._harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
+        if self._harvester_config:
+            for key in self._data_keys:
+                sub_config = self._harvester_config.get(key)
+                if not sub_config.get(key):
+                    errors.append("harvester missing %s config" % key)
+                else:
+                    if not sub_config.get(DataSetDriverConfigKeys.DIRECTORY):
+                        errors.append("harvester %s config missing 'directory" % key)
+                    if not sub_config.get(DataSetDriverConfigKeys.PATTERN):
+                        errors.append("harvester %s config missing 'pattern" % key)
+        else:
+            errors.append("missing 'harvester' config")
+
+        if errors:
+            log.error("Driver configuration error: %r", errors)
+            raise ConfigurationException("driver configuration errors: %r", errors)
+
+        self._parser_config = self._config.get(DataSourceConfigKey.PARSER)

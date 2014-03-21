@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.test.test_rte_xx__stc
-@file marine-integrations/mi/dataset/parser/test/test_rte_xx__stc.py
+@package mi.dataset.parser.test.test_rte_o_stc
+@file marine-integrations/mi/dataset/parser/test/test_rte_o_stc.py
 @author Jeff Roy
-@brief Test code for a Rte_xx__stc data parser
+@brief Test code for a rte_o_stc data parser
 """
 
 import time
@@ -22,10 +22,10 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.dataset.parser.rte_xx__stc import Rte_xx__stcParser, Rte_xx__stcParserDataParticle, StateKey, LOG_TIME_MATCHER
+from mi.dataset.parser.rte_o_stc import RteOStcParser, RteOStcParserDataParticle, StateKey, LOG_TIME_MATCHER
 
 @attr('UNIT', group='mi')
-class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
+class RteOStcParserUnitTestCase(ParserUnitTestCase):
     
     TEST_DATA = """
 2013/11/16 20:35:35.965 [rte:DLOGP3]:3712-50060, RTE Control Board Firmware REV 1.0, 11/07/2013
@@ -52,7 +52,7 @@ class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
 """
 
     """
-    Rte_xx__stc Parser unit test suite
+    RteOStc Parser unit test suite
     """
     @staticmethod
     
@@ -93,33 +93,33 @@ class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
     def setUp(self):
         ParserUnitTestCase.setUp(self)
         self.config = {
-            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.rte_xx__stc',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: 'Rte_xx__stcParserDataParticle'
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.rte_o_stc',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: 'RteOStcParserDataParticle'
             }
         # Define test data particles and their associated timestamps which will be 
         # compared with returned results
         
         self.start_state = {StateKey.POSITION:0}
         self.timestamp1 = self._convert_string_to_timestamp('2013/11/16 20:46:24.989 ')
-        self.particle_a = Rte_xx__stcParserDataParticle(
+        self.particle_a = RteOStcParserDataParticle(
             "2013/11/16 20:46:24.989 Coulombs = 1.1110C, AVG Q_RTE Current = 0.002A, " \
             "AVG RTE Voltage = 12.02V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1" ,
             internal_timestamp=self.timestamp1)  
 
         self.timestamp2 = self._convert_string_to_timestamp('2013/11/16 20:56:25.633 ')
-        self.particle_b = Rte_xx__stcParserDataParticle(
+        self.particle_b = RteOStcParserDataParticle(
             "2013/11/16 20:56:25.633 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, " \
             "AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1" ,
             internal_timestamp=self.timestamp2)  
  
         self.timestamp3 = self._convert_string_to_timestamp('2013/11/16 21:06:26.400 ')
-        self.particle_c = Rte_xx__stcParserDataParticle(
+        self.particle_c = RteOStcParserDataParticle(
             "2013/11/16 21:06:26.400 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, " \
             "AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1" ,
             internal_timestamp=self.timestamp3)  
 
         self.timestamp4 = self._convert_string_to_timestamp('2013/11/16 21:16:27.303 ')
-        self.particle_d = Rte_xx__stcParserDataParticle(
+        self.particle_d = RteOStcParserDataParticle(
             "2013/11/16 21:16:27.303 Coulombs = 1.1073C, AVG Q_RTE Current = 0.002A, " \
             "AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1" ,
             internal_timestamp=self.timestamp4)
@@ -139,8 +139,8 @@ class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
         Read test data and pull out data particles one at a time.
         Assert that the results are those we expected.
         """
-        self.stream_handle = StringIO(Rte_xx__stcParserUnitTestCase.TEST_DATA)
-        self.parser = Rte_xx__stcParser(self.config, self.start_state, self.stream_handle,
+        self.stream_handle = StringIO(RteOStcParserUnitTestCase.TEST_DATA)
+        self.parser = RteOStcParser(self.config, self.start_state, self.stream_handle,
                                             self.state_callback, self.pub_callback)
 
         result = self.parser.get_records(1)
@@ -162,8 +162,8 @@ class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
         Read test data and pull out multiple data particles at one time.
         Assert that the results are those we expected.
         """
-        self.stream_handle = StringIO(Rte_xx__stcParserUnitTestCase.TEST_DATA)
-        self.parser = Rte_xx__stcParser(self.config, self.start_state, self.stream_handle,
+        self.stream_handle = StringIO(RteOStcParserUnitTestCase.TEST_DATA)
+        self.parser = RteOStcParser(self.config, self.start_state, self.stream_handle,
                                             self.state_callback, self.pub_callback)
 
         result = self.parser.get_records(4)
@@ -181,8 +181,8 @@ class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
         Test starting the parser in a state in the middle of processing
         """
         new_state = {StateKey.POSITION:544}
-        self.stream_handle = StringIO(Rte_xx__stcParserUnitTestCase.TEST_DATA)
-        self.parser = Rte_xx__stcParser(self.config, new_state, self.stream_handle,
+        self.stream_handle = StringIO(RteOStcParserUnitTestCase.TEST_DATA)
+        self.parser = RteOStcParser(self.config, new_state, self.stream_handle,
                                             self.state_callback, self.pub_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, 696, self.timestamp3, self.particle_c)
@@ -196,8 +196,8 @@ class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
         changed
         """
         new_state = {StateKey.POSITION:544}
-        self.stream_handle = StringIO(Rte_xx__stcParserUnitTestCase.TEST_DATA)
-        self.parser = Rte_xx__stcParser(self.config, self.start_state, self.stream_handle,
+        self.stream_handle = StringIO(RteOStcParserUnitTestCase.TEST_DATA)
+        self.parser = RteOStcParser(self.config, self.start_state, self.stream_handle,
                                             self.state_callback, self.pub_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, 390, self.timestamp1, self.particle_a)
@@ -213,8 +213,8 @@ class Rte_xx__stcParserUnitTestCase(ParserUnitTestCase):
         """
         Ensure that bad data is skipped when it exists.
         """
-        self.stream_handle = StringIO(Rte_xx__stcParserUnitTestCase.BAD_TEST_DATA)
-        self.parser = Rte_xx__stcParser(self.config, self.start_state, self.stream_handle,
+        self.stream_handle = StringIO(RteOStcParserUnitTestCase.BAD_TEST_DATA)
+        self.parser = RteOStcParser(self.config, self.start_state, self.stream_handle,
                                             self.state_callback, self.pub_callback)
 
         result = self.parser.get_records(1)
