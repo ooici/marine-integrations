@@ -16,13 +16,11 @@ USAGE:
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
-import unittest
 import time
 
 import ntplib
 from nose.plugins.attrib import attr
 from mock import Mock
-
 from mi.core.log import get_logger
 
 
@@ -37,12 +35,9 @@ from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
 
-from mi.core.instrument.port_agent_client import PortAgentClient
 from mi.core.instrument.port_agent_client import PortAgentPacket
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverConnectionState
-from mi.core.instrument.instrument_driver import DriverProtocolState
 
 from mi.instrument.noaa.lily.ooicore.driver import InstrumentDriver
 from mi.instrument.noaa.lily.ooicore.driver import DataParticleType
@@ -195,9 +190,9 @@ SWITCHING_STATUS = \
 
 
 ###############################################################################
-#                           DRIVER TEST MIXIN                                  #
+#                           DRIVER TEST MIXIN                                 #
 #     Defines a set of constants and assert methods used for data particle    #
-#     verification                                                               #
+#     verification                                                            #
 #                                                                             #
 #  In python mixin classes are classes designed such that they wouldn't be    #
 #  able to stand on their own, but are inherited by other classes generally   #
@@ -294,6 +289,23 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
+    def _send_port_agent_packet(self, data, ts, driver):
+        port_agent_packet = PortAgentPacket()
+        port_agent_packet.attach_data(data)
+        port_agent_packet.attach_timestamp(ts)
+        port_agent_packet.pack_header()
+        # Push the response into the driver
+        driver._protocol.got_data(port_agent_packet)
+
+    # Test the connection to the BOTPT
+    def test_connect(self, initial_protocol_state=ProtocolState.COMMAND):
+        """
+        Verify sample data passed through the got data method produces the correct data particles
+        """
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver, initial_protocol_state)
+        return driver
+
     def test_async_send_event(self):
         class TestStates(BaseEnum):
             test_state = 'TEST_STATE'
@@ -302,8 +314,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
             test_event = 'TEST_EVENT'
 
         # Create and initialize the instrument driver
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
+        driver = self.test_connect()
 
         # Patch the fsm's states and events variables to our own test states and
         # events; need to do this because the test wouldn't work for all drivers
@@ -363,12 +374,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self.assert_chunker_sample(chunker, DUMP_02_COMMAND_RESPONSE)
 
     def test_get_handler(self):
-        driver = InstrumentDriver(self._got_data_event_callback)
-
-        # Put the driver into test mode
-        driver.set_test_mode(True)
-
-        self.assert_initialize_driver(driver)
+        driver = self.test_connect()
 
         args = [Parameter.AUTO_RELEVEL]
         result = driver._protocol._handler_command_get(args)
@@ -378,22 +384,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self.assertTrue(get_auto_relevel_response)
 
     def test_event_sender(self):
-        driver = InstrumentDriver(self._got_data_event_callback)
-
-        # Put the driver into test mode
-        driver.set_test_mode(True)
-
-        self.assert_initialize_driver(driver)
-
+        driver = self.test_connect()
         AsyncEventSender.send_event(ProtocolEvent.START_LEVELING)
 
     def test_set_handler(self):
-        driver = InstrumentDriver(self._got_data_event_callback)
-
-        # Put the driver into test mode
-        driver.set_test_mode(True)
-
-        self.assert_initialize_driver(driver)
+        driver = self.test_connect()
         driver._protocol._handler_command_set({Parameter.XTILT_RELEVEL_TRIGGER: 10})
 
     def test_combined_samples(self):
@@ -430,44 +425,13 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
 
-    # Test the connection to the BOTPT
-    def test_connect(self):
-        """
-        Verify sample data passed through the got data method produces the correct data particles
-        """
-        # Create a mock port agent
-        mock_port_agent = Mock(spec=PortAgentClient)
-
-        # Instantiate the driver class directly (no driver client, no driver
-        # client, no zmq driver process, no driver process; just own the driver)
-        driver = InstrumentDriver(self._got_data_event_callback)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to the DISCONNECTED state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-        #self.assert_initialize_driver(driver)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM UNKNOWN.
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
     def test_data_build_parsed_values(self):
         """
         Verify that the BOTPT LILY driver build_parsed_values method
         raises SampleException when an invalid sample is encountered
         and that it returns a result when a valid sample is encountered
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
+        driver = self.test_connect()
 
         items = [
             (INVALID_SAMPLE, False),
@@ -496,8 +460,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         Verify that check_data_on_off_response raises a SampleException given an
         invalid response, and that it returns True given a valid response
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
+        driver = self.test_connect()
 
         items = [
             (INVALID_SAMPLE, LILY_DATA_ON, False),
@@ -531,8 +494,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         Verify sample data passed through the got data method produces the correct data particles
         """
         # Create and initialize the instrument driver with a mock port agent
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
+        driver = self.test_connect()
 
         self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
         self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
@@ -544,50 +506,19 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         embedded in the stream of other BOTPT sensor output.
         """
         # Create and initialize the instrument driver with a mock port agent
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
-
+        driver = self.test_connect()
         self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
 
     def test_data_on_response(self):
         """
         Verify that the driver correctly parses the DATA_ON response
         """
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        driver = self.test_connect()
         ts = ntplib.system_to_ntp_time(time.time())
 
         log.debug("DATA ON command response: %s", DATA_ON_COMMAND_RESPONSE)
         # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(DATA_ON_COMMAND_RESPONSE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
+        self._send_port_agent_packet(DATA_ON_COMMAND_RESPONSE, ts, driver)
         self.assertTrue(driver._protocol._get_response(expected_prompt=LILY_DATA_ON))
 
     def test_data_on_response_with_data(self):
@@ -595,82 +526,24 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         Verify that the driver correctly parses the DATA_ON response works
         when a data packet is right in front of it
         """
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        driver = self.test_connect()
         ts = ntplib.system_to_ntp_time(time.time())
 
         # Create a data packet and push to the driver
         log.debug("VALID SAMPLE : %s", VALID_SAMPLE_01)
         # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(VALID_SAMPLE_01)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
+        self._send_port_agent_packet(VALID_SAMPLE_01, ts, driver)
 
         log.debug("DATA ON command response: %s", DATA_ON_COMMAND_RESPONSE)
         # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(DATA_ON_COMMAND_RESPONSE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
+        self._send_port_agent_packet(DATA_ON_COMMAND_RESPONSE, ts, driver)
         self.assertTrue(driver._protocol._get_response(expected_prompt=LILY_DATA_ON))
 
     def test_status_01(self):
         """
         Verify that the driver correctly parses the DUMP-SETTINGS response
         """
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        driver = self.test_connect()
         ts = ntplib.system_to_ntp_time(time.time())
 
         data_list = [
@@ -701,155 +574,56 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         ]
 
         for item in data_list:
-            port_agent_packet = PortAgentPacket()
-            port_agent_packet.attach_data(item + NL)
-            port_agent_packet.attach_timestamp(ts)
-            port_agent_packet.pack_header()
-            driver._protocol.got_data(port_agent_packet)
+            self._send_port_agent_packet(item + NL, ts, driver)
 
     def test_status_02(self):
         """
         Verify that the driver correctly parses the DUMP2 response
         """
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        driver = self.test_connect()
         ts = ntplib.system_to_ntp_time(time.time())
 
         log.debug("DUMP_02_STATUS: %s", DUMP_02_STATUS)
         # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(DUMP_02_STATUS + DUMP_02_COMMAND_RESPONSE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-        driver._protocol.got_data(port_agent_packet)
+        self._send_port_agent_packet(DUMP_02_STATUS + DUMP_02_COMMAND_RESPONSE, ts, driver)
 
     def test_data_off_response(self):
         """
         Verify that the driver correctly parses the DATA_OFF response
         """
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        driver = self.test_connect()
         ts = ntplib.system_to_ntp_time(time.time())
 
         log.debug("DATA OFF command response: %s", DATA_OFF_COMMAND_RESPONSE)
         # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(DATA_OFF_COMMAND_RESPONSE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
+        self._send_port_agent_packet(DATA_OFF_COMMAND_RESPONSE, ts, driver)
         self.assertTrue(driver._protocol._get_response(expected_prompt=LILY_DATA_OFF))
 
     def test_dump_settings_response(self):
         """
         Verify that the driver correctly parses the DUMP_SETTINGS response
         """
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        driver = self.test_connect()
         ts = ntplib.system_to_ntp_time(time.time())
 
         log.debug("DUMP_SETTINGS_01 command response: %s", DUMP_01_COMMAND_RESPONSE)
         # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(DUMP_01_COMMAND_RESPONSE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
-
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
-        response = driver._protocol._get_response(expected_prompt=
-                                                  LILY_DUMP_01)
-
+        self._send_port_agent_packet(DUMP_01_COMMAND_RESPONSE, ts, driver)
+        response = driver._protocol._get_response(expected_prompt=LILY_DUMP_01)
         self.assertTrue(isinstance(response[1], LILYCommandResponse))
-
-        log.debug("DUMP_SETTINGS_02 command response: %s", DUMP_02_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(DUMP_02_COMMAND_RESPONSE)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
 
         # Clear out the linebuf and promptbuf (do_cmd_resp normally does this)
         driver._protocol._linebuf = ''
         driver._protocol._promptbuf = ''
 
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
-        response = driver._protocol._get_response(expected_prompt=
-                                                  LILY_DUMP_02)
+        log.debug("DUMP_SETTINGS_02 command response: %s", DUMP_02_COMMAND_RESPONSE)
+        # Create and populate the port agent packet.
+        self._send_port_agent_packet(DUMP_02_COMMAND_RESPONSE, ts, driver)
+        response = driver._protocol._get_response(expected_prompt=LILY_DUMP_02)
         self.assertTrue(isinstance(response[1], LILYCommandResponse))
 
     def test_start_autosample(self):
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
+        driver = self.test_connect()
 
         def my_send(data):
             my_response = DATA_ON_COMMAND_RESPONSE
@@ -857,39 +631,14 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
             driver._protocol._promptbuf += my_response
             return len(DATA_ON_COMMAND_RESPONSE)
 
-        mock_port_agent.send.side_effect = my_send
-
-        # Put the driver into test mode
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        driver._connection.send.side_effect = my_send
 
         driver._protocol._handler_command_start_autosample(timeout=0)
         ts = ntplib.system_to_ntp_time(time.time())
         driver._protocol._got_coarse_chunk(DATA_ON_COMMAND_RESPONSE, ts)
 
     def test_stop_autosample(self):
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
+        driver = self.test_connect(ProtocolState.AUTOSAMPLE)
 
         def my_send(data):
             my_response = DATA_OFF_COMMAND_RESPONSE
@@ -897,41 +646,14 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
             driver._protocol._promptbuf += my_response
             return len(DATA_OFF_COMMAND_RESPONSE)
 
-        mock_port_agent.send.side_effect = my_send
-
-        #self.assert_initialize_driver(driver)
-
-        # Put the driver into test mode
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.AUTOSAMPLE)
+        driver._connection.send.side_effect = my_send
 
         driver._protocol._handler_autosample_stop_autosample()
         ts = ntplib.system_to_ntp_time(time.time())
         driver._protocol._got_coarse_chunk(DATA_OFF_COMMAND_RESPONSE, ts)
 
     def test_status_01_handler(self):
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
+        driver = self.test_connect(ProtocolState.AUTOSAMPLE)
 
         def my_send(data):
             my_response = DUMP_01_STATUS
@@ -939,31 +661,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
             driver._protocol._promptbuf += my_response
             return len(DUMP_01_STATUS)
 
-        mock_port_agent.send.side_effect = my_send
-
-        # Put the driver into test mode
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.AUTOSAMPLE)
+        driver._connection.send.side_effect = my_send
 
         result = driver._protocol._handler_command_autosample_dump01(timeout=0)
         tuple1 = result[1]
@@ -972,8 +670,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self.assertTrue(status_string == DUMP_01_STATUS)
 
     def test_status_02_handler(self):
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
+        driver = self.test_connect()
 
         def my_send(data):
             my_response = DUMP_02_STATUS
@@ -981,31 +678,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
             driver._protocol._promptbuf += my_response
             return len(DUMP_02_STATUS)
 
-        mock_port_agent.send.side_effect = my_send
-
-        # Put the driver into test mode
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.AUTOSAMPLE)
+        driver._connection.send.side_effect = my_send
 
         result = driver._protocol._handler_command_autosample_dump02(timeout=0)
         tuple1 = result[1]
@@ -1014,33 +687,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self.assertTrue(status_string == DUMP_02_STATUS)
 
     def test_dump_01(self):
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-
-        # Put the driver into test mode
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into command mode
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
-
+        driver = self.test_connect()
         ts = ntplib.system_to_ntp_time(time.time())
 
         # DHE: need to return the status as a string; so, right now we check
@@ -1056,32 +703,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self.assertTrue(isinstance(response[1], LILYStatus01Particle))
 
     def test_dump_02(self):
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-
-        # Put the driver into test mode
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into command mode
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
+        driver = self.test_connect()
 
         ts = ntplib.system_to_ntp_time(time.time())
 
@@ -1097,67 +719,35 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         response = driver._protocol._get_response(timeout=0)
         self.assertTrue(isinstance(response[1], LILYStatus02Particle))
 
-    @unittest.skip('Skipped due to 130 second timeout')
     def test_leveling_timeout(self):
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
+        # stand up the driver in test mode
+        driver = self.test_connect(ProtocolState.COMMAND_LEVELING)
 
-        # Put the driver into test mode
-        driver.set_test_mode(True)
+        # set the leveling timeout to 1 to speed up timeout
+        driver._protocol._leveling_timeout = 1
 
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
+        # callable side effect to fake a response to a stop leveling command
+        def my_send(data):
+            my_response = STOP_LEVELING_COMMAND_RESPONSE
+            log.debug("my_send: data: %s, my_response: %s", data, my_response)
+            driver._protocol._promptbuf += my_response
+            return len(STOP_LEVELING_COMMAND_RESPONSE)
 
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
+        # assert we are in COMMAND_LEVELING
+        current_state = driver._protocol.get_current_state()
+        self.assertEqual(current_state, ProtocolState.COMMAND_LEVELING)
 
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into a known state
-        self.assert_force_state(driver, DriverProtocolState.COMMAND)
-
+        # register our side effect and start the leveling timeout
+        driver._connection.send.side_effect = my_send
         driver._protocol._handler_leveling_enter()
-        time.sleep(130)
-        self.assertEqual(current_state, DriverProtocolState.COMMAND)
+
+        # sleep for the length of timeout, assert we have returned to COMMAND
+        time.sleep(driver._protocol._leveling_timeout + 1)
+        current_state = driver._protocol.get_current_state()
+        self.assertEqual(current_state, ProtocolState.COMMAND)
 
     def test_leveling_complete(self):
-        mock_port_agent = Mock(spec=PortAgentClient)
-        driver = InstrumentDriver(self._got_data_event_callback)
-
-        # Put the driver into test mode
-        driver.set_test_mode(True)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
-
-        # Now configure the driver with the mock_port_agent, verifying
-        # that the driver transitions to that state
-        config = {'mock_port_agent': mock_port_agent}
-        driver.configure(config=config)
-
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverConnectionState.DISCONNECTED)
-
-        # Invoke the connect method of the driver: should connect to mock
-        # port agent.  Verify that the connection FSM transitions to CONNECTED,
-        # (which means that the FSM should now be reporting the ProtocolState).
-        driver.connect()
-        current_state = driver.get_resource_state()
-        self.assertEqual(current_state, DriverProtocolState.UNKNOWN)
-
-        # Force the instrument into command mode
-        self.assert_force_state(driver, ProtocolState.COMMAND_LEVELING)
-
+        driver = self.test_connect(ProtocolState.AUTOSAMPLE_LEVELING)
         ts = ntplib.system_to_ntp_time(time.time())
 
         driver._protocol._got_coarse_chunk(LEVELED_STATUS, ts)
@@ -1166,7 +756,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         time.sleep(1)
 
-        #
         # Because the driver will send a DATA_ON message and look for the response,
         # we need to feed it a simulated response
         #
@@ -1174,8 +763,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         driver._protocol._got_coarse_chunk(DATA_ON_COMMAND_RESPONSE, ts)
 
         timeout = 10
-        target_state = ProtocolState.COMMAND
+        target_state = ProtocolState.AUTOSAMPLE
         end_time = time.time() + timeout
+        current_state = None
 
         while time.time() <= end_time:
             current_state = driver._protocol._protocol_fsm.get_current_state()
@@ -1185,7 +775,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
                 log.debug("state mismatch %s != %s, sleep for a bit", current_state, target_state)
                 time.sleep(2)
 
-        self.assertTrue(ProtocolState.COMMAND == current_state)
+        self.assertEquals(current_state, target_state)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -1262,13 +852,11 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         #Issue start leveling command
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
         log.debug("START_LEVELING returned: %r", response)
-
         self.assert_state_change(ProtocolState.AUTOSAMPLE_LEVELING, 30)
 
         # Issue stop leveling command
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
         log.debug("STOP_LEVELING returned: %r", response)
-
         self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
 
     def test_command_leveling(self):
@@ -1283,13 +871,11 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         #Issue start leveling command
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
         log.debug("START_LEVELING returned: %r", response)
-
         self.assert_state_change(ProtocolState.COMMAND_LEVELING, 30)
 
         # Issue stop leveling command
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
         log.debug("STOP_LEVELING returned: %r", response)
-
         self.assert_state_change(ProtocolState.COMMAND, 30)
 
     def test_auto_relevel(self):
@@ -1533,4 +1119,3 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, LILYTestMix
         # Reset
         self.assert_agent_command(ResourceAgentEvent.RESET)
         self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
-

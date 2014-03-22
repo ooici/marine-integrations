@@ -74,7 +74,7 @@ STATUS_LEVELED = 'Leveled!'  # LILY reports leveled
 TIMEOUT = 10
 DEFAULT_CMD_TIMEOUT = 120
 #LEVELING_TIMEOUT = 60
-LEVELING_TIMEOUT = 2
+LEVELING_TIMEOUT = 120
 
 DEFAULT_XTILT_TRIGGER = 300
 DEFAULT_YTILT_TRIGGER = 300
@@ -906,6 +906,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._auto_relevel = DEFAULT_AUTO_RELEVEL
         self._xtilt_relevel_trigger = DEFAULT_XTILT_TRIGGER
         self._ytilt_relevel_trigger = DEFAULT_YTILT_TRIGGER
+        self._leveling_timeout = LEVELING_TIMEOUT
         self._last_data_timestamp = 0
 
         self.initialize_scheduler()
@@ -934,7 +935,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         The method that splits samples
         """
-
         matchers = []
         return_list = []
 
@@ -1068,7 +1068,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         
         @param data: bytes to add to the buffer
         """
-
         # Update the line and prompt buffers; first acquire mutex.
         promptbuf_mutex.acquire()
         self._linebuf += data
@@ -1145,7 +1144,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         add_to_buffer that is called from got_data().  The reason is explained
         in comments in _my_add_to_buffer.
         """
-
         if self.leveling_regex.match(chunk):
             # This is a leveling status message; doesn't need to be added to
             # prompt_buf, but we might neet to take action on it, depending
@@ -1550,7 +1548,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 job_name: {
                     DriverSchedulerConfigKey.TRIGGER: {
                         DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
-                        DriverSchedulerConfigKey.MINUTES: LEVELING_TIMEOUT
+                        DriverSchedulerConfigKey.SECONDS: self._leveling_timeout
                     },
                 }
             }
@@ -1589,7 +1587,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             f = self._handler_autosample_leveling_stop_leveling
 
         def inner(*args, **kwds):
-            log.critical("_handler_leveling_complete")
 
             try:
                 self._remove_scheduler(ScheduledJob.LEVELING_TIMEOUT)
