@@ -179,7 +179,7 @@ class NANOTestMixinSub(DriverTestMixin):
     }
 
     _sample_parameters_01 = {
-        NANODataParticleKey.TIME: {TYPE: float, VALUE: 3586227216.0, REQUIRED: True},
+        NANODataParticleKey.TIME: {TYPE: float, VALUE: 3586225716.0, REQUIRED: True},
         NANODataParticleKey.PRESSURE: {TYPE: float, VALUE: 13.888533, REQUIRED: True},
         NANODataParticleKey.TEMP: {TYPE: float, VALUE: 26.147947328, REQUIRED: True},
     }
@@ -254,7 +254,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(InstrumentCommand())
 
-        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
+        # Test capabilities for duplicates, them verify that capabilities is a subset of proto events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
