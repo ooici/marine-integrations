@@ -26,6 +26,7 @@ import gevent
 
 
 
+
 # from interface.objects import AgentCapability
 # from interface.objects import CapabilityType
 
@@ -406,7 +407,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
                 self.fail("assert_async_particle_not_generated: a particle of type %s was published" % particle_type)
             time.sleep(.3)
 
-    @unittest.skip('')
     def test_parameters(self):
         """
         Test driver parameters and verify their type.  Startup parameters also verify the parameter
@@ -433,7 +433,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         # Verify that the time matches to within 5 seconds
         self.assertLessEqual(abs(time.mktime(ras_time) - time.mktime(gmt_time)), 5)
 
-    @unittest.skip('')
     def test_acquire_sample(self):
         """
         Test that we can generate sample particle with command
