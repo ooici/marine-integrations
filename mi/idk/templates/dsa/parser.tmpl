@@ -21,6 +21,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import SampleException, DatasetParserException
+
 from mi.dataset.dataset_parser import BufferLoadingParser
 
 # *** Need to define data regex for this parser ***
@@ -30,12 +31,12 @@ DATA_MATCHER = re.compile(DATA_REGEX)
 class DataParticleType(BaseEnum):
     SAMPLE = '${full_instrument_lower}_parsed'
 
-class ${full_instrument_first}ParserDataParticleKey(BaseEnum):
+class ${full_instrument_camelcase}ParserDataParticleKey(BaseEnum):
 
 class StateKey(BaseEnum):
-    TIMESTAMP='timestamp' #holds the most recent data sample timestamp
+    POSITION='position' # holds the file position
 
-class ${full_instrument_first}ParserDataParticle(DataParticle):
+class ${full_instrument_camelcase}ParserDataParticle(DataParticle):
     """
     Class for parsing data from the ${driver_name} data set
     """
@@ -69,7 +70,7 @@ class ${full_instrument_first}ParserDataParticle(DataParticle):
                 log.debug('Timestamp does not match')
             return False
 
-class ${full_instrument_first}Parser(BufferLoadingParser):
+class ${full_instrument_camelcase}Parser(BufferLoadingParser):
 
     def set_state(self, state_obj):
         """
@@ -83,12 +84,12 @@ class ${full_instrument_first}Parser(BufferLoadingParser):
         self._state = state_obj
         self._read_state = state_obj
 
-    def _increment_state(self, timestamp):
+    def _increment_state(self, increment):
         """
         Increment the parser state
         @param timestamp The timestamp completed up to that position
         """
-        self._read_state[StateKey.TIMESTAMP] = timestamp
+        self._read_state[StateKey.POSITION] += increment
 
     def parse_chunks(self):
         """
@@ -110,7 +111,7 @@ class ${full_instrument_first}Parser(BufferLoadingParser):
                 if sample:
                     # create particle
                     log.trace("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
-                    self._increment_state(end, self._timestamp)    
+                    self._increment_state(end, len(chunk))
                     result_particles.append((sample, copy.copy(self._read_state)))
 
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()

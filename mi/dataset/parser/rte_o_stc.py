@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.rte_xx__stc
-@file marine-integrations/mi/dataset/parser/rte_xx__stc.py
+@package mi.dataset.parser.rte_o_stc
+@file marine-integrations/mi/dataset/parser/rte_o_stc.py
 @author Jeff Roy
-@brief Parser for the RTE_xx__stc dataset driver
+@brief Parser for the rte_o_stc dataset driver
 Release notes:
 
 Initial Release
@@ -45,7 +45,7 @@ LOG_TIME_MATCHER = re.compile(LOG_TIME_REGEX)
 class DataParticleType(BaseEnum):
     SAMPLE = 'rte_xx__stc_instrument'
 
-class Rte_xx__stcParserDataParticleKey(BaseEnum):
+class RteOStcParserDataParticleKey(BaseEnum):
     RTE_TIME = 'rte_time'
     RTE_COULOMBS = 'rte_coulombs'
     RTE_AVG_Q_CURRENT = 'rte_avg_q_current'
@@ -57,9 +57,9 @@ class Rte_xx__stcParserDataParticleKey(BaseEnum):
 class StateKey(BaseEnum):
     POSITION='position' #hold the current file position
 
-class Rte_xx__stcParserDataParticle(DataParticle):
+class RteOStcParserDataParticle(DataParticle):
     """
-    Class for parsing data from the RTE_xx__stc data set
+    Class for parsing data from the rte_o_stc data set
     """
 
     _data_particle_type = DataParticleType.SAMPLE
@@ -73,7 +73,7 @@ class Rte_xx__stcParserDataParticle(DataParticle):
         # match the data inside the wrapper
         match = DATA_MATCHER.match(self.raw_data)
         if not match:
-            raise SampleException("Rte_xx__stcParserDataParticle: No regex match of \
+            raise SampleException("RteOStcParserDataParticle: No regex match of \
                                   parsed sample data [%s]", self.raw_data)
         
         try:
@@ -94,22 +94,22 @@ class Rte_xx__stcParserDataParticle(DataParticle):
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
         
-        result = [{DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_TIME,
+        result = [{DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_TIME,
                    DataParticleKey.VALUE: date_str},
-                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_COULOMBS,
+                  {DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_COULOMBS,
                    DataParticleKey.VALUE: coulomb_value},
-                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_AVG_Q_CURRENT,
+                  {DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_AVG_Q_CURRENT,
                    DataParticleKey.VALUE: avg_q_current_value},
-                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_AVG_VOLTAGE,
+                  {DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_AVG_VOLTAGE,
                    DataParticleKey.VALUE: avg_voltage_value},
-                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_AVG_SUPPLY_VOLTAGE,
+                  {DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_AVG_SUPPLY_VOLTAGE,
                    DataParticleKey.VALUE: avg_supply_voltage_value},
-                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_HITS,
+                  {DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_HITS,
                    DataParticleKey.VALUE: rte_hits_value},
-                  {DataParticleKey.VALUE_ID: Rte_xx__stcParserDataParticleKey.RTE_STATE,
+                  {DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_STATE,
                    DataParticleKey.VALUE: rte_state_value}]
          
-        log.debug('Rte_xx__stcParserDataParticle: particle=%s', result)
+        log.debug('RteOStcParserDataParticle: particle=%s', result)
         return result  
 
     def __eq__(self, arg): 
@@ -130,7 +130,7 @@ class Rte_xx__stcParserDataParticle(DataParticle):
                 log.debug('Timestamp does not match')
             return False
 
-class Rte_xx__stcParser(BufferLoadingParser):
+class RteOStcParser(BufferLoadingParser):
 
     def __init__(self,
                  config,
@@ -139,7 +139,7 @@ class Rte_xx__stcParser(BufferLoadingParser):
                  state_callback,
                  publish_callback,
                  *args, **kwargs):
-        super(Rte_xx__stcParser, self).__init__(config,
+        super(RteOStcParser, self).__init__(config,
                                                     stream_handle,
                                                     state,
                                                     partial(StringChunker.regex_sieve_function,
