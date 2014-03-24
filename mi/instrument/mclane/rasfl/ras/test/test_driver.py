@@ -25,6 +25,7 @@ import gevent
 
 
 
+
 # from interface.objects import AgentCapability
 # from interface.objects import CapabilityType
 
@@ -405,6 +406,7 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
                 self.fail("assert_async_particle_not_generated: a particle of type %s was published" % particle_type)
             time.sleep(.3)
 
+    @unittest.skip('')
     def test_parameters(self):
         """
         Test driver parameters and verify their type.  Startup parameters also verify the parameter
@@ -412,8 +414,9 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         the startup has been applied.
         """
         self.assert_initialize_driver()
-        #reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        #self.assert_driver_parameters(reply, verify_sample_interval=True)
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        log.debug('Startup parameters: %s', reply)
+        self.assert_driver_parameters(reply)
 
     def test_execute_clock_sync_command_mode(self):
         """
@@ -423,28 +426,14 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
 
         # command the instrument to sync clock.
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
+        gmt_time = time.gmtime()
         log.debug('execute clock command 1 returned %s', reply)
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
-        log.debug('execute clock command 2 returned %s', reply)
+        ras_time = reply[1]
 
-        #reply = self.driver_client.cmd_dvr('get_resource', Parameter.CLOCK) - what was this trying to do?
+        # Verify that the time matches to within 5 seconds
+        self.assertLessEqual(abs(time.mktime(ras_time) - time.mktime(gmt_time)), 5)
 
-        # convert driver's time from formatted date/time string to seconds integer
-        #instrument_time = time.mktime(time.strptime(reply.get(Parameter.CLOCK).lower(), "%Y/%m/%d %H:%M:%S"))
-
-        # need to convert local machine's time to date/time string and back to seconds to 'drop' the DST
-        # attribute so test passes
-        # get time from local machine
-        lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
-        # convert local time from formatted date/time string to seconds integer to drop DST
-        local_time = time.mktime(time.strptime(lt, "%d %b %Y %H:%M:%S"))
-        log.debug('current time: %s', local_time)
-
-        # Now verify that the time matches to within 5 seconds
-        #TODO - how do we get the value back from the driver?
-        #self.assertLessEqual(abs(instrument_time - local_time), 5)
-
-    # @unittest.skip('')
+    @unittest.skip('')
     def test_acquire_sample(self):
         """
         Test that we can generate sample particle with command

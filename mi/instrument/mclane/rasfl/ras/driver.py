@@ -59,8 +59,8 @@ CONTROL_C = '\x03'
 NUM_PORTS = 48  # number of collection bags
 
 # default timeout.
-INTER_CHARACTER_DELAY = .2
-#INTER_CHARACTER_DELAY = 0.01
+# INTER_CHARACTER_DELAY = .2  # works
+INTER_CHARACTER_DELAY = .02
 
 ####
 #    Driver Constant Definitions
@@ -795,10 +795,9 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.info('clock synched within %d seconds', diff)
             #latency = diff / 2
         finally:
-            # TODO - this is probably not necessary
-            self._do_cmd_resp(Command.GO, response_regex=Response.READY)
+            pass
 
-        return None, None
+        return None, (None, ras_time)
 
     def _handler_command_acquire(self, *args, **kwargs):
         next_state = ProtocolState.ACQUIRE_SAMPLE
