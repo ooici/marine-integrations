@@ -22,8 +22,8 @@ from mi.idk.config import Config
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.parser.dofst_k_wfp import DofstKWfpParser, DataParticleType
-from mi.dataset.parser.dofst_k_wfp import DofstKWfpParserDataParticle
-from mi.dataset.parser.wfp_c_file_common import WfpMetadataParserDataParticle, StateKey
+from mi.dataset.parser.dofst_k_wfp import DofstKWfpParserDataParticle, DofstKWfpMetadataParserDataParticle
+from mi.dataset.parser.wfp_c_file_common import StateKey
 
 
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
@@ -70,7 +70,7 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
         self.config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.dofst_k_wfp',
             DataSetDriverConfigKeys.PARTICLE_CLASS: ['DofstKWfpParserDataParticle',
-                                                     'WfpMetadataParserDataParticle']
+                                                     'DofstKWfpMetadataParserDataParticle']
             }
         self.start_state = {StateKey.POSITION: 0,
                             StateKey.TIMESTAMP: 0.0,
@@ -87,13 +87,11 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
         time_increment_270 = float(end_time - start_time) / 270.0
 
         self.start_timestamp = self.calc_timestamp(start_time, time_increment_3, 0)
-        self.particle_meta = WfpMetadataParserDataParticle((b"\x52\x4e\x75\x82\x52\x4e\x76\x9a", 3.0),
+        self.particle_meta = DofstKWfpMetadataParserDataParticle((b"\x52\x4e\x75\x82\x52\x4e\x76\x9a", 3.0),
             internal_timestamp=self.start_timestamp)
-        self.particle_meta.set_data_particle_type(DataParticleType.METADATA)
         self.start_timestamp_long = self.calc_timestamp(start_time, time_increment_270, 0)
-        self.particle_meta_long = WfpMetadataParserDataParticle((b"\x52\x4e\x75\x82\x52\x4e\x76\x9a", 270.0),
+        self.particle_meta_long = DofstKWfpMetadataParserDataParticle((b"\x52\x4e\x75\x82\x52\x4e\x76\x9a", 270.0),
             internal_timestamp=self.start_timestamp_long)
-        self.particle_meta_long.set_data_particle_type(DataParticleType.METADATA)
 
         self.particle_a = DofstKWfpParserDataParticle(b"\x00\x1a\x88\x03\xe3\x3b\x00\x03\xeb\x0a\xc8",
                                                           internal_timestamp=self.start_timestamp)
@@ -113,10 +111,10 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
                                                             internal_timestamp=timestamp_last)
 
 	# uncomment to generate yml
-        self.particle_to_yml(self.particle_meta)
-        self.particle_to_yml(self.particle_a)
-        self.particle_to_yml(self.particle_b)
-        self.particle_to_yml(self.particle_c)
+        #self.particle_to_yml(self.particle_meta)
+        #self.particle_to_yml(self.particle_a)
+        #self.particle_to_yml(self.particle_b)
+        #self.particle_to_yml(self.particle_c)
 
         self.file_ingested_value = None
         self.state_callback_value = None

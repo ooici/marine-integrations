@@ -20,14 +20,14 @@ from mi.core.exceptions import SampleException
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver, DataSetDriverConfigKeys, DriverStateKey
 from mi.dataset.parser.dofst_k_wfp import DofstKWfpParser, DofstKWfpParserDataParticle
-from mi.dataset.parser.wfp_c_file_common import WfpMetadataParserDataParticle
+from mi.dataset.parser.dofst_k_wfp import DofstKWfpMetadataParserDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
 class DofstKWfpDataSetDriver(SimpleDataSetDriver):
     
     @classmethod
     def stream_config(cls):
-        return [WfpMetadataParserDataParticle.type(),
+        return [DofstKWfpMetadataParserDataParticle.type(),
                 DofstKWfpParserDataParticle.type()]
 
     def _build_parser(self, parser_state, infile, filesize):
@@ -37,7 +37,7 @@ class DofstKWfpDataSetDriver(SimpleDataSetDriver):
         config = self._parser_config
         config.update({
             'particle_module': 'mi.dataset.parser.dofst_k_wfp',
-            'particle_class': ['WfpMetadataParserDataParticle',
+            'particle_class': ['DofstKWfpMetadataParserDataParticle',
                                'DofstKWfpParserDataParticle']
         })
         log.debug("My Config: %s", config)
