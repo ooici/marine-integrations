@@ -24,6 +24,7 @@ import gevent
 
 
 
+
 # from interface.objects import AgentCapability
 # from interface.objects import CapabilityType
 
@@ -363,11 +364,12 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
                 ProtocolEvent.ACQUIRE_SAMPLE,
                 ProtocolEvent.CLOCK_SYNC,
             ],
+            ProtocolState.ACQUIRE_SAMPLE: [
+                ProtocolEvent.ACQUIRE_SAMPLE,
+            ],
             ProtocolState.DIRECT_ACCESS: [
                 ProtocolEvent.STOP_DIRECT,
                 ProtocolEvent.EXECUTE_DIRECT,
-            ],
-            ProtocolState.ACQUIRE_SAMPLE: [
             ],
         }
 
@@ -403,7 +405,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
                 self.fail("assert_async_particle_not_generated: a particle of type %s was published" % particle_type)
             time.sleep(.3)
 
-    @unittest.skip('')
     def test_parameters(self):
         """
         Test driver parameters and verify their type.  Startup parameters also verify the parameter
@@ -437,13 +438,13 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         # convert local time from formatted date/time string to seconds integer to drop DST
         local_time = time.mktime(time.strptime(lt, "%d %b %Y %H:%M:%S"))
-        log.debug('current time: %s', time.asctime(local_time))
+        log.debug('current time: %s', local_time)
 
         # Now verify that the time matches to within 5 seconds
         #TODO - how do we get the value back from the driver?
         #self.assertLessEqual(abs(instrument_time - local_time), 5)
 
-    @unittest.skip('')
+    # @unittest.skip('')
     def test_acquire_sample(self):
         """
         Test that we can generate sample particle with command

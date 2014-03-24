@@ -332,7 +332,7 @@ class RASFLSampleDataParticle(DataParticle):
                   '\s*(\d+)\s*\|' +  # HHMMSS (current time)
                   '\s*(\d*\.?\d+)' +  # voltage (battery)
                   '\s*(\d+)' +  # code enumeration
-                  '\s*')
+                  '\s*' + NEWLINE)
         return exp
 
     @staticmethod
