@@ -3,7 +3,7 @@
 """
 @package mi.dataset.parser.test.test_ctdpf_ckl_wfp
 @file marine-integrations/mi/dataset/parser/test/test_ctdpf_ckl_wfp.py
-@author Emily Hahn
+@author cgoodrich
 @brief Test code for a ctdpf_ckl_wfp data parser
 """
 import os
