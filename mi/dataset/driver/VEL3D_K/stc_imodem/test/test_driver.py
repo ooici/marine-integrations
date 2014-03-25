@@ -42,6 +42,7 @@ from mi.dataset.driver.VEL3D_K.stc_imodem.driver import \
 
 from mi.dataset.parser.vel3d_k__stc_imodem import \
   DataParticleType, \
+  StateKey, \
   Vel3d_k__stc_imodemTimeDataParticle, \
   Vel3d_k__stc_imodemVelocityDataParticle
 
@@ -180,6 +181,10 @@ class IntegrationTest(DataSetIntegrationTestCase):
             filename_1 : self.get_file_state(path_1, True, 50),
             filename_2 : self.get_file_state(path_2, False, 74)
         }
+        state[filename_1]['parser_state'][StateKey.FIRST_RECORD] = False
+        state[filename_1]['parser_state'][StateKey.VELOCITY_END] = True
+        state[filename_2]['parser_state'][StateKey.FIRST_RECORD] = False
+        state[filename_2]['parser_state'][StateKey.VELOCITY_END] = False
         self.driver = self._get_driver_object(memento=state)
 
         self.clear_async_data()
@@ -359,6 +364,34 @@ class QualificationTest(DataSetQualificationTestCase):
             self.fail("Sample timeout.")
 
         log.info("========== END QUAL TEST SHUTDOWN RESTART =================")
+
+    def test_stop_resume_at_time_record(self):
+        """
+        Test the agents ability to start data flowing, stop after having
+        read all the velocity records, then restart at the correct spot.
+        """
+        log.info("====== START QUAL TEST STOP RESUME AT TIME RECORD  ========")
+
+        # Read the velocity records of a 4 velocity record file.
+        self.create_sample_data('valid_A0000004.DEC', "A0000004.DEC")
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+        self.dataset_agent_client.set_resource(
+          {DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
+        result = self.get_samples(DataParticleType.VELOCITY_PARTICLE, 4)
+
+        self.assert_stop_sampling()
+        self.verify_queue_empty()
+
+        # Get the time record and combine with previous records.
+        self.assert_start_sampling()
+        time_result = self.data_subscribers.get_samples(
+          DataParticleType.TIME_PARTICLE, 1)
+        result.extend(time_result)
+        self.assert_data_values(result, 'valid_A0000004.yml')
+        self.verify_queue_empty()
+
+        log.info("====== END QUAL TEST STOP RESUME AT TIME RECORD  ========")
 
     def test_stop_start(self):
         """
