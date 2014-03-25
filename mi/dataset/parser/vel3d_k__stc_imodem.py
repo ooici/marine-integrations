@@ -100,7 +100,9 @@ VEL3D_PARAMETERS = \
 
 
 class StateKey(BaseEnum):
-    POSITION = 'position'    # number of bytes read
+    FIRST_RECORD = 'first record'   # are we at the beginning of the file?
+    POSITION = 'position'           # number of bytes read
+    VELOCITY_END = 'velocity end'   # has end of velocity record been found?
 
 
 class DataParticleType(BaseEnum):
@@ -286,11 +288,11 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
             if state:
                 self.set_state(state)
             else:
-                initial_state = {StateKey.POSITION: 0}
+                initial_state = {StateKey.FIRST_RECORD: True,
+                  StateKey.POSITION: 0,
+                  StateKey.VELOCITY_END: False}
                 self.set_state(initial_state)
 
-            self.first_record = True
-            self.end_of_velocity_records = False
             self.time_on = int(time_fields[INDEX_TIME_ON])
 
             #
@@ -390,10 +392,6 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         # If the Flag record is invalid, we're done.
         #
         else:
-            #
-            # Restore the file to where it was before we stared reading it.
-            # 0 = from start of file.
-            #
             log.warn("Invalid Flag record")
             raise SampleException("Invalid Flag record")
 
@@ -408,14 +406,20 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
         """
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
-        if not (StateKey.POSITION in state_obj):
+        if not (StateKey.FIRST_RECORD in state_obj) or \
+          not (StateKey.POSITION in state_obj) or \
+          not (StateKey.VELOCITY_END in state_obj):
             raise DatasetParserException("Invalid state keys")
+
+        #
+        # Initialize parent data.
+        #
         self._timestamp = 0.0
         self._record_buffer = []
+
         self._state = state_obj
         self._read_state = state_obj
         self.input_file.seek(self._read_state[StateKey.POSITION], 0)  
-        self.end_of_velocity_records = False
 
     def _increment_state(self, bytes_read):
         """
@@ -443,14 +447,15 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
             # with a Flag record if the size of the velocity records are 
             # greater than or equal to the Flag record size.
             #
-            if self.first_record and FLAG_RECORD_MATCHER.match(chunk):
+            if self._read_state[StateKey.FIRST_RECORD] and \
+              FLAG_RECORD_MATCHER.match(chunk):
                 self._increment_state(FLAG_RECORD_SIZE)
 
             #
             # If we haven't reached the end of the Velocity record,
             # see if this next record is the last one (all zeroes).
             #
-            elif not self.end_of_velocity_records:
+            elif not self._read_state[StateKey.VELOCITY_END]:
                 velocity_end = self.velocity_end_record_matcher.match(chunk)
                 self._increment_state(self.velocity_record_size)
 
@@ -459,7 +464,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
                 # a data particle.
                 #
                 if velocity_end:
-                    self.end_of_velocity_records = True
+                    self._read_state[StateKey.VELOCITY_END] = True
                 else:
                     #
                     # If the file is missing an end of velocity record,
@@ -521,7 +526,11 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
                     result_particles.append((particle,
                       copy.copy(self._read_state)))
 
-            self.first_record = False
+                else:
+                    log.warn("EOF reading time record")
+                    raise SampleException("EOF reading time record")
+
+            self._read_state[StateKey.FIRST_RECORD] = False
 
             (timestamp, chunk, start, 
               end) = self._chunker.get_next_data_with_index()
