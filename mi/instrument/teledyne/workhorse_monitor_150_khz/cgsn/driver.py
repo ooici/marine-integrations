@@ -120,7 +120,7 @@ class Protocol(WorkhorseProtocol):
             visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=False,
-            default_value='11110')
+            default_value='11111')
 
         self._param_dict.add(Parameter.BANNER,
             r'CH = (\d) \-+ Suppress Banner',
@@ -356,7 +356,7 @@ class Protocol(WorkhorseProtocol):
             visibility=ParameterDictVisibility.IMMUTABLE,
             direct_access=False,
             startup_param=True,
-            default_value='111100000')
+            default_value='111 100 000')
 
         self._param_dict.add(Parameter.ERROR_VELOCITY_THRESHOLD,
             r'WE (\d+) \-+ Error Velocity Threshold',

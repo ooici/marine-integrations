@@ -42,12 +42,13 @@ from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import Capabil
 from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import InstrumentDriver
 from mi.instrument.teledyne.workhorse_monitor_150_khz.cgsn.driver import Protocol
 
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_PD0_PARSED_KEY
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_PD0_PARSED_DataParticle
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY
+from mi.instrument.teledyne.particles import ADCP_COMPASS_CALIBRATION_KEY
+from mi.instrument.teledyne.particles import ADCP_PD0_PARSED_KEY
+from mi.instrument.teledyne.particles import ADCP_PD0_PARSED_DataParticle
+from mi.instrument.teledyne.workhorse_monitor_150_khz.particles import ADCP_SYSTEM_CONFIGURATION_KEY
 from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_SYSTEM_CONFIGURATION_DataParticle
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_COMPASS_CALIBRATION_KEY
-from mi.instrument.teledyne.workhorse_monitor_150_khz.driver import ADCP_COMPASS_CALIBRATION_DataParticle
+from mi.instrument.teledyne.particles import ADCP_COMPASS_CALIBRATION_KEY
+from mi.instrument.teledyne.particles import ADCP_COMPASS_CALIBRATION_DataParticle
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA1
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA2
 from mi.instrument.teledyne.workhorse_monitor_150_khz.test.test_data import SAMPLE_RAW_DATA3
@@ -158,7 +159,7 @@ class ADCPTMixin(DriverTestMixin):
     _driver_parameters = {
         # TODO: verify DEFAULT IS USED RIGHT.
         Parameter.SERIAL_DATA_OUT:           {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: "000 000 000",VALUE: "000 000 000",OFF_VALUE: "000 000 001"},
-        Parameter.SERIAL_FLOW_CONTROL:       {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: '11110', VALUE: '11110',      OFF_VALUE: '10110'},
+        Parameter.SERIAL_FLOW_CONTROL:       {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: '11111', VALUE: '11111',      OFF_VALUE: '10110'},
         Parameter.BANNER:                    {TYPE: bool, READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: False,        OFF_VALUE: True},
         Parameter.SLEEP_ENABLE:              {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 1,       VALUE: 1,            OFF_VALUE: 0},
         Parameter.INSTRUMENT_ID:             {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 0,       VALUE: 0,            OFF_VALUE: 1},
@@ -181,7 +182,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.FALSE_TARGET_THRESHOLD:    {TYPE: str,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: '050,001', VALUE: '050,001',    OFF_VALUE: '049,002'},
         Parameter.BANDWIDTH_CONTROL:         {TYPE: int,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 1,   VALUE: 1,            OFF_VALUE: 0},
         Parameter.CORRELATION_THRESHOLD:     {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 64,   VALUE: 64,           OFF_VALUE: 63},
-        Parameter.SERIAL_OUT_FW_SWITCHES:    {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: '111100000', VALUE: '111100000',  OFF_VALUE: '111100001'},
+        Parameter.SERIAL_OUT_FW_SWITCHES:    {TYPE: str,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: '111 100 000', VALUE: '111 100 000',  OFF_VALUE: '111100001'},
         Parameter.ERROR_VELOCITY_THRESHOLD:  {TYPE: int,  READONLY: False, DA: False, STARTUP: True,  DEFAULT: 2000,    VALUE: 2000,         OFF_VALUE: 1999},
         Parameter.BLANK_AFTER_TRANSMIT:      {TYPE: int,  READONLY: True,  DA: False, STARTUP: True,  DEFAULT: 352,     VALUE: 352,          OFF_VALUE: 342},
         Parameter.CLIP_DATA_PAST_BOTTOM:     {TYPE: bool, READONLY: False, DA: False, STARTUP: True,  DEFAULT: False,   VALUE: False,        OFF_VALUE: True},
@@ -466,7 +467,7 @@ class ADCPTMixin(DriverTestMixin):
         @param data_particle: ADCPT_PS0DataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-        log.debug("IN assert_particle_pd0_data")
+        log.error("IN assert_particle_pd0_data")
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_EARTH)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
 
@@ -559,8 +560,9 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 
         self.assert_particle_published(driver, CALIBRATION_RAW_DATA, self.assert_particle_compass_calibration, True)
         self.assert_particle_published(driver, PS0_RAW_DATA, self.assert_particle_system_configuration, True)
-
+        log.error("********SUNG WAS HERE")
         self.assert_particle_published(driver, SAMPLE_RAW_DATA1, self.assert_particle_pd0_data, True)
+
         self.assert_particle_published(driver, SAMPLE_RAW_DATA2, self.assert_particle_pd0_data, True)
         self.assert_particle_published(driver, SAMPLE_RAW_DATA3, self.assert_particle_pd0_data, True)
         self.assert_particle_published(driver, SAMPLE_RAW_DATA4, self.assert_particle_pd0_data, True)

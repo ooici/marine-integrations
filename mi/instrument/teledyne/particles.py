@@ -228,7 +228,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                   DataParticleKey.VALUE: checksum})
 
         (header_id, data_source_id, num_bytes, filler, num_data_types) = \
-            unpack('!BBHBB', self.raw_data[0:6])
+            unpack('<BBHBB', self.raw_data[0:6])
 
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.HEADER_ID,
                                   DataParticleKey.VALUE: header_id})
@@ -255,7 +255,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         for offset in range(0, num_data_types):
             chunks.append(self.raw_data[offsets[offset] : offsets[offset + 1] ])
 
-            variable_leader_id = unpack('!H', chunks[offset][0:2])[0]
+            variable_leader_id = unpack('<H', chunks[offset][0:2])[0]
 
             if offset == 0:
                 self.parse_fixed_chunk(chunks[offset])
@@ -284,7 +284,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
          sensor_available, bin_1_distance, transmit_pulse_length, reference_layer_start, reference_layer_stop, false_target_threshold,
          low_latency_trigger, transmit_lag_distance, cpu_board_serial_number, system_bandwidth, system_power,
          spare, serial_number, beam_angle) \
-        = unpack('!HBBHbBBBHHHBBBBHBBBBhhBBHHBBBBHQHBBIB', chunk[0:59])
+        = unpack('<HBBHbBBBHHHBBBBHBBBBhhBBHHBBBBHQHBBIB', chunk[0:59])
 
         if 0 != fixed_leader_id:
             raise SampleException("fixed_leader_id was not equal to 0")
@@ -419,6 +419,8 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
+        log.error("IN teledyne/parse_variable_chunk")
+
         rtc = {}
         rtc2k = {}
         (variable_leader_id, ensemble_number,
@@ -442,6 +444,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
                                   DataParticleKey.VALUE: variable_leader_id})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ENSEMBLE_NUMBER,
                                   DataParticleKey.VALUE: ensemble_number})
+        log.error("Sung 2" + ensemble_number)
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ENSEMBLE_NUMBER_INCREMENT,
                                   DataParticleKey.VALUE: ensemble_number_increment})
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.BIT_RESULT_DEMOD_1,
@@ -556,7 +559,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         N = (len(chunk) - 2) / 2 /4
         offset = 0
 
-        velocity_data_id = unpack("!H", chunk[0:2])[0]
+        velocity_data_id = unpack("<H", chunk[0:2])[0]
         if 1 != velocity_data_id:
             raise SampleException("velocity_data_id was not equal to 1")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.VELOCITY_DATA_ID,
@@ -569,7 +572,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             beam_3_velocity = []
             beam_4_velocity = []
             for row in range (1, N):
-                (a,b,c,d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+                (a,b,c,d) = unpack('<HHHH', chunk[offset + 2: offset + 10])
                 beam_1_velocity.append(a)
                 beam_2_velocity.append(b)
                 beam_3_velocity.append(c)
@@ -590,7 +593,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             water_velocity_up = []
             error_velocity = []
             for row in range (1, N):
-                (a,b,c,d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+                (a,b,c,d) = unpack('<HHHH', chunk[offset + 2: offset + 10])
                 water_velocity_east.append(a)
                 water_velocity_north.append(b)
                 water_velocity_up.append(c)
@@ -617,7 +620,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         N = (len(chunk) - 2) / 2 /4
         offset = 0
 
-        correlation_magnitude_id = unpack("!H", chunk[0:2])[0]
+        correlation_magnitude_id = unpack("<H", chunk[0:2])[0]
         if 2 != correlation_magnitude_id:
             raise SampleException("correlation_magnitude_id was not equal to 2")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CORRELATION_MAGNITUDE_ID,
@@ -628,7 +631,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         correlation_magnitude_beam3 = []
         correlation_magnitude_beam4 = []
         for row in range (1, N):
-            (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+            (a, b, c, d) = unpack('<HHHH', chunk[offset + 2: offset + 10])
             correlation_magnitude_beam1.append(a)
             correlation_magnitude_beam2.append(b)
             correlation_magnitude_beam3.append(c)
@@ -653,7 +656,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         N = (len(chunk) - 2) / 2 /4
         offset = 0
 
-        echo_intensity_id = unpack("!H", chunk[0:2])[0]
+        echo_intensity_id = unpack("<H", chunk[0:2])[0]
         if 3 != echo_intensity_id:
             raise SampleException("echo_intensity_id was not equal to 3")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.ECHO_INTENSITY_ID,
@@ -664,7 +667,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         echo_intesity_beam3 = []
         echo_intesity_beam4 = []
         for row in range (1, N):
-            (a, b, c, d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+            (a, b, c, d) = unpack('<HHHH', chunk[offset + 2: offset + 10])
             echo_intesity_beam1.append(a)
             echo_intesity_beam2.append(b)
             echo_intesity_beam3.append(c)
@@ -694,7 +697,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         # Coordinate Transformation type:
         #    0 = None (Beam), 1 = Instrument, 2 = Ship, 3 = Earth.
 
-        percent_good_id = unpack("!H", chunk[0:2])[0]
+        percent_good_id = unpack("<H", chunk[0:2])[0]
         if 4 != percent_good_id:
             raise SampleException("percent_good_id was not equal to 4")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.PERCENT_GOOD_ID,
@@ -708,7 +711,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             percent_good_beam3 = []
             percent_good_beam4 = []
             for row in range (1, N):
-                (a,b,c,d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+                (a,b,c,d) = unpack('<HHHH', chunk[offset + 2: offset + 10])
                 percent_good_beam1.append(a)
                 percent_good_beam2.append(b)
                 percent_good_beam3.append(c)
@@ -729,7 +732,7 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             percent_bad_beams = []
             percent_good_4beam = []
             for row in range (1, N):
-                (a,b,c,d) = unpack('!HHHH', chunk[offset + 2: offset + 10])
+                (a,b,c,d) = unpack('<HHHH', chunk[offset + 2: offset + 10])
                 percent_good_3beam.append(a)
                 percent_transforms_reject.append(b)
                 percent_bad_beams.append(c)
