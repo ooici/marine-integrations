@@ -1,7 +1,7 @@
 """
 @package mi.instrument.mclane.ras.ooicore.driver
 @file marine-integrations/mi/instrument/mclane/ras/ooicore/driver.py
-@author Bill Bollenbacher
+@author Bill Bollenbacher & Dan Mergens
 @brief Driver for the rasfl
 Release notes:
 
@@ -10,7 +10,7 @@ initial version
 import functools
 import datetime
 
-__author__ = 'Bill Bollenbacher'
+__author__ = 'Bill Bollenbacher & Dan Mergens'
 __license__ = 'Apache 2.0'
 
 import re
@@ -59,8 +59,8 @@ CONTROL_C = '\x03'
 NUM_PORTS = 48  # number of collection bags
 
 # default timeout.
-# INTER_CHARACTER_DELAY = .2  # works
-INTER_CHARACTER_DELAY = .02
+INTER_CHARACTER_DELAY = .2  # works
+# INTER_CHARACTER_DELAY = .04 - too fast
 
 ####
 #    Driver Constant Definitions
@@ -153,7 +153,6 @@ class Response(BaseEnum):
     """
     HOME = re.compile(r'Port: 00')
     PORT = re.compile(r'Port: \d+')  # e.g. Port: 01
-    #READY = re.compile(r'^.* RAS ML.*>')  # e.g. 03/14/14 20:19:49 RAS ML12881-02>
     READY = re.compile(r'(\d+/\d+/\d+\s+\d+:\d+:\d+\s+)RAS (.*)>')  # e.g. 03/14/14 20:19:49 RAS ML12881-02>
     # Result 00 |  75 100  25   4 |  77.2  98.5  99.1  47 031514 001813 | 29.8 1
     PUMP = re.compile(r'Result\s+\d+\s+\|.*')
@@ -165,7 +164,6 @@ class Timeout(BaseEnum):
     """
     Timeouts for commands  # TODO - calculate based on flow rate & volume
     """
-    #HOME = 10
     HOME = 30
     FILL = 396
     FLUSH = 99

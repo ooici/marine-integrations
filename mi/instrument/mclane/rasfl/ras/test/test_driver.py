@@ -22,11 +22,6 @@ import time
 import gevent
 
 
-
-
-
-
-
 # from interface.objects import AgentCapability
 # from interface.objects import CapabilityType
 
@@ -81,9 +76,7 @@ from interface.objects import AgentCommand
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 from pyon.agent.agent import ResourceAgentEvent
 from pyon.agent.agent import ResourceAgentState
-from mi.idk.exceptions import IDKException
-
-# from struct import pack
+# from mi.idk.exceptions import IDKException
 
 # Globals
 raw_stream_received = False
@@ -232,19 +225,21 @@ class UtilMixin(DriverTestMixin):
         @param data_particle: OPTAAA_StatusDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        self.assert_data_particle_header(data_particle, DataParticleType.RASFL_STATUS)
-        self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
+        # TODO - what are we attempting to test here?
+        # self.assert_data_particle_header(data_particle, DataParticleType.RASFL_STATUS)
+        # self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
 
-    def assert_particle_not_published(self, driver, sample_data, particle_assert_method, verify_values=False):
-        try:
-            self.assert_particle_published(driver, sample_data, particle_assert_method, verify_values)
-        except AssertionError as e:
-            if str(e) == "0 != 1":
-                return
-            else:
-                raise e
-        else:
-            raise IDKException("assert_particle_not_published: particle was published")
+        # TODO - assert_particle_published is not implemented - is it necessary?
+        # def assert_particle_not_published(self, driver, sample_data, particle_assert_method, verify_values=False):
+        #     try:
+        #         self.assert_particle_published(driver, sample_data, particle_assert_method, verify_values)
+        #     except AssertionError as e:
+        #         if str(e) == "0 != 1":
+        #             return
+        #         else:
+        #             raise e
+        #     else:
+        #         raise IDKException("assert_particle_not_published: particle was published")
 
 
 ###############################################################################
@@ -283,7 +278,6 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         # Test capabilities for duplicates, then verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
-
 
     def test_chunker(self):
         """
@@ -424,14 +418,15 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
-        # command the instrument to sync clock.
+        # compare instrument prompt time (after processing clock sync) with current system time
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
-        gmt_time = time.gmtime()
-        log.debug('execute clock command 1 returned %s', reply)
+        gmt_time = time.gmtime()  # the most recent instrument time (from command prompt)
         ras_time = reply[1]
+        diff = abs(time.mktime(ras_time) - time.mktime(gmt_time))
+        log.info('clock synchronized within %f seconds', diff)
 
         # Verify that the time matches to within 5 seconds
-        self.assertLessEqual(abs(time.mktime(ras_time) - time.mktime(gmt_time)), 5)
+        self.assertLessEqual(diff, 5)
 
     def test_acquire_sample(self):
         """
@@ -440,22 +435,22 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         self.assert_initialize_driver()
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
         self.assert_state_change(ProtocolState.COMMAND, 1)
-        #self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.METBK_PARSED,
-        #                                self.assert_data_particle_sample)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.RASFL_PARSED,
+                                        self.assert_data_particle_sample)
 
 
-###############################################################################
-#                            QUALIFICATION TESTS                              #
-# Device specific qualification tests are for doing final testing of ion      #
-# integration.  The generally aren't used for instrument debugging and should #
-# be tackled after all unit and integration tests are complete                #
-###############################################################################
+################################################################################
+#                            QUALIFICATION TESTS                               #
+# Device specific qualification tests are for doing final testing of ion       #
+# integration.  They generally aren't used for instrument debugging and should #
+# be tackled after all unit and integration tests are complete                 #
+################################################################################
 @attr('QUAL', group='mi')
 class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout=10):
+    def assert_sample_polled(self, sample_data_assert, sample_queue, timeout=10):
         """
         Test observatory polling function.
 
@@ -475,40 +470,42 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         # make sure there aren't any junk samples in the parsed
         # data queue.
         log.debug("Acquire Sample")
-        self.data_subscribers.clear_sample_queue(sampleQueue)
+        self.data_subscribers.clear_sample_queue(sample_queue)
 
         cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
         self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
 
         # Watch the parsed data queue and return once a sample
         # has been read or the default timeout has been reached.
-        samples = self.data_subscribers.get_samples(sampleQueue, 1, timeout=timeout)
+        samples = self.data_subscribers.get_samples(sample_queue, 1, timeout=timeout)
         self.assertGreaterEqual(len(samples), 1)
         log.error("SAMPLE: %s" % samples)
 
         # Verify
         for sample in samples:
-            sampleDataAssert(sample)
+            sample_data_assert(sample)
 
         self.assert_reset()
         self.doCleanups()
 
-    def test_poll(self):
-        '''
-        poll for a single sample
-        '''
-        #self.assert_sample_polled(self.assert_data_particle_sample,
-        #                          DataParticleType.METBK_PARSED)
+    # RASFL does not poll or autosample
+    # def test_poll(self):
+    #     """
+    #     poll for a single sample
+    #     """
+    #     #self.assert_sample_polled(self.assert_data_particle_sample,
+    #     #                          DataParticleType.METBK_PARSED)
+    #
+    # def test_autosample(self):
+    #     """
+    #     start and stop autosample and verify data particle
+    #     """
+    #     #self.assert_sample_autosample(self.assert_data_particle_sample,
+    #     #                              DataParticleType.METBK_PARSED,
+    #     #                              sample_count=1,
+    #     #                              timeout=60)
 
-    def test_autosample(self):
-        '''
-        start and stop autosample and verify data particle
-        '''
-        #self.assert_sample_autosample(self.assert_data_particle_sample,
-        #                              DataParticleType.METBK_PARSED,
-        #                              sample_count=1,
-        #                              timeout=60)
-
+    # TODO - not sure how this will work - wake up command, Ctrl-C, cannot be sent over a manual telnet session
     def test_direct_access_telnet_mode(self):
         """
         @brief This test automatically tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -545,7 +542,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         gevent.sleep(120)
 
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        retval = self.instrument_agent_client.execute_agent(cmd)
+        self.instrument_agent_client.execute_agent(cmd)
 
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
@@ -583,10 +580,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
             AgentCapabilityType.RESOURCE_COMMAND: [
                 ProtocolEvent.GET,
                 ProtocolEvent.CLOCK_SYNC,
-                ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.ACQUIRE_SAMPLE,
-                ProtocolEvent.FLASH_STATUS,
-                ProtocolEvent.ACQUIRE_STATUS,
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -602,10 +596,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
             ProtocolEvent.GET,
             ProtocolEvent.CLOCK_SYNC,
-            ProtocolEvent.ACQUIRE_STATUS,
             ProtocolEvent.ACQUIRE_SAMPLE,
-            ProtocolEvent.FLASH_STATUS,
-            ProtocolEvent.STOP_AUTOSAMPLE,
         ]
 
         self.assert_start_autosample()
@@ -660,11 +651,10 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
     @unittest.skip("doesn't pass because IA doesn't apply the startup parameters yet")
     def test_get_parameters(self):
-        '''
+        """
         verify that parameters can be gotten properly
-        '''
+        """
         self.assert_enter_command_mode()
 
         reply = self.instrument_agent_client.get_resource(Parameter.ALL)
-        self.assert_driver_parameters(reply, verify_sample_interval=True)
-        
+        self.assert_driver_parameters(reply)
