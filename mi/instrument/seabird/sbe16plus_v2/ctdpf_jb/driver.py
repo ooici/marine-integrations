@@ -24,6 +24,7 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
+from mi.core.exceptions import InstrumentProtocolException
 
 import re
 
@@ -205,6 +206,8 @@ class SBE19Protocol(SBE16Protocol):
         self._build_command_dict()
         self._build_param_dict()
 
+        #TODO: investigate implementation of the above
+
         # Add build handlers for device commands.
 
         self._add_build_handler(Command.GET_CD, self._build_simple_command)
@@ -223,7 +226,13 @@ class SBE19Protocol(SBE16Protocol):
 
 
         # Add response handlers for device commands.
+        # these are here to ensure that correct responses to the commands are received before the next command is sent
         self._add_response_handler(Command.SET, self._parse_set_response)
+        self._add_response_handler(Command.GETSD, self._validate_GetSD_response)
+        self._add_response_handler(Command.GETHD, self._validate_GetHD_response)
+        self._add_response_handler(Command.GETCD, self._validate_GetCD_response)
+        self._add_response_handler(Command.GETCC, self._validate_GetCC_response)
+
 
         #TODO: what other commands need response handlers?
 
@@ -310,6 +319,129 @@ class SBE19Protocol(SBE16Protocol):
         self._protocol_fsm.on_event(ProtocolEvent.QUIT_SESSION)
 
         return (next_state, (next_agent_state, result))
+
+
+    def _handler_autosample_get_configuration(self, *args, **kwargs):
+        """
+        GetCC from SBE16.
+        @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        @throws SampleException if a sample could not be extracted from result.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        # When in autosample this command requires two wakeups to get to the right prompt
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+
+        kwargs['timeout'] = TIMEOUT
+        result = self._do_cmd_resp(Command.GETCC, expected_prompt=Prompt.EXECUTED, *args, **kwargs)
+        log.debug("_handler_autosample_get_configuration: GetCC Response: %s", result)
+
+        log.debug("_handler_autosample_get_configuration: sending the QS command to restart sampling")
+        self._protocol_fsm.on_event(ProtocolEvent.QUIT_SESSION)
+
+        return (next_state, (next_agent_state, result))
+
+
+    ########################################################################
+    # response handlers.
+    ########################################################################
+    def _validate_GetSD_response(self, response, prompt):
+        """
+        validation handler for GetSD command
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if command misunderstood.
+        """
+        error = self._find_error(response)
+
+        if error:
+            log.error("_validate_GetSD_response: GetSD command encountered error; type='%s' msg='%s'", error[0], error[1])
+            raise InstrumentProtocolException('GetSD command failure: type="%s" msg="%s"' % (error[0], error[1]))
+
+        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
+            log.error('_validate_GetSD_response: correct instrument prompt missing: %s.' % response)
+            raise InstrumentProtocolException('GetSD command - correct instrument prompt missing: %s.' % response)
+
+        if not SBE16StatusDataParticle.regex_compiled().search(response):
+            log.error('_validate_GetSD_response: GetSD command not recognized: %s.' % response)
+            raise InstrumentProtocolException('GetSD command not recognized: %s.' % response)
+
+        return response
+
+    def _validate_GetHD_response(self, response, prompt):
+        """
+        validation handler for GetHD command
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if command misunderstood.
+        """
+        error = self._find_error(response)
+
+        if error:
+            log.error("GetHD command encountered error; type='%s' msg='%s'", error[0], error[1])
+            raise InstrumentProtocolException('GetHD command failure: type="%s" msg="%s"' % (error[0], error[1]))
+
+        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
+            log.error('_validate_GetHD_response: correct instrument prompt missing: %s.' % response)
+            raise InstrumentProtocolException('GetHD command - correct instrument prompt missing: %s.' % response)
+
+        if not SBE16HardwareDataParticle.regex_compiled().search(response):
+            log.error('_validate_GetHD_response: GetHD command not recognized: %s.' % response)
+            raise InstrumentProtocolException('GetHD command not recognized: %s.' % response)
+
+        return response
+
+    def _validate_GetCD_response(self, response, prompt):
+        """
+        validation handler for GetCD command
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if command misunderstood.
+        """
+        error = self._find_error(response)
+
+        if error:
+            log.error("GetCD command encountered error; type='%s' msg='%s'", error[0], error[1])
+            raise InstrumentProtocolException('GetCD command failure: type="%s" msg="%s"' % (error[0], error[1]))
+
+        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
+            log.error('_validate_GetCD_response: correct instrument prompt missing: %s.' % response)
+            raise InstrumentProtocolException('GetCD command - correct instrument prompt missing: %s.' % response)
+
+        if not SBE16ConfigurationDataParticle.regex_compiled().search(response):
+            log.error('_validate_GetCD_response: GetCD command not recognized: %s.' % response)
+            raise InstrumentProtocolException('GetCD command not recognized: %s.' % response)
+
+        return response
+
+    def _validate_GetCC_response(self, response, prompt):
+        """
+        validation handler for GetCC command
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if command misunderstood.
+        """
+        error = self._find_error(response)
+
+        if error:
+            log.error("GetCC command encountered error; type='%s' msg='%s'", error[0], error[1])
+            raise InstrumentProtocolException('GetCC command failure: type="%s" msg="%s"' % (error[0], error[1]))
+
+        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
+            log.error('_validate_GetCC_response: correct instrument prompt missing: %s.' % response)
+            raise InstrumentProtocolException('GetCC command - correct instrument prompt missing: %s.' % response)
+
+        if not SBE16CalibrationDataParticle.regex_compiled().search(response):
+            log.error('_validate_GetCC_response: GetCC command not recognized: %s.' % response)
+            raise InstrumentProtocolException('GetCC command not recognized: %s.' % response)
+
+        return response
+
 
     def _build_param_dict(self):
         """
