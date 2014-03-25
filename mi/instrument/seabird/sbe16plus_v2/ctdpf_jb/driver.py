@@ -28,16 +28,14 @@ from mi.core.instrument.chunker import StringChunker
 import re
 
 from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolState
-from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolEvent
 from mi.instrument.seabird.sbe16plus_v2.driver import Capability
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16Protocol
+from mi.instrument.seabird.sbe16plus_v2.driver import Prompt
 
-# newline.
-NEWLINE = '\r\n'
+from mi.instrument.seabird.driver import NEWLINE
+from mi.instrument.seabird.driver import TIMEOUT
 
-# default timeout.
-# TIMEOUT = 10
-
+WAKEUP_TIMEOUT = 60
 
 class ScheduledJob(BaseEnum):
     ACQUIRE_STATUS = 'acquire_status'
@@ -59,6 +57,31 @@ class Command(BaseEnum):
 
         #TODO: not specified in IOS
         SET = 'set'
+
+
+class ProtocolEvent(BaseEnum):
+    """
+    Protocol events for SBE19. Cherry picked from DriverEvent enum.
+    """
+    ENTER = DriverEvent.ENTER
+    EXIT = DriverEvent.EXIT
+    GET = DriverEvent.GET
+    SET = DriverEvent.SET
+    DISCOVER = DriverEvent.DISCOVER
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
+    GET_CONFIGURATION = 'PROTOCOL_EVENT_GET_CONFIGURATION'
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+    TEST = DriverEvent.TEST
+    RUN_TEST = DriverEvent.RUN_TEST
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    START_DIRECT = DriverEvent.START_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
+    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
+    SCHEDULED_CLOCK_SYNC = DriverEvent.SCHEDULED_CLOCK_SYNC
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    RESET_EC = 'PROTOCOL_EVENT_RESET_EC'
+    QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
 
 
 class DataParticleType(BaseEnum):
@@ -137,7 +160,7 @@ class SBE19Protocol(SBE16Protocol):
         # Construct protocol superclass.
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
-        # Build SBE16 protocol state machine.
+        # Build SBE19 protocol state machine.
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
                             ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
@@ -147,7 +170,6 @@ class SBE19Protocol(SBE16Protocol):
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.QUIT_SESSION, self._handler_command_autosample_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_CONFIGURATION, self._handler_command_get_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
@@ -159,10 +181,10 @@ class SBE19Protocol(SBE16Protocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync_clock)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync_clock)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.QUIT_SESSION, self._handler_command_autosample_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_get)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.QUIT_SESSION, self._handler_command_autosample_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_autosample_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET_CONFIGURATION, self._handler_autosample_get_configuration)
@@ -226,10 +248,73 @@ class SBE19Protocol(SBE16Protocol):
 
         return return_list
 
+    def _handler_command_get_configuration(self, *args, **kwargs):
+        """
+        GetCC from SBE16.
+        @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        @throws SampleException if a sample could not be extracted from result.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        kwargs['timeout'] = TIMEOUT
+        result = self._do_cmd_resp(Command.GETCC, expected_prompt=Prompt.EXECUTED, *args, **kwargs)
+        log.debug("_handler_command_get_configuration: GetCC Response: %s", result)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_acquire_status(self, *args, **kwargs):
+        """
+        Get device status
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        result = self._do_cmd_resp(Command.GETSD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
+        result += self._do_cmd_resp(Command.GETHD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
+        result += self._do_cmd_resp(Command.GETCD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
+        result += self._do_cmd_resp(Command.GETCC, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_autosample_acquire_status(self, *args, **kwargs):
+        """
+        Get device status
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        # When in autosample this command requires two wakeups to get to the right prompt
+        prompt = self.wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+
+        result = self._do_cmd_resp(Command.GETSD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        log.debug("_handler_autosample_acquire_status: GetSD Response: %s", result)
+        result += self._do_cmd_resp(Command.GETHD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        log.debug("_handler_autosample_acquire_status: GetHD Response: %s", result)
+        result += self._do_cmd_resp(Command.GETCD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        log.debug("_handler_autosample_acquire_status: GetCD Response: %s", result)
+        result += self._do_cmd_resp(Command.GETCC, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        log.debug("_handler_autosample_acquire_status: GetCC Response: %s", result)
+
+        log.debug("_handler_autosample_acquire_status: sending the QS command to restart sampling")
+        self._protocol_fsm.on_event(ProtocolEvent.QUIT_SESSION)
+
+        return (next_state, (next_agent_state, result))
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
+        For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
