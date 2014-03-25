@@ -25,6 +25,7 @@ __author__ = 'Steve Myerson (Raytheon)'
 __license__ = 'Apache 2.0'
 
 import copy
+import gevent
 import ntplib
 import re
 import struct
@@ -333,9 +334,19 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
           The length of data retrieved.
         An EOFError is raised when the end of the file is reached.
         """
-        # Read in data
-        data = self._stream_handle.read()
-        if data:
+        # Read in data in blocks so as to not tie up the CPU.
+        BLOCK_SIZE = 1024
+        eof = False
+        data = ''
+        while not eof:
+            next_block = self._stream_handle.read(BLOCK_SIZE)
+            if next_block:
+                data = data + next_block
+                gevent.sleep(0)
+            else:
+                eof = True
+
+        if data != '':
             self._chunker.add_chunk(data, self._timestamp)
             self.file_complete = True
             return len(data)
