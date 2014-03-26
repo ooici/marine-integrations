@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.ctdpf_ckl__stc_imodem
-@file marine-integrations/mi/dataset/parser/ctdpf_ckl__stc_imodem.py
+@package mi.dataset.parser.ctdpf_ckl_wfp
+@file marine-integrations/mi/dataset/parser/ctdpf_ckl_wfp.py
 @author cgoodrich
-@brief Parser for the CTDPF_CKL__STC_IMODEM dataset driver
+@brief Parser for the ctdpf_ckl_wfp dataset driver
 Release notes:
 
 Initial Release
@@ -142,7 +142,6 @@ class CtdpfCklWfpMetadataParserDataParticle(DataParticle):
                  arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
                 log.debug('Timestamp does not match')
             return False
-
 
 
 class CtdpfCklWfpParser(WfpCFileCommonParser):
