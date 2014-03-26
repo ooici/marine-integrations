@@ -589,6 +589,12 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         response = driver._protocol._get_response(timeout=0)
         self.assertTrue(isinstance(response[1], IRISStatus02Particle))
 
+    def test_direct_access(self):
+        driver = self.test_connect()
+        driver._protocol._handler_direct_access_execute_direct(InstrumentCommand.DATA_ON)
+        driver._protocol._handler_direct_access_execute_direct('LILY,BAD_COMMAND_HERE')
+        self.assertEqual(driver._protocol._sent_cmds, [InstrumentCommand.DATA_ON])
+
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.
@@ -660,6 +666,15 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, IRISTestMixinSu
                                         self.assert_particle_status_02,
                                         delay=2)
 
+    def test_direct_access(self):
+        """
+        Verify we can enter the direct access state
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
+        self.driver_client.cmd_dvr('execute_start_direct_access')
+        self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -687,6 +702,18 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
     def test_discover(self):
         pass
 
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports
+        direct access to the physical instrument. (telnet mode)
+        """
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data(InstrumentCommand.DATA_ON + NEWLINE)
+        self.tcp_client.expect(DATA_ON_COMMAND_RESPONSE)
+        self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
+
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -706,6 +733,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.DUMP_01,
                 ProtocolEvent.DUMP_02,
+                ProtocolEvent.ACQUIRE_STATUS,
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -722,6 +750,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
             ProtocolEvent.STOP_AUTOSAMPLE,
             ProtocolEvent.DUMP_01,
             ProtocolEvent.DUMP_02,
+            ProtocolEvent.ACQUIRE_STATUS,
         ]
 
         self.assert_start_autosample()

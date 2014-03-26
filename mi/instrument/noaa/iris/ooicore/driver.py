@@ -64,6 +64,7 @@ class ProtocolState(BaseEnum):
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
+    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 
 
 class ExportedInstrumentCommand(BaseEnum):
@@ -84,6 +85,10 @@ class ProtocolEvent(BaseEnum):
     DISCOVER = DriverEvent.DISCOVER
     DUMP_01 = ExportedInstrumentCommand.DUMP_01
     DUMP_02 = ExportedInstrumentCommand.DUMP_02
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    START_DIRECT = DriverEvent.START_DIRECT
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
 
 
 class Capability(BaseEnum):
@@ -96,6 +101,7 @@ class Capability(BaseEnum):
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     DUMP_01 = ProtocolEvent.DUMP_01
     DUMP_02 = ProtocolEvent.DUMP_02
+    ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
 
 
 class Parameter(DriverParameter):
@@ -119,10 +125,10 @@ class InstrumentCommand(BaseEnum):
     """
     Instrument command strings
     """
-    DATA_ON = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DATA_ON + NEWLINE  # turns on continuous data
-    DATA_OFF = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DATA_OFF + NEWLINE  # turns off continuous data 
-    DUMP_SETTINGS_01 = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DUMP_01 + NEWLINE  # outputs current settings
-    DUMP_SETTINGS_02 = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DUMP_02 + NEWLINE  # outputs current extended settings
+    DATA_ON = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DATA_ON  # turns on continuous data
+    DATA_OFF = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DATA_OFF  # turns off continuous data
+    DUMP_SETTINGS_01 = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DUMP_01  # outputs current settings
+    DUMP_SETTINGS_02 = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DUMP_02  # outputs current extended settings
 
 
 class IRISCommandResponse():
@@ -822,6 +828,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.ENTER, self._handler_autosample_enter),
                 (ProtocolEvent.EXIT, self._handler_autosample_exit),
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
+                (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.DUMP_01, self._handler_command_autosample_dump01),
                 (ProtocolEvent.DUMP_02, self._handler_command_autosample_dump02),
             ],
@@ -832,8 +839,16 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.SET, self._handler_command_set),
                 (ProtocolEvent.DUMP_01, self._handler_command_autosample_dump01),
                 (ProtocolEvent.DUMP_02, self._handler_command_autosample_dump02),
+                (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
+                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
             ],
+            ProtocolState.DIRECT_ACCESS: [
+                (ProtocolEvent.ENTER, self._handler_direct_access_enter),
+                (ProtocolEvent.EXIT, self._handler_direct_access_exit),
+                (ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct),
+                (ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct),
+            ]
         }
 
         for state in handlers:
@@ -1092,6 +1107,57 @@ class Protocol(CommandResponseInstrumentProtocol):
         return next_state, (next_agent_state, result)
 
     ########################################################################
+    # Direct access handlers.
+    ########################################################################
+
+    def _handler_direct_access_enter(self, *args, **kwargs):
+        """
+        Enter direct access state.
+        """
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        self._sent_cmds = []
+
+    def _handler_direct_access_exit(self, *args, **kwargs):
+        """
+        Exit direct access state.
+        """
+        pass
+
+    def _handler_direct_access_execute_direct(self, data):
+        """
+        """
+        next_state = None
+        result = None
+        next_agent_state = None
+
+        # Only allow direct access to IRIS
+        commands = data.split(NEWLINE)
+        commands = [x for x in commands if x.startswith(IRIS_STRING)]
+        for command in commands:
+            self._do_cmd_direct(command)
+
+            # add sent command to list for 'echo' filtering in callback
+            self._sent_cmds.append(command)
+
+        return next_state, (next_agent_state, result)
+
+    def _handler_direct_access_stop_direct(self):
+        """
+        @throw InstrumentProtocolException on invalid command
+        """
+        next_state = None
+        result = None
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        return next_state, (next_agent_state, result)
+
+    ########################################################################
     # Command handlers.
     ########################################################################
 
@@ -1138,6 +1204,16 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # call _do_cmd_resp, passing our IRIS_DATA_ON as the expected_prompt
         result = self._do_cmd_resp(InstrumentCommand.DATA_ON, expected_prompt=IRIS_DATA_ON)
+
+        return next_state, (next_agent_state, result)
+
+    def _handler_command_start_direct(self, *args, **kwargs):
+        """
+        Turn the iris data on
+        """
+        next_state = ProtocolState.DIRECT_ACCESS
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+        result = None
 
         return next_state, (next_agent_state, result)
 
