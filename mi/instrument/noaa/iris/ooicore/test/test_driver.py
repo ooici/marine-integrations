@@ -39,7 +39,7 @@ from mi.core.instrument.port_agent_client import PortAgentPacket
 
 from mi.core.instrument.chunker import StringChunker
 
-from mi.instrument.noaa.iris.ooicore.driver import InstrumentDriver
+from mi.instrument.noaa.iris.ooicore.driver import InstrumentDriver, IRISStatus01ParticleKey, IRISStatus02ParticleKey
 from mi.instrument.noaa.iris.ooicore.driver import DataParticleType
 from mi.instrument.noaa.iris.ooicore.driver import IRISDataParticleKey
 from mi.instrument.noaa.iris.ooicore.driver import IRISDataParticle
@@ -132,7 +132,7 @@ DUMP_01_STATUS = \
     "IRIS,2013/06/12 18:03:44,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
     "IRIS,2013/06/12 18:03:44,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
     "IRIS,2013/06/12 18:03:44,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00" + NEWLINE + \
-    "IRIS,2013/06/12 18:03:44,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-" + NEWLINE
+    "IRIS,2013/06/12 18:03:44,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-"
 
 DUMP_02_STATUS = \
     "IRIS,2013/06/12 23:55:09,*01: TBias: 8.85" + NEWLINE + \
@@ -163,7 +163,7 @@ DUMP_02_STATUS = \
     "IRIS,2013/06/12 18:04:02,*01: DAC Output Scale Factor: 0.10 Volts/Degree" + NEWLINE + \
     "HEAT,2013/06/12 18:04:02,-001,0001,0024" + NEWLINE + \
     "IRIS,2013/06/12 18:04:02,*01: Total Sample Storage Capacity: 372" + NEWLINE + \
-    "IRIS,2013/06/12 18:04:02,*01: BAE Scale Factor:  2.88388 (arcseconds/bit)" + NEWLINE
+    "IRIS,2013/06/12 18:04:02,*01: BAE Scale Factor:  2.88388 (arcseconds/bit)"
 
 DUMP_01_STATUS_RESP = NEWLINE.join([line for line in DUMP_01_STATUS.split(NEWLINE) if line.startswith(IRIS_STRING)])
 DUMP_02_STATUS_RESP = NEWLINE.join([line for line in DUMP_02_STATUS.split(NEWLINE) if line.startswith(IRIS_STRING)])
@@ -211,38 +211,83 @@ class IRISTestMixinSub(DriverTestMixin):
         IRISDataParticleKey.SN: {TYPE: unicode, VALUE: 'N8642', REQUIRED: True}
     }
 
+    _status_parameters_01 = {
+        IRISStatus01ParticleKey.TIME: {TYPE: float, VALUE: 3580690380.0, REQUIRED: True},
+        IRISStatus01ParticleKey.MODEL: {TYPE: unicode, VALUE: 'MD900-T', REQUIRED: True},
+        IRISStatus01ParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: 'V5.2', REQUIRED: True},
+        IRISStatus01ParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: 'SN-N3616', REQUIRED: True},
+        IRISStatus01ParticleKey.ID_NUMBER: {TYPE: unicode, VALUE: 'ID01', REQUIRED: True},
+        IRISStatus01ParticleKey.VBIAS: {TYPE: list, VALUE: [0.0] * 4, REQUIRED: True},
+        IRISStatus01ParticleKey.VGAIN: {TYPE: list, VALUE: [0.0] * 4, REQUIRED: True},
+        IRISStatus01ParticleKey.VMIN: {TYPE: list, VALUE: [-2.5] * 2 + [2.5] * 2, REQUIRED: True},
+        IRISStatus01ParticleKey.VMAX: {TYPE: list, VALUE: [2.5] * 4, REQUIRED: True},
+        IRISStatus01ParticleKey.AVALS: {TYPE: list, VALUE: [0.0] * 24, REQUIRED: True},
+        IRISStatus01ParticleKey.TCOEFS: {TYPE: list, VALUE: [0] * 6, REQUIRED: True},
+        IRISStatus01ParticleKey.N_SAMP: {TYPE: int, VALUE: 460, REQUIRED: True},
+        IRISStatus01ParticleKey.XZERO: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        IRISStatus01ParticleKey.YZERO: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        IRISStatus01ParticleKey.REST: {TYPE: unicode,
+                                       VALUE: 'TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-',
+                                       REQUIRED: True},
+    }
+
+    _status_parameters_02 = {
+        IRISStatus02ParticleKey.TIME: {TYPE: float, VALUE: 3580095309.0, REQUIRED: True},
+        IRISStatus02ParticleKey.TBIAS: {TYPE: float, VALUE: 8.85, REQUIRED: True},
+        IRISStatus02ParticleKey.ABOVE: {TYPE: list, VALUE: [0.0, 0, 0]},
+        IRISStatus02ParticleKey.BELOW: {TYPE: list, VALUE: [0.0, 0, 0]},
+        IRISStatus02ParticleKey.ADC_DELAY: {TYPE: int, VALUE: 310},
+        IRISStatus02ParticleKey.PCA_MODEL: {TYPE: unicode, VALUE: '90009-01'},
+        IRISStatus02ParticleKey.FIRMWARE_REV: {TYPE: unicode, VALUE: '5.2 Rev N'},
+        IRISStatus02ParticleKey.XCHAN_GAIN: {TYPE: float, VALUE: 1.0},
+        IRISStatus02ParticleKey.YCHAN_GAIN: {TYPE: float, VALUE: 1.0},
+        IRISStatus02ParticleKey.TEMP_GAIN: {TYPE: float, VALUE: 1.0},
+        IRISStatus02ParticleKey.OUTPUT_MODE: {TYPE: unicode, VALUE: 'Degrees'},
+        IRISStatus02ParticleKey.CAL_MODE: {TYPE: unicode, VALUE: 'Degrees'},
+        IRISStatus02ParticleKey.CONTROL: {TYPE: unicode, VALUE: 'Off'},
+        IRISStatus02ParticleKey.RS232: {TYPE: unicode, VALUE: 'RS232'},
+        IRISStatus02ParticleKey.RTC_INSTALLED: {TYPE: unicode, VALUE: 'Not Installed'},
+        IRISStatus02ParticleKey.RTC_TIMING: {TYPE: unicode, VALUE: 'No'},
+        IRISStatus02ParticleKey.EXT_FLASH: {TYPE: unicode, VALUE: '0 Bytes(Not Installed)'},
+        IRISStatus02ParticleKey.XPOS_RELAY_THRESHOLD: {TYPE: float, VALUE: 1.0},
+        IRISStatus02ParticleKey.XNEG_RELAY_THRESHOLD: {TYPE: float, VALUE: -1.0},
+        IRISStatus02ParticleKey.YPOS_RELAY_THRESHOLD: {TYPE: float, VALUE: 1.0},
+        IRISStatus02ParticleKey.YNEG_RELAY_THRESHOLD: {TYPE: float, VALUE: -1.0},
+        IRISStatus02ParticleKey.RELAY_HYSTERESIS: {TYPE: float, VALUE: 0.0},
+        IRISStatus02ParticleKey.CAL_METHOD: {TYPE: unicode, VALUE: 'Dynamic'},
+        IRISStatus02ParticleKey.POS_LIMIT: {TYPE: float, VALUE: 26.25},
+        IRISStatus02ParticleKey.NEG_LIMIT: {TYPE: float, VALUE: -26.25},
+        IRISStatus02ParticleKey.NUM_CAL_POINTS: {TYPE: int, VALUE: 25},
+        IRISStatus02ParticleKey.CAL_POINTS_X: {TYPE: unicode, VALUE: 'Disabled'},
+        IRISStatus02ParticleKey.CAL_POINTS_Y: {TYPE: unicode, VALUE: 'Disabled'},
+        IRISStatus02ParticleKey.BIAXIAL_SENSOR_TYPE: {TYPE: int, VALUE: 0},
+        IRISStatus02ParticleKey.ADC_TYPE: {TYPE: unicode, VALUE: '12-bit (internal)'},
+        IRISStatus02ParticleKey.DAC_SCALE_FACTOR: {TYPE: float, VALUE: 0.10},
+        IRISStatus02ParticleKey.DAC_SCALE_UNITS: {TYPE: unicode, VALUE: 'Volts/Degree'},
+        IRISStatus02ParticleKey.SAMPLE_STORAGE_CAPACITY: {TYPE: int, VALUE: 372},
+        IRISStatus02ParticleKey.BAE_SCALE_FACTOR: {TYPE: float, VALUE: 2.88388},
+    }
+
+    def assert_particle(self, particle, particle_type=None, particle_key=None, params=None, verify_values=False):
+        self.assert_data_particle_keys(particle_key, params)
+        self.assert_data_particle_header(particle, particle_type, verify_values)
+        self.assert_data_particle_parameters(particle, params, verify_values)
+
     def assert_particle_sample_01(self, data_particle, verify_values=False):
-        """
-        Verify sample particle
-        @param data_particle:  IRISDataParticle data particle
-        @param verify_values:  bool, should we verify parameter values
-        """
-        self.assert_data_particle_keys(IRISDataParticleKey, self._sample_parameters_01)
-        self.assert_data_particle_header(data_particle, DataParticleType.IRIS_PARSED, require_instrument_timestamp=True)
-        self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
+        self.assert_particle(data_particle, DataParticleType.IRIS_PARSED, IRISDataParticleKey,
+                             self._sample_parameters_01, verify_values)
 
     def assert_particle_sample_02(self, data_particle, verify_values=False):
-        """
-        Verify sample particle
-        @param data_particle:  IRISDataParticle data particle
-        @param verify_values:  bool, should we verify parameter values
-        """
-        self.assert_data_particle_keys(IRISDataParticleKey, self._sample_parameters_02)
-        self.assert_data_particle_header(data_particle, DataParticleType.IRIS_PARSED, require_instrument_timestamp=True)
-        self.assert_data_particle_parameters(data_particle, self._sample_parameters_02, verify_values)
+        self.assert_particle(data_particle, DataParticleType.IRIS_PARSED, IRISDataParticleKey,
+                             self._sample_parameters_02, verify_values)
 
-    def assert_particle_sample_firehose(self, data_particle, verify_values=False):
-        """
-        Verify sample particle
-        @param data_particle:  IRISDataParticle data particle
-        @param verify_values:  bool, should we verify parameter values
-        """
-        self.assert_data_particle_keys(IRISDataParticleKey, self._sample_parameters_01)
-        self.assert_data_particle_header(data_particle, DataParticleType.IRIS_PARSED, require_instrument_timestamp=True)
-        self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
+    def assert_particle_status_01(self, data_particle, verify_values=False):
+        self.assert_particle(data_particle, DataParticleType.IRIS_STATUS1, IRISStatus01ParticleKey,
+                             self._status_parameters_01, verify_values)
 
-    def assert_particle_status(self, status_particle, verify_values=False):
-        pass
+    def assert_particle_status_02(self, data_particle, verify_values=False):
+        self.assert_particle(data_particle, DataParticleType.IRIS_STATUS2, IRISStatus02ParticleKey,
+                             self._status_parameters_02, verify_values)
 
 
 ###############################################################################
@@ -264,7 +309,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
-    def _send_port_agent_packet(self, driver, data_item, ts):
+    def _send_port_agent_packet(self, driver, data_item):
+        ts = ntplib.system_to_ntp_time(time.time())
         port_agent_packet = PortAgentPacket()
         port_agent_packet.attach_data(data_item)
         port_agent_packet.attach_timestamp(ts)
@@ -298,12 +344,13 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         self.assert_chunker_sample(chunker, DUMP_01_COMMAND_RESPONSE)
         self.assert_chunker_sample(chunker, DUMP_02_COMMAND_RESPONSE)
 
-    def test_connect(self):
+    def test_connect(self, initial_protocol_state=ProtocolState.COMMAND):
         """
         Verify driver transitions correctly and connects
         """
         driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
+        self.assert_initialize_driver(driver, initial_protocol_state)
+        return driver
 
     def test_data_build_parsed_values(self):
         """
@@ -311,9 +358,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         raises SampleException when an invalid sample is encountered
         and that it returns a result when a valid sample is encountered
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
-
         sample_exception = False
         try:
             raw_data = INVALID_SAMPLE
@@ -350,9 +394,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         Verify that check_data_on_off_response raises a SampleException given an
         invalid response, and that it returns True given a valid response
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
-
         items = [
             (INVALID_SAMPLE, IRIS_DATA_ON, False),
             (DATA_ON_COMMAND_RESPONSE, IRIS_DATA_ON, True),
@@ -380,11 +421,12 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         """
         Verify sample data passed through the got data method produces the correct data particles
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
+        driver = self.test_connect()
 
         self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
         self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
+        self.assert_particle_published(driver, DUMP_01_STATUS, self.assert_particle_status_01, True)
+        self.assert_particle_published(driver, DUMP_02_STATUS, self.assert_particle_status_02, True)
 
     def test_firehose(self):
         """
@@ -392,19 +434,16 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         Verify that the BOTPT IRIS driver publishes a particle correctly when the IRIS packet is
         embedded in the stream of other BOTPT sensor output.
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
+        driver = self.test_connect()
         self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
 
     def test_data_on_response(self):
         """
         Verify that the driver correctly parses the DATA_ON response
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
+        driver = self.test_connect()
 
-        ts = ntplib.system_to_ntp_time(time.time())
-        self._send_port_agent_packet(driver, DATA_ON_COMMAND_RESPONSE, ts)
+        self._send_port_agent_packet(driver, DATA_ON_COMMAND_RESPONSE)
         self.assertTrue(driver._protocol._get_response(expected_prompt=IRIS_DATA_ON))
 
     def test_data_on_response_with_data(self):
@@ -412,58 +451,47 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         Verify that the driver correctly parses the DATA_ON response works
         when a data packet is right in front of it
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
+        driver = self.test_connect()
 
-        ts = ntplib.system_to_ntp_time(time.time())
         # Create a data packet and push to the driver
         log.debug("VALID SAMPLE : %s", VALID_SAMPLE_01)
         # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, VALID_SAMPLE_01, ts)
+        self._send_port_agent_packet(driver, VALID_SAMPLE_01)
 
         log.debug("DATA ON command response: %s", DATA_ON_COMMAND_RESPONSE)
         # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DATA_ON_COMMAND_RESPONSE, ts)
+        self._send_port_agent_packet(driver, DATA_ON_COMMAND_RESPONSE)
         self.assertTrue(driver._protocol._get_response(expected_prompt=IRIS_DATA_ON))
 
     def test_status_01(self):
         """
         Verify that the driver correctly parses the DUMP-SETTINGS response
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
-
-        ts = ntplib.system_to_ntp_time(time.time())
+        driver = self.test_connect()
 
         log.debug("DUMP_01_STATUS: %s", DUMP_01_STATUS)
         # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DUMP_01_STATUS, ts)
+        self._send_port_agent_packet(driver, DUMP_01_STATUS)
 
     def test_status_02(self):
         """
         Verify that the driver correctly parses the DUMP2 response
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
-
-        ts = ntplib.system_to_ntp_time(time.time())
+        driver = self.test_connect()
 
         log.debug("DUMP_02_STATUS: %s", DUMP_02_STATUS)
         # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DUMP_02_STATUS, ts)
+        self._send_port_agent_packet(driver, DUMP_02_STATUS)
 
     def test_data_off_response(self):
         """
         Verify that the driver correctly parses the DATA_OFF response
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
-
-        ts = ntplib.system_to_ntp_time(time.time())
+        driver = self.test_connect()
 
         log.debug("DATA OFF command response: %s", DATA_OFF_COMMAND_RESPONSE)
         # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DATA_OFF_COMMAND_RESPONSE, ts)
+        self._send_port_agent_packet(driver, DATA_OFF_COMMAND_RESPONSE)
 
         self.assertTrue(driver._protocol._get_response(expected_prompt=IRIS_DATA_OFF))
 
@@ -471,14 +499,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         """
         Verify that the driver correctly parses the DUMP_SETTINGS response
         """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
-
-        ts = ntplib.system_to_ntp_time(time.time())
+        driver = self.test_connect()
 
         log.debug("DUMP_SETTINGS_01 command response: %s", DUMP_01_COMMAND_RESPONSE)
         # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DUMP_01_COMMAND_RESPONSE, ts)
+        self._send_port_agent_packet(driver, DUMP_01_COMMAND_RESPONSE)
         response = driver._protocol._get_response(expected_prompt=IRIS_DUMP_01)
         self.assertTrue(isinstance(response[1], IRISCommandResponse))
 
@@ -488,19 +513,18 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
         log.debug("DUMP_SETTINGS_02 command response: %s", DUMP_02_COMMAND_RESPONSE)
         # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DUMP_02_COMMAND_RESPONSE, ts)
+        self._send_port_agent_packet(driver, DUMP_02_COMMAND_RESPONSE)
         response = driver._protocol._get_response(expected_prompt=IRIS_DUMP_02)
         self.assertTrue(isinstance(response[1], IRISCommandResponse))
 
     def test_start_autosample(self):
         def my_send(data):
             my_response = DATA_ON_COMMAND_RESPONSE
-            log.debug("my_send: data: %s, my_response: %s", data, my_response)
+            log.debug("my_send: data: %r, my_response: %r", data, my_response)
             driver._protocol._promptbuf += my_response
             return len(DATA_ON_COMMAND_RESPONSE)
 
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
+        driver = self.test_connect()
         driver._connection.send.side_effect = my_send
 
         driver._protocol._handler_command_start_autosample(timeout=0)
@@ -510,12 +534,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     def test_stop_autosample(self):
         def my_send(data):
             my_response = DATA_OFF_COMMAND_RESPONSE
-            log.debug("my_send: data: %s, my_response: %s", data, my_response)
+            log.debug("my_send: data: %r, my_response: %r", data, my_response)
             driver._protocol._promptbuf += my_response
             return len(DATA_OFF_COMMAND_RESPONSE)
 
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.AUTOSAMPLE)
+        driver = self.test_connect(ProtocolState.AUTOSAMPLE)
         driver._connection.send.side_effect = my_send
 
         driver._protocol._handler_autosample_stop_autosample()
@@ -525,12 +548,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     def test_status_01_handler(self):
         def my_send(data):
             my_response = DUMP_01_STATUS
-            log.debug("my_send: data: %s, my_response: %s", data, my_response)
+            log.debug("my_send: data: %r, my_response: %r", data, my_response)
             driver._protocol._promptbuf += my_response
             return len(DUMP_01_STATUS)
 
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.AUTOSAMPLE)
+        driver = self.test_connect(ProtocolState.AUTOSAMPLE)
         driver._connection.send.side_effect = my_send
 
         result = driver._protocol._handler_command_autosample_dump01(timeout=0)[1][1]
@@ -539,20 +561,18 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
     def test_status_02_handler(self):
         def my_send(data):
             my_response = DUMP_02_STATUS
-            log.debug("my_send: data: %s, my_response: %s", data, my_response)
+            log.debug("my_send: data: %r, my_response: %r", data, my_response)
             driver._protocol._promptbuf += my_response
             return len(DUMP_02_STATUS)
 
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.AUTOSAMPLE)
+        driver = self.test_connect(ProtocolState.AUTOSAMPLE)
         driver._connection.send.side_effect = my_send
 
         result = driver._protocol._handler_command_autosample_dump02(timeout=0)[1][1]
         self.assertTrue(result == DUMP_02_STATUS_RESP)
 
     def test_dump_01(self):
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
+        driver = self.test_connect()
 
         ts = ntplib.system_to_ntp_time(time.time())
         driver._protocol._got_chunk(DUMP_01_STATUS, ts)
@@ -561,8 +581,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         self.assertTrue(isinstance(response[1], IRISStatus01Particle))
 
     def test_dump_02(self):
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
+        driver = self.test_connect()
 
         ts = ntplib.system_to_ntp_time(time.time())
         driver._protocol._got_chunk(DUMP_02_STATUS, ts)
@@ -597,35 +616,25 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
+class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, IRISTestMixinSub):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    def test_connection(self):
+    def test_connect(self):
         self.assert_initialize_driver()
-
-    def test_get(self):
-        pass
-
-    def test_set(self):
-        pass
 
     def test_data_on(self):
         """
         @brief Test for turning data on
         """
         self.assert_initialize_driver()
-
-        # Set continuous data on
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
-        self.assertEqual(response[1], IRIS_DATA_ON)
-
-        log.debug("DATA_ON returned: %r", response)
+        self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE,
+                                        DataParticleType.IRIS_PARSED,
+                                        self.assert_particle_sample_01,
+                                        delay=2)
 
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
         self.assertEqual(response[1], IRIS_DATA_OFF)
-
-        log.debug("DATA_OFF returned: %r", response)
 
     def test_dump_01(self):
         """
@@ -634,8 +643,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_initialize_driver()
 
         # Issues acquire status command
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DUMP_01)
-        log.debug("DUMP_01 returned: %r", response)
+        self.assert_particle_generation(ProtocolEvent.DUMP_01,
+                                        DataParticleType.IRIS_STATUS1,
+                                        self.assert_particle_status_01,
+                                        delay=2)
 
     def test_dump_02(self):
         """
@@ -644,8 +655,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_initialize_driver()
 
         # Issues acquire status command
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DUMP_02)
-        log.debug("DUMP_02 returned: %r", response)
+        self.assert_particle_generation(ProtocolEvent.DUMP_02,
+                                        DataParticleType.IRIS_STATUS2,
+                                        self.assert_particle_status_02,
+                                        delay=2)
 
 
 ###############################################################################

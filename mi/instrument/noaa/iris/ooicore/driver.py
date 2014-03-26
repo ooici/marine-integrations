@@ -195,7 +195,8 @@ class IRISCommandResponse():
 
 class DataParticleType(BaseEnum):
     IRIS_PARSED = 'botpt_iris_sample'
-    IRIS_STATUS = 'botpt_iris_status'
+    IRIS_STATUS1 = 'botpt_iris_status1'
+    IRIS_STATUS2 = 'botpt_iris_status2'
 
 
 class IRISDataParticleKey(BaseEnum):
@@ -282,8 +283,7 @@ class IRISDataParticle(DataParticle):
             sn = str(match.group(5))
 
         except ValueError:
-            raise SampleException("ValueError while converting data: [%s]" %
-                                  self.raw_data)
+            raise SampleException("ValueError while converting data: [%s]" % self.raw_data)
 
         result = [
             {DataParticleKey.VALUE_ID: IRISDataParticleKey.TIME,
@@ -301,16 +301,35 @@ class IRISDataParticle(DataParticle):
         return result
 
 
+class IRISStatus01ParticleKey(BaseEnum):
+    TIME = "iris_time"
+    MODEL = "iris_model"
+    FIRMWARE_VERSION = "iris_firmware_version"
+    SERIAL_NUMBER = "iris_serial_number"
+    ID_NUMBER = "iris_id_number"
+    VBIAS = "iris_vbias"
+    VGAIN = "iris_vgain"
+    VMIN = "iris_vmin"
+    VMAX = "iris_vmax"
+    AVALS = "iris_avals"
+    TCOEFS = "iris_tcoefs"
+    N_SAMP = "iris_n_samp"
+    XZERO = "iris_xzero"
+    YZERO = "iris_yzero"
+    REST = "iris_rest"
+
+
 ###############################################################################
 # Status Particles
 ###############################################################################
 class IRISStatus01Particle(DataParticle):
-    _data_particle_type = DataParticleType.IRIS_STATUS
-    _compiled_regex = None
+    _data_particle_type = DataParticleType.IRIS_STATUS1
+    _compiled_basic_regex = None
+    _compiled_complete_regex = None
     iris_status_response = "No response found."
 
     @staticmethod
-    def regex():
+    def basic_regex():
         """
         Example of output from DUMP-SETTINGS command:
         
@@ -330,21 +349,115 @@ class IRISStatus01Particle(DataParticle):
         IRIS,2013/06/19 21:26:21,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00
         IRIS,2013/06/19 21:26:21,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-   
         """
-        pattern = r'IRIS,'  # pattern starts with IRIS '
-        pattern += r'(.*?),'  # group 1: time
-        pattern += r'\*APPLIED GEOMECHANICS'
-        pattern += r'.*?'  # non-greedy match of all the junk between
-        pattern += r'baud FV- *?' + NEWLINE
+        pattern = 'IRIS,.*\*APPLIED GEOMECHANICS.*baud FV-'
         return pattern
 
     @staticmethod
-    def regex_compiled():
-        if IRISStatus01Particle._compiled_regex is None:
-            IRISStatus01Particle._compiled_regex = re.compile(IRISStatus01Particle.regex(), re.DOTALL)
-        return IRISStatus01Particle._compiled_regex
+    def complete_regex():
+        iris_date_time = r'IRIS,\d+/\d+/\d+ \d+:\d+:\d+'
+        floating_point_num = r'(-?\d+\.\d+)'
+        four_floats = r'\s+?'.join([floating_point_num] * 4)
+        six_floats = r'\s+?'.join([floating_point_num] * 6)
+        pattern = [
+            '(%(iris_date_time)s),\*APPLIED GEOMECHANICS Model %(word)s Firmware %(word)s %(word)s %(word)s',
+            '%(iris_date_time)s,\*01: Vbias=\s+%(four_fp)s',
+            '%(iris_date_time)s,\*01: Vgain=\s+%(four_fp)s',
+            '%(iris_date_time)s,\*01: Vmin:\s+%(four_fp)s',
+            '%(iris_date_time)s,\*01: Vmax:\s+%(four_fp)s',
+            '%(iris_date_time)s,\*01: a0=\s+%(six_fp)s',
+            '%(iris_date_time)s,\*01: a1=\s+%(six_fp)s',
+            '%(iris_date_time)s,\*01: a2=\s+%(six_fp)s',
+            '%(iris_date_time)s,\*01: a3=\s+%(six_fp)s',
+            '%(iris_date_time)s,\*01: Tcoef 0: Ks=\s+%(int)s\s+Kz=\s+%(int)s\s+Tcal=\s+%(int)s',
+            '%(iris_date_time)s,\*01: Tcoef 1: Ks=\s+%(int)s\s+Kz=\s+%(int)s\s+Tcal=\s+%(int)s',
+            '%(iris_date_time)s,\*01: N_SAMP=\s*%(int)s\s*Xzero=\s*%(float)s\s*Yzero=\s*%(float)s',
+            '%(iris_date_time)s,\*01: (TR.*FV-)'
+        ]
+        pattern = '.*'.join(pattern) % {
+            'iris_date_time': iris_date_time,
+            'float': floating_point_num,
+            'four_fp': four_floats,
+            'six_fp': six_floats,
+            'int': '(-?\d+)',
+            'word': '(\S+)'}
+        return pattern
+
+    @staticmethod
+    def basic_regex_compiled():
+        if IRISStatus01Particle._compiled_basic_regex is None:
+            IRISStatus01Particle._compiled_basic_regex = re.compile(IRISStatus01Particle.basic_regex(), re.DOTALL)
+        return IRISStatus01Particle._compiled_basic_regex
+
+    @staticmethod
+    def complete_regex_compiled():
+        if IRISStatus01Particle._compiled_complete_regex is None:
+            IRISStatus01Particle._compiled_complete_regex = re.compile(IRISStatus01Particle.complete_regex(), re.DOTALL)
+        return IRISStatus01Particle._compiled_complete_regex
 
     def _build_parsed_values(self):
-        pass
+        """
+        Parse the values from the dump settings command
+        """
+        match = self.complete_regex_compiled().match(self.raw_data)
+        log.warning(match.groups())
+        if not match:
+            raise SampleException('No regex match of parsed status data: [%s]' % self.raw_data)
+
+        try:
+            iris_time = match.group(1)
+            timestamp = time.strptime(iris_time, "IRIS,%Y/%m/%d %H:%M:%S")
+            self.set_internal_timestamp(unix_time=time.mktime(timestamp))
+            ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
+            model = match.group(2)
+            firmware_version = match.group(3)
+            serial_number = match.group(4)
+            id_num = match.group(5)
+            vbias = [float(match.group(x)) for x in range(6, 10)]
+            vgain = [float(match.group(x)) for x in range(10, 14)]
+            vmin = [float(match.group(x)) for x in range(14, 18)]
+            vmax = [float(match.group(x)) for x in range(18, 22)]
+            avals = [float(match.group(x)) for x in range(22, 46)]
+            tcoefs = [int(match.group(x)) for x in range(46, 52)]
+            n_samp = int(match.group(52))
+            xzero = float(match.group(53))
+            yzero = float(match.group(54))
+            rest = match.group(55)
+        except ValueError:
+            raise SampleException('Exception parsing status data: [%s]' % self.raw_data)
+
+        result = [
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.TIME,
+             DataParticleKey.VALUE: ntp_timestamp},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.MODEL,
+             DataParticleKey.VALUE: model},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.FIRMWARE_VERSION,
+             DataParticleKey.VALUE: firmware_version},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.SERIAL_NUMBER,
+             DataParticleKey.VALUE: serial_number},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.ID_NUMBER,
+             DataParticleKey.VALUE: id_num},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.VBIAS,
+             DataParticleKey.VALUE: vbias},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.VGAIN,
+             DataParticleKey.VALUE: vgain},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.VMIN,
+             DataParticleKey.VALUE: vmin},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.VMAX,
+             DataParticleKey.VALUE: vmax},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.AVALS,
+             DataParticleKey.VALUE: avals},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.TCOEFS,
+             DataParticleKey.VALUE: tcoefs},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.N_SAMP,
+             DataParticleKey.VALUE: n_samp},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.XZERO,
+             DataParticleKey.VALUE: xzero},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.YZERO,
+             DataParticleKey.VALUE: yzero},
+            {DataParticleKey.VALUE_ID: IRISStatus01ParticleKey.REST,
+             DataParticleKey.VALUE: rest},
+        ]
+        return result
 
     def build_response(self):
         """
@@ -362,13 +475,52 @@ class IRISStatus01Particle(DataParticle):
                                                   if line.startswith(IRIS_STRING)])
 
 
+class IRISStatus02ParticleKey(BaseEnum):
+    TIME = 'iris_time'
+    TBIAS = 'iris_tbias'
+    ABOVE = 'iris_above'
+    BELOW = 'iris_below'
+    ADC_DELAY = 'iris_adc_delay'
+    PCA_MODEL = 'iris_pca_model'
+    FIRMWARE_REV = 'iris_firmware_rev'
+    XCHAN_GAIN = 'iris_xchan_gain'
+    YCHAN_GAIN = 'iris_ychan_gain'
+    TEMP_GAIN = 'iris_temp_gain'
+    OUTPUT_MODE = 'iris_output_mode'
+    CAL_MODE = 'iris_cal_mode'
+    CONTROL = 'iris_control'
+    RS232 = 'iris_rs232'
+    RTC_INSTALLED = 'iris_rtc_installed'
+    RTC_TIMING = 'iris_rtc_timing'
+    EXT_FLASH = 'iris_external_flash'
+    XPOS_RELAY_THRESHOLD = 'iris_xpos_relay_threshold'
+    XNEG_RELAY_THRESHOLD = 'iris_xneg_relay_threshold'
+    YPOS_RELAY_THRESHOLD = 'iris_ypos_relay_threshold'
+    YNEG_RELAY_THRESHOLD = 'iris_yneg_relay_threshold'
+    RELAY_HYSTERESIS = 'iris_relay_hysteresis'
+    CAL_METHOD = 'iris_calibration_method'
+    POS_LIMIT = 'iris_positive_limit'
+    NEG_LIMIT = 'iris_negative_limit'
+    NUM_CAL_POINTS = 'iris_calibration_points'
+    CAL_POINTS_X = 'iris_cal_points_x'
+    CAL_POINTS_Y = 'iris_cal_points_y'
+    BIAXIAL_SENSOR_TYPE = 'iris_biaxial sensor_type'
+    ADC_TYPE = 'iris_adc_type'
+    DAC_SCALE_FACTOR = 'iris_dac_output_scale_factor'
+    DAC_SCALE_UNITS = 'iris_dac_output_scale_units'
+    SAMPLE_STORAGE_CAPACITY = 'iris_sample_storage_capacity'
+    BAE_SCALE_FACTOR = 'iris_bae_scale_factor'
+
+
+# noinspection PyMethodMayBeStatic
 class IRISStatus02Particle(DataParticle):
-    _data_particle_type = DataParticleType.IRIS_STATUS
-    _compiled_regex = None
+    _data_particle_type = DataParticleType.IRIS_STATUS2
+    _compiled_basic_regex = None
+    _compiled_complete_regex = None
     iris_status_response = "No response found."
 
     @staticmethod
-    def regex():
+    def basic_regex():
         """
         Example of output from DUMP2 command:
         IRIS,2013/06/12 23:55:09,*01: TBias: 8.85 
@@ -401,25 +553,182 @@ class IRISStatus02Particle(DataParticle):
         IRIS,2013/06/12 18:04:02,*01: Total Sample Storage Capacity: 372
         IRIS,2013/06/12 18:04:02,*01: BAE Scale Factor:  2.88388 (arcseconds/bit)
         """
-        pattern = r'IRIS,'  # pattern starts with IRIS '
-        pattern += r'(.*?),'  # group 1: time
-        pattern += r'\*01: TBias:'  # unique identifier for status
-        pattern += r'.*?'  # non-greedy match of all the junk between
-        pattern += r'BAE Scale Factor: (.*)\(arcseconds/bit\)' + NEWLINE
+        pattern = r'IRIS,.*\*01: TBias.*\(arcseconds/bit\)'
         return pattern
 
     @staticmethod
-    def regex_compiled():
-        if IRISStatus02Particle._compiled_regex is None:
-            IRISStatus02Particle._compiled_regex = re.compile(IRISStatus02Particle.regex(), re.DOTALL)
-        return IRISStatus02Particle._compiled_regex
+    def complete_regex():
+        """
+        More complete regex for parsing all fields from the status message
+        """
+        pattern = [r'(%(iris_date_time)s),\*01: TBias: %(fp)s',
+                   r'%(iris_date_time)s,\*Above %(fp)s\(KZMinTemp\): kz\[0\]=\s+%(int)s, kz\[1\]=\s+%(int)s',
+                   r'%(iris_date_time)s,\*Below %(fp)s\(KZMinTemp\): kz\[2\]=\s+%(int)s, kz\[3\]=\s+%(int)s',
+                   r'%(iris_date_time)s,\*01: ADCDelay:\s+%(int)s',
+                   r'%(iris_date_time)s,\*01: PCA Model: %(word)s',
+                   r'%(iris_date_time)s,\*01: Firmware Version: %(to_eol)s',
+                   r'%(iris_date_time)s,\*01: X Ch Gain= %(fp)s, Y Ch Gain= %(fp)s, Temperature Gain= %(fp)s',
+                   r'%(iris_date_time)s,\*01: Output Mode: %(word)s',
+                   r'%(iris_date_time)s,\*01: Calibration performed in %(word)s',
+                   r'%(iris_date_time)s,\*01: Control: %(word)s',
+                   r'%(iris_date_time)s,\*01: Using %(word)s',
+                   r'%(iris_date_time)s,\*01: Real Time Clock: %(to_eol)s',
+                   r'%(iris_date_time)s,\*01: Use RTC for Timing: %(word)s',
+                   r'%(iris_date_time)s,\*01: External Flash Capacity: %(to_eol)s',
+                   r'%(iris_date_time)s,\*01: Relay Thresholds:',
+                   r'%(iris_date_time)s,\*01:   Xpositive=\s*%(fp)s\s+Xnegative=\s*%(fp)s',
+                   r'%(iris_date_time)s,\*01:   Ypositive=\s*%(fp)s\s+Ynegative=\s*%(fp)s',
+                   r'%(iris_date_time)s,\*01: Relay Hysteresis:',
+                   r'%(iris_date_time)s,\*01:   Hysteresis= %(fp)s',
+                   r'%(iris_date_time)s,\*01: Calibration method: %(word)s',
+                   r'%(iris_date_time)s,\*01: Positive Limit=%(fp)s\s+Negative Limit=\s*%(fp)s',
+                   r'%(iris_date_time)s,\*01: Calibration Points:%(int)s\s+X:\s*%(word)s\s*Y:\s*%(word)s',
+                   r'%(iris_date_time)s,\*01: Biaxial Sensor Type \(%(int)s\)',
+                   r'%(iris_date_time)s,\*01: ADC: %(to_eol)s',
+                   r'%(iris_date_time)s,\*01: DAC Output Scale Factor: %(fp)s %(word)s',
+                   r'%(iris_date_time)s,\*01: Total Sample Storage Capacity: %(int)s',
+                   r'%(iris_date_time)s,\*01: BAE Scale Factor:  %(fp)s \(arcseconds/bit\)']
+        pattern = '.*'.join(pattern) % {'iris_date_time': r'IRIS,\d+/\d+/\d+ \d+:\d+:\d+',
+                                        'fp': r'(-?\d+\.\d+)',
+                                        'int': r'(-?\d+)',
+                                        'word': '(\S+)',
+                                        'to_eol': '(.+?)$'}
+        return pattern
 
-    # noinspection PyMethodMayBeStatic
+    @staticmethod
+    def basic_regex_compiled():
+        if IRISStatus02Particle._compiled_basic_regex is None:
+            IRISStatus02Particle._compiled_basic_regex = re.compile(IRISStatus02Particle.basic_regex(), re.DOTALL)
+        return IRISStatus02Particle._compiled_basic_regex
+
+    @staticmethod
+    def complete_regex_compiled():
+        if IRISStatus02Particle._compiled_complete_regex is None:
+            IRISStatus02Particle._compiled_complete_regex = re.compile(IRISStatus02Particle.complete_regex(),
+                                                                       re.DOTALL | re.MULTILINE)
+        return IRISStatus02Particle._compiled_complete_regex
+
     def encoders(self):
         return {}
 
     def _build_parsed_values(self):
-        pass
+        match = self.complete_regex_compiled().match(self.raw_data)
+        if not match:
+            raise SampleException('No regex match of parsed status data: [%s]' % self.raw_data)
+
+        try:
+            iris_time = match.group(1)
+            timestamp = time.strptime(iris_time, "IRIS,%Y/%m/%d %H:%M:%S")
+            self.set_internal_timestamp(unix_time=time.mktime(timestamp))
+            ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
+            tbias = float(match.group(2))
+            above = [float(match.group(3)), int(match.group(4)), int(match.group(5))]
+            below = [float(match.group(6)), int(match.group(7)), int(match.group(8))]
+            adc_delay = int(match.group(9))
+            pca_model = match.group(10)
+            firmware_version = match.group(11)
+            xchan_gain = float(match.group(12))
+            ychan_gain = float(match.group(13))
+            temp_gain = float(match.group(14))
+            output_mode = match.group(15)
+            cal_mode = match.group(16)
+            control = match.group(17)
+            using = match.group(18)
+            rtc_installed = match.group(19)
+            rtc_timing = match.group(20)
+            ext_flash_capacity = match.group(21)
+            xpos_thresh = float(match.group(22))
+            xneg_thresh = float(match.group(23))
+            ypos_thresh = float(match.group(24))
+            yneg_thresh = float(match.group(25))
+            hysteresis = float(match.group(26))
+            cal_method = match.group(27)
+            pos_limit = float(match.group(28))
+            neg_limit = float(match.group(29))
+            cal_points = int(match.group(30))
+            cal_x = match.group(31)
+            cal_y = match.group(32)
+            biaxial_type = int(match.group(33))
+            adc_type = match.group(34)
+            dac_scale = float(match.group(35))
+            dac_units = match.group(36)
+            storage_cap = int(match.group(37))
+            bae_scale = float(match.group(38))
+
+        except ValueError:
+            raise SampleException('Exception parsing status data: [%s]' % self.raw_data)
+
+        result = [
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.TIME,
+             DataParticleKey.VALUE: ntp_timestamp},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.TBIAS,
+             DataParticleKey.VALUE: tbias},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.ABOVE,
+             DataParticleKey.VALUE: above},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.BELOW,
+             DataParticleKey.VALUE: below},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.ADC_DELAY,
+             DataParticleKey.VALUE: adc_delay},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.PCA_MODEL,
+             DataParticleKey.VALUE: pca_model},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.FIRMWARE_REV,
+             DataParticleKey.VALUE: firmware_version},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.XCHAN_GAIN,
+             DataParticleKey.VALUE: xchan_gain},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.YCHAN_GAIN,
+             DataParticleKey.VALUE: ychan_gain},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.TEMP_GAIN,
+             DataParticleKey.VALUE: temp_gain},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.OUTPUT_MODE,
+             DataParticleKey.VALUE: output_mode},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.CAL_MODE,
+             DataParticleKey.VALUE: cal_mode},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.CONTROL,
+             DataParticleKey.VALUE: control},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.RS232,
+             DataParticleKey.VALUE: using},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.RTC_INSTALLED,
+             DataParticleKey.VALUE: rtc_installed},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.RTC_TIMING,
+             DataParticleKey.VALUE: rtc_timing},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.EXT_FLASH,
+             DataParticleKey.VALUE: ext_flash_capacity},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.XPOS_RELAY_THRESHOLD,
+             DataParticleKey.VALUE: xpos_thresh},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.XNEG_RELAY_THRESHOLD,
+             DataParticleKey.VALUE: xneg_thresh},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.YPOS_RELAY_THRESHOLD,
+             DataParticleKey.VALUE: ypos_thresh},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.YNEG_RELAY_THRESHOLD,
+             DataParticleKey.VALUE: yneg_thresh},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.RELAY_HYSTERESIS,
+             DataParticleKey.VALUE: hysteresis},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.CAL_METHOD,
+             DataParticleKey.VALUE: cal_method},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.POS_LIMIT,
+             DataParticleKey.VALUE: pos_limit},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.NEG_LIMIT,
+             DataParticleKey.VALUE: neg_limit},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.NUM_CAL_POINTS,
+             DataParticleKey.VALUE: cal_points},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.CAL_POINTS_X,
+             DataParticleKey.VALUE: cal_x},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.CAL_POINTS_Y,
+             DataParticleKey.VALUE: cal_y},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.BIAXIAL_SENSOR_TYPE,
+             DataParticleKey.VALUE: biaxial_type},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.ADC_TYPE,
+             DataParticleKey.VALUE: adc_type},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.DAC_SCALE_FACTOR,
+             DataParticleKey.VALUE: dac_scale},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.DAC_SCALE_UNITS,
+             DataParticleKey.VALUE: dac_units},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.SAMPLE_STORAGE_CAPACITY,
+             DataParticleKey.VALUE: storage_cap},
+            {DataParticleKey.VALUE_ID: IRISStatus02ParticleKey.BAE_SCALE_FACTOR,
+             DataParticleKey.VALUE: bae_scale},
+        ]
+        return result
 
     def build_response(self):
         """
@@ -488,6 +797,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -559,8 +869,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         # set up the regexes now so we don't have to do it repeatedly
         self.data_regex = IRISDataParticle.regex_compiled()
         self.cmd_rsp_regex = IRISCommandResponse.regex_compiled()
-        self.status_01_regex = IRISStatus01Particle.regex_compiled()
-        self.status_02_regex = IRISStatus02Particle.regex_compiled()
+        self.status_01_regex = IRISStatus01Particle.basic_regex_compiled()
+        self.status_02_regex = IRISStatus02Particle.basic_regex_compiled()
         self._last_data_timestamp = 0
 
     @staticmethod
@@ -570,16 +880,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         matchers = []
         return_list = []
-
         matchers.append(IRISDataParticle.regex_compiled())
-        matchers.append(IRISStatus01Particle.regex_compiled())
-        matchers.append(IRISStatus02Particle.regex_compiled())
+        matchers.append(IRISStatus01Particle.basic_regex_compiled())
+        matchers.append(IRISStatus02Particle.basic_regex_compiled())
         matchers.append(IRISCommandResponse.regex_compiled())
-
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
                 return_list.append((match.start(), match.end()))
-
         return return_list
 
     def _filter_capabilities(self, events):
@@ -599,7 +906,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
+        For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
@@ -621,7 +928,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Replaces add_to_buffer. Most data coming to this driver isn't meant
         for it.  I'm only adding to the buffer when data meant for this 
         driver arrives.  That is accomplished using the chunker mechanism. This
-        method would normally collet any data fragments that are then search by
+        method would normally collect any data fragments that are then search by
         the get_response method in the context of a synchronous command sent
         from the observatory.  However, because so much data arrives here that
         is not applicable, the add_to_buffer method has been overridden to do
@@ -637,7 +944,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _got_chunk(self, chunk, timestamp):
         """
-        The base class got_data has gotten a chunk from the chunker.  Invoke
+        The base class has gotten a chunk from the chunker.  Invoke
         this driver's _my_add_to_buffer, or pass it to extract_sample
         with the appropriate particle objects and REGEXes.  We need to invoke
         _my_add_to_buffer, because we've overridden the base class
@@ -645,29 +952,36 @@ class Protocol(CommandResponseInstrumentProtocol):
         in comments in _my_add_to_buffer.
         """
 
-        log.debug("_got_chunk_: %s", chunk)
+        log.debug("_got_chunk_: %r", chunk)
 
-        if self.cmd_rsp_regex.match(chunk) or self.status_01_regex.match(chunk) or self.status_02_regex.match(chunk):
+        if self.data_regex.match(chunk):
+            self._extract_sample(IRISDataParticle, self.data_regex, chunk, timestamp)
+        elif self.status_01_regex.match(chunk):
+            self._my_add_to_buffer(chunk)
+            self._extract_sample(IRISStatus01Particle, self.status_01_regex, chunk, timestamp)
+        elif self.status_02_regex.match(chunk):
+            self._my_add_to_buffer(chunk)
+            self._extract_sample(IRISStatus02Particle, self.status_02_regex, chunk, timestamp)
+        elif self.cmd_rsp_regex.match(chunk):
             self._my_add_to_buffer(chunk)
         else:
-            if not self._extract_sample(IRISDataParticle, self.data_regex, chunk, timestamp):
-                raise InstrumentProtocolException("Unhandled chunk")
+            raise InstrumentProtocolException("Unhandled chunk")
 
     def _build_command(self, cmd, *args, **kwargs):
         command = cmd + NEWLINE
-        log.debug("_build_command: command is: %s", command)
+        log.debug("_build_command: command is: %r", command)
         return command
 
     def _parse_data_on_off_resp(self, response, prompt):
-        log.debug("_parse_data_on_off_resp: response: %r; prompt: %s", response, prompt)
+        log.debug("_parse_data_on_off_resp: response: %r; prompt: %r", response, prompt)
         return response.iris_command_response
 
     def _parse_status_01_resp(self, response, prompt):
-        log.debug("_parse_status_01_resp: response: %r; prompt: %s", response, prompt)
+        log.debug("_parse_status_01_resp: response: %r; prompt: %r", response, prompt)
         return response.iris_status_response
 
     def _parse_status_02_resp(self, response, prompt):
-        log.debug("_parse_status_02_resp: response: %r; prompt: %s", response, prompt)
+        log.debug("_parse_status_02_resp: response: %r; prompt: %r", response, prompt)
         return response.iris_status_response
 
     def _wakeup(self, timeout, delay=1):
@@ -707,7 +1021,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 log.debug("_get_response() matched Status_01_Response")
                 response.build_response()
                 continuing = False
-            elif self.status_02_regex.match(self._promptbuf):
+            elif self.status_02_regex.search(self._promptbuf):
                 response = IRISStatus02Particle(self._promptbuf)
                 log.debug("_get_response() matched Status_02_Response")
                 response.build_response()
@@ -846,9 +1160,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
         log.debug("_handler_command_autosample_acquire_status")
         result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_01)
-        log.debug("DUMP_SETTINGS_01 response: %s", result)
+        log.debug("DUMP_SETTINGS_01 response: %r", result)
         result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_02)
-        log.debug("DUMP_SETTINGS_02 response: %s", result)
+        log.debug("DUMP_SETTINGS_02 response: %r", result)
 
         return next_state, (next_agent_state, result)
 
@@ -868,7 +1182,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         else:
             result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_01)
 
-        log.debug("DUMP_SETTINGS_01 response: %s", result)
+        log.debug("DUMP_SETTINGS_01 response: %r", result)
 
         return next_state, (next_agent_state, result)
 
@@ -883,6 +1197,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_02)
 
-        log.debug("DUMP_SETTINGS_02 response: %s", result)
+        log.debug("DUMP_SETTINGS_02 response: %r", result)
 
         return next_state, (next_agent_state, result)
