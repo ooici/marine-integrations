@@ -869,6 +869,7 @@ class DataSetAgentTestCase(DataSetTestCase):
     def assert_start_sampling(self):
         '''
         transition to sampling.  Must be called from command
+        :rtype : object
         '''
         state = self.dataset_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)

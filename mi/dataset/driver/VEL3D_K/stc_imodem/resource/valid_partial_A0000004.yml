@@ -1,0 +1,72 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    internal_timestamp: 3589459203.000000
+    particle_object: Vel3d_k__stc_imodemVelocityDataParticle
+    particle_type: vel3d_k__stc_imodem_instrument
+    date_time_array: [113, 8, 29, 16, 0, 17]
+    vel3d_k_soundSpeed: !!null 
+    vel3d_k_temp_c: 2243 
+    vel3d_k_heading: 3017 
+    vel3d_k_pitch: 864 
+    vel3d_k_roll: -519 
+    vel3d_k_mag_x: !!null 
+    vel3d_k_mag_y: !!null 
+    vel3d_k_mag_z: !!null
+    vel3d_k_beams: !!null 
+    vel3d_k_cells: !!null 
+    vel3d_k_beam1: !!null 
+    vel3d_k_beam2: !!null 
+    vel3d_k_beam3: !!null 
+    vel3d_k_beam4: !!null 
+    vel3d_k_beam5: !!null 
+    vel3d_k_v_scale: -4 
+    vel3d_k_vel0: 21224 
+    vel3d_k_vel1: 21344 
+    vel3d_k_vel2: 21284 
+    vel3d_k_amp0: 66 
+    vel3d_k_amp1: 64 
+    vel3d_k_amp2: 68 
+    vel3d_k_cor0: !!null 
+    vel3d_k_cor1: !!null 
+    vel3d_k_cor2: !!null
+  - _index: 2
+    internal_timestamp: 3589459203.500000
+    particle_object: Vel3d_k__stc_imodemVelocityDataParticle
+    particle_type: vel3d_k__stc_imodem_instrument
+    date_time_array: [113, 8, 29, 16, 4, 37] 
+    vel3d_k_soundSpeed: !!null 
+    vel3d_k_temp_c: 2244 
+    vel3d_k_heading: 3007 
+    vel3d_k_pitch: 862 
+    vel3d_k_roll: -528 
+    vel3d_k_mag_x: !!null 
+    vel3d_k_mag_y: !!null 
+    vel3d_k_mag_z: !!null
+    vel3d_k_beams: !!null 
+    vel3d_k_cells: !!null 
+    vel3d_k_beam1: !!null 
+    vel3d_k_beam2: !!null 
+    vel3d_k_beam3: !!null 
+    vel3d_k_beam4: !!null 
+    vel3d_k_beam5: !!null 
+    vel3d_k_v_scale: -4 
+    vel3d_k_vel0: 20774 
+    vel3d_k_vel1: 20982 
+    vel3d_k_vel2: 20732 
+    vel3d_k_amp0: 67 
+    vel3d_k_amp1: 64 
+    vel3d_k_amp2: 69 
+    vel3d_k_cor0: !!null 
+    vel3d_k_cor1: !!null 
+    vel3d_k_cor2: !!null
+  - _index: 3
+    internal_timestamp: 3589459202.000000
+    particle_object: Vel3d_k__stc_imodemTimeDataParticle
+    particle_type: vel3d_k__stc_imodem_metadata
+    vel3d_k_time_on: 1380470402
+    vel3d_k_time_off: 1380470683
+    vel3d_k_number_of_records: 4
