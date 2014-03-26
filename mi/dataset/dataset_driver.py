@@ -862,27 +862,63 @@ class SingleFileDataSetDriver(SimpleDataSetDriver):
 
 class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
 
-    def __init__(config, memento, data_callback, state_callback, event_callback, exception_callback, data_keys):
+    def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback, data_keys):
         self._data_keys = data_keys
-        self._init_queues(data_keys)
 
         super(MultipleHarvesterDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
                                                              exception_callback)
-        self._harvester = None
-        self._driver_state = None
+        self._init_queues()
 
-        self._init_state(memento)
-
-        self._resource_id = self._config.get(DataSourceConfigKey.RESOURCE_ID)
-        log.debug("Resource ID: %s", self._resource_id)
-
-    def _init_queues(self, keys):
+    def _init_queues(self):
         self._new_file_queue = {}
-        for key in keys:
+        for key in self._data_keys:
             self._new_file_queue[key] = []
 
-    def _poll(self):
-        raise NotImplementedException('virtual method _poll needs to be specialized')
+    def _start_publisher_thread(self):
+        """
+        Start however many publisher threads are needed, one for each data key
+        """
+        self._publisher_thread = {}
+        self._publisher_shutdown = {}
+        for key in self._data_keys:
+            self._publisher_thread[key] = gevent.spawn(self._publisher_loop, key)
+            self._publisher_shutdown[key] = False
+
+    def _stop_publisher_thread(self):
+        log.debug("Signal shutdown")
+        for key in self._data_keys:
+            self._publisher_shutdown[key] = True
+            if self._publisher_thread[key]:
+                self._publisher_thread[key].kill(block=False)
+        log.debug("shutdown complete")
+
+    def _publisher_loop(self, data_key):
+        """
+        Main loop to listen for new files to parse.  Parse them and move on.
+        """
+        log.info("Starting main publishing loop for key %s", data_key)
+
+        try:
+            while(not self._publisher_shutdown[data_key]):
+                self._poll(data_key)
+                gevent.sleep(self._polling_interval)
+        except Exception as e:
+            log.error("Exception in publisher thread (resource id: %s): %s", self._resource_id, traceback.format_exc(e))
+            self._exception_callback(e)
+
+        log.debug("publisher thread detected shutdown request")
+
+    def _poll(self, data_key):
+        """
+        Main loop to listen for new files to parse.  Parse them and move on.
+        """
+        # If we have files, grab the first and process it.
+        count = len(self._new_file_queue[data_key])
+        log.trace("Checking for new files in %s queue, count: %d", data_key, count)
+        if(count > 0):
+            log.debug("New file detected, resource_id: %s, array addr: %s", self._resource_id,
+                      id(self._new_file_queue[data_key]))
+            self._got_file(self._new_file_queue[data_key].pop(0), data_key)
 
     def _start_sampling(self):
         # just a little nap before we start working.  Giving the agent time
@@ -906,7 +942,7 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
         else:
             log.debug("poller not running. no need to shutdown")
 
-    def _got_file(self, file_name, directory, builder):
+    def _got_file(self, file_name, data_key):
         """
         We have a file that we want to parse.  Stand up the parser and do some work.
         @param file_name: name of the file to parse
@@ -917,12 +953,12 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
             count = 1
             delay = None
 
+            directory = self._harvester_config[data_key].get(DataSetDriverConfigKeys.DIRECTORY)
+
             if self._generate_particle_count:
                 # Calculate the delay between grabbing records to publish.
                 delay = float(1) / float(self._particle_count_per_second) * float(self._generate_particle_count)
                 count = self._generate_particle_count
-
-            self._file_in_process = file_name
 
             # Open the copied file in the storage directory so we know the file won't be
             # changed while we are reading it
@@ -933,7 +969,7 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
             handle = open(path)
 
             # the file directory is initialized in the harvester, so it will exist by this point
-            parser = builder(self._driver_state[file_name][DriverStateKey.PARSER_STATE], handle)
+            parser = self._build_parser(self._driver_state[file_name][DriverStateKey.PARSER_STATE], handle, file_name, data_key)
 
             while(True):
                 result = parser.get_records(count)
@@ -945,11 +981,27 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
                     break
         except SampleException as e:
             # need to mark the bad file as ingested so we don't re-ingest it
-            self._save_parser_state_after_error()
+            log.debug("File %s fully parsed", file_name)
+            self._driver_state[file_name][DriverStateKey.INGESTED] = True
+            self._state_callback(self._driver_state)
             self._sample_exception_callback(e)
 
         finally:
             self._file_in_process = None
+
+    def _save_parser_state(self, state, file_ingested, file_name):
+        """
+        Callback to store the parser state in the driver object.
+        @param state: Object used by the parser to indicate position
+        """
+        log.trace("saving parser state: %r", state)
+        # this is for the directory harvester which uses file name keys
+        self._driver_state[file_name][DriverStateKey.PARSER_STATE] = state
+        # check if file has been completely parsed by comparing the parsed position and file size
+        if file_ingested:
+            log.debug("File %s fully parsed", file_name)
+            self._driver_state[file_name][DriverStateKey.INGESTED] = True
+        self._state_callback(self._driver_state)
 
     def _new_file_callback(self, file_name, data_key):
         """
@@ -962,7 +1014,7 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
         if file_name not in self._new_file_queue[data_key]:
             log.debug("Add new file to the new file queue: resource_id: %s, queue addr: %s, name: %s",
                       self._resource_id,
-                      id(self._new_file_queue[data_key], file_name))
+                      id(self._new_file_queue[data_key]), file_name)
             self._new_file_queue[data_key].append(file_name)
 
             count = len(self._new_file_queue[data_key])
@@ -982,7 +1034,7 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
         if self._harvester_config:
             for key in self._data_keys:
                 sub_config = self._harvester_config.get(key)
-                if not sub_config.get(key):
+                if not sub_config:
                     errors.append("harvester missing %s config" % key)
                 else:
                     if not sub_config.get(DataSetDriverConfigKeys.DIRECTORY):
