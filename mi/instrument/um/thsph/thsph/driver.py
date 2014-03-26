@@ -11,15 +11,17 @@ Vent Chemistry Instrument  Driver
 
 
 """
-import re
-from mi.core.exceptions import SampleException, InstrumentProtocolException
-from mi.core.instrument.driver_dict import DriverDictKey
-from mi.core.instrument.protocol_param_dict import ParameterDictType
-
 __author__ = 'Richard Han'
 __license__ = 'Apache 2.0'
 
+
+import re
 import string
+
+from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
+from mi.core.exceptions import SampleException, InstrumentProtocolException, InstrumentParameterException
+from mi.core.instrument.driver_dict import DriverDictKey
+from mi.core.instrument.protocol_param_dict import ParameterDictType
 
 from mi.core.log import get_logger;
 
@@ -28,7 +30,7 @@ log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
+from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver, DriverConfigKey
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -50,6 +52,11 @@ TIMEOUT = 10
 #    Driver Constant Definitions
 ###
 
+class ScheduledJob(BaseEnum):
+    ACQUIRE_SAMPLE = 'acquire_sample'
+    CONFIGURATION_DATA = "configuration_data"
+
+
 class DataParticleType(BaseEnum):
     """
     Data particle types produced by this driver
@@ -57,10 +64,10 @@ class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
     THSPH_PARSED = 'thsph_sample'
 
-class Command(BaseEnum):
-        AH  = 'aH*'  # Gets data sample from ADC
-        AP  = 'aP*'  # Communication test, returns aP#
 
+class Command(BaseEnum):
+    AH = 'aH*'  # Gets data sample from ADC
+    AP = 'aP*'  # Communication test, returns aP#
 
 
 class ProtocolState(BaseEnum):
@@ -86,6 +93,7 @@ class ProtocolEvent(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+
 
 class Capability(BaseEnum):
     """
@@ -123,13 +131,13 @@ class InstrumentCommand(BaseEnum):
 # Data Particles
 ###############################################################################
 class THSPHDataParticleKey(BaseEnum):
-    IMPEDANCE_ELECTRODE_1 = "hiie1"   # High input impedance electrode
-    IMPEDANCE_ELECTRODE_2 = "hiie2"   # High input impedance electrode
-    H2_ELECTRODE = "h2electrode"      # H2 electrode
-    S2_ELECTRODE = "s2electrode"      # S2- electrode
-    THERMO1 = "thermocouple1"         # Type E thermocouple 1-high
-    THERMO2 = "thermocouple2"         # Type E thermocouple 2-low
-    THERMISTOR = "thermistor"         # Thermistor
+    IMPEDANCE_ELECTRODE_1 = "hiie1"  # High input impedance electrode
+    IMPEDANCE_ELECTRODE_2 = "hiie2"  # High input impedance electrode
+    H2_ELECTRODE = "h2electrode"  # H2 electrode
+    S2_ELECTRODE = "s2electrode"  # S2- electrode
+    THERMO1 = "thermocouple1"  # Type E thermocouple 1-high
+    THERMO2 = "thermocouple2"  # Type E thermocouple 2-low
+    THERMISTOR = "thermistor"  # Thermistor
     BOARD_THERMISTOR = "bthermistor"  # Board Thermistor
 
 
@@ -150,7 +158,7 @@ class THSPHParticle(DataParticle):
        aH12341234123412341234123412341234#
 
     Format:
-       aHaaaabbbbccccddddeeeeffffgggghhhh
+       aHaaaabbbbccccddddeeeeffffgggghhhh#
 
        aaaa = Chanel 1 High Input Impedance Electrode;
        bbbb = Chanel 2 High Input Impedance Electrode;
@@ -235,7 +243,7 @@ class THSPHParticle(DataParticle):
                    DataParticleKey.VALUE: thermocouple2},
                   {DataParticleKey.VALUE_ID: THSPHDataParticleKey.THERMISTOR,
                    DataParticleKey.VALUE: thermistor},
-                   {DataParticleKey.VALUE_ID: THSPHDataParticleKey.BOARD_THERMISTOR,
+                  {DataParticleKey.VALUE_ID: THSPHDataParticleKey.BOARD_THERMISTOR,
                    DataParticleKey.VALUE: board_thermistor}]
 
         return result
@@ -300,6 +308,8 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
                                        self._handler_command_start_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,
+                                       self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
 
@@ -336,14 +346,23 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         #
         self._chunker = StringChunker(THSPHProtocol.sieve_function)
 
+        # Schedule autosample task
+        self._add_scheduler_event(ScheduledJob.ACQUIRE_SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE)
+
 
     @staticmethod
     def sieve_function(raw_data):
         """
         The method that splits samples
         """
-
+        matchers = []
         return_list = []
+
+        matchers.append(THSPHParticle.regex_compiled())
+
+        for matcher in matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
 
         return return_list
 
@@ -382,13 +401,13 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict.add(Parameter.INTERVAL,
                              r'Auto Polled Interval = (\d+)',
-                             lambda match : int(match.group(1)),
+                             lambda match: int(match.group(1)),
                              str,
                              type=ParameterDictType.INT,
                              display_name="Polled Interval",
-                             startup_param = True,
-                             direct_access = False,
-                             default_value = 5)
+                             startup_param=True,
+                             direct_access=False,
+                             default_value=5)
 
 
     def _filter_capabilities(self, events):
@@ -401,6 +420,20 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
+    def _handler_command_acquire_sample(self, *args, **kwargs):
+        """
+        Get device status
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+        log.debug("_handler_command_acquire_sample")
+
+        self._do_cmd_no_resp(Command.AH, timeout=TIMEOUT)
+
+        log.debug("Sending AH Cmd")
+
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_enter(self, *args, **kwargs):
         """
@@ -462,23 +495,72 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_autosample_enter(self, *args, **kwargs):
         """
-        Enter autosample state.
+        Enter autosample state. Start the scheduled task using the
+        sample interval parameter
         """
+        next_state = None
+        next_agent_state = None
+        result = None
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+        # Start the scheduler to poll the instrument for
+        # data every sample interval seconds
+        job_name = ScheduledJob.ACQUIRE_STATUS
+        polled_interval = self._param_dict.get_config_value(Parameter.INTERVAL)
+        config = {
+            DriverConfigKey.SCHEDULER: {
+                job_name: {
+                    DriverSchedulerConfigKey.TRIGGER: {
+                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                        DriverSchedulerConfigKey.SECONDS: polled_interval
+                    }
+                }
+            }
+        }
+        #self.set_init_params(config)
+        self._scheduler.add_config(config)
+
+        # Start the scheduled task using the sample interval parameter ?????
+        self.initialize_scheduler()
+
+        return (next_state, (next_agent_state, result))
+
+
     def _handler_autosample_exit(self, *args, **kwargs):
         """
-        Exit autosample state.
+        Exit autosample state. Remove the autosample task
         """
-        pass
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        # Stop the Auto Poll scheduling
+        self._remove_scheduler(ScheduledJob.ACQUIRE_SAMPLE)
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+        return (next_state, (next_agent_state, result))
 
     def _handler_autosample_start_autosample(self, *args, **kwargs):
         pass
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
-        pass
+        """
+        Remove the autosample task. Exit Autosample state
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        # Stop the Auto Poll scheduling
+        self._remove_scheduler(ScheduledJob.ACQUIRE_SAMPLE)
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+        return (next_state, (next_agent_state, result))
 
     def _handler_command_start_direct(self):
         """
@@ -563,11 +645,27 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
             set_cmd = '%s=%s' % (param, str_val)
             set_cmd = set_cmd + NEWLINE
 
-            # Some set commands need to be sent twice to confirm
-            if param in ConfirmedParameter.list():
-                set_cmd = set_cmd + set_cmd
-
         except KeyError:
             raise InstrumentParameterException('Unknown driver parameter %s' % param)
 
         return set_cmd
+
+
+    def _setup_interval_config(self):
+        """
+        Set up an interval configuration and add it to the scheduler.
+        """
+        job_name = ScheduledJob.ACQUIRE_STATUS
+        polled_interval = self._param_dict.get_config_value(Parameter.INTERVAL)
+        config = {
+            DriverConfigKey.SCHEDULER: {
+                job_name: {
+                    DriverSchedulerConfigKey.TRIGGER: {
+                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                        DriverSchedulerConfigKey.SECONDS: polled_interval
+                    }
+                }
+            }
+        }
+        #self.set_init_params(config)
+        self._scheduler.add_config(config)
