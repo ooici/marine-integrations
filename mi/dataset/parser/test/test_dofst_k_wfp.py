@@ -65,6 +65,9 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
         """ Call back method to watch what comes in via the publish callback """
         self.publish_callback_value = pub
 
+    def exception_callback(self, exception):
+	self.exception_callback_value = exception
+
     def setUp(self):
         ParserUnitTestCase.setUp(self)
         self.config = {
@@ -167,7 +170,7 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
         """
         stream_handle = StringIO(DofstKWfpParserUnitTestCase.TEST_DATA)
         self.parser =  DofstKWfpParser(self.config, self.start_state, stream_handle,
-                                        self.state_callback, self.pub_callback,
+                                        self.state_callback, self.pub_callback, self.exception_callback,
                                         len(DofstKWfpParserUnitTestCase.TEST_DATA)) 
         # next get records
         result = self.parser.get_records(1)
@@ -194,7 +197,7 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
         """
         stream_handle = StringIO(DofstKWfpParserUnitTestCase.TEST_DATA_PAD)
         self.parser =  DofstKWfpParser(self.config, self.start_state, stream_handle,
-                                        self.state_callback, self.pub_callback,
+                                        self.state_callback, self.pub_callback, self.exception_callback,
                                         len(DofstKWfpParserUnitTestCase.TEST_DATA_PAD)) 
         # next get records
         result = self.parser.get_records(1)
@@ -221,7 +224,7 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
         """
         self.stream_handle = StringIO(DofstKWfpParserUnitTestCase.TEST_DATA)
         self.parser =  DofstKWfpParser(self.config, self.start_state, self.stream_handle,
-                                        self.state_callback, self.pub_callback,
+                                        self.state_callback, self.pub_callback, self.exception_callback,
                                         len(DofstKWfpParserUnitTestCase.TEST_DATA)) 
         # next get records
         result = self.parser.get_records(4)
@@ -246,7 +249,7 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
         filesize = os.path.getsize(filepath)
         stream_handle = open(filepath)
         self.parser =  DofstKWfpParser(self.config, self.start_state, stream_handle,
-                                        self.state_callback, self.pub_callback,
+                                        self.state_callback, self.pub_callback, self.exception_callback,
                                         filesize) 
         result = self.parser.get_records(271)
         self.assertEqual(result[0], self.particle_meta_long)
@@ -270,7 +273,7 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
                      StateKey.METADATA_SENT: True}
         self.stream_handle = StringIO(DofstKWfpParserUnitTestCase.TEST_DATA)
         self.parser =  DofstKWfpParser(self.config, new_state, self.stream_handle,
-                                        self.state_callback, self.pub_callback,
+                                        self.state_callback, self.pub_callback, self.exception_callback,
                                         len(DofstKWfpParserUnitTestCase.TEST_DATA))
 
         result = self.parser.get_records(1)
@@ -290,7 +293,7 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
                      StateKey.METADATA_SENT: True}
         stream_handle = StringIO(DofstKWfpParserUnitTestCase.TEST_DATA)
         self.parser =  DofstKWfpParser(self.config, self.start_state, stream_handle,
-                                        self.state_callback, self.pub_callback,
+                                        self.state_callback, self.pub_callback, self.exception_callback,
                                         len(DofstKWfpParserUnitTestCase.TEST_DATA))
         result = self.parser.get_records(1)
         self.assert_result(result, 0, self.particle_meta, False, 0, True)
@@ -309,7 +312,7 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
         with self.assertRaises(SampleException):
             stream_handle = StringIO(DofstKWfpParserUnitTestCase.TEST_DATA_BAD_TIME)
             self.parser =  DofstKWfpParser(self.config, self.start_state, stream_handle,
-                                            self.state_callback, self.pub_callback,
+                                            self.state_callback, self.pub_callback, self.exception_callback,
                                             len(DofstKWfpParserUnitTestCase.TEST_DATA_BAD_TIME))
 
     def test_bad_size_data(self):
@@ -319,7 +322,7 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
         with self.assertRaises(SampleException):
             stream_handle = StringIO(DofstKWfpParserUnitTestCase.TEST_DATA_BAD_SIZE)
             self.parser =  DofstKWfpParser(self.config, self.start_state, stream_handle,
-                                            self.state_callback, self.pub_callback,
+                                            self.state_callback, self.pub_callback, self.exception_callback,
                                             len(DofstKWfpParserUnitTestCase.TEST_DATA_BAD_SIZE))
 
     def test_bad_eop_data(self):
@@ -329,6 +332,15 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
         with self.assertRaises(SampleException):
             stream_handle = StringIO(DofstKWfpParserUnitTestCase.TEST_DATA_BAD_EOP)
             self.parser =  DofstKWfpParser(self.config, self.start_state, stream_handle,
-                                            self.state_callback, self.pub_callback,
+                                            self.state_callback, self.pub_callback, self.exception_callback,
                                             len(DofstKWfpParserUnitTestCase.TEST_DATA_BAD_EOP))
+
+    def test_particle_encoding_error(self):
+	particle = DofstKWfpMetadataParserDataParticle((b"\x52\x4e\x75\x82\x52\x4e\x76\x9a", 'xx'))
+	out_dict = particle.generate_dict()
+	log.debug("%s", out_dict)
+	log.debug("particle %s", particle)
+	errors = particle.get_encoding_errors()
+	log.debug("encoding errors: %s", errors)
+	self.assertNotEqual(errors, [])
 

@@ -32,7 +32,7 @@ class MopakOStcParserUnitTestCase(ParserUnitTestCase):
     """
     MopakOStc Parser unit test suite
     """
-    def state_callback(self, state, file_ingested):
+    def state_callback(self, state, file_ingested, file_name):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
         self.file_ingested_value = file_ingested
@@ -195,8 +195,9 @@ class MopakOStcParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle = open(os.path.join(RESOURCE_PATH, 
                                                'first.mopak.log'))
         self.parser =  MopakOStcParser(self.config, self.start_state, self.stream_handle,
-                                        self.state_callback, self.pub_callback,
-                                        self.except_callback, '20140120_140004.mopak.log') 
+                                       '20140120_140004.mopak.log',
+				       self.state_callback, self.pub_callback,
+                                       self.except_callback) 
         # next get acceleration records
         result = self.parser.get_records(1)
         self.assert_result(result, 43, self.particle_a_accel, False)
@@ -226,8 +227,9 @@ class MopakOStcParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'first_rate.mopak.log'))
         self.parser =  MopakOStcParser(self.config, self.start_state, self.stream_handle,
-                                        self.state_callback, self.pub_callback,
-                                        self.except_callback, '20140313_191853.mopak.log')
+                                       '20140313_191853.mopak.log',
+				       self.state_callback, self.pub_callback,
+                                       self.except_callback)
         # next get accel and rate records
         result = self.parser.get_records(1)
         self.assert_result(result, 43, self.particle_a1_accel, False)
@@ -259,8 +261,9 @@ class MopakOStcParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle = open(os.path.join(RESOURCE_PATH, 
                                                'first.mopak.log'))
         self.parser =  MopakOStcParser(self.config, self.start_state, self.stream_handle,
+				       '20140120_140004.mopak.log',
                                         self.state_callback, self.pub_callback,
-                                        self.except_callback, '20140120_140004.mopak.log') 
+                                        self.except_callback) 
         # next get accel records
         result = self.parser.get_records(5)
         self.assertEqual(result, [self.particle_a_accel,
@@ -285,8 +288,8 @@ class MopakOStcParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                '20140120_140004.mopak.log'))
         self.parser =  MopakOStcParser(self.config, self.start_state, self.stream_handle,
-                                        self.state_callback, self.pub_callback,
-                                        self.except_callback, '20140120_140004.mopak.log')
+                                       '20140120_140004.mopak.log', self.state_callback,
+				       self.pub_callback, self.except_callback)
         result = self.parser.get_records(11964)
         self.assertEqual(result[0], self.particle_a_accel)
         self.assertEqual(result[-1], self.particle_last_accel)
@@ -302,8 +305,9 @@ class MopakOStcParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                '20140313_191853.3dmgx3.log'))
         self.parser =  MopakOStcParser(self.config, self.start_state, self.stream_handle,
-                                        self.state_callback, self.pub_callback,
-                                        self.except_callback, '20140313_191853.3dmgx3.log')
+                                       '20140313_191853.3dmgx3.log',
+				       self.state_callback, self.pub_callback,
+                                       self.except_callback)
         result = self.parser.get_records(148)
         self.assertEqual(result[0], self.particle_a11_accel)
         self.assertEqual(result[-1], self.particle_last_rate)
@@ -320,8 +324,8 @@ class MopakOStcParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'first.mopak.log'))
         self.parser =  MopakOStcParser(self.config, new_state, self.stream_handle,
-                                        self.state_callback, self.pub_callback,
-                                        self.except_callback, '20140120_140004.mopak.log')
+                                    '20140120_140004.mopak.log', self.state_callback, self.pub_callback,
+                                        self.except_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, 129, self.particle_c_accel, False)
         result = self.parser.get_records(1)
@@ -340,8 +344,9 @@ class MopakOStcParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'first.mopak.log'))
         self.parser =  MopakOStcParser(self.config, self.start_state, self.stream_handle,
-                                        self.state_callback, self.pub_callback,
-                                        self.except_callback, '20140120_140004.mopak.log')
+                                        '20140120_140004.mopak.log',
+					self.state_callback, self.pub_callback,
+                                        self.except_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, 43, self.particle_a_accel, False)
 
@@ -363,8 +368,9 @@ class MopakOStcParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'first_rate.mopak.log'))
         self.parser =  MopakOStcParser(self.config, self.start_state, self.stream_handle,
-                                        self.state_callback, self.pub_callback,
-                                        self.except_callback, '20140313_191853.3dmgx3.log')
+                                      '20140313_191853.3dmgx3.log',
+				      self.state_callback, self.pub_callback,
+                                      self.except_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, 43, self.particle_a1_accel, False)
 
@@ -384,8 +390,9 @@ class MopakOStcParserUnitTestCase(ParserUnitTestCase):
         """
         self.stream_handle = open(os.path.join(RESOURCE_PATH, 'noise.mopak.log'))
         self.parser =  MopakOStcParser(self.config, self.start_state, self.stream_handle,
+				       '20140120_140004.mopak.log',
                                         self.state_callback, self.pub_callback,
-                                        self.except_callback, '20140120_140004.mopak.log')
+                                        self.except_callback)
 
         # next get accel records
         result = self.parser.get_records(5)
