@@ -33,9 +33,9 @@ from mi.core.instrument.chunker import StringChunker
 #             AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
 
 
-DATA_REGEX = r'(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d.\d{3}) (Coulombs) = ([0-9.]+)C, '\
-             '(AVG Q_RTE Current) = ([0-9.]+)A, (AVG RTE Voltage) = ([0-9.]+)V, '\
-             '(AVG Supply Voltage) = ([0-9.]+)V, (RTE Hits) (\d+), (RTE State) = (\d+)'
+DATA_REGEX = r'(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d.\d{3}) (Coulombs) = (\d+.\d+)C, '\
+             '(AVG Q_RTE Current) = (\d+.\d+)A, (AVG RTE Voltage) = (\d+.\d+)V, '\
+             '(AVG Supply Voltage) = (\d+.\d+)V, (RTE Hits) (\d+), (RTE State) = (\d+)'
 DATA_MATCHER = re.compile(DATA_REGEX)
 
 LOG_TIME_REGEX = r'(\d{4})/(\d\d)/(\d\d) (\d\d):(\d\d):(\d\d.\d{3}) '

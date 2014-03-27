@@ -19,17 +19,17 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.exceptions import SampleException
 from mi.dataset.dataset_driver import SimpleDataSetDriver, DataSetDriverConfigKeys, DriverStateKey
-from mi.dataset.parser.mopak__stc import Mopak__stcParser
-from mi.dataset.parser.mopak__stc import Mopak__stcAccelParserDataParticle
-from mi.dataset.parser.mopak__stc import Mopak__stcRateParserDataParticle
+from mi.dataset.parser.mopak_o_stc import MopakOStcParser
+from mi.dataset.parser.mopak_o_stc import MopakOStcAccelParserDataParticle
+from mi.dataset.parser.mopak_o_stc import MopakOStcRateParserDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
-class MOPAK__STC_DataSetDriver(SimpleDataSetDriver):
+class MopakOStcDataSetDriver(SimpleDataSetDriver):
     
     @classmethod
     def stream_config(cls):
-        return [Mopak__stcAccelParserDataParticle.type(),
-                Mopak__stcRateParserDataParticle.type()]
+        return [MopakOStcAccelParserDataParticle.type(),
+                MopakOStcRateParserDataParticle.type()]
 
     def _build_parser(self, parser_state, infile, filename):
         """
@@ -37,12 +37,12 @@ class MOPAK__STC_DataSetDriver(SimpleDataSetDriver):
         """
         config = self._parser_config
         config.update({
-            'particle_module': 'mi.dataset.parser.mopak__stc',
-            'particle_class': ['Mopak__stcAccelParserDataParticle',
-                               'Mopak__stcRateParserDataParticle']
+            'particle_module': 'mi.dataset.parser.mopak_o_stc',
+            'particle_class': ['MopakOStcAccelParserDataParticle',
+                               'MopakOStcRateParserDataParticle']
         })
         log.debug("My Config: %s", config)
-        self._parser = Mopak__stcParser(
+        self._parser = MopakOStcParser(
             config,
             parser_state,
             infile,
