@@ -118,7 +118,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         ParserUnitTestCase.setUp(self)
         self.config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE: \
-              'mi.dataset.parser.vel3d_k__stc_imodem',
+              'mi.dataset.parser.vel3d_k_wfp_stc',
             DataSetDriverConfigKeys.PARTICLE_CLASS: \
               ['Vel3dKWfpStcTimeDataParticle',
                'Vel3dKWfpStcVelocityDataParticle']

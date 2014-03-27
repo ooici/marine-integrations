@@ -36,7 +36,7 @@ class Vel3dKWfpStcDataSetDriver(SimpleDataSetDriver):
         """
         config = self._parser_config
         config.update({
-            'particle_module': 'mi.dataset.parser.vel3d_k__stc_imodem',
+            'particle_module': 'mi.dataset.parser.vel3d_k_wfp_stc',
             'particle_class': ['Vel3dKWfpStcTimeDataParticle',
                                'Vel3dKWfpStcVelocityDataParticle']
         })
