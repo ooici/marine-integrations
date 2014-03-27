@@ -17,18 +17,18 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
 
-from mi.dataset.parser.vel3d_k__stc_imodem import Vel3d_k__stc_imodemParser
-from mi.dataset.parser.vel3d_k__stc_imodem import Vel3d_k__stc_imodemTimeDataParticle
-from mi.dataset.parser.vel3d_k__stc_imodem import Vel3d_k__stc_imodemVelocityDataParticle
+from mi.dataset.parser.vel3d_k_wfp_stc import Vel3dKWfpStcParser
+from mi.dataset.parser.vel3d_k_wfp_stc import Vel3dKWfpStcTimeDataParticle
+from mi.dataset.parser.vel3d_k_wfp_stc import Vel3dKWfpStcVelocityDataParticle
 
 from mi.dataset.harvester import SingleDirectoryHarvester
 
-class VEL3D_K__stc_imodem_DataSetDriver(SimpleDataSetDriver):
+class Vel3dKWfpStcDataSetDriver(SimpleDataSetDriver):
 
     @classmethod
     def stream_config(cls):
-        return [Vel3d_k__stc_imodemTimeDataParticle.type(),
-                Vel3d_k__stc_imodemVelocityDataParticle.type()]
+        return [Vel3dKWfpStcTimeDataParticle.type(),
+                Vel3dKWfpStcVelocityDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
         """
@@ -37,11 +37,11 @@ class VEL3D_K__stc_imodem_DataSetDriver(SimpleDataSetDriver):
         config = self._parser_config
         config.update({
             'particle_module': 'mi.dataset.parser.vel3d_k__stc_imodem',
-            'particle_class': ['Vel3d_k__stc_imodemTimeDataParticle',
-                               'Vel3d_k__stc_imodemVelocityDataParticle']
+            'particle_class': ['Vel3dKWfpStcTimeDataParticle',
+                               'Vel3dKWfpStcVelocityDataParticle']
         })
         log.debug("My Config: %s", config)
-        self._parser = Vel3d_k__stc_imodemParser(
+        self._parser = Vel3dKWfpStcParser(
             config,
             infile,
             parser_state,

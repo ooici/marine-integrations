@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.vel3d_k__stc_imodem
-@file marine-integrations/mi/dataset/parser/vel3d_k__stc_imodem.py
+@package mi.dataset.parser.vel3d_k_wfp_stc
+@file marine-integrations/mi/dataset/parser/vel3d_k_wfp_stc.py
 @author Steve Myerson (Raytheon)
-@brief Parser for the VEL3D_K__stc_imodem dataset driver
+@brief Parser for the Vel3dKWfpStc dataset driver
 Release notes:
 
 Initial Release
@@ -107,17 +107,17 @@ class StateKey(BaseEnum):
 
 
 class DataParticleType(BaseEnum):
-    TIME_PARTICLE = 'vel3d_k__stc_imodem_metadata'
-    VELOCITY_PARTICLE = 'vel3d_k__stc_imodem_instrument'
+    TIME_PARTICLE = 'vel3d_k_wfp_stc_metadata'
+    VELOCITY_PARTICLE = 'vel3d_k_wfp_stc_instrument'
 
 
-class Vel3d_k__stc_imodemTimeDataParticleKey(BaseEnum):
+class Vel3dKWfpStcTimeDataParticleKey(BaseEnum):
     NUMBER_OF_RECORDS = 'vel3d_k_number_of_records'
     TIME_OFF = 'vel3d_k_time_off'
     TIME_ON = 'vel3d_k_time_on'
 
 
-class Vel3d_k__stc_imodemTimeDataParticle(DataParticle):
+class Vel3dKWfpStcTimeDataParticle(DataParticle):
     """
     Class for parsing TIME data from the VEL3D_K__stc_imodem data set
     """
@@ -138,46 +138,25 @@ class Vel3d_k__stc_imodemTimeDataParticle(DataParticle):
         particle = [
           {
             DataParticleKey.VALUE_ID: 
-              Vel3d_k__stc_imodemTimeDataParticleKey.TIME_ON, 
+              Vel3dKWfpStcTimeDataParticleKey.TIME_ON, 
             DataParticleKey.VALUE: self.raw_data[INDEX_TIME_ON]
           },
           {
             DataParticleKey.VALUE_ID: 
-              Vel3d_k__stc_imodemTimeDataParticleKey.TIME_OFF,
+              Vel3dKWfpStcTimeDataParticleKey.TIME_OFF,
             DataParticleKey.VALUE: self.raw_data[INDEX_TIME_OFF]
           },
           {
             DataParticleKey.VALUE_ID: 
-              Vel3d_k__stc_imodemTimeDataParticleKey.NUMBER_OF_RECORDS, 
+              Vel3dKWfpStcTimeDataParticleKey.NUMBER_OF_RECORDS, 
             DataParticleKey.VALUE: self.raw_data[INDEX_RECORDS]
           }
         ]
 
         return particle
 
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this 
-        particle
-        """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Time Raw data %s does not match %s',
-                  self.raw_data, arg.raw_data)
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-              arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Time Timestamp %f does not match %f',
-                  self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
-                  arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
-            return False
 
-
-class Vel3d_k__stc_imodemVelocityDataParticle(DataParticle):
+class Vel3dKWfpStcVelocityDataParticle(DataParticle):
     """
     Class for parsing VELOCITY data from the VEL3D_K__stc_imodem data set
     """
@@ -229,28 +208,7 @@ class Vel3d_k__stc_imodemVelocityDataParticle(DataParticle):
 
         return particle
 
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this 
-        particle
-        """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Velocity Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-              arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Velocity Timestamp %f does not match %f',
-                  self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
-                  arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
-            return False
-
-
-class Vel3d_k__stc_imodemParser(BufferLoadingParser):
+class Vel3dKWfpStcParser(BufferLoadingParser):
 
     #
     # Default all flags to False.
@@ -307,7 +265,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
             self.velocity_end_record_matcher = \
               re.compile(end_of_velocity_regex)
 
-        super(Vel3d_k__stc_imodemParser, self).__init__(config, input_file,
+        super(Vel3dKWfpStcParser, self).__init__(config, input_file,
           state, self.sieve_function, state_callback, publish_callback)
 
     def calculate_record_number(self):
@@ -492,7 +450,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
                         ntp_time = ntplib.system_to_ntp_time(timestamp)
 
                         particle = self._extract_sample(
-                          Vel3d_k__stc_imodemVelocityDataParticle,
+                          Vel3dKWfpStcVelocityDataParticle,
                           None, velocity_fields, ntp_time)
 
                         result_particles.append((particle,
@@ -530,7 +488,7 @@ class Vel3d_k__stc_imodemParser(BufferLoadingParser):
                     ntp_time = ntplib.system_to_ntp_time(self.time_on)
 
                     particle = self._extract_sample(
-                      Vel3d_k__stc_imodemTimeDataParticle, 
+                      Vel3dKWfpStcTimeDataParticle, 
                       None, time_fields, ntp_time)
 
                     self._increment_state(TIME_RECORD_SIZE)

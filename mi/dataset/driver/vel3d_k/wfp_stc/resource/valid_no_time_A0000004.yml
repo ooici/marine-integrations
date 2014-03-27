@@ -5,8 +5,8 @@ header:
 data:
   - _index: 1
     internal_timestamp: 3589459202.000000
-    particle_object: Vel3d_k__stc_imodemVelocityDataParticle
-    particle_type: vel3d_k__stc_imodem_instrument
+    particle_object: Vel3dKWfpStcVelocityDataParticle
+    particle_type: vel3d_k_wfp_stc_instrument
     date_time_array: [113, 8, 29, 16, 0, 17]
     vel3d_k_soundSpeed: !!null 
     vel3d_k_temp_c: 2243 
@@ -35,8 +35,8 @@ data:
     vel3d_k_cor2: !!null
   - _index: 2
     internal_timestamp: 3589459202.500000
-    particle_object: Vel3d_k__stc_imodemVelocityDataParticle
-    particle_type: vel3d_k__stc_imodem_instrument
+    particle_object: Vel3dKWfpStcVelocityDataParticle
+    particle_type: vel3d_k_wfp_stc_instrument
     date_time_array: [113, 8, 29, 16, 4, 37] 
     vel3d_k_soundSpeed: !!null 
     vel3d_k_temp_c: 2244 
@@ -65,8 +65,8 @@ data:
     vel3d_k_cor2: !!null
   - _index: 3
     internal_timestamp: 3589459203.000000
-    particle_object: Vel3d_k__stc_imodemVelocityDataParticle
-    particle_type: vel3d_k__stc_imodem_instrument
+    particle_object: Vel3dKWfpStcVelocityDataParticle
+    particle_type: vel3d_k_wfp_stc_instrument
     date_time_array: [113, 8, 29, 16, 0, 17]
     vel3d_k_soundSpeed: !!null 
     vel3d_k_temp_c: 2243 
@@ -95,8 +95,8 @@ data:
     vel3d_k_cor2: !!null
   - _index: 4
     internal_timestamp: 3589459203.500000
-    particle_object: Vel3d_k__stc_imodemVelocityDataParticle
-    particle_type: vel3d_k__stc_imodem_instrument
+    particle_object: Vel3dKWfpStcVelocityDataParticle
+    particle_type: vel3d_k_wfp_stc_instrument
     date_time_array: [113, 8, 29, 16, 4, 37] 
     vel3d_k_soundSpeed: !!null 
     vel3d_k_temp_c: 2244 

@@ -1,8 +1,8 @@
 """
-@package mi.dataset.driver.VEL3D_K.stc_imodem.test.test_driver
-@file marine-integrations/mi/dataset/driver/VEL3D_K/stc_imodem/driver.py
+@package mi.dataset.driver.vel3d_k.wfp_stc.test.test_driver
+@file marine-integrations/mi/dataset/driver/vel3d_k/wfp_stc/driver.py
 @author Steve Myerson (Raytheon)
-@brief Test cases for VEL3D_K__stc_imodem driver
+@brief Test cases for vel3d_k_wfp_stc driver
 
 USAGE:
  Make tests verbose and provide stdout
@@ -37,25 +37,25 @@ from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
 
 
-from mi.dataset.driver.VEL3D_K.stc_imodem.driver import \
-  VEL3D_K__stc_imodem_DataSetDriver
+from mi.dataset.driver.vel3d_k.wfp_stc.driver import \
+  Vel3dKWfpStcDataSetDriver
 
-from mi.dataset.parser.vel3d_k__stc_imodem import \
+from mi.dataset.parser.vel3d_k_wfp_stc import \
   DataParticleType, \
   StateKey, \
-  Vel3d_k__stc_imodemTimeDataParticle, \
-  Vel3d_k__stc_imodemVelocityDataParticle
+  Vel3dKWfpStcTimeDataParticle, \
+  Vel3dKWfpStcVelocityDataParticle
 
 
 # Fill in driver details
 DataSetTestCase.initialize(
-    driver_module='mi.dataset.driver.VEL3D_K.stc_imodem.driver',
-    driver_class='VEL3D_K__stc_imodem_DataSetDriver',
+    driver_module='mi.dataset.driver.vel3d_k.wfp_stc.driver',
+    driver_class='Vel3dKWfpStcDataSetDriver',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = VEL3D_K__stc_imodem_DataSetDriver.stream_config(),
+    agent_packet_config = Vel3dKWfpStcDataSetDriver.stream_config(),
     startup_config = {
-        DataSourceConfigKey.RESOURCE_ID: 'vel3d_k__stc_imodem',
+        DataSourceConfigKey.RESOURCE_ID: 'vel3d_k_wfp_stc',
         DataSourceConfigKey.HARVESTER:
         {
             DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
@@ -66,7 +66,6 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM = 'vel3d_k__stc_imodem_parsed'
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -91,7 +90,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Flag record, first and last velocity record, time record.
         log.info("========== FIRST FILE A0000002 INTEG TEST GET ============")
         self.create_sample_data('valid_A0000002.DEC', "A0000002.DEC")
-        self.assert_data_multiple_class('valid_A0000002.yml', 
+        self.assert_data(None, 'valid_A0000002.yml', 
           count=3, timeout=10)
 
         # From sample file A0000010.DEC:
@@ -99,7 +98,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         log.info("========= SECOND FILE A0000004 INTEG TEST GET ============")
         self.clear_async_data()
         self.create_sample_data('valid_A0000004.DEC', "A0000004.DEC")
-        self.assert_data_multiple_class('valid_A0000004.yml', 
+        self.assert_data(None, 'valid_A0000004.yml', 
           count=5, timeout=10)
 
         # Made-up data with all flags set to True.
@@ -107,7 +106,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         log.info("========= THIRD FILE A0000003 INTEG TEST GET ============")
         self.clear_async_data()
         self.create_sample_data('all_A0000003.DEC', "A0000003.DEC")
-        self.assert_data_multiple_class('all_A0000003.yml', 
+        self.assert_data(None, 'all_A0000003.yml', 
           count=4, timeout=10)
         log.info("================ END INTEG TEST GET ======================")
 
@@ -192,7 +191,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Verify that data is produced 
         # (last 2 velocity records plus time record).
-        self.assert_data_multiple_class('valid_partial_A0000004.yml', 
+        self.assert_data(None, 'valid_partial_A0000004.yml', 
           count=3, timeout=10)
         log.info("============== END INTEG TEST STOP RESUME  ================")
 
