@@ -12,6 +12,7 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
+import unittest
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
@@ -50,8 +51,6 @@ from mi.instrument.noaa.heat.ooicore.driver import Prompt
 from mi.instrument.noaa.heat.ooicore.driver import NEWLINE
 
 from pyon.agent.agent import ResourceAgentState
-from pyon.agent.agent import ResourceAgentEvent
-from pyon.core.exception import Conflict
 
 ###
 #   Driver parameters for the tests
@@ -193,7 +192,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
-    def _send_port_agent_packet(self, data, ts, driver):
+    def _send_port_agent_packet(self, driver, data):
+        ts = ntplib.system_to_ntp_time(time.time())
         port_agent_packet = PortAgentPacket()
         port_agent_packet.attach_data(data)
         port_agent_packet.attach_timestamp(ts)
@@ -205,7 +205,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilites
+        do a little extra validation for the Capabilities
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(ProtocolState())
@@ -241,72 +241,61 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
 
         self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
         self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
-
-    def test_firehose(self):
-        """
-        Verify sample data passed through the got data method produces the correct data particles
-        Verify that the BOTPT HEAT driver publishes a particle correctly when the HEAT packet is
-        embedded in the stream of other BOTPT sensor output.
-        """
-        # Create and initialize the instrument driver with a mock port agent
-        driver = self.test_connect()
         self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
 
-    def test_heat_on_response(self):
+    def test_command_responses(self):
         """
-        Verify that the driver correctly parses the HEAT_ON response
-        """
-        driver = self.test_connect()
-        ts = ntplib.system_to_ntp_time(time.time())
-
-        log.debug("HEAT ON command response: %s", HEAT_ON_COMMAND_RESPONSE)
-        self._send_port_agent_packet(HEAT_ON_COMMAND_RESPONSE, ts, driver)
-        self.assertTrue(driver._protocol._get_response(expected_prompt=TEST_HEAT_ON_DURATION_2))
-
-    def test_heat_on_response_with_data(self):
-        """
-        Verify that the driver correctly parses the HEAT_ON response with a
-        data sample right in front of it
+        Verify that the driver correctly handles the various responses
         """
         driver = self.test_connect()
-        ts = ntplib.system_to_ntp_time(time.time())
 
-        log.debug("HEAT ON command response: %s", VALID_SAMPLE_01)
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(VALID_SAMPLE_01, ts, driver)
+        items = [
+            (HEAT_ON_COMMAND_RESPONSE, ',*2'),
+            (HEAT_OFF_COMMAND_RESPONSE, ',*0'),
+        ]
 
-        log.debug("HEAT ON command response: %s", HEAT_ON_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(HEAT_ON_COMMAND_RESPONSE, ts, driver)
-        self.assertTrue(driver._protocol._get_response(expected_prompt=TEST_HEAT_ON_DURATION_2))
+        for response, expected_prompt in items:
+            log.debug('test_command_response: response: %r expected_prompt: %r', response, expected_prompt)
+            self._send_port_agent_packet(driver, response)
+            self.assertTrue(driver._protocol._get_response(expected_prompt=expected_prompt))
 
-    def test_heat_on(self):
+    def test_handlers(self):
+        items = [
+            ('_handler_command_heat_on',
+             ProtocolState.COMMAND,
+             None,
+             HEAT_OFF_COMMAND_RESPONSE + NEWLINE + HEAT_ON_COMMAND_RESPONSE,
+             ',*2'),
+            ('_handler_command_heat_off',
+             ProtocolState.COMMAND,
+             None,
+             HEAT_OFF_COMMAND_RESPONSE,
+             ',*0'),
+        ]
+
+        for handler, initial_state, expected_state, response, prompt in items:
+            def my_send(data):
+                log.debug("my_send: data: %r, response: %r", data, response)
+                driver._protocol._promptbuf += response
+                return len(response)
+
+            driver = self.test_connect(initial_protocol_state=initial_state)
+            driver._connection.send.side_effect = my_send
+            result = getattr(driver._protocol, handler)()
+            log.debug('handler: %r - result: %r expected: %r', handler, result, prompt)
+            next_state = result[0]
+            if type(result[1]) == str:
+                return_value = result[1]
+            else:
+                return_value = result[1][1]
+            self.assertEqual(next_state, expected_state)
+            self.assertTrue(return_value.endswith(prompt))
+
+    def test_direct_access(self):
         driver = self.test_connect()
-
-        def my_send(data):
-            log.debug("my_send: %s", data)
-            driver._protocol._promptbuf += HEAT_ON_COMMAND_RESPONSE
-            return len(HEAT_ON_COMMAND_RESPONSE)
-
-        driver._connection.send.side_effect = my_send
-
-        driver._protocol._handler_command_heat_on()
-        ts = ntplib.system_to_ntp_time(time.time())
-        driver._protocol._got_chunk(HEAT_ON_COMMAND_RESPONSE, ts)
-
-    def test_heat_off(self):
-        driver = self.test_connect()
-
-        def my_send(data):
-            log.debug("my_send: %s", data)
-            driver._protocol._promptbuf += HEAT_OFF_COMMAND_RESPONSE
-            return 5
-
-        driver._connection.send.side_effect = my_send
-
-        driver._protocol._handler_command_heat_off()
-        ts = ntplib.system_to_ntp_time(time.time())
-        driver._protocol._got_chunk(HEAT_OFF_COMMAND_RESPONSE, ts)
+        driver._protocol._handler_direct_access_execute_direct(InstrumentCommand.HEAT_OFF)
+        driver._protocol._handler_direct_access_execute_direct('LILY,BAD_COMMAND_HERE')
+        self.assertEqual(driver._protocol._sent_cmds, [InstrumentCommand.HEAT_OFF])
 
     def test_protocol_filter_capabilities(self):
         """
@@ -333,12 +322,13 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
 #     - Common Integration tests test the driver through the instrument agent #
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
+# noinspection PyProtectedMember
 @attr('INT', group='mi')
 class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    def test_connection(self):
+    def test_connect(self):
         self.assert_initialize_driver()
 
     def test_get(self):
@@ -368,14 +358,21 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_get(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
 
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.HEAT_ON)
-        self.assertEqual(response, TEST_HEAT_ON_DURATION_2)
-
         log.debug("HEAT_ON returned: %r", response)
+        self.assertTrue(response.endswith(',*2'))
 
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.HEAT_OFF)
-        self.assertEqual(response, TEST_HEAT_OFF)
-
         log.debug("HEAT_OFF returned: %r", response)
+        self.assertTrue(response.endswith(',*0'))
+
+    def test_direct_access(self):
+        """
+        Verify we can enter the direct access state
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
+        self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
 
 
 ###############################################################################
@@ -392,22 +389,19 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, HEATTestMix
     def test_reset(self):
         """
         Verify the agent can be reset
+        Overridden because HEAT has no autosample mode.
         """
         self.assert_enter_command_mode()
         self.assert_reset()
 
         self.assert_enter_command_mode()
-        self.assert_start_autosample()
+        self.assert_direct_access_start_telnet(inactivity_timeout=60, session_timeout=60)
+        self.assert_state_change(ResourceAgentState.DIRECT_ACCESS, ProtocolState.DIRECT_ACCESS, 30)
         self.assert_reset()
 
-    # Overridden because does not apply for this driver
+    @unittest.skip('Not applicable to this driver')
     def test_discover(self):
         pass
-
-    def test_poll(self):
-        """
-        No polling for a single sample
-        """
 
     def test_get_set_parameters(self):
         """
@@ -415,6 +409,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, HEATTestMix
         ensuring that read only parameters fail on set.
         """
         self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.HEAT_DURATION, 1, True)
+        self.assert_get_parameter(Parameter.HEAT_DURATION, 1)
 
     def test_get_capabilities(self):
         """
@@ -432,7 +428,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, HEATTestMix
             AgentCapabilityType.RESOURCE_COMMAND: [
                 ProtocolEvent.GET,
                 ProtocolEvent.SET,
-                ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.HEAT_ON,
                 ProtocolEvent.HEAT_OFF,
             ],
@@ -442,82 +437,14 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, HEATTestMix
 
         self.assert_capabilities(capabilities)
 
-    def test_instrument_agent_common_state_model_lifecycle(self, timeout=GO_ACTIVE_TIMEOUT):
+    def test_direct_access_telnet_mode(self):
         """
-        @brief Test agent state transitions.
-               This test verifies that the instrument agent can
-               properly command the instrument through the following states.
-
-                COMMANDS TESTED
-                *ResourceAgentEvent.INITIALIZE
-                *ResourceAgentEvent.RESET
-                *ResourceAgentEvent.GO_ACTIVE
-                *ResourceAgentEvent.RUN
-                *ResourceAgentEvent.PAUSE
-                *ResourceAgentEvent.RESUME
-                *ResourceAgentEvent.GO_COMMAND
-                *ResourceAgentEvent.GO_INACTIVE
-                *ResourceAgentEvent.PING_RESOURCE
-                *ResourceAgentEvent.CLEAR
-
-                COMMANDS NOT TESTED
-                * ResourceAgentEvent.GO_DIRECT_ACCESS
-                * ResourceAgentEvent.GET_RESOURCE_STATE
-                * ResourceAgentEvent.GET_RESOURCE
-                * ResourceAgentEvent.SET_RESOURCE
-                * ResourceAgentEvent.EXECUTE_RESOURCE
-
-                STATES ACHIEVED:
-                * ResourceAgentState.UNINITIALIZED
-                * ResourceAgentState.INACTIVE
-                * ResourceAgentState.IDLE'
-                * ResourceAgentState.STOPPED
-                * ResourceAgentState.COMMAND
-
-                STATES NOT ACHIEVED:
-                * ResourceAgentState.DIRECT_ACCESS
-                * ResourceAgentState.STREAMING
-                * ResourceAgentState.TEST
-                * ResourceAgentState.CALIBRATE
-                * ResourceAgentState.BUSY
-                -- Not tested because they may not be implemented in the driver
+        @brief This test manually tests that the Instrument Driver properly supports
+        direct access to the physical instrument. (telnet mode)
         """
-        ####
-        # UNINITIALIZED
-        ####
-        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
-
-        # Try to run some commands that aren't available in this state
-        self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
-        self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
-        self.assert_agent_command_exception(ResourceAgentEvent.GO_DIRECT_ACCESS, exception_class=Conflict)
-
-        ####
-        # INACTIVE
-        ####
-        self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
-        self.assert_agent_state(ResourceAgentState.INACTIVE)
-
-        # Try to run some commands that aren't available in this state
-        self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
-
-        ####
-        # IDLE
-        ####
-        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
-
-        # Try to run some commands that aren't available in this state
-        self.assert_agent_command_exception(ResourceAgentEvent.INITIALIZE, exception_class=Conflict)
-        self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
-        self.assert_agent_command_exception(ResourceAgentEvent.RESUME, exception_class=Conflict)
-
-        # Verify we can go inactive
-        self.assert_agent_command(ResourceAgentEvent.GO_INACTIVE)
-        self.assert_agent_state(ResourceAgentState.INACTIVE)
-
-        # Get back to idle
-        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
-
-        # Reset
-        self.assert_agent_command(ResourceAgentEvent.RESET)
-        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data(InstrumentCommand.HEAT_OFF + NEWLINE)
+        self.tcp_client.expect(',*0')
+        self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)

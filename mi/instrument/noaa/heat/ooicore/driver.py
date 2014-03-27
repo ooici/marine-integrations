@@ -16,6 +16,7 @@ import re
 import time
 
 import ntplib
+
 from mi.core.log import get_logger
 
 
@@ -38,7 +39,6 @@ from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import InstrumentProtocolException
-from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import SampleException
 
 ###
@@ -47,6 +47,7 @@ from mi.core.exceptions import SampleException
 
 # newline.
 NEWLINE = '\x0a'
+MAX_BUFFER_LENGTH = 10
 
 # default timeout.
 TIMEOUT = 10
@@ -61,7 +62,7 @@ class ProtocolState(BaseEnum):
     """
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
-    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
+    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 
 
 class ExportedInstrumentCommand(BaseEnum):
@@ -77,11 +78,12 @@ class ProtocolEvent(BaseEnum):
     EXIT = DriverEvent.EXIT
     GET = DriverEvent.GET
     SET = DriverEvent.SET
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     DISCOVER = DriverEvent.DISCOVER
     HEAT_ON = ExportedInstrumentCommand.HEAT_ON
     HEAT_OFF = ExportedInstrumentCommand.HEAT_OFF
+    START_DIRECT = DriverEvent.START_DIRECT
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
 
 
 class Capability(BaseEnum):
@@ -90,7 +92,6 @@ class Capability(BaseEnum):
     """
     GET = ProtocolEvent.GET
     SET = ProtocolEvent.SET
-    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     HEAT_ON = ProtocolEvent.HEAT_ON
     HEAT_OFF = ProtocolEvent.HEAT_OFF
 
@@ -116,68 +117,6 @@ class InstrumentCommand(BaseEnum):
     HEAT_OFF = 'HEAT,0'  # turns the heater off
 
 
-class HEATCommandResponse():
-    _compiled_regex = None
-
-    def __init__(self, raw_data):
-        """ 
-        Construct a HEATCommandResponse object 
-        
-        @param raw_data The raw data used in the particle
-        """
-        self.raw_data = raw_data
-        self.heat_command_response = None
-
-    @staticmethod
-    def regex():
-        """
-        Regular expression to match a sample pattern
-        @return: regex string
-        """
-        pattern = r'HEAT,'  # pattern starts with HEAT '
-        pattern += r'(.*),'  # 1 time
-        pattern += r'\*([0-9])'  # echoed command
-        pattern += NEWLINE
-        return pattern
-
-    @staticmethod
-    def regex_compiled():
-        """
-        get the compiled regex pattern
-        @return: compiled re
-        """
-        if HEATCommandResponse._compiled_regex is None:
-            HEATCommandResponse._compiled_regex = re.compile(HEATCommandResponse.regex())
-        return HEATCommandResponse._compiled_regex
-
-    def check_heat_on_off_response(self, heat_duration_value):
-        """
-        """
-        return_value = False
-
-        match = HEATCommandResponse.regex_compiled().match(self.raw_data)
-
-        if not match:
-            raise SampleException("No regex match of command response: [%s]" %
-                                  self.raw_data)
-
-        try:
-            heat_time = match.group(1)
-            time.strptime(heat_time, "%Y/%m/%d %H:%M:%S")
-            self.heat_command_response = int(match.group(2))
-            if heat_duration_value == self.heat_command_response:
-                return_value = True
-            else:
-                log.error("BOTPT HEAT Responded with: %d; expected %d",
-                          self.heat_command_response, heat_duration_value)
-
-        except ValueError:
-            raise SampleException("ValueError while converting data: [%s]" %
-                                  self.raw_data)
-
-        return return_value
-
-
 class DataParticleType(BaseEnum):
     HEAT_PARSED = 'botpt_heat_sample'
 
@@ -187,6 +126,11 @@ class HEATDataParticleKey(BaseEnum):
     X_TILT = "heat_x_tilt"
     Y_TILT = "heat_y_tilt"
     TEMP = "temperature"
+
+
+###############################################################################
+# Data Particles
+###############################################################################
 
 
 class HEATDataParticle(DataParticle):
@@ -280,11 +224,6 @@ class HEATDataParticle(DataParticle):
 
 
 ###############################################################################
-# Data Particles
-###############################################################################
-
-
-###############################################################################
 # Driver
 ###############################################################################
 
@@ -321,6 +260,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 # Protocol
 ###########################################################################
 
+# noinspection PyUnusedLocal, PyMethodMayBeStatic
 class Protocol(CommandResponseInstrumentProtocol):
     """
     Instrument protocol class
@@ -348,19 +288,20 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.EXIT, self._handler_unknown_exit),
                 (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
             ],
-            ProtocolState.AUTOSAMPLE: [
-                (ProtocolEvent.ENTER, self._handler_autosample_enter),
-                (ProtocolEvent.EXIT, self._handler_autosample_exit),
-                (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
-            ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
                 (ProtocolEvent.EXIT, self._handler_command_exit),
                 (ProtocolEvent.GET, self._handler_command_get),
                 (ProtocolEvent.SET, self._handler_command_set),
-                (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
                 (ProtocolEvent.HEAT_ON, self._handler_command_heat_on),
                 (ProtocolEvent.HEAT_OFF, self._handler_command_heat_off),
+                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
+            ],
+            ProtocolState.DIRECT_ACCESS: [
+                (ProtocolEvent.ENTER, self._handler_direct_access_enter),
+                (ProtocolEvent.EXIT, self._handler_direct_access_exit),
+                (ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct),
+                (ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct),
             ]
         }
 
@@ -403,7 +344,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         return_list = []
 
         matchers.append(HEATDataParticle.regex_compiled())
-        matchers.append(HEATCommandResponse.regex_compiled())
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
@@ -436,34 +376,27 @@ class Protocol(CommandResponseInstrumentProtocol):
                              multi_match=False,
                              visibility=ParameterDictVisibility.READ_WRITE)
 
+    def _clean_buffer(self, my_buffer):
+        my_filter = lambda s: (s.startswith(InstrumentCommand.HEAT_ON) or len(s) == 0)
+        lines = my_buffer.split(NEWLINE)
+        lines = filter(my_filter, lines)
+        return NEWLINE.join(lines[-MAX_BUFFER_LENGTH:])
+
     def add_to_buffer(self, data):
         """
-        Overridden because most of the data coming to this driver
-        isn't meant for it.  I'm only adding to the buffer when
-        a chunk arrives (see my_add_to_buffer, below), so this
-        method does nothing.
-
-        @param data: bytes to add to the buffer
-        """
-        pass
-
-    def _my_add_to_buffer(self, data):
-        """
-        Replaces add_to_buffer. Most data coming to this driver isn't meant
-        for it.  I'm only adding to the buffer when data meant for this 
-        driver arrives.  That is accomplished using the chunker mechanism. This
-        method would normally collet any data fragments that are then search by
-        the get_response method in the context of a synchronous command sent
-        from the observatory.  However, because so much data arrives here that
-        is not applicable, the add_to_buffer method has been overridden to do
-        nothing.
-        
+        Add a chunk of data to the internal data buffers, filtering out data not for this sensor.
+        Limit buffer length to MAX_BUFFER_LENGTH lines
         @param data: bytes to add to the buffer
         """
         # Update the line and prompt buffers.
         self._linebuf += data
         self._promptbuf += data
+        self._linebuf = self._clean_buffer(self._linebuf)
+        self._promptbuf = self._clean_buffer(self._promptbuf)
         self._last_data_timestamp = time.time()
+
+        log.debug("LINE BUF: %s", self._linebuf)
+        log.debug("PROMPT BUF: %s", self._promptbuf)
 
     def _got_chunk(self, chunk, timestamp):
         """
@@ -474,15 +407,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         add_to_buffer that is called from got_data().  The reason is explained
         in comments in _my_add_to_buffer.
         """
-        log.debug("_got_chunk_: %s", chunk)
-        regex = HEATCommandResponse.regex_compiled()
-        if regex.match(chunk):
-            self._my_add_to_buffer(chunk)
-        else:
-            if not self._extract_sample(HEATDataParticle,
-                                        HEATDataParticle.regex_compiled(),
-                                        chunk, timestamp):
-                raise InstrumentProtocolException("Unhandled chunk")
+        if not self._extract_sample(HEATDataParticle,
+                                    HEATDataParticle.regex_compiled(),
+                                    chunk, timestamp):
+            raise InstrumentProtocolException("Unhandled chunk")
 
     def _filter_capabilities(self, events):
         """
@@ -490,61 +418,26 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         return [x for x in events if Capability.has(x)]
 
-    # noinspection PyUnusedLocal
     def _build_heat_on_command(self, cmd, *args, **kwargs):
         return cmd + str(self._heat_duration) + NEWLINE
 
-    # noinspection PyUnusedLocal, PyMethodMayBeStatic
     def _build_heat_off_command(self, cmd, *args, **kwargs):
         return cmd + NEWLINE
 
-    # noinspection PyMethodMayBeStatic
     def _parse_heat_on_off_resp(self, response, prompt):
-        log.debug("_parse_heat_on_off_resp: response: %r; prompt: %s", response, prompt)
-        return response.heat_command_response
+        log.debug("_parse_heat_on_off_resp: response: %r; prompt: %r", response, prompt)
+        return response
 
-    # noinspection PyMethodMayBeStatic
     def _wakeup(self, timeout, delay=1):
         """
         Overriding _wakeup; does not apply to this instrument
         """
         pass
 
-    def _get_response(self, timeout=10, expected_prompt=None, expected_regex=None):
-        """
-        @param timeout The timeout in seconds
-        @param expected_prompt Only consider the specific expected prompt as
-        presented by this string
-        @throw InstrumentProtocolException on timeout
-        """
-        # Grab time for timeout and wait for response
-
-        starttime = time.time()
-
-        response = None
-        regex = HEATCommandResponse.regex_compiled()
-
-        # Spin around for <timeout> looking for the response to arrive
-        continuing = True
-        while continuing:
-            if regex.match(self._promptbuf):
-                response = HEATCommandResponse(self._promptbuf)
-                if response.check_heat_on_off_response(expected_prompt):
-                    continuing = False
-            else:
-                self._promptbuf = ''
-                time.sleep(.1)
-
-            if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException("in BOTPT HEAT driver._get_response()")
-
-        return 'HEAT_RESPONSE', response
-
     ########################################################################
     # Unknown handlers.
     ########################################################################
 
-    # noinspection PyUnusedLocal
     def _handler_unknown_enter(self, *args, **kwargs):
         """
         Enter unknown state.
@@ -553,14 +446,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    # noinspection PyUnusedLocal, PyMethodMayBeStatic
     def _handler_unknown_exit(self, *args, **kwargs):
         """
         Exit unknown state.
         """
         pass
 
-    # noinspection PyUnusedLocal, PyMethodMayBeStatic
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state
@@ -569,41 +460,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
     ########################################################################
-    # Autosample handlers.
-    ########################################################################
-
-    # noinspection PyUnusedLocal
-    def _handler_autosample_enter(self, *args, **kwargs):
-        """
-        Enter autosample state.
-        """
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    # noinspection PyUnusedLocal, PyMethodMayBeStatic
-    def _handler_autosample_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
-
-    # noinspection PyMethodMayBeStatic
-    def _handler_autosample_stop_autosample(self):
-        """
-        """
-        result = None
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        return next_state, (next_agent_state, result)
-
-    ########################################################################
     # Command handlers.
     ########################################################################
 
-    # noinspection PyUnusedLocal
     def _handler_command_enter(self, *args, **kwargs):
         """
         Enter command state.
@@ -617,7 +476,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    # noinspection PyUnusedLocal
     def _handler_command_get(self, *args, **kwargs):
         """
         Get parameter
@@ -628,7 +486,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, result
 
-    # noinspection PyUnusedLocal
     def _handler_command_set(self, *args, **kwargs):
         """
         Set parameter
@@ -647,17 +504,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, result
 
-    # noinspection PyUnusedLocal, PyMethodMayBeStatic
-    def _handler_command_start_autosample(self, *args, **kwargs):
-        """
-        """
-        result = None
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-
-        return next_state, (next_agent_state, result)
-
-    # noinspection PyUnusedLocal
     def _handler_command_heat_on(self, *args, **kwargs):
         """
         Turn the heater on
@@ -665,12 +511,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
+        # first, send a heat off.   If the instrument is currently heating, new duration
+        # will be appended.  Override this behavior by turning heater off, then on with
+        # new duration
+        self._handler_command_heat_off()
         # call _do_cmd_resp, passing our heat_duration parameter as the expected_prompt
-        result = self._do_cmd_resp(InstrumentCommand.HEAT_ON, expected_prompt=self._heat_duration)
+        result = self._do_cmd_resp(InstrumentCommand.HEAT_ON, expected_prompt=',*%d' % self._heat_duration)
 
         return next_state, result
 
-    # noinspection PyUnusedLocal
     def _handler_command_heat_off(self, *args, **kwargs):
         """
         Turn the heater off
@@ -679,33 +528,29 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
 
         # call _do_cmd_resp, passing our heat_duration parameter as the expected_prompt
-        result = self._do_cmd_resp(InstrumentCommand.HEAT_OFF, expected_prompt=OFF_HEAT_DURATION)
+        result = self._do_cmd_resp(InstrumentCommand.HEAT_OFF, expected_prompt=',*0')
         return next_state, result
 
-    # noinspection PyUnusedLocal, PyMethodMayBeStatic
     def _handler_command_exit(self, *args, **kwargs):
         """
         Exit command state.
         """
         pass
 
-    # TODO - Should this be here?
-    # noinspection PyMethodMayBeStatic
-    # def _handler_command_start_direct(self):
-    #     """
-    #     Start direct access
-    #     """
-    #     next_state = ProtocolState.DIRECT_ACCESS
-    #     next_agent_state = ResourceAgentState.DIRECT_ACCESS
-    #     result = None
-    #     log.debug("_handler_command_start_direct: entering DA mode")
-    #     return next_state, (next_agent_state, result)
+    def _handler_command_start_direct(self):
+        """
+        Start direct access
+        """
+        next_state = ProtocolState.DIRECT_ACCESS
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+        result = None
+        log.debug("_handler_command_start_direct: entering DA mode")
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Direct access handlers.
     ########################################################################
 
-    # noinspection PyUnusedLocal
     def _handler_direct_access_enter(self, *args, **kwargs):
         """
         Enter direct access state.
@@ -716,7 +561,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._sent_cmds = []
 
-    # noinspection PyMethodMayBeStatic
     def _handler_direct_access_exit(self, *args, **kwargs):
         """
         Exit direct access state.
@@ -730,14 +574,18 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
         next_agent_state = None
 
-        self._do_cmd_direct(data)
+        # Only allow HEAT commands
+        commands = data.split(NEWLINE)
+        commands = [x for x in commands if x.startswith(InstrumentCommand.HEAT_ON)]
 
-        # add sent command to list for 'echo' filtering in callback
-        self._sent_cmds.append(data)
+        for command in commands:
+            self._do_cmd_direct(command)
+
+            # add sent command to list for 'echo' filtering in callback
+            self._sent_cmds.append(command)
 
         return next_state, (next_agent_state, result)
 
-    # noinspection PyMethodMayBeStatic
     def _handler_direct_access_stop_direct(self):
         """
         @throw InstrumentProtocolException on invalid command
