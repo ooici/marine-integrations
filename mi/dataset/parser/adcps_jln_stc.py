@@ -75,10 +75,10 @@ class Adcps_jln_stc_instrumentParserDataParticleKey(BaseEnum):
     ADCPS_JLN_PRESSURE = 'adcps_jln_pressure'
     ADCPS_JLN_STARTBIN = 'adcps_jln_startbin'
     ADCPS_JLN_BINS = 'adcps_jln_bins'
-    ADCPS_JLN_COMPONENT1 = 'adcps_jln_component1'
-    ADCPS_JLN_COMPONENT2 = 'adcps_jln_component2'
-    ADCPS_JLN_COMPONENT3 = 'adcps_jln_component3'
-    ADCPS_JLN_COMPONENT4 = 'adcps_jln_component4'
+    ADCPS_JLN_VEL_ERROR = 'adcps_jln_vel_error'
+    ADCPS_JLN_VEL_UP = 'adcps_jln_vel_up'
+    ADCPS_JLN_VEL_NORTH = 'adcps_jln_vel_north'
+    ADCPS_JLN_VEL_EAST = 'adcps_jln_vel_east'
 
 class StateKey(BaseEnum):
     POSITION = "position"
@@ -129,10 +129,10 @@ class Adcps_jln_stc_instrumentParserDataParticle(DataParticle):
                 struct_format = struct_format + 'h'
             
             bin_len = nbins*2
-            adcps_jln_component1 = struct.unpack(struct_format, match.group(0)[34:[34+bin_len]])
-            adcps_jln_component2 = struct.unpack(struct_format, match.group(0)[(34+bin_len):(34+(bin_len*2))])
-            adcps_jln_component3 = struct.unpack(struct_format, match.group(0)[(34+(bin_len*2)):(34+(bin_len*3))])
-            adcps_jln_component4 = struct.unpack(struct_format, match.group(0)[(34+(bin_len*3)):(34+(bin_len*4))])        
+            adcps_jln_vel_error = struct.unpack(struct_format, match.group(0)[34:[34+bin_len]])
+            adcps_jln_vel_up = struct.unpack(struct_format, match.group(0)[(34+bin_len):(34+(bin_len*2))])
+            adcps_jln_vel_north = struct.unpack(struct_format, match.group(0)[(34+(bin_len*2)):(34+(bin_len*3))])
+            adcps_jln_vel_east = struct.unpack(struct_format, match.group(0)[(34+(bin_len*3)):(34+(bin_len*4))])        
                           
         except (ValueError, TypeError, IndexError) as ex:
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
@@ -173,14 +173,14 @@ class Adcps_jln_stc_instrumentParserDataParticle(DataParticle):
                  DataParicleKey.VALUE: int(fields[13])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_BINS,
                  DataParicleKey.VALUE: int(fields[14])},
-                {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_COMPONENT1,
-                 DataParicleKey.VALUE: list(adcps_jln_component1)},
-                {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_COMPONENT2,
-                 DataParicleKey.VALUE: list(adcps_jln_component2)},
-                {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_COMPONENT3,
-                 DataParicleKey.VALUE: list(adcps_jln_component3)},
-                {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_COMPONENT4,
-                 DataParicleKey.VALUE: list(adcps_jln_component4)},]
+                {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_VEL_ERROR,
+                 DataParicleKey.VALUE: list(adcps_jln_vel_error)},
+                {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_VEL_UP,
+                 DataParicleKey.VALUE: list(adcps_jln_vel_up)},
+                {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_VEL_NORTH,
+                 DataParicleKey.VALUE: list(adcps_jln_vel_north)},
+                {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_VEL_EAST,
+                 DataParicleKey.VALUE: list(adcps_jln_vel_east)},]
         
         return result
 
