@@ -128,7 +128,9 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
 
         self.state_callback_value = None
         self.publish_callback_value = None
-        self.state = {StateKey.POSITION:0}
+        self.state = {StateKey.POSITION: 0,
+          StateKey.FIRST_RECORD: True,
+          StateKey.VELOCITY_END: False}
 
         ##
         ## This parser stores the groups from the data matcher in raw_data.
@@ -298,7 +300,9 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
 
         ## Skip past the flag record and the first 2 velocity records.
         position = FLAG_RECORD_SIZE + (2 * VELOCITY_RECORD_SIZE)
-        new_state = {StateKey.POSITION: position}
+        new_state = {StateKey.POSITION: position,
+          StateKey.FIRST_RECORD: True,
+          StateKey.VELOCITY_END: False}
 
         self.parser = Vel3d_k__stc_imodemParser(self.config, input_file, 
           new_state, self.state_callback, self.pub_callback)
@@ -335,7 +339,9 @@ class Vel3d_k__stc_imodemParserUnitTestCase(ParserUnitTestCase):
         ## Skip to velocity record 4.
         position = FLAG_RECORD_SIZE + (3 * VELOCITY_RECORD_SIZE)
         log.info("SET STATE SKIPPING TO POSITION %d", position)
-        new_state = {StateKey.POSITION: position}
+        new_state = {StateKey.POSITION: position,
+          StateKey.FIRST_RECORD: True,
+          StateKey.VELOCITY_END: False}
         self.parser.set_state(new_state)
 
         log.info("SET STATE VERIFY VELOCITY RECORD 4")
