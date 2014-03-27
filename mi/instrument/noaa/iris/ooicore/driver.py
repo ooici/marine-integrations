@@ -1,7 +1,7 @@
 """
 @package mi.instrument.noaa.iris.ooicore.driver
 @file marine-integrations/mi/instrument/noaa/iris/ooicore/driver.py
-@author David Everett
+@author David Everett, Pete Cable
 @brief Driver for the ooicore
 Release notes:
 
@@ -46,6 +46,7 @@ from mi.core.exceptions import SampleException
 
 # newline.
 NEWLINE = '\x0a'
+MAX_BUFFER_LENGTH = 10
 IRIS_STRING = 'IRIS,'
 IRIS_COMMAND_STRING = '*9900XY'
 IRIS_DATA_ON = 'C2'  # turns on continuous data
@@ -116,11 +117,6 @@ class Prompt(BaseEnum):
     """
 
 
-###############################################################################
-# Command Response (not a particle but uses regex and chunker to parse command
-# responses rather than the normal get_response() method)
-###############################################################################
-
 class InstrumentCommand(BaseEnum):
     """
     Instrument command strings
@@ -129,70 +125,6 @@ class InstrumentCommand(BaseEnum):
     DATA_OFF = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DATA_OFF  # turns off continuous data
     DUMP_SETTINGS_01 = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DUMP_01  # outputs current settings
     DUMP_SETTINGS_02 = IRIS_STRING + IRIS_COMMAND_STRING + IRIS_DUMP_02  # outputs current extended settings
-
-
-class IRISCommandResponse():
-    _compiled_regex = None
-
-    def __init__(self, raw_data):
-        """ 
-        Construct a IRISCommandResponse object
-        @param raw_data The raw data used in the particle
-        """
-        self.raw_data = raw_data
-        self.iris_command_response = None
-
-    @staticmethod
-    def regex():
-        """
-        Regular expression to match a sample pattern
-        @return: regex string
-        """
-        pattern = r'IRIS,'  # pattern starts with IRIS '
-        pattern += r'(.*),'  # group 1: time
-        pattern += r'\*9900XY'  # generic part of IRIS command
-        pattern += r'(.*)'  # group 2: echoed command
-        pattern += NEWLINE
-        return pattern
-
-    @staticmethod
-    def regex_compiled():
-        """
-        get the compiled regex pattern
-        @return: compiled re
-        """
-        if IRISCommandResponse._compiled_regex is None:
-            IRISCommandResponse._compiled_regex = re.compile(IRISCommandResponse.regex())
-        return IRISCommandResponse._compiled_regex
-
-    def check_command_response(self, expected_response):
-        """
-        Generic command response method; the expected response
-        is passed in as a parameter; that is used to check 
-        whether the response from the sensor is valid (positive)
-        or not.
-        """
-        return_value = False
-
-        match = IRISCommandResponse.regex_compiled().match(self.raw_data)
-
-        if not match:
-            raise SampleException("No regex match of command response: [%s]" %
-                                  self.raw_data)
-        try:
-            self.iris_command_response = match.group(2)
-            if expected_response is not None:
-                if self.iris_command_response == expected_response:
-                    return_value = True
-            else:
-                return_value = True
-
-        except ValueError:
-            raise SampleException("check_command_response: ValueError" +
-                                  " while converting data: [%s]" %
-                                  self.raw_data)
-
-        return return_value
 
 
 ###############################################################################
@@ -866,10 +798,10 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._add_build_handler(command, self._build_command)
 
         # Add response handlers for device commands.
-        self._add_response_handler(InstrumentCommand.DATA_ON, self._parse_data_on_off_resp)
-        self._add_response_handler(InstrumentCommand.DATA_OFF, self._parse_data_on_off_resp)
-        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_01, self._parse_status_01_resp)
-        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_02, self._parse_status_02_resp)
+        self._add_response_handler(InstrumentCommand.DATA_ON, self._data_on_resp_handler)
+        self._add_response_handler(InstrumentCommand.DATA_OFF, self._data_off_resp_handler)
+        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_01, self._dump01_resp_handler)
+        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_02, self._dump02_resp_handler)
 
         # Add sample handlers.
 
@@ -883,7 +815,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # set up the regexes now so we don't have to do it repeatedly
         self.data_regex = IRISDataParticle.regex_compiled()
-        self.cmd_rsp_regex = IRISCommandResponse.regex_compiled()
         self.status_01_regex = IRISStatus01Particle.basic_regex_compiled()
         self.status_02_regex = IRISStatus02Particle.basic_regex_compiled()
         self._last_data_timestamp = 0
@@ -895,10 +826,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         matchers = []
         return_list = []
+
         matchers.append(IRISDataParticle.regex_compiled())
         matchers.append(IRISStatus01Particle.basic_regex_compiled())
         matchers.append(IRISStatus02Particle.basic_regex_compiled())
-        matchers.append(IRISCommandResponse.regex_compiled())
+
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
                 return_list.append((match.start(), match.end()))
@@ -927,128 +859,77 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Add parameter handlers to parameter dict.
         pass
 
-    def add_to_buffer(self, data):
+    def publish_raw(self, port_agent_packet):
         """
-        Overridden because most of the data coming to this driver
-        isn't meant for it.  I'm only adding to the buffer when
-        a chunk arrives (see my_add_to_buffer, below), so this
-        method does nothing.
-
-        @param data: bytes to add to the buffer
+        Overridden, this driver shall not generate raw particles
         """
         pass
 
-    def _my_add_to_buffer(self, data):
+    def _clean_buffer(self, my_buffer):
+        my_filter = lambda s: (s.startswith(IRIS_STRING) or len(s) == 0)
+        lines = my_buffer.split(NEWLINE)
+        lines = filter(my_filter, lines)
+        return NEWLINE.join(lines[-MAX_BUFFER_LENGTH:])
+
+    def add_to_buffer(self, data):
         """
-        Replaces add_to_buffer. Most data coming to this driver isn't meant
-        for it.  I'm only adding to the buffer when data meant for this 
-        driver arrives.  That is accomplished using the chunker mechanism. This
-        method would normally collect any data fragments that are then search by
-        the get_response method in the context of a synchronous command sent
-        from the observatory.  However, because so much data arrives here that
-        is not applicable, the add_to_buffer method has been overridden to do
-        nothing.
-        
+        Add a chunk of data to the internal data buffers, filtering out data not for this sensor.
+        Limit buffer length to MAX_BUFFER_LENGTH lines
         @param data: bytes to add to the buffer
         """
-
         # Update the line and prompt buffers.
         self._linebuf += data
         self._promptbuf += data
+        self._linebuf = self._clean_buffer(self._linebuf)
+        self._promptbuf = self._clean_buffer(self._promptbuf)
         self._last_data_timestamp = time.time()
+
+        log.debug("LINE BUF: %s", self._linebuf)
+        log.debug("PROMPT BUF: %s", self._promptbuf)
 
     def _got_chunk(self, chunk, timestamp):
         """
-        The base class has gotten a chunk from the chunker.  Invoke
-        this driver's _my_add_to_buffer, or pass it to extract_sample
-        with the appropriate particle objects and REGEXes.  We need to invoke
-        _my_add_to_buffer, because we've overridden the base class
-        add_to_buffer that is called from got_data().  The reason is explained
-        in comments in _my_add_to_buffer.
+        Extract particles from our chunks
         """
 
         log.debug("_got_chunk_: %r", chunk)
-
-        if self.data_regex.match(chunk):
-            self._extract_sample(IRISDataParticle, self.data_regex, chunk, timestamp)
-        elif self.status_01_regex.match(chunk):
-            self._my_add_to_buffer(chunk)
-            self._extract_sample(IRISStatus01Particle, self.status_01_regex, chunk, timestamp)
-        elif self.status_02_regex.match(chunk):
-            self._my_add_to_buffer(chunk)
-            self._extract_sample(IRISStatus02Particle, self.status_02_regex, chunk, timestamp)
-        elif self.cmd_rsp_regex.match(chunk):
-            self._my_add_to_buffer(chunk)
+        if self._extract_sample(IRISDataParticle, self.data_regex, chunk, timestamp) or \
+                self._extract_sample(IRISStatus01Particle, self.status_01_regex, chunk, timestamp) or \
+                self._extract_sample(IRISStatus02Particle, self.status_02_regex, chunk, timestamp):
+            return
         else:
-            raise InstrumentProtocolException("Unhandled chunk")
+            raise InstrumentProtocolException('Unhandled chunk')
 
     def _build_command(self, cmd, *args, **kwargs):
         command = cmd + NEWLINE
         log.debug("_build_command: command is: %r", command)
         return command
 
-    def _parse_data_on_off_resp(self, response, prompt):
-        log.debug("_parse_data_on_off_resp: response: %r; prompt: %r", response, prompt)
-        return response.iris_command_response
+    def _data_on_resp_handler(self, response, prompt):
+        log.debug('response: %r prompt: %r', response, prompt)
+        if response.endswith(IRIS_DATA_ON):
+            return response
 
-    def _parse_status_01_resp(self, response, prompt):
-        log.debug("_parse_status_01_resp: response: %r; prompt: %r", response, prompt)
-        return response.iris_status_response
+    def _data_off_resp_handler(self, response, prompt):
+        log.debug('response: %r prompt: %r', response, prompt)
+        if response.endswith(IRIS_DATA_OFF):
+            return response
 
-    def _parse_status_02_resp(self, response, prompt):
-        log.debug("_parse_status_02_resp: response: %r; prompt: %r", response, prompt)
-        return response.iris_status_response
+    def _dump01_resp_handler(self, response, prompt):
+        log.debug('response: %r prompt: %r', response, prompt)
+        if response.endswith(IRIS_DUMP_01):
+            return response
+
+    def _dump02_resp_handler(self, response, prompt):
+        log.debug('response: %r prompt: %r', response, prompt)
+        if response.endswith(IRIS_DUMP_02):
+            return response
 
     def _wakeup(self, timeout, delay=1):
         """
         Overriding _wakeup; does not apply to this instrument
         """
         pass
-
-    def _get_response(self, timeout=10, expected_prompt=None, expected_regex=None):
-        """
-        Overriding _get_response: this one uses regex on chunks
-        that have already been filtered by the chunker.  An improvement
-        to the chunker could be metadata labeling the chunk so that we
-        don't have to do another match, although I don't think it is that
-        expensive once the chunk has been pulled out to match again
-        
-        @param timeout The timeout in seconds
-        @param expected_prompt Only consider the specific expected prompt as
-        presented by this string
-        @throw InstrumentProtocolException on timeout
-        """
-        # Grab time for timeout and wait for response
-
-        starttime = time.time()
-
-        # Spin around for <timeout> looking for the response to arrive
-        continuing = True
-        response = "no response"
-        while continuing:
-            if self.cmd_rsp_regex.match(self._promptbuf):
-                response = IRISCommandResponse(self._promptbuf)
-                log.debug("_get_response() matched CommandResponse")
-                response.check_command_response(expected_prompt)
-                continuing = False
-            elif self.status_01_regex.match(self._promptbuf):
-                response = IRISStatus01Particle(self._promptbuf)
-                log.debug("_get_response() matched Status_01_Response")
-                response.build_response()
-                continuing = False
-            elif self.status_02_regex.search(self._promptbuf):
-                response = IRISStatus02Particle(self._promptbuf)
-                log.debug("_get_response() matched Status_02_Response")
-                response.build_response()
-                continuing = False
-            else:
-                self._promptbuf = ''
-                time.sleep(.1)
-
-            if timeout and time.time() > starttime + timeout:
-                raise InstrumentTimeoutException("in BOTPT IRIS driver._get_response()")
-
-        return 'IRIS_RESPONSE', response
 
     ########################################################################
     # Unknown handlers.
@@ -1073,9 +954,14 @@ class Protocol(CommandResponseInstrumentProtocol):
         Discover current state
         @retval (next_state, result)
         """
-        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF, expected_prompt=IRIS_DATA_OFF)
-
-        return ProtocolState.COMMAND, ResourceAgentState.IDLE
+        try:
+            result = self._get_response(timeout=2, response_regex=IRISDataParticle.regex_compiled())
+            next_state = ProtocolState.AUTOSAMPLE
+            next_agent_state = ResourceAgentState.STREAMING
+        except InstrumentTimeoutException:
+            next_state = ProtocolState.COMMAND
+            next_agent_state = ResourceAgentState.IDLE
+        return next_state, next_agent_state
 
     ########################################################################
     # Autosample handlers.
@@ -1095,7 +981,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         pass
 
-    def _handler_autosample_stop_autosample(self):
+    def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Turn the iris data off
         """
@@ -1251,12 +1137,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
         log.debug("_handler_command_autosample_dump01")
 
-        timeout = kwargs.get('timeout')
-
-        if timeout is not None:
-            result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_01, timeout=timeout)
-        else:
-            result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_01)
+        result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_01, expected_prompt=IRIS_DUMP_01)
 
         log.debug("DUMP_SETTINGS_01 response: %r", result)
 
@@ -1271,7 +1152,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = None
         log.debug("_handler_command_autosample_dump02")
 
-        result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_02)
+        result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_02, expected_prompt=IRIS_DUMP_02)
 
         log.debug("DUMP_SETTINGS_02 response: %r", result)
 

@@ -7,4 +7,4 @@ driver_metadata:
   release_notes: 'Driver for IRIS TILT on the RSN-BOTPT instrument (v.6)
 
     '
-  version: 0.1.1
+  version: 0.2.0

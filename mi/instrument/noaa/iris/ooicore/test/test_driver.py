@@ -43,9 +43,6 @@ from mi.instrument.noaa.iris.ooicore.driver import InstrumentDriver, IRISStatus0
 from mi.instrument.noaa.iris.ooicore.driver import DataParticleType
 from mi.instrument.noaa.iris.ooicore.driver import IRISDataParticleKey
 from mi.instrument.noaa.iris.ooicore.driver import IRISDataParticle
-from mi.instrument.noaa.iris.ooicore.driver import IRISCommandResponse
-from mi.instrument.noaa.iris.ooicore.driver import IRISStatus01Particle
-from mi.instrument.noaa.iris.ooicore.driver import IRISStatus02Particle
 from mi.instrument.noaa.iris.ooicore.driver import InstrumentCommand
 from mi.instrument.noaa.iris.ooicore.driver import ProtocolState
 from mi.instrument.noaa.iris.ooicore.driver import ProtocolEvent
@@ -63,8 +60,6 @@ from mi.instrument.noaa.iris.ooicore.driver import IRIS_DUMP_02
 
 from mi.core.exceptions import SampleException
 from pyon.agent.agent import ResourceAgentState
-from pyon.agent.agent import ResourceAgentEvent
-from pyon.core.exception import Conflict
 
 ###
 #   Driver parameters for the tests
@@ -341,8 +336,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
         self.assert_chunker_sample(chunker, DUMP_01_STATUS)
         self.assert_chunker_sample(chunker, DUMP_02_STATUS)
-        self.assert_chunker_sample(chunker, DUMP_01_COMMAND_RESPONSE)
-        self.assert_chunker_sample(chunker, DUMP_02_COMMAND_RESPONSE)
 
     def test_connect(self, initial_protocol_state=ProtocolState.COMMAND):
         """
@@ -358,64 +351,23 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         raises SampleException when an invalid sample is encountered
         and that it returns a result when a valid sample is encountered
         """
-        sample_exception = False
-        try:
-            raw_data = INVALID_SAMPLE
-            test_particle = IRISDataParticle(raw_data)
-            test_particle._build_parsed_values()
-
-        except SampleException as e:
-            log.debug('SampleException caught: %s.', e)
-            sample_exception = True
-
-        finally:
-            self.assertTrue(sample_exception)
-
-        sample_exception = False
-        result = None
-        try:
-            raw_data = VALID_SAMPLE_01
-            test_particle = IRISDataParticle(raw_data)
-            result = test_particle._build_parsed_values()
-
-        except SampleException as e:
-            log.error('SampleException caught: %s.', e)
-            sample_exception = True
-
-        finally:
-            # Assert that the sampleException was not called.  Also assert that
-            # the result is a list.  Not getting into the details of the result
-            # here; that's done elsewhere.
-            self.assertFalse(sample_exception)
-            self.assertTrue(isinstance(result, list))
-
-    def test_check_command_response(self):
-        """
-        Verify that check_data_on_off_response raises a SampleException given an
-        invalid response, and that it returns True given a valid response
-        """
         items = [
-            (INVALID_SAMPLE, IRIS_DATA_ON, False),
-            (DATA_ON_COMMAND_RESPONSE, IRIS_DATA_ON, True),
-            (DATA_OFF_COMMAND_RESPONSE, IRIS_DATA_OFF, True),
-            (DUMP_01_COMMAND_RESPONSE, IRIS_DUMP_01, True),
-            (DUMP_02_COMMAND_RESPONSE, IRIS_DUMP_02, True),
-            (DUMP_02_COMMAND_RESPONSE, None, True),
+            (INVALID_SAMPLE, False),
+            (VALID_SAMPLE_01, True),
+            (VALID_SAMPLE_02, True),
         ]
 
-        for data, expected_response, is_valid in items:
+        for raw_data, is_valid in items:
             sample_exception = False
-            return_value = False
+            result = None
             try:
-                response = IRISCommandResponse(data)
-                return_value = response.check_command_response(expected_response)
-            except SampleException:
-                log.debug('SampleException caught in test_check_command_response')
+                result = IRISDataParticle(raw_data)._build_parsed_values()
+            except SampleException as e:
+                log.debug('SampleException caught: %s.', e)
                 sample_exception = True
-            finally:
-                if is_valid:
-                    self.assertFalse(sample_exception)
-                    self.assertTrue(return_value)
+            if is_valid:
+                self.assertFalse(sample_exception)
+                self.assertIsInstance(result, list)
 
     def test_got_data(self):
         """
@@ -427,167 +379,64 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
         self.assert_particle_published(driver, DUMP_01_STATUS, self.assert_particle_status_01, True)
         self.assert_particle_published(driver, DUMP_02_STATUS, self.assert_particle_status_02, True)
-
-    def test_firehose(self):
-        """
-        Verify sample data passed through the got data method produces the correct data particles
-        Verify that the BOTPT IRIS driver publishes a particle correctly when the IRIS packet is
-        embedded in the stream of other BOTPT sensor output.
-        """
-        driver = self.test_connect()
         self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
 
-    def test_data_on_response(self):
+    def test_command_responses(self):
         """
-        Verify that the driver correctly parses the DATA_ON response
-        """
-        driver = self.test_connect()
-
-        self._send_port_agent_packet(driver, DATA_ON_COMMAND_RESPONSE)
-        self.assertTrue(driver._protocol._get_response(expected_prompt=IRIS_DATA_ON))
-
-    def test_data_on_response_with_data(self):
-        """
-        Verify that the driver correctly parses the DATA_ON response works
-        when a data packet is right in front of it
+        Verify that the driver correctly handles the various responses
         """
         driver = self.test_connect()
 
-        # Create a data packet and push to the driver
-        log.debug("VALID SAMPLE : %s", VALID_SAMPLE_01)
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, VALID_SAMPLE_01)
+        items = [
+            (DATA_ON_COMMAND_RESPONSE, IRIS_DATA_ON),
+            (DATA_OFF_COMMAND_RESPONSE, IRIS_DATA_OFF),
+            (DUMP_01_COMMAND_RESPONSE, IRIS_DUMP_01),
+            (DUMP_02_COMMAND_RESPONSE, IRIS_DUMP_02),
+        ]
 
-        log.debug("DATA ON command response: %s", DATA_ON_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DATA_ON_COMMAND_RESPONSE)
-        self.assertTrue(driver._protocol._get_response(expected_prompt=IRIS_DATA_ON))
+        for response, expected_prompt in items:
+            log.debug('test_command_response: response: %r expected_prompt: %r', response, expected_prompt)
+            self._send_port_agent_packet(driver, response)
+            self.assertTrue(driver._protocol._get_response(expected_prompt=expected_prompt))
 
-    def test_status_01(self):
-        """
-        Verify that the driver correctly parses the DUMP-SETTINGS response
-        """
-        driver = self.test_connect()
+    def test_handlers(self):
+        items = [
+            ('_handler_command_start_autosample',
+             ProtocolState.COMMAND,
+             ProtocolState.AUTOSAMPLE,
+             DATA_ON_COMMAND_RESPONSE,
+             IRIS_DATA_ON),
+            ('_handler_autosample_stop_autosample',
+             ProtocolState.AUTOSAMPLE,
+             ProtocolState.COMMAND,
+             DATA_OFF_COMMAND_RESPONSE,
+             IRIS_DATA_OFF),
+            ('_handler_command_autosample_dump01',
+             ProtocolState.COMMAND,
+             None,
+             DUMP_01_COMMAND_RESPONSE,
+             IRIS_DUMP_01),
+            ('_handler_command_autosample_dump02',
+             ProtocolState.COMMAND,
+             None,
+             DUMP_02_COMMAND_RESPONSE,
+             IRIS_DUMP_02),
+        ]
 
-        log.debug("DUMP_01_STATUS: %s", DUMP_01_STATUS)
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DUMP_01_STATUS)
+        for handler, initial_state, expected_state, response, prompt in items:
+            def my_send(data):
+                log.debug("my_send: data: %r, response: %r", data, response)
+                driver._protocol._promptbuf += response
+                return len(response)
 
-    def test_status_02(self):
-        """
-        Verify that the driver correctly parses the DUMP2 response
-        """
-        driver = self.test_connect()
-
-        log.debug("DUMP_02_STATUS: %s", DUMP_02_STATUS)
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DUMP_02_STATUS)
-
-    def test_data_off_response(self):
-        """
-        Verify that the driver correctly parses the DATA_OFF response
-        """
-        driver = self.test_connect()
-
-        log.debug("DATA OFF command response: %s", DATA_OFF_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DATA_OFF_COMMAND_RESPONSE)
-
-        self.assertTrue(driver._protocol._get_response(expected_prompt=IRIS_DATA_OFF))
-
-    def test_dump_settings_response(self):
-        """
-        Verify that the driver correctly parses the DUMP_SETTINGS response
-        """
-        driver = self.test_connect()
-
-        log.debug("DUMP_SETTINGS_01 command response: %s", DUMP_01_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DUMP_01_COMMAND_RESPONSE)
-        response = driver._protocol._get_response(expected_prompt=IRIS_DUMP_01)
-        self.assertTrue(isinstance(response[1], IRISCommandResponse))
-
-        # Clear out the linebuf and promptbuf (do_cmd_resp normally does this)
-        driver._protocol._linebuf = ''
-        driver._protocol._promptbuf = ''
-
-        log.debug("DUMP_SETTINGS_02 command response: %s", DUMP_02_COMMAND_RESPONSE)
-        # Create and populate the port agent packet.
-        self._send_port_agent_packet(driver, DUMP_02_COMMAND_RESPONSE)
-        response = driver._protocol._get_response(expected_prompt=IRIS_DUMP_02)
-        self.assertTrue(isinstance(response[1], IRISCommandResponse))
-
-    def test_start_autosample(self):
-        def my_send(data):
-            my_response = DATA_ON_COMMAND_RESPONSE
-            log.debug("my_send: data: %r, my_response: %r", data, my_response)
-            driver._protocol._promptbuf += my_response
-            return len(DATA_ON_COMMAND_RESPONSE)
-
-        driver = self.test_connect()
-        driver._connection.send.side_effect = my_send
-
-        driver._protocol._handler_command_start_autosample(timeout=0)
-        ts = ntplib.system_to_ntp_time(time.time())
-        driver._protocol._got_chunk(DATA_ON_COMMAND_RESPONSE, ts)
-
-    def test_stop_autosample(self):
-        def my_send(data):
-            my_response = DATA_OFF_COMMAND_RESPONSE
-            log.debug("my_send: data: %r, my_response: %r", data, my_response)
-            driver._protocol._promptbuf += my_response
-            return len(DATA_OFF_COMMAND_RESPONSE)
-
-        driver = self.test_connect(ProtocolState.AUTOSAMPLE)
-        driver._connection.send.side_effect = my_send
-
-        driver._protocol._handler_autosample_stop_autosample()
-        ts = ntplib.system_to_ntp_time(time.time())
-        driver._protocol._got_chunk(DATA_OFF_COMMAND_RESPONSE, ts)
-
-    def test_status_01_handler(self):
-        def my_send(data):
-            my_response = DUMP_01_STATUS
-            log.debug("my_send: data: %r, my_response: %r", data, my_response)
-            driver._protocol._promptbuf += my_response
-            return len(DUMP_01_STATUS)
-
-        driver = self.test_connect(ProtocolState.AUTOSAMPLE)
-        driver._connection.send.side_effect = my_send
-
-        result = driver._protocol._handler_command_autosample_dump01(timeout=0)[1][1]
-        self.assertTrue(result == DUMP_01_STATUS_RESP)
-
-    def test_status_02_handler(self):
-        def my_send(data):
-            my_response = DUMP_02_STATUS
-            log.debug("my_send: data: %r, my_response: %r", data, my_response)
-            driver._protocol._promptbuf += my_response
-            return len(DUMP_02_STATUS)
-
-        driver = self.test_connect(ProtocolState.AUTOSAMPLE)
-        driver._connection.send.side_effect = my_send
-
-        result = driver._protocol._handler_command_autosample_dump02(timeout=0)[1][1]
-        self.assertTrue(result == DUMP_02_STATUS_RESP)
-
-    def test_dump_01(self):
-        driver = self.test_connect()
-
-        ts = ntplib.system_to_ntp_time(time.time())
-        driver._protocol._got_chunk(DUMP_01_STATUS, ts)
-
-        response = driver._protocol._get_response(timeout=0)
-        self.assertTrue(isinstance(response[1], IRISStatus01Particle))
-
-    def test_dump_02(self):
-        driver = self.test_connect()
-
-        ts = ntplib.system_to_ntp_time(time.time())
-        driver._protocol._got_chunk(DUMP_02_STATUS, ts)
-
-        response = driver._protocol._get_response(timeout=0)
-        self.assertTrue(isinstance(response[1], IRISStatus02Particle))
+            driver = self.test_connect(initial_protocol_state=initial_state)
+            driver._connection.send.side_effect = my_send
+            result = getattr(driver._protocol, handler)()
+            log.debug('handler: %r - result: %r expected: %r', handler, result, prompt)
+            next_state = result[0]
+            return_value = result[1][1]
+            self.assertEqual(next_state, expected_state)
+            self.assertTrue(return_value.endswith(prompt))
 
     def test_direct_access(self):
         driver = self.test_connect()
@@ -638,9 +487,12 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, IRISTestMixinSu
                                         DataParticleType.IRIS_PARSED,
                                         self.assert_particle_sample_01,
                                         delay=2)
-
+        self.assert_async_particle_generation(DataParticleType.IRIS_PARSED,
+                                              self.assert_particle_sample_01,
+                                              particle_count=10,
+                                              timeout=12)
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-        self.assertEqual(response[1], IRIS_DATA_OFF)
+        self.assertTrue(response[1].endswith(IRIS_DATA_OFF))
 
     def test_dump_01(self):
         """
@@ -672,7 +524,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, IRISTestMixinSu
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
         self.assert_state_change(ProtocolState.COMMAND, 5)
-        self.driver_client.cmd_dvr('execute_start_direct_access')
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
         self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
 
 
@@ -686,21 +538,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, IRISTestMixinSu
 class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMixinSub):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
-
-    def test_reset(self):
-        """
-        Verify the agent can be reset
-        """
-        self.assert_enter_command_mode()
-        self.assert_reset()
-
-        self.assert_enter_command_mode()
-        self.assert_start_autosample()
-        self.assert_reset()
-
-    # Overridden because does not apply for this driver
-    def test_discover(self):
-        pass
 
     def test_direct_access_telnet_mode(self):
         """
@@ -757,82 +594,17 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
         self.assert_capabilities(capabilities)
         self.assert_stop_autosample()
 
-    def test_instrument_agent_common_state_model_lifecycle(self, timeout=GO_ACTIVE_TIMEOUT):
+    def test_direct_access_exit_from_autosample(self):
         """
-        @brief Test agent state transitions.
-               This test verifies that the instrument agent can
-               properly command the instrument through the following states.
-
-                COMMANDS TESTED
-                *ResourceAgentEvent.INITIALIZE
-                *ResourceAgentEvent.RESET
-                *ResourceAgentEvent.GO_ACTIVE
-                *ResourceAgentEvent.RUN
-                *ResourceAgentEvent.PAUSE
-                *ResourceAgentEvent.RESUME
-                *ResourceAgentEvent.GO_COMMAND
-                *ResourceAgentEvent.GO_INACTIVE
-                *ResourceAgentEvent.PING_RESOURCE
-                *ResourceAgentEvent.CLEAR
-
-                COMMANDS NOT TESTED
-                * ResourceAgentEvent.GO_DIRECT_ACCESS
-                * ResourceAgentEvent.GET_RESOURCE_STATE
-                * ResourceAgentEvent.GET_RESOURCE
-                * ResourceAgentEvent.SET_RESOURCE
-                * ResourceAgentEvent.EXECUTE_RESOURCE
-
-                STATES ACHIEVED:
-                * ResourceAgentState.UNINITIALIZED
-                * ResourceAgentState.INACTIVE
-                * ResourceAgentState.IDLE'
-                * ResourceAgentState.STOPPED
-                * ResourceAgentState.COMMAND
-
-                STATES NOT ACHIEVED:
-                * ResourceAgentState.DIRECT_ACCESS
-                * ResourceAgentState.STREAMING
-                * ResourceAgentState.TEST
-                * ResourceAgentState.CALIBRATE
-                * ResourceAgentState.BUSY
-                -- Not tested because they may not be implemented in the driver
+        Verify that direct access mode can be exited while the instrument is
+        sampling. This should be done for all instrument states. Override
+        this function on a per-instrument basis.
         """
-        ####
-        # UNINITIALIZED
-        ####
-        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
+        self.assert_enter_command_mode()
 
-        # Try to run some commands that aren't available in this state
-        self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
-        self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
-        self.assert_agent_command_exception(ResourceAgentEvent.GO_DIRECT_ACCESS, exception_class=Conflict)
+        # go into direct access, and start sampling so ION doesnt know about it
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data(InstrumentCommand.DATA_ON + NEWLINE)
 
-        ####
-        # INACTIVE
-        ####
-        self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
-        self.assert_agent_state(ResourceAgentState.INACTIVE)
-
-        # Try to run some commands that aren't available in this state
-        self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
-
-        ####
-        # IDLE
-        ####
-        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
-
-        # Try to run some commands that aren't available in this state
-        self.assert_agent_command_exception(ResourceAgentEvent.INITIALIZE, exception_class=Conflict)
-        self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
-        self.assert_agent_command_exception(ResourceAgentEvent.RESUME, exception_class=Conflict)
-
-        # Verify we can go inactive
-        self.assert_agent_command(ResourceAgentEvent.GO_INACTIVE)
-        self.assert_agent_state(ResourceAgentState.INACTIVE)
-
-        # Get back to idle
-        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
-
-        # Reset
-        self.assert_agent_command(ResourceAgentEvent.RESET)
-        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
+        self.assert_direct_access_stop_telnet()
