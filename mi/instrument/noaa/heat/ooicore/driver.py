@@ -376,6 +376,12 @@ class Protocol(CommandResponseInstrumentProtocol):
                              multi_match=False,
                              visibility=ParameterDictVisibility.READ_WRITE)
 
+    def publish_raw(self, port_agent_packet):
+        """
+        Overridden, this driver shall not generate raw particles
+        """
+        pass
+
     def _clean_buffer(self, my_buffer):
         my_filter = lambda s: (s.startswith(InstrumentCommand.HEAT_ON) or len(s) == 0)
         lines = my_buffer.split(NEWLINE)
