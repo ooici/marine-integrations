@@ -218,7 +218,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
     flags = [False for x in range(FLAG_RECORD_SIZE)]
 
     def __init__(self, config, input_file, state, 
-      state_callback, publish_callback):
+      state_callback, publish_callback, exception_callback):
         """
         Constructor for the Vel3d_k__stc_imodemParser class.
         Arguments:
@@ -266,7 +266,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
               re.compile(end_of_velocity_regex)
 
         super(Vel3dKWfpStcParser, self).__init__(config, input_file,
-          state, self.sieve_function, state_callback, publish_callback)
+          state, self.sieve_function, state_callback, publish_callback, exception_callback)
 
     def calculate_record_number(self):
         """

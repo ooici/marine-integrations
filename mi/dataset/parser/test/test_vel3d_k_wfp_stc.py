@@ -114,6 +114,10 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         publish callback """
         self.publish_callback_value = pub
 
+    def exception_callback(self, exception):
+        """ Callback method to watch what comes in via the exception callback """
+        self.exception_callback_value = exception
+
     def setUp(self):
         ParserUnitTestCase.setUp(self)
         self.config = {
@@ -185,7 +189,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         log.info("Simple length %d", len(TEST_DATA_GOOD_1_REC))
         input_file = StringIO(TEST_DATA_GOOD_1_REC)
         self.parser = Vel3dKWfpStcParser(self.config, input_file, 
-          self.state, self.state_callback, self.pub_callback)
+          self.state, self.state_callback, self.pub_callback, self.exception_callback)
 
         log.info("SIMPLE VERIFY VELOCITY RECORD 1")
         result = self.parser.get_records(1)
@@ -213,7 +217,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         log.info("Some length %d", len(TEST_DATA_GOOD_2_REC))
         input_file = StringIO(TEST_DATA_GOOD_2_REC)
         self.parser = Vel3dKWfpStcParser(self.config, input_file, 
-          self.state, self.state_callback, self.pub_callback)
+          self.state, self.state_callback, self.pub_callback, self.exception_callback)
 
         log.info("SOME VERIFY VELOCITY RECORD 1")
         result = self.parser.get_records(1)
@@ -248,7 +252,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         log.info("Many length %d", len(TEST_DATA_GOOD_BIG_FILE))
         input_file = StringIO(TEST_DATA_GOOD_BIG_FILE)
         self.parser = Vel3dKWfpStcParser(self.config, input_file, 
-          self.state, self.state_callback, self.pub_callback)
+          self.state, self.state_callback, self.pub_callback, self.exception_callback)
 
         log.info("MANY VERIFY VELOCITY RECORD 1")
         result = self.parser.get_records(1)
@@ -305,7 +309,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
           StateKey.VELOCITY_END: False}
 
         self.parser = Vel3dKWfpStcParser(self.config, input_file, 
-          new_state, self.state_callback, self.pub_callback)
+          new_state, self.state_callback, self.pub_callback, self.exception_callback)
 
         ## This should get record 3.
         log.info("MID-STATE AFTER RECORD 2, POSITION %d", 
@@ -327,7 +331,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         input_file = StringIO(TEST_DATA_GOOD_BIG_FILE)
 
         self.parser = Vel3dKWfpStcParser(self.config, input_file, 
-          self.state, self.state_callback, self.pub_callback)
+          self.state, self.state_callback, self.pub_callback, self.exception_callback)
 
         log.info("SET STATE VERIFY VELOCITY RECORD 1")
         result = self.parser.get_records(1)
@@ -362,7 +366,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         input_file = StringIO(TEST_DATA_BAD_FLAG_RECORD)
         with self.assertRaises(SampleException):
             self.parser = Vel3dKWfpStcParser(self.config, input_file, 
-              self.state, self.state_callback, self.pub_callback)
+              self.state, self.state_callback, self.pub_callback, self.exception_callback)
         log.info("=================== END BAD FLAG ======================")
 
     def test_short_flag_record(self):
@@ -376,6 +380,6 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         input_file = StringIO(TEST_DATA_SHORT_FLAG_RECORD)
         with self.assertRaises(SampleException):
             self.parser = Vel3dKWfpStcParser(self.config, input_file, 
-              self.state, self.state_callback, self.pub_callback)
+              self.state, self.state_callback, self.pub_callback, self.exception_callback)
         log.info("=================== END SHORT FLAG ======================")
 
