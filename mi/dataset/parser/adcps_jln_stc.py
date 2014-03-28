@@ -48,6 +48,9 @@ DATA_MATCHER_B = re.compile(DATA_REGEX_B)
 RX_FAILURE_REGEX = b'Record\[\d+\]:ReceiveFailure'
 RX_FAILURE_MATCHER = re.compile(RX_FAILURE_REGEX)
 
+RECORD_REGEX = b'Record\[\d+\]:'
+RECORD_MATCHER = re.compile(RECORD_REGEX)
+
 HEADER_BYTES = 1024 
 FOOTER_BYTES = 1024
 
@@ -96,14 +99,17 @@ class Adcps_jln_stc_instrumentParserDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
         
-        match = DATA_MATCHER.search(self.raw_data)
+        match = DATA_MATCHER_B.search(self.raw_data)
             
         if not match:
             raise SampleException("Adcps_jln_stcParserDataParticle: No regex match of \
                                   parsed sample data [%s]", self.raw_data)
         try:
-            asciiFields = struct.unpack('<13s', match.group(0)[0:12]) 
-            asciiRecordNumber = int(asciiFields[7:10]) 
+            record_match = RECORD_MATCHER.search(match)
+            record_match.strip('Record\[')
+            record_match.strip('\]:')
+            asciiRecordNumber = int(record_match)
+            
             match = match.strip('Record\[....\]:') 
             fields = struct.unpack('<HhIBBBdhhhhIbBB', match.group(0)[0:34])
             
@@ -138,49 +144,49 @@ class Adcps_jln_stc_instrumentParserDataParticle(DataParticle):
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
         result = [{DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_RECORD,
-                   DataParicleKey.VALUE: asciiRecordNumber},
+                   DataParticleKey.VALUE: asciiRecordNumber},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_NUMBER,
-                 DataParicleKey.VALUE: int(fields[2])},
+                 DataParticleKey.VALUE: int(fields[2])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_UNIT_ID,
-                 DataParicleKey.VALUE: int(fields[3])},
+                 DataParticleKey.VALUE: int(fields[3])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_FW_VERS,
-                 DataParicleKey.VALUE: int(fields[4])},
+                 DataParticleKey.VALUE: int(fields[4])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_FW_REV,
-                 DataParicleKey.VALUE: (fields[5])},
+                 DataParticleKey.VALUE: (fields[5])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_YEAR,
-                 DataParicleKey.VALUE: int(date_fields[0])},
+                 DataParticleKey.VALUE: int(date_fields[0])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_MONTH,
-                 DataParicleKey.VALUE: int(date_fields[1])},
+                 DataParticleKey.VALUE: int(date_fields[1])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_DAY,
-                 DataParicleKey.VALUE: int(date_fields[2])},
+                 DataParticleKey.VALUE: int(date_fields[2])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_HOUR,
-                 DataParicleKey.VALUE: int(date_fields[3])},
+                 DataParticleKey.VALUE: int(date_fields[3])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_MINUTE,
-                 DataParicleKey.VALUE: int(date_fields[4])},
+                 DataParticleKey.VALUE: int(date_fields[4])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_SECOND,
-                 DataParicleKey.VALUE: int(date_fields[5])},
+                 DataParticleKey.VALUE: int(date_fields[5])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_HSEC,
-                 DataParicleKey.VALUE: int(date_fields[6])},
+                 DataParticleKey.VALUE: int(date_fields[6])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_HEADING,
-                 DataParicleKey.VALUE: int(fields[7])},
+                 DataParticleKey.VALUE: int(fields[7])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_ROLL,
-                 DataParicleKey.VALUE: int(fields[9])},
+                 DataParticleKey.VALUE: int(fields[9])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_TEMP,
-                 DataParicleKey.VALUE: int(fields[10])},
+                 DataParticleKey.VALUE: int(fields[10])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_PRESSURE,
-                 DataParicleKey.VALUE: int(fields[11])},
+                 DataParticleKey.VALUE: int(fields[11])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_STARTBIN,
-                 DataParicleKey.VALUE: int(fields[13])},
+                 DataParticleKey.VALUE: int(fields[13])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_BINS,
-                 DataParicleKey.VALUE: int(fields[14])},
+                 DataParticleKey.VALUE: int(fields[14])},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_VEL_ERROR,
-                 DataParicleKey.VALUE: list(adcps_jln_vel_error)},
+                 DataParticleKey.VALUE: list(adcps_jln_vel_error)},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_VEL_UP,
-                 DataParicleKey.VALUE: list(adcps_jln_vel_up)},
+                 DataParticleKey.VALUE: list(adcps_jln_vel_up)},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_VEL_NORTH,
-                 DataParicleKey.VALUE: list(adcps_jln_vel_north)},
+                 DataParticleKey.VALUE: list(adcps_jln_vel_north)},
                 {DataParticleKey.VALUE_ID: Adcps_jln_stc_instrumentParserDataParticleKey.ADCPS_JLN_VEL_EAST,
-                 DataParicleKey.VALUE: list(adcps_jln_vel_east)},]
+                 DataParticleKey.VALUE: list(adcps_jln_vel_east)},]
         
         return result
 
@@ -248,21 +254,21 @@ class Adcps_jln_stc_metadataParserDataParticle(DataParticle):
             raise SampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
         result = [{DataParticleKey.VALUE_ID: Adcps_jln_stc_metadataParserDataParticleKey.ADCPS_JLN_TIMESTAMP,
-                        DataParicleKey.VALUE: timestamp},
+                        DataParticleKey.VALUE: timestamp},
                     {DataParticleKey.VALUE_ID: Adcps_jln_stc_metadataParserDataParticleKey.ADCPS_JLN_ID,
-                     DataParicleKey.VALUE: id_number},
+                     DataParticleKey.VALUE: id_number},
                     {DataParticleKey.VALUE_ID: Adcps_jln_stc_metadataParserDataParticleKey.ADCPS_JLN_SERIAL_NUMBER,
-                     DataParicleKey.VALUE: serial_number},
+                     DataParticleKey.VALUE: serial_number},
                     {DataParticleKey.VALUE_ID: Adcps_jln_stc_metadataParserDataParticleKey.ADCPS_JLN_VOLTS,
-                     DataParicleKey.VALUE: voltage},
+                     DataParticleKey.VALUE: voltage},
                     {DataParticleKey.VALUE_ID: Adcps_jln_stc_metadataParserDataParticleKey.ADCPS_JLN_RECORDS,
-                     DataParicleKey.VALUE: num_records},
+                     DataParticleKey.VALUE: num_records},
                     {DataParticleKey.VALUE_ID: Adcps_jln_stc_metadataParserDataParticleKey.ADCPS_JLN_LENGTH,
-                     DataParicleKey.VALUE: length},
+                     DataParticleKey.VALUE: length},
                     {DataParticleKey.VALUE_ID: Adcps_jln_stc_metadataParserDataParticleKey.ADCPS_JLN_EVENTS,
-                     DataParicleKey.VALUE: num_events},
+                     DataParticleKey.VALUE: num_events},
                     {DataParticleKey.VALUE_ID: Adcps_jln_stc_metadataParserDataParticleKey.ADCPS_JLN_SAMPLES_WRITTEN,
-                     DataParicleKey.VALUE: samples_written}]
+                     DataParticleKey.VALUE: samples_written}]
             
         return result
 

@@ -1,0 +1,66 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    particle_object: Adcps_jln_stc_metadataParserDataParticle
+    particle_type: adcps_jln_stc_metadata
+    adcps_jln_timestamp: 20130929 091817
+    adcps_jln_id: 10
+    adcps_jln_serial_number: 70001672
+    adcps_jln_volts: 6.4
+    adcps_jln_records: 6
+    adcps_jln_length: 1780
+    adcps_jln_events: 84
+    adcps_jln_samples_written: 5
+  - _index: 2
+    particle_object: Adcps_jln_stc_instrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    adcps_jln_record: 1764
+    adcps_jln_number: 1603
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2013
+    adcps_jln_month: 9
+    adcps_jln_day: 29
+    adcps_jln_hour: 8
+    adcps_jln_minute: 15
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 17318
+    adcps_jln_pitch: -3351
+    adcps_jln_roll: -3553
+    adcps_jln_temp: 1939
+    adcps_jln_pressure: 1762
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 40
+    adcps_jln_vel_error: 
+    adcps_jln_vel_up: 
+    adcps_jln_vel_north: 
+    adcps_jln_vel_east: 
+  - _index: 3
+    internal_timestamp: 3595053729.000000
+    particle_object: Adcps_jln_stc_instrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    wfp_timestamp: 1386064929
+    wfp_prof_current: 137.9490814208984375
+    wfp_prof_voltage: 11.5784006118774414
+    wfp_prof_pressure: 0.0000000000000000
+  - _index: 4
+    internal_timestamp: 3595053734.000000
+    particle_object: Adcps_jln_stc_instrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    wfp_timestamp: 1386064934
+    wfp_prof_current: 377.2472839355468750
+    wfp_prof_voltage: 11.4471998214721680
+    wfp_prof_pressure: 0.0000000000000000
+  - _index: 5
+    internal_timestamp: 3595053738.000000
+    particle_object: Adcps_jln_stc_instrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    wfp_timestamp: 1386064938
+    wfp_prof_current: 395.3518066406250000
+    wfp_prof_voltage: 11.4272003173828125
+    wfp_prof_pressure: 0.0000000000000000

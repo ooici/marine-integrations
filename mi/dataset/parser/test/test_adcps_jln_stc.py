@@ -295,6 +295,14 @@ class Adcps_jln_stcParserUnitTestCase(ParserUnitTestCase):
         self.state_callback_value = None
         self.publish_callback_value = None
 	
+	# uncomment the following to generate particles in yml format for driver testing results files
+	self.particle_to_yml(self.particle_header_footer)
+	self.particle_to_yml(self.particle_a)
+	self.particle_to_yml(self.particle_b)
+	self.particle_to_yml(self.particle_c)
+	self.particle_to_yml(self.particle_d)
+	self.particle_to_yml(self.particle_e)
+	
     @staticmethod
     def convert_timestamp(timestamp):
 	date_str = Adcps_jln_stc_instrumentParserDataParticle.unpack_date(timestamp)
@@ -312,6 +320,26 @@ class Adcps_jln_stcParserUnitTestCase(ParserUnitTestCase):
 	
 	self.assert_(isinstance(self.publish_callback_value, list))
         self.assertEqual(self.publish_callback_value[0], particle)
+	
+    def particle_to_yml(self, particle):
+        """
+        This is added as a testing helper, not actually as part of the parser tests. Since the same particles
+        will be used for the driver test it is helpful to write them to .yml in the same form they need in the
+        results.yml files here.
+        """
+        particle_dict = particle.generate_dict()
+        # open write append, if you want to start from scratch manually delete this file
+        fid = open('particle.yml', 'a')
+        fid.write('  - _index: 0\n')
+        fid.write('    internal_timestamp: %f\n' % particle_dict.get('internal_timestamp'))
+        fid.write('    particle_object: %s\n' % particle.__class__.__name__)
+        fid.write('    particle_type: %s\n' % particle_dict.get('stream_name'))
+        for val in particle_dict.get('values'):
+            if isinstance(val.get('value'), float):
+                fid.write('    %s: %16.16f\n' % (val.get('value_id'), val.get('value')))
+            else:
+                fid.write('    %s: %s\n' % (val.get('value_id'), val.get('value')))
+        fid.close()
 	
     def test_simple(self):
         """
