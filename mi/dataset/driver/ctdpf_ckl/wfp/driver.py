@@ -47,6 +47,7 @@ class CtdpfCklWfpDataSetDriver(SimpleDataSetDriver):
             infile,
             self._save_parser_state,
             self._data_callback,
+            self._sample_exception_callback,
             filesize
         )
         return self._parser

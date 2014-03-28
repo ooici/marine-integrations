@@ -39,7 +39,7 @@ class CtdpfCklWfpParserDataParticleKey(BaseEnum):
 
 class CtdpfCklWfpParserDataParticle(DataParticle):
     """
-    Class for parsing data from the dofst_k_wfp data set
+    Class for parsing data from the ctdpf_ckl_wfp data set
     """
 
     _data_particle_type = DataParticleType.DATA
@@ -59,35 +59,11 @@ class CtdpfCklWfpParserDataParticle(DataParticle):
                  struct.unpack('>I', '\x00' + self.raw_data[3:6]) + \
                  struct.unpack('>I', '\x00' + self.raw_data[6:9])
 
-        result = [{DataParticleKey.VALUE_ID: CtdpfCklWfpParserDataParticleKey.CONDUCTIVITY,
-                   DataParticleKey.VALUE: int(fields[0])},
-                  {DataParticleKey.VALUE_ID: CtdpfCklWfpParserDataParticleKey.TEMPERATURE,
-                   DataParticleKey.VALUE: int(fields[1])},
-                  {DataParticleKey.VALUE_ID: CtdpfCklWfpParserDataParticleKey.PRESSURE,
-                   DataParticleKey.VALUE: int(fields[2])}]
+        result = [self._encode_value(CtdpfCklWfpParserDataParticleKey.CONDUCTIVITY, fields[0], int),
+                  self._encode_value(CtdpfCklWfpParserDataParticleKey.TEMPERATURE, fields[1], int),
+                  self._encode_value(CtdpfCklWfpParserDataParticleKey.PRESSURE, fields[2], int)]
 
         return result
-
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this
-        particle
-        """
-        allowed_diff = .000001
-        if ((self.raw_data == arg.raw_data) and
-            (abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] -
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) <= allowed_diff)):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] -
-                     arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) > allowed_diff:
-                log.debug('Timestamp %s does not match %s',
-                          self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
-                          arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
-            return False
 
 
 class CtdpfCklWfpMetadataParserDataParticle(DataParticle):
@@ -104,44 +80,18 @@ class CtdpfCklWfpMetadataParserDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
         if len(self.raw_data[0]) != TIME_RECORD_BYTES:
-            raise SampleException("CtdpfCklWfpMetadataDataParserDataParticle: Received unexpected number of bytes %d" % len(self._raw_data[0]))
-        if not isinstance(self.raw_data[1], float):
-            raise SampleException("CtdpfCklWfpMetadataDataParserDataParticle: Received invalid format number of samples %s", self._raw_data[1])
+            raise SampleException("CtdpfCklWfpMetadataDataParserDataParticle: Received unexpected number of bytes %d" % len(self.raw_data[0]))
         # data is passed in as a tuple, first element is the two timestamps as a binary string
         # the second is the number of samples as an float
         timefields = struct.unpack('>II', self.raw_data[0])
-        time_on = int(timefields[0])
-        time_off = int(timefields[1])
 
         number_samples = self.raw_data[1]
-        if not number_samples.is_integer():
-            raise SampleException("File does not evenly fit into number of records")
 
-        result = [{DataParticleKey.VALUE_ID: WfpMetadataParserDataParticleKey.WFP_TIME_ON,
-                   DataParticleKey.VALUE: time_on},
-                  {DataParticleKey.VALUE_ID: WfpMetadataParserDataParticleKey.WFP_TIME_OFF,
-                   DataParticleKey.VALUE: time_off},
-                  {DataParticleKey.VALUE_ID: WfpMetadataParserDataParticleKey.WFP_NUMBER_SAMPLES,
-                   DataParticleKey.VALUE: int(number_samples)}]
+        result = [self._encode_value(WfpMetadataParserDataParticleKey.WFP_TIME_ON, timefields[0], int),
+                  self._encode_value(WfpMetadataParserDataParticleKey.WFP_TIME_OFF, timefields[1], int),
+                  self._encode_value(WfpMetadataParserDataParticleKey.WFP_NUMBER_SAMPLES, number_samples, int)
+                  ]
         return result
-
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this
-        particle
-        """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
-            return False
 
 
 class CtdpfCklWfpParser(WfpCFileCommonParser):
