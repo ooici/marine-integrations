@@ -30,6 +30,8 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 
+from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEUnitTestCase
+
 from interface.objects import AgentCommand
 
 from mi.core.instrument.logger_client import LoggerClient
@@ -42,16 +44,23 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import InstrumentDriver
+from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolState
+from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolEvent
+from mi.instrument.seabird.sbe16plus_v2.driver import Capability
+from mi.instrument.seabird.sbe16plus_v2.driver import SBE16Protocol
+from mi.instrument.seabird.sbe16plus_v2.driver import Prompt
+
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19InstrumentDriver
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import DataParticleType
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import InstrumentCommand
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ProtocolState
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ProtocolEvent
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Capability
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Parameter
-from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Protocol
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Prompt
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import NEWLINE
+
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19Protocol
 
 ###
 #   Driver parameters for the tests
@@ -96,18 +105,18 @@ InstrumentDriverTestCase.initialize(
 # This class defines a configuration structure for testing and common assert  #
 # methods for validating data particles.									  #
 ###############################################################################
-class DriverTestMixinSub(DriverTestMixin):
-    def assertSampleDataParticle(self, data_particle):
-        '''
-        Verify a particle is a know particle to this driver and verify the particle is
-        correct
-        @param data_particle: Data particle of unkown type produced by the driver
-        '''
-        if (isinstance(data_particle, RawDataParticle)):
-            self.assert_particle_raw(data_particle)
-        else:
-            log.error("Unknown Particle Detected: %s" % data_particle)
-            self.assertFalse(True)
+#class DriverTestMixinSub(DriverTestMixin):
+#    def assertSampleDataParticle(self, data_particle):
+#        '''
+#        Verify a particle is a know particle to this driver and verify the particle is
+#        correct
+#        @param data_particle: Data particle of unkown type produced by the driver
+#        '''
+#        if (isinstance(data_particle, RawDataParticle)):
+#            self.assert_particle_raw(data_particle)
+#        else:
+#            log.error("Unknown Particle Detected: %s" % data_particle)
+#            self.assertFalse(True)
 
 
 ###############################################################################
@@ -124,9 +133,7 @@ class DriverTestMixinSub(DriverTestMixin):
 #   driver process.                                                           #
 ###############################################################################
 @attr('UNIT', group='mi')
-class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
-    def setUp(self):
-        InstrumentDriverUnitTestCase.setUp(self)
+class SBE19UnitTestCase(SBEUnitTestCase):
 
 
     def test_driver_enums(self):
@@ -145,11 +152,12 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
 
+    def test_driver_schema(self):
+        pass
+
+
     def test_chunker(self):
-        """
-        Test the chunker and verify the particles created.
-        """
-        chunker = StringChunker(Protocol.sieve_function)
+        pass
 
 
     def test_got_data(self):
@@ -157,27 +165,50 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         Verify sample data passed through the got data method produces the correct data particles
         """
         # Create and initialize the instrument driver with a mock port agent
-        driver = InstrumentDriver(self._got_data_event_callback)
+        driver = SBE19InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
 
-    def test_protocol_filter_capabilities(self):
+    def test_capabilities(self):
         """
-        This tests driver filter_capabilities.
-        Iterate through available capabilities, and verify that they can pass successfully through the filter.
-        Test silly made up capabilities to verify they are blocked by filter.
+        Verify the FSM reports capabilities as expected.  All states defined in this dict must
+        also be defined in the protocol FSM.
         """
-        mock_callback = Mock()
-        protocol = Protocol(Prompt, NEWLINE, mock_callback)
-        driver_capabilities = Capability().list()
-        test_capabilities = Capability().list()
+        capabilities = {
+            ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
+            ProtocolState.TEST: ['DRIVER_EVENT_GET',
+                                 'DRIVER_EVENT_RUN_TEST'],
+            ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                    'DRIVER_EVENT_ACQUIRE_STATUS',
+                                    'DRIVER_EVENT_CLOCK_SYNC',
+                                    'DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_SET',
+                                    'DRIVER_EVENT_TEST',
+                                    'DRIVER_EVENT_START_AUTOSAMPLE',
+                                    'DRIVER_EVENT_START_DIRECT',
+                                    'PROTOCOL_EVENT_GET_CONFIGURATION',
+                                    'PROTOCOL_EVENT_RESET_EC',
+                                    'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC'],
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
+                                       'PROTOCOL_EVENT_QUIT_SESSION',
+                                       'DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                       'PROTOCOL_EVENT_GET_CONFIGURATION',
+                                       'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC',
+                                       'DRIVER_EVENT_ACQUIRE_STATUS'],
+            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
+        }
 
-        # Add a bogus capability that will be filtered out.
-        test_capabilities.append("BOGUS_CAPABILITY")
+        #driver = self.InstrumentDriver(self._got_data_event_callback)
+        driver = SBE19InstrumentDriver(self._got_data_event_callback)
+        self.assert_capabilities(driver, capabilities)
 
-        # Verify "BOGUS_CAPABILITY was filtered out
-        self.assertEquals(sorted(driver_capabilities),
-                          sorted(protocol._filter_capabilities(test_capabilities)))
+
+    def test_parse_ds(self):
+        pass
+
+
+    def test_parse_set_response(self):
+        pass
 
 
 ###############################################################################
