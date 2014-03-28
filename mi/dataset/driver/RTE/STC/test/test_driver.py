@@ -2,7 +2,7 @@
 @package mi.dataset.driver.RTE.STC.test.test_driver
 @file marine-integrations/mi/dataset/driver/RTE/STC/driver.py
 @author Jeff Roy
-@brief Test cases for RTE_xx__stc driver
+@brief Test cases for rte_o_stc driver
 
 USAGE:
  Make tests verbose and provide stdout
@@ -32,19 +32,19 @@ from mi.dataset.dataset_driver import DriverParameter
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
 
-from mi.dataset.driver.RTE.STC.driver import RTE_xx__stc_DataSetDriver
-from mi.dataset.parser.rte_xx__stc import Rte_xx__stcParserDataParticle
+from mi.dataset.driver.RTE.STC.driver import RteOStcDataSetDriver
+from mi.dataset.parser.rte_o_stc import RteOStcParserDataParticle
 
 
 # Fill in driver details
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.RTE.STC.driver',
-    driver_class='RTE_xx__stc_DataSetDriver',
+    driver_class='RteOStcDataSetDriver',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = RTE_xx__stc_DataSetDriver.stream_config(),
+    agent_packet_config = RteOStcDataSetDriver.stream_config(),
     startup_config = {
-        DataSourceConfigKey.RESOURCE_ID: 'rte_xx__stc',
+        DataSourceConfigKey.RESOURCE_ID: 'rte_o_stc',
         DataSourceConfigKey.HARVESTER:
         {
             DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
@@ -62,6 +62,7 @@ SAMPLE_STREAM = 'rte_xx__stc_instrument'
 # Device specific integration tests are for                                   #
 # testing device specific capabilities                                        #
 ###############################################################################
+@unittest.skip('In process of merging with MOPAK')
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
  
@@ -77,11 +78,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('first_test.data', "RTE0000001.rte.log") 
-        self.assert_data(Rte_xx__stcParserDataParticle, 'first_test_data.txt.result.yml', count=2, timeout=10)
+        self.assert_data(RteOStcParserDataParticle, 'first_test_data.txt.result.yml', count=2, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('second_test.data', "RTE0000002.rte.log")
-        self.assert_data(Rte_xx__stcParserDataParticle, 'second_test_data.txt.result.yml', count=2, timeout=10)
+        self.assert_data(RteOStcParserDataParticle, 'second_test_data.txt.result.yml', count=2, timeout=10)
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
@@ -89,7 +90,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('third_test.data', "RTE0000303.rte.log")
-        self.assert_data(Rte_xx__stcParserDataParticle, count=1, timeout=10)
+        self.assert_data(RteOStcParserDataParticle, count=1, timeout=10)
 
     def test_stop_resume(self):
         """
@@ -111,7 +112,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.start_sampling()
 
-        self.assert_data(Rte_xx__stcParserDataParticle, 'second_resume_test_data.txt.result.yml', count=2, timeout=10)
+        self.assert_data(RteOStcParserDataParticle, 'second_resume_test_data.txt.result.yml', count=2, timeout=10)
        
 
     def test_stop_start_ingest(self):
@@ -125,14 +126,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.create_sample_data('first_test.data', "RTE0000001.rte.log")
         self.create_sample_data('second_test.data', "RTE0000002.rte.log")
-        self.assert_data(Rte_xx__stcParserDataParticle, 'first_test_data.txt.result.yml', count=2, timeout=10)
+        self.assert_data(RteOStcParserDataParticle, 'first_test_data.txt.result.yml', count=2, timeout=10)
         self.assert_file_ingested("RTE0000001.rte.log")
         self.assert_file_not_ingested("RTE0000002.rte.log")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data(Rte_xx__stcParserDataParticle, 'second_test_data.txt.result.yml', count=2, timeout=10)
+        self.assert_data(RteOStcParserDataParticle, 'second_test_data.txt.result.yml', count=2, timeout=10)
         self.assert_file_ingested("RTE0000002.rte.log")
 
 
@@ -141,6 +142,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 # Device specific qualification tests are for                                 #
 # testing device specific capabilities                                        #
 ###############################################################################
+@unittest.skip('In process of merging with MOPAK')
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
     def setUp(self):

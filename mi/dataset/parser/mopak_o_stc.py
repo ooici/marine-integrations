@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.mopak__stc
-@file marine-integrations/mi/dataset/parser/mopak__stc.py
+@package mi.dataset.parser.mopak_o_stc
+@file marine-integrations/mi/dataset/parser/mopak_o_stc.py
 @author Emily Hahn
-@brief Parser for the MOPAK__STC dataset driver
+@brief Parser for the mopak_o_stc dataset driver
 Release notes:
 
 initial release
@@ -24,8 +24,8 @@ from functools import partial
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.core.exceptions import SampleException, DatasetParserException
-from mi.dataset.dataset_parser import BufferLoadingParser
+from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
+from mi.dataset.dataset_parser import BufferLoadingFilenameParser
 from mi.core.instrument.chunker import BinaryChunker
 
 
@@ -41,7 +41,7 @@ class DataParticleType(BaseEnum):
     ACCEL = 'mopak_xx__stc_accel'
     RATE = 'mopak_xx__stc_rate'
 
-class Mopak__stcAccelParserDataParticleKey(BaseEnum):
+class MopakOStcAccelParserDataParticleKey(BaseEnum):
     MOPAK_ACCELX = 'mopak_accelx'
     MOPAK_ACCELY = 'mopak_accely'
     MOPAK_ACCELZ = 'mopak_accelz'
@@ -53,7 +53,7 @@ class Mopak__stcAccelParserDataParticleKey(BaseEnum):
     MOPAK_MAGZ = 'mopak_magz'
     MOPAK_TIMER = 'mopak_timer'
 
-class Mopak__stcAccelParserDataParticle(DataParticle):
+class MopakOStcAccelParserDataParticle(DataParticle):
     """
     Class for parsing data from the MOPAK__STC data set
     """
@@ -68,69 +68,25 @@ class Mopak__stcAccelParserDataParticle(DataParticle):
         """
         # match the data inside the wrapper
         if len(self.raw_data) < ACCEL_BYTES or self.raw_data[0] != ACCEL_ID:
-            raise SampleException("Mopak__stcAccelParserDataParticle: Not enough bytes provided in [%s]",
+            raise SampleException("MopakOStcAccelParserDataParticle: Not enough bytes provided in [%s]",
                                   self.raw_data)
-        try:
-            fields = struct.unpack('>fffffffffI', self.raw_data[1:ACCEL_BYTES-2])
-            accelx = float(fields[0])
-            accely = float(fields[1])
-            accelz = float(fields[2])
-            ratex = float(fields[3])
-            ratey = float(fields[4])
-            ratez = float(fields[5])
-            magx = float(fields[6])
-            magy = float(fields[7])
-            magz = float(fields[8])
-            timer = int(fields[9])
-        except (ValueError, TypeError, IndexError) as ex:
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, match.group(0)))
-        
-        result = [{DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_ACCELX,
-                   DataParticleKey.VALUE: accelx},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_ACCELY,
-                   DataParticleKey.VALUE: accely},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_ACCELZ,
-                   DataParticleKey.VALUE: accelz},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_ANG_RATEX,
-                   DataParticleKey.VALUE: ratex},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_ANG_RATEY,
-                   DataParticleKey.VALUE: ratey},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_ANG_RATEZ,
-                   DataParticleKey.VALUE: ratez},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_MAGX,
-                   DataParticleKey.VALUE: magx},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_MAGY,
-                   DataParticleKey.VALUE: magy},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_MAGZ,
-                   DataParticleKey.VALUE: magz},
-                  {DataParticleKey.VALUE_ID: Mopak__stcAccelParserDataParticleKey.MOPAK_TIMER,
-                   DataParticleKey.VALUE: timer}]
+        fields = struct.unpack('>fffffffffI', self.raw_data[1:ACCEL_BYTES-2])
 
-        log.trace('Mopak__stcAccelParserDataParticle: particle=%s', result)
+        result = [self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_ACCELX, fields[0], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_ACCELY, fields[1], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_ACCELZ, fields[2], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_ANG_RATEX, fields[3], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_ANG_RATEY, fields[4], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_ANG_RATEZ, fields[5], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_MAGX, fields[6], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_MAGY, fields[7], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_MAGZ, fields[8], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_TIMER, fields[9], int)]
+
+        log.trace('MopakOStcAccelParserDataParticle: particle=%s', result)
         return result
 
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this 
-        particle
-        """
-        allowed_diff = .000001
-        if ((self.raw_data == arg.raw_data) and \
-            (abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) < allowed_diff)):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
-                     arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) > allowed_diff:
-                log.debug('Timestamp %s does not match %s', self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
-                          arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
-            return False
-
-class Mopak__stcRateParserDataParticleKey(BaseEnum):
+class MopakOStcRateParserDataParticleKey(BaseEnum):
     MOPAK_ROLL = 'mopak_roll'
     MOPAK_PITCH = 'mopak_pitch'
     MOPAK_YAW = 'mopak_yaw'
@@ -139,7 +95,7 @@ class Mopak__stcRateParserDataParticleKey(BaseEnum):
     MOPAK_ANG_RATEZ = 'mopak_ang_ratez'
     MOPAK_TIMER = 'mopak_timer'
 
-class Mopak__stcRateParserDataParticle(DataParticle):
+class MopakOStcRateParserDataParticle(DataParticle):
     """
     Class for parsing data from the MOPAK__STC data set
     """
@@ -154,78 +110,41 @@ class Mopak__stcRateParserDataParticle(DataParticle):
         """
         # match the data inside the wrapper
         if len(self.raw_data) < RATE_BYTES or self.raw_data[0] != RATE_ID:
-            raise SampleException("Mopak__stcRateParserDataParticle: Not enough bytes provided in [%s]",
+            raise SampleException("MopakOStcRateParserDataParticle: Not enough bytes provided in [%s]",
                                   self.raw_data)
-        try:
-            fields = struct.unpack('>ffffffI', self.raw_data[1:RATE_BYTES-2])
-            roll = float(fields[0])
-            pitch = float(fields[1])
-            yaw = float(fields[2])
-            ratex = float(fields[3])
-            ratey = float(fields[4])
-            ratez = float(fields[5])
-            timer = int(fields[6])
-        except (ValueError, TypeError, IndexError) as ex:
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, match.group(0)))
-        
-        result = [{DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_ROLL,
-                   DataParticleKey.VALUE: roll},
-                  {DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_PITCH,
-                   DataParticleKey.VALUE: pitch},
-                  {DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_YAW,
-                   DataParticleKey.VALUE: yaw},
-                  {DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_ANG_RATEX,
-                   DataParticleKey.VALUE: ratex},
-                  {DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_ANG_RATEY,
-                   DataParticleKey.VALUE: ratey},
-                  {DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_ANG_RATEZ,
-                   DataParticleKey.VALUE: ratez},
-                  {DataParticleKey.VALUE_ID: Mopak__stcRateParserDataParticleKey.MOPAK_TIMER,
-                   DataParticleKey.VALUE: timer}]
+        fields = struct.unpack('>ffffffI', self.raw_data[1:RATE_BYTES-2])
 
-        log.debug('Mopak__stcAccelParserDataParticle: particle=%s', result)
+        result = [self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_ROLL, fields[0], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_PITCH, fields[1], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_YAW, fields[2], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_ANG_RATEX, fields[3], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_ANG_RATEY, fields[4], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_ANG_RATEZ, fields[5], float),
+                  self._encode_value(MopakOStcAccelParserDataParticleKey.MOPAK_TIMER, fields[6], int)]
+
+        log.trace('MopakOStcRateParserDataParticle: particle=%s', result)
         return result
 
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this 
-        particle
-        """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
-            return False
-
-class Mopak__stcParser(BufferLoadingParser):
+class MopakOStcParser(BufferLoadingFilenameParser):
     
     def __init__(self,
                  config,
                  state,
                  stream_handle,
+                 filename,
                  state_callback,
                  publish_callback,
                  exception_callback,
-                 filename,
                  *args, **kwargs):
-        self._timestamp = 0.0
-        self._record_buffer = [] # holds tuples of (record,state)
         self._read_state = {StateKey.POSITION: 0}
         # convert the date / time string from the file name to a starting time in seconds UTC
         file_datetime = datetime.strptime(filename[:15], "%Y%m%d_%H%M%S")
         local_seconds = time.mktime(file_datetime.timetuple())
         self._start_time_utc = local_seconds - time.timezone
         log.debug("starting at time %s", self._start_time_utc)
-        super(Mopak__stcParser, self).__init__(config,
+        super(MopakOStcParser, self).__init__(config,
                                                stream_handle,
+                                               filename,
                                                state,
                                                self.sieve_function,
                                                state_callback,
@@ -323,13 +242,7 @@ class Mopak__stcParser(BufferLoadingParser):
         result_particles = []
         (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
-        if non_data is not None and non_end <= start:
-            # there should never be any non-data, send a sample exception to indicate we have unexpected data in the file
-            # if there are more chunks we want to keep processing this file, so directly call the exception callback
-            # rather than raising the error here
-            self._increment_state(len(non_data))
-            log.error("Found %d bytes of unexpected non-data", len(non_data))
-            self._exception_callback(SampleException("Found %d bytes of un-expected non-data" % len(non_data)))
+        self.handle_non_data(non_data, non_end, start)
 
         while (chunk != None):
             sample = None
@@ -337,7 +250,7 @@ class Mopak__stcParser(BufferLoadingParser):
                 # particle-ize the data block received, return the record
                 fields = struct.unpack('>I', chunk[37:41])
                 self._timestamp = self.timer_to_timestamp(int(fields[0]))
-                sample = self._extract_sample(Mopak__stcAccelParserDataParticle, None, chunk, self._timestamp)
+                sample = self._extract_sample(MopakOStcAccelParserDataParticle, None, chunk, self._timestamp)
                 if sample:
                     # increment state
                     self._increment_state(ACCEL_BYTES)
@@ -345,7 +258,7 @@ class Mopak__stcParser(BufferLoadingParser):
                 # particle-ize the data block received, return the record
                 fields = struct.unpack('>I', chunk[25:29])
                 self._timestamp = self.timer_to_timestamp(int(fields[0]))
-                sample = self._extract_sample(Mopak__stcRateParserDataParticle, None, chunk, self._timestamp)
+                sample = self._extract_sample(MopakOStcRateParserDataParticle, None, chunk, self._timestamp)
                 if sample:
                     # increment state
                     self._increment_state(RATE_BYTES)
@@ -355,15 +268,18 @@ class Mopak__stcParser(BufferLoadingParser):
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
-            if non_data is not None and non_end <= start:
-                # there should never be any non-data, send a sample exception to indicate we have unexpected data in the file
-                # if there are more chunks we want to keep processing this file, so directly call the exception callback
-                # rather than raising the error here
-                self._increment_state(len(non_data))
-                log.error("Found %d bytes of unexpected non-data", len(non_data))
-                self._exception_callback(SampleException("Found %d bytes of un-expected non-data" % len(non_data)))
+            self.handle_non_data(non_data, non_end, start)
 
         return result_particles
+
+    def handle_non_data(self, non_data, non_end, start):
+        if non_data is not None and non_end <= start:
+            # there should never be any non-data, send a sample exception to indicate we have unexpected data in the file
+            # if there are more chunks we want to keep processing this file, so directly call the exception callback
+            # rather than raising the error here
+            self._increment_state(len(non_data))
+            log.error("Found %d bytes of unexpected non-data %s", len(non_data), non_data)
+            self._exception_callback(UnexpectedDataException("Found %d bytes of un-expected non-data %s" % (len(non_data), non_data)))
 
     def timer_to_timestamp(self, timer):
         """
