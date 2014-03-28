@@ -65,6 +65,10 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         """ Call back method to watch what comes in via the publish callback """
         self.publish_callback_value = pub
 
+    def exception_callback(self, exception):
+        """ Callback method to watch what comes in via the exception callback """
+        self.exception_callback_value = exception
+
     def setUp(self):
         ParserUnitTestCase.setUp(self)
         self.config = {
@@ -167,7 +171,7 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         """
         stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA)
         self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                        self.state_callback, self.pub_callback,
+                                        self.state_callback, self.pub_callback, self.exception_callback,
                                         len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
         # next get records
         result = self.parser.get_records(1)
@@ -194,7 +198,7 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         """
         stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA_PAD)
         self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                        self.state_callback, self.pub_callback,
+                                        self.state_callback, self.pub_callback, self.exception_callback,
                                         len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_PAD))
         # next get records
         result = self.parser.get_records(1)
@@ -221,7 +225,7 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         """
         self.stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA)
         self.parser =  CtdpfCklWfpParser(self.config, self.start_state, self.stream_handle,
-                                        self.state_callback, self.pub_callback,
+                                        self.state_callback, self.pub_callback, self.exception_callback,
                                         len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
         # next get records
         result = self.parser.get_records(4)
@@ -246,7 +250,7 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         filesize = os.path.getsize(filepath)
         stream_handle = open(filepath)
         self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                        self.state_callback, self.pub_callback,
+                                        self.state_callback, self.pub_callback, self.exception_callback,
                                         filesize)
         result = self.parser.get_records(271)
         self.assertEqual(result[0], self.particle_meta_long)
@@ -270,7 +274,7 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
                      StateKey.METADATA_SENT: True}
         self.stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA)
         self.parser =  CtdpfCklWfpParser(self.config, new_state, self.stream_handle,
-                                        self.state_callback, self.pub_callback,
+                                        self.state_callback, self.pub_callback, self.exception_callback,
                                         len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
 
         result = self.parser.get_records(1)
@@ -290,7 +294,7 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
                      StateKey.METADATA_SENT: True}
         stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA)
         self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                        self.state_callback, self.pub_callback,
+                                        self.state_callback, self.pub_callback, self.exception_callback,
                                         len(CtdpfCklWfpParserUnitTestCase.TEST_DATA))
         result = self.parser.get_records(1)
         self.assert_result(result, 0, self.particle_meta, False, 0, True)
@@ -309,7 +313,7 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         with self.assertRaises(SampleException):
             stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_TIME)
             self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                            self.state_callback, self.pub_callback,
+                                            self.state_callback, self.pub_callback, self.exception_callback,
                                             len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_TIME))
 
     def test_bad_size_data(self):
@@ -319,7 +323,7 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         with self.assertRaises(SampleException):
             stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_SIZE)
             self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                            self.state_callback, self.pub_callback,
+                                            self.state_callback, self.pub_callback, self.exception_callback,
                                             len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_SIZE))
 
     def test_bad_eop_data(self):
@@ -329,5 +333,5 @@ class CtdpfCklWfpParserUnitTestCase(ParserUnitTestCase):
         with self.assertRaises(SampleException):
             stream_handle = StringIO(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_EOP)
             self.parser =  CtdpfCklWfpParser(self.config, self.start_state, stream_handle,
-                                            self.state_callback, self.pub_callback,
+                                            self.state_callback, self.pub_callback, self.exception_callback,
                                             len(CtdpfCklWfpParserUnitTestCase.TEST_DATA_BAD_EOP))
