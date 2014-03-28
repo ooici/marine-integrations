@@ -296,12 +296,12 @@ class Adcps_jln_stcParserUnitTestCase(ParserUnitTestCase):
         self.publish_callback_value = None
 	
 	# uncomment the following to generate particles in yml format for driver testing results files
-	self.particle_to_yml(self.particle_header_footer)
-	self.particle_to_yml(self.particle_a)
-	self.particle_to_yml(self.particle_b)
-	self.particle_to_yml(self.particle_c)
-	self.particle_to_yml(self.particle_d)
-	self.particle_to_yml(self.particle_e)
+	#self.particle_to_yml(self.particle_header_footer)
+	#self.particle_to_yml(self.particle_a)
+	#self.particle_to_yml(self.particle_b)
+	#self.particle_to_yml(self.particle_c)
+	#self.particle_to_yml(self.particle_d)
+	#self.particle_to_yml(self.particle_e)
 	
     @staticmethod
     def convert_timestamp(timestamp):
