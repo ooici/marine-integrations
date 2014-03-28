@@ -11,6 +11,10 @@ SBE Driver
 __author__ = 'Tapana Gupta'
 __license__ = 'Apache 2.0'
 
+import re
+import time
+import string
+
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum
@@ -26,13 +30,16 @@ from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentProtocolException
 
-import re
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ParameterDictType
 
 from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolState
+from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolEvent
 from mi.instrument.seabird.sbe16plus_v2.driver import Capability
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16Protocol
 from mi.instrument.seabird.sbe16plus_v2.driver import Prompt
 
+from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 from mi.instrument.seabird.driver import NEWLINE
 from mi.instrument.seabird.driver import TIMEOUT
 
@@ -60,31 +67,6 @@ class Command(BaseEnum):
         SET = 'set'
 
 
-class ProtocolEvent(BaseEnum):
-    """
-    Protocol events for SBE19. Cherry picked from DriverEvent enum.
-    """
-    ENTER = DriverEvent.ENTER
-    EXIT = DriverEvent.EXIT
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
-    DISCOVER = DriverEvent.DISCOVER
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    GET_CONFIGURATION = 'PROTOCOL_EVENT_GET_CONFIGURATION'
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    TEST = DriverEvent.TEST
-    RUN_TEST = DriverEvent.RUN_TEST
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    START_DIRECT = DriverEvent.START_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
-    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
-    SCHEDULED_CLOCK_SYNC = DriverEvent.SCHEDULED_CLOCK_SYNC
-    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-    RESET_EC = 'PROTOCOL_EVENT_RESET_EC'
-    QUIT_SESSION = 'PROTOCOL_EVENT_QUIT_SESSION'
-
-
 class DataParticleType(BaseEnum):
     """
     Data particle types produced by this driver
@@ -94,18 +76,38 @@ class DataParticleType(BaseEnum):
 
 class Parameter(DriverParameter):
     """
-    Device specific parameters.
+    Device specific parameters for SBE19.
     """
+    DATE_TIME = "DateTime"
 
-class Prompt(BaseEnum):
-    """
-    Device i/o prompts..
-    """
+    #TODO: do we need this?
+    LOGGING = "logging"
 
-class InstrumentCommand(BaseEnum):
-    """
-    Instrument command strings
-    """
+    ECHO = "Echo"
+    OUTPUT_EXEC_TAG = 'OutputExecutedTag'
+    PTYPE = "PType"
+    VOLT0 = "Volt0"
+    VOLT1 = "Volt1"
+    VOLT2 = "Volt2"
+    VOLT3 = "Volt3"
+    VOLT4 = "Volt4"
+    VOLT5 = "Volt5"
+    SBE38 = "SBE38"
+    WETLABS = "WetLabs"
+    GTD = "GTD"
+    DUAL_GTD = "DUAL_GTD"
+    TGTD = "TGTD"
+    SEND_GTD = "SendGTD"
+    OPTODE = "OPTODE"
+    SEND_OPTODE = "SendOptode"
+    OUTPUT_FORMAT = "OutputFormat"
+    PROFILING_MODE = "MP"
+    NUM_AVG_SAMPLES = "Navg"
+    MIN_COND_FREQ = "MinCondFreq"
+    PUMP_DELAY = "PumpDelay"
+    AUTO_RUN = "AutoRun"
+    IGNORE_SWITCH = "IgnoreSwitch"
+
 
 
 ###############################################################################
@@ -117,7 +119,7 @@ class InstrumentCommand(BaseEnum):
 # Driver
 ###############################################################################
 
-class InstrumentDriver(SingleConnectionInstrumentDriver):
+class SBE19InstrumentDriver(SeaBirdInstrumentDriver):
     """
     InstrumentDriver subclass
     Subclasses SingleConnectionInstrumentDriver with connection state
@@ -125,11 +127,22 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     def __init__(self, evt_callback):
         """
-        Driver constructor.
+        InstrumentDriver constructor.
         @param evt_callback Driver process event callback.
         """
         #Construct superclass.
-        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+        SeaBirdInstrumentDriver.__init__(self, evt_callback)
+
+    ########################################################################
+    # Superclass overrides for resource query.
+    ########################################################################
+
+    def get_resource_params(self):
+        """
+        Return list of device parameters available.
+        """
+        return Parameter.list()
+
 
     ########################################################################
     # Protocol builder.
@@ -217,24 +230,20 @@ class SBE19Protocol(SBE16Protocol):
         self._add_build_handler(Command.RESET_EC, self._build_simple_command)
         self._add_build_handler(Command.GET_HD, self._build_simple_command)
 
-        self._add_build_handler(Command.STARTNOW, self._build_simple_command)
+        self._add_build_handler(Command.START_NOW, self._build_simple_command)
         self._add_build_handler(Command.STOP, self._build_simple_command)
-
         self._add_build_handler(Command.TS, self._build_simple_command)
-
         self._add_build_handler(Command.SET, self._build_set_command)
 
 
         # Add response handlers for device commands.
         # these are here to ensure that correct responses to the commands are received before the next command is sent
         self._add_response_handler(Command.SET, self._parse_set_response)
-        self._add_response_handler(Command.GETSD, self._validate_GetSD_response)
-        self._add_response_handler(Command.GETHD, self._validate_GetHD_response)
-        self._add_response_handler(Command.GETCD, self._validate_GetCD_response)
-        self._add_response_handler(Command.GETCC, self._validate_GetCC_response)
-
-
-        #TODO: what other commands need response handlers?
+        self._add_response_handler(Command.GET_SD, self._validate_GetSD_response)
+        self._add_response_handler(Command.GET_HD, self._validate_GetHD_response)
+        self._add_response_handler(Command.GET_CD, self._validate_GetCD_response)
+        self._add_response_handler(Command.GET_CC, self._validate_GetCC_response)
+        self._add_response_handler(Command.GET_EC, self._validate_GetEC_response)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -247,6 +256,7 @@ class SBE19Protocol(SBE16Protocol):
         self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
 
+    #TODO: implement this!
     @staticmethod
     def sieve_function(raw_data):
         """
@@ -270,7 +280,7 @@ class SBE19Protocol(SBE16Protocol):
         result = None
 
         kwargs['timeout'] = TIMEOUT
-        result = self._do_cmd_resp(Command.GETCC, expected_prompt=Prompt.EXECUTED, *args, **kwargs)
+        result = self._do_cmd_resp(Command.GET_CC, expected_prompt=Prompt.EXECUTED, *args, **kwargs)
         log.debug("_handler_command_get_configuration: GetCC Response: %s", result)
 
         return (next_state, (next_agent_state, result))
@@ -283,13 +293,13 @@ class SBE19Protocol(SBE16Protocol):
         next_agent_state = None
         result = None
 
-        result = self._do_cmd_resp(Command.GETSD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        result = self._do_cmd_resp(Command.GET_SD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
         log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GETHD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        result += self._do_cmd_resp(Command.GET_HD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
         log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
-        result += self._do_cmd_resp(Command.GETCD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        result += self._do_cmd_resp(Command.GET_CD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
         log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GETCC, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        result += self._do_cmd_resp(Command.GET_CC, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
         log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
 
         return (next_state, (next_agent_state, result))
@@ -303,16 +313,16 @@ class SBE19Protocol(SBE16Protocol):
         result = None
 
         # When in autosample this command requires two wakeups to get to the right prompt
-        prompt = self.wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
         prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
-        result = self._do_cmd_resp(Command.GETSD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        result = self._do_cmd_resp(Command.GET_SD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
         log.debug("_handler_autosample_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GETHD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        result += self._do_cmd_resp(Command.GET_HD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
         log.debug("_handler_autosample_acquire_status: GetHD Response: %s", result)
-        result += self._do_cmd_resp(Command.GETCD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        result += self._do_cmd_resp(Command.GET_CD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
         log.debug("_handler_autosample_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GETCC, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        result += self._do_cmd_resp(Command.GET_CC, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
         log.debug("_handler_autosample_acquire_status: GetCC Response: %s", result)
 
         log.debug("_handler_autosample_acquire_status: sending the QS command to restart sampling")
@@ -442,14 +452,68 @@ class SBE19Protocol(SBE16Protocol):
 
         return response
 
+    def _validate_GetEC_response(self, response, prompt):
+        """
+        validation handler for GetEC command
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if command misunderstood.
+        """
+        error = self._find_error(response)
+
+        if error:
+            log.error("GetEC command encountered error; type='%s' msg='%s'", error[0], error[1])
+            raise InstrumentProtocolException('GetEC command failure: type="%s" msg="%s"' % (error[0], error[1]))
+
+        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
+            log.error('_validate_GetEC_response: correct instrument prompt missing: %s.' % response)
+            raise InstrumentProtocolException('GetEC command - correct instrument prompt missing: %s.' % response)
+
+        if not SBE16CalibrationDataParticle.regex_compiled().search(response):
+            log.error('_validate_GetEC_response: GetEC command not recognized: %s.' % response)
+            raise InstrumentProtocolException('GetEC command not recognized: %s.' % response)
+
+        return response
 
     def _build_param_dict(self):
         """
-        Populate the parameter dictionary with parameters.
+        Populate the parameter dictionary with SBE19 parameters.
         For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
+
+        #TODO: verify if this lambda function is correct, check for completeness of DATE_TIME
+        #TODO: how do we determine visibility?
+        #TODO: does reg exp need XML tag - are we parsing XML for sure?
+        self._param_dict.add(Parameter.DATE_TIME,
+                             r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})',
+                             lambda match : match,
+                             self._string_to_numeric_date_time_string,
+                             type=ParameterDictType.STRING,
+                             display_name="Date/Time",
+                             #expiration=0,
+                             visibility=ParameterDictVisibility.READ_ONLY)
+        self._param_dict.add(Parameter.ECHO,
+                             r'echo characters = (yes|no)',
+                             lambda match : True if match.group(1)=='yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Echo Characters",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = True,
+                             visibility=ParameterDictVisibility.IMMUTABLE)
+        self._param_dict.add(Parameter.LOGGING,
+                             r'(not )?logging',
+                             lambda match : False if (match.group(1)) else True,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Is Logging",
+                             #expiration=0,
+                             visibility=ParameterDictVisibility.READ_ONLY)
+
+
 
     def _got_chunk(self, chunk):
         """
@@ -464,18 +528,16 @@ class SBE19Protocol(SBE16Protocol):
         return [x for x in events if Capability.has(x)]
 
     ########################################################################
-    # Unknown handlers.
+    # Static helpers
     ########################################################################
 
-    # All handlers inherited from SBE16 Protocol.
+    @staticmethod
+    def _string_to_numeric_date_time_string(date_time_string):
+        """
+        convert string from "2014-03-27T14:36:15" to numeric "mmddyyyyhhmmss"
+        """
+        return time.strftime("%m%d%Y%H%M%S", time.strptime(date_time_string, "%Y-%m-%dT%H:%M:%S"))
 
-    ########################################################################
-    # Command handlers.
-    ########################################################################
 
-
-    ########################################################################
-    # Direct access handlers.
-    ########################################################################
 
 
