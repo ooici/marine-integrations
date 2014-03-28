@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Steve Myerson (Raytheon)
+  constructor: Vel3dKWfp
+  driver_name: vel3d_k_wfp
+  driver_path: "\rvel3d_k/wfp"
+  email: Steven_G_Myerson@raytheon.com
+  release_notes: Initial Release
+  version: 0.0.1
