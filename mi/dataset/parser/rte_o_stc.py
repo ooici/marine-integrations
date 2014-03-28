@@ -24,7 +24,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import SampleException, DatasetParserException
-from mi.dataset.dataset_parser import BufferLoadingParser
+from mi.dataset.dataset_parser import BufferLoadingFilenameParser
 from mi.core.instrument.chunker import StringChunker
 
 # This is an example of the input string
@@ -75,83 +75,43 @@ class RteOStcParserDataParticle(DataParticle):
         if not match:
             raise SampleException("RteOStcParserDataParticle: No regex match of \
                                   parsed sample data [%s]", self.raw_data)
-        
-        try:
-            date_str = match.group(1)
-            coulomb_label = match.group(2)
-            coulomb_value = float(match.group (3))
-            avg_q_current_label = match.group(4)
-            avg_q_current_value = float(match.group (5))
-            avg_voltage_label = match.group(6)
-            avg_voltage_value = float(match.group (7))
-            avg_supply_voltage_label = match.group(8)
-            avg_supply_voltage_value = float(match.group (9))
-            rte_hits_label = match.group(10)
-            rte_hits_value = int(match.group (11))
-            rte_state_label = match.group(12)
-            rte_state_value = int(match.group (13))
-        except (ValueError, TypeError, IndexError) as ex:
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, match.group(0)))
-        
-        result = [{DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_TIME,
-                   DataParticleKey.VALUE: date_str},
-                  {DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_COULOMBS,
-                   DataParticleKey.VALUE: coulomb_value},
-                  {DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_AVG_Q_CURRENT,
-                   DataParticleKey.VALUE: avg_q_current_value},
-                  {DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_AVG_VOLTAGE,
-                   DataParticleKey.VALUE: avg_voltage_value},
-                  {DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_AVG_SUPPLY_VOLTAGE,
-                   DataParticleKey.VALUE: avg_supply_voltage_value},
-                  {DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_HITS,
-                   DataParticleKey.VALUE: rte_hits_value},
-                  {DataParticleKey.VALUE_ID: RteOStcParserDataParticleKey.RTE_STATE,
-                   DataParticleKey.VALUE: rte_state_value}]
+
+        result = [self._encode_value(RteOStcParserDataParticleKey.RTE_TIME, match.group(1), str),
+                  self._encode_value(RteOStcParserDataParticleKey.RTE_COULOMBS, match.group(3), float),
+                  self._encode_value(RteOStcParserDataParticleKey.RTE_AVG_Q_CURRENT, match.group(5), float),
+                  self._encode_value(RteOStcParserDataParticleKey.RTE_AVG_VOLTAGE, match.group(7), float),
+                  self._encode_value(RteOStcParserDataParticleKey.RTE_SUPPLY_VOLTAGE, match.group(9), float),
+                  self._encode_value(RteOStcParserDataParticleKey.RTE_HITS, match.group(11), int),
+                  self._encode_value(RteOStcParserDataParticleKey.RTE_STATE, match.group(13), int)]
          
         log.debug('RteOStcParserDataParticle: particle=%s', result)
         return result  
 
-    def __eq__(self, arg): 
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this 
-        particle
-        """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
-            return False
-
-class RteOStcParser(BufferLoadingParser):
+class RteOStcParser(BufferLoadingFilenameParser):
 
     def __init__(self,
                  config,
                  state,
                  stream_handle,
+                 file_name,
                  state_callback,
                  publish_callback,
+                 exception_callback,
                  *args, **kwargs):
         super(RteOStcParser, self).__init__(config,
-                                                    stream_handle,
-                                                    state,
-                                                    partial(StringChunker.regex_sieve_function,
-                                                            regex_list=[DATA_MATCHER]),
-                                                    state_callback,
-                                                    publish_callback,
-                                                    *args,
-                                                    **kwargs)
-        self._timestamp = 0.0
-        self._record_buffer = [] # holds tuples of (record, state)
+                                            stream_handle,
+                                            file_name,
+                                            state,
+                                            partial(StringChunker.regex_sieve_function,
+                                                    regex_list=[DATA_MATCHER]),
+                                            state_callback,
+                                            publish_callback,
+                                            exception_callback,
+                                            *args,
+                                            **kwargs)
+
         self._read_state = {StateKey.POSITION:0}
-        
+
         if state:
             self.set_state(self._state)
 

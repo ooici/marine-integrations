@@ -82,13 +82,17 @@ class RteOStcParserUnitTestCase(ParserUnitTestCase):
         return ntptime
 
     
-    def state_callback(self, state, file_ingested):
+    def state_callback(self, state, file_ingested, filename):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
 
     def pub_callback(self, pub):
         """ Call back method to watch what comes in via the publish callback """
         self.publish_callback_value = pub
+
+    def exception_callback(self, exception):
+        """ Call back method to match what comes in via the exception callback """
+        self.exception_callback_value = exception
 
     def setUp(self):
         ParserUnitTestCase.setUp(self)
@@ -140,8 +144,8 @@ class RteOStcParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         self.stream_handle = StringIO(RteOStcParserUnitTestCase.TEST_DATA)
-        self.parser = RteOStcParser(self.config, self.start_state, self.stream_handle,
-                                            self.state_callback, self.pub_callback)
+        self.parser = RteOStcParser(self.config, self.start_state, self.stream_handle, 'test.rte.log',
+                                    self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
         self.assert_result(result, 390, self.timestamp1, self.particle_a)
@@ -154,8 +158,6 @@ class RteOStcParserUnitTestCase(ParserUnitTestCase):
 
         result = self.parser.get_records(1)
         self.assert_result(result, 849, self.timestamp4, self.particle_d)
-        
-
 
     def test_get_many(self):
         """
@@ -163,8 +165,8 @@ class RteOStcParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         self.stream_handle = StringIO(RteOStcParserUnitTestCase.TEST_DATA)
-        self.parser = RteOStcParser(self.config, self.start_state, self.stream_handle,
-                                            self.state_callback, self.pub_callback)
+        self.parser = RteOStcParser(self.config, self.start_state, self.stream_handle, 'test.rte.log',
+                                    self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(4)
         self.assertEqual(result, [self.particle_a, self.particle_b, self.particle_c, self.particle_d])
@@ -175,15 +177,14 @@ class RteOStcParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(self.publish_callback_value[2], self.particle_c)
         self.assertEqual(self.publish_callback_value[3], self.particle_d)
 
-
     def test_mid_state_start(self):
         """
         Test starting the parser in a state in the middle of processing
         """
         new_state = {StateKey.POSITION:544}
         self.stream_handle = StringIO(RteOStcParserUnitTestCase.TEST_DATA)
-        self.parser = RteOStcParser(self.config, new_state, self.stream_handle,
-                                            self.state_callback, self.pub_callback)
+        self.parser = RteOStcParser(self.config, new_state, self.stream_handle, 'test.rte.log',
+                                    self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, 696, self.timestamp3, self.particle_c)
         result = self.parser.get_records(1)
@@ -197,8 +198,8 @@ class RteOStcParserUnitTestCase(ParserUnitTestCase):
         """
         new_state = {StateKey.POSITION:544}
         self.stream_handle = StringIO(RteOStcParserUnitTestCase.TEST_DATA)
-        self.parser = RteOStcParser(self.config, self.start_state, self.stream_handle,
-                                            self.state_callback, self.pub_callback)
+        self.parser = RteOStcParser(self.config, self.start_state, self.stream_handle, 'test.rte.log',
+                                    self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, 390, self.timestamp1, self.particle_a)
 
@@ -208,14 +209,13 @@ class RteOStcParserUnitTestCase(ParserUnitTestCase):
         result = self.parser.get_records(1)
         self.assert_result(result, 849, self.timestamp4, self.particle_d)
 
-
     def test_bad_data(self):
         """
         Ensure that bad data is skipped when it exists.
         """
         self.stream_handle = StringIO(RteOStcParserUnitTestCase.BAD_TEST_DATA)
-        self.parser = RteOStcParser(self.config, self.start_state, self.stream_handle,
-                                            self.state_callback, self.pub_callback)
+        self.parser = RteOStcParser(self.config, self.start_state, self.stream_handle, 'test.rte.log',
+                                    self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
         self.assert_result(result, 390, self.timestamp1, self.particle_a)

@@ -34,16 +34,13 @@ class ${constructor}(SimpleDataSetDriver):
             'particle_class': '${full_instrument_camelcase}ParserDataParticle'
         })
         log.debug("My Config: %s", config)
-        # if this parser should continue parsing more of a file after throwing
-        # a sample exception, the _sample_exception_callback should be used,
-        # otherwise this argument is not needed
         self._parser = ${full_instrument_camelcase}Parser(
             config,
             parser_state,
             infile,
             self._save_parser_state,
             self._data_callback,
-            self._sample_exception_callback # only use if needed, otherwise delete this line
+            self._sample_exception_callback 
         )
         return self._parser
 

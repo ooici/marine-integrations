@@ -51,6 +51,7 @@ class WfpCFileCommonParser(BufferLoadingParser):
                  stream_handle,
                  state_callback,
                  publish_callback,
+                 exception_callback,
                  filesize,
                  *args, **kwargs):
         self._start_time = 0.0
@@ -68,6 +69,7 @@ class WfpCFileCommonParser(BufferLoadingParser):
                                                    self.sieve_function,
                                                    state_callback,
                                                    publish_callback,
+                                                   exception_callback,
                                                    *args, **kwargs)
 
         # need to read the footer every time to calculate start time and time increment

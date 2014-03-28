@@ -48,31 +48,9 @@ class DofstKWfpParserDataParticle(DataParticle):
         if len(self.raw_data) != DATA_RECORD_BYTES:
             raise SampleException("DofstKWfpParserDataParticle: Received unexpected number of bytes %d" % len(self.raw_data))
         fields = struct.unpack('>H', self.raw_data[9:11])
-        
-        result = [{DataParticleKey.VALUE_ID: DofstKWfpParserDataParticleKey.DOFST_K_OXYGEN,
-                   DataParticleKey.VALUE: int(fields[0])}]
-        return result
 
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this 
-        particle
-        """
-        allowed_diff = .000001
-        if ((self.raw_data == arg.raw_data) and \
-            (abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) <= allowed_diff)):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
-                     arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) > allowed_diff:
-                log.debug('Timestamp %s does not match %s',
-                          self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
-                          arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
-            return False
+        result = [self._encode_value(DofstKWfpParserDataParticleKey.DOFST_K_OXYGEN, fields[0], int)]
+        return result
 
 class DofstKWfpMetadataParserDataParticle(DataParticle):
     """
@@ -88,44 +66,19 @@ class DofstKWfpMetadataParserDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
         if len(self.raw_data[0]) != TIME_RECORD_BYTES:
-            raise SampleException("DofstKWfpMetadataDataParserDataParticle: Received unexpected number of bytes %d" % len(self._raw_data[0]))
-        if not isinstance(self.raw_data[1], float):
-            raise SampleException("DofstKWfpMetadataDataParserDataParticle: Received invalid format number of samples %s", self._raw_data[1])
+            raise SampleException("DofstKWfpMetadataDataParserDataParticle: Received unexpected number of bytes %d" % len(self.raw_data[0]))
         # data is passed in as a tuple, first element is the two timestamps as a binary string
         # the second is the number of samples as an float
         timefields = struct.unpack('>II', self.raw_data[0])
-        time_on = int(timefields[0])
-        time_off = int(timefields[1])
 
         number_samples = self.raw_data[1]
-        if not number_samples.is_integer():
-            raise SampleException("File does not evenly fit into number of records")
 
-        result = [{DataParticleKey.VALUE_ID: WfpMetadataParserDataParticleKey.WFP_TIME_ON,
-                   DataParticleKey.VALUE: time_on},
-                  {DataParticleKey.VALUE_ID: WfpMetadataParserDataParticleKey.WFP_TIME_OFF,
-                   DataParticleKey.VALUE: time_off},
-                  {DataParticleKey.VALUE_ID: WfpMetadataParserDataParticleKey.WFP_NUMBER_SAMPLES,
-                   DataParticleKey.VALUE: int(number_samples)}]
+        result = [self._encode_value(WfpMetadataParserDataParticleKey.WFP_TIME_ON, timefields[0], int),
+                  self._encode_value(WfpMetadataParserDataParticleKey.WFP_TIME_OFF, timefields[1], int),
+                  self._encode_value(WfpMetadataParserDataParticleKey.WFP_NUMBER_SAMPLES, number_samples, int)
+                  ]
         return result
 
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this 
-        particle
-        """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
-            return False
 
 class DofstKWfpParser(WfpCFileCommonParser):
     """
