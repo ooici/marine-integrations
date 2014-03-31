@@ -229,7 +229,11 @@ class QualificationTest(DataSetQualificationTestCase):
         published out the agent
         """
         self.create_sample_data('first.DAT', 'adcpt_20130929_061817.DAT')
-        self.assert_initialize()
+        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
+        # Slow down processing to 1 per second otherwise samples come in the wrong order
+        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+        self.assert_start_sampling()
 
         # Verify we get one sample
         try:
@@ -399,5 +403,16 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_data_values(result, 'partial_first.result.yml')
         self.assert_sample_queue_size(DataParticleType.ADCPS_JLN_META, 0)
         self.assert_sample_queue_size(DataParticleType.ADCPS_JLN_INS, 0)
+
+    def test_harvester_new_file_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.
+
+        exception callback called.
+        """
+        filename = 'adcpt_foo.DAT'
+
+        self.assert_new_file_exception(filename)
     
 
