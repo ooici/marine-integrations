@@ -29,6 +29,7 @@ from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentParameterException
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
@@ -218,8 +219,6 @@ class SBE19Protocol(SBE16Protocol):
         self._build_driver_dict()
         self._build_command_dict()
         self._build_param_dict()
-
-        #TODO: investigate implementation of the above
 
         # Add build handlers for device commands.
 
@@ -484,7 +483,6 @@ class SBE19Protocol(SBE16Protocol):
         # Add parameter handlers to parameter dict.
 
         #TODO: verify if this lambda function is correct, check for completeness of DATE_TIME
-        #TODO: how do we determine visibility?
         #TODO: does reg exp need XML tag - are we parsing XML for sure?
         self._param_dict.add(Parameter.DATE_TIME,
                              r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})',
@@ -493,25 +491,244 @@ class SBE19Protocol(SBE16Protocol):
                              type=ParameterDictType.STRING,
                              display_name="Date/Time",
                              #expiration=0,
-                             visibility=ParameterDictVisibility.READ_ONLY)
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.ECHO,
-                             r'echo characters = (yes|no)',
+                             r'<EchoCharacters>(yes|no)</EchoCharacters>',
                              lambda match : True if match.group(1)=='yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Echo Characters",
                              startup_param = True,
                              direct_access = True,
-                             default_value = True,
+                             default_value = False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.LOGGING,
-                             r'(not )?logging',
+                             r'<LoggingState>(not )?logging</LoggingState>',
                              lambda match : False if (match.group(1)) else True,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Is Logging",
                              #expiration=0,
                              visibility=ParameterDictVisibility.READ_ONLY)
+
+        #TODO: RegEx for this one?
+        self._param_dict.add(Parameter.OUTPUT_EXEC_TAG,
+                             r'.',
+                             lambda match : True,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Output Execute Tag",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+
+        #TODO: RegEx for this one? This should always be 1
+        self._param_dict.add(Parameter.PTYPE,
+                             r'',
+                             1,
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Pressure Sensor Type",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = 1,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+
+        #TODO: default value is conditional for Volt0 and Volt1
+        #Current defaults assume Anderra Optode
+        self._param_dict.add(Parameter.VOLT0,
+                             r'<ExtVolt0>([\w]+)</ExtVolt0>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 0",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = True,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.VOLT1,
+                             r'<ExtVolt1>([\w]+)</ExtVolt1>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 1",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = True,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.VOLT2,
+                             r'<ExtVolt2>([\w]+)</ExtVolt2>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 2",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.VOLT3,
+                             r'<ExtVolt3>([\w]+)</ExtVolt3>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 3",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.VOLT4,
+                             r'<ExtVolt4>([\w]+)</ExtVolt4>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 4",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.VOLT5,
+                             r'<ExtVolt5>([\w]+)</ExtVolt5>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Volt 5",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.SBE38,
+                             r'<SBE38>(yes|no)</SBE38>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="SBE38 Attached",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.WETLABS,
+                             r'<WETLABS>(yes|no)</WETLABS>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Enable Wetlabs sensor",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.GTD,
+                             r'<GTD>(yes|no)</GTD>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="GTD Attached",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.DUAL_GTD,
+                             r'<DualGTD>(yes|no)</DualGTD>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Dual GTD Attached",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.TGTD,
+                             r'<TGTD>(yes|no)</TGTD>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="GTD Attached",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+
+        #TODO: This assumes we have Anderra Optode
+        self._param_dict.add(Parameter.OPTODE,
+                             r'<OPTODE>(yes|no)</OPTODE>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Optode Attached",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = True,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+
+
+        self._param_dict.add(Parameter.OUTPUT_FORMAT,
+                             r'<OutputFormat>([\w]+)</OutputFormat>',
+                             self._output_format_string_2_int,
+                             int,
+                             type=ParameterDictType.INT,
+                             display_name="Output Format",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = 0,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+
+        self._param_dict.add(Parameter.NUM_AVG_SAMPLES,
+                             r'<ScansToAverage>([\d]+)</ScansToAverage>',
+                             lambda match : match.group(1),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Scans To Average",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = 4,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+
+        self._param_dict.add(Parameter.MIN_COND_FREQ,
+                             r'<MinimumCondFreq>([\d]+)</MinimumCondFreq>',
+                             lambda match : match.group(1),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Minimum Conductivity Frequency",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = 500,
+                             visibility=ParameterDictVisibility.IMMUTABLE)
+
+        self._param_dict.add(Parameter.PUMP_DELAY,
+                             r'<PumpDelay>([\d]+)</PumpDelay>',
+                             lambda match : match.group(1),
+                             self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Pump Delay",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = 60,
+                             visibility=ParameterDictVisibility.READ_WRITE)
+
+        self._param_dict.add(Parameter.AUTO_RUN,
+                             r'<AutoRun>(yes|no)</AutoRun>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Auto Run",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = False,
+                             visibility=ParameterDictVisibility.IMMUTABLE)
+
+        self._param_dict.add(Parameter.IGNORE_SWITCH,
+                             r'<IgnoreSwitch>(yes|no)</IgnoreSwitch>',
+                             lambda match : True if match.group(1) == 'yes' else False,
+                             self._true_false_to_string,
+                             type=ParameterDictType.BOOL,
+                             display_name="Ignore Switch",
+                             startup_param = True,
+                             direct_access = True,
+                             default_value = True,
+                             visibility=ParameterDictVisibility.IMMUTABLE)
+
+
+        #TODO: SendGTD, SendOptode, MP
 
 
 
@@ -539,5 +756,28 @@ class SBE19Protocol(SBE16Protocol):
         return time.strftime("%m%d%Y%H%M%S", time.strptime(date_time_string, "%Y-%m-%dT%H:%M:%S"))
 
 
+    @staticmethod
+    def _output_format_string_2_int(format_string):
+        """
+        Convert an output format from an string to an int
+        @param format_string sbe output format as string or regex match
+        @retval int representation of output format
+        @raise InstrumentParameterException if format unknown
+        """
+        if(not isinstance(format_string, str)):
+            format_string = format_string.group(1)
 
-
+        if(format_string.lower() ==  "raw hex"):
+            return 0
+        elif(format_string.lower() == "converted hex"):
+            return 1
+        elif(format_string.lower() == "raw decimal"):
+            return 2
+        elif(format_string.lower() == "converted decimal"):
+            return 3
+        elif(format_string.lower() == "converted hex for afm"):
+            return 4
+        elif(format_string.lower() == "converted xml uvic"):
+            return 5
+        else:
+            raise InstrumentParameterException("output format unknown: %s" % format_string)
