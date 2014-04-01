@@ -955,15 +955,42 @@ class Cg_stc_eng__stcParserDataParticle(DataParticle):
               r'MPIC.last_update=(\d+\.\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_MSG_DATE = 'cg_eng_gps_msg_date'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_MSG_TIME = 'cg_eng_gps_msg_time'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_DATE = 'cg_eng_gps_date'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_TIME = 'cg_eng_gps_time'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LATSTR = 'cg_eng_gps_latstr'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LONSTR = 'cg_eng_gps_lonstr'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LAT = 'cg_eng_gps_lat'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LON = 'cg_eng_gps_lon'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_SPD = 'cg_eng_gps_spd'
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_MSG_DATE,
+              r'GPS.timestamp=(\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d{3})',
+              lambda match: match.group(1),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_MSG_TIME,
+              r'GPS.timestamp=(\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d{3})',
+              lambda match: match.group(2),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_DATE,
+              r'GPS.date=(.+)\r\n',
+              lambda match: int(match.group(1)),
+              int32)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_TIME,
+              r'GPS.time=(.+)\r\n',
+              lambda match: int(match.group(1)),
+              int32)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LATSTR,
+              r'GPS.lat_str=(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LONSTR,
+              r'GPS.lon_str=(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LAT,
+              r'GPS.lat=(\d+\.\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LON,
+              r'GPS.lon=(\d+\.\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_SPD,
+              r'GPS.spd=(\d+\.\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
         Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_COG = 'cg_eng_gps_cog'
         Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_FIX = 'cg_eng_gps_fix'
         Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_NSAT = 'cg_eng_gps_nsat'
@@ -1154,26 +1181,13 @@ class Cg_stc_eng__stcParserDataParticle(DataParticle):
         Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_FAILED = 'cg_eng_dmgrstatus_failed'
         Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_MAP = 'cg_eng_dmgrstatus_map'
         Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_UPDATE = 'cg_eng_dmgrstatus_update'
-        '''
+        
+        
+        for (key, value) in all_params.iteritems():
+            result.append({DataParticleKey.VALUE_ID: key, DataParticleKey.VALUE: value})
+            
         return p
     
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this 
-        particle
-        """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
-            return False
 
 class Cg_stc_eng__stcParser(Parser):
     def __init__(self,
