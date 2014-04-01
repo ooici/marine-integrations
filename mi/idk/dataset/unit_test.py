@@ -271,6 +271,54 @@ class DataSetTestCase(MiIntTestCase):
 
         return dest_path
 
+    def create_sample_data_set_dir(self, filename, dest_dir, dest_filename=None, mode=0644, create=True):
+        """
+        Search for a data file in the driver resource directory and if the file
+        is not found there then search using the filename directly.  Then copy
+        the file to the test data directory.
+
+        If a dest_filename is supplied it will be renamed in the destination
+        directory.
+        @param: filename - filename or path to a data file to copy
+        @param: dest_filename - name of the file when copied. default to filename
+        @param: file mode
+        @param: create an empty file in the destination if the source is not found
+        @return: path to file created
+        """
+        if not os.path.exists(dest_dir):
+            log.debug("Creating data dir: %s", dest_dir)
+            os.makedirs(dest_dir)
+
+        elif not os.path.isdir(dest_dir):
+            raise IDKException("'dest_dir' is not a directory")
+        source_path = None
+
+        try:
+            source_path = self._get_source_data_file(filename)
+        except IDKException:
+            if not create:
+                raise
+
+        log.debug("DIR: %s", dest_dir)
+        if dest_filename is None and source_path is not None:
+            dest_path = os.path.join(dest_dir, os.path.basename(source_path))
+        elif dest_filename is None and source_path is None:
+            dest_path = os.path.join(dest_dir, filename)
+        else:
+            dest_path = os.path.join(dest_dir, dest_filename)
+
+        log.debug("Creating data file src: %s, dest: %s", source_path, dest_path)
+
+        if source_path == None:
+            file = open(dest_path, 'w')
+            file.close()
+        else:
+            shutil.copy2(source_path, dest_path)
+
+        os.chmod(dest_path, mode)
+
+        return dest_path
+
     def get_file_state(self, path, ingested = False, position = None):
         """
         Create a state object for a file.  If a position is passed then add a parser state as well.
@@ -412,7 +460,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         finally:
             to.cancel()
 
-    def assert_data(self, particle_class, result_set_file=None, count=1, timeout=10):
+    def assert_data(self, particle_class=None, result_set_file=None, count=1, timeout=10):
         """
         Wait for a data particle in the data callback queue
         @param particle_class, class of the expected data particles
@@ -424,26 +472,6 @@ class DataSetIntegrationTestCase(DataSetTestCase):
             particles = self.get_samples(particle_class, count, timeout)
         except Timeout:
             log.error("Failed to detect particle %s, expected %d particles, found %d", particle_class, count, found)
-            self.fail("particle detection failed. Expected %d, Found %d" % (count, found))
-
-        # Verify the data against the result data set definition
-        if result_set_file:
-            rs_file = self._get_source_data_file(result_set_file)
-            rs = ResultSet(rs_file)
-
-            self.assertTrue(rs.verify(particles), msg="Failed data validation, check the logs.")
-
-    def assert_data_multiple_class(self, result_set_file=None, count=1, timeout=10):
-        """
-        Wait for a data particle in the data callback queue
-        @param result_set_file, filename containing definition of the resulting dataset
-        @param count, how many records to wait for
-        @param timeout, how long to wait for the records.
-        """
-        try:
-            particles = self.get_samples_any_class(count, timeout)
-        except Timeout:
-            log.error("Failed to detect particle, expected %d particles, found %d", count, found)
             self.fail("particle detection failed. Expected %d, Found %d" % (count, found))
 
         # Verify the data against the result data set definition
@@ -475,7 +503,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         if filename in last_state and last_state[filename]['ingested']:
             self.fail("File %s was ingested when we expected it not to be" % filename)
 
-    def get_samples(self, particle_class, count=1, timeout=10):
+    def get_samples(self, particle_class=None, count=1, timeout=10):
         to = gevent.Timeout(timeout)
         to.start()
         result = []
@@ -486,7 +514,7 @@ class DataSetIntegrationTestCase(DataSetTestCase):
             while(not done):
                 current_found = 0
                 for i, data in enumerate(self.data_callback_result):
-                    if isinstance(data, particle_class):
+                    if particle_class is None or isinstance(data, particle_class):
                         index = i - current_found
                         found += 1
                         current_found += 1
@@ -504,44 +532,6 @@ class DataSetIntegrationTestCase(DataSetTestCase):
                     gevent.sleep(1)
         except Timeout:
             log.error("Failed to detect particle %s, expected %d particles, found %d", particle_class, count, found)
-            result = []
-        finally:
-            to.cancel()
-
-        log.debug("Samples found: %d, %s", len(result), result)
-        return result
-
-    def get_samples_any_class(self, count=1, timeout=10):
-        """
-        Get samples of any class
-        """
-        to = gevent.Timeout(timeout)
-        to.start()
-        result = []
-        found = 0
-        done = False
-
-        try:
-            while(not done):
-                current_found = 0
-                for i, data in enumerate(self.data_callback_result):
-                    index = i - current_found
-                    found += 1
-                    current_found += 1
-                    result.append(self.data_callback_result.pop(index))
-                    log.debug("Found sample index %d, #%d", index, found)
-
-                    if found >= count:
-                        log.debug("All done. %d >= %d", found, count)
-                        done = True
-                        break
-
-                # data_callback_result may get updated while counting particles, check again
-                if not done and self.data_callback_result == []:
-                    log.debug("No particle detected yet, sleep for a bit")
-                    gevent.sleep(1)
-        except Timeout:
-            log.error("Failed to detect particle, expected %d particles, found %d", count, found)
             result = []
         finally:
             to.cancel()
@@ -879,6 +869,7 @@ class DataSetAgentTestCase(DataSetTestCase):
     def assert_start_sampling(self):
         '''
         transition to sampling.  Must be called from command
+        :rtype : object
         '''
         state = self.dataset_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
