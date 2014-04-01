@@ -50,6 +50,8 @@ from mi.instrument.sunburst.driver import TIMEOUT
 from mi.instrument.sunburst.driver import SAMI_TO_UNIX
 from mi.instrument.sunburst.driver import SAMI_TO_NTP
 
+log.debug('herb: ' + 'import sunburst/sami2_pco2/ooicore/driver.py')
+
 ###
 #    Driver Constant Definitions
 ###
@@ -133,6 +135,9 @@ class DataParticleType(SamiDataParticleType):
     Data particle types produced by this driver
     """
     # PCO2W driver extends the base class (SamiDataParticleType) with:
+
+    log.debug('herb: ' + 'class DataParticleType(SamiDataParticleType)')
+
     DEV1_SAMPLE = 'dev1_sample'
 
 
@@ -140,6 +145,9 @@ class Parameter(SamiParameter):
     """
     Device specific parameters.
     """
+
+    log.debug('herb: ' + 'class Parameter(SamiParameter)')
+
     # PCO2W driver extends the base class (SamiParameter) with:
     PUMP_PULSE = 'pump_pulse'
     PUMP_DURATION = 'pump_duration'
@@ -158,6 +166,9 @@ class InstrumentCommand(SamiInstrumentCommand):
     Device specfic Instrument command strings. Extends superclass
     SamiInstrumentCommand
     """
+
+    log.debug('herb: ' + 'class InstrumentCommand(SamiInstrumentCommand)')
+
     # PCO2W driver extends the base class (SamiInstrumentCommand) with:
     ACQUIRE_SAMPLE_DEV1 = 'R1'
 
@@ -170,6 +181,9 @@ class Pco2wSamiSampleDataParticleKey(BaseEnum):
     Data particle key for the SAMI2-PCO2 records. These particles
     capture when a sample was processed.
     """
+
+    log.debug('herb: ' + 'class Pco2wSamiSampleDataParticleKey(BaseEnum)')
+
     UNIQUE_ID = 'unique_id'
     RECORD_LENGTH = 'record_length'
     RECORD_TYPE = 'record_type'
@@ -186,12 +200,17 @@ class Pco2wSamiSampleDataParticle(DataParticle):
     structure.
     @throw SampleException If there is a problem with sample creation
     """
+
+    log.debug('herb: ' + 'class Pco2wSamiSampleDataParticle(DataParticle)')
+
     _data_particle_type = DataParticleType.SAMI_SAMPLE
 
     def _build_parsed_values(self):
         """
         Parse SAMI2-PCO2 measurement records from raw data into a dictionary
         """
+
+        log.debug('herb: ' + 'Pco2wSamiSampleDataParticle._build_parsed_values()')
 
         ### SAMI Sample Record
         # Regular SAMI (PCO2) data records produced by the instrument on either
@@ -243,6 +262,9 @@ class Pco2wDev1SampleDataParticleKey(BaseEnum):
     Data particle key for the device 1 (external pump) records. These particles
     capture when a sample was collected.
     """
+
+    log.debug('herb: ' + 'class Pco2wDev1SampleDataParticleKey(BaseEnum)')
+
     UNIQUE_ID = 'unique_id'
     RECORD_LENGTH = 'record_length'
     RECORD_TYPE = 'record_type'
@@ -256,12 +278,17 @@ class Pco2wDev1SampleDataParticle(DataParticle):
     structure.
     @throw SampleException If there is a problem with sample creation
     """
+
+    log.debug('herb: ' + 'class Pco2wDev1SampleDataParticle(DataParticle)')
+
     _data_particle_type = DataParticleType.DEV1_SAMPLE
 
     def _build_parsed_values(self):
         """
         Parse device 1 values from raw data into a dictionary
         """
+
+        log.debug('herb: ' + 'Pco2wDev1SampleDataParticle._build_parsed_values()')
 
         ### Device 1 Sample Record (External Pump)
         # Device 1 data records produced by the instrument on either command or
@@ -301,6 +328,9 @@ class Pco2wConfigurationDataParticleKey(SamiConfigDataParticleKey):
     """
     Data particle key for the configuration record.
     """
+
+    log.debug('herb: ' + 'class Pco2wConfigurationDataParticleKey(SamiConfigDataParticleKey)')
+
     PUMP_PULSE = 'pump_pulse'
     PUMP_DURATION = 'pump_duration'
     SAMPLES_PER_MEASUREMENT = 'samples_per_measurement'
@@ -320,12 +350,17 @@ class Pco2wConfigurationDataParticle(DataParticle):
     structure.
     @throw SampleException If there is a problem with sample creation
     """
+
+    log.debug('herb: ' + 'class Pco2wConfigurationDataParticle(DataParticle)')
+
     _data_particle_type = DataParticleType.CONFIGURATION
 
     def _build_parsed_values(self):
         """
         Parse configuration record values from raw data into a dictionary
         """
+
+        log.debug('herb: ' + 'Pco2wConfigurationDataParticle._build_parsed_values()')
 
         ### SAMI-PCO2 Configuration String
         # Configuration string either sent to the instrument to configure it
@@ -455,6 +490,9 @@ class InstrumentDriver(SamiInstrumentDriver):
     Subclasses SamiInstrumentDriver and SingleConnectionInstrumentDriver with
     connection state machine.
     """
+
+    log.debug('herb: ' + 'class InstrumentDriver(SamiInstrumentDriver)')
+
     ########################################################################
     # Superclass overrides for resource query.
     ########################################################################
@@ -463,6 +501,9 @@ class InstrumentDriver(SamiInstrumentDriver):
         """
         Return list of device parameters available.
         """
+
+        log.debug('herb: ' + 'InstrumentDriver.get_resource_params()')
+
         return Parameter.list()
 
     ########################################################################
@@ -473,6 +514,9 @@ class InstrumentDriver(SamiInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
+
+        log.debug('herb: ' + 'InstrumentDriver._build_protocol()')
+
         self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
 
 
@@ -484,6 +528,9 @@ class Protocol(SamiProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+
+    log.debug('herb: ' + 'class Protocol(SamiProtocol)')
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -491,6 +538,9 @@ class Protocol(SamiProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
+
+        log.debug('herb: ' + 'Protocol.__init__()')
+
         # Construct protocol superclass.
         SamiProtocol.__init__(self, prompts, newline, driver_event)
 
@@ -542,7 +592,12 @@ class Protocol(SamiProtocol):
         """
         The method that splits samples
         """
+
+        log.debug('herb: ' + 'Protocol.sieve_function()')
+
         return_list = []
+
+## TODO: Missing regular expressions such as ERROR?
 
         sieve_matchers = [REGULAR_STATUS_REGEX_MATCHER,
                           CONTROL_RECORD_REGEX_MATCHER,
@@ -561,6 +616,9 @@ class Protocol(SamiProtocol):
         The base class got_data has gotten a chunk from the chunker. Pass it to
         extract_sample with the appropriate particle objects and REGEXes.
         """
+
+        log.debug('herb: ' + 'Protocol._got_chunk()')
+
         self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(Pco2wSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
@@ -576,6 +634,9 @@ class Protocol(SamiProtocol):
         For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
         """
+
+        log.debug('herb: ' + 'Protocol._build_param_dict()')
+
         # Add parameter handlers to parameter dict.
         self._param_dict = ProtocolParameterDict()
 
@@ -900,12 +961,18 @@ class Protocol(SamiProtocol):
     #########################################################################
 
     def _handler_sample_success(self, *args, **kwargs):
+
+        log.debug('herb: ' + 'Protocol._handler_sample_success()')
+
         next_state = None
         result = None
 
         return (next_state, result)
 
     def _handler_sample_timeout(self, ):
+
+        log.debug('herb: ' + 'Protocol._handler_sample_timeout()')
+
         next_state = None
         result = None
 
@@ -915,10 +982,16 @@ class Protocol(SamiProtocol):
     # Command handlers.
     ########################################################################
     def _build_sample_dev1(self):
+
+        log.debug('herb: ' + 'Protocol._build_sample_dev1()')
+
         pass
 
     ########################################################################
     # Response handlers.
     ########################################################################
     def _build_response_sample_dev1(self):
+
+        log.debug('herb: ' + 'Protocol._build_response_dev1()')
+
         pass
