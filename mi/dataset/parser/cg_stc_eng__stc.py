@@ -796,235 +796,364 @@ class Cg_stc_eng__stcParserDataParticle(DataParticle):
               lambda match: hex(match.group(1)),
               hex)
         
-        CG_ENG_MPIC_GFLT1 = 'cg_eng_mpic_gflt1'
-        CG_ENG_MPIC_GFLT2 = 'cg_eng_mpic_gflt2'
-        CG_ENG_MPIC_GFLT3 = 'cg_eng_mpic_gflt3'
-        CG_ENG_MPIC_GFLT4 = 'cg_eng_mpic_gflt4'
-        CG_ENG_MPIC_LD_ENA = 'cg_eng_mpic_ld_ena'
-        CG_ENG_MPIC_LDET1 = 'cg_eng_mpic_ldet1'
-        CG_ENG_MPIC_LDET2 = 'cg_eng_mpic_ldet2'
-        CG_ENG_MPIC_WSRC = 'cg_eng_mpic_wsrc'
-        CG_ENG_MPIC_IRID = 'cg_eng_mpic_irid'
-        CG_ENG_MPIC_IRID_V = 'cg_eng_mpic_irid_v'
-        CG_ENG_MPIC_IRID_C = 'cg_eng_mpic_irid_c'
-        CG_ENG_MPIC_IRID_E = 'cg_eng_mpic_irid_e'
-        CG_ENG_MPIC_FW_WIFI = 'cg_eng_mpic_fw_wifi'
-        CG_ENG_MPIC_FW_WIFI_V = 'cg_eng_mpic_fw_wifi_v'
-        CG_ENG_MPIC_FW_WIFI_C = 'cg_eng_mpic_fw_wifi_c'
-        CG_ENG_MPIC_FW_WIFI_E = 'cg_eng_mpic_fw_wifi_e'
-        CG_ENG_MPIC_GPS = 'cg_eng_mpic_gps'
-        CG_ENG_MPIC_SBD = 'cg_eng_mpic_sbd'
-        CG_ENG_MPIC_SBD_CE_MSG = 'cg_eng_mpic_sbd_ce_msg'
-        CG_ENG_MPIC_PPS = 'cg_eng_mpic_pps'
-        CG_ENG_MPIC_DCL = 'cg_eng_mpic_dcl'
-        CG_ENG_MPIC_ESW = 'cg_eng_mpic_esw'
-        CG_ENG_MPIC_DSL = 'cg_eng_mpic_dsl'
-        CG_ENG_MPIC_HBEAT_ENABLE = 'cg_eng_mpic_hbeat_enable'
-        CG_ENG_MPIC_HBEAT_DTIME = 'cg_eng_mpic_hbeat_dtime'
-        CG_ENG_MPIC_HBEAT_THRESHOLD = 'cg_eng_mpic_hbeat_threshold'
-        CG_ENG_MPIC_WAKE_CPM = 'cg_eng_mpic_wake_cpm'
-        CG_ENG_MPIC_WPC = 'cg_eng_mpic_wpc'
-        CG_ENG_MPIC_EFLAG2 = 'cg_eng_mpic_eflag2'
-        CG_ENG_MPIC_LAST_UPDATE = 'cg_eng_mpic_last_update'
-        CG_ENG_GPS_MSG_DATE = 'cg_eng_gps_msg_date'
-        CG_ENG_GPS_MSG_TIME = 'cg_eng_gps_msg_time'
-        CG_ENG_GPS_DATE = 'cg_eng_gps_date'
-        CG_ENG_GPS_TIME = 'cg_eng_gps_time'
-        CG_ENG_GPS_LATSTR = 'cg_eng_gps_latstr'
-        CG_ENG_GPS_LONSTR = 'cg_eng_gps_lonstr'
-        CG_ENG_GPS_LAT = 'cg_eng_gps_lat'
-        CG_ENG_GPS_LON = 'cg_eng_gps_lon'
-        CG_ENG_GPS_SPD = 'cg_eng_gps_spd'
-        CG_ENG_GPS_COG = 'cg_eng_gps_cog'
-        CG_ENG_GPS_FIX = 'cg_eng_gps_fix'
-        CG_ENG_GPS_NSAT = 'cg_eng_gps_nsat'
-        CG_ENG_GPS_HDOP = 'cg_eng_gps_hdop'
-        CG_ENG_GPS_ALT = 'cg_eng_gps_alt'
-        CG_ENG_GPS_LAST_UPDATE = 'cg_eng_gps_last_update'
-        CG_ENG_NTP_REFID = 'cg_eng_ntp_refid'
-        CG_ENG_NTP_OFFSET = 'cg_eng_ntp_offset'
-        CG_ENG_NTP_JITTER = 'cg_eng_ntp_jitter'
-        CG_ENG_PPS_LOCK = 'cg_eng_pps_lock'
-        CG_ENG_PPS_DELTA = 'cg_eng_pps_delta'
-        CG_ENG_PPS_DELTAMIN = 'cg_eng_pps_deltamin'
-        CG_ENG_PPS_DELTAMAX = 'cg_eng_pps_deltamax'
-        CG_ENG_PPS_BAD_PULSE = 'cg_eng_pps_bad_pulse'
-        CG_ENG_PPS_TIMESTAMP = 'cg_eng_pps_timestamp'
-        CG_ENG_PPS_LAST_UPDATE = 'cg_eng_pps_last_update'
-        CG_ENG_LOADSHED_STATUS = 'cg_eng_loadshed_status'
-        CG_ENG_LOADSHED_LAST_UPDATE = 'cg_eng_loadshed_last_update'
-        CG_ENG_SBC_ETH0 = 'cg_eng_sbc_eth0'
-        CG_ENG_SBC_ETH1 = 'cg_eng_sbc_eth1'
-        CG_ENG_SBC_LED0 = 'cg_eng_sbc_led0'
-        CG_ENG_SBC_LED1 = 'cg_eng_sbc_led1'
-        CG_ENG_SBC_LED2 = 'cg_eng_sbc_led2'
-        CG_ENG_SBC_GPO0 = 'cg_eng_sbc_gpo0'
-        CG_ENG_SBC_GPO1 = 'cg_eng_sbc_gpo1'
-        CG_ENG_SBC_GPO2 = 'cg_eng_sbc_gpo2'
-        CG_ENG_SBC_GPO3 = 'cg_eng_sbc_gpo3'
-        CG_ENG_SBC_GPO4 = 'cg_eng_sbc_gpo4'
-        CG_ENG_SBC_GPIO0 = 'cg_eng_sbc_gpio0'
-        CG_ENG_SBC_GPIO1 = 'cg_eng_sbc_gpio1'
-        CG_ENG_SBC_GPIO2 = 'cg_eng_sbc_gpio2'
-        CG_ENG_SBC_GPIO3 = 'cg_eng_sbc_gpio3'
-        CG_ENG_SBC_GPIO4 = 'cg_eng_sbc_gpio4'
-        CG_ENG_SBC_GPIO5 = 'cg_eng_sbc_gpio5'
-        CG_ENG_SBC_FB1 = 'cg_eng_sbc_fb1'
-        CG_ENG_SBC_FB2 = 'cg_eng_sbc_fb2'
-        CG_ENG_SBC_CE_LED = 'cg_eng_sbc_ce_led'
-        CG_ENG_SBC_WDT = 'cg_eng_sbc_wdt'
-        CG_ENG_SBC_BID = 'cg_eng_sbc_bid'
-        CG_ENG_SBC_BSTR = 'cg_eng_sbc_bstr'
-        CG_ENG_MSG_CNTS_D_GPS = 'cg_eng_msg_cnts_d_gps'
-        CG_ENG_MSG_CNTS_D_NTP = 'cg_eng_msg_cnts_d_ntp'
-        CG_ENG_MSG_CNTS_D_PPS = 'cg_eng_msg_cnts_d_pps'
-        CG_ENG_MSG_CNTS_D_SUPERV = 'cg_eng_msg_cnts_d_superv'
-        CG_ENG_MSG_CNTS_D_DLOG_NGR = 'cg_eng_msg_cnts_d_dlog_ngr'
-        CG_ENG_DCLP1_ENABLE = 'cg_eng_dclp1_enable'
-        CG_ENG_DCLP1_VOLT = 'cg_eng_dclp1_volt'
-        CG_ENG_DCLP1_CURRENT = 'cg_eng_dclp1_current'
-        CG_ENG_DCLP1_EFLAG = 'cg_eng_dclp1_eflag'
-        CG_ENG_DCLP1_VSEL = 'cg_eng_dclp1_vsel'
-        CG_ENG_DCLP1_CLIM = 'cg_eng_dclp1_clim'
-        CG_ENG_DCLP1_PROT = 'cg_eng_dclp1_prot'
-        CG_ENG_DCLP2_ENABLE = 'cg_eng_dclp2_enable'
-        CG_ENG_DCLP2_VOLT = 'cg_eng_dclp2_volt'
-        CG_ENG_DCLP2_CURRENT = 'cg_eng_dclp2_current'
-        CG_ENG_DCLP2_EFLAG = 'cg_eng_dclp2_eflag'
-        CG_ENG_DCLP2_VSEL = 'cg_eng_dclp2_vsel'
-        CG_ENG_DCLP2_CLIM = 'cg_eng_dclp2_clim'
-        CG_ENG_DCLP2_PROT = 'cg_eng_dclp2_prot'
-        CG_ENG_DCLP3_ENABLE = 'cg_eng_dclp3_enable'
-        CG_ENG_DCLP3_VOLT = 'cg_eng_dclp3_volt'
-        CG_ENG_DCLP3_CURRENT = 'cg_eng_dclp3_current'
-        CG_ENG_DCLP3_EFLAG = 'cg_eng_dclp3_eflag'
-        CG_ENG_DCLP3_VSEL = 'cg_eng_dclp3_vsel'
-        CG_ENG_DCLP3_CLIM = 'cg_eng_dclp3_clim'
-        CG_ENG_DCLP3_PROT = 'cg_eng_dclp3_prot'
-        CG_ENG_DCLP4_ENABLE = 'cg_eng_dclp4_enable'
-        CG_ENG_DCLP4_VOLT = 'cg_eng_dclp4_volt'
-        CG_ENG_DCLP4_CURRENT = 'cg_eng_dclp4_current'
-        CG_ENG_DCLP4_EFLAG = 'cg_eng_dclp4_eflag'
-        CG_ENG_DCLP4_VSEL = 'cg_eng_dclp4_vsel'
-        CG_ENG_DCLP4_CLIM = 'cg_eng_dclp4_clim'
-        CG_ENG_DCLP4_PROT = 'cg_eng_dclp4_prot'
-        CG_ENG_DCLP5_ENABLE = 'cg_eng_dclp5_enable'
-        CG_ENG_DCLP5_VOLT = 'cg_eng_dclp5_volt'
-        CG_ENG_DCLP5_CURRENT = 'cg_eng_dclp5_current'
-        CG_ENG_DCLP5_EFLAG = 'cg_eng_dclp5_eflag'
-        CG_ENG_DCLP5_VSEL = 'cg_eng_dclp5_vsel'
-        CG_ENG_DCLP5_CLIM = 'cg_eng_dclp5_clim'
-        CG_ENG_DCLP5_PROT = 'cg_eng_dclp5_prot'
-        CG_ENG_DCLP6_ENABLE = 'cg_eng_dclp6_enable'
-        CG_ENG_DCLP6_VOLT = 'cg_eng_dclp6_volt'
-        CG_ENG_DCLP6_CURRENT = 'cg_eng_dclp6_current'
-        CG_ENG_DCLP6_EFLAG = 'cg_eng_dclp6_eflag'
-        CG_ENG_DCLP6_VSEL = 'cg_eng_dclp6_vsel'
-        CG_ENG_DCLP6_CLIM = 'cg_eng_dclp6_clim'
-        CG_ENG_DCLP6_PROT = 'cg_eng_dclp6_prot'
-        CG_ENG_DCLP7_ENABLE = 'cg_eng_dclp7_enable'
-        CG_ENG_DCLP7_VOLT = 'cg_eng_dclp7_volt'
-        CG_ENG_DCLP7_CURRENT = 'cg_eng_dclp7_current'
-        CG_ENG_DCLP7_EFLAG = 'cg_eng_dclp7_eflag'
-        CG_ENG_DCLP7_VSEL = 'cg_eng_dclp7_vsel'
-        CG_ENG_DCLP7_CLIM = 'cg_eng_dclp7_clim'
-        CG_ENG_DCLP7_PROT = 'cg_eng_dclp7_prot'
-        CG_ENG_DCLP8_ENABLE = 'cg_eng_dclp8_enable'
-        CG_ENG_DCLP8_VOLT = 'cg_eng_dclp8_volt'
-        CG_ENG_DCLP8_CURRENT = 'cg_eng_dclp8_current'
-        CG_ENG_DCLP8_EFLAG = 'cg_eng_dclp8_eflag'
-        CG_ENG_DCLP8_VSEL = 'cg_eng_dclp8_vsel'
-        CG_ENG_DCLP8_CLIM = 'cg_eng_dclp8_clim'
-        CG_ENG_DCLP8_PROT = 'cg_eng_dclp8_prot'
-        CG_ENG_DCL_PORT_STATUS = 'cg_eng_dcl_port_status'
-        CG_ENG_PORT_DLOG1_NAME = 'cg_eng_port_dlog1_name'
-        CG_ENG_PORT_DLOG1_STATE = 'cg_eng_port_dlog1_state'
-        CG_ENG_PORT_DLOG1_TX = 'cg_eng_port_dlog1_tx'
-        CG_ENG_PORT_DLOG1_RX = 'cg_eng_port_dlog1_rx'
-        CG_ENG_PORT_DLOG1_LOG = 'cg_eng_port_dlog1_log'
-        CG_ENG_PORT_DLOG1_GOOD = 'cg_eng_port_dlog1_good'
-        CG_ENG_PORT_DLOG1_BAD = 'cg_eng_port_dlog1_bad'
-        CG_ENG_PORT_DLOG1_BB = 'cg_eng_port_dlog1_bb'
-        CG_ENG_PORT_DLOG1_LD = 'cg_eng_port_dlog1_ld'
-        CG_ENG_PORT_DLOG1_LU = 'cg_eng_port_dlog1_lu'
-        CG_ENG_PORT_DLOG2_NAME = 'cg_eng_port_dlog2_name'
-        CG_ENG_PORT_DLOG2_STATE = 'cg_eng_port_dlog2_state'
-        CG_ENG_PORT_DLOG2_TX = 'cg_eng_port_dlog2_tx'
-        CG_ENG_PORT_DLOG2_RX = 'cg_eng_port_dlog2_rx'
-        CG_ENG_PORT_DLOG2_LOG = 'cg_eng_port_dlog2_log'
-        CG_ENG_PORT_DLOG2_GOOD = 'cg_eng_port_dlog2_good'
-        CG_ENG_PORT_DLOG2_BAD = 'cg_eng_port_dlog2_bad'
-        CG_ENG_PORT_DLOG2_BB = 'cg_eng_port_dlog2_bb'
-        CG_ENG_PORT_DLOG2_LD = 'cg_eng_port_dlog2_ld'
-        CG_ENG_PORT_DLOG2_LU = 'cg_eng_port_dlog2_lu'
-        CG_ENG_PORT_DLOG3_NAME = 'cg_eng_port_dlog3_name'
-        CG_ENG_PORT_DLOG3_STATE = 'cg_eng_port_dlog3_state'
-        CG_ENG_PORT_DLOG3_TX = 'cg_eng_port_dlog3_tx'
-        CG_ENG_PORT_DLOG3_RX = 'cg_eng_port_dlog3_rx'
-        CG_ENG_PORT_DLOG3_LOG = 'cg_eng_port_dlog3_log'
-        CG_ENG_PORT_DLOG3_GOOD = 'cg_eng_port_dlog3_good'
-        CG_ENG_PORT_DLOG3_BAD = 'cg_eng_port_dlog3_bad'
-        CG_ENG_PORT_DLOG3_BB = 'cg_eng_port_dlog3_bb'
-        CG_ENG_PORT_DLOG3_LD = 'cg_eng_port_dlog3_ld'
-        CG_ENG_PORT_DLOG3_LU = 'cg_eng_port_dlog3_lu'
-        CG_ENG_PORT_DLOG4_NAME = 'cg_eng_port_dlog4_name'
-        CG_ENG_PORT_DLOG4_STATE = 'cg_eng_port_dlog4_state'
-        CG_ENG_PORT_DLOG4_TX = 'cg_eng_port_dlog4_tx'
-        CG_ENG_PORT_DLOG4_RX = 'cg_eng_port_dlog4_rx'
-        CG_ENG_PORT_DLOG4_LOG = 'cg_eng_port_dlog4_log'
-        CG_ENG_PORT_DLOG4_GOOD = 'cg_eng_port_dlog4_good'
-        CG_ENG_PORT_DLOG4_BAD = 'cg_eng_port_dlog4_bad'
-        CG_ENG_PORT_DLOG4_BB = 'cg_eng_port_dlog4_bb'
-        CG_ENG_PORT_DLOG4_LD = 'cg_eng_port_dlog4_ld'
-        CG_ENG_PORT_DLOG4_LU = 'cg_eng_port_dlog4_lu'
-        CG_ENG_PORT_DLOG5_NAME = 'cg_eng_port_dlog5_name'
-        CG_ENG_PORT_DLOG5_STATE = 'cg_eng_port_dlog5_state'
-        CG_ENG_PORT_DLOG5_TX = 'cg_eng_port_dlog5_tx'
-        CG_ENG_PORT_DLOG5_RX = 'cg_eng_port_dlog5_rx'
-        CG_ENG_PORT_DLOG5_LOG = 'cg_eng_port_dlog5_log'
-        CG_ENG_PORT_DLOG5_GOOD = 'cg_eng_port_dlog5_good'
-        CG_ENG_PORT_DLOG5_BAD = 'cg_eng_port_dlog5_bad'
-        CG_ENG_PORT_DLOG5_BB = 'cg_eng_port_dlog5_bb'
-        CG_ENG_PORT_DLOG5_LD = 'cg_eng_port_dlog5_ld'
-        CG_ENG_PORT_DLOG5_LU = 'cg_eng_port_dlog5_lu'
-        CG_ENG_PORT_DLOG6_NAME = 'cg_eng_port_dlog6_name'
-        CG_ENG_PORT_DLOG6_STATE = 'cg_eng_port_dlog6_state'
-        CG_ENG_PORT_DLOG6_TX = 'cg_eng_port_dlog6_tx'
-        CG_ENG_PORT_DLOG6_RX = 'cg_eng_port_dlog6_rx'
-        CG_ENG_PORT_DLOG6_LOG = 'cg_eng_port_dlog6_log'
-        CG_ENG_PORT_DLOG6_GOOD = 'cg_eng_port_dlog6_good'
-        CG_ENG_PORT_DLOG6_BAD = 'cg_eng_port_dlog6_bad'
-        CG_ENG_PORT_DLOG6_BB = 'cg_eng_port_dlog6_bb'
-        CG_ENG_PORT_DLOG6_LD = 'cg_eng_port_dlog6_ld'
-        CG_ENG_PORT_DLOG6_LU = 'cg_eng_port_dlog6_lu'
-        CG_ENG_PORT_DLOG7_NAME = 'cg_eng_port_dlog7_name'
-        CG_ENG_PORT_DLOG7_STATE = 'cg_eng_port_dlog7_state'
-        CG_ENG_PORT_DLOG7_TX = 'cg_eng_port_dlog7_tx'
-        CG_ENG_PORT_DLOG7_RX = 'cg_eng_port_dlog7_rx'
-        CG_ENG_PORT_DLOG7_LOG = 'cg_eng_port_dlog7_log'
-        CG_ENG_PORT_DLOG7_GOOD = 'cg_eng_port_dlog7_good'
-        CG_ENG_PORT_DLOG7_BAD = 'cg_eng_port_dlog7_bad'
-        CG_ENG_PORT_DLOG7_BB = 'cg_eng_port_dlog7_bb'
-        CG_ENG_PORT_DLOG7_LD = 'cg_eng_port_dlog7_ld'
-        CG_ENG_PORT_DLOG7_LU = 'cg_eng_port_dlog7_lu'
-        CG_ENG_PORT_DLOG8_NAME = 'cg_eng_port_dlog8_name'
-        CG_ENG_PORT_DLOG8_STATE = 'cg_eng_port_dlog8_state'
-        CG_ENG_PORT_DLOG8_TX = 'cg_eng_port_dlog8_tx'
-        CG_ENG_PORT_DLOG8_RX = 'cg_eng_port_dlog8_rx'
-        CG_ENG_PORT_DLOG8_LOG = 'cg_eng_port_dlog8_log'
-        CG_ENG_PORT_DLOG8_GOOD = 'cg_eng_port_dlog8_good'
-        CG_ENG_PORT_DLOG8_BAD = 'cg_eng_port_dlog8_bad'
-        CG_ENG_PORT_DLOG8_BB = 'cg_eng_port_dlog8_bb'
-        CG_ENG_PORT_DLOG8_LD = 'cg_eng_port_dlog8_ld'
-        CG_ENG_PORT_DLOG8_LU = 'cg_eng_port_dlog8_lu'
-        CG_ENG_DMGRSTATUS_DATE = 'cg_eng_dmgrstatus_date'
-        CG_ENG_DMGRSTATUS_TIME = 'cg_eng_dmgrstatus_time'
-        CG_ENG_DMGRSTATUS_ACTIVE = 'cg_eng_dmgrstatus_active'
-        CG_ENG_DMGRSTATUS_STARTED = 'cg_eng_dmgrstatus_started'
-        CG_ENG_DMGRSTATUS_HALTED = 'cg_eng_dmgrstatus_halted'
-        CG_ENG_DMGRSTATUS_FAILED = 'cg_eng_dmgrstatus_failed'
-        CG_ENG_DMGRSTATUS_MAP = 'cg_eng_dmgrstatus_map'
-        CG_ENG_DMGRSTATUS_UPDATE = 'cg_eng_dmgrstatus_update'
+        p.add('cg_eng_mpic_gflt1',
+              r'MPIC\.gflt==(\d+\.\d+) (\d+\.\d+) (\d+\.\d+) (\d+\.\d+)',
+              lambda match: float(match.group(1)),
+              float)
+              
+        p.add('cg_eng_mpic_gflt2',
+              r'MPIC\.gflt==(\d+\.\d+) (\d+\.\d+) (\d+\.\d+) (\d+\.\d+)',
+              lambda match: float(match.group(2)),
+              float)
+        p.add('cg_eng_mpic_gflt3',
+              r'MPIC\.gflt==(\d+\.\d+) (\d+\.\d+) (\d+\.\d+) (\d+\.\d+)',
+              lambda match: float(match.group(3)),
+              float)
+        p.add('cg_eng_mpic_gflt4',
+              r'MPIC\.gflt==(\d+\.\d+) (\d+\.\d+) (\d+\.\d+) (\d+\.\d+)',
+              lambda match: float(match.group(4)),
+              float)
+        
+        p.add('cg_eng_mpic_ld_ena',
+              r'MPIC\.ld_ena=(.+)\r\n',
+              lambda match: hex(match.group(1)),
+              hex)
+        p.add('cg_eng_mpic_ldet1',
+              r'MPIC\.ldet.=(\d+\.\d+) (\d+\.\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
+        p.add('cg_eng_mpic_ldet2',
+              r'MPIC\.ldet.=(\d+\.\d+) (\d+\.\d+)\r\n',
+              lambda match: float(match.group(2)),
+              float)
+        
+        p.add('cg_eng_mpic_wsrc',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(1)),
+              int)
+        p.add('cg_eng_mpic_irid'
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(1)),
+              int)
+        p.add('cg_eng_mpic_irid_v',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(2)),
+              int)
+        p.add('cg_eng_mpic_irid_c',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(3)),
+              int)
+        p.add('cg_eng_mpic_irid_e',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(4)),
+              int)
+        p.add('cg_eng_mpic_fw_wifi',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(5)),
+              int)
+        p.add('cg_eng_mpic_fw_wifi_v',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(6)),
+              int)
+        p.add('cg_eng_mpic_fw_wifi_c',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(7)),
+              int)
+        p.add('cg_eng_mpic_fw_wifi_e',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(8)),
+              int)
+        p.add('cg_eng_mpic_gps',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(9)),
+              int)
+        p.add('cg_eng_mpic_sbd',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(10)),
+              int)
+        p.add('cg_eng_mpic_sbd_ce_msg',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(11)),
+              int)
+        p.add('cg_eng_mpic_pps',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(12)),
+              int)
+        p.add('cg_eng_mpic_dcl',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(13)),
+              int)
+        
+        p.add('cg_eng_mpic_esw',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(14)),
+              int)
+        p.add('cg_eng_mpic_dsl',
+              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
+                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
+              lambda match: int(match.group(15)),
+              int)
+        
+        
+        p.add('cg_eng_mpic_hbeat_enable',
+              r'MPIC.cpm_hb=enable (\d+) dtime (\d+) threshold (\d+)',
+              lambda match: int(match.group(1)),
+              int)
+        p.add('cg_eng_mpic_hbeat_dtime',
+              r'MPIC.cpm_hb=enable (\d+) dtime (\d+) threshold (\d+)',
+              lambda match: int(match.group(2)),
+              int)
+        p.add('cg_eng_mpic_hbeat_threshold',
+              r'MPIC.cpm_hb=enable (\d+) dtime (\d+) threshold (\d+)',
+              lambda match: int(match.group(3)),
+              int)
+        p.add('cg_eng_mpic_wake_cpm',
+              r'MPIC.wake_cpm=wtc (\d+\.\d+) wpc (\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
+        p.add('cg_eng_mpic_wpc',
+              r'MPIC.wake_cpm=wtc (\d+\.\d+) wpc (\d+)\r\n',
+              lambda match: int(match.group(2)),
+              int)
+
+        p.add('cg_eng_mpic_eflag2',
+              r'MPIC.stc_eflag2=(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+        p.add('cg_eng_mpic_last_update',
+              r'MPIC.last_update=(\d+\.\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_MSG_DATE = 'cg_eng_gps_msg_date'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_MSG_TIME = 'cg_eng_gps_msg_time'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_DATE = 'cg_eng_gps_date'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_TIME = 'cg_eng_gps_time'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LATSTR = 'cg_eng_gps_latstr'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LONSTR = 'cg_eng_gps_lonstr'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LAT = 'cg_eng_gps_lat'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LON = 'cg_eng_gps_lon'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_SPD = 'cg_eng_gps_spd'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_COG = 'cg_eng_gps_cog'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_FIX = 'cg_eng_gps_fix'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_NSAT = 'cg_eng_gps_nsat'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_HDOP = 'cg_eng_gps_hdop'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_ALT = 'cg_eng_gps_alt'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LAST_UPDATE = 'cg_eng_gps_last_update'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGNTP_REFID = 'cg_eng_ntp_refid'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGNTP_OFFSET = 'cg_eng_ntp_offset'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGNTP_JITTER = 'cg_eng_ntp_jitter'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_LOCK = 'cg_eng_pps_lock'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_DELTA = 'cg_eng_pps_delta'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_DELTAMIN = 'cg_eng_pps_deltamin'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_DELTAMAX = 'cg_eng_pps_deltamax'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_BAD_PULSE = 'cg_eng_pps_bad_pulse'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_TIMESTAMP = 'cg_eng_pps_timestamp'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_LAST_UPDATE = 'cg_eng_pps_last_update'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGLOADSHED_STATUS = 'cg_eng_loadshed_status'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGLOADSHED_LAST_UPDATE = 'cg_eng_loadshed_last_update'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_ETH0 = 'cg_eng_sbc_eth0'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_ETH1 = 'cg_eng_sbc_eth1'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_LED0 = 'cg_eng_sbc_led0'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_LED1 = 'cg_eng_sbc_led1'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_LED2 = 'cg_eng_sbc_led2'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPO0 = 'cg_eng_sbc_gpo0'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPO1 = 'cg_eng_sbc_gpo1'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPO2 = 'cg_eng_sbc_gpo2'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPO3 = 'cg_eng_sbc_gpo3'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPO4 = 'cg_eng_sbc_gpo4'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPIO0 = 'cg_eng_sbc_gpio0'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPIO1 = 'cg_eng_sbc_gpio1'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPIO2 = 'cg_eng_sbc_gpio2'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPIO3 = 'cg_eng_sbc_gpio3'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPIO4 = 'cg_eng_sbc_gpio4'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPIO5 = 'cg_eng_sbc_gpio5'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_FB1 = 'cg_eng_sbc_fb1'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_FB2 = 'cg_eng_sbc_fb2'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_CE_LED = 'cg_eng_sbc_ce_led'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_WDT = 'cg_eng_sbc_wdt'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_BID = 'cg_eng_sbc_bid'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_BSTR = 'cg_eng_sbc_bstr'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGMSG_CNTS_D_GPS = 'cg_eng_msg_cnts_d_gps'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGMSG_CNTS_D_NTP = 'cg_eng_msg_cnts_d_ntp'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGMSG_CNTS_D_PPS = 'cg_eng_msg_cnts_d_pps'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGMSG_CNTS_D_SUPERV = 'cg_eng_msg_cnts_d_superv'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGMSG_CNTS_D_DLOG_NGR = 'cg_eng_msg_cnts_d_dlog_ngr'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_ENABLE = 'cg_eng_dclp1_enable'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_VOLT = 'cg_eng_dclp1_volt'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_CURRENT = 'cg_eng_dclp1_current'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_EFLAG = 'cg_eng_dclp1_eflag'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_VSEL = 'cg_eng_dclp1_vsel'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_CLIM = 'cg_eng_dclp1_clim'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_PROT = 'cg_eng_dclp1_prot'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_ENABLE = 'cg_eng_dclp2_enable'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_VOLT = 'cg_eng_dclp2_volt'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_CURRENT = 'cg_eng_dclp2_current'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_EFLAG = 'cg_eng_dclp2_eflag'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_VSEL = 'cg_eng_dclp2_vsel'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_CLIM = 'cg_eng_dclp2_clim'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_PROT = 'cg_eng_dclp2_prot'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_ENABLE = 'cg_eng_dclp3_enable'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_VOLT = 'cg_eng_dclp3_volt'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_CURRENT = 'cg_eng_dclp3_current'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_EFLAG = 'cg_eng_dclp3_eflag'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_VSEL = 'cg_eng_dclp3_vsel'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_CLIM = 'cg_eng_dclp3_clim'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_PROT = 'cg_eng_dclp3_prot'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_ENABLE = 'cg_eng_dclp4_enable'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_VOLT = 'cg_eng_dclp4_volt'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_CURRENT = 'cg_eng_dclp4_current'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_EFLAG = 'cg_eng_dclp4_eflag'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_VSEL = 'cg_eng_dclp4_vsel'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_CLIM = 'cg_eng_dclp4_clim'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_PROT = 'cg_eng_dclp4_prot'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_ENABLE = 'cg_eng_dclp5_enable'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_VOLT = 'cg_eng_dclp5_volt'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_CURRENT = 'cg_eng_dclp5_current'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_EFLAG = 'cg_eng_dclp5_eflag'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_VSEL = 'cg_eng_dclp5_vsel'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_CLIM = 'cg_eng_dclp5_clim'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_PROT = 'cg_eng_dclp5_prot'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_ENABLE = 'cg_eng_dclp6_enable'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_VOLT = 'cg_eng_dclp6_volt'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_CURRENT = 'cg_eng_dclp6_current'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_EFLAG = 'cg_eng_dclp6_eflag'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_VSEL = 'cg_eng_dclp6_vsel'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_CLIM = 'cg_eng_dclp6_clim'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_PROT = 'cg_eng_dclp6_prot'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_ENABLE = 'cg_eng_dclp7_enable'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_VOLT = 'cg_eng_dclp7_volt'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_CURRENT = 'cg_eng_dclp7_current'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_EFLAG = 'cg_eng_dclp7_eflag'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_VSEL = 'cg_eng_dclp7_vsel'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_CLIM = 'cg_eng_dclp7_clim'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_PROT = 'cg_eng_dclp7_prot'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_ENABLE = 'cg_eng_dclp8_enable'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_VOLT = 'cg_eng_dclp8_volt'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_CURRENT = 'cg_eng_dclp8_current'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_EFLAG = 'cg_eng_dclp8_eflag'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_VSEL = 'cg_eng_dclp8_vsel'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_CLIM = 'cg_eng_dclp8_clim'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_PROT = 'cg_eng_dclp8_prot'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCL_PORT_STATUS = 'cg_eng_dcl_port_status'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_NAME = 'cg_eng_port_dlog1_name'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_STATE = 'cg_eng_port_dlog1_state'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_TX = 'cg_eng_port_dlog1_tx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_RX = 'cg_eng_port_dlog1_rx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_LOG = 'cg_eng_port_dlog1_log'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_GOOD = 'cg_eng_port_dlog1_good'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_BAD = 'cg_eng_port_dlog1_bad'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_BB = 'cg_eng_port_dlog1_bb'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_LD = 'cg_eng_port_dlog1_ld'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_LU = 'cg_eng_port_dlog1_lu'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_NAME = 'cg_eng_port_dlog2_name'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_STATE = 'cg_eng_port_dlog2_state'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_TX = 'cg_eng_port_dlog2_tx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_RX = 'cg_eng_port_dlog2_rx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_LOG = 'cg_eng_port_dlog2_log'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_GOOD = 'cg_eng_port_dlog2_good'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_BAD = 'cg_eng_port_dlog2_bad'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_BB = 'cg_eng_port_dlog2_bb'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_LD = 'cg_eng_port_dlog2_ld'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_LU = 'cg_eng_port_dlog2_lu'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_NAME = 'cg_eng_port_dlog3_name'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_STATE = 'cg_eng_port_dlog3_state'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_TX = 'cg_eng_port_dlog3_tx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_RX = 'cg_eng_port_dlog3_rx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_LOG = 'cg_eng_port_dlog3_log'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_GOOD = 'cg_eng_port_dlog3_good'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_BAD = 'cg_eng_port_dlog3_bad'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_BB = 'cg_eng_port_dlog3_bb'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_LD = 'cg_eng_port_dlog3_ld'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_LU = 'cg_eng_port_dlog3_lu'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_NAME = 'cg_eng_port_dlog4_name'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_STATE = 'cg_eng_port_dlog4_state'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_TX = 'cg_eng_port_dlog4_tx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_RX = 'cg_eng_port_dlog4_rx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_LOG = 'cg_eng_port_dlog4_log'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_GOOD = 'cg_eng_port_dlog4_good'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_BAD = 'cg_eng_port_dlog4_bad'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_BB = 'cg_eng_port_dlog4_bb'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_LD = 'cg_eng_port_dlog4_ld'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_LU = 'cg_eng_port_dlog4_lu'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_NAME = 'cg_eng_port_dlog5_name'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_STATE = 'cg_eng_port_dlog5_state'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_TX = 'cg_eng_port_dlog5_tx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_RX = 'cg_eng_port_dlog5_rx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_LOG = 'cg_eng_port_dlog5_log'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_GOOD = 'cg_eng_port_dlog5_good'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_BAD = 'cg_eng_port_dlog5_bad'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_BB = 'cg_eng_port_dlog5_bb'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_LD = 'cg_eng_port_dlog5_ld'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_LU = 'cg_eng_port_dlog5_lu'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_NAME = 'cg_eng_port_dlog6_name'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_STATE = 'cg_eng_port_dlog6_state'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_TX = 'cg_eng_port_dlog6_tx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_RX = 'cg_eng_port_dlog6_rx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_LOG = 'cg_eng_port_dlog6_log'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_GOOD = 'cg_eng_port_dlog6_good'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_BAD = 'cg_eng_port_dlog6_bad'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_BB = 'cg_eng_port_dlog6_bb'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_LD = 'cg_eng_port_dlog6_ld'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_LU = 'cg_eng_port_dlog6_lu'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_NAME = 'cg_eng_port_dlog7_name'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_STATE = 'cg_eng_port_dlog7_state'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_TX = 'cg_eng_port_dlog7_tx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_RX = 'cg_eng_port_dlog7_rx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_LOG = 'cg_eng_port_dlog7_log'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_GOOD = 'cg_eng_port_dlog7_good'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_BAD = 'cg_eng_port_dlog7_bad'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_BB = 'cg_eng_port_dlog7_bb'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_LD = 'cg_eng_port_dlog7_ld'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_LU = 'cg_eng_port_dlog7_lu'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_NAME = 'cg_eng_port_dlog8_name'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_STATE = 'cg_eng_port_dlog8_state'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_TX = 'cg_eng_port_dlog8_tx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_RX = 'cg_eng_port_dlog8_rx'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_LOG = 'cg_eng_port_dlog8_log'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_GOOD = 'cg_eng_port_dlog8_good'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_BAD = 'cg_eng_port_dlog8_bad'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_BB = 'cg_eng_port_dlog8_bb'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_LD = 'cg_eng_port_dlog8_ld'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_LU = 'cg_eng_port_dlog8_lu'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_DATE = 'cg_eng_dmgrstatus_date'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_TIME = 'cg_eng_dmgrstatus_time'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_ACTIVE = 'cg_eng_dmgrstatus_active'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_STARTED = 'cg_eng_dmgrstatus_started'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_HALTED = 'cg_eng_dmgrstatus_halted'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_FAILED = 'cg_eng_dmgrstatus_failed'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_MAP = 'cg_eng_dmgrstatus_map'
+        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_UPDATE = 'cg_eng_dmgrstatus_update'
         '''
         return p
     
