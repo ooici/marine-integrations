@@ -44,7 +44,6 @@ from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolEvent
 from mi.instrument.seabird.sbe16plus_v2.driver import Capability
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16Protocol
 from mi.instrument.seabird.sbe16plus_v2.driver import Prompt
-from mi.instrument.seabird.sbe16plus_v2.driver import DataParticleType
 
 from mi.instrument.seabird.driver import SeaBirdParticle
 from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
@@ -110,10 +109,143 @@ class Parameter(DriverParameter):
     IGNORE_SWITCH = "IgnoreSwitch"
 
 
-
 ###############################################################################
 # Data Particles
 ###############################################################################
+
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
+    CTD_PARSED = 'ctdpf_sample'
+    DEVICE_STATUS = 'ctdpf_status'
+    DEVICE_CALIBRATION = 'ctdpf_calibration_coefficients'
+    DEVICE_HARDWARE = 'ctdpf_hardware'
+    DEVICE_CONFIGURATION = 'ctdpf_configuration'
+
+
+class SBE19ConfigurationParticleKey(BaseEnum):
+    SERIAL_NUMBER = "serial_number"
+
+    SCANS_TO_AVERAGE = "scans_to_average"
+    MIN_COND_FREQ = "min_cond_freq"
+    PUMP_DELAY = "pump_delay"
+    AUTO_RUN = "auto_run"
+    IGNORE_SWITCH = "ignore_switch"
+
+    BATTERY_TYPE = "battery_type"
+    BATTERY_CUTOFF = "battery_cutoff"
+
+    EXT_VOLT_0 = "ext_volt_0"
+    EXT_VOLT_1 = "ext_volt_1"
+    EXT_VOLT_2 = "ext_volt_2"
+    EXT_VOLT_3 = "ext_volt_3"
+    EXT_VOLT_4 = "ext_volt_4"
+    EXT_VOLT_5 = "ext_volt_5"
+    SBE38 = "sbe38"
+    WETLABS = "wetlabs"
+    OPTODE = "optode"
+    GAS_TENSION_DEVICE = "gas_tension_device"
+
+    ECHO_CHARACTERS = "echo_characters"
+    OUTPUT_EXECUTED_TAG = "output_executed_tag"
+    OUTPUT_FORMAT = "output_format"
+
+
+class SBE19ConfigurationParticle(SeaBirdParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    _data_particle_type = DataParticleType.DEVICE_CONFIGURATION
+
+    @staticmethod
+    def regex():
+        pattern = r'<ConfigurationData.*?</ConfigurationData>' + NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        return re.compile(SBE19ConfigurationParticle.regex(), re.DOTALL)
+
+    def _map_param_to_xml_tag(self, parameter_name):
+        map_param_to_tag = {SBE19ConfigurationParticleKey.SCANS_TO_AVERAGE: "ScansToAverage",
+                            SBE19ConfigurationParticleKey.MIN_COND_FREQ: "MinimumCondFreq",
+                            SBE19ConfigurationParticleKey.PUMP_DELAY: "PumpDelay",
+                            SBE19ConfigurationParticleKey.AUTO_RUN: "AutoRun",
+                            SBE19ConfigurationParticleKey.IGNORE_SWITCH: "IgnoreSwitch",
+
+                            SBE19ConfigurationParticleKey.BATTERY_TYPE: "Type",
+                            SBE19ConfigurationParticleKey.BATTERY_CUTOFF: "CutOff",
+
+                            SBE19ConfigurationParticleKey.EXT_VOLT_0: "ExtVolt0",
+                            SBE19ConfigurationParticleKey.EXT_VOLT_1: "ExtVolt1",
+                            SBE19ConfigurationParticleKey.EXT_VOLT_2: "ExtVolt2",
+                            SBE19ConfigurationParticleKey.EXT_VOLT_3: "ExtVolt3",
+                            SBE19ConfigurationParticleKey.EXT_VOLT_4: "ExtVolt4",
+                            SBE19ConfigurationParticleKey.EXT_VOLT_5: "ExtVolt5",
+                            SBE19ConfigurationParticleKey.SBE38: "SBE38",
+                            SBE19ConfigurationParticleKey.WETLABS: "WETLABS",
+                            SBE19ConfigurationParticleKey.OPTODE: "OPTODE",
+                            SBE19ConfigurationParticleKey.GAS_TENSION_DEVICE: "GTD",
+
+                            SBE19ConfigurationParticleKey.ECHO_CHARACTERS: "EchoCharacters",
+                            SBE19ConfigurationParticleKey.OUTPUT_EXECUTED_TAG: "OutputExecutedTag",
+                            SBE19ConfigurationParticleKey.OUTPUT_FORMAT: "OutputFormat",
+                           }
+        return map_param_to_tag[parameter_name]
+
+    def _build_parsed_values(self):
+        """
+        Parse the output of the getCD command
+        @throws SampleException If there is a problem with sample creation
+        """
+
+        SERIAL_NUMBER = "SerialNumber"
+        PROFILE_MODE = "ProfileMode"
+        BATTERY = "Battery"
+        DATA_CHANNELS = "DataChannels"
+
+        # check to make sure there is a correct match before continuing
+        match = SBE19ConfigurationParticle.regex_compiled().match(self.raw_data)
+        if not match:
+            raise SampleException("No regex match of parsed configuration data: [%s]" %
+                                  self.raw_data)
+
+        dom = parseString(self.raw_data)
+        root = dom.documentElement
+        log.debug("root.tagName = %s" %root.tagName)
+        serial_number = int(root.getAttribute(SERIAL_NUMBER))
+        result = [{DataParticleKey.VALUE_ID: SBE19ConfigurationParticleKey.SERIAL_NUMBER,
+                   DataParticleKey.VALUE: serial_number}]
+        result.append(self._get_xml_parameter(root, SBE19ConfigurationParticleKey.ECHO_CHARACTERS, self.yesno2bool))
+        result.append(self._get_xml_parameter(root, SBE19ConfigurationParticleKey.OUTPUT_EXECUTED_TAG, self.yesno2bool))
+        result.append(self._get_xml_parameter(root, SBE19ConfigurationParticleKey.OUTPUT_FORMAT, str))
+
+        element = self._extract_xml_elements(root, PROFILE_MODE)[0]
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.SCANS_TO_AVERAGE, int))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.MIN_COND_FREQ, int))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.PUMP_DELAY, int))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.AUTO_RUN, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.IGNORE_SWITCH, self.yesno2bool))
+
+        element = self._extract_xml_elements(root, BATTERY)[0]
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.BATTERY_TYPE, str))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.BATTERY_CUTOFF))
+
+        element = self._extract_xml_elements(root, DATA_CHANNELS)[0]
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.EXT_VOLT_0, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.EXT_VOLT_1, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.EXT_VOLT_2, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.EXT_VOLT_3, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.EXT_VOLT_4, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.EXT_VOLT_5, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.SBE38, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.WETLABS, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.OPTODE, self.yesno2bool))
+        result.append(self._get_xml_parameter(element, SBE19ConfigurationParticleKey.GAS_TENSION_DEVICE, self.yesno2bool))
+
+        return result
+
+
 
 class SBE19StatusParticleKey(BaseEnum):
     SERIAL_NUMBER = "serial_number"
@@ -220,6 +352,384 @@ class SBE19StatusParticle(SeaBirdParticle):
         result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.SAMPLES_FREE, int))
         result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.SAMPLE_LENGTH, int))
         result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.PROFILES, int))
+
+        return result
+
+
+class SBE19HardwareParticleKey(BaseEnum):
+    SERIAL_NUMBER = "serial_number"
+    MANUFACTURER = "manufacturer"
+    FIRMWARE_VERSION = "firmware_version"
+    FIRMWARE_DATE = "firmware_date"
+    COMMAND_SET_VERSION = "command_set_version"
+    PCB_SERIAL_NUMBER = "pcb_serial_number"
+    ASSEMBLY_NUMBER = "assembly_number"
+    MANUFACTURE_DATE = "manufacture_date"
+    TEMPERATURE_SENSOR_TYPE = 'temperature_sensor_type'
+    TEMPERATURE_SENSOR_SERIAL_NUMBER = 'temperature_sensor_serial_number'
+    CONDUCTIVITY_SENSOR_TYPE = 'temperature_sensor_type'
+    CONDUCTIVITY_SENSOR_SERIAL_NUMBER = 'conductivity_sensor_serial_number'
+    PRESSURE_SENSOR_TYPE = 'pressure_sensor_type'
+    QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER = 'quartz_pressure_sensor_serial_number'
+
+class SBE19HardwareParticle(SeaBirdParticle):
+
+    _data_particle_type = DataParticleType.DEVICE_HARDWARE
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a getHD response pattern
+        @return: regex string
+        """
+        pattern = r'<HardwareData.*?</HardwareData>' + NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        """
+        get the compiled regex pattern
+        @return: compiled re
+        """
+        return re.compile(SBE19HardwareParticle.regex(), re.DOTALL)
+
+    def _build_parsed_values(self):
+        """
+        @throws SampleException If there is a problem with sample creation
+        """
+
+        SENSOR = "Sensor"
+        TYPE = "type"
+        ID = "id"
+        PCB_SERIAL_NUMBER = "PCBSerialNum"
+        ASSEMBLY_NUMBER = "AssemblyNum"
+        SERIAL_NUMBER = "SerialNumber"
+        MANUFACTURER = "Manufacturer"
+        FIRMWARE_VERSION = "FirmwareVersion"
+        FIRMWARE_DATE = "FirmwareDate"
+        COMMAND_SET_VERSION = "CommandSetVersion"
+        PCB_ASSEMBLY = "PCBAssembly"
+        MANUFACTURE_DATE = "MfgDate"
+        INTERNAL_SENSORS = "InternalSensors"
+        TEMPERATURE_SENSOR_ID = "Main Temperature"
+        CONDUCTIVITY_SENSOR_ID = "Main Conductivity"
+        PRESSURE_SENSOR_ID = "Main Pressure"
+        EXTERNAL_SENSORS = "ExternalSensors"
+        VOLT0 = "volt 0"
+        VOLT1 = "volt 1"
+        VOLT2 = "volt 2"
+        VOLT3 = "volt 3"
+        VOLT4 = "volt 4"
+        VOLT5 = "volt 5"
+        SERIAL = "serial"
+
+        # check to make sure there is a correct match before continuing
+        match = SBE19HardwareParticle.regex_compiled().match(self.raw_data)
+        if not match:
+            raise SampleException("No regex match of parsed hardware data: [%s]" %
+                                  self.raw_data)
+
+        dom = parseString(self.raw_data)
+        root = dom.documentElement
+        log.debug("root.tagName = %s" %root.tagName)
+        serial_number = int(root.getAttribute(SERIAL_NUMBER))
+
+        manufacturer = self._extract_xml_element_value(root, MANUFACTURER)
+        firmware_version = self._extract_xml_element_value(root, FIRMWARE_VERSION)
+        firmware_date = self._extract_xml_element_value(root, FIRMWARE_DATE)
+        command_set_version = self._extract_xml_element_value(root, COMMAND_SET_VERSION)
+        manufacture_date = self._extract_xml_element_value(root, MANUFACTURE_DATE)
+
+        pcb_assembly_elements = self._extract_xml_elements(root, PCB_ASSEMBLY)
+        pcb_serial_number = []
+        pcb_assembly = []
+        for assembly in pcb_assembly_elements:
+            pcb_serial_number.append(assembly.getAttribute(PCB_SERIAL_NUMBER))
+            pcb_assembly.append(assembly.getAttribute(ASSEMBLY_NUMBER))
+
+        internal_sensors_element = self._extract_xml_elements(root, INTERNAL_SENSORS)[0]
+        sensors = self._extract_xml_elements(internal_sensors_element, SENSOR)
+
+        temperature_sensor_serial_number = 0
+        temperature_sensor_type = ""
+        conductivity_sensor_serial_number = 0
+        conductivity_sensor_type = ""
+        pressure_sensor_serial_number = 0
+        pressure_sensor_type = ""
+
+        for sensor in sensors:
+            sensor_id = sensor.getAttribute(ID)
+            if sensor_id == TEMPERATURE_SENSOR_ID:
+                temperature_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
+                temperature_sensor_type = self._extract_xml_element_value(sensor, TYPE)
+            elif sensor_id == CONDUCTIVITY_SENSOR_ID:
+                conductivity_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
+                conductivity_sensor_type = self._extract_xml_element_value(sensor, TYPE)
+            elif sensor_id == PRESSURE_SENSOR_ID:
+                pressure_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
+                pressure_sensor_type = self._extract_xml_element_value(sensor, TYPE)
+
+        #TODO: do we care about external sensors?
+        #external_sensors_element = self._extract_xml_elements(root, EXTERNAL_SENSORS)[0]
+        #sensors = self._extract_xml_elements(external_sensors_element, SENSOR)
+        #for sensor in sensors:
+        #    sensor_id = sensor.getAttribute(ID)
+        #    if sensor_id == VOLT0:
+        #        volt0_serial_number = self._extract_xml_element_value(sensor, SERIAL_NUMBER)
+        #        volt0_sensor_type = self._extract_xml_element_value(sensor, TYPE)
+
+
+        result = [{DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.SERIAL_NUMBER,
+                   DataParticleKey.VALUE: serial_number},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.MANUFACTURER,
+                   DataParticleKey.VALUE: manufacturer},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.FIRMWARE_VERSION,
+                   DataParticleKey.VALUE: firmware_version},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.FIRMWARE_DATE,
+                   DataParticleKey.VALUE: firmware_date},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.COMMAND_SET_VERSION,
+                   DataParticleKey.VALUE: command_set_version},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.MANUFACTURE_DATE,
+                   DataParticleKey.VALUE: manufacture_date},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.PCB_SERIAL_NUMBER,
+                   DataParticleKey.VALUE: pcb_serial_number},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.ASSEMBLY_NUMBER,
+                   DataParticleKey.VALUE: pcb_assembly},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.TEMPERATURE_SENSOR_SERIAL_NUMBER,
+                   DataParticleKey.VALUE: temperature_sensor_serial_number},
+                   {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.TEMPERATURE_SENSOR_TYPE,
+                   DataParticleKey.VALUE: temperature_sensor_type},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.CONDUCTIVITY_SENSOR_SERIAL_NUMBER,
+                   DataParticleKey.VALUE: conductivity_sensor_serial_number},
+                   {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.CONDUCTIVITY_SENSOR_TYPE,
+                   DataParticleKey.VALUE: conductivity_sensor_type},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER,
+                   DataParticleKey.VALUE: pressure_sensor_serial_number},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.PRESSURE_SENSOR_TYPE,
+                   DataParticleKey.VALUE: pressure_sensor_type},
+                  ]
+
+        return result
+
+
+class SBE19CalibrationParticleKey(BaseEnum):
+    SERIAL_NUMBER = "serial_number"
+
+    TEMP_SENSOR_SERIAL_NUMBER = " temp_sensor_serial_number "
+    TEMP_CAL_DATE = "calibration_date_temperature"
+    TA0 = "temp_coeff_ta0"
+    TA1 = "temp_coeff_ta1"
+    TA2 = "temp_coeff_ta2"
+    TA3 = "temp_coeff_ta3"
+    TOFFSET = "temp_coeff_offset"
+
+    COND_SENSOR_SERIAL_NUMBER = " cond_sensor_serial_number "
+    COND_CAL_DATE = "calibration_date_conductivity"
+    CONDG = "cond_coeff_cg"
+    CONDH = "cond_coeff_ch"
+    CONDI = "cond_coeff_ci"
+    CONDJ = "cond_coeff_cj"
+    CPCOR = "cond_coeff_cpcor"
+    CTCOR = "cond_coeff_ctcor"
+    CSLOPE = "cond_coeff_cslope"
+
+    PRES_SERIAL_NUMBER = "press_serial_number"
+    PRES_CAL_DATE = "calibration_date_pressure"
+    PA0 = "press_coeff_pa0"
+    PA1 = "press_coeff_pa1"
+    PA2 = "press_coeff_pa2"
+    PTCA0 = "press_coeff_ptca0"
+    PTCA1 = "press_coeff_ptca1"
+    PTCA2 = "press_coeff_ptca2"
+    PTCB0 = "press_coeff_ptcb0"
+    PTCB1 = "press_coeff_ptcb1"
+    PTCB2 = "press_coeff_ptcb2"
+    PTEMPA0 = "press_coeff_tempa0"
+    PTEMPA1 = "press_coeff_tempa1"
+    PTEMPA2 = "press_coeff_tempa2"
+    POFFSET = "press_coeff_poffset"
+    PRES_RANGE = "pressure_sensor_range"
+
+    EXT_VOLT0_OFFSET = "ext_volt0_offset"
+    EXT_VOLT0_SLOPE = "ext_volt0_slope"
+    EXT_VOLT1_OFFSET = "ext_volt1_offset"
+    EXT_VOLT1_SLOPE = "ext_volt1_slope"
+    EXT_VOLT2_OFFSET = "ext_volt2_offset"
+    EXT_VOLT2_SLOPE = "ext_volt2_slope"
+    EXT_VOLT3_OFFSET = "ext_volt3_offset"
+    EXT_VOLT3_SLOPE = "ext_volt3_slope"
+    EXT_VOLT4_OFFSET = "ext_volt4_offset"
+    EXT_VOLT4_SLOPE = "ext_volt4_slope"
+    EXT_VOLT5_OFFSET = "ext_volt5_offset"
+    EXT_VOLT5_SLOPE = "ext_volt5_slope"
+
+    EXT_FREQ = "ext_freq_sf"
+
+
+class SBE16CalibrationDataParticle(SeaBirdParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    _data_particle_type = DataParticleType.DEVICE_CALIBRATION
+
+    @staticmethod
+    def regex():
+        pattern = r'<CalibrationCoefficients.*?</CalibrationCoefficients>' + NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        return re.compile(SBE16CalibrationDataParticle.regex(), re.DOTALL)
+
+    def _map_param_to_xml_tag(self, parameter_name):
+        map_param_to_tag = {SBE19CalibrationParticleKey.TEMP_SENSOR_SERIAL_NUMBER: "SerialNum",
+                            SBE19CalibrationParticleKey.TEMP_CAL_DATE: "CalDate",
+                            SBE19CalibrationParticleKey.TA0: "TA0",
+                            SBE19CalibrationParticleKey.TA1: "TA1",
+                            SBE19CalibrationParticleKey.TA2: "TA2",
+                            SBE19CalibrationParticleKey.TA3: "TA3",
+                            SBE19CalibrationParticleKey.TOFFSET: "TOFFSET",
+
+                            SBE19CalibrationParticleKey.COND_SENSOR_SERIAL_NUMBER: "SerialNum",
+                            SBE19CalibrationParticleKey.COND_CAL_DATE: "CalDate",
+                            SBE19CalibrationParticleKey.CONDG: "G",
+                            SBE19CalibrationParticleKey.CONDH: "H",
+                            SBE19CalibrationParticleKey.CONDI: "I",
+                            SBE19CalibrationParticleKey.CONDJ: "J",
+                            SBE19CalibrationParticleKey.CPCOR: "CPCOR",
+                            SBE19CalibrationParticleKey.CTCOR: "CTCOR",
+                            SBE19CalibrationParticleKey.CSLOPE: "CSLOPE",
+
+                            SBE19CalibrationParticleKey.PRES_SERIAL_NUMBER: "SerialNum",
+                            SBE19CalibrationParticleKey.PRES_CAL_DATE: "CalDate",
+                            SBE19CalibrationParticleKey.PA0: "PA0",
+                            SBE19CalibrationParticleKey.PA1: "PA1",
+                            SBE19CalibrationParticleKey.PA2: "PA2",
+                            SBE19CalibrationParticleKey.PTCA0: "PTCA0",
+                            SBE19CalibrationParticleKey.PTCA1: "PTCA1",
+                            SBE19CalibrationParticleKey.PTCA2: "PTCA2",
+                            SBE19CalibrationParticleKey.PTCB0: "PTCB0",
+                            SBE19CalibrationParticleKey.PTCB1: "PTCB1",
+                            SBE19CalibrationParticleKey.PTCB2: "PTCB2",
+                            SBE19CalibrationParticleKey.PTEMPA0: "PTEMPA0",
+                            SBE19CalibrationParticleKey.PTEMPA1: "PTEMPA1",
+                            SBE19CalibrationParticleKey.PTEMPA2: "PTEMPA2",
+                            SBE19CalibrationParticleKey.POFFSET: "POFFSET",
+                            SBE19CalibrationParticleKey.PRES_RANGE: "PRANGE",
+
+                            SBE19CalibrationParticleKey.EXT_VOLT0_OFFSET: "OFFSET",
+                            SBE19CalibrationParticleKey.EXT_VOLT0_SLOPE: "SLOPE",
+                            SBE19CalibrationParticleKey.EXT_VOLT1_OFFSET: "OFFSET",
+                            SBE19CalibrationParticleKey.EXT_VOLT1_SLOPE: "SLOPE",
+                            SBE19CalibrationParticleKey.EXT_VOLT2_OFFSET: "OFFSET",
+                            SBE19CalibrationParticleKey.EXT_VOLT2_SLOPE: "SLOPE",
+                            SBE19CalibrationParticleKey.EXT_VOLT3_OFFSET: "OFFSET",
+                            SBE19CalibrationParticleKey.EXT_VOLT3_SLOPE: "SLOPE",
+                            SBE19CalibrationParticleKey.EXT_VOLT4_OFFSET: "OFFSET",
+                            SBE19CalibrationParticleKey.EXT_VOLT4_SLOPE: "SLOPE",
+                            SBE19CalibrationParticleKey.EXT_VOLT5_OFFSET: "OFFSET",
+                            SBE19CalibrationParticleKey.EXT_VOLT5_SLOPE: "SLOPE",
+
+                            SBE19CalibrationParticleKey.EXT_FREQ: "EXTFREQSF",
+                           }
+        return map_param_to_tag[parameter_name]
+
+    def _float_to_int(self, str):
+        return int(float(str))
+
+    def _build_parsed_values(self):
+        """
+        Parse the output of the getCC command
+        @throws SampleException If there is a problem with sample creation
+        """
+
+        SERIAL_NUMBER = "SerialNumber"
+        CALIBRATION = "Calibration"
+        ID = "id"
+        TEMPERATURE_SENSOR_ID = "Main Temperature"
+        CONDUCTIVITY_SENSOR_ID = "Main Conductivity"
+        PRESSURE_SENSOR_ID = "Main Pressure"
+        VOLT0 = "Volt 0"
+        VOLT1 = "Volt 1"
+        VOLT2 = "Volt 2"
+        VOLT3 = "Volt 3"
+        VOLT4 = "Volt 4"
+        VOLT5 = "Volt 5"
+        EXTERNAL_FREQUENCY_CHANNEL = "external frequency channel"
+
+        # check to make sure there is a correct match before continuing
+        match = SBE16CalibrationDataParticle.regex_compiled().match(self.raw_data)
+        if not match:
+            raise SampleException("No regex match of parsed calibration data: [%s]" %
+                                  self.raw_data)
+
+        dom = parseString(self.raw_data)
+        root = dom.documentElement
+        log.debug("root.tagName = %s" %root.tagName)
+        serial_number = int(root.getAttribute(SERIAL_NUMBER))
+        result = [{DataParticleKey.VALUE_ID: SBE19CalibrationParticleKey.SERIAL_NUMBER,
+                   DataParticleKey.VALUE: serial_number},
+                 ]
+
+        calibration_elements = self._extract_xml_elements(root, CALIBRATION)
+        for calibration in calibration_elements:
+            id = calibration.getAttribute(ID)
+            if id == TEMPERATURE_SENSOR_ID:
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TEMP_SENSOR_SERIAL_NUMBER, str))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TEMP_CAL_DATE, str))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TA0))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TA1))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TA2))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TA3))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TOFFSET))
+            elif id == CONDUCTIVITY_SENSOR_ID:
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.COND_SENSOR_SERIAL_NUMBER, str))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.COND_CAL_DATE, str))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.CONDG))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.CONDH))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.CONDI))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.CONDJ))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.CPCOR))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.CTCOR))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.CSLOPE))
+            elif id == PRESSURE_SENSOR_ID:
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PRES_SERIAL_NUMBER, str))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PRES_CAL_DATE, str))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PA0))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PA1))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PA2))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PTCA0))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PTCA1))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PTCA2))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PTCB0))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PTCB1))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PTCB2))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PTEMPA0))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PTEMPA1))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PTEMPA2))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.POFFSET))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PRES_RANGE, self._float_to_int))
+            elif id == VOLT0:
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT0_OFFSET))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT0_SLOPE))
+            elif id == VOLT1:
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT1_OFFSET))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT1_SLOPE))
+            elif id == VOLT2:
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT2_OFFSET))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT2_SLOPE))
+            elif id == VOLT3:
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT3_OFFSET))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT3_SLOPE))
+            elif id == VOLT4:
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT4_OFFSET))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT4_SLOPE))
+            elif id == VOLT5:
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT5_OFFSET))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_VOLT5_SLOPE))
+            elif id == EXTERNAL_FREQUENCY_CHANNEL:
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.EXT_FREQ))
 
         return result
 
@@ -555,7 +1065,7 @@ class SBE19Protocol(SBE16Protocol):
         prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
         kwargs['timeout'] = TIMEOUT
-        result = self._do_cmd_resp(Command.GETCC, expected_prompt=Prompt.EXECUTED, *args, **kwargs)
+        result = self._do_cmd_resp(Command.GET_CC, expected_prompt=Prompt.EXECUTED, *args, **kwargs)
         log.debug("_handler_autosample_get_configuration: GetCC Response: %s", result)
 
         log.debug("_handler_autosample_get_configuration: sending the QS command to restart sampling")
@@ -584,7 +1094,7 @@ class SBE19Protocol(SBE16Protocol):
             log.error('_validate_GetSD_response: correct instrument prompt missing: %s.' % response)
             raise InstrumentProtocolException('GetSD command - correct instrument prompt missing: %s.' % response)
 
-        if not SBE16StatusDataParticle.regex_compiled().search(response):
+        if not SBE19StatusParticle.regex_compiled().search(response):
             log.error('_validate_GetSD_response: GetSD command not recognized: %s.' % response)
             raise InstrumentProtocolException('GetSD command not recognized: %s.' % response)
 
@@ -607,7 +1117,7 @@ class SBE19Protocol(SBE16Protocol):
             log.error('_validate_GetHD_response: correct instrument prompt missing: %s.' % response)
             raise InstrumentProtocolException('GetHD command - correct instrument prompt missing: %s.' % response)
 
-        if not SBE16HardwareDataParticle.regex_compiled().search(response):
+        if not SBE19HardwareParticle.regex_compiled().search(response):
             log.error('_validate_GetHD_response: GetHD command not recognized: %s.' % response)
             raise InstrumentProtocolException('GetHD command not recognized: %s.' % response)
 
@@ -630,7 +1140,7 @@ class SBE19Protocol(SBE16Protocol):
             log.error('_validate_GetCD_response: correct instrument prompt missing: %s.' % response)
             raise InstrumentProtocolException('GetCD command - correct instrument prompt missing: %s.' % response)
 
-        if not SBE16ConfigurationDataParticle.regex_compiled().search(response):
+        if not SBE19ConfigurationParticle.regex_compiled().search(response):
             log.error('_validate_GetCD_response: GetCD command not recognized: %s.' % response)
             raise InstrumentProtocolException('GetCD command not recognized: %s.' % response)
 
@@ -689,6 +1199,8 @@ class SBE19Protocol(SBE16Protocol):
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
+
+        #TODO: re-visit visibility for all parameters once IOS is in good shape
 
         #TODO: verify if this lambda function is correct, check for completeness of DATE_TIME
         self._param_dict.add(Parameter.DATE_TIME,
