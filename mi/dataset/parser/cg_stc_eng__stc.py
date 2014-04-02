@@ -25,7 +25,7 @@ from mi.dataset.dataset_parser import Parser
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 
 class DataParticleType(BaseEnum):
-    SAMPLE = 'cg_stc_eng__stc_parsed'
+    SAMPLE = 'cg_stc_eng_stc'
 
 class Cg_stc_eng__stcParserDataParticleKey(BaseEnum):
     CG_ENG_PLATFORM_TIME = 'cg_eng_platform_time'
@@ -342,145 +342,18 @@ class Cg_stc_eng__stcParserDataParticle(DataParticle):
         a particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-        """
-        result=[]
-        param_list = re.findall(r'(.+\n)', str_all)
-        for i in range(0,len(param_list)):
-            # Go through the lines one by one and add them to the list
-            m = re.match(r'MPIC\.(.+)=(.+)\r\n', param_list[i])
-            if m: # We are in an MPIC line
-                # do the single value number parameters
-                if re.match('main_v|main_c|bbat_v|bbat_c|humid|press|\
-                            wsrc|hbeat_enable|hbeat_dtime|\
-                            hbeat_threshold|wake_cpm|wpc|\
-                            |last_update',m.group(1)):
-                    result.append({DataParticleKey.VALUE_ID:'cg_eng_mpic_' + m.group(1),
-                                   DataParticleKey.VALUE: float(m.group(2))})
-                    continue
-                # do the multi-value parameters
-                elif re.match('temp|ldet'):
-                    m = re.match(r'MPIC\.(.+)=(\d+\.\d+) (\d+\.\d+)', param_list[i])
-                    result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_' + m.group(1) + '1'),
-                        DataParticleKey.VALUE:float(m.group(2))})
-                    result.append([{DataParticleKey.VALUE_ID:('cg_eng_mpic_' + m.group(1) + '2'),
-                        DataParticleKey.VALUE:float(m.group(3))}])
-                    continue
-                elif re.match('gflt',m.group(1)):
-                    m = re.match(r'MPIC\.(.+)=(\d+\.\d+) (\d+\.\d+) (\d+\.\d+) (\d+\.\d+)', param_list[i])
-                    for j in range(1,4):
-                        result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_' + m.group(1) + j),
-                            DataParticleKey.VALUE:float(m.group(j+1))})
-                        
-                    continue
-                elif re.match('hotel',m.group(1)):
-                     m = re.match(r'MPIC\.(.+)=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
-                                  (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
-                                  sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',\
-                                  param_list[i])
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_wsrc'),
-                        DataParticleKey.VALUE:(m.group(2))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_irid'),
-                        DataParticleKey.VALUE:int(m.group(3))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_irid_v'),
-                        DataParticleKey.VALUE:float(m.group(4))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_irid_c'),
-                        DataParticleKey.VALUE:float(m.group(5))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_irid_e'),
-                        DataParticleKey.VALUE:(m.group(6))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_fw_wifi'),
-                        DataParticleKey.VALUE:(m.group(7))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_fw_wifi_v'),
-                        DataParticleKey.VALUE:float(m.group(8))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_fw_wifi_c'),
-                        DataParticleKey.VALUE:float(m.group(9))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_fw_wifi_e'),
-                        DataParticleKey.VALUE:(m.group(10))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_gps'),
-                        DataParticleKey.VALUE:(m.group(11))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_sbd'),
-                        DataParticleKey.VALUE:(m.group(12))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_sbd_ce_msg'),
-                        DataParticleKey.VALUE:(m.group(13))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_pps'),
-                        DataParticleKey.VALUE:(m.group(14))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_dcl'),
-                        DataParticleKey.VALUE:(m.group(15))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_esw'),
-                        DataParticleKey.VALUE:(m.group(16))})
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_dsl'),
-                        DataParticleKey.VALUE:(m.group(17))})
-                     continue
-                # do the flag parameter
-                elif re.match('eflag'|'gf_ena'|'ld_ena|eflag2',m.group(1)):
-                    
-                     result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_' + m.group(1)),
-                        DataParticleKey.VALUE:m.hex(group(2))})
-                     continue
-                elif re.match('cpm_hb',m.group(1)):
-                    
-                    m = re.match(r'MPIC\..+=enable (\d+) dtime (\d+) threshold (\d+)',param_list[i])
-                    result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_hbeat_enable'),
-                        DataParticleKey.VALUE:int(m.group(1))})
-                    result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_dtime'),
-                        DataParticleKey.VALUE:(m.group(2))})
-                    result.append({DataParticleKey.VALUE_ID:('cg_eng_mpic_threshold'),
-                        DataParticleKey.VALUE:(m.group(3))})
-                    continue
-            m = re.match(r'STATUS\.(.+)=(.+)\r\n', param_list[i])
-            if m: # We are in an STATUS line
-                if re.match('msg_cnts',m.group(1)):
-                    #STATUS.msg_cnts=C_GPS=83, NTP=0, C_PPS=4, PWRSYS=0, SUPERV=7, TELEM=0
-                    m = re.match(r'STATUS\.msg_cnts=(C_GPS)=(\d+),(\D+)=(\d+),(\D+)=(\d+),(\D+)\
-                                 =(\d+),(\D+)=(\d+),(\D+)=(\d+)\r\n', param_list[2])
-                    
-                    result.append({DataParticleKey.VALUE_ID:('cg_eng_msg_cnts_c_gps'),
-                            DataParticleKey.VALUE:(m.group(2))})
-                    result.append({DataParticleKey.VALUE_ID:('cg_eng_msg_cnts_c_ntp'),
-                            DataParticleKey.VALUE:(m.group(4))})    
-                    result.append({DataParticleKey.VALUE_ID:('cg_eng_msg_cnts_c_pps'),
-                            DataParticleKey.VALUE:(m.group(6))})    
-                    result.append({DataParticleKey.VALUE_ID:('cg_eng_msg_cnts_c_power_sys'),
-                            DataParticleKey.VALUE:(m.group(8))})    
-                    result.append({DataParticleKey.VALUE_ID:('cg_eng_msg_cnts_c_superv'),
-                            DataParticleKey.VALUE:(m.group(10))})    
-                    result.append({DataParticleKey.VALUE_ID:('cg_eng_msg_cnts_c_telem'),
-                            DataParticleKey.VALUE:(m.group(12))})    
-                    continue
-                elif re.match('err_cnts',m.group(1)):
-                    m = re.findall(r'(([A-Za-z_]+)=(\d+))',param_list[i])
-                    for j in range(0,len(m)):
-                        if re.match(str.lower(m[j],1),'c_gps|c_pps|c_ctl||c_status|superv|c_power_sys \
-                                    |c_telem_sys|c_irid|c_imm|cpm1|d_ctl|d_status|dlog_mgr|dlogp1|dlogp2\
-                                    |dlogp3|dlogp4|dlogp5|dlogp6|dlogp7|dlogp8|rcmd|bcmd'):
-                            result.append({DataParticleKey.VALUE_ID:('cg_eng_msg_cnts_'+str.lower(m[j],1)),\
-                                DataParticleKey.VALUE:(m[j][2])})
-                elif re.match('last_err',m.group(1)):
-                    m = re.match(r'STATUS.last_err.(.+)=(.+)\r\n', param_list[i])
-                    if re.match(m.group(1).lower(),'c_gps|c_pps|c_ctl|c_status|superv|c_power_sys\
-                                |c_telem_sys|c_irid|c_imm|cpm1|d_ctl|d_status|dlog_mgr|dlogp1|dlogp2\
-                                |dlogp3|dlogp4|dlogp5|dlogp6|dlogp7|dlogp8|rcmd|bcmd'):
-                        result.append({DataParticleKey.VALUE_ID:('cg_eng_msg_cnts_'+m.group(1).lower()), \
-                            DataParticleKey.VALUE:(m.group(2))})
-                        
-                    
-            m = re.match(r'Platform\.time=(.+)\r\n', param_list[i])
-            if m: # we are in a Platform statement
-                result.append({DataParticleKey.VALUE_ID:('cg_eng_platform_time'),
-                        DataParticleKey.VALUE:int(m.group(1))})
-                
-        return result
-"""
         result = []
         # Instanciate the param_dict 
         params = self._build_param_dict()
         
         # Go through the param_dict dictionary for every definition
         params.update(self.raw_data)
-        result.append({DataParticleKey.VALUE_ID:('cg_eng_platform_utime'),
-                        DataParticleKey.VALUE:params.get('cg_eng_platform_utime')})
-        
-        
+        all_params = params.get_all()
+        for (key, value) in all_params.iteritems():
+            result.append({DataParticleKey.VALUE_ID: key, DataParticleKey.VALUE: value})
+        log.debug("CgStcEngStcParserDataParticle %s", result)
         return result
+        
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with SBE37 parameters.
@@ -489,702 +362,1438 @@ class Cg_stc_eng__stcParserDataParticle(DataParticle):
         """
         # Add parameter handlers to parameter dict.
         p = ProtocolParameterDict()
-        p.add('cg_eng_platform_utime',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PLATFORM_UTIME,
                              r'Platform.utime=(\d+\.\d+)',
                              lambda match : float(match.group(1)),
                              float)
         
-        p.add('cg_eng_platform_time',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PLATFORM_TIME,
               r'Platform.time=(.+)\r\n',
               lambda match : match.group(1),
               str)
               
         
-        p.add('cg_eng_msg_cnts_c_gps',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MSG_CNTS_C_GPS,
               r'STATUS\.msg_cnts=C_GPS=(\d+),\D+=(\d+),\D+=(\d+),\D+\
                                  =(\d+),\D+=(\d+),\D+=(\d+)\r\n',
                lambda match : int(match.group(1)),
               int)
               
-        p.add('cg_eng_msg_cnts_c_ntp',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MSG_CNTS_C_NTP,
               r'STATUS\.msg_cnts=C_GPS=(\d+),\D+=(\d+),\D+=(\d+),\D+\
               =(\d+),\D+=(\d+),\D+=(\d+)\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_msg_cnts_c_pps',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MSG_CNTS_C_PPS,
               r'STATUS\.msg_cnts=C_GPS=(\d+),\D+=(\d+),\D+=(\d+),\D+\
               =(\d+),\D+=(\d+),\D+=(\d+)\r\n',
               lambda match : int(match.group(3)),
               int)
-        p.add('cg_eng_msg_cnts_c_power_sys',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MSG_CNTS_C_POWER_SYS,
               r'STATUS\.msg_cnts=C_GPS=(\d+),\D+=(\d+),\D+=(\d+),\D+\
               =(\d+),\D+=(\d+),\D+=(\d+)\r\n',
               lambda match : int(match.group(4)),
               int)
-        p.add('cg_eng_msg_cnts_c_superv',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MSG_CNTS_C_SUPERV,
               r'STATUS\.msg_cnts=C_GPS=(\d+),\D+=(\d+),\D+=(\d+),\D+\
               =(\d+),\D+=(\d+),\D+=(\d+)\r\n',
               lambda match : int(match.group(5)),
               int)
-        p.add('cg_eng_msg_cnts_c_telem',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MSG_CNTS_C_TELEM,
               r'STATUS\.msg_cnts=C_GPS=(\d+),\D+=(\d+),\D+=(\d+),\D+\
               =(\d+),\D+=(\d+),\D+=(\d+)\r\n',
               lambda match : int(match.group(6)),
               int)
-        p.add('cg_eng_err_c_gps',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_C_GPS,
               r'STATUS\.err_cnts=.?(C_GPS=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
 
-        p.add('cg_eng_err_c_pps',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_C_PPS,
               r'STATUS\.err_cnts=.?(C_PPS=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_c_ctl',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_C_CTL,
               r'STATUS\.err_cnts=.?(C_CTL=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_c_status',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_C_STATUS,
               r'STATUS\.err_cnts=.?(C_STATUS=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_superv',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_SUPERV,
               r'STATUS\.err_cnts=.?(C_SUPERV=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_c_power_sys',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_C_POWER_SYS,
               r'STATUS\.err_cnts=.?(C_POWER_SYS=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_c_telem_sys',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_C_TELEM_SYS,
               r'STATUS\.err_cnts=.?(C_TELEM_SYS=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_c_irid',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_C_IRID,
               r'STATUS\.err_cnts=.?(C_IRID=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_c_imm',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_C_IMM,
               r'STATUS\.err_cnts=.?(C_IMM=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_cpm1',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_CPM1,
               r'STATUS\.err_cnts=.?(C_CPM1=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_d_ctl',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_D_CTL,
               r'STATUS\.err_cnts=.?(D_CTL=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_d_status',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_D_STATUS,
               r'STATUS\.err_cnts=.?(D_STATUS=(\d+)).+\r\n',
               lambda match : (match.group(2)),
               int)
-        p.add('cg_eng_err_dlog_mgr',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_DLOG_MGR,
               r'STATUS\.err_cnts=.?(DLOG=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_dlogp1',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_DLOGP1,
               r'STATUS\.err_cnts=.?(DLOGP1=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_dlogp2',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_DLOGP2,
               r'STATUS\.err_cnts=.?(DLOGP2=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_dlogp3',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_DLOGP3,
               r'STATUS\.err_cnts=.?(DLOGP3=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_dlogp4',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_DLOGP4,
               r'STATUS\.err_cnts=.?(DLOGP4=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_dlogp5',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_DLOGP5,
               r'STATUS\.err_cnts=.?(DLOGP5=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int),
-        p.add('cg_eng_err_dlogp6',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_DLOGP6,
               r'STATUS\.err_cnts=.?(DLOGP6=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_dlogp7',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_DLOGP7,
               r'STATUS\.err_cnts=.?(DLOGP7=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_dlogp8',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_DLOGP8,
               r'STATUS\.err_cnts=.?(DLOGP8=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_rcmd',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_RCMD,
               r'STATUS\.err_cnts=.?(RCMD=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
-        p.add('cg_eng_err_bcmd',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERR_BCMD,
               r'STATUS\.err_cnts=.?(BCMD=(\d+)).+\r\n',
               lambda match : int(match.group(2)),
               int)
               
-        p.add('cg_eng_errmsg_c_gps',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_C_GPS,
               r'STATUS\.last_err.C_GPS=(.+)\r\n',
               lambda match : int(match.group(1)),
               int)
-        p.add('cg_eng_errmsg_c_pps',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_C_PPS,
               r'STATUS\.last_err.C_PPS=(.+)\r\n',
               lambda match : match.group(1),
               str)
               
-        p.add('cg_eng_errmsg_c_ctl',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_C_CTL,
               r'STATUS\.last_err.C_CTL=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_c_status',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_C_STATUS,
               r'STATUS\.last_err.C_STATUS=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_superv',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_SUPERV,
               r'STATUS\.last_err.SUPERV=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_c_power_sys',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_C_POWER_SYS,
               r'STATUS\.last_err.C_POWER_SYS=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_c_telem_sys',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_C_TELEM_SYS,
               r'STATUS\.last_err.C_TELEM_SYS=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_c_irid',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_C_IRID,
               r'STATUS\.last_err.C_IRID=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_c_imm',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_C_IMM,
               r'STATUS\.last_err.C_IMM=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_cpm1',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_CPM1,
               r'STATUS\.last_err.C_CPM1=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_d_ctl',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_D_CTL,
               r'STATUS\.last_err.D_CTL=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_d_status',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_D_STATUS,
               r'STATUS\.last_err.D_STATUS=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_dlog_mgr',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_DLOG_MGR,
               r'STATUS\.last_err.DLOG_MGR=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_dlogp1',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_DLOGP1,
               r'STATUS\.last_err.DLOGP1=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_dlogp2',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_DLOGP2,
               r'STATUS\.last_err.DLOGP2=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_dlogp3',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_DLOGP3,
               r'STATUS\.last_err.DLOGP3=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_dlogp4',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_DLOGP4,
               r'STATUS\.last_err.DLOGP4=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_dlogp5',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_DLOGP5,
               r'STATUS\.last_err.DLOGP5=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_dlogp6',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_DLOGP6,
               r'STATUS\.last_err.DLOGP6=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_dlogp7',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_DLOGP7,
               r'STATUS\.last_err.DLOGP7=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_dlogp8',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_DLOGP8,
               r'STATUS\.last_err.DLOGP8=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_rcmd',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_RCMD ,
               r'STATUS\.last_err.RCMD=(.+)\r\n',
               lambda match : match.group(1),
               str)
-        p.add('cg_eng_errmsg_bcmd',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_ERRMSG_BCMD ,
               r'STATUS\.last_err.BCMD=(.+)\r\n',
               lambda match : match.group(1),
               str)
         
-        p.add('cg_eng_cpu_uptime',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_CPU_UPTIME,
               r'CPU\.uptime=(.+)\r\n',
               lambda match : match.group(1),
               str)
         
-        p.add('cg_eng_cpu_load1',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_CPU_LOAD1,
               r'CPU\.load=(\d+\.\d+) (\d+\.\d+) (\d+\.\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
         
-        p.add('cg_eng_cpu_load5',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_CPU_LOAD5,
               r'CPU\.load=(\d+\.\d+) (\d+\.\d+) (\d+\.\d+)\r\n',
               lambda match: float(match.group(2)),
               float)
         
-        p.add('cg_eng_cpu_load15',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_CPU_LOAD15,
               r'CPU\.load=(\d+\.\d+) (\d+\.\d+) (\d+\.\d+)\r\n',
               lambda match: float(match.group(3)),
               float)
         
-        p.add('cg_eng_memory_ram',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MEMORY_RAM,
               'CPU\.memory=Ram: (\d+)k  Free: (.+)k',
               lambda match: int(match.group(1)),
               int)
-        p.add('cg_eng_memory_free',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MEMORY_FREE,
               'CPU\.memory=Ram: (\d+)k  Free: (.+)k',
               lambda match: int(match.group(2)),
-              int)
-# Start tuesday morning              
-        p.add('cg_eng_nproc',
+              int)           
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_NPROC,
               'CPU\.nproc=(\d+)\r\n',
               lambda match: int(match.group(1)),
               int)
-        #check
-        p.add('cg_eng_mpic_eflag',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_EFLAG,
               'MPIC\.eflag=(.+)\r\n',
-              lambda match: match.group(1),
-              hex)
-        p.add('cg_eng_mpic_main_v',
+              lambda match: int('0x'+match.group(1),0),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_MAIN_V,
               'MPIC\.main_v=(\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
-        p.add('cg_eng_mpic_main_c',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_MAIN_C,
               'MPIC\.main_c=(\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
                 
-        p.add('cg_eng_mpic_bat_v',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_BAT_V,
               'MPIC\.bbat_v=(\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
-        p.add('cg_eng_mpic_bat_c',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_BAT_C,
               'MPIC\.bbat_c=(\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
-        p.add('cg_eng_mpic_temp1',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_TEMP1,
               r'MPIC\.temp.=(\d+\.\d+) (\d+\.\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
-        p.add('cg_eng_mpic_temp2',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_TEMP2,
               r'MPIC\.temp.=(\d+\.\d+) (\d+\.\d+)\r\n',
               lambda match: float(match.group(2)),
               float)
-        p.add('cg_eng_mpic_humid',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_HUMID,
               r'MPIC\.humid=(\d+\.\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
-        p.add('cg_eng_mpic_press',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_PRESS,
               r'MPIC\.press=(\d+\.\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
-        #check this next one
-        p.add('cg_eng_mpic_gf_ena',
-              r'MPIC\.gf_ena=(.+)\r\n',
-              lambda match: hex(match.group(1)),
-              hex)
         
-        p.add('cg_eng_mpic_gflt1',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_GF_ENA,
+              r'MPIC\.gf_ena=(.+)\r\n',
+              lambda match: int('0x'+match.group(1),0),
+              int)
+        
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_GFLT1,
               r'MPIC\.gflt==(\d+\.\d+) (\d+\.\d+) (\d+\.\d+) (\d+\.\d+)',
               lambda match: float(match.group(1)),
               float)
               
-        p.add('cg_eng_mpic_gflt2',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_GFLT2,
               r'MPIC\.gflt==(\d+\.\d+) (\d+\.\d+) (\d+\.\d+) (\d+\.\d+)',
               lambda match: float(match.group(2)),
               float)
-        p.add('cg_eng_mpic_gflt3',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_GFLT3,
               r'MPIC\.gflt==(\d+\.\d+) (\d+\.\d+) (\d+\.\d+) (\d+\.\d+)',
               lambda match: float(match.group(3)),
               float)
-        p.add('cg_eng_mpic_gflt4',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_GFLT4,
               r'MPIC\.gflt==(\d+\.\d+) (\d+\.\d+) (\d+\.\d+) (\d+\.\d+)',
               lambda match: float(match.group(4)),
               float)
         
-        p.add('cg_eng_mpic_ld_ena',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_LD_ENA,
               r'MPIC\.ld_ena=(.+)\r\n',
-              lambda match: hex(match.group(1)),
-              hex)
-        p.add('cg_eng_mpic_ldet1',
+              lambda match: int('0x'+match.group(1),0),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_LDET1,
               r'MPIC\.ldet.=(\d+\.\d+) (\d+\.\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
-        p.add('cg_eng_mpic_ldet2',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_LDET2,
               r'MPIC\.ldet.=(\d+\.\d+) (\d+\.\d+)\r\n',
               lambda match: float(match.group(2)),
               float)
         
-        p.add('cg_eng_mpic_wsrc',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_WSRC,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(1)),
               int)
-        p.add('cg_eng_mpic_irid'
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_IRID, 
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(1)),
               int)
-        p.add('cg_eng_mpic_irid_v',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_IRID_V,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(2)),
               int)
-        p.add('cg_eng_mpic_irid_c',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_IRID_C,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(3)),
               int)
-        p.add('cg_eng_mpic_irid_e',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_IRID_E,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(4)),
               int)
-        p.add('cg_eng_mpic_fw_wifi',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_FW_WIFI,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(5)),
               int)
-        p.add('cg_eng_mpic_fw_wifi_v',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_FW_WIFI_V,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(6)),
               int)
-        p.add('cg_eng_mpic_fw_wifi_c',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_FW_WIFI_C,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(7)),
               int)
-        p.add('cg_eng_mpic_fw_wifi_e',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_FW_WIFI_E,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(8)),
               int)
-        p.add('cg_eng_mpic_gps',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_GPS,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(9)),
               int)
-        p.add('cg_eng_mpic_sbd',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_SBD,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(10)),
               int)
-        p.add('cg_eng_mpic_sbd_ce_msg',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_SBD_CE_MSG,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(11)),
               int)
-        p.add('cg_eng_mpic_pps',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_PPS,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(12)),
               int)
-        p.add('cg_eng_mpic_dcl',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_DCL,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(13)),
               int)
         
-        p.add('cg_eng_mpic_esw',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_ESW,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(14)),
               int)
-        p.add('cg_eng_mpic_dsl',
-              r'MPIC.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_DSL,
+              r'MPIC\.hotel=wake (\d+) ir (\d+) (\d+\.\d+) (\d+\.\d+) \
                                   (\d+) fwwf (\d+) (\d+\.\d+) (\d+\.\d+) (\d+) gps (\d+) \
                                   sbd (\d+) (\d+) (pps \d+) (dcl \w\w) (esw \w) (dsl \w)',
               lambda match: int(match.group(15)),
               int)
         
         
-        p.add('cg_eng_mpic_hbeat_enable',
-              r'MPIC.cpm_hb=enable (\d+) dtime (\d+) threshold (\d+)',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_HBEAT_ENABLE,
+              r'MPIC\.cpm_hb=enable (\d+) dtime (\d+) threshold (\d+)',
               lambda match: int(match.group(1)),
               int)
-        p.add('cg_eng_mpic_hbeat_dtime',
-              r'MPIC.cpm_hb=enable (\d+) dtime (\d+) threshold (\d+)',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_HBEAT_DTIME,
+              r'MPIC\.cpm_hb=enable (\d+) dtime (\d+) threshold (\d+)',
               lambda match: int(match.group(2)),
               int)
-        p.add('cg_eng_mpic_hbeat_threshold',
-              r'MPIC.cpm_hb=enable (\d+) dtime (\d+) threshold (\d+)',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_HBEAT_THRESHOLD,
+              r'MPIC\.cpm_hb=enable (\d+) dtime (\d+) threshold (\d+)',
               lambda match: int(match.group(3)),
               int)
-        p.add('cg_eng_mpic_wake_cpm',
-              r'MPIC.wake_cpm=wtc (\d+\.\d+) wpc (\d+)\r\n',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_WAKE_CPM,
+              r'MPIC\.wake_cpm=wtc (\d+\.\d+) wpc (\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
-        p.add('cg_eng_mpic_wpc',
-              r'MPIC.wake_cpm=wtc (\d+\.\d+) wpc (\d+)\r\n',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_WPC,
+              r'MPIC\.wake_cpm=wtc (\d+\.\d+) wpc (\d+)\r\n',
               lambda match: int(match.group(2)),
               int)
 
-        p.add('cg_eng_mpic_eflag2',
-              r'MPIC.stc_eflag2=(.+)\r\n',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_EFLAG2,
+              r'MPIC\.stc_eflag2=(.+)\r\n',
               lambda match: match.group(1),
               str)
-        p.add('cg_eng_mpic_last_update',
-              r'MPIC.last_update=(\d+\.\d+)\r\n',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MPIC_LAST_UPDATE,
+              r'MPIC\.last_update=(\d+\.\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
         p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_MSG_DATE,
-              r'GPS.timestamp=(\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d{3})',
+              r'GPS\.timestamp=(\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d{3})',
               lambda match: match.group(1),
               str)
         p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_MSG_TIME,
-              r'GPS.timestamp=(\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d{3})',
+              r'GPS\.timestamp=(\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d{3})',
               lambda match: match.group(2),
               str)
-        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_DATE,
-              r'GPS.date=(.+)\r\n',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_DATE,
+              r'GPS\.date=(.+)\r\n',
               lambda match: int(match.group(1)),
               int32)
-        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_TIME,
-              r'GPS.time=(.+)\r\n',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_TIME,
+              r'GPS\.time=(.+)\r\n',
               lambda match: int(match.group(1)),
               int32)
-        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LATSTR,
-              r'GPS.lat_str=(.+)\r\n',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_LATSTR,
+              r'GPS\.lat_str=(.+)\r\n',
               lambda match: match.group(1),
               str)
-        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LONSTR,
-              r'GPS.lon_str=(.+)\r\n',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_LONSTR,
+              r'GPS\.lon_str=(.+)\r\n',
               lambda match: match.group(1),
               str)
-        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LAT,
-              r'GPS.lat=(\d+\.\d+)\r\n',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_LAT,
+              r'GPS\.lat=(\d+\.\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
-        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LON,
-              r'GPS.lon=(\d+\.\d+)\r\n',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_LON,
+              r'GPS\.lon=(\d+\.\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
-        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_SPD,
-              r'GPS.spd=(\d+\.\d+)\r\n',
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_SPD,
+              r'GPS\.spd=(\d+\.\d+)\r\n',
               lambda match: float(match.group(1)),
               float)
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_COG = 'cg_eng_gps_cog'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_FIX = 'cg_eng_gps_fix'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_NSAT = 'cg_eng_gps_nsat'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_HDOP = 'cg_eng_gps_hdop'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_ALT = 'cg_eng_gps_alt'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGGPS_LAST_UPDATE = 'cg_eng_gps_last_update'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGNTP_REFID = 'cg_eng_ntp_refid'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGNTP_OFFSET = 'cg_eng_ntp_offset'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGNTP_JITTER = 'cg_eng_ntp_jitter'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_LOCK = 'cg_eng_pps_lock'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_DELTA = 'cg_eng_pps_delta'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_DELTAMIN = 'cg_eng_pps_deltamin'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_DELTAMAX = 'cg_eng_pps_deltamax'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_BAD_PULSE = 'cg_eng_pps_bad_pulse'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_TIMESTAMP = 'cg_eng_pps_timestamp'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPPS_LAST_UPDATE = 'cg_eng_pps_last_update'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGLOADSHED_STATUS = 'cg_eng_loadshed_status'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGLOADSHED_LAST_UPDATE = 'cg_eng_loadshed_last_update'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_ETH0 = 'cg_eng_sbc_eth0'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_ETH1 = 'cg_eng_sbc_eth1'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_LED0 = 'cg_eng_sbc_led0'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_LED1 = 'cg_eng_sbc_led1'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_LED2 = 'cg_eng_sbc_led2'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPO0 = 'cg_eng_sbc_gpo0'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPO1 = 'cg_eng_sbc_gpo1'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPO2 = 'cg_eng_sbc_gpo2'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPO3 = 'cg_eng_sbc_gpo3'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPO4 = 'cg_eng_sbc_gpo4'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPIO0 = 'cg_eng_sbc_gpio0'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPIO1 = 'cg_eng_sbc_gpio1'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPIO2 = 'cg_eng_sbc_gpio2'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPIO3 = 'cg_eng_sbc_gpio3'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPIO4 = 'cg_eng_sbc_gpio4'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_GPIO5 = 'cg_eng_sbc_gpio5'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_FB1 = 'cg_eng_sbc_fb1'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_FB2 = 'cg_eng_sbc_fb2'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_CE_LED = 'cg_eng_sbc_ce_led'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_WDT = 'cg_eng_sbc_wdt'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_BID = 'cg_eng_sbc_bid'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGSBC_BSTR = 'cg_eng_sbc_bstr'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGMSG_CNTS_D_GPS = 'cg_eng_msg_cnts_d_gps'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGMSG_CNTS_D_NTP = 'cg_eng_msg_cnts_d_ntp'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGMSG_CNTS_D_PPS = 'cg_eng_msg_cnts_d_pps'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGMSG_CNTS_D_SUPERV = 'cg_eng_msg_cnts_d_superv'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGMSG_CNTS_D_DLOG_NGR = 'cg_eng_msg_cnts_d_dlog_ngr'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_ENABLE = 'cg_eng_dclp1_enable'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_VOLT = 'cg_eng_dclp1_volt'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_CURRENT = 'cg_eng_dclp1_current'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_EFLAG = 'cg_eng_dclp1_eflag'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_VSEL = 'cg_eng_dclp1_vsel'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_CLIM = 'cg_eng_dclp1_clim'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP1_PROT = 'cg_eng_dclp1_prot'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_ENABLE = 'cg_eng_dclp2_enable'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_VOLT = 'cg_eng_dclp2_volt'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_CURRENT = 'cg_eng_dclp2_current'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_EFLAG = 'cg_eng_dclp2_eflag'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_VSEL = 'cg_eng_dclp2_vsel'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_CLIM = 'cg_eng_dclp2_clim'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP2_PROT = 'cg_eng_dclp2_prot'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_ENABLE = 'cg_eng_dclp3_enable'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_VOLT = 'cg_eng_dclp3_volt'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_CURRENT = 'cg_eng_dclp3_current'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_EFLAG = 'cg_eng_dclp3_eflag'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_VSEL = 'cg_eng_dclp3_vsel'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_CLIM = 'cg_eng_dclp3_clim'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP3_PROT = 'cg_eng_dclp3_prot'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_ENABLE = 'cg_eng_dclp4_enable'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_VOLT = 'cg_eng_dclp4_volt'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_CURRENT = 'cg_eng_dclp4_current'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_EFLAG = 'cg_eng_dclp4_eflag'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_VSEL = 'cg_eng_dclp4_vsel'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_CLIM = 'cg_eng_dclp4_clim'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP4_PROT = 'cg_eng_dclp4_prot'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_ENABLE = 'cg_eng_dclp5_enable'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_VOLT = 'cg_eng_dclp5_volt'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_CURRENT = 'cg_eng_dclp5_current'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_EFLAG = 'cg_eng_dclp5_eflag'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_VSEL = 'cg_eng_dclp5_vsel'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_CLIM = 'cg_eng_dclp5_clim'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP5_PROT = 'cg_eng_dclp5_prot'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_ENABLE = 'cg_eng_dclp6_enable'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_VOLT = 'cg_eng_dclp6_volt'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_CURRENT = 'cg_eng_dclp6_current'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_EFLAG = 'cg_eng_dclp6_eflag'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_VSEL = 'cg_eng_dclp6_vsel'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_CLIM = 'cg_eng_dclp6_clim'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP6_PROT = 'cg_eng_dclp6_prot'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_ENABLE = 'cg_eng_dclp7_enable'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_VOLT = 'cg_eng_dclp7_volt'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_CURRENT = 'cg_eng_dclp7_current'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_EFLAG = 'cg_eng_dclp7_eflag'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_VSEL = 'cg_eng_dclp7_vsel'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_CLIM = 'cg_eng_dclp7_clim'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP7_PROT = 'cg_eng_dclp7_prot'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_ENABLE = 'cg_eng_dclp8_enable'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_VOLT = 'cg_eng_dclp8_volt'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_CURRENT = 'cg_eng_dclp8_current'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_EFLAG = 'cg_eng_dclp8_eflag'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_VSEL = 'cg_eng_dclp8_vsel'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_CLIM = 'cg_eng_dclp8_clim'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCLP8_PROT = 'cg_eng_dclp8_prot'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDCL_PORT_STATUS = 'cg_eng_dcl_port_status'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_NAME = 'cg_eng_port_dlog1_name'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_STATE = 'cg_eng_port_dlog1_state'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_TX = 'cg_eng_port_dlog1_tx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_RX = 'cg_eng_port_dlog1_rx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_LOG = 'cg_eng_port_dlog1_log'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_GOOD = 'cg_eng_port_dlog1_good'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_BAD = 'cg_eng_port_dlog1_bad'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_BB = 'cg_eng_port_dlog1_bb'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_LD = 'cg_eng_port_dlog1_ld'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG1_LU = 'cg_eng_port_dlog1_lu'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_NAME = 'cg_eng_port_dlog2_name'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_STATE = 'cg_eng_port_dlog2_state'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_TX = 'cg_eng_port_dlog2_tx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_RX = 'cg_eng_port_dlog2_rx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_LOG = 'cg_eng_port_dlog2_log'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_GOOD = 'cg_eng_port_dlog2_good'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_BAD = 'cg_eng_port_dlog2_bad'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_BB = 'cg_eng_port_dlog2_bb'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_LD = 'cg_eng_port_dlog2_ld'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG2_LU = 'cg_eng_port_dlog2_lu'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_NAME = 'cg_eng_port_dlog3_name'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_STATE = 'cg_eng_port_dlog3_state'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_TX = 'cg_eng_port_dlog3_tx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_RX = 'cg_eng_port_dlog3_rx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_LOG = 'cg_eng_port_dlog3_log'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_GOOD = 'cg_eng_port_dlog3_good'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_BAD = 'cg_eng_port_dlog3_bad'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_BB = 'cg_eng_port_dlog3_bb'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_LD = 'cg_eng_port_dlog3_ld'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG3_LU = 'cg_eng_port_dlog3_lu'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_NAME = 'cg_eng_port_dlog4_name'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_STATE = 'cg_eng_port_dlog4_state'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_TX = 'cg_eng_port_dlog4_tx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_RX = 'cg_eng_port_dlog4_rx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_LOG = 'cg_eng_port_dlog4_log'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_GOOD = 'cg_eng_port_dlog4_good'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_BAD = 'cg_eng_port_dlog4_bad'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_BB = 'cg_eng_port_dlog4_bb'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_LD = 'cg_eng_port_dlog4_ld'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG4_LU = 'cg_eng_port_dlog4_lu'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_NAME = 'cg_eng_port_dlog5_name'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_STATE = 'cg_eng_port_dlog5_state'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_TX = 'cg_eng_port_dlog5_tx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_RX = 'cg_eng_port_dlog5_rx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_LOG = 'cg_eng_port_dlog5_log'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_GOOD = 'cg_eng_port_dlog5_good'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_BAD = 'cg_eng_port_dlog5_bad'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_BB = 'cg_eng_port_dlog5_bb'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_LD = 'cg_eng_port_dlog5_ld'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG5_LU = 'cg_eng_port_dlog5_lu'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_NAME = 'cg_eng_port_dlog6_name'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_STATE = 'cg_eng_port_dlog6_state'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_TX = 'cg_eng_port_dlog6_tx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_RX = 'cg_eng_port_dlog6_rx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_LOG = 'cg_eng_port_dlog6_log'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_GOOD = 'cg_eng_port_dlog6_good'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_BAD = 'cg_eng_port_dlog6_bad'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_BB = 'cg_eng_port_dlog6_bb'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_LD = 'cg_eng_port_dlog6_ld'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG6_LU = 'cg_eng_port_dlog6_lu'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_NAME = 'cg_eng_port_dlog7_name'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_STATE = 'cg_eng_port_dlog7_state'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_TX = 'cg_eng_port_dlog7_tx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_RX = 'cg_eng_port_dlog7_rx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_LOG = 'cg_eng_port_dlog7_log'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_GOOD = 'cg_eng_port_dlog7_good'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_BAD = 'cg_eng_port_dlog7_bad'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_BB = 'cg_eng_port_dlog7_bb'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_LD = 'cg_eng_port_dlog7_ld'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG7_LU = 'cg_eng_port_dlog7_lu'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_NAME = 'cg_eng_port_dlog8_name'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_STATE = 'cg_eng_port_dlog8_state'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_TX = 'cg_eng_port_dlog8_tx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_RX = 'cg_eng_port_dlog8_rx'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_LOG = 'cg_eng_port_dlog8_log'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_GOOD = 'cg_eng_port_dlog8_good'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_BAD = 'cg_eng_port_dlog8_bad'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_BB = 'cg_eng_port_dlog8_bb'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_LD = 'cg_eng_port_dlog8_ld'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGPORT_DLOG8_LU = 'cg_eng_port_dlog8_lu'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_DATE = 'cg_eng_dmgrstatus_date'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_TIME = 'cg_eng_dmgrstatus_time'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_ACTIVE = 'cg_eng_dmgrstatus_active'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_STARTED = 'cg_eng_dmgrstatus_started'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_HALTED = 'cg_eng_dmgrstatus_halted'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_FAILED = 'cg_eng_dmgrstatus_failed'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_MAP = 'cg_eng_dmgrstatus_map'
-        Cg_stc_eng__stc_ParserDataParticleKey.CG_ENGDMGRSTATUS_UPDATE = 'cg_eng_dmgrstatus_update'
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_COG,
+              r'GPS\.cog=(\d+\.\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_FIX,
+              r'GPS\.fix_q=(\d+)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_NSAT,
+              r'GPS\.nsat=(\d+)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_HDOP,
+              r'GPS\.hdop=(\d+\.\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_ALT,
+              r'GPS\.alt=(\d+\.\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_GPS_LAST_UPDATE,
+              r'GPS\.last_update=(\d+\.\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_NTP_REFID,
+              r'NTP\.refid=(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_NTP_OFFSET,
+              r'NTP\.offset=(\d+\.\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_NTP_JITTER,
+              r'NTP\.jitter=(\d+\.\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PPS_LOCK,
+              r'PPS\.status=C_PPS: NMEA_Lock: (.+) Delta: (.+) DeltaMin: \
+                           (.+) DeltaMax: (.+) BadPulses: (.+) TS:(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+              
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PPS_DELTA,
+              r'PPS\.status=C_PPS: NMEA_Lock: (.+) Delta: (.+) DeltaMin: \
+                           (.+) DeltaMax: (.+) BadPulses: (.+) TS:(.+)\r\n',
+              lambda match: int(match.group(2)),
+              int)
+              
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PPS_DELTAMIN,
+              r'PPS\.status=C_PPS: NMEA_Lock: (.+) Delta: (.+) DeltaMin: \
+                           (.+) DeltaMax: (.+) BadPulses: (.+) TS:(.+)\r\n',
+              lambda match: int(match.group(3)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PPS_DELTAMAX,
+              r'PPS\.status=C_PPS: NMEA_Lock: (.+) Delta: (.+) DeltaMin: \
+                           (.+) DeltaMax: (.+) BadPulses: (.+) TS:(.+)\r\n',
+              lambda match: int(match.group(4)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PPS_BAD_PULSE,
+              r'PPS\.status=C_PPS: NMEA_Lock: (.+) Delta: (.+) DeltaMin: \
+                           (.+) DeltaMax: (.+) BadPulses: (.+) TS:(.+)\r\n',
+              lambda match: int(match.group(5)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PPS_TIMESTAMP,
+              r'PPS\.status=C_PPS: NMEA_Lock: (.+) Delta: (.+) DeltaMin: \
+                           (.+) DeltaMax: (.+) BadPulses: (.+) TS:(.+)\r\n',
+              lambda match: int(match.group(6)),
+              int)
         
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PPS_LAST_UPDATE,
+              r'PPS\.last_update=(\d+\.\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_LOADSHED_STATUS,
+              r'LoadShed\.status=(.+)\r\n',
+              lambda match: match.group(1),
+              str)
         
-        for (key, value) in all_params.iteritems():
-            result.append({DataParticleKey.VALUE_ID: key, DataParticleKey.VALUE: value})
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_LOADSHED_LAST_UPDATE,
+              r'LoadShed\.last_update=(\d+\.\d+)\r\n',
+              lambda match: float(match.group(1)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_ETH0,
+              r'sbc\.eth0=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)         
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_ETH1,
+              r'sbc\.eth1=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_LED0,
+              r'sbc\.led0=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_LED1,
+              r'sbc\.led1=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_LED2,
+              r'sbc\.led0=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_GPO0,
+              r'sbc\.gpo0=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_GPO1,
+              r'sbc\.gpo1=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_GPO2,
+              r'sbc\.gpo2=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_GPO3,
+              r'sbc\.gpo3=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_GPO4,
+              r'sbc\.gpo4=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_GPIO0,
+              r'sbc\.gpio0=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_GPIO1,
+              r'sbc\.gpio1=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_GPIO2,
+              r'sbc\.gpio2=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_GPIO3,
+              r'sbc\.gpio3=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_GPIO4,
+              r'sbc\.gpio4=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_GPIO5,
+              r'sbc\.gpio5=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_FB1,
+              r'sbc\.fb1=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_FB2,
+              r'sbc\.fb2=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)  
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_CE_LED,
+              r'sbc\.ce_led=(\d)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_WDT,
+              r'sbc\.wdt=(0x.+)\r\n',
+              lambda match: int(match.group(1),0),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_BID,
+              r'sbc\.bid=(0x.+)\r\n',
+              lambda match: int(match.group(1),0),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_SBC_BSTR,
+              r'sbc\.bstr=(0x.+)\r\n',
+              lambda match: int(match.group(1),0),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MSG_CNTS_D_GPS,
+              r'STATUS.msg_cnts=D_GPS=(\d+), NTP=(\d+), D_PPS=(\d+), \
+                                SUPERV=(\d+), DLOG_MGR=(\d+)',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MSG_CNTS_D_NTP,
+              r'STATUS.msg_cnts=D_GPS=(\d+), NTP=(\d+), D_PPS=(\d+), \
+                                SUPERV=(\d+), DLOG_MGR=(\d+)',
+              lambda match: int(match.group(2)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MSG_CNTS_D_PPS,
+              r'STATUS.msg_cnts=D_GPS=(\d+), NTP=(\d+), D_PPS=(\d+), \
+                                SUPERV=(\d+), DLOG_MGR=(\d+)',
+              lambda match: int(match.group(3)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MSG_CNTS_D_SUPERV,
+              r'STATUS.msg_cnts=D_GPS=(\d+), NTP=(\d+), D_PPS=(\d+), \
+                                SUPERV=(\d+), DLOG_MGR=(\d+)',
+              lambda match: int(match.group(4)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_MSG_CNTS_D_DLOG_NGR,
+              r'STATUS.msg_cnts=D_GPS=(\d+), NTP=(\d+), D_PPS=(\d+), \
+                                SUPERV=(\d+), DLOG_MGR=(\d+)',
+              lambda match: int(match.group(5)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP1_ENABLE,
+              r'DCL\.port\.1=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP1_VOLT,
+              r'DCL\.port\.1=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(2)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP1_CURRENT,
+              r'DCL\.port\.1=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(3)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP1_EFLAG,
+              r'DCL\.port\.1=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(4)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP1_VSEL,
+              r'DCL\.port\.1=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(5)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP1_CLIM,
+              r'DCL\.port\.1=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(6)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP1_PROT,
+              r'DCL\.port\.1=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(7)),
+              int)
+        #2
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP2_ENABLE,
+              r'DCL\.port\.2=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP2_VOLT,
+              r'DCL\.port\.2=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(2)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP2_CURRENT,
+              r'DCL\.port\.2=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(3)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP2_EFLAG,
+              r'DCL\.port\.2=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(4)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP2_VSEL,
+              r'DCL\.port\.2=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(5)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP2_CLIM,
+              r'DCL\.port\.2=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(6)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP2_PROT,
+              r'DCL\.port\.2=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(7)),
+              int)
+        #3
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP3_ENABLE,
+              r'DCL\.port\.3=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP3_VOLT,
+              r'DCL\.port\.3=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(2)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP3_CURRENT,
+              r'DCL\.port\.3=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(3)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP3_EFLAG,
+              r'DCL\.port\.3=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(4)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP3_VSEL,
+              r'DCL\.port\.3=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(5)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP3_CLIM,
+              r'DCL\.port\.3=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(6)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP3_PROT,
+              r'DCL\.port\.3=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(7)),
+              int)
+        #4
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP4_ENABLE,
+              r'DCL\.port\.4=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP4_VOLT,
+              r'DCL\.port\.4=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(2)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP4_CURRENT,
+              r'DCL\.port\.4=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(3)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP4_EFLAG,
+              r'DCL\.port\.4=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(4)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP4_VSEL,
+              r'DCL\.port\.4=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(5)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP4_CLIM,
+              r'DCL\.port\.4=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(6)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP4_PROT,
+              r'DCL\.port\.4=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(7)),
+              int)
+        #5
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP5_ENABLE,
+              r'DCL\.port\.5=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP5_VOLT,
+              r'DCL\.port\.5=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(2)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP5_CURRENT,
+              r'DCL\.port\.5=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(3)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP5_EFLAG,
+              r'DCL\.port\.5=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(4)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP5_VSEL,
+              r'DCL\.port\.5=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(5)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP5_CLIM,
+              r'DCL\.port\.5=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(6)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP5_PROT,
+              r'DCL\.port\.5=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(7)),
+              int)
+        #6
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP6_ENABLE,
+              r'DCL\.port\.6=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP6_VOLT,
+              r'DCL\.port\.6=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(2)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP6_CURRENT,
+              r'DCL\.port\.6=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(3)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP6_EFLAG,
+              r'DCL\.port\.6=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(4)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP6_VSEL,
+              r'DCL\.port\.6=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(5)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP6_CLIM,
+              r'DCL\.port\.6=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(6)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP6_PROT,
+              r'DCL\.port\.6=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(7)),
+              int)
+        #7
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP7_ENABLE,
+              r'DCL\.port\.7=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP7_VOLT,
+              r'DCL\.port\.7=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(2)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP7_CURRENT,
+              r'DCL\.port\.7=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(3)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP7_EFLAG,
+              r'DCL\.port\.7=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(4)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP7_VSEL,
+              r'DCL\.port\.7=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(5)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP7_CLIM,
+              r'DCL\.port\.7=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(6)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP7_PROT,
+              r'DCL\.port\.7=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(7)),
+              int)
+        #8
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP8_ENABLE,
+              r'DCL\.port\.8=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(1)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP8_VOLT,
+              r'DCL\.port\.8=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(2)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP8_CURRENT,
+              r'DCL\.port\.8=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: float(match.group(3)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP8_EFLAG,
+              r'DCL\.port\.8=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(4)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP8_VSEL,
+              r'DCL\.port\.8=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(5)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP8_CLIM,
+              r'DCL\.port\.8=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(6)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCLP8_PROT,
+              r'DCL\.port\.8=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
+                             (\d+) clim: (\d+) prot: (\d+)\r\n',
+              lambda match: int(match.group(7)),    
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DCL_PORT_STATUS,
+              r'DCL.pstatus.last_update=(\d+\.\d+)',
+              lambda match: float(match.group(1)),    
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG1_NAME,
+              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG1_STATE,
+              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(2),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG1_TX,
+              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(3)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG1_RX,
+              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(4)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG1_LOG,
+              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(5)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG1_GOOD,
+              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(6)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG1_BAD,
+              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(7)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG1_BB,
+              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(8)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG1_LD,
+              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(9)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG1_LU,
+              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: float(match.group(10)),
+              float)
+        #2
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG2_NAME,
+              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG2_STATE,
+              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(2),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG2_TX,
+              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(3)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG2_RX,
+              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(4)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG2_LOG,
+              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(5)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG2_GOOD,
+              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(6)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG2_BAD,
+              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(7)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG2_BB,
+              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(8)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG2_LD,
+              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(9)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG2_LU,
+              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: float(match.group(10)),
+              float)
+        #3
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG3_NAME,
+              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG3_STATE,
+              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(2),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG3_TX,
+              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(3)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG3_RX,
+              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(4)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG3_LOG,
+              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(5)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG3_GOOD,
+              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(6)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG3_BAD,
+              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(7)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG3_BB,
+              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(8)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG3_LD,
+              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(9)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG3_LU,
+              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: float(match.group(10)),
+              float)
+        #4
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG4_NAME,
+              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG4_STATE,
+              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(2),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG4_TX,
+              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(3)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG4_RX,
+              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(4)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG4_LOG,
+              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(5)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG4_GOOD,
+              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(6)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG4_BAD,
+              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(7)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG4_BB,
+              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(8)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG4_LD,
+              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(9)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG4_LU,
+              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: float(match.group(10)),
+              float)
+        #5
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG5_NAME,
+              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG5_STATE,
+              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(2),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG5_TX,
+              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(3)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG5_RX,
+              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(4)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG5_LOG,
+              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(5)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG5_GOOD,
+              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(6)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG5_BAD,
+              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(7)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG5_BB,
+              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(8)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG5_LD,
+              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(9)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG5_LU,
+              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: float(match.group(10)),
+              float)
+        #6
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG6_NAME,
+              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG6_STATE,
+              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(2),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG6_TX,
+              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(3)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG6_RX,
+              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(4)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG6_LOG,
+              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(5)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG6_GOOD,
+              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(6)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG6_BAD,
+              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(7)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG6_BB,
+              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(8)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG6_LD,
+              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(9)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG6_LU,
+              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: float(match.group(10)),
+              float)
+        #7
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG7_NAME,
+              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG7_STATE,
+              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(2),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG7_TX,
+              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(3)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG7_RX,
+              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(4)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG7_LOG,
+              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(5)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG7_GOOD,
+              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(6)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG7_BAD,
+              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(7)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG7_BB,
+              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(8)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG7_LD,
+              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(9)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG7_LU,
+              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: float(match.group(10)),
+              float)
+        #8
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG8_NAME,
+              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG8_STATE,
+              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: match.group(2),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG8_TX,
+              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(3)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG8_RX,
+              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(4)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG8_LOG,
+              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(5)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG8_GOOD,
+              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(6)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG8_BAD,
+              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(7)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG8_BB,
+              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(8)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG8_LD,
+              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: long(match.group(9)),
+              long)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_PORT_DLOG8_LU,
+              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  good: \
+                       (\d+)  bad: (\d+)  bb: (\d+)  ld: ([-\d]+)  lu:(.+)\r\n',
+              lambda match: float(match.group(10)),
+              float)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DMGRSTATUS_DATE,
+              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
+                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)\r\n',
+              lambda match: match.group(1),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DMGRSTATUS_TIME,
+              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
+                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)\r\n',
+              lambda match: match.group(2),
+              str)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DMGRSTATUS_ACTIVE,
+              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
+                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)\r\n',
+              lambda match: int(match.group(3)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DMGRSTATUS_STARTED,
+              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
+                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)\r\n',
+              lambda match: int(match.group(4)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DMGRSTATUS_HALTED,
+              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
+                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)\r\n',
+              lambda match: int(match.group(5)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DMGRSTATUS_FAILED,
+              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
+                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)\r\n',
+              lambda match: int(match.group(6)),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DMGRSTATUS_MAP,
+              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
+                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)\r\n',
+              lambda match: int('0x'+match.group(7),0),
+              int)
+        p.add(Cg_stc_eng__stc_ParserDataParticleKey.CG_ENG_DMGRSTATUS_UPDATE,
+              r'DMGR.last_update=(\d+\.\d+)',
+              lambda match: float(match.group(1)),
+              float)
             
         return p
     
@@ -1199,88 +1808,59 @@ class Cg_stc_eng__stcParser(Parser):
                  exception_callback,
                  *args, **kwargs):
 
-        # Read the first timestamp in from the stream_handle
-        log.debug('IN __init__!!!!!!\n\n')
-        #pDict = self._build_param_dict()
-        print(' TYPE OF VARIABLE:       %s',type(pDict))
-        self._eng_str = stream_handle.read()
-        utime_grp = re.search(r'Platform.utime=(.+)\r\n', self._eng_str)
-        if utime_grp:
-            self._timestamp = ntplib.system_to_ntp_time(float(utime_grp.group(1)))
-                    
-        else:
-            self._exception_callback(SampleException("STC Engineering input file has no UTIME associated with it"))
-            self._timestamp = 0.0
-            
-        #self._record_buffer = [] # holds tuples of (record, state)
-
-        super(BufferLoadingParser, self).__init__(config,
-                                          stream_handle,
-                                          state,
-                                          partial(StringChunker.regex_sieve_function,
-                                                  regex_list=[VEL_DATA_MATCHER]),
-                                          state_callback,
-                                          publish_callback,
-                                          *args,
-                                          **kwargs)
-
-        if state:
-            self.set_state(self._state)
+        # no sieve function since we are not using the chunker here
+        super(CgStcEngStcParser, self).__init__(config,
+                                                stream_handle,
+                                                state,
+                                                None,
+                                                state_callback,
+                                                publish_callback,
+                                                exception_callback,
+                                                *args, **kwargs)
+        # no setting state since there is no state here, 1 file = 1 particle
     
-    
-    def set_state(self, state_obj):
-        """
-        Set the value of the state object for this parser
-        @param state_obj The object to set the state to. 
-        @throws DatasetParserException if there is a bad state structure
-        """
-        if not isinstance(state_obj, dict):
-            raise DatasetParserException("Invalid state structure")
-        self._timestamp = state_obj[StateKey.TIMESTAMP]
-        self._state = state_obj
-        self._read_state = state_obj
+    def process_file(self):
+        # get records expects to return a list
+        record_list = []
+        self._eng_str = self._stream_handle.read()
+        # confirm we have actually read data, get_records may get called more than once for this
+        # file but if we are already done reading it we will read no data
+        if len(self._eng_str) > 0:
+            # Read the first timestamp in from the stream_handle
+            utime_grp = re.search(r'Platform.utime=(.+)\r\n', self._eng_str)
+            if utime_grp:
+                self._timestamp = ntplib.system_to_ntp_time(float(utime_grp.group(1)))
+                log.debug("extracting sample with timestamp %f", self._timestamp)
+                sample = self._extract_sample(self._particle_class, None, self._eng_str, self._timestamp)
+                if sample:
+                    record_list.append(sample)
+            else:
+                raise SampleException("STC Engineering input file has no UTIME associated with it")
+        return record_list
 
-    def _increment_state(self, timestamp):
+    def get_records(self, num_records):
         """
-        Increment the parser state
-        @param timestamp The timestamp completed up to that position
+        Go ahead and execute the data parsing. This involves
+        getting data from the file, then parsing it and publishing.
+        @param num_records The number of records to gather
+        @retval Return the list of particles requested, [] if none available
         """
-        self._read_state[StateKey.TIMESTAMP] = timestamp
+        if num_records <= 0:
+            return []
+        # there is only one file producing one sample, process it
+        record = self.process_file()
+        # if a record was returned, publish it
+        if record:
+            self._publish_sample(record)
+        # set the state to None since there is no state, and the file ingested flag to True
+        # if no record was returned still set it to True because we have processed the whole file
+        self._state_callback(None, True)
+        return record
 
-    def parse_chunks(self):
+    def set_state(self, state):
         """
-        Parse out any pending data chunks in the chunker. If
-        it is a valid data piece, build a particle, update the position and
-        timestamp. Go until the chunker has no more valid data.
-        @retval a list of tuples with sample particles encountered in this
-            parsing, plus the state. An empty list of nothing was parsed.
-        """            
-        result_particles = []
-        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-        non_data = None
-        
-
-        # particle-ize the data block received, return the record
-        sample = self._extract_sample(self._particle_class, None, self._eng_str, self._timestamp)
-        if sample:
-            # create particle
-            log.trace("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
-            self._increment_state(end, self._timestamp)    
-            result_particles.append((sample, copy.copy(self._read_state)))
-
-
-        return result_particles
-
-    
-    def _load_particle_buffer(self):
+        Need to override this to pass since we have no state
         """
-        Load up the internal record buffer with some particles based on a
-        gather from the get_block method.
-        """
-        
-        result = self.parse_chunks()
-        self._record_buffer.extend(result)
-            
-            
-    
+        pass
+
     
