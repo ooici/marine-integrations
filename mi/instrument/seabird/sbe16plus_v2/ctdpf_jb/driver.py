@@ -19,6 +19,7 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.data_particle import DataParticleKey, CommonDataParticleType
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -28,8 +29,12 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
+
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import SampleException
+
+from xml.dom.minidom import parseString
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
@@ -39,7 +44,9 @@ from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolEvent
 from mi.instrument.seabird.sbe16plus_v2.driver import Capability
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16Protocol
 from mi.instrument.seabird.sbe16plus_v2.driver import Prompt
+from mi.instrument.seabird.sbe16plus_v2.driver import DataParticleType
 
+from mi.instrument.seabird.driver import SeaBirdParticle
 from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 from mi.instrument.seabird.driver import NEWLINE
 from mi.instrument.seabird.driver import TIMEOUT
@@ -66,13 +73,6 @@ class Command(BaseEnum):
 
         #TODO: not specified in IOS
         SET = 'set'
-
-
-class DataParticleType(BaseEnum):
-    """
-    Data particle types produced by this driver
-    """
-    RAW = CommonDataParticleType.RAW
 
 
 class Parameter(DriverParameter):
@@ -115,6 +115,214 @@ class Parameter(DriverParameter):
 # Data Particles
 ###############################################################################
 
+class SBE19StatusParticleKey(BaseEnum):
+    SERIAL_NUMBER = "serial_number"
+
+    DATE_TIME = "date_time_string"
+    LOGGING_STATE = "logging_state"
+    NUMBER_OF_EVENTS = "num_events"
+
+    BATTERY_VOLTAGE_MAIN = "battery_voltage_main"
+    BATTERY_VOLTAGE_LITHIUM = "battery_voltage_lithium"
+    OPERATIONAL_CURRENT = "operational_current"
+    PUMP_CURRENT = "pump_current"
+    EXT_V01_CURRENT = "ext_v01_current"
+    SERIAL_CURRENT = "serial_current"
+
+    MEMORY_FREE = "mem_free"
+    NUMBER_OF_SAMPLES = "numm_samples"
+    SAMPLES_FREE = "samples_free"
+    SAMPLE_LENGTH = "sample_length"
+    PROFILES = "profiles"
+
+
+class SBE19StatusParticle(SeaBirdParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    _data_particle_type = DataParticleType.DEVICE_STATUS
+
+    @staticmethod
+    def regex():
+        pattern = r'<StatusData.*?</StatusData>' + NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        return re.compile(SBE19StatusParticle.regex(), re.DOTALL)
+
+    def _map_param_to_xml_tag(self, parameter_name):
+        map_param_to_tag = {SBE19StatusParticleKey.BATTERY_VOLTAGE_MAIN: "vMain",
+                            SBE19StatusParticleKey.BATTERY_VOLTAGE_LITHIUM: "vLith",
+                            SBE19StatusParticleKey.OPERATIONAL_CURRENT: "iMain",
+                            SBE19StatusParticleKey.PUMP_CURRENT: "iPump",
+                            SBE19StatusParticleKey.EXT_V01_CURRENT: "iExt01",
+                            SBE19StatusParticleKey.SERIAL_CURRENT: "iSerial",
+
+                            SBE19StatusParticleKey.MEMORY_FREE: "Bytes",
+                            SBE19StatusParticleKey.NUMBER_OF_SAMPLES: "Samples",
+                            SBE19StatusParticleKey.SAMPLES_FREE: "SamplesFree",
+                            SBE19StatusParticleKey.SAMPLE_LENGTH: "SampleLength",
+                            SBE19StatusParticleKey.PROFILES: "Profiles",
+                           }
+        return map_param_to_tag[parameter_name]
+
+    def _build_parsed_values(self):
+        """
+        Parse the output of the getSD command
+        @throws SampleException If there is a problem with sample creation
+        """
+
+        SERIAL_NUMBER = "SerialNumber"
+        DATE_TIME = "DateTime"
+        LOGGING_STATE = "LoggingState"
+        EVENT_SUMMARY = "EventSummary"
+        NUMBER_OF_EVENTS = "numEvents"
+        POWER = "Power"
+        MEMORY_SUMMARY = "MemorySummary"
+
+        # check to make sure there is a correct match before continuing
+        match = SBE19StatusParticle.regex_compiled().match(self.raw_data)
+        if not match:
+            raise SampleException("No regex match of parsed status data: [%s]" %
+                                  self.raw_data)
+
+        dom = parseString(self.raw_data)
+        root = dom.documentElement
+        log.debug("root.tagName = %s" %root.tagName)
+        serial_number = int(root.getAttribute(SERIAL_NUMBER))
+        date_time = self._extract_xml_element_value(root, DATE_TIME)
+        logging_status = self._extract_xml_element_value(root, LOGGING_STATE)
+        event_summary = self._extract_xml_elements(root, EVENT_SUMMARY)[0]
+        number_of_events = int(event_summary.getAttribute(NUMBER_OF_EVENTS))
+        result = [{DataParticleKey.VALUE_ID: SBE19StatusParticleKey.SERIAL_NUMBER,
+                   DataParticleKey.VALUE: serial_number},
+                  {DataParticleKey.VALUE_ID: SBE19StatusParticleKey.DATE_TIME,
+                   DataParticleKey.VALUE: date_time},
+                  {DataParticleKey.VALUE_ID: SBE19StatusParticleKey.LOGGING_STATE,
+                   DataParticleKey.VALUE: logging_status},
+                  {DataParticleKey.VALUE_ID: SBE19StatusParticleKey.NUMBER_OF_EVENTS,
+                   DataParticleKey.VALUE: number_of_events},
+                 ]
+
+        element = self._extract_xml_elements(root, POWER)[0]
+        result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.BATTERY_VOLTAGE_MAIN))
+        result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.BATTERY_VOLTAGE_LITHIUM))
+        result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.OPERATIONAL_CURRENT))
+        result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.PUMP_CURRENT))
+        result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.EXT_V01_CURRENT))
+        result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.SERIAL_CURRENT))
+
+        element = self._extract_xml_elements(root, MEMORY_SUMMARY)[0]
+        result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.MEMORY_FREE, int))
+        result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.NUMBER_OF_SAMPLES, int))
+        result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.SAMPLES_FREE, int))
+        result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.SAMPLE_LENGTH, int))
+        result.append(self._get_xml_parameter(element, SBE19StatusParticleKey.PROFILES, int))
+
+        return result
+
+
+class SBE19DataParticleKey(BaseEnum):
+    TEMP = "temperature"
+    CONDUCTIVITY = "conductivity"
+    PRESSURE = "pressure"
+    PRESSURE_TEMP = "pressure_temp"
+    VOLT0 = "volt0"
+    VOLT1 = "volt1"
+    OXYGEN = "oxygen"
+
+
+class SBE19DataParticle(SeaBirdParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+
+    Sample:
+       #04570F0A1E910828FC47BC59F199952C64C9
+
+    Format:
+       #ttttttccccccppppppvvvvvvvvvvvvoooooo
+
+       Temperature = tttttt
+       Conductivity = cccccc
+       quartz pressure = pppppp
+       quartz pressure temperature compensation = vvvv
+       First external voltage = vvvv
+       Second external voltage = vvvv
+       Oxygen = oooooo
+    """
+    _data_particle_type = DataParticleType.CTD_PARSED
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        @return: regex string
+        """
+        #ttttttccccccppppppvvvvvvvvvvvvoooooo
+        pattern = r'#? *' # patter may or may not start with a '
+        pattern += r'([0-9A-F]{6})' # temperature
+        pattern += r'([0-9A-F]{6})' # conductivity
+        pattern += r'([0-9A-F]{6})' # pressure
+        pattern += r'([0-9A-F]{4})' # pressure temp
+        pattern += r'([0-9A-F]{4})' # volt0
+        pattern += r'([0-9A-F]{4})' # volt1
+        pattern += r'([0-9A-F]{6})' # oxygen
+        pattern += NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        """
+        get the compiled regex pattern
+        @return: compiled re
+        """
+        return re.compile(SBE19DataParticle.regex())
+
+    def _build_parsed_values(self):
+        """
+        Take something in the autosample/TS format and split it into
+        C, T, and D values (with appropriate tags)
+
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = SBE19DataParticle.regex_compiled().match(self.raw_data)
+
+        if not match:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.raw_data)
+
+        try:
+            temperature = self.hex2value(match.group(1))
+            conductivity = self.hex2value(match.group(2))
+            pressure = self.hex2value(match.group(3))
+            pressure_temp = self.hex2value(match.group(4))
+            volt0 = self.hex2value(match.group(5))
+            volt1 = self.hex2value(match.group(6))
+            oxygen = self.hex2value(match.group(7))
+
+        except ValueError:
+            raise SampleException("ValueError while converting data: [%s]" %
+                                  self.raw_data)
+
+        result = [{DataParticleKey.VALUE_ID: SBE19DataParticleKey.TEMP,
+                   DataParticleKey.VALUE: temperature},
+                  {DataParticleKey.VALUE_ID: SBE19DataParticleKey.CONDUCTIVITY,
+                   DataParticleKey.VALUE: conductivity},
+                  {DataParticleKey.VALUE_ID: SBE19DataParticleKey.PRESSURE,
+                    DataParticleKey.VALUE: pressure},
+                  {DataParticleKey.VALUE_ID: SBE19DataParticleKey.PRESSURE_TEMP,
+                   DataParticleKey.VALUE: pressure_temp},
+                  {DataParticleKey.VALUE_ID: SBE19DataParticleKey.VOLT0,
+                   DataParticleKey.VALUE: volt0},
+                  {DataParticleKey.VALUE_ID: SBE19DataParticleKey.VOLT1,
+                   DataParticleKey.VALUE: volt1},
+                  {DataParticleKey.VALUE_ID: SBE19DataParticleKey.OXYGEN,
+                    DataParticleKey.VALUE: oxygen}]
+
+        return result
 
 ###############################################################################
 # Driver
@@ -483,7 +691,6 @@ class SBE19Protocol(SBE16Protocol):
         # Add parameter handlers to parameter dict.
 
         #TODO: verify if this lambda function is correct, check for completeness of DATE_TIME
-        #TODO: does reg exp need XML tag - are we parsing XML for sure?
         self._param_dict.add(Parameter.DATE_TIME,
                              r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})',
                              lambda match : match,
@@ -728,7 +935,7 @@ class SBE19Protocol(SBE16Protocol):
                              visibility=ParameterDictVisibility.IMMUTABLE)
 
 
-        #TODO: SendGTD, SendOptode, MP
+        #TODO: SendGTD, SendOptode, MP?
 
 
 
