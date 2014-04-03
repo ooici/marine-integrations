@@ -23,7 +23,7 @@ from functools import partial
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.core.exceptions import SampleException, DatasetParserException
+from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
 from mi.dataset.dataset_parser import BufferLoadingFilenameParser
 from mi.core.instrument.chunker import StringChunker
 
@@ -32,20 +32,24 @@ from mi.core.instrument.chunker import StringChunker
 #             AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.02V,
 #             AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
 
-
-DATA_REGEX = r'(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d.\d{3}) (Coulombs) = (\d+.\d+)C, '\
-             '(AVG Q_RTE Current) = (\d+.\d+)A, (AVG RTE Voltage) = (\d+.\d+)V, '\
-             '(AVG Supply Voltage) = (\d+.\d+)V, (RTE Hits) (\d+), (RTE State) = (\d+)'
+DATA_REGEX = r'(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d.\d{3}) (Coulombs) = (-?\d+.\d+)C, '\
+             '(AVG Q_RTE Current) = (-?\d+.\d+)A, (AVG RTE Voltage) = (-?\d+.\d+)V, '\
+             '(AVG Supply Voltage) = (-?\d+.\d+)V, (RTE Hits) (\d+), (RTE State) = (\d+)\r\n'
 DATA_MATCHER = re.compile(DATA_REGEX)
 
 LOG_TIME_REGEX = r'(\d{4})/(\d\d)/(\d\d) (\d\d):(\d\d):(\d\d.\d{3}) '
 LOG_TIME_MATCHER = re.compile(LOG_TIME_REGEX)
 
+METADATA_REGEX = r'(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d.\d{3}) \[.+DLOGP\d+\].+\r\n'
+METADATA_MATCHER = re.compile(METADATA_REGEX)
 
-class DataParticleType(BaseEnum):
-    SAMPLE = 'rte_xx__stc_instrument'
+class RteDataParticleType(BaseEnum):
+    SAMPLE = 'rte_o_dcl_instrument'
+    
+class StateKey(BaseEnum):
+    POSITION='position' #hold the current file position
 
-class RteOStcParserDataParticleKey(BaseEnum):
+class RteODclParserDataParticleKey(BaseEnum):
     RTE_TIME = 'rte_time'
     RTE_COULOMBS = 'rte_coulombs'
     RTE_AVG_Q_CURRENT = 'rte_avg_q_current'
@@ -54,15 +58,12 @@ class RteOStcParserDataParticleKey(BaseEnum):
     RTE_HITS = 'rte_hits'
     RTE_STATE = 'rte_state'
 
-class StateKey(BaseEnum):
-    POSITION='position' #hold the current file position
-
-class RteOStcParserDataParticle(DataParticle):
+class RteODclParserDataParticle(DataParticle):
     """
     Class for parsing data from the rte_o_stc data set
     """
 
-    _data_particle_type = DataParticleType.SAMPLE
+    _data_particle_type = RteDataParticleType.SAMPLE
     
     def _build_parsed_values(self):
         """
@@ -73,21 +74,21 @@ class RteOStcParserDataParticle(DataParticle):
         # match the data inside the wrapper
         match = DATA_MATCHER.match(self.raw_data)
         if not match:
-            raise SampleException("RteOStcParserDataParticle: No regex match of \
+            raise SampleException("RteODclParserDataParticle: No regex match of \
                                   parsed sample data [%s]", self.raw_data)
 
-        result = [self._encode_value(RteOStcParserDataParticleKey.RTE_TIME, match.group(1), str),
-                  self._encode_value(RteOStcParserDataParticleKey.RTE_COULOMBS, match.group(3), float),
-                  self._encode_value(RteOStcParserDataParticleKey.RTE_AVG_Q_CURRENT, match.group(5), float),
-                  self._encode_value(RteOStcParserDataParticleKey.RTE_AVG_VOLTAGE, match.group(7), float),
-                  self._encode_value(RteOStcParserDataParticleKey.RTE_SUPPLY_VOLTAGE, match.group(9), float),
-                  self._encode_value(RteOStcParserDataParticleKey.RTE_HITS, match.group(11), int),
-                  self._encode_value(RteOStcParserDataParticleKey.RTE_STATE, match.group(13), int)]
+        result = [self._encode_value(RteODclParserDataParticleKey.RTE_TIME, match.group(1), str),
+                  self._encode_value(RteODclParserDataParticleKey.RTE_COULOMBS, match.group(3), float),
+                  self._encode_value(RteODclParserDataParticleKey.RTE_AVG_Q_CURRENT, match.group(5), float),
+                  self._encode_value(RteODclParserDataParticleKey.RTE_AVG_VOLTAGE, match.group(7), float),
+                  self._encode_value(RteODclParserDataParticleKey.RTE_AVG_SUPPLY_VOLTAGE, match.group(9), float),
+                  self._encode_value(RteODclParserDataParticleKey.RTE_HITS, match.group(11), int),
+                  self._encode_value(RteODclParserDataParticleKey.RTE_STATE, match.group(13), int)]
          
-        log.debug('RteOStcParserDataParticle: particle=%s', result)
+        log.debug('RteODclParserDataParticle: particle=%s', result)
         return result  
 
-class RteOStcParser(BufferLoadingFilenameParser):
+class RteODclParser(BufferLoadingFilenameParser):
 
     def __init__(self,
                  config,
@@ -98,12 +99,12 @@ class RteOStcParser(BufferLoadingFilenameParser):
                  publish_callback,
                  exception_callback,
                  *args, **kwargs):
-        super(RteOStcParser, self).__init__(config,
+        super(RteODclParser, self).__init__(config,
                                             stream_handle,
                                             file_name,
                                             state,
                                             partial(StringChunker.regex_sieve_function,
-                                                    regex_list=[DATA_MATCHER]),
+                                                    regex_list=[DATA_MATCHER, METADATA_MATCHER]),
                                             state_callback,
                                             publish_callback,
                                             exception_callback,
@@ -166,7 +167,6 @@ class RteOStcParser(BufferLoadingFilenameParser):
         log.trace("Converted time \"%s\" (unix: %s) into %s", ts_str, adjusted_time, ntptime)
         return ntptime
 
-
     def parse_chunks(self):
         """
         Parse out any pending data chunks in the chunker. If
@@ -176,14 +176,12 @@ class RteOStcParser(BufferLoadingFilenameParser):
             parsing, plus the state. An empty list of nothing was parsed.
         """            
         result_particles = []
-        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-        
-        if end == None:
-            data_increment = 0
-        else:
-            data_increment = end
+        (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
+        (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
+        self.handle_non_data(non_data, non_end, start)
         
         while (chunk != None):
+            # if this chunk is a data match process it, otherwise it is a metadata record which is ignored
             data_match = DATA_MATCHER.match(chunk)
             if data_match:
                 # time is inside the data regex
@@ -191,26 +189,36 @@ class RteOStcParser(BufferLoadingFilenameParser):
                 
                 # particle-ize the data block received, return the record
                 sample = self._extract_sample(self._particle_class, DATA_MATCHER, chunk, self._timestamp)
+                # increment state for this chunk even if we don't get a particle
+                self._increment_state(len(chunk)) 
                 if sample:
                     # create particle
-                    
-                    self._increment_state(data_increment)    
                     result_particles.append((sample, copy.copy(self._read_state)))
-                    
                     log.debug("Extracting sample chunk %s with read_state: %s", chunk, self._read_state)
-
-            (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=True)
-            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-
-            if end == None:
-                data_increment = 0
             else:
-                data_increment = end - start
-            # need to add length of non-data to data to get the final position 
-            if non_end != None and non_end != 0:
-                data_increment += (non_end - non_start)
+                # this is a metadata chunk, just increment the state
+                self._increment_state(len(chunk))    
+
+            (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
+            (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
+            self.handle_non_data(non_data, non_end, start)
 
         return result_particles
+
+    def handle_non_data(self, non_data, non_end, start):
+        """
+        handle data in the non_data chunker queue
+        @param non_data data in the non data chunker queue
+        @param non_end ending index of the non_data chunk
+        @param start start index of the next data chunk
+        """
+        # we can get non_data after our current chunk, check that this chunk is before that chunk
+        if non_data is not None and non_end <= start:
+            log.error("Found %d bytes of unexpected non-data:%s", len(non_data), non_data)
+            self._exception_callback(UnexpectedDataException("Found %d bytes of un-expected non-data:%s" %
+                                                         (len(non_data), non_data)))
+            self._increment_state(len(non_data))
+
 
 
 
