@@ -67,8 +67,6 @@ class BotptProtocolEvent(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     DISCOVER = DriverEvent.DISCOVER
-    DUMP_01 = BotptExportedInstrumentCommand.DUMP_01
-    DUMP_02 = BotptExportedInstrumentCommand.DUMP_02
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
     START_DIRECT = DriverEvent.START_DIRECT
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
@@ -83,8 +81,6 @@ class BotptCapability(BaseEnum):
     SET = BotptProtocolEvent.SET
     START_AUTOSAMPLE = BotptProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = BotptProtocolEvent.STOP_AUTOSAMPLE
-    DUMP_01 = BotptProtocolEvent.DUMP_01
-    DUMP_02 = BotptProtocolEvent.DUMP_02
     ACQUIRE_STATUS = BotptProtocolEvent.ACQUIRE_STATUS
 
 
@@ -546,24 +542,24 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
                 self._got_chunk(chunk, timestamp)
                 timestamp, chunk = self._chunker.get_next_data()
 
-    def _clean_buffer(self, my_buffer):
-        return NEWLINE.join(my_buffer.split(NEWLINE)[-MAX_BUFFER_LENGTH:])
-
-    def add_to_buffer(self, data):
-        """
-        Add a chunk of data to the internal data buffers, filtering out data not for this sensor.
-        Limit buffer length to MAX_BUFFER_LENGTH lines
-        @param data: bytes to add to the buffer
-        """
-        # Update the line and prompt buffers.
-        self._linebuf += data
-        self._promptbuf += data
-        self._linebuf = self._clean_buffer(self._linebuf)
-        self._promptbuf = self._clean_buffer(self._promptbuf)
-        self._last_data_timestamp = time.time()
-
-        log.debug("LINE BUF: %s", self._linebuf)
-        log.debug("PROMPT BUF: %s", self._promptbuf)
+    # def _clean_buffer(self, my_buffer):
+    #     return NEWLINE.join(my_buffer.split(NEWLINE)[-MAX_BUFFER_LENGTH:])
+    #
+    # def add_to_buffer(self, data):
+    #     """
+    #     Add a chunk of data to the internal data buffers, filtering out data not for this sensor.
+    #     Limit buffer length to MAX_BUFFER_LENGTH lines
+    #     @param data: bytes to add to the buffer
+    #     """
+    #     # Update the line and prompt buffers.
+    #     self._linebuf += data
+    #     self._promptbuf += data
+    #     self._linebuf = self._clean_buffer(self._linebuf)
+    #     self._promptbuf = self._clean_buffer(self._promptbuf)
+    #     self._last_data_timestamp = time.time()
+    #
+    #     log.debug("LINE BUF: %s", self._linebuf)
+    #     log.debug("PROMPT BUF: %s", self._promptbuf)
 
     def _build_command(self, cmd, *args, **kwargs):
         command = cmd + NEWLINE

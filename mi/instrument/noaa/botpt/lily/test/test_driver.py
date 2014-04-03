@@ -59,11 +59,11 @@ from mi.instrument.noaa.botpt.lily.driver import LILY_DUMP_01
 from mi.instrument.noaa.botpt.lily.driver import LILY_DUMP_02
 from mi.instrument.noaa.botpt.lily.driver import LILY_LEVEL_ON
 from mi.instrument.noaa.botpt.lily.driver import LILY_LEVEL_OFF
-from mi.instrument.noaa.botpt.lily.driver import DEFAULT_XTILT_TRIGGER
-from mi.instrument.noaa.botpt.lily.driver import DEFAULT_YTILT_TRIGGER
+from mi.instrument.noaa.botpt.lily.driver import DEFAULT_MAX_XTILT
+from mi.instrument.noaa.botpt.lily.driver import DEFAULT_MAX_YTILT
 from mi.instrument.noaa.botpt.lily.driver import DEFAULT_LEVELING_TIMEOUT
 
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, InstrumentDataException
 from pyon.agent.agent import ResourceAgentState
 
 ###
@@ -181,6 +181,11 @@ LEVELED_STATUS = \
 SWITCHING_STATUS = \
     "LILY,2013/06/28 18:04:41,*  -7.390, -14.063,190.91, 25.83,,Switching to Y!11.87,N9651"
 
+X_OUT_OF_RANGE = \
+    "LILY,2013/03/22 19:07:28,*-330.000,-330.000,185.45, -6.45,,X Axis out of range, switching to Y!11.37,N9651"
+
+Y_OUT_OF_RANGE = \
+    "LILY,2013/03/22 19:07:29,*-330.000,-330.000,184.63, -6.43,,Y Axis out of range!11.34,N9651"
 
 ###############################################################################
 #                           DRIVER TEST MIXIN                                 #
@@ -216,7 +221,8 @@ class LILYTestMixinSub(DriverTestMixin):
         LILYDataParticleKey.MAG_COMPASS: {TYPE: float, VALUE: 194.30, REQUIRED: True},
         LILYDataParticleKey.TEMP: {TYPE: float, VALUE: 26.04, REQUIRED: True},
         LILYDataParticleKey.SUPPLY_VOLTS: {TYPE: float, VALUE: 11.96, REQUIRED: True},
-        LILYDataParticleKey.SN: {TYPE: unicode, VALUE: 'N9655', REQUIRED: True}
+        LILYDataParticleKey.SN: {TYPE: unicode, VALUE: 'N9655', REQUIRED: True},
+        LILYDataParticleKey.OUT_OF_RANGE: {TYPE: bool, VALUE: False, REQUIRED: True}
     }
 
     _sample_parameters_02 = {
@@ -226,15 +232,16 @@ class LILYTestMixinSub(DriverTestMixin):
         LILYDataParticleKey.MAG_COMPASS: {TYPE: float, VALUE: 194.26, REQUIRED: True},
         LILYDataParticleKey.TEMP: {TYPE: float, VALUE: 26.04, REQUIRED: True},
         LILYDataParticleKey.SUPPLY_VOLTS: {TYPE: float, VALUE: 11.96, REQUIRED: True},
-        LILYDataParticleKey.SN: {TYPE: unicode, VALUE: 'N9655', REQUIRED: True}
+        LILYDataParticleKey.SN: {TYPE: unicode, VALUE: 'N9655', REQUIRED: True},
+        LILYDataParticleKey.OUT_OF_RANGE: {TYPE: bool, VALUE: False, REQUIRED: True}
     }
 
     _status_01_parameters = {
         BotptStatus01ParticleKey.TIME: {TYPE: float, VALUE: 3581130941.0, REQUIRED: True},
-        BotptStatus01ParticleKey.MODEL: {TYPE: unicode, VALUE: 'LILY', REQUIRED: True},
-        BotptStatus01ParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: 'V2.1', REQUIRED: True},
-        BotptStatus01ParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: 'SN-N9655', REQUIRED: True},
-        BotptStatus01ParticleKey.ID_NUMBER: {TYPE: unicode, VALUE: 'ID01', REQUIRED: True},
+        BotptStatus01ParticleKey.MODEL: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
+        BotptStatus01ParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: u'V2.1', REQUIRED: True},
+        BotptStatus01ParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: u'SN-N9655', REQUIRED: True},
+        BotptStatus01ParticleKey.ID_NUMBER: {TYPE: unicode, VALUE: u'ID01', REQUIRED: True},
         BotptStatus01ParticleKey.VBIAS: {TYPE: list, VALUE: [0.0] * 4, REQUIRED: True},
         BotptStatus01ParticleKey.VGAIN: {TYPE: list, VALUE: [0.0] * 4, REQUIRED: True},
         BotptStatus01ParticleKey.VMIN: {TYPE: list, VALUE: [-2.5] * 2 + [2.5] * 2, REQUIRED: True},
@@ -433,7 +440,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
     def test_set_handler(self):
         driver = self.test_connect()
-        driver._protocol._handler_command_set({Parameter.XTILT_RELEVEL_TRIGGER: 10})
+        driver._protocol._handler_command_set({Parameter.XTILT_TRIGGER: 10})
 
     def test_combined_samples(self):
         chunker = StringChunker(Protocol.sieve_function)
@@ -603,9 +610,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
     def test_status_handlers(self):
         driver = self.test_connect()
         driver._connection.send.side_effect = self.my_send(driver)
-
-        driver._protocol._protocol_fsm.on_event(ProtocolEvent.DUMP_01)
-        driver._protocol._protocol_fsm.on_event(ProtocolEvent.DUMP_02)
+        driver._protocol._protocol_fsm.on_event(ProtocolEvent.ACQUIRE_STATUS)
 
     def test_leveling_timeout(self):
         # stand up the driver in test mode
@@ -613,14 +618,14 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         driver._connection.send.side_effect = self.my_send(driver)
 
         # set the leveling timeout to 1 to speed up timeout
-        driver._protocol._leveling_timeout = 1
+        driver._protocol._param_dict.set_value(Parameter.LEVELING_TIMEOUT, 1)
         driver._protocol._protocol_fsm.on_event(ProtocolEvent.START_LEVELING)
 
         current_state = driver._protocol.get_current_state()
         self.assertEqual(current_state, ProtocolState.COMMAND_LEVELING)
 
-        # sleep for the length of timeout, assert we have returned to COMMAND
-        time.sleep(driver._protocol._leveling_timeout + 2)
+        # sleep for longer than the length of timeout, assert we have returned to COMMAND
+        time.sleep(driver._protocol._param_dict.get(Parameter.LEVELING_TIMEOUT) + 1)
         current_state = driver._protocol.get_current_state()
         self.assertEqual(current_state, ProtocolState.COMMAND)
 
@@ -634,6 +639,26 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         self._send_port_agent_packet(driver, LEVELED_STATUS)
         # Assert we have returned to the command state
         self.assertEquals(driver._protocol.get_current_state(), ProtocolState.COMMAND)
+
+    def test_leveling_failure(self):
+        driver = self.test_connect()
+        driver._connection.send.side_effect = self.my_send(driver)
+        driver._protocol._protocol_fsm.on_event(ProtocolEvent.START_LEVELING)
+        # assert we have entered a leveling state
+        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND_LEVELING)
+        self.assertTrue(driver._protocol._param_dict.get(Parameter.AUTO_RELEVEL))
+        # feed in a leveling failed status message
+        try:
+            self._send_port_agent_packet(driver, X_OUT_OF_RANGE + NEWLINE)
+            time.sleep(1)
+        except InstrumentDataException:
+            self.assertFalse(driver._protocol._param_dict.get(Parameter.AUTO_RELEVEL))
+        try:
+            self._send_port_agent_packet(driver, Y_OUT_OF_RANGE + NEWLINE)
+            time.sleep(1)
+        except InstrumentDataException:
+            self.assertFalse(driver._protocol._param_dict.get(Parameter.AUTO_RELEVEL))
+        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -672,8 +697,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, LILYTestMixinSu
     def test_get(self):
         self.assert_initialize_driver()
         self.assert_get(Parameter.AUTO_RELEVEL, True)
-        self.assert_get(Parameter.XTILT_RELEVEL_TRIGGER, DEFAULT_XTILT_TRIGGER)
-        self.assert_get(Parameter.YTILT_RELEVEL_TRIGGER, DEFAULT_YTILT_TRIGGER)
+        self.assert_get(Parameter.XTILT_TRIGGER, DEFAULT_MAX_XTILT)
+        self.assert_get(Parameter.YTILT_TRIGGER, DEFAULT_MAX_YTILT)
 
     def test_set(self):
         """
@@ -682,16 +707,9 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, LILYTestMixinSu
         self.assert_initialize_driver()
 
         self.assert_set(Parameter.AUTO_RELEVEL, False)
-        self.assert_get(Parameter.AUTO_RELEVEL, False)
-
-        self.assert_set(Parameter.AUTO_RELEVEL, True)
-        self.assert_get(Parameter.AUTO_RELEVEL, True)
-
-        self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 200)
-        self.assert_get(Parameter.XTILT_RELEVEL_TRIGGER, 200)
-
-        self.assert_set(Parameter.YTILT_RELEVEL_TRIGGER, 200)
-        self.assert_get(Parameter.YTILT_RELEVEL_TRIGGER, 200)
+        self.assert_set(Parameter.XTILT_TRIGGER, 200)
+        self.assert_set(Parameter.YTILT_TRIGGER, 200)
+        self.assert_set(Parameter.LEVELING_TIMEOUT, 600)
 
     def test_autosample_leveling(self):
         """
@@ -705,17 +723,17 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, LILYTestMixinSu
         # Begin autosampling
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
         log.debug('START_AUTOSAMPLE returned: %r', response)
-        self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
+        self.assert_state_change(ProtocolState.AUTOSAMPLE, 5)
 
         #Issue start leveling command
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_LEVELING)
         log.debug("START_LEVELING returned: %r", response)
-        self.assert_state_change(ProtocolState.AUTOSAMPLE_LEVELING, 30)
+        self.assert_state_change(ProtocolState.AUTOSAMPLE_LEVELING, 5)
 
         # Issue stop leveling command
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
         log.debug("STOP_LEVELING returned: %r", response)
-        self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
+        self.assert_state_change(ProtocolState.AUTOSAMPLE, 5)
 
     def test_command_leveling(self):
         """
@@ -738,7 +756,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, LILYTestMixinSu
 
     def test_auto_relevel(self):
         """
-        @brief Test for turning data on
+        @brief Test for verifying auto relevel
         """
         self.assert_initialize_driver()
 
@@ -747,20 +765,22 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, LILYTestMixinSu
         log.debug('START_AUTOSAMPLE returned: %r', response)
         self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
 
+        # set the leveling timeout low, so we're not here for long
+        self.assert_set(Parameter.LEVELING_TIMEOUT, 5)
+
         # Set the XTILT to a low threshold so that the driver will
         # automatically start the re-leveling operation
         # NOTE: This test MAY fail if the instrument completes
         # leveling before the triggers have been reset to 300
+        self.assert_set(Parameter.XTILT_TRIGGER, 0)
 
-        self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 0)
+        # verify we have started leveling
         self.assert_state_change(ProtocolState.AUTOSAMPLE_LEVELING, 30)
 
         # Now set the XTILT back to normal so that the driver will not
         # automatically start the re-leveling operation
+        self.assert_set(Parameter.XTILT_TRIGGER, 300)
 
-        self.assert_set(Parameter.XTILT_RELEVEL_TRIGGER, 300)
-
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_LEVELING)
         self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
 
     def test_data_on(self):
@@ -784,9 +804,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, LILYTestMixinSu
 
         # Issue acquire status command
 
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DUMP_01)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_STATUS)
         self.assert_async_particle_generation(DataParticleType.LILY_STATUS_01, self.assert_particle_status_01)
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DUMP_02)
         self.assert_async_particle_generation(DataParticleType.LILY_STATUS_02, self.assert_particle_status_02)
 
     def test_leveling_complete(self):
@@ -844,8 +863,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, LILYTestMix
                 ProtocolEvent.GET,
                 ProtocolEvent.SET,
                 ProtocolEvent.START_AUTOSAMPLE,
-                ProtocolEvent.DUMP_01,
-                ProtocolEvent.DUMP_02,
+                ProtocolEvent.ACQUIRE_STATUS
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -860,8 +878,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, LILYTestMix
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
             ProtocolEvent.STOP_AUTOSAMPLE,
-            ProtocolEvent.DUMP_01,
-            ProtocolEvent.DUMP_02,
+            ProtocolEvent.ACQUIRE_STATUS
         ]
 
         self.assert_start_autosample()
