@@ -711,8 +711,8 @@ class Protocol(CommandResponseInstrumentProtocol):
             return TerminationCodeEnum.STOPPED_BY_USER  # TODO - is the is best error handling method?
         log.debug('--- djm --- flushing home port, %d %d %d',
                   flush_volume, flush_flowrate, flush_flowrate)
-        self._do_cmd_no_resp(Command.FORWARD, flush_volume, flush_flowrate, flush_minflow) \
- \
+        self._do_cmd_no_resp(Command.FORWARD, flush_volume, flush_flowrate, flush_minflow)
+
     def _do_cmd_fill(self, *args, **kwargs):
         """
         Fill the sample at the next available port
