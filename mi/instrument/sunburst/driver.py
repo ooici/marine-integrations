@@ -68,7 +68,10 @@ SAMI_TO_UNIX = 2082844800
 # Conversion from SAMI time (seconds since 1904-01-01) to NTP timestamps
 # (seconds since 1900-01-01). Subtract this value to convert NTP timestamps to
 # SAMI, and add for the reverse.
-SAMI_TO_NTP = 126144000
+SAMI_TO_NTP =  126144000
+
+# Acceptable time difference as specified in the IOS
+TIME_THRESHOLD = 1
 
 ###
 #    Driver RegEx Definitions
@@ -209,7 +212,8 @@ class SamiParameter(DriverParameter):
     # make sure to extend these in the individual drivers with the
     # the portions of the configuration that is unique to each.
 
-
+# TODO: Prompt is an edge case which should never ever occur.  If prompt ever appears device should go back to
+# TODO: discover state and reconfigure
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
@@ -245,8 +249,8 @@ class SamiInstrumentCommand(BaseEnum):
     START = 'G5A'
     STOP = 'Q5A'
     ACQUIRE_SAMPLE_SAMI = 'R0'
+    # TODO: See prompt comment above, this command should not be necessary if total reconfiguration
     ESCAPE_BOOT = 'u'
-
 
 ###############################################################################
 # Data Particles
@@ -384,7 +388,7 @@ class SamiRegularStatusDataParticle(DataParticle):
 
         return result
 
-
+# TODO: Have not encountered any control records, remove?
 class SamiControlRecordDataParticleKey(BaseEnum):
     """
     Data particle key for peridoically produced control records.
@@ -417,7 +421,7 @@ class SamiControlRecordDataParticleKey(BaseEnum):
     NUM_BYTES_STORED = 'num_bytes_stored'
     CHECKSUM = 'checksum'
 
-
+# TODO: Have not encountered any control records, remove?
 class SamiControlRecordDataParticle(DataParticle):
     """
     Routines for parsing raw data into a control record data particle
@@ -1207,8 +1211,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._build_set_config')
 
-
-
         pass
 
     def _build_sample_sami(self):
@@ -1250,10 +1252,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     # Private helpers.
     ########################################################################
     def _wakeup(self, timeout, delay=1):
-        """
-        Overriding _wakeup; does not apply to this instrument
-        """
-        pass
+
+        # Send newline to wake up instrument.
+        log.debug('herb: ' + 'SamiProtocol._wakeup: Send newline to wake up')
+        self._do_cmd_direct(NEWLINE)
 
 ##    @staticmethod
 ##    def _discover():
@@ -1279,11 +1281,18 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
 #        kwargs['timeout'] = 10
 
+        # Send newline to wake up instrument.  TODO: Do we want to add this to the wake up method?
+#        log.debug('herb: ' + 'SamiProtocol._discover: Send newline to wake up')
+#        self._do_cmd_direct(NEWLINE)
+#        self._wakeup(0)
+
         # Make sure automatic-status updates are off. This will stop the
         # broadcast of information while we are trying to get data.
         log.debug('herb: ' + 'SamiProtocol._discover: STOP_STATUS_PERIODIC')
-        cmd = self._build_simple_command(SamiInstrumentCommand.STOP_STATUS)
-        self._do_cmd_direct(cmd)
+#        cmd = self._build_simple_command(SamiInstrumentCommand.STOP_STATUS)
+#        self._do_cmd_direct(cmd)
+#        self._do_cmd_no_resp(cmd)
+        self._do_cmd_no_resp(SamiInstrumentCommand.STOP_STATUS)
 
 ## TODO: Is this delay needed?  Instrument doesn't seem to like 2 commands sent quickly in secession.
         time.sleep(1)
@@ -1296,6 +1305,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         status = self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS, timeout=10, response_regex=REGULAR_STATUS_REGEX_MATCHER)
 
         log.debug('herb: ' + 'SamiProtocol._discover: status = ' + status)
+
+        self._build_configuration_string()
 
 ##        status_match = REGULAR_STATUS_REGEX_MATCHER.match(":" + status)
 ##
@@ -1358,6 +1369,35 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         return int(time.time()) + SAMI_TO_UNIX
 
+    def _current_sami_time(self):
+        """
+        Create a GMT timestamp in seconds using January 1, 1904 as the Epoch
+        @retval an integer value representing the number of seconds since
+            January 1, 1904.
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._current_sami_time')
+
+        gmt_time_tuple = time.gmtime()
+        gmt_seconds_since_epoch = time.mktime(gmt_time_tuple)
+        sami_seconds_since_epoch = gmt_seconds_since_epoch + SAMI_TO_UNIX
+
+        return sami_seconds_since_epoch
+
+    def _current_sami_time_hex_str(self):
+        """
+        Get current GMT time since SAMI epoch, January 1, 1904
+        @retval an 8 character hex string representing the GMT number of seconds
+        since January 1, 1904.
+        """
+        log.debug('herb: ' + 'SamiProtocol._current_sami_time_hex_str')
+
+        sami_seconds_since_epoch = self._current_sami_time()
+        sami_seconds_hex_string = format(int(sami_seconds_since_epoch), 'X')
+        sami_seconds_hex_string = sami_seconds_hex_string.zfill(8)
+
+        return sami_seconds_hex_string
+
     @staticmethod
     def calc_crc(s, num_points):
         """
@@ -1378,7 +1418,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @param num_points: number of bytes (each byte is 2-chars).
         """
 
-        log.debug('herb: ' + 'SamiProtocol._epoch_to_sami')
+        log.debug('herb: ' + 'SamiProtocol.calc_crc')
 
         cs = 0
         k = 0

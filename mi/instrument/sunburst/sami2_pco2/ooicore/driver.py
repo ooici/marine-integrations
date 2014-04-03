@@ -80,6 +80,7 @@ SAMI_SAMPLE_REGEX = (
 SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
 
 # Device 1 Sample Records (Type 0x11)
+#   TODO: Not configured for external pump, can remove?
 DEV1_SAMPLE_REGEX = (
     r'[\*]' +  #
     '([0-9A-Fa-f]{2})' +  # unique instrument identifier
@@ -91,6 +92,7 @@ DEV1_SAMPLE_REGEX = (
 DEV1_SAMPLE_REGEX_MATCHER = re.compile(DEV1_SAMPLE_REGEX)
 
 # PCO2W Configuration Record
+#   TODO: Not configured for external pump, will have to remove external settings and adjust padding
 CONFIGURATION_REGEX = (
     r'([0-9A-Fa-f]{8})' +  # Launch time timestamp (seconds since 1904)
     '([0-9A-Fa-f]{8})' +  # start time (seconds from launch time)
@@ -158,9 +160,10 @@ class Parameter(SamiParameter):
     FLUSH_PUMP_INTERVAL = 'flush_pump_interval'
     BIT_SWITCHES = 'bit_switches'
     NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
+    #   TODO: Not configured for external pump
     EXTERNAL_PUMP_SETTINGS = 'external_pump_setting'
 
-
+#   TODO: Not configured for external pump, can remove?
 class InstrumentCommand(SamiInstrumentCommand):
     """
     Device specfic Instrument command strings. Extends superclass
@@ -271,7 +274,7 @@ class Pco2wDev1SampleDataParticleKey(BaseEnum):
     RECORD_TIME = 'record_time'
     CHECKSUM = 'checksum'
 
-
+#   TODO: Not configured for external pump, can remove?
 class Pco2wDev1SampleDataParticle(DataParticle):
     """
     Routines for parsing raw data into a device 1 sample data particle
@@ -341,9 +344,10 @@ class Pco2wConfigurationDataParticleKey(SamiConfigDataParticleKey):
     DISABLE_START_BLANK_FLUSH = 'disable_start_blank_flush'
     MEASURE_AFTER_PUMP_PULSE = 'measure_after_pump_pulse'
     NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
+    #   TODO: Not configured for external pump
     EXTERNAL_PUMP_SETTINGS = 'external_pump_setting'
 
-
+# TODO:  Can probably add to base class during refactoring
 class Pco2wConfigurationDataParticle(DataParticle):
     """
     Routines for parsing raw data into a configuration record data particle
@@ -426,6 +430,7 @@ class Pco2wConfigurationDataParticle(DataParticle):
                          Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH,
                          Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE,
                          Pco2wConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES,
+                         #   TODO: Not configured for external pump
                          Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTINGS]
 
         result = []
@@ -631,7 +636,7 @@ class Protocol(SamiProtocol):
 
     def _build_param_dict(self):
         """
-        For each parameter key, add match stirng, match lambda function,
+        For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
 
@@ -640,6 +645,7 @@ class Protocol(SamiProtocol):
         # Add parameter handlers to parameter dict.
         self._param_dict = ProtocolParameterDict()
 
+        #   TODO: Not configured for external pump
         ### example configuration string
         # VALID_CONFIG_STRING = 'CEE90B0002C7EA0001E133800A000E100402000E10010B' + \
         #                       '000000000D000000000D000000000D07' + \
@@ -655,6 +661,11 @@ class Protocol(SamiProtocol):
         #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + NEWLINE
         #
         ###
+
+        """
+        TODO: Might have to change configuration file? to a name value format? if anyone wants
+        to understand enough to modify.
+        """
 
         self._param_dict.add(Parameter.LAUNCH_TIME, CONFIGURATION_REGEX,
                              lambda match: int(match.group(1), 16),
@@ -686,6 +697,7 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='stop time after start time')
 
+        # TODO: Invalid default value?  Should indicate there is no external device, "0x02"
         self._param_dict.add(Parameter.MODE_BITS, CONFIGURATION_REGEX,
                              lambda match: int(match.group(4), 16),
                              lambda x: self._int_to_hexstring(x, 2),
@@ -846,6 +858,7 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='prestart parameter pointer')
 
+        # TODO: Invalid default value?
         self._param_dict.add(Parameter.GLOBAL_CONFIGURATION, CONFIGURATION_REGEX,
                              lambda match: int(match.group(20), 16),
                              lambda x: self._int_to_hexstring(x, 2),
@@ -886,6 +899,7 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='samples per measurement')
 
+        # TODO: Invalid default value?
         self._param_dict.add(Parameter.CYCLES_BETWEEN_BLANKS, CONFIGURATION_REGEX,
                              lambda match: int(match.group(24), 16),
                              lambda x: self._int_to_hexstring(x, 2),
@@ -946,6 +960,7 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='number of extra pump cycles')
 
+        #   TODO: Not configured for external pump
         self._param_dict.add(Parameter.EXTERNAL_PUMP_SETTINGS, CONFIGURATION_REGEX,
                              lambda match: int(match.group(30), 16),
                              lambda x: self._int_to_hexstring(x, 2),
@@ -959,7 +974,7 @@ class Protocol(SamiProtocol):
     #########################################################################
     ## General (for POLLED and SCHEDULED states) Sample handlers.
     #########################################################################
-
+    # TODO: Check check sum
     def _handler_sample_success(self, *args, **kwargs):
 
         log.debug('herb: ' + 'Protocol._handler_sample_success()')
@@ -978,6 +993,7 @@ class Protocol(SamiProtocol):
 
         return (next_state, result)
 
+    #   TODO: Not configured for external pump, remove this code
     ########################################################################
     # Command handlers.
     ########################################################################
@@ -987,6 +1003,7 @@ class Protocol(SamiProtocol):
 
         pass
 
+    #   TODO: Not configured for external pump, remove this code
     ########################################################################
     # Response handlers.
     ########################################################################
@@ -995,3 +1012,87 @@ class Protocol(SamiProtocol):
         log.debug('herb: ' + 'Protocol._build_response_dev1()')
 
         pass
+
+
+
+    ########################################################################
+    # Configuration string.
+    ########################################################################
+
+    # TODO: Move to base class
+    def _get_config_value_str(self, param):
+        value = self._param_dict.get_config_value(param)
+        log.debug('herb: ' + 'Protocol._get_config_value_str(): ' + param + ' = ' + str(value))
+        value_str = self._param_dict.format(param, value)
+        log.debug('herb: ' + 'Protocol._get_config_value_str(): ' + param + ' = ' + value_str)
+
+        return value_str
+
+    def _build_configuration_string(self):
+        log.debug('herb: ' + 'Protocol._build_configuration_string()')
+        configuration_string = ''
+
+        # LAUNCH_TIME always set to current GMT sami time
+        sami_time_hex_str = self._current_sami_time_hex_str()
+        log.debug('herb: ' + 'Protocol._build_configuration_string(): LAUNCH_TIME = ' + sami_time_hex_str)
+        configuration_string += sami_time_hex_str
+
+        # PCO2W driver extends the base class (SamiParameter)
+        #   TODO: Not configured for external pump
+        parameter_list = [Parameter.START_TIME_FROM_LAUNCH,
+                          Parameter.STOP_TIME_FROM_START,
+                          Parameter.START_TIME_FROM_LAUNCH,
+                          Parameter.STOP_TIME_FROM_START,
+                          Parameter.MODE_BITS,
+                          Parameter.SAMI_SAMPLE_INTERVAL,
+                          Parameter.SAMI_DRIVER_VERSION,
+                          Parameter.SAMI_PARAMS_POINTER,
+                          Parameter.DEVICE1_SAMPLE_INTERVAL,
+                          Parameter.DEVICE1_DRIVER_VERSION,
+                          Parameter.DEVICE1_PARAMS_POINTER,
+                          Parameter.DEVICE2_SAMPLE_INTERVAL,
+                          Parameter.DEVICE2_DRIVER_VERSION,
+                          Parameter.DEVICE2_PARAMS_POINTER,
+                          Parameter.DEVICE3_SAMPLE_INTERVAL,
+                          Parameter.DEVICE3_DRIVER_VERSION,
+                          Parameter.DEVICE3_PARAMS_POINTER,
+                          Parameter.PRESTART_SAMPLE_INTERVAL,
+                          Parameter.PRESTART_DRIVER_VERSION,
+                          Parameter.PRESTART_PARAMS_POINTER,
+                          Parameter.GLOBAL_CONFIGURATION,
+                          Parameter.PUMP_PULSE,
+                          Parameter.PUMP_DURATION,
+                          Parameter.SAMPLES_PER_MEASUREMENT,
+                          Parameter.CYCLES_BETWEEN_BLANKS,
+                          Parameter.NUMBER_REAGENT_CYCLES,
+                          Parameter.NUMBER_BLANK_CYCLES,
+                          Parameter.FLUSH_PUMP_INTERVAL,
+                          Parameter.BIT_SWITCHES,
+                          Parameter.NUMBER_EXTRA_PUMP_CYCLES,
+                          Parameter.EXTERNAL_PUMP_SETTINGS]
+
+        for param in parameter_list:
+            config_value_hex_str = self._get_config_value_str(param)
+            configuration_string += config_value_hex_str
+
+# TODO: Get working using lambda function, currently returns none, possibly extend param_dict to get required
+# TODO: functionality
+# startTimeFromLaunch = self._param_dict.format(Parameter.START_TIME_FROM_LAUNCH)
+# log.debug('herb: ' + 'Protocol._build_configuration_string(): START_TIME_FROM_LAUNCH formatted = ' + startTimeFromLaunch)
+
+#         start_time_from_launch = self._param_dict.get_config_value(Parameter.START_TIME_FROM_LAUNCH)
+#
+#         log.debug('herb: ' + 'Protocol._build_configuration_string(): START_TIME_FROM_LAUNCH = ' + str(start_time_from_launch))
+#
+#         start_time_from_launch_formatted = self._param_dict.format(Parameter.START_TIME_FROM_LAUNCH, start_time_from_launch)
+#
+# #        start_time_from_launch_formatted = self._int_to_hexstring(start_time_from_launch, 8)
+#
+#         log.debug('herb: ' + 'Protocol._build_configuration_string(): START_TIME_FROM_LAUNCH formatted = ' + start_time_from_launch_formatted)
+#
+#        start_time_from_launch = self._get_config_value_str(Parameter.START_TIME_FROM_LAUNCH)
+#        log.debug('herb: ' + 'Protocol._build_configuration_string(): START_TIME_FROM_LAUNCH = ' + start_time_from_launch)
+
+        log.debug('herb: ' + 'Protocol._build_configuration_string(): CONFIGURATION STRING = ' + configuration_string)
+
+        return configuration_string
