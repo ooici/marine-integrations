@@ -62,6 +62,36 @@ INTER_CHARACTER_DELAY = .2  # works
 ####
 
 
+class PumpConfig(BaseEnum):
+    rate_error_factor = 1.15  # PPS is off in it's flow rate measurement by 14.5%
+
+    default_flush_volume = flush_volume = 150
+    default_flush_rate = flush_rate = 100
+    default_flush_min_rate = flush_min_rate = 75
+    default_fill_volume = fill_volume = 4000
+    default_fill_rate = fill_rate = 100
+    default_fill_min_rate = fill_min_rate = 75
+    default_clear_volume = clear_volume = 100
+    default_clear_rate = clear_rate = 100
+    default_clear_min_rate = clear_min_rate = 75
+
+    @staticmethod
+    def get_flush_time():
+        return PumpConfig.flush_volume / PumpConfig.flush_rate * PumpConfig.rate_error_factor
+
+    @staticmethod
+    def get_fill_time():
+        return PumpConfig.fill_volume / PumpConfig.fill_rate * PumpConfig.rate_error_factor
+
+    @staticmethod
+    def get_clear_time():
+        return PumpConfig.clear_volume / PumpConfig.clear_rate * PumpConfig.rate_error_factor
+
+    @staticmethod
+    def get_sample_time():
+        return PumpConfig.get_flush_time() + PumpConfig.get_fill_time() + PumpConfig.get_sample_time()
+
+
 class ScheduledJob(BaseEnum):
     CLOCK_SYNC = 'clock_sync'
 
@@ -139,6 +169,8 @@ class Command(BaseEnum):
     FORWARD = 'forward'  # start forward pump operation < volume flowrate minflow [time] >
     REVERSE = 'reverse'  # reverse pump operation < volume flowrate minflow [time] >
     PORT = 'port'  # display current port or set valve to supplied position
+    CAPACITY = 'capacity'  # pump max flow rate mL/min
+    COPYRIGHT = 'copyright'  # display version, release and copyright notice
 
 
 class Prompt(BaseEnum):
@@ -164,11 +196,23 @@ class Response(BaseEnum):
     # Result 00 |  75 100  25   4 |  77.2  98.5  99.1  47 031514 001813 | 29.8 1
     # Result 00 |  10 100  75  60 |  10.0  85.5 100.0   7 032814 193855 | 30.0 1
     PUMP = re.compile(r'(Status|Result).*(\d+)' + NEWLINE)
+    # Battery: 30.1V [Alkaline, 18V minimum]
+    BATTERY = re.compile(r'Battery:\s+(\d*\.\d+)V\s+\[.*\]')  # battery voltage
+    # Capacity: Maxon 250mL
+    CAPACITY = re.compile(r'Capacity:\s(Maxon|Pittman)\s+(\d+)mL')  # pump make and capacity
+    # McLane Research Laboratories, Inc.
+    # CF2 Adaptive Water Transfer System
+    # Version 2.02  of Jun  7 2013 18:17
+    #  Configured for: Maxon 250ml pump
+    VERSION = re.compile(
+        r'McLane .*$' + NEWLINE +
+        r'CF2 .*$' + NEWLINE +
+        r'Version\s+(\S+)\s+of\s+(.*)$' + NEWLINE +  # version and release date
+        r'.*$'
+    )
 
 
 class Timeout(BaseEnum):
-    # TODO - do we want to poll for status (check each second for status) or do we want to wait for the completion of
-    # the entire command?
     """
     Timeouts for commands  # TODO - calculate based on flow rate & volume
     """
@@ -178,9 +222,22 @@ class Timeout(BaseEnum):
     FILL = 2728 + 30
     CLEAR = 68 + 5
     ACQUIRE_SAMPLE = HOME + FLUSH + PORT + FILL + HOME + CLEAR
-    # quick test parameter
-    # ACQUIRE_SAMPLE = 600
 
+    @staticmethod
+    def get_flush_timeout():
+        return Timeout.HOME + PumpConfig.get_flush_time()
+
+    @staticmethod
+    def get_fill_timeout():
+        return Timeout.PORT + PumpConfig.get_fill_time()
+
+    @staticmethod
+    def get_clear_timeout():
+        return Timeout.HOME + PumpConfig.get_clear_time()
+
+    @staticmethod
+    def get_sample_timeout():
+        return Timeout.get_flush_timeout() + Timeout.get_fill_timeout() + Timeout.get_clear_timeout()
 
 #####
 # Codes for pump termination
@@ -227,87 +284,6 @@ class DataParticleType(BaseEnum):
 ###############################################################################
 # Data Particles
 ###############################################################################
-
-class RASFLVoltageDataParticleKey(BaseEnum):
-    VOLTAGE = 'battery_voltage'
-
-
-class RASFLVoltageDataParticle(DataParticle):
-    _data_particle_type = DataParticleType.RASFL_PARSED
-
-    # parse the battery return string, e.g.:
-    # Battery: 29.9V [Alkaline, 18V minimum]
-    @staticmethod
-    def regex():
-        exp = r'Battery:\s*(\d*\.*\d+)\s*'
-        return exp
-
-    @staticmethod
-    def regex_compiled():
-        return re.compile(RASFLVoltageDataParticle.regex(), re.DOTALL)
-
-    def _build_parsed_values(self):
-        match = self.regex_compiled().match(self.raw_data)
-
-        if not match:
-            raise SampleException("RASFL_VoltageDataParticle: No regex match of parsed sample data: [%s]",
-                                  self.raw_data)
-
-        result = [
-            {DataParticleKey.VALUE_ID: RASFLVoltageDataParticleKey.VOLTAGE,
-             DataParticleKey.VALUE: float(match.group(1))},
-        ]
-
-        return result
-
-
-# TODO - get the actual list of particles
-class RASFLVersionDataParticleKey(BaseEnum):
-    VERSION = 'version'
-    RELEASE_DATE = 'release_date'
-    PUMP_TYPE = 'pump_type'
-    BAG_CAPACITY = 'bag_capacity'
-
-
-# data particle for version command
-class RASFLVersionDataParticle(DataParticle):
-    _data_particle_type = DataParticleType.RASFL_PARSED
-
-    @staticmethod
-    def regex():
-        exp = str(r'Version:\s*' + NEWLINE +
-                  '\s*' + NEWLINE +
-                  'McLane Research Laboratories, Inc\.\s*$' + NEWLINE +
-                  'kF2 Adaptive Remote Sampler\s*$' + NEWLINE +
-                  'Version (\S+) of (.*)$' + NEWLINE +
-                  'Pump type:\s*(.*)$' + NEWLINE +
-                  'Bag capacity:\s*(\d+)\s*')
-        return exp
-
-    @staticmethod
-    def regex_compiled():
-        return re.compile(RASFLVersionDataParticle.regex(), re.DOTALL)
-
-    def _build_parsed_values(self):
-        match = RASFLVersionDataParticle.regex_compiled().match(self.raw_data)
-
-        if not match:
-            raise SampleException("RASFL_VersionDataParticle: No regex match of parsed sample data: [%s]",
-                                  self.raw_data)
-
-        result = [
-            {DataParticleKey.VALUE_ID: RASFLVersionDataParticleKey.VERSION,
-             DataParticleKey.VALUE: str(match.group(1))},
-            {DataParticleKey.VALUE_ID: RASFLVersionDataParticleKey.RELEASE_DATE,
-             DataParticleKey.VALUE: str(match.group(2))},
-            {DataParticleKey.VALUE_ID: RASFLVersionDataParticleKey.PUMP_TYPE,
-             DataParticleKey.VALUE: str(match.group(3))},
-            {DataParticleKey.VALUE_ID: RASFLVersionDataParticleKey.BAG_CAPACITY,
-             DataParticleKey.VALUE: str(match.group(4))},
-        ]
-
-        return result
-
 
 class RASFLSampleDataParticleKey(BaseEnum):
     PUMP_STATUS = 'pump_status'
@@ -492,6 +468,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.CLOCK_SYNC, self._handler_sync_clock),
                 (ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire),
+                (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_status),
                 (ProtocolEvent.CLEAR, self._handler_command_clear),
                 (ProtocolEvent.GET, self._handler_get),
                 (ProtocolEvent.SET, self._handler_command_set),
@@ -567,14 +544,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         return_list = []
 
         matchers.append(RASFLSampleDataParticle.regex_compiled())
-        matchers.append(RASFLVersionDataParticle.regex_compiled())
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
                 return_list.append((match.start(), match.end()))
 
-        # if not return_list:
-        #     log.debug("sieve_function: raw_data=%r, return_list=%r", raw_data, return_list)
         return return_list
 
     def _got_chunk(self, chunk, timestamp):
@@ -618,6 +592,16 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("%s: new parameters", fn)
         for x in config:
             log.debug("  parameter %s: %s", x, config[x])
+
+        PumpConfig.flush_volume = self._param_dict.get_config_value(Parameter.FLUSH_VOLUME)
+        PumpConfig.flush_rate = self._param_dict.get_config_value(Parameter.FLUSH_FLOWRATE)
+        PumpConfig.flush_min_rate = self._param_dict.get_config_value(Parameter.FLUSH_MINFLOW)
+        PumpConfig.fill_volume = self._param_dict.get_config_value(Parameter.FILL_VOLUME)
+        PumpConfig.fill_rate = self._param_dict.get_config_value(Parameter.FILL_FLOWRATE)
+        PumpConfig.fill_min_rate = self._param_dict.get_config_value(Parameter.FILL_MINFLOW)
+        PumpConfig.clear_volume = self._param_dict.get_config_value(Parameter.REVERSE_VOLUME)
+        PumpConfig.clear_rate = self._param_dict.get_config_value(Parameter.REVERSE_FLOWRATE)
+        PumpConfig.clear_min_rate = self._param_dict.get_config_value(Parameter.REVERSE_MINFLOW)
 
     ########################################################################
     # Instrument commands.
@@ -708,7 +692,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         if not self._do_cmd_home():
             self._async_raise_fsm_event(ProtocolEvent.INSTRUMENT_FAILURE)
-            return TerminationCodeEnum.STOPPED_BY_USER  # TODO - is the is best error handling method?
         log.debug('--- djm --- flushing home port, %d %d %d',
                   flush_volume, flush_flowrate, flush_flowrate)
         self._do_cmd_no_resp(Command.FORWARD, flush_volume, flush_flowrate, flush_minflow)
@@ -747,10 +730,10 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Generic handlers.
     ########################################################################
-    def _handler_pass(self):
+    def _handler_pass(self, *args, **kwargs):
         pass
 
-    def _handler_all_failure(self):
+    def _handler_all_failure(self, *args, **kwargs):
         log.error('Instrument failure detected. Entering recovery mode.')
         return ProtocolState.RECOVERY, ResourceAgentState.BUSY
 
@@ -783,7 +766,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Flush
     ########################################################################
-    def _handler_flush_enter(self):
+    def _handler_flush_enter(self, *args, **kwargs):
         """
         Enter the flush state. Trigger FLUSH event.
         """
@@ -792,7 +775,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._async_raise_fsm_event(ProtocolEvent.FLUSH)
 
-    def _handler_flush_flush(self):
+    def _handler_flush_flush(self, *args, **kwargs):
         """
         Begin flushing the home port. Subsequent flushing will be monitored and sent to the flush_pump_status
         handler.
@@ -809,7 +792,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return None, (ResourceAgentState.BUSY, None)
 
-    def _handler_flush_pump_status(self, *args):
+    def _handler_flush_pump_status(self, *args, **kwargs):
         """
         Manage pump status update during flush. Status updates indicate continued pumping, Result updates
         indicate completion of command. Check the termination code for success.
@@ -835,7 +818,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, next_agent_state
 
-    def _handler_flush_clear(self):
+    def _handler_flush_clear(self, *args, **kwargs):
         """
         Attempt to clear home port after stoppage has occurred during flush.
         This is only performed once. On the second stoppage, the driver will enter recovery mode.
@@ -852,14 +835,14 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Fill
     ########################################################################
-    def _handler_fill_enter(self, *args):
+    def _handler_fill_enter(self, *args, **kwargs):
         """
         Enter the fill state. Trigger FILL event.
         """
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._async_raise_fsm_event(ProtocolEvent.FILL)
 
-    def _handler_fill_fill(self, *args):
+    def _handler_fill_fill(self, *args, **kwargs):
         """
         Send the fill command and process the first response
         """
@@ -880,7 +863,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, (next_agent_state, result)
 
-    def _handler_fill_pump_status(self, *args):
+    def _handler_fill_pump_status(self, *args, **kwargs):
         """
         Process pump status updates during filter collection.
         """
@@ -903,7 +886,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Clear
     ########################################################################
-    def _handler_clear_enter(self, args):
+    def _handler_clear_enter(self, *args, **kwargs):
         """
         Enter the clear state. Trigger the CLEAR event.
         """
@@ -911,7 +894,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._async_raise_fsm_event(ProtocolEvent.CLEAR)
 
-    def _handler_clear_clear(self, *args):
+    def _handler_clear_clear(self, *args, **kwargs):
         """
         Send the clear command. If there is an obstruction trigger a FLUSH, otherwise place driver in RECOVERY mode.
         """
@@ -922,7 +905,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._do_cmd_clear()
         return None, None
 
-    def _handler_clear_pump_status(self, *args):
+    def _handler_clear_pump_status(self, *args, **kwargs):
         """
         Parse pump status during clear action.
         """
@@ -944,7 +927,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # if Status, nothing to do
         return next_state, next_agent_state
 
-    def _handler_clear_flush(self, *args):
+    def _handler_clear_flush(self, *args, **kwargs):
         """
         Attempt to recover from failed attempt to clear by flushing home port. Only try once.
         """
@@ -997,7 +980,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
 
     # TODO - not sure how to determine how to exit from this state. Probably requires a driver reset.
-    def _handler_recovery_enter(self):
+    def _handler_recovery_enter(self, *args, **kwargs):
         """
         Error recovery mode. The instrument failed to respond to a command and now requires the user to perform
         diagnostics and correct before proceeding.
@@ -1093,10 +1076,17 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_command_acquire(self, *args, **kwargs):
         return ProtocolState.FLUSH, ResourceAgentState.BUSY
 
+    def _handler_command_status(self, *args, **kwargs):
+        # get the following:
+        # - VERSION
+        # - CAPACITY (pump flow)
+        # - BATTERY
+        # - CODES (termination codes)
+        # - COPYRIGHT (termination codes)
+        return None, ResourceAgentState.COMMAND
+
     def _handler_command_clear(self, *args, **kwargs):
-        reply = None
-        # TODO - reply = do_cmd_clear(self)
-        return None, (None, reply)
+        return ProtocolState.CLEAR, ResourceAgentState.BUSY
 
     ########################################################################
     # Private helpers.
