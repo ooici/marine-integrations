@@ -42,21 +42,21 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
-from mi.instrument.noaa.nano.ooicore.driver import InstrumentDriver
-from mi.instrument.noaa.nano.ooicore.driver import DataParticleType
-from mi.instrument.noaa.nano.ooicore.driver import NANODataParticleKey
-from mi.instrument.noaa.nano.ooicore.driver import NANODataParticle
-from mi.instrument.noaa.nano.ooicore.driver import NANOCommandResponse
-from mi.instrument.noaa.nano.ooicore.driver import NANOStatus01Particle
-from mi.instrument.noaa.nano.ooicore.driver import InstrumentCommand
-from mi.instrument.noaa.nano.ooicore.driver import ProtocolState
-from mi.instrument.noaa.nano.ooicore.driver import ProtocolEvent
-from mi.instrument.noaa.nano.ooicore.driver import Capability
-from mi.instrument.noaa.nano.ooicore.driver import Parameter
-from mi.instrument.noaa.nano.ooicore.driver import Protocol
-from mi.instrument.noaa.nano.ooicore.driver import Prompt
-from mi.instrument.noaa.nano.ooicore.driver import NEWLINE
-from mi.instrument.noaa.nano.ooicore.driver import NANO_DATA_ON
+from mi.instrument.noaa.botpt.nano.driver import InstrumentDriver
+from mi.instrument.noaa.botpt.nano.driver import DataParticleType
+from mi.instrument.noaa.botpt.nano.driver import NANODataParticleKey
+from mi.instrument.noaa.botpt.nano.driver import NANODataParticle
+from mi.instrument.noaa.botpt.nano.driver import NANOCommandResponse
+from mi.instrument.noaa.botpt.nano.driver import NANOStatus01Particle
+from mi.instrument.noaa.botpt.nano.driver import InstrumentCommand
+from mi.instrument.noaa.botpt.nano.driver import ProtocolState
+from mi.instrument.noaa.botpt.nano.driver import ProtocolEvent
+from mi.instrument.noaa.botpt.nano.driver import Capability
+from mi.instrument.noaa.botpt.nano.driver import Parameter
+from mi.instrument.noaa.botpt.nano.driver import Protocol
+from mi.instrument.noaa.botpt.nano.driver import Prompt
+from mi.instrument.noaa.botpt.nano.driver import NEWLINE
+from mi.instrument.noaa.botpt.nano.driver import NANO_DATA_ON
 
 from mi.core.exceptions import SampleException
 from pyon.agent.agent import ResourceAgentState
@@ -67,7 +67,7 @@ from pyon.core.exception import Conflict
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.noaa.nano.ooicore.driver',
+    driver_module='mi.instrument.noaa.botpt.nano.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id='1D644T',

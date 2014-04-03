@@ -12,6 +12,7 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
+from mi.instrument.noaa.botpt.driver import BotptStatus01ParticleKey
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
@@ -39,24 +40,24 @@ from mi.core.instrument.port_agent_client import PortAgentPacket
 
 from mi.core.instrument.chunker import StringChunker
 
-from mi.instrument.noaa.iris.ooicore.driver import InstrumentDriver, IRISStatus01ParticleKey, IRISStatus02ParticleKey
-from mi.instrument.noaa.iris.ooicore.driver import DataParticleType
-from mi.instrument.noaa.iris.ooicore.driver import IRISDataParticleKey
-from mi.instrument.noaa.iris.ooicore.driver import IRISDataParticle
-from mi.instrument.noaa.iris.ooicore.driver import InstrumentCommand
-from mi.instrument.noaa.iris.ooicore.driver import ProtocolState
-from mi.instrument.noaa.iris.ooicore.driver import ProtocolEvent
-from mi.instrument.noaa.iris.ooicore.driver import Capability
-from mi.instrument.noaa.iris.ooicore.driver import Parameter
-from mi.instrument.noaa.iris.ooicore.driver import Protocol
-from mi.instrument.noaa.iris.ooicore.driver import Prompt
-from mi.instrument.noaa.iris.ooicore.driver import NEWLINE
-from mi.instrument.noaa.iris.ooicore.driver import IRIS_COMMAND_STRING
-from mi.instrument.noaa.iris.ooicore.driver import IRIS_STRING
-from mi.instrument.noaa.iris.ooicore.driver import IRIS_DATA_ON
-from mi.instrument.noaa.iris.ooicore.driver import IRIS_DATA_OFF
-from mi.instrument.noaa.iris.ooicore.driver import IRIS_DUMP_01
-from mi.instrument.noaa.iris.ooicore.driver import IRIS_DUMP_02
+from mi.instrument.noaa.botpt.iris.driver import InstrumentDriver, IRISStatus02ParticleKey
+from mi.instrument.noaa.botpt.iris.driver import DataParticleType
+from mi.instrument.noaa.botpt.iris.driver import IRISDataParticleKey
+from mi.instrument.noaa.botpt.iris.driver import IRISDataParticle
+from mi.instrument.noaa.botpt.iris.driver import InstrumentCommand
+from mi.instrument.noaa.botpt.iris.driver import ProtocolState
+from mi.instrument.noaa.botpt.iris.driver import ProtocolEvent
+from mi.instrument.noaa.botpt.iris.driver import Capability
+from mi.instrument.noaa.botpt.iris.driver import Parameter
+from mi.instrument.noaa.botpt.iris.driver import Protocol
+from mi.instrument.noaa.botpt.iris.driver import Prompt
+from mi.instrument.noaa.botpt.iris.driver import NEWLINE
+from mi.instrument.noaa.botpt.iris.driver import IRIS_COMMAND_STRING
+from mi.instrument.noaa.botpt.iris.driver import IRIS_STRING
+from mi.instrument.noaa.botpt.iris.driver import IRIS_DATA_ON
+from mi.instrument.noaa.botpt.iris.driver import IRIS_DATA_OFF
+from mi.instrument.noaa.botpt.iris.driver import IRIS_DUMP_01
+from mi.instrument.noaa.botpt.iris.driver import IRIS_DUMP_02
 
 from mi.core.exceptions import SampleException
 from pyon.agent.agent import ResourceAgentState
@@ -65,7 +66,7 @@ from pyon.agent.agent import ResourceAgentState
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.noaa.iris.ooicore.driver',
+    driver_module='mi.instrument.noaa.botpt.iris.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id='1D644T',
@@ -207,30 +208,37 @@ class IRISTestMixinSub(DriverTestMixin):
     }
 
     _status_parameters_01 = {
-        IRISStatus01ParticleKey.TIME: {TYPE: float, VALUE: 3580690380.0, REQUIRED: True},
-        IRISStatus01ParticleKey.MODEL: {TYPE: unicode, VALUE: 'MD900-T', REQUIRED: True},
-        IRISStatus01ParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: 'V5.2', REQUIRED: True},
-        IRISStatus01ParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: 'SN-N3616', REQUIRED: True},
-        IRISStatus01ParticleKey.ID_NUMBER: {TYPE: unicode, VALUE: 'ID01', REQUIRED: True},
-        IRISStatus01ParticleKey.VBIAS: {TYPE: list, VALUE: [0.0] * 4, REQUIRED: True},
-        IRISStatus01ParticleKey.VGAIN: {TYPE: list, VALUE: [0.0] * 4, REQUIRED: True},
-        IRISStatus01ParticleKey.VMIN: {TYPE: list, VALUE: [-2.5] * 2 + [2.5] * 2, REQUIRED: True},
-        IRISStatus01ParticleKey.VMAX: {TYPE: list, VALUE: [2.5] * 4, REQUIRED: True},
-        IRISStatus01ParticleKey.AVALS: {TYPE: list, VALUE: [0.0] * 24, REQUIRED: True},
-        IRISStatus01ParticleKey.TCOEFS: {TYPE: list, VALUE: [0] * 6, REQUIRED: True},
-        IRISStatus01ParticleKey.N_SAMP: {TYPE: int, VALUE: 460, REQUIRED: True},
-        IRISStatus01ParticleKey.XZERO: {TYPE: float, VALUE: 0.0, REQUIRED: True},
-        IRISStatus01ParticleKey.YZERO: {TYPE: float, VALUE: 0.0, REQUIRED: True},
-        IRISStatus01ParticleKey.REST: {TYPE: unicode,
-                                       VALUE: 'TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-',
-                                       REQUIRED: True},
+        BotptStatus01ParticleKey.TIME: {TYPE: float, VALUE: 3580690380.0, REQUIRED: True},
+        BotptStatus01ParticleKey.MODEL: {TYPE: unicode, VALUE: 'Model MD900-T', REQUIRED: True},
+        BotptStatus01ParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: 'V5.2', REQUIRED: True},
+        BotptStatus01ParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: 'SN-N3616', REQUIRED: True},
+        BotptStatus01ParticleKey.ID_NUMBER: {TYPE: unicode, VALUE: 'ID01', REQUIRED: True},
+        BotptStatus01ParticleKey.VBIAS: {TYPE: list, VALUE: [0.0] * 4, REQUIRED: True},
+        BotptStatus01ParticleKey.VGAIN: {TYPE: list, VALUE: [0.0] * 4, REQUIRED: True},
+        BotptStatus01ParticleKey.VMIN: {TYPE: list, VALUE: [-2.5] * 2 + [2.5] * 2, REQUIRED: True},
+        BotptStatus01ParticleKey.VMAX: {TYPE: list, VALUE: [2.5] * 4, REQUIRED: True},
+        BotptStatus01ParticleKey.AVALS_0: {TYPE: list, VALUE: [0.0] * 6, REQUIRED: True},
+        BotptStatus01ParticleKey.AVALS_1: {TYPE: list, VALUE: [0.0] * 6, REQUIRED: True},
+        BotptStatus01ParticleKey.AVALS_2: {TYPE: list, VALUE: [0.0] * 6, REQUIRED: True},
+        BotptStatus01ParticleKey.AVALS_3: {TYPE: list, VALUE: [0.0] * 6, REQUIRED: True},
+        BotptStatus01ParticleKey.TCOEF0_KS: {TYPE: int, VALUE: 0, REQUIRED: True},
+        BotptStatus01ParticleKey.TCOEF0_KZ: {TYPE: int, VALUE: 0, REQUIRED: True},
+        BotptStatus01ParticleKey.TCOEF0_TCAL: {TYPE: int, VALUE: 0, REQUIRED: True},
+        BotptStatus01ParticleKey.TCOEF1_KS: {TYPE: int, VALUE: 0, REQUIRED: True},
+        BotptStatus01ParticleKey.TCOEF1_KZ: {TYPE: int, VALUE: 0, REQUIRED: True},
+        BotptStatus01ParticleKey.TCOEF1_TCAL: {TYPE: int, VALUE: 0, REQUIRED: True},
+        BotptStatus01ParticleKey.N_SAMP: {TYPE: int, VALUE: 460, REQUIRED: True},
+        BotptStatus01ParticleKey.XZERO: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        BotptStatus01ParticleKey.YZERO: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        BotptStatus01ParticleKey.BAUD: {TYPE: int, VALUE: 9600, REQUIRED: True},
     }
 
     _status_parameters_02 = {
         IRISStatus02ParticleKey.TIME: {TYPE: float, VALUE: 3580095309.0, REQUIRED: True},
         IRISStatus02ParticleKey.TBIAS: {TYPE: float, VALUE: 8.85, REQUIRED: True},
-        IRISStatus02ParticleKey.ABOVE: {TYPE: list, VALUE: [0.0, 0, 0]},
-        IRISStatus02ParticleKey.BELOW: {TYPE: list, VALUE: [0.0, 0, 0]},
+        IRISStatus02ParticleKey.ABOVE: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        IRISStatus02ParticleKey.BELOW: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        IRISStatus02ParticleKey.KZVALS: {TYPE: list, VALUE: [0] * 4, REQUIRED: True},
         IRISStatus02ParticleKey.ADC_DELAY: {TYPE: int, VALUE: 310},
         IRISStatus02ParticleKey.PCA_MODEL: {TYPE: unicode, VALUE: '90009-01'},
         IRISStatus02ParticleKey.FIRMWARE_REV: {TYPE: unicode, VALUE: '5.2 Rev N'},
@@ -243,7 +251,7 @@ class IRISTestMixinSub(DriverTestMixin):
         IRISStatus02ParticleKey.RS232: {TYPE: unicode, VALUE: 'RS232'},
         IRISStatus02ParticleKey.RTC_INSTALLED: {TYPE: unicode, VALUE: 'Not Installed'},
         IRISStatus02ParticleKey.RTC_TIMING: {TYPE: unicode, VALUE: 'No'},
-        IRISStatus02ParticleKey.EXT_FLASH: {TYPE: unicode, VALUE: '0 Bytes(Not Installed)'},
+        IRISStatus02ParticleKey.EXT_FLASH_CAPACITY: {TYPE: int, VALUE: 0, REQUIRED: True},
         IRISStatus02ParticleKey.XPOS_RELAY_THRESHOLD: {TYPE: float, VALUE: 1.0},
         IRISStatus02ParticleKey.XNEG_RELAY_THRESHOLD: {TYPE: float, VALUE: -1.0},
         IRISStatus02ParticleKey.YPOS_RELAY_THRESHOLD: {TYPE: float, VALUE: 1.0},
@@ -255,12 +263,13 @@ class IRISTestMixinSub(DriverTestMixin):
         IRISStatus02ParticleKey.NUM_CAL_POINTS: {TYPE: int, VALUE: 25},
         IRISStatus02ParticleKey.CAL_POINTS_X: {TYPE: unicode, VALUE: 'Disabled'},
         IRISStatus02ParticleKey.CAL_POINTS_Y: {TYPE: unicode, VALUE: 'Disabled'},
-        IRISStatus02ParticleKey.BIAXIAL_SENSOR_TYPE: {TYPE: int, VALUE: 0},
+        IRISStatus02ParticleKey.SENSOR_TYPE: {TYPE: unicode, VALUE: 'Biaxial Sensor Type (0)'},
         IRISStatus02ParticleKey.ADC_TYPE: {TYPE: unicode, VALUE: '12-bit (internal)'},
         IRISStatus02ParticleKey.DAC_SCALE_FACTOR: {TYPE: float, VALUE: 0.10},
         IRISStatus02ParticleKey.DAC_SCALE_UNITS: {TYPE: unicode, VALUE: 'Volts/Degree'},
         IRISStatus02ParticleKey.SAMPLE_STORAGE_CAPACITY: {TYPE: int, VALUE: 372},
         IRISStatus02ParticleKey.BAE_SCALE_FACTOR: {TYPE: float, VALUE: 2.88388},
+        IRISStatus02ParticleKey.BAE_SCALE_FACTOR_UNITS: {TYPE: unicode, VALUE: 'arcseconds/bit'},
     }
 
     def assert_particle(self, particle, particle_type=None, particle_key=None, params=None, verify_values=False):
@@ -277,7 +286,7 @@ class IRISTestMixinSub(DriverTestMixin):
                              self._sample_parameters_02, verify_values)
 
     def assert_particle_status_01(self, data_particle, verify_values=False):
-        self.assert_particle(data_particle, DataParticleType.IRIS_STATUS1, IRISStatus01ParticleKey,
+        self.assert_particle(data_particle, DataParticleType.IRIS_STATUS1, BotptStatus01ParticleKey,
                              self._status_parameters_01, verify_values)
 
     def assert_particle_status_02(self, data_particle, verify_values=False):

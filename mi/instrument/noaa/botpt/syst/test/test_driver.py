@@ -39,16 +39,16 @@ from pyon.core.exception import Conflict
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 
-from mi.instrument.noaa.syst.ooicore.driver import InstrumentDriver
-from mi.instrument.noaa.syst.ooicore.driver import DataParticleType
-from mi.instrument.noaa.syst.ooicore.driver import InstrumentCommand
-from mi.instrument.noaa.syst.ooicore.driver import ProtocolState
-from mi.instrument.noaa.syst.ooicore.driver import ProtocolEvent
-from mi.instrument.noaa.syst.ooicore.driver import Capability
-from mi.instrument.noaa.syst.ooicore.driver import Parameter
-from mi.instrument.noaa.syst.ooicore.driver import Protocol
-from mi.instrument.noaa.syst.ooicore.driver import Prompt
-from mi.instrument.noaa.syst.ooicore.driver import NEWLINE
+from mi.instrument.noaa.botpt.syst.driver import InstrumentDriver
+from mi.instrument.noaa.botpt.syst.driver import DataParticleType
+from mi.instrument.noaa.botpt.syst.driver import InstrumentCommand
+from mi.instrument.noaa.botpt.syst.driver import ProtocolState
+from mi.instrument.noaa.botpt.syst.driver import ProtocolEvent
+from mi.instrument.noaa.botpt.syst.driver import Capability
+from mi.instrument.noaa.botpt.syst.driver import Parameter
+from mi.instrument.noaa.botpt.syst.driver import Protocol
+from mi.instrument.noaa.botpt.syst.driver import Prompt
+from mi.instrument.noaa.botpt.syst.driver import NEWLINE
 
 GO_ACTIVE_TIMEOUT = 180
 
@@ -56,7 +56,7 @@ GO_ACTIVE_TIMEOUT = 180
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.noaa.syst.ooicore.driver',
+    driver_module='mi.instrument.noaa.botpt.syst.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id='DZWXL3',

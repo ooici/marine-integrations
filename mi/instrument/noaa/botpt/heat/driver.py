@@ -8,6 +8,7 @@ Release notes:
 Driver for LILY HEATER on the RSN-BOTPT instrument (v.6)
 
 """
+from mi.instrument.noaa.botpt.driver import BotptProtocol
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
@@ -261,7 +262,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 ###########################################################################
 
 # noinspection PyUnusedLocal, PyMethodMayBeStatic
-class Protocol(CommandResponseInstrumentProtocol):
+class Protocol(BotptProtocol):
     """
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
@@ -334,6 +335,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         self._heat_duration = DEFAULT_HEAT_DURATION
         self._last_data_timestamp = 0
+        self._filter_string = 'HEAT'
 
     @staticmethod
     def sieve_function(raw_data):
@@ -376,34 +378,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              multi_match=False,
                              visibility=ParameterDictVisibility.READ_WRITE)
 
-    def publish_raw(self, port_agent_packet):
-        """
-        Overridden, this driver shall not generate raw particles
-        """
-        pass
-
-    def _clean_buffer(self, my_buffer):
-        my_filter = lambda s: (s.startswith(InstrumentCommand.HEAT_ON) or len(s) == 0)
-        lines = my_buffer.split(NEWLINE)
-        lines = filter(my_filter, lines)
-        return NEWLINE.join(lines[-MAX_BUFFER_LENGTH:])
-
-    def add_to_buffer(self, data):
-        """
-        Add a chunk of data to the internal data buffers, filtering out data not for this sensor.
-        Limit buffer length to MAX_BUFFER_LENGTH lines
-        @param data: bytes to add to the buffer
-        """
-        # Update the line and prompt buffers.
-        self._linebuf += data
-        self._promptbuf += data
-        self._linebuf = self._clean_buffer(self._linebuf)
-        self._promptbuf = self._clean_buffer(self._promptbuf)
-        self._last_data_timestamp = time.time()
-
-        log.debug("LINE BUF: %s", self._linebuf)
-        log.debug("PROMPT BUF: %s", self._promptbuf)
-
     def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker.  Invoke
@@ -434,29 +408,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_parse_heat_on_off_resp: response: %r; prompt: %r", response, prompt)
         return response
 
-    def _wakeup(self, timeout, delay=1):
-        """
-        Overriding _wakeup; does not apply to this instrument
-        """
-        pass
-
     ########################################################################
     # Unknown handlers.
     ########################################################################
-
-    def _handler_unknown_enter(self, *args, **kwargs):
-        """
-        Enter unknown state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    def _handler_unknown_exit(self, *args, **kwargs):
-        """
-        Exit unknown state.
-        """
-        pass
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
@@ -468,19 +422,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
-
-    def _handler_command_enter(self, *args, **kwargs):
-        """
-        Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
-        """
-        # Command device to update parameters and send a config change event.
-        #self._update_params()
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_command_get(self, *args, **kwargs):
         """
@@ -536,69 +477,3 @@ class Protocol(CommandResponseInstrumentProtocol):
         # call _do_cmd_resp, passing our heat_duration parameter as the expected_prompt
         result = self._do_cmd_resp(InstrumentCommand.HEAT_OFF, expected_prompt=',*0')
         return next_state, result
-
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
-
-    def _handler_command_start_direct(self):
-        """
-        Start direct access
-        """
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-        log.debug("_handler_command_start_direct: entering DA mode")
-        return next_state, (next_agent_state, result)
-
-    ########################################################################
-    # Direct access handlers.
-    ########################################################################
-
-    def _handler_direct_access_enter(self, *args, **kwargs):
-        """
-        Enter direct access state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        self._sent_cmds = []
-
-    def _handler_direct_access_exit(self, *args, **kwargs):
-        """
-        Exit direct access state.
-        """
-        pass
-
-    def _handler_direct_access_execute_direct(self, data):
-        """
-        """
-        next_state = None
-        result = None
-        next_agent_state = None
-
-        # Only allow HEAT commands
-        commands = data.split(NEWLINE)
-        commands = [x for x in commands if x.startswith(InstrumentCommand.HEAT_ON)]
-
-        for command in commands:
-            self._do_cmd_direct(command)
-
-            # add sent command to list for 'echo' filtering in callback
-            self._sent_cmds.append(command)
-
-        return next_state, (next_agent_state, result)
-
-    def _handler_direct_access_stop_direct(self):
-        """
-        @throw InstrumentProtocolException on invalid command
-        """
-        result = None
-
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        return next_state, (next_agent_state, result)

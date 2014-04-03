@@ -38,17 +38,17 @@ from mi.core.instrument.port_agent_client import PortAgentPacket
 
 from mi.core.instrument.chunker import StringChunker
 
-from mi.instrument.noaa.heat.ooicore.driver import InstrumentDriver
-from mi.instrument.noaa.heat.ooicore.driver import DataParticleType
-from mi.instrument.noaa.heat.ooicore.driver import HEATDataParticleKey
-from mi.instrument.noaa.heat.ooicore.driver import InstrumentCommand
-from mi.instrument.noaa.heat.ooicore.driver import ProtocolState
-from mi.instrument.noaa.heat.ooicore.driver import ProtocolEvent
-from mi.instrument.noaa.heat.ooicore.driver import Capability
-from mi.instrument.noaa.heat.ooicore.driver import Parameter
-from mi.instrument.noaa.heat.ooicore.driver import Protocol
-from mi.instrument.noaa.heat.ooicore.driver import Prompt
-from mi.instrument.noaa.heat.ooicore.driver import NEWLINE
+from mi.instrument.noaa.botpt.heat.driver import InstrumentDriver
+from mi.instrument.noaa.botpt.heat.driver import DataParticleType
+from mi.instrument.noaa.botpt.heat.driver import HEATDataParticleKey
+from mi.instrument.noaa.botpt.heat.driver import InstrumentCommand
+from mi.instrument.noaa.botpt.heat.driver import ProtocolState
+from mi.instrument.noaa.botpt.heat.driver import ProtocolEvent
+from mi.instrument.noaa.botpt.heat.driver import Capability
+from mi.instrument.noaa.botpt.heat.driver import Parameter
+from mi.instrument.noaa.botpt.heat.driver import Protocol
+from mi.instrument.noaa.botpt.heat.driver import Prompt
+from mi.instrument.noaa.botpt.heat.driver import NEWLINE
 
 from pyon.agent.agent import ResourceAgentState
 
@@ -56,7 +56,7 @@ from pyon.agent.agent import ResourceAgentState
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.noaa.heat.ooicore.driver',
+    driver_module='mi.instrument.noaa.botpt.heat.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id='1D644T',

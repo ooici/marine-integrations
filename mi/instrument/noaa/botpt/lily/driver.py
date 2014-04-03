@@ -1,40 +1,33 @@
 """
 @package mi.instrument.noaa.lily.ooicore.driver
-@file marine-integrations/mi/instrument/noaa/lily/ooicore/driver.py
+@file marine-integrations/mi/instrument/noaa/botpt/lily/driver.py
 @author David Everett
 @brief Driver for the ooicore
-Release notes:
-
-Driver for LILY TILT on the RSN-BOTPT instrument (v.6)
-
+Release notes: Driver for LILY TILT on the RSN-BOTPT instrument (v.6)
 """
 
 # TODO - leveling failures
-# TODO - parse status
 # TODO - leveling timeout as parameter
-# TODO -
+
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
-#import string
 import re
 import time
-#import datetime
-import ntplib
 import threading
 
+import ntplib
+
 from mi.core.log import get_logger
+
 
 log = get_logger()
 
 from mi.core.common import BaseEnum
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
-from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
@@ -46,6 +39,9 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.core.driver_scheduler import DriverSchedulerConfigKey
 from mi.core.driver_scheduler import TriggerType
+from mi.instrument.noaa.botpt.driver import BotptDataParticleType, BotptStatus01Particle, \
+    BotptProtocolState, BotptExportedInstrumentCommand, BotptProtocolEvent, BotptCapability, BotptStatus02Particle, \
+    NEWLINE, BotptProtocol, BotptStatus02ParticleKey
 
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
@@ -56,8 +52,6 @@ from mi.core.exceptions import SampleException
 ###
 
 # newline.
-NEWLINE = '\x0a'
-MAX_BUFFER_LENGTH = 10
 LILY_STRING = 'LILY,'
 LILY_COMMAND_STRING = '*9900XY'
 LILY_DATA_ON = 'C2'  # turns on continuous data
@@ -88,57 +82,33 @@ class ScheduledJob(BaseEnum):
     LEVELING_TIMEOUT = 'leveling_timeout'
 
 
-class ProtocolState(BaseEnum):
+class ProtocolState(BotptProtocolState):
     """
     Instrument protocol states
     """
-    UNKNOWN = DriverProtocolState.UNKNOWN
-    COMMAND = DriverProtocolState.COMMAND
-    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
     COMMAND_LEVELING = 'LILY_DRIVER_STATE_COMMAND_LEVELING'
     AUTOSAMPLE_LEVELING = 'LILY_DRIVER_STATE_AUTOSAMPLE_LEVELING'
 
 
-class ExportedInstrumentCommand(BaseEnum):
-    DUMP_01 = "EXPORTED_INSTRUMENT_DUMP_SETTINGS"
-    DUMP_02 = "EXPORTED_INSTRUMENT_DUMP_EXTENDED_SETTINGS"
+class ExportedInstrumentCommand(BotptExportedInstrumentCommand):
     START_LEVELING = "EXPORTED_INSTRUMENT_START_LEVELING"
     STOP_LEVELING = "EXPORTED_INSTRUMENT_STOP_LEVELING"
 
 
-class ProtocolEvent(BaseEnum):
+class ProtocolEvent(BotptProtocolEvent):
     """
     Protocol events
     """
-    ENTER = DriverEvent.ENTER
-    EXIT = DriverEvent.EXIT
-    GET = DriverEvent.GET
-    SET = DriverEvent.SET
-    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    DISCOVER = DriverEvent.DISCOVER
-    DUMP_01 = ExportedInstrumentCommand.DUMP_01
-    DUMP_02 = ExportedInstrumentCommand.DUMP_02
     START_LEVELING = ExportedInstrumentCommand.START_LEVELING
     STOP_LEVELING = ExportedInstrumentCommand.STOP_LEVELING
     LEVELING_COMPLETE = "PROTOCOL_EVENT_LEVELING_COMPLETE"
     LEVELING_TIMEOUT = "PROTOCOL_EVENT_LEVELING_TIMEOUT"
-    START_DIRECT = DriverEvent.START_DIRECT
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    STOP_DIRECT = DriverEvent.STOP_DIRECT
 
 
-class Capability(BaseEnum):
+class Capability(BotptCapability):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    GET = ProtocolEvent.GET
-    SET = ProtocolEvent.SET
-    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    DUMP_01 = ProtocolEvent.DUMP_01
-    DUMP_02 = ProtocolEvent.DUMP_02
     START_LEVELING = ProtocolEvent.START_LEVELING
     STOP_LEVELING = ProtocolEvent.STOP_LEVELING
 
@@ -184,10 +154,11 @@ class InstrumentCommand(BaseEnum):
 # Data Particles
 ###############################################################################
 
-class DataParticleType(BaseEnum):
-    LILY_PARSED = 'botpt_lily_sample'
-    LILY_STATUS = 'botpt_lily_status'
-    LILY_RE_LEVELING = 'lily_re-leveling'
+class DataParticleType(BotptDataParticleType):
+    LILY_PARSED = 'lily_sample'
+    LILY_LEVELING = 'lily_leveling'
+    LILY_STATUS_01 = 'lily_status_01'
+    LILY_STATUS_02 = 'lily_status_02'
 
 
 class LILYDataParticleKey(BaseEnum):
@@ -321,198 +292,133 @@ class LILYDataParticle(DataParticle):
 ###############################################################################
 # Status Particles
 ###############################################################################
-class LILYStatusSignOnParticleKey(BaseEnum):
-    MODEL = "model"
-    SN = "serial_number"
-    FIRMWARE_VERSION = "firmware_version"
-    IDENTITY = "identity"
-    TIME = "lily_time"
 
 
-class LILYStatusSignOnParticle(DataParticle):
-    _data_particle_type = DataParticleType.LILY_STATUS
-    _compiled_regex = None
-
-    @staticmethod
-    def regex():
-        """
-        Example of output from display signon command (Note: we don't issue this command,
-        but the output is prepended to the DUMP-SETTINGS command):
-        
-        LILY,2013/06/12 18:03:44,*APPLIED GEOMECHANICS Model MD900-T Firmware V5.2 SN-N8642 ID01
-        """
-
-        pattern = r'LILY,'  # pattern starts with LILY '
-        pattern += r'(.*?),'  # group 1: time
-        pattern += r'\*APPLIED GEOMECHANICS'
-        pattern += r'.*?'  # non-greedy match of all the junk between
-        pattern += NEWLINE
-        return pattern
-
-    @staticmethod
-    def regex_compiled():
-        if LILYStatusSignOnParticle._compiled_regex is None:
-            LILYStatusSignOnParticle._compiled_regex = re.compile(LILYStatusSignOnParticle.regex())
-        return LILYStatusSignOnParticle._compiled_regex
-
-    def _build_parsed_values(self):
-        """        
-        @throws SampleException If there is a problem with sample creation
-        """
-        match = LILYStatusSignOnParticle.regex_compiled().match(self.raw_data)
-
-        try:
-            lily_time = match.group(1)
-            timestamp = time.strptime(lily_time, "%Y/%m/%d %H:%M:%S")
-            self.set_internal_timestamp(unix_time=time.mktime(timestamp))
-            ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
-
-        except ValueError:
-            raise SampleException("ValueError while converting data: [%s]" %
-                                  self.raw_data)
-
-        result = [
-            {DataParticleKey.VALUE_ID: LILYStatusSignOnParticleKey.TIME,
-             DataParticleKey.VALUE: ntp_timestamp},
-        ]
-
-        return result
+class LILYStatus01Particle(BotptStatus01Particle):
+    _data_particle_type = DataParticleType.LILY_STATUS_01
 
 
-class LILYStatus01Particle(DataParticle):
-    _data_particle_type = DataParticleType.LILY_STATUS
-    _compiled_regex = None
-    lily_status_response = "No response found."
-
-    @staticmethod
-    def regex():
-        """
-        Example of output from DUMP-SETTINGS command:
-        
-        LILY,2013/06/24 23:35:41,*APPLIED GEOMECHANICS LILY Firmware V2.1 SN-N9655 ID01
-        LILY,2013/06/24 23:35:41,*01: Vbias= 0.0000 0.0000 0.0000 0.0000
-        LILY,2013/06/24 23:35:41,*01: Vgain= 0.0000 0.0000 0.0000 0.0000
-        LILY,2013/06/24 23:35:41,*01: Vmin:  -2.50  -2.50   2.50   2.50
-        LILY,2013/06/24 23:35:41,*01: Vmax:   2.50   2.50   2.50   2.50
-        LILY,2013/06/24 23:35:41,*01: a0=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
-        LILY,2013/06/24 23:35:41,*01: a1=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
-        LILY,2013/06/24 23:35:41,*01: a2=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
-        LILY,2013/06/24 23:35:41,*01: a3=    0.00000    0.00000    0.00000    0.00000    0.00000    0.00000
-        LILY,2013/06/24 23:35:41,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0
-        LILY,2013/06/24 23:35:41,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0
-        LILY,2013/06/24 23:35:41,*01: N_SAMP= 360 Xzero=  0.00 Yzero=  0.00
-        LILY,2013/06/24 23:35:41,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP 19200 baud FV-   
-        """
-
-        pattern = r'LILY,'  # pattern starts with LILY '
-        pattern += r'(.*?),'  # group 1: time
-        pattern += r'\*APPLIED GEOMECHANICS'
-        pattern += r'.*?'  # non-greedy match of all the junk between
-        pattern += r'baud FV- *?' + NEWLINE
-        return pattern
-
-    @staticmethod
-    def regex_compiled():
-        if LILYStatus01Particle._compiled_regex is None:
-            LILYStatus01Particle._compiled_regex = re.compile(LILYStatus01Particle.regex(), re.DOTALL)
-        return LILYStatus01Particle._compiled_regex
-
-    def _build_parsed_values(self):
-        pass
-
-    def build_response(self):
-        """
-        build the response to the command that initiated this status.  In this 
-        case just assign the string to the lily_status_response.  In the   
-        future, we might want to cook the string, as in remove some
-        of the other sensor's chunks.
-        
-        The lily_status_response is pulled out later when do_cmd_resp calls
-        the response handler.  The response handler gets passed the particle
-        object, and it then uses that to access the objects attribute that
-        contains the response string.
-        """
-        self.lily_status_response = self.raw_data
+class LILYStatus02ParticleKey(BotptStatus02ParticleKey):
+    USED_SAMPLES = 'lily_used_samples'
+    TOTAL_SAMPLES = 'lily_total_samples'
+    LOW_POWER_RATE = 'lily_low_power_data_rate'
+    COMPASS_INSTALLED = 'lily_compass_installed'
+    COMPASS_MAG_DECL = 'lily_compass_magnetic_declination'
+    COMPASS_XOFFSET = 'lily_compass_x_offset'
+    COMPASS_YOFFSET = 'lily_compass_y_offset'
+    COMPASS_XRANGE = 'lily_compass_x_range'
+    COMPASS_YRANGE = 'lily_compass_y_range'
+    PID_IMAX = 'lily_pid_coeff_imax'
+    PID_IMIN = 'lily_pid_coeff_imin'
+    PID_IGAIN = 'lily_pid_coeff_igain'
+    PID_PGAIN = 'lily_pid_coeff_pgain'
+    PID_DGAIN = 'lily_pid_coeff_dgain'
+    MOTOR_ILIMIT = 'lily_motor_current_limit'
+    MOTOR_ILIMIT_UNITS = 'lily_motor_current_limit_units'
+    SUPPLY_VOLTAGE = 'lily_supply_voltage'
+    MEM_SAVE_MODE = 'lily_memory_save_mode'
+    OUTPUTTING_DATA = 'lily_outputting_data'
+    RECOVERY_MODE = 'lily_auto_power_off_recovery_mode'
+    ADV_MEM_MODE = 'lily_advanced_memory_mode'
+    DEL_W_XYMEMD = 'lily_delete_with_xy_memd'
 
 
 # noinspection PyMethodMayBeStatic
-class LILYStatus02Particle(DataParticle):
-    _data_particle_type = DataParticleType.LILY_STATUS
-    _compiled_regex = None
-    lily_status_response = "No response found."
+class LILYStatus02Particle(BotptStatus02Particle):
+    _data_particle_type = DataParticleType.LILY_STATUS_02
+    # Example of output from DUMP2 command:
+    # covered by base class
+    # LILY,2013/06/24 23:36:05,*01: TBias: 5.00
+    # LILY,2013/06/24 23:36:05,*01: Above 0.00(KZMinTemp): kz[0]=           0, kz[1]=           0
+    # LILY,2013/06/24 23:36:05,*01: Below 0.00(KZMinTemp): kz[2]=           0, kz[3]=           0
+    # LILY,2013/06/24 23:36:05,*01: ADCDelay:  310
+    # LILY,2013/06/24 23:36:05,*01: PCA Model: 84833-14
+    # LILY,2013/06/24 23:36:05,*01: Firmware Version: 2.1 Rev D
+    # LILY,2013/06/24 23:36:05,*01: X Ch Gain= 1.0000, Y Ch Gain= 1.0000, Temperature Gain= 1.0000
+    # LILY,2013/06/24 23:36:05,*01: Calibrated in uRadian, Current Output Mode: uRadian
+    # LILY,2013/06/24 23:36:05,*01: Using RS232
+    # LILY,2013/06/24 23:36:05,*01: Real Time Clock: Installed
+    # LILY,2013/06/24 23:36:05,*01: Use RTC for Timing: Yes
+    # LILY,2013/06/24 23:36:05,*01: External Flash: 2162688 Bytes Installed
+    # LILY,2013/06/24 23:36:05,*01: Calibration method: Dynamic
+    # LILY,2013/06/24 23:36:05,*01: Positive Limit=330.00   Negative Limit=-330.00
+    # LILY,2013/06/24 23:36:05,*01: Calibration Points:023  X: Enabled  Y: Enabled
+    # LILY,2013/06/24 23:36:05,*01: ADC: 16-bit(external)
+    # implemented here
+    # LILY,2013/06/24 23:36:05,*01: Flash Status (in Samples) (Used/Total): (-1/55424)
+    # LILY,2013/06/24 23:36:05,*01: Low Power Logger Data Rate: -1 Seconds per Sample
+    # LILY,2013/06/24 23:36:05,*01: Uniaxial (x2) Sensor Type (1)
+    # LILY,2013/06/24 23:36:05,*01: Compass: Installed   Magnetic Declination: 0.000000
+    # LILY,2013/06/24 23:36:05,*01: Compass: Xoffset:   12, Yoffset:  210, Xrange: 1371, Yrange: 1307
+    # LILY,2013/06/24 23:36:05,*01: PID Coeff: iMax:100.0, iMin:-100.0, iGain:0.0150, pGain: 2.50, dGain: 10.0
+    # LILY,2013/06/24 23:36:05,*01: Motor I_limit: 90.0mA
+    # LILY,2013/06/24 23:36:05,*01: Current Time: 01/11/00 02:12:32
+    # LILY,2013/06/24 23:36:06,*01: Supply Voltage: 11.96 Volts
+    # LILY,2013/06/24 23:36:06,*01: Memory Save Mode: Off
+    # LILY,2013/06/24 23:36:06,*01: Outputting Data: Yes
+    # LILY,2013/06/24 23:36:06,*01: Auto Power-Off Recovery Mode: Off
+    # LILY,2013/06/24 23:36:06,*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No
 
-    @staticmethod
-    def regex():
-        """
-        Example of output from DUMP2 command:
-        LILY,2013/06/24 23:36:05,*01: TBias: 5.00 
-        LILY,2013/06/24 23:36:05,*01: Above 0.00(KZMinTemp): kz[0]=           0, kz[1]=           0
-        LILY,2013/06/24 23:36:05,*01: Below 0.00(KZMinTemp): kz[2]=           0, kz[3]=           0
-        LILY,2013/06/24 23:36:05,*01: ADCDelay:  310 
-        LILY,2013/06/24 23:36:05,*01: PCA Model: 84833-14
-        LILY,2013/06/24 23:36:05,*01: Firmware Version: 2.1 Rev D
-        LILY,2013/06/24 23:36:05,*01: X Ch Gain= 1.0000, Y Ch Gain= 1.0000, Temperature Gain= 1.0000
-        LILY,2013/06/24 23:36:05,*01: Calibrated in uRadian, Current Output Mode: uRadian
-        LILY,2013/06/24 23:36:05,*01: Using RS232
-        LILY,2013/06/24 23:36:05,*01: Real Time Clock: Installed
-        LILY,2013/06/24 23:36:05,*01: Use RTC for Timing: Yes
-        LILY,2013/06/24 23:36:05,*01: External Flash: 2162688 Bytes Installed
-        LILY,2013/06/24 23:36:05,*01: Flash Status (in Samples) (Used/Total): (-1/55424)
-        LILY,2013/06/24 23:36:05,*01: Low Power Logger Data Rate: -1 Seconds per Sample
-        LILY,2013/06/24 23:36:05,*01: Calibration method: Dynamic 
-        LILY,2013/06/24 23:36:05,*01: Positive Limit=330.00   Negative Limit=-330.00 
-        IRIS,2013/06/24 23:36:05, -0.0680, -0.3284,28.07,N3616
-        LILY,2013/06/24 23:36:05,*01: Calibration Points:023  X: Enabled  Y: Enabled
-        LILY,2013/06/24 23:36:05,*01: Uniaxial (x2) Sensor Type (1)
-        LILY,2013/06/24 23:36:05,*01: ADC: 16-bit(external)
-        LILY,2013/06/24 23:36:05,*01: Compass: Installed   Magnetic Declination: 0.000000
-        LILY,2013/06/24 23:36:05,*01: Compass: Xoffset:   12, Yoffset:  210, Xrange: 1371, Yrange: 1307
-        LILY,2013/06/24 23:36:05,*01: PID Coeff: iMax:100.0, iMin:-100.0, iGain:0.0150, pGain: 2.50, dGain: 10.0
-        LILY,2013/06/24 23:36:05,*01: Motor I_limit: 90.0mA
-        LILY,2013/06/24 23:36:05,*01: Current Time: 01/11/00 02:12:32
-        LILY,2013/06/24 23:36:06,*01: Supply Voltage: 11.96 Volts
-        LILY,2013/06/24 23:36:06,*01: Memory Save Mode: Off
-        LILY,2013/06/24 23:36:06,*01: Outputting Data: Yes
-        LILY,2013/06/24 23:36:06,*01: Auto Power-Off Recovery Mode: Off
-        LILY,2013/06/24 23:36:06,*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No
-        """
-        pattern = r'LILY,'  # pattern starts with LILY '
-        pattern += r'(.*?),'  # group 1: time
-        pattern += r'\*01: TBias:'  # unique identifier for status
-        pattern += r'.*?'  # non-greedy match of all the junk between
-        pattern += r'\*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No' + NEWLINE
-        return pattern
+    _encoders = BotptStatus02Particle._encoders
+    _encoders.update({
+        LILYStatus02ParticleKey.TOTAL_SAMPLES: int,
+        LILYStatus02ParticleKey.USED_SAMPLES: int,
+        LILYStatus02ParticleKey.LOW_POWER_RATE: int,
+        LILYStatus02ParticleKey.COMPASS_INSTALLED: str,
+        LILYStatus02ParticleKey.COMPASS_XOFFSET: int,
+        LILYStatus02ParticleKey.COMPASS_YOFFSET: int,
+        LILYStatus02ParticleKey.COMPASS_XRANGE: int,
+        LILYStatus02ParticleKey.COMPASS_YRANGE: int,
+        LILYStatus02ParticleKey.MOTOR_ILIMIT_UNITS: str,
+        LILYStatus02ParticleKey.MEM_SAVE_MODE: str,
+        LILYStatus02ParticleKey.OUTPUTTING_DATA: str,
+        LILYStatus02ParticleKey.RECOVERY_MODE: str,
+        LILYStatus02ParticleKey.ADV_MEM_MODE: str,
+        LILYStatus02ParticleKey.DEL_W_XYMEMD: str,
+    })
+    # _encoders.update(BotptStatus02Particle._encoders)
 
-    @staticmethod
-    def regex_compiled():
-        if LILYStatus02Particle._compiled_regex is None:
-            LILYStatus02Particle._compiled_regex = re.compile(LILYStatus02Particle.regex(), re.DOTALL)
-        return LILYStatus02Particle._compiled_regex
-
-    def encoders(self):
-        return {}
-
-    def _build_parsed_values(self):
-        pass
-
-    def build_response(self):
-        """
-        build the response to the command that initiated this status.  In this 
-        case just assign the string to the lily_status_response.  In the   
-        future, we might want to cook the string, as in remove some
-        of the other sensor's chunks.
-        
-        The lily_status_response is pulled out later when do_cmd_resp calls
-        the response handler.  The response handler gets passed the particle
-        object, and it then uses that to access the objects attribute that
-        contains the response string.
-        """
-        self.lily_status_response = self.raw_data
+    @classmethod
+    def _regex_multiline(cls):
+        sub_dict = {
+            'float': cls.floating_point_num,
+            'four_floats': cls.four_floats,
+            'six_floats': cls.six_floats,
+            'int': cls.integer,
+            'word': cls.word,
+        }
+        regex_dict = {
+            LILYStatus02ParticleKey.TOTAL_SAMPLES: r'\(Used/Total\): \(.*?/%(int)s\)' % sub_dict,
+            LILYStatus02ParticleKey.USED_SAMPLES: r'\(Used/Total\): \(%(int)s/.*?\)' % sub_dict,
+            LILYStatus02ParticleKey.LOW_POWER_RATE: r'Low Power Logger Data Rate: %(int)s' % sub_dict,
+            LILYStatus02ParticleKey.COMPASS_INSTALLED: r'Compass: %(word)s' % sub_dict,
+            LILYStatus02ParticleKey.COMPASS_MAG_DECL: r'Magnetic Declination: %(float)s' % sub_dict,
+            LILYStatus02ParticleKey.COMPASS_XOFFSET: r'Compass: Xoffset:\s*%(int)s' % sub_dict,
+            LILYStatus02ParticleKey.COMPASS_YOFFSET: r'Compass:.*Yoffset:\s*%(int)s' % sub_dict,
+            LILYStatus02ParticleKey.COMPASS_XRANGE: r'Compass:.*Xrange:\s*%(int)s' % sub_dict,
+            LILYStatus02ParticleKey.COMPASS_YRANGE: r'Compass:.*Yrange:\s*%(int)s' % sub_dict,
+            LILYStatus02ParticleKey.PID_IMAX: r'PID.*iMax:\s*%(float)s' % sub_dict,
+            LILYStatus02ParticleKey.PID_IMIN: r'PID.*iMin:\s*%(float)s' % sub_dict,
+            LILYStatus02ParticleKey.PID_IGAIN: r'PID.*iGain:\s*%(float)s' % sub_dict,
+            LILYStatus02ParticleKey.PID_PGAIN: r'PID.*pGain:\s*%(float)s' % sub_dict,
+            LILYStatus02ParticleKey.PID_DGAIN: r'PID.*dGain:\s*%(float)s' % sub_dict,
+            LILYStatus02ParticleKey.MOTOR_ILIMIT: r'Motor I_limit: %(float)s' % sub_dict,
+            LILYStatus02ParticleKey.MOTOR_ILIMIT_UNITS: r'Motor I_limit: [0-9\.\-]*%(word)s' % sub_dict,
+            LILYStatus02ParticleKey.SUPPLY_VOLTAGE: r'Supply Voltage: %(float)s' % sub_dict,
+            LILYStatus02ParticleKey.MEM_SAVE_MODE: r'Memory Save Mode: %(word)s' % sub_dict,
+            LILYStatus02ParticleKey.OUTPUTTING_DATA: r'Outputting Data: %(word)s' % sub_dict,
+            LILYStatus02ParticleKey.RECOVERY_MODE: r'Auto Power-Off Recovery Mode: %(word)s' % sub_dict,
+            LILYStatus02ParticleKey.ADV_MEM_MODE: r'Advanced Memory Mode: %(word)s,' % sub_dict,
+            LILYStatus02ParticleKey.DEL_W_XYMEMD: r'Delete with XY-MEMD: %(word)s' % sub_dict,
+        }
+        regex_dict.update(BotptStatus02Particle._regex_multiline())
+        return regex_dict
 
 
 ###############################################################################
 # Leveling Particles
 ###############################################################################
+
 
 class LILYLevelingParticleKey(BaseEnum):
     TIME = "lily_leveling_time"
@@ -526,7 +432,7 @@ class LILYLevelingParticleKey(BaseEnum):
 
 
 class LILYLevelingParticle(DataParticle):
-    _data_particle_type = DataParticleType.LILY_RE_LEVELING
+    _data_particle_type = DataParticleType.LILY_LEVELING
     _compiled_regex = None
 
     @staticmethod
@@ -667,7 +573,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
 ###########################################################################
 
 # noinspection PyUnusedLocal,PyMethodMayBeStatic
-class Protocol(CommandResponseInstrumentProtocol):
+class Protocol(BotptProtocol):
     """
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
@@ -681,7 +587,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param driver_event Driver process event callback.
         """
         # Construct protocol superclass.
-        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+        BotptProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
         self._protocol_fsm = ThreadSafeFSM(ProtocolState, ProtocolEvent,
@@ -775,7 +681,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # set up the regexes now so we don't have to do it repeatedly
         self.data_regex = LILYDataParticle.regex_compiled()
-        self.signon_regex = LILYStatusSignOnParticle.regex_compiled()
         self.status_01_regex = LILYStatus01Particle.regex_compiled()
         self.status_02_regex = LILYStatus02Particle.regex_compiled()
         self.leveling_regex = LILYLevelingParticle.regex_compiled()
@@ -785,6 +690,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._ytilt_relevel_trigger = DEFAULT_YTILT_TRIGGER
         self._leveling_timeout = DEFAULT_LEVELING_TIMEOUT
         self._last_data_timestamp = 0
+        self._filter_string = 'LILY'
 
         self.initialize_scheduler()
 
@@ -806,20 +712,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 return_list.append((match.start(), match.end()))
 
         return return_list
-
-    def _handler_command_generic(self, command, next_state, next_agent_state, timeout, expected_prompt=None):
-        """
-        Generic method to command the instrument
-        """
-        log.debug('_handler_command: %s %s %s %s', command, next_state, next_agent_state, timeout)
-
-        if timeout is None:
-            result = self._do_cmd_resp(command, expected_prompt=expected_prompt)
-        else:
-            result = self._do_cmd_resp(command, expected_prompt=expected_prompt, timeout=timeout)
-
-        log.debug('%s response: %s', command, result)
-        return next_state, (next_agent_state, result)
 
     def _filter_capabilities(self, events):
         """
@@ -870,67 +762,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                              default_value=300.00,
                              visibility=ParameterDictVisibility.READ_WRITE)
 
-    def got_raw(self, port_agent_packet):
-        """
-        Overridden, this driver shall not generate raw particles
-        """
-        pass
-
-    def _filter_lily_only(self, data):
-        """
-        BOTPT puts out lots of data not destined for LILY.  Filter it out.
-        """
-        my_filter = lambda s: (s.startswith(LILY_STRING) or len(s) == 0)
-        lines = data.split(NEWLINE)
-        lines = filter(my_filter, lines)
-        return NEWLINE.join(lines)
-
-    def got_data(self, port_agent_packet):
-        """
-        Called by the instrument connection when data is available.
-        Append line and prompt buffers.
-
-        Also add data to the chunker and when received call got_chunk
-        to publish results.
-        """
-        data_length = port_agent_packet.get_data_length()
-        data = self._filter_lily_only(port_agent_packet.get_data())
-        timestamp = port_agent_packet.get_timestamp()
-
-        log.debug("Got Data: %s" % data)
-        log.debug("Add Port Agent Timestamp: %s" % timestamp)
-
-        if data_length > 0:
-            if self.get_current_state() == DriverProtocolState.DIRECT_ACCESS:
-                self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
-
-            self.add_to_buffer(data)
-
-            self._chunker.add_chunk(data, timestamp)
-            timestamp, chunk = self._chunker.get_next_data()
-            while chunk:
-                self._got_chunk(chunk, timestamp)
-                timestamp, chunk = self._chunker.get_next_data()
-
-    def _clean_buffer(self, my_buffer):
-        return NEWLINE.join(my_buffer.split(NEWLINE)[-MAX_BUFFER_LENGTH:])
-
-    def add_to_buffer(self, data):
-        """
-        Add a chunk of data to the internal data buffers, filtering out data not for this sensor.
-        Limit buffer length to MAX_BUFFER_LENGTH lines
-        @param data: bytes to add to the buffer
-        """
-        # Update the line and prompt buffers.
-        self._linebuf += data
-        self._promptbuf += data
-        self._linebuf = self._clean_buffer(self._linebuf)
-        self._promptbuf = self._clean_buffer(self._promptbuf)
-        self._last_data_timestamp = time.time()
-
-        log.debug("LINE BUF: %s", self._linebuf)
-        log.debug("PROMPT BUF: %s", self._promptbuf)
-
     def _got_chunk(self, chunk, timestamp):
         log.debug('_got_chunk: %r', chunk)
 
@@ -977,11 +808,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 if value is not None and 'Leveled' in value:
                     self._async_raise_fsm_event(ProtocolEvent.STOP_LEVELING)
 
-    def _build_command(self, cmd, *args, **kwargs):
-        command = cmd + NEWLINE
-        log.debug("_build_command: command is: %s", command)
-        return command
-
     def _parse_data_on_off_resp(self, response, prompt):
         log.debug("_parse_data_on_off_resp: response: %r; prompt: %s", response, prompt)
         return response
@@ -994,31 +820,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("_parse_status_02_resp: response: %r; prompt: %s", response, prompt)
         return response
 
-    def _wakeup(self, timeout, delay=1):
-        """
-        Overriding _wakeup; does not apply to this instrument
-        """
-        pass
-
     ########################################################################
     # Unknown handlers.
     ########################################################################
-
-    def _handler_unknown_enter(self, *args, **kwargs):
-        """
-        Enter unknown state.
-        """
-        log.debug("_handler_unknown_enter")
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    def _handler_unknown_exit(self, *args, **kwargs):
-        """
-        Exit unknown state.
-        """
-        log.debug("_handler_unknown_exit")
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
@@ -1049,22 +853,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     # Autosample handlers.
     ########################################################################
 
-    def _handler_autosample_enter(self, *args, **kwargs):
-        """
-        Enter autosample state.
-        """
-        log.debug("_handler_autosample_enter")
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    def _handler_autosample_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        log.debug("_handler_autosample_exit")
-
     def _handler_autosample_stop_autosample(self):
         """
         Turn the lily data off
@@ -1078,18 +866,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
-
-    def _handler_command_enter(self, *args, **kwargs):
-        """
-        Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
-        """
-        log.debug("_handler_command_enter")
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_command_get(self, *args, **kwargs):
         """
@@ -1179,22 +955,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                                              ResourceAgentState.STREAMING,
                                              None,
                                              expected_prompt=LILY_DATA_ON)
-
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        log.debug("_handler_command_exit")
-
-    def _handler_command_start_direct(self):
-        """
-        Start direct access
-        """
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-        log.debug("_handler_command_start_direct: entering DA mode")
-        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Leveling Handlers
@@ -1288,56 +1048,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             return parent_state, (next_agent_state, result)
 
         return inner
-
-    ########################################################################
-    # Direct access handlers.
-    ########################################################################
-
-    def _handler_direct_access_enter(self, *args, **kwargs):
-        """
-        Enter direct access state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        self._sent_cmds = []
-
-    def _handler_direct_access_exit(self, *args, **kwargs):
-        """
-        Exit direct access state.
-        """
-        pass
-
-    def _handler_direct_access_execute_direct(self, data):
-        """
-        """
-        next_state = None
-        result = None
-        next_agent_state = None
-
-        # Only allow HEAT commands
-        commands = data.split(NEWLINE)
-        commands = [x for x in commands if x.startswith('LILY')]
-
-        for command in commands:
-            self._do_cmd_direct(command)
-
-            # add sent command to list for 'echo' filtering in callback
-            self._sent_cmds.append(command)
-
-        return next_state, (next_agent_state, result)
-
-    def _handler_direct_access_stop_direct(self):
-        """
-        @throw InstrumentProtocolException on invalid command
-        """
-        result = None
-
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Handlers common to Command and Autosample States.
