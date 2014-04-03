@@ -1,0 +1,47 @@
+# Result data after parsing test_data_1.txt 
+
+header:
+  particle_object: CgldrFlortDelayedDataParticle
+  particle_type: cgldr_flort_delayed
+
+data:
+  - _index: 1
+    _new_sequence: False
+    internal_timestamp: '2013-09-05T02:48:19.09106'
+    m_present_time: 1329849719.71756
+    m_present_secs_into_mission: 150.718
+    sci_m_present_time: 1329849719.71756
+    sci_m_present_secs_into_mission: 150.718
+    sci_flbbcd_bb_units: 0.000299684
+    sci_flbbcd_cdom_units: 1.696
+    sci_flbbcd_chlor_units: 0.8349
+  - _index: 2
+    _new_sequence: False
+    internal_timestamp: '2013-09-05T02:49:19.38211'
+    m_present_time: 1329849722.92795
+    m_present_secs_into_mission: 153.928
+    sci_m_present_time: 1329849722.92795
+    sci_m_present_secs_into_mission: 153.928
+    sci_flbbcd_bb_units: 0.000281336
+    sci_flbbcd_cdom_units: 2.0352
+    sci_flbbcd_chlor_units: 0.8349
+  - _index: 3
+    _new_sequence: False
+    internal_timestamp: '2013-09-05T02:50:19.86694'
+    m_present_time: 1329849727.28436
+    m_present_secs_into_mission: 121325
+    sci_m_present_time: 1329849727.28436
+    sci_m_present_secs_into_mission: 158.284
+    sci_flbbcd_bb_units: 0.000256872
+    sci_flbbcd_cdom_units: 2.2048
+    sci_flbbcd_chlor_units: 0.9438
+  - _index: 4
+    _new_sequence: False
+    internal_timestamp: '2013-09-05T02:50:19.86694'
+    m_present_time: 1329849731.78812
+    m_present_secs_into_mission: 162.788
+    sci_m_present_time: 1329849731.78812
+    sci_m_present_secs_into_mission: 162.788
+    sci_flbbcd_bb_units: 0.000470932
+    sci_flbbcd_cdom_units: 2.20352
+    sci_flbbcd_chlor_units: 0.8954

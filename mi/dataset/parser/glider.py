@@ -76,7 +76,7 @@ class GliderParticleKey(BaseEnum):
     Common glider particle parameters
     """
     M_PRESENT_SECS_INTO_MISSION = 'm_present_secs_into_mission'
-    M_PRESENT_TIME = 'm_present_time'  # you need the m_ timestamps for lats & lons
+    M_PRESENT_TIME = 'm_present_time' # you need the m_ timestamps for lats & lons
     SCI_M_PRESENT_TIME = 'sci_m_present_time'
     SCI_M_PRESENT_SECS_INTO_MISSION = 'sci_m_present_secs_into_mission'
 
@@ -94,8 +94,8 @@ class GliderParticleKey(BaseEnum):
 
 class GliderParticle(DataParticle):
     """
-    Base particle for glider data.  Glider files are
-    publishing as a particle rather than a raw data string.  This is in
+    Base particle for glider data. Glider files are
+    publishing as a particle rather than a raw data string. This is in
     part to solve the dynamic nature of a glider file and not having to
     hard code >2000 variables in a regex.
 
@@ -104,7 +104,7 @@ class GliderParticle(DataParticle):
     """
 
     # It is possible that record could be parsed, but they don't
-    # contain actual science data for this instrument.  This flag
+    # contain actual science data for this instrument. This flag
     # will be set to true if we have found data when parsed.
     common_parameters = GliderParticleKey.list()
 
@@ -113,7 +113,7 @@ class GliderParticle(DataParticle):
         if not isinstance(self.raw_data, dict):
             raise SampleException(
                 "%s: Object Instance is not a Glider Parsed Data \
-                dictionary" % self._data_particle_type)
+                 dictionary" % self._data_particle_type)
 
         result = []
 
@@ -136,10 +136,10 @@ class GliderParticle(DataParticle):
 
             else:
                 #log.warn("The particle defined in the" +
-                #         "ParticleKey, %s, is not present in the current" % key +
-                #         "data set. Confirm by checking the m, s, or tbdlist of " +
-                #         "the glider to insure this is expected, or check the " +
-                #         "standard lists and/or Particle Keys")
+                    # "ParticleKey, %s, is not present in the current" % key +
+                    # "data set. Confirm by checking the m, s, or tbdlist of " +
+                    # "the glider to insure this is expected, or check the " +
+                    # "standard lists and/or Particle Keys")
                 SampleException("%s column missing from datafile, row ignored", key)
 
         return result
@@ -156,7 +156,7 @@ class GgldrCtdgvDelayedDataParticle(GliderParticle):
 
     def _build_parsed_values(self):
         """
-        Extracts CTDGV data from the glider data dictionary intiallized with
+        Extracts CTDGV data from the glider data dictionary initialized with
         the particle class and puts the data into a CTDGV Data Particle.
 
         @param result A returned list with sub dictionaries of the data
@@ -169,7 +169,7 @@ class CgldrCtdgvDelayedDataParticle(GliderParticle):
 
     def _build_parsed_values(self):
         """
-        Extracts CTDGV data from the glider data dictionary intiallized with
+        Extracts CTDGV data from the glider data dictionary initialized with
         the particle class and puts the data into a CTDGV Data Particle.
 
         @param result A returned list with sub dictionaries of the data
@@ -232,24 +232,52 @@ class GgldrFlordDelayedDataParticle(GliderParticle):
         return self._parsed_values(FlordParticleKey.list())
 
 
-class FlortParticleKey(DataParticleKey):
+class FlortDelayedParticleKey(GliderParticleKey):
     KEY_LIST = [
-        'm_gps_lat',
-        'm_gps_lon',
-        'm_lat',
-        'm_lon',
         'sci_flbbcd_bb_units',
         'sci_flbbcd_cdom_units'
-        'sci_flbbcd_chlor_units',
-        'm_present_time',  # need m_ timestamps for lats & lons
-        'm_present_secs_into_mission',
-        'sci_m_present_time',
-        'sci_m_present_secs_into_mission'
+        'sci_flbbcd_chlor_units'
     ]
+    # delayed
+    SCI_FLBBCD_BB_UNITS = 'sci_flbbcd_bb_units'
+    SCI_FLBBCD_CDOM_UNITS = 'sci_flbbcd_cdom_units'
+    SCI_FLBBCD_CHLOR_UNITS = 'sci_flbbcd_chlor_units'
+
+
+class FlortRecoveredParticleKey(GliderParticleKey):
+    # KEY_LIST = [
+    #     'm_gps_lat',
+    #     'm_gps_lon',
+    #     'm_lat',
+    #     'm_lon',
+    #     'sci_flbbcd_bb_units',
+    #     'sci_flbbcd_cdom_units'
+    #     'sci_flbbcd_chlor_units',
+    #     'm_present_time',  # need m_ timestamps for lats & lons
+    #     'm_present_secs_into_mission',
+    #     'sci_m_present_time',
+    #     'sci_m_present_secs_into_mission'
+    # ]
+    # recovered
+    SCI_FLBBCD_TIMESTAMP = 'sci_flbbcd_timestamp'
+    SCI_FLBBCD_BB_REF = 'sci_flbbcd_bb_ref'
+    SCI_FLBBCD_BB_SIG = 'sci_flbbcd_bb_sig'
+    SCI_FLBBCD_CDOM_REF = 'sci_flbbcd_cdom_ref'
+    SCI_FLBBCD_CDOM_SIG = 'sci_flbbcd_cdom_sig'
+    SCI_FLBBCD_CHLOR_REF = 'sci_flbbcd_chlor_ref'
+    SCI_FLBBCD_CHLOR_SIG = 'sci_flbbcd_chlor_sig'
+    SCI_FLBBCD_THERM = 'sci_flbbcd_therm'
 
 
 class CgldrFlortDelayedDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.CGLDR_FLORT_DELAYED
+    science_parameters = FlortDelayedParticleKey.science_parameter_list()
+
+    def get_particle_list(self):
+        for k,v in self.raw_data.items():
+            log.info("CgldrFlortDelayedDataParticle.get_particle_list(): key: %s  value: %s", k, v)
+
+
 
     def _build_parsed_values(self):
         """
@@ -260,13 +288,13 @@ class CgldrFlortDelayedDataParticle(GliderParticle):
         @throws SampleException if the data is not a glider data dictionary
             produced by GliderParser._read_data
         """
-        return self._parsed_values(FlordParticleKey.KEY_LIST)
+        return self._parsed_values(FlortDelayedParticleKey.KEY_LIST)
 
 
 class EngineeringParticleKey(BaseEnum):
 
     M_PRESENT_SECS_INTO_MISSION = 'm_present_secs_into_mission'
-    M_PRESENT_TIME = 'm_present_time'  # you need the m_ timestamps for lats & lons
+    M_PRESENT_TIME = 'm_present_time' # you need the m_ timestamps for lats & lons
 
     # [TODO: This key list will need to be adjusted once confirmation is received from PS/SE]
     C_BATTPOS = 'c_battpos'
@@ -334,7 +362,7 @@ class CgldrEngDelayedDataParticle(GliderParticle):
 
 class ParadParticleKey(DataParticleKey):
     KEY_LIST = [
-        'm_present_time',  # need m_ timestamps for lats & lons
+        'm_present_time', # need m_ timestamps for lats & lons
         'm_present_secs_into_mission',
         'sci_m_present_time',
         'sci_m_present_secs_into_mission'
@@ -379,13 +407,16 @@ class GliderParser(BufferLoadingParser):
                  *args, **kwargs):
 
         self._stream_handle = stream_handle
+
         self._timestamp = 0.0
         self._record_buffer = []  # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION: 0}
+
+        # specific to the gliders with ascii data, parse the header rows of the input file
         self._read_header()
 
+        # regex for first order parsing of input data from the chunker
         record_regex = re.compile(r'.*\n')
-        self._sample_regex = self._get_sample_pattern()
         self._whitespace_regex = re.compile(r'\s*$')
 
         super(GliderParser, self).__init__(config,
@@ -401,11 +432,27 @@ class GliderParser(BufferLoadingParser):
         if state:
             self.set_state(state)
 
+    def _load_particle_buffer(self):
+        """
+        Load up the internal record buffer with some particles based on a
+        gather from the get_block method.
+        """
+        log.info(" ### GliderParser._load_particle_buffer(): Entering ")
+
+        super(GliderParser, self)._load_particle_buffer()
+
+        self._chunker.add_chunk("\n")
+        result = self.parse_chunks()
+        self._record_buffer.extend(result)
+
     def _read_header(self):
         """
         Read the header for a glider file.
         @raise SampleException if we fail to parse the header.
         """
+        log.info(" ### GliderParser._read_header(): Entering ")
+        log.info(" ### GliderParser._read_header(): File position in bytes is: %s", self._stream_handle.tell())
+
         self._header_dict = {}
 
         if self._stream_handle.tell() != 0:
@@ -414,40 +461,31 @@ class GliderParser(BufferLoadingParser):
 
         # Read and store the configuration found in the 14 line header
         self._read_file_definition()
+        # Read and store the information found in the 3 lines of column labels
         self._read_column_labels()
 
         # What file position are we now?
+        # Should be row 18: 14 rows header, 3 rows of data column labels have been processed
         file_position = self._stream_handle.tell()
         self._read_state[StateKey.POSITION] = file_position
 
-    def _get_sample_pattern(self):
-        """
-        Generate a sample regex based on the column header.
-        @return compiled regex matching data records.
-        """
-        column_count = self._header_dict.get('sensors_per_cycle')
-        if column_count is None:
-            raise SampleException("sensors_per_cycle not defined")
-
-        if column_count == 0:
-            raise SampleException("sensors_per_cycle is 0")
-
-        regex = r''
-        for i in range(0, column_count-1):
-            regex += r'([-\d\.e]+|NaN)\s'
-
-        regex += r'([-\d\.e]+|NaN)\s*$'
-
-        log.debug("Sample Pattern: %s", regex)
-        return re.compile(regex, re.MULTILINE)
+        log.info(" ### GliderParser._read_header(): back in the _read_header method now...")
+        log.info(" ### GliderParser._read_header(): File position in bytes is: %s", file_position)
+        log.info(" ### GliderParser._read_header(): Exiting")
 
     def _read_file_definition(self):
         """
         Read the first 14 lines of the data file for the file definitions, values
-        are colon delimited key value pairs.  The pairs are parsed and stored in
+        are colon delimited key value pairs. The pairs are parsed and stored in
         header_dict member.
         """
+        log.info(" ### ### GliderParser._read_file_definition(): Entering ")
+
         row_count = 0
+        #
+        # THIS METHOD ASSUMES A 14 ROW HEADER
+        # IF the number of header row lines in the glider ASCII input file changes from 14,
+        # this method will NOT WORK
         num_hdr_lines = 14
 
         header_pattern = r'(.*): (.*)$'
@@ -456,6 +494,7 @@ class GliderParser(BufferLoadingParser):
         while row_count < num_hdr_lines:
             line = self._stream_handle.readline()
             log.debug("Parse header position: %s line: %s", self._stream_handle.tell(), line)
+            log.info(" ### ### GliderParser._read_file_definition(): File position: %s line: %s", self._stream_handle.tell(), line)
 
             match = header_re.match(line)
 
@@ -469,11 +508,15 @@ class GliderParser(BufferLoadingParser):
                 if key in ['num_ascii_tags', 'num_label_lines', 'sensors_per_cycle']:
                     value = int(value)
 
+                # create a dictionary of those 3 key/value pairs from the header rows
+                # that need to be saved for future use
                 self._header_dict[key] = value
             else:
                 log.warn("Failed to parse header row: %s.", line)
 
             row_count += 1
+
+        log.info(" ### ### GliderParser._read_file_definition(): Exiting ")
 
     def _read_column_labels(self):
         """
@@ -483,17 +526,32 @@ class GliderParser(BufferLoadingParser):
         Row 2 == units
         Row 3 == column byte size
 
-        Currently we are only able to support 3 label line rows.  If num_label_lines !=
+        Currently we are only able to support 3 label line rows. If num_label_lines !=
         3 then raise an exception.
         """
+        log.info(" ### ### GliderParser._read_column_labels(): Entering ")
 
         if self._header_dict.get('num_label_lines') != 3:
             raise SampleException("Label line count must be 3 for this parser")
 
         # read the next 3 rows that describe each column of data
-        self._header_dict['labels'] = self._stream_handle.readline().strip().split()
-        self._header_dict['data_units'] = self._stream_handle.readline().strip().split()
+        #self._header_dict['labels'] = self._stream_handle.readline().strip().split()
+        #self._header_dict['data_units'] = self._stream_handle.readline().strip().split()
+
+        # read the next line from the file (at row 15 of the file at this point)
+        columnHeaderLabels = self._stream_handle.readline().strip().split()
+        self._header_dict['labels'] = columnHeaderLabels
+        log.info(" ### ### GliderParser._read_column_labels(): First Column Header Label, file position: %s, First Label: %s, Last Label: %s", self._stream_handle.tell(), columnHeaderLabels[0], columnHeaderLabels[-1])
+
+        # read the next line from the file (at row 16 of the file at this point)
+        columnHeaderUnits = self._stream_handle.readline().strip().split()
+        self._header_dict['data_units'] = columnHeaderUnits
+        log.info(" ### ### GliderParser._read_column_labels(): First Column Header Units, file position: %s, First Unit: %s, Last Unit: %s", self._stream_handle.tell(), columnHeaderUnits[0], columnHeaderUnits[-1])
+
+        # read the next line from the file (at row 17 of the file at this point)
         num_of_bytes = self._stream_handle.readline().strip().split()
+        log.info(" ### ### GliderParser._read_column_labels(): First Column Header # of Bytes, file position: %s, First #of Bytes: %s, Last #of Bytes: %s", self._stream_handle.tell(), num_of_bytes[0], num_of_bytes[-1])
+        # convert each number of bytes string value into an int
         num_of_bytes = map(int, num_of_bytes)
         self._header_dict['num_of_bytes'] = num_of_bytes
 
@@ -502,6 +560,8 @@ class GliderParser(BufferLoadingParser):
         log.debug("Bytes: %s", self._header_dict['num_of_bytes'])
 
         log.debug("End of header, position: %d", self._stream_handle.tell())
+        log.info(" ### ### GliderParser._read_column_labels(): File position: %s", self._stream_handle.tell())
+        log.info(" ### ### GliderParser._read_column_labels(): Exiting")
 
     def set_state(self, state_obj):
         """
@@ -536,54 +596,6 @@ class GliderParser(BufferLoadingParser):
                   self._read_state, increment)
         self._read_state[StateKey.POSITION] += increment
         # Thomas, my monkey of a son, wanted this comment inserted in the code. -CW
-
-    def _read_data(self, data_record):
-        """
-        Read in the column labels, data type, number of bytes of each
-        data type, and the data from an ASCII glider data file.
-        """
-        log.debug("_read_data: Data Record: %s", data_record)
-
-        data_dict = {}
-        num_columns = self._header_dict['sensors_per_cycle']
-        data_labels = self._header_dict['labels']
-        #data_units = self._header_dict['data_units']
-        num_bytes = self._header_dict['num_of_bytes']
-        data = data_record.strip().split()
-        log.trace("Split data: %s", data)
-        if num_columns != len(data):
-            raise DatasetParserException('Glider data file does not have the ' +
-                                         'same number of columns as described ' +
-                                         'in the header.\n' +
-                                         'Described: %d, Actual: %d' %
-                                         (num_columns, len(data)))
-
-        # extract record to dictionary
-        for ii in range(num_columns):
-            log.trace("_read_data: index: %d label: %s, value: %s", ii, data_labels[ii], data[ii])
-
-            if (num_bytes[ii] == 1) or (num_bytes[ii] == 2):
-                    str2data = int
-            elif (num_bytes[ii] == 4) or (num_bytes[ii] == 8):
-                    str2data = float
-
-            # check to see if this is a latitude/longitude string
-            if ('_lat' in data_labels[ii]) or ('_lon' in data_labels[ii]):
-                # convert latitiude/longitude strings to decimal degrees
-
-                value = self._string_to_ddegrees(data[ii])
-            else:
-                value = str2data(data[ii])
-
-            data_dict[data_labels[ii]] = {
-                'Name': data_labels[ii],
-                #'Units': data_units[ii],
-                #'Number_of_Bytes': int(num_bytes[ii]),
-                'Data': value
-            }
-
-        log.trace("Data dict parsed: %s", data_dict)
-        return data_dict
 
     def get_block(self, size=1024):
         """
@@ -620,6 +632,9 @@ class GliderParser(BufferLoadingParser):
             parsing, plus the state. An empty list is returned if nothing was
             parsed.
         """
+        log.info(" ### GliderParser.parse_chunks(): ")
+        log.info(" ### GliderParser.parse_chunks(): Entering ")
+
         # set defaults
         result_particles = []
 
@@ -627,15 +642,30 @@ class GliderParser(BufferLoadingParser):
         # collect the data from the file
         (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
+        if data_record is None:
+            log.info(" ### GliderParser.parse_chunks(): DATA RECORD IS NONE - timestamp= %s, record= None, start= %s, end= %s", timestamp, start, end)
+        else:
+            #log.info(" ### GliderParser.parse_chunks(): timestamp= %s, record= %s, start= %s, end= %s", timestamp, data_record, start, end)
+            log.info(" ### GliderParser.parse_chunks(): timestamp= %s, start= %s, end= %s", timestamp, start, end)
+
         while data_record is not None:
             log.debug("data record: %s", data_record)
-            if self._sample_regex.match(data_record):
+            #if self._sample_regex.match(data_record):
+            if self._whitespace_regex.match(data_record):
+
+                log.debug("Only whitespace detected in record. Ignoring.")
+                self._increment_state(end)
+
+                # parse the data record into a data dictionary to pass to the particle class
+            else:
+
                 exception_detected = False
 
-                # parse the data record into a data dictionary to pass to the
-                # particle class
                 try:
+                    # create the dictionary of key/value pairs composed of the labels and the values from the
+                    # record being parsed
                     data_dict = self._read_data(data_record)
+
                 except SampleException as e:
                     exception_detected = True
                     self._exception_callback(e)
@@ -655,39 +685,110 @@ class GliderParser(BufferLoadingParser):
                     pass
 
                 elif self._has_science_data(data_dict):
+                    log.info(" ### GliderParser.parse_chunks(): back to parse_chunks, got some science data so lets create a particle")
                     # create the particle
                     particle = self._extract_sample(self._particle_class, None, data_dict, timestamp)
+
+
+
+                    log.info(" ### GliderParser.parse_chunks():  PARTICLE = %s", particle.get_particle_list())
+
+                    # use the log statement below to help setup expected test results yml files
+                    # log.info("XX XX XX X XXXXXX timestamp is: %f", timestamp)
                     self._increment_state(end)
                     result_particles.append((particle, copy.copy(self._read_state)))
                 else:
                     log.debug("No science data found in particle. %s", data_dict)
                     self._increment_state(end)
 
-            elif self._whitespace_regex.match(data_record):
-                log.debug("Only whitespace detected in record.  Ignoring.")
-                self._increment_state(end)
-            else:
-                log.error("Data record did not match data pattern.  Failed parsing: '%s'", data_record)
-                self._exception_callback(SampleException("data record does not match sample pattern: '%s'" % data_record))
-
             (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
+        log.info(" ### GliderParser.parse_chunks(): Exiting, Result Particle list count= %s", len(result_particles))
         # publish the results
         return result_particles
+
+    def _read_data(self, data_record):
+        """
+        Read in the column labels, data type, number of bytes of each
+        data type, and the data from an ASCII glider data file.
+        """
+        log.info(" ### ### GliderParser._read_data(): Entering ")
+        log.info(" ### ### GliderParser._read_data(): record being worked on: %s", data_record)
+
+        log.debug("_read_data: Data Record: %s", data_record)
+
+        data_dict = {}
+        num_columns = self._header_dict['sensors_per_cycle']
+        data_labels = self._header_dict['labels']
+        num_bytes = self._header_dict['num_of_bytes']
+        data = data_record.strip().split()
+        log.trace("Split data: %s", data)
+
+        if num_columns != len(data):
+
+            raise SampleException('Glider data file does not have the ' +
+                                  'same number of columns as described ' +
+                                  'in the header.\n' +
+                                  'Described: %d, Actual: %d' %
+                                  (num_columns, len(data)))
+
+        # extract record to dictionary
+        for ii in range(num_columns):
+            log.trace("_read_data: index: %d label: %s, value: %s", ii, data_labels[ii], data[ii])
+
+            valuePreConversion = data[ii]
+
+            if valuePreConversion == "NaN":
+                #value = None
+                value = float(valuePreConversion)
+            else:
+
+                # determine what type of data the value is, based on the number of bytes attribute
+                if (num_bytes[ii] == 1) or (num_bytes[ii] == 2):
+                        stringConverter = int
+                elif (num_bytes[ii] == 4) or (num_bytes[ii] == 8):
+                        stringConverter = float
+
+                # check to see if this is a latitude/longitude string
+                if ('_lat' in data_labels[ii]) or ('_lon' in data_labels[ii]):
+                    # convert latitude/longitude strings to decimal degrees
+                    value = self._string_to_ddegrees(data[ii])
+
+                else:
+                    # convert the string to and int or float
+                    value = stringConverter(data[ii])
+
+            data_dict[data_labels[ii]] = {
+                'Name': data_labels[ii],
+                #'Units': data_units[ii],
+                #'Number_of_Bytes': int(num_bytes[ii]),
+                'Data': value
+            }
+
+        log.trace("Data dict parsed: %s", data_dict)
+
+        log.info(" ### ### GliderParser._read_data(): Exiting")
+
+        return data_dict
 
     def _has_science_data(self, data_dict):
         """
         Examine the data_dict to see if it contains science data.
         """
+        log.info(" ### ### ### GliderParser._has_science_data(): Entering ")
+        log.info(" ### ### ### GliderParser._has_science_data(): Looking for data in science parameters: %s", self._particle_class.science_parameters)
+
         log.debug("Looking for data in science parameters: %s", self._particle_class.science_parameters)
         for key in data_dict.keys():
             if key in self._particle_class.science_parameters:
                 value = data_dict[key]['Data']
                 if not np.isnan(value):
                     log.debug("Found science value for key: %s, value: %s", key, value)
+                    log.info(" ### ### ### GliderParser._has_science_data(): Found science value for key: %s, value: %s", key, value)
                     return True
                 else:
                     log.debug("Science data value is nan: %s %s", key, value)
+                    log.info(" ### ### ### GliderParser._has_science_data(): Science data value is nan: %s %s", key, value)
 
         log.debug("No science data found!")
         return False
@@ -697,9 +798,9 @@ class GliderParser(BufferLoadingParser):
         Converts the given string from this data stream into a more
         standard latitude/longitude value in decimal degrees.
         @param pos_str The position (latitude or longitude) string in the
-            format "DDMM.MMMM" for latitude and "DDDMM.MMMM" for longitude. A
-            positive or negative sign to the string indicates northern/southern
-            or eastern/western hemispheres, respectively.
+           format "DDMM.MMMM" for latitude and "DDDMM.MMMM" for longitude. A
+           positive or negative sign to the string indicates northern/southern
+           or eastern/western hemispheres, respectively.
         @retval The position in decimal degrees
         """
         log.debug("Convert lat lon to degrees: %s", pos_str)
@@ -709,13 +810,13 @@ class GliderParser(BufferLoadingParser):
             return float(pos_str)
 
         # It appears that in some cases lat/lon is "0" not a decimal format as
-        # indicated above.  While 0 is a valid lat/lon measurement we think
+        # indicated above. While 0 is a valid lat/lon measurement we think
         # because it is not in decimal form it is an erroneous value.
         if pos_str == "0":
             log.warn("0 value found for lat/lon, not parsing, return NaN")
             return float("NaN")
 
-        # As a stop gap fix add a .0 to integers that don't contain a decimal.  This
+        # As a stop gap fix add a .0 to integers that don't contain a decimal. This
         # should only affect the engineering stream as the science data streams shouldn't
         # contain lat lon
         if not "." in pos_str:
