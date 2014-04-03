@@ -566,7 +566,7 @@ class SBE19CalibrationParticleKey(BaseEnum):
     EXT_FREQ = "ext_freq_sf"
 
 
-class SBE16CalibrationDataParticle(SeaBirdParticle):
+class SBE19CalibrationParticle(SeaBirdParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
     the building of values, and the rest should come along for free.
@@ -580,7 +580,7 @@ class SBE16CalibrationDataParticle(SeaBirdParticle):
 
     @staticmethod
     def regex_compiled():
-        return re.compile(SBE16CalibrationDataParticle.regex(), re.DOTALL)
+        return re.compile(SBE19CalibrationParticle.regex(), re.DOTALL)
 
     def _map_param_to_xml_tag(self, parameter_name):
         map_param_to_tag = {SBE19CalibrationParticleKey.TEMP_SENSOR_SERIAL_NUMBER: "SerialNum",
@@ -659,7 +659,7 @@ class SBE16CalibrationDataParticle(SeaBirdParticle):
         EXTERNAL_FREQUENCY_CHANNEL = "external frequency channel"
 
         # check to make sure there is a correct match before continuing
-        match = SBE16CalibrationDataParticle.regex_compiled().match(self.raw_data)
+        match = SBE19CalibrationParticle.regex_compiled().match(self.raw_data)
         if not match:
             raise SampleException("No regex match of parsed calibration data: [%s]" %
                                   self.raw_data)
@@ -953,6 +953,9 @@ class SBE19Protocol(SBE16Protocol):
         self._add_build_handler(Command.SET, self._build_set_command)
 
 
+        #TODO: Maybe we would like to implement DS and DCal, and use the response handlers in the base class to update
+        # the param dict. In that case, build_param_dict would need to be updated to not parse XML.
+
         # Add response handlers for device commands.
         # these are here to ensure that correct responses to the commands are received before the next command is sent
         self._add_response_handler(Command.SET, self._parse_set_response)
@@ -973,14 +976,28 @@ class SBE19Protocol(SBE16Protocol):
         self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
 
-    #TODO: implement this!
+    #TODO: Investigate the following methods inherited from base class:
+    # _filter_capabilities
+    # _set_params
+    # _update_params
+
     @staticmethod
     def sieve_function(raw_data):
+        """ The method that splits samples
+        Over-ride sieve function to handle additional particles.
         """
-        The method that splits samples
-        """
-
+        matchers = []
         return_list = []
+
+        matchers.append(SBE19DataParticle.regex_compiled())
+        matchers.append(SBE19HardwareParticle.regex_compiled())
+        matchers.append(SBE19CalibrationParticle.regex_compiled())
+        matchers.append(SBE19StatusParticle.regex_compiled())
+        matchers.append(SBE19ConfigurationParticle.regex_compiled())
+
+        for matcher in matchers:
+            for match in matcher.finditer(raw_data):
+                return_list.append((match.start(), match.end()))
 
         return return_list
 
@@ -1163,7 +1180,7 @@ class SBE19Protocol(SBE16Protocol):
             log.error('_validate_GetCC_response: correct instrument prompt missing: %s.' % response)
             raise InstrumentProtocolException('GetCC command - correct instrument prompt missing: %s.' % response)
 
-        if not SBE16CalibrationDataParticle.regex_compiled().search(response):
+        if not SBE19CalibrationParticle.regex_compiled().search(response):
             log.error('_validate_GetCC_response: GetCC command not recognized: %s.' % response)
             raise InstrumentProtocolException('GetCC command not recognized: %s.' % response)
 
@@ -1186,7 +1203,7 @@ class SBE19Protocol(SBE16Protocol):
             log.error('_validate_GetEC_response: correct instrument prompt missing: %s.' % response)
             raise InstrumentProtocolException('GetEC command - correct instrument prompt missing: %s.' % response)
 
-        if not SBE16CalibrationDataParticle.regex_compiled().search(response):
+        if not SBE19CalibrationParticle.regex_compiled().search(response):
             log.error('_validate_GetEC_response: GetEC command not recognized: %s.' % response)
             raise InstrumentProtocolException('GetEC command not recognized: %s.' % response)
 
@@ -1451,17 +1468,19 @@ class SBE19Protocol(SBE16Protocol):
 
 
 
-    def _got_chunk(self, chunk):
+    def _got_chunk(self, chunk, timestamp):
         """
+        Over-ride sieve function to handle additional particles.
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
+        if not (self._extract_sample(SBE19HardwareParticle, SBE19HardwareParticle.regex_compiled(), chunk, timestamp) or
+                self._extract_sample(SBE19DataParticle, SBE19DataParticle.regex_compiled(), chunk, timestamp) or
+                self._extract_sample(SBE19CalibrationParticle, SBE19CalibrationParticle.regex_compiled(), chunk, timestamp) or
+                self._extract_sample(SBE19ConfigurationParticle, SBE19ConfigurationParticle.regex_compiled(), chunk, timestamp) or
+                self._extract_sample(SBE19StatusParticle, SBE19StatusParticle.regex_compiled(), chunk, timestamp)):
+            raise InstrumentProtocolException("Unhandled chunk %s" %chunk)
 
-    def _filter_capabilities(self, events):
-        """
-        Return a list of currently available capabilities.
-        """
-        return [x for x in events if Capability.has(x)]
 
     ########################################################################
     # Static helpers
