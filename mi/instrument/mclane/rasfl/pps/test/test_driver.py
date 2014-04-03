@@ -39,7 +39,7 @@ from mi.idk.unit_test import AgentCapabilityType
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverEvent
 
-from mi.instrument.mclane.rasfl.pps.driver import InstrumentDriver
+from mi.instrument.mclane.rasfl.pps.driver import InstrumentDriver, Timeout
 from mi.instrument.mclane.rasfl.pps.driver import DataParticleType
 from mi.instrument.mclane.rasfl.pps.driver import Command
 from mi.instrument.mclane.rasfl.pps.driver import ProtocolState
@@ -416,10 +416,44 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         Test that we can generate sample particle with command
         """
         self.assert_initialize_driver()
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
-        self.assert_state_change(ProtocolState.COMMAND, 1)
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.RASFL_PARSED,
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE,
+                                   driver_timeout=Timeout.ACQUIRE_SAMPLE)
+        # self.assert_state_change(ProtocolState.ACQUIRE_SAMPLE, 1)  # may not be in this state long enough to test!
+        log.debug('---djm --- checking state change to flush...')
+        self.assert_state_change(ProtocolState.FLUSH, Timeout.ACQUIRE_SAMPLE)
+        log.debug('---djm --- checking state change to fill...')
+        self.assert_state_change(ProtocolState.FILL, Timeout.ACQUIRE_SAMPLE)
+        log.debug('--- djm --- checking state change to clear...')
+        self.assert_state_change(ProtocolState.CLEAR, Timeout.ACQUIRE_SAMPLE)
+        log.debug('--- djm --- checking state change to command...')
+        self.assert_state_change(ProtocolState.COMMAND, Timeout.ACQUIRE_SAMPLE)
+        # log.debug('--- djm --- checking particle generation')
+        # self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.RASFL_PARSED,
+        #                                 self.assert_data_particle_sample)
+
+    @unittest.skip('not completed yet')
+    def test_clear(self):
+        """
+        Test user clear command
+        """
+        self.assert_initialize_driver()
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLEAR)
+        self.assert_particle_generation(ProtocolEvent.CLEAR, DataParticleType.RASFL_PARSED,
                                         self.assert_data_particle_sample)
+
+    @unittest.skip('not completed yet')
+    def test_obstructed_flush(self):
+        """
+        Test condition when obstruction limits flow rate during initial flush
+        """
+        # TODO
+
+    @unittest.skip('not completed yet')
+    def test_obstructed_fill(self):
+        """
+        Test condition when obstruction occurs during collection of sample
+        """
+        # TODO
 
 
 ################################################################################
