@@ -490,10 +490,13 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug('_handler_command: %s %s %s %s', command, next_state, next_agent_state, timeout)
 
-        if timeout is None:
-            result = self._do_cmd_resp(command, expected_prompt=expected_prompt)
+        if expected_prompt is None:
+            result = self._do_cmd_no_resp(command)
         else:
-            result = self._do_cmd_resp(command, expected_prompt=expected_prompt, timeout=timeout)
+            if timeout is None:
+                result = self._do_cmd_resp(command, expected_prompt=expected_prompt)
+            else:
+                result = self._do_cmd_resp(command, expected_prompt=expected_prompt, timeout=timeout)
 
         log.debug('%s response: %s', command, result)
         return next_state, (next_agent_state, result)

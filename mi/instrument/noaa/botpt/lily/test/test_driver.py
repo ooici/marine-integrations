@@ -394,10 +394,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
 
-    # Test the connection to the BOTPT
     def test_connect(self, initial_protocol_state=ProtocolState.COMMAND):
         """
-        Verify sample data passed through the got data method produces the correct data particles
+        Test driver can change state to COMMAND
         """
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, initial_protocol_state)

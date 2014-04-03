@@ -23,11 +23,9 @@ from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.common import BaseEnum
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
@@ -35,8 +33,9 @@ from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
+from mi.instrument.noaa.botpt.driver import BotptProtocol
+from mi.instrument.noaa.botpt.driver import NEWLINE
 
-from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import SampleException
 
@@ -45,16 +44,12 @@ from mi.core.exceptions import SampleException
 ###
 
 # newline.
-NEWLINE = '\x0a'
 NANO_STRING = 'NANO,'
 NANO_COMMAND_STRING = '*0100'
 NANO_DATA_ON = 'E4'  # turns on continuous data
 NANO_DATA_OFF = 'E3'  # turns off continuous data
 NANO_DUMP_SETTINGS = '1F'  # outputs current settings
 NANO_SET_TIME = 'TS'  # Tells the CPU to set the NANO time
-
-# default timeout.
-TIMEOUT = 10
 
 
 class ProtocolState(BaseEnum):
@@ -67,7 +62,6 @@ class ProtocolState(BaseEnum):
 
 
 class ExportedInstrumentCommand(BaseEnum):
-    DUMP_SETTINGS = "EXPORTED_INSTRUMENT_DUMP_SETTINGS"
     SET_TIME = "EXPORTED_INSTRUMENT_SET_TIME"
 
 
@@ -82,7 +76,7 @@ class ProtocolEvent(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     DISCOVER = DriverEvent.DISCOVER
-    DUMP_SETTINGS = ExportedInstrumentCommand.DUMP_SETTINGS
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
     SET_TIME = ExportedInstrumentCommand.SET_TIME
 
 
@@ -94,7 +88,7 @@ class Capability(BaseEnum):
     SET = ProtocolEvent.SET
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    DUMP_SETTINGS = ProtocolEvent.DUMP_SETTINGS
+    ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
     SET_TIME = ProtocolEvent.SET_TIME
 
 
@@ -119,74 +113,10 @@ class InstrumentCommand(BaseEnum):
     """
     Instrument command strings
     """
-    DATA_ON = NANO_STRING + NANO_COMMAND_STRING + NANO_DATA_ON + NEWLINE  # turns on continuous data
-    DATA_OFF = NANO_STRING + NANO_COMMAND_STRING + NANO_DATA_OFF + NEWLINE  # turns off continuous data 
-    DUMP_SETTINGS = NANO_STRING + NANO_COMMAND_STRING + NANO_DUMP_SETTINGS + NEWLINE  # outputs current settings
-    SET_TIME = NANO_STRING + NANO_SET_TIME + NEWLINE  # outputs current settings
-
-
-class NANOCommandResponse():
-    def __init__(self, raw_data):
-        """ 
-        Construct a NANOCommandResponse object 
-        
-        @param raw_data The raw data used in the particle
-        """
-        self.raw_data = raw_data
-        self.nano_command_response = None
-
-    @staticmethod
-    def regex():
-        """
-        Regular expression to match a sample pattern
-        Example command response to set-time:
-        NANO,*0001GR=08/28/13 18:15:15
-        @return: regex string
-        """
-        pattern = r'NANO,'  # pattern starts with NANO '
-        pattern += r'\*0001GR='  # generic part of NANO command
-        pattern += r'(.*)'  # group 1: time
-        pattern += NEWLINE
-        return pattern
-
-    @staticmethod
-    def regex_compiled():
-        """
-        get the compiled regex pattern
-        @return: compiled re
-        """
-        return re.compile(NANOCommandResponse.regex())
-
-    # noinspection PyUnusedLocal
-    def check_command_response(self, expected_response):
-        """
-        Generic command response method; the expected response
-        is passed in as a parameter; that is used to check 
-        whether the response from the sensor is valid (positive)
-        or not.
-        
-        Note: The NANO doesn't always echo responses so
-        not using expected_response at this time.
-        """
-
-        match = NANOCommandResponse.regex_compiled().match(self.raw_data)
-
-        if not match:
-            raise SampleException("No regex match of command response: [%s]" %
-                                  self.raw_data)
-        try:
-            resp_time = match.group(1)
-            if resp_time:
-                return_value = True
-            else:
-                return_value = False
-
-        except ValueError:
-            raise SampleException("check_command_response: ValueError" +
-                                  " while converting data: [%s]" %
-                                  self.raw_data)
-
-        return return_value
+    DATA_ON = NANO_STRING + NANO_COMMAND_STRING + NANO_DATA_ON  # turns on continuous data
+    DATA_OFF = NANO_STRING + NANO_COMMAND_STRING + NANO_DATA_OFF  # turns off continuous data
+    DUMP_SETTINGS = NANO_STRING + NANO_COMMAND_STRING + NANO_DUMP_SETTINGS  # outputs current settings
+    SET_TIME = NANO_STRING + NANO_SET_TIME  # outputs current settings
 
 
 ###############################################################################
@@ -200,6 +130,7 @@ class DataParticleType(BaseEnum):
 
 class NANODataParticleKey(BaseEnum):
     TIME = "nano_time"
+    PPS_SYNC = "nano_pps_sync"
     PRESSURE = "pressure"
     TEMP = "temperature"
 
@@ -264,6 +195,7 @@ class NANODataParticle(DataParticle):
                                   self.raw_data)
 
         try:
+            pps_sync = match.group(1) == 'P'
             nano_time = match.group(2)
             timestamp = time.strptime(nano_time, "%Y/%m/%d %H:%M:%S.%f")
             self.set_internal_timestamp(unix_time=time.mktime(timestamp))
@@ -281,7 +213,9 @@ class NANODataParticle(DataParticle):
             {DataParticleKey.VALUE_ID: NANODataParticleKey.PRESSURE,
              DataParticleKey.VALUE: pressure},
             {DataParticleKey.VALUE_ID: NANODataParticleKey.TEMP,
-             DataParticleKey.VALUE: temperature}
+             DataParticleKey.VALUE: temperature},
+            {DataParticleKey.VALUE_ID: NANODataParticleKey.PPS_SYNC,
+             DataParticleKey.VALUE: pps_sync},
         ]
 
         return result
@@ -403,7 +337,8 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
 
 
-class Protocol(CommandResponseInstrumentProtocol):
+# noinspection PyMethodMayBeStatic
+class Protocol(BotptProtocol):
     """
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
@@ -417,36 +352,40 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param driver_event Driver process event callback.
         """
         # Construct protocol superclass.
-        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+        BotptProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
                                            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
-        # Add event handlers for protocol state machine.
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        handlers = {
+            ProtocolState.UNKNOWN: [
+                (ProtocolEvent.ENTER, self._handler_unknown_enter),
+                (ProtocolEvent.ENTER, self._handler_unknown_enter),
+                (ProtocolEvent.EXIT, self._handler_unknown_exit),
+                (ProtocolEvent.DISCOVER, self._handler_unknown_discover),
+            ],
+            ProtocolState.AUTOSAMPLE: [
+                (ProtocolEvent.ENTER, self._handler_autosample_enter),
+                (ProtocolEvent.EXIT, self._handler_autosample_exit),
+                (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
+                (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
+                (ProtocolEvent.SET_TIME, self._handler_command_autosample_set_time),
+            ],
+            ProtocolState.COMMAND: [
+                (ProtocolEvent.ENTER, self._handler_command_enter),
+                (ProtocolEvent.EXIT, self._handler_command_exit),
+                (ProtocolEvent.GET, self._handler_command_get),
+                (ProtocolEvent.SET, self._handler_command_set),
+                (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
+                (ProtocolEvent.SET_TIME, self._handler_command_autosample_set_time),
+                (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
+            ],
+        }
 
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
-                                       self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.DUMP_SETTINGS,
-                                       self._handler_command_autosample_dump01)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SET_TIME,
-                                       self._handler_command_autosample_set_time)
-
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.DUMP_SETTINGS,
-                                       self._handler_command_autosample_dump01)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET_TIME,
-                                       self._handler_command_autosample_set_time)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
-                                       self._handler_command_start_autosample)
+        for state in handlers:
+            for event, handler in handlers[state]:
+                self._protocol_fsm.add_handler(state, event, handler)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -476,9 +415,9 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # set up the regexes now so we don't have to do it repeatedly
         self.data_regex = NANODataParticle.regex_compiled()
-        self.cmd_rsp_regex = NANOCommandResponse.regex_compiled()
         self.status_01_regex = NANOStatus01Particle.regex_compiled()
         self._last_data_timestamp = 0
+        self._filter_string = NANO_STRING
 
     @staticmethod
     def sieve_function(raw_data):
@@ -489,21 +428,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         matchers = []
         return_list = []
 
-        # """
-        # would be nice to be able to do this.
-        # matchers.append(self.data_regex)
-        # matchers.append(self.status_01_regex)
-        # matchers.append(self.cmd_rsp_regex)
-        # """
-        #
-        # """
-        # Not a good idea to be compiling these for every invocation of this
-        # method; they don't change.
-        # """
-
         matchers.append(NANODataParticle.regex_compiled())
         matchers.append(NANOStatus01Particle.regex_compiled())
-        matchers.append(NANOCommandResponse.regex_compiled())
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
@@ -525,218 +451,80 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         self._cmd_dict = ProtocolCommandDict()
 
-    # noinspection PyMethodMayBeStatic
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
+        For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
         pass
 
-    def add_to_buffer(self, data):
-        """
-        Overridden because most of the data coming to this driver
-        isn't meant for it.  I'm only adding to the buffer when
-        a chunk arrives (see my_add_to_buffer, below), so this
-        method does nothing.
-
-        @param data: bytes to add to the buffer
-        """
-        pass
-
-    def _my_add_to_buffer(self, data):
-        """
-        Replaces add_to_buffer. Most data coming to this driver isn't meant
-        for it.  I'm only adding to the buffer when data meant for this 
-        driver arrives.  That is accomplished using the chunker mechanism. This
-        method would normally collet any data fragments that are then search by
-        the get_response method in the context of a synchronous command sent
-        from the observatory.  However, because so much data arrives here that
-        is not applicable, the add_to_buffer method has been overridden to do
-        nothing.
-        
-        @param data: bytes to add to the buffer
-        """
-
-        # Update the line and prompt buffers.
-        self._linebuf += data
-        self._promptbuf += data
-        self._last_data_timestamp = time.time()
-
     def _got_chunk(self, chunk, timestamp):
         """
-        The base class got_data has gotten a chunk from the chunker.  Invoke
-        this driver's _my_add_to_buffer, or pass it to extract_sample
-        with the appropriate particle objects and REGEXes.  We need to invoke
-        _my_add_to_buffer, because we've overridden the base class
-        add_to_buffer that is called from got_data().  The reason is explained
-        in comments in _my_add_to_buffer.
         """
-
+        # TODO docstring
         log.debug("_got_chunk_: %s", chunk)
+        if not (self._extract_sample(NANODataParticle, NANODataParticle.regex_compiled(), chunk, timestamp) or
+                    self._extract_sample(NANOStatus01Particle, NANOStatus01Particle.regex_compiled(), chunk,
+                                         timestamp)):
+            pass
 
-        if self.cmd_rsp_regex.match(chunk) or self.status_01_regex.match(chunk):
-            self._my_add_to_buffer(chunk)
-        else:
-            if not self._extract_sample(NANODataParticle,
-                                        self.data_regex,
-                                        chunk, timestamp):
-                raise InstrumentProtocolException("Unhandled chunk")
-
-    # noinspection PyMethodMayBeStatic,PyUnusedLocal
-    def _build_command(self, cmd, *args, **kwargs):
-        command = cmd + NEWLINE
-        log.debug("_build_command: command is: %s", command)
-        return command
-
-    # noinspection PyMethodMayBeStatic
     def _parse_data_on_off_resp(self, response, prompt):
         log.debug("_parse_data_on_off_resp: response: %r; prompt: %s", response, prompt)
         #return response.nano_command_response
         return
 
-    # noinspection PyMethodMayBeStatic
     def _parse_status_01_resp(self, response, prompt):
         log.debug("_parse_status_01_resp: response: %r; prompt: %s", response, prompt)
         #return response.nano_status_response
         return
 
-    # noinspection PyMethodMayBeStatic
-    def _wakeup(self, timeout, delay=1):
-        """
-        Overriding _wakeup; does not apply to this instrument
-        """
-        pass
-
-    def _get_response(self, timeout=10, expected_prompt=None, expected_regex=None):
-        """
-        Overriding _get_response: this one uses regex on chunks
-        that have already been filtered by the chunker.  An improvement
-        to the chunker could be metadata labeling the chunk so that we
-        don't have to do another match, although I don't think it is that
-        expensive once the chunk has been pulled out to match again
-        
-        @param timeout The timeout in seconds
-        @param expected_prompt Only consider the specific expected prompt as
-        presented by this string
-        @throw InstrumentProtocolExecption on timeout
-        """
-        # Grab time for timeout and wait for response
-
-        starttime = time.time()
-
-        # """
-        # Spin around for <timeout> looking for the response to arrive, but not
-        # if there is no expected prompt to look for.
-        # """
-        if None == expected_prompt:
-            continuing = False
-        else:
-            continuing = True
-
-        response = "no response"
-        while continuing:
-            if self.cmd_rsp_regex.match(self._promptbuf):
-                response = NANOCommandResponse(self._promptbuf)
-                log.debug("_get_response() matched CommandResponse")
-                response.check_command_response(expected_prompt)
-                continuing = False
-            elif self.status_01_regex.match(self._promptbuf):
-                response = NANOStatus01Particle(self._promptbuf)
-                log.debug("_get_response() matched Status_01_Response")
-                response.build_response()
-                continuing = False
-            else:
-                self._promptbuf = ''
-                time.sleep(.1)
-
-            if timeout and time.time() > starttime + timeout:
-                raise InstrumentTimeoutException("in BOTPT NANO driver._get_response()")
-
-        return 'NANO_RESPONSE', response
-
     ########################################################################
     # Unknown handlers.
     ########################################################################
-    # noinspection PyUnusedLocal
-    def _handler_unknown_enter(self, *args, **kwargs):
-        """
-        Enter unknown state.
-        """
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    # noinspection PyUnusedLocal, PyMethodMayBeStatic
-    def _handler_unknown_exit(self, *args, **kwargs):
-        """
-        Exit unknown state.
-        """
-        pass
-
-    # noinspection PyUnusedLocal
     def _handler_unknown_discover(self, *args, **kwargs):
         """
         Discover current state
         @retval (next_state, result)
         """
-        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF)
-
-        return ProtocolState.COMMAND, ResourceAgentState.IDLE
+        # Attempt to find a line containing a NANO sample
+        # If a sample is found, go to AUTOSAMPLE, otherwise COMMAND
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+        result = None
+        try:
+            response = self._get_response(timeout=1, response_regex=self.data_regex)
+            log.debug('_handler_unknown_discover: response: [%r]', response)
+            # autosample
+            if response:
+                next_state = ProtocolState.AUTOSAMPLE
+                next_agent_state = ResourceAgentState.STREAMING
+                result = ProtocolState.AUTOSAMPLE
+        # timed out, assume command
+        except InstrumentTimeoutException:
+            pass
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Autosample handlers.
     ########################################################################
 
-    # noinspection PyUnusedLocal
-    def _handler_autosample_enter(self, *args, **kwargs):
-        """
-        Enter autosample state.
-        """
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    # noinspection PyUnusedLocal, PyMethodMayBeStatic
-    def _handler_autosample_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
-
     def _handler_autosample_stop_autosample(self):
         """
         Turn the nano data off
         """
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF)
-
-        return next_state, (next_agent_state, result)
+        return self._handler_command_generic(InstrumentCommand.DATA_OFF,
+                                             ProtocolState.COMMAND,
+                                             ResourceAgentState.COMMAND,
+                                             None,
+                                             expected_prompt=None)
 
     ########################################################################
     # Command handlers.
     ########################################################################
 
-    # noinspection PyUnusedLocal
-    def _handler_command_enter(self, *args, **kwargs):
-        """
-        Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
-        """
-        # Command device to update parameters and send a config change event.
-        #self._update_params()
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-    # noinspection PyUnusedLocal, PyMethodMayBeStatic
     def _handler_command_get(self, *args, **kwargs):
         """
         Get parameter
@@ -747,7 +535,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, result
 
-    # noinspection PyUnusedLocal, PyMethodMayBeStatic
     def _handler_command_set(self, *args, **kwargs):
         """
         Set parameter
@@ -759,51 +546,27 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return next_state, result
 
-    # noinspection PyUnusedLocal
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Turn the nano data on
         """
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-
-        # call _do_cmd_resp, passing our NANO_DATA_ON as the expected_prompt
-        result = self._do_cmd_resp(InstrumentCommand.DATA_ON)
-
-        return next_state, (next_agent_state, result)
-
-    # noinspection PyUnusedLocal,PyMethodMayBeStatic
-    def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
-        pass
+        return self._handler_command_generic(InstrumentCommand.DATA_ON,
+                                             ProtocolState.AUTOSAMPLE,
+                                             ResourceAgentState.STREAMING,
+                                             None,
+                                             expected_prompt=None)
 
     ########################################################################
     # Handlers common to Command and Autosample States.
     ########################################################################
 
-    # noinspection PyUnusedLocal
-    def _handler_command_autosample_dump01(self, *args, **kwargs):
+    def _handler_command_autosample_acquire_status(self, *args, **kwargs):
         """
         Get device status
         """
-        next_state = None
-        next_agent_state = None
-        log.debug("_handler_command_autosample_dump01")
+        return self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS,
+                                             None, None, None, None)
 
-        timeout = kwargs.get('timeout')
-
-        if timeout is not None:
-            result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS, timeout=timeout)
-        else:
-            result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS)
-
-        log.debug("DUMP_SETTINGS response: %s", result)
-
-        return next_state, (next_agent_state, result)
-
-    # noinspection PyUnusedLocal
     def _handler_command_autosample_set_time(self, *args, **kwargs):
         """
         Get device status
