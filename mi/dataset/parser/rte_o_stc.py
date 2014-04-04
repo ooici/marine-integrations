@@ -34,13 +34,13 @@ from mi.core.instrument.chunker import StringChunker
 
 DATA_REGEX = r'(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d.\d{3}) (Coulombs) = (-?\d+.\d+)C, '\
              '(AVG Q_RTE Current) = (-?\d+.\d+)A, (AVG RTE Voltage) = (-?\d+.\d+)V, '\
-             '(AVG Supply Voltage) = (-?\d+.\d+)V, (RTE Hits) (\d+), (RTE State) = (\d+)\r\n'
+             '(AVG Supply Voltage) = (-?\d+.\d+)V, (RTE Hits) (\d+), (RTE State) = (\d+)(\r\n?|\n)'
 DATA_MATCHER = re.compile(DATA_REGEX)
 
 LOG_TIME_REGEX = r'(\d{4})/(\d\d)/(\d\d) (\d\d):(\d\d):(\d\d.\d{3}) '
 LOG_TIME_MATCHER = re.compile(LOG_TIME_REGEX)
 
-METADATA_REGEX = r'(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d.\d{3}) \[.+DLOGP\d+\].+\r\n'
+METADATA_REGEX = r'(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d.\d{3}) \[.+DLOGP\d+\].+(\r\n?|\n)'
 METADATA_MATCHER = re.compile(METADATA_REGEX)
 
 class RteDataParticleType(BaseEnum):

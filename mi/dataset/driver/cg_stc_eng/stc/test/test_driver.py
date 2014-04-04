@@ -156,6 +156,29 @@ class IntegrationTest(DataSetIntegrationTestCase):
             'second_rate_mopak.result.yml', count=3, timeout=10)
         self.assert_data(RteODclParserDataParticle, 'second_rte.result.yml', count=2, timeout=10)
 
+    def test_harvester_new_file_exception(self):
+        """
+        Test an exception raised after the driver is started during
+        the file read.  Should call the exception callback.
+        """
+        # create the file so that it is unreadable
+        self.create_sample_data_set_dir("20140313_191853.mopak.log", '/tmp/dsatest2', create=True, mode=000)
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.assert_exception(IOError)
+        self.clear_async_data()
+
+        # create the file so that it is unreadable
+        self.create_sample_data_set_dir("stc_status.txt", '/tmp/dsatest1', create=True, mode=000)
+        self.assert_exception(IOError)
+        self.clear_async_data()
+
+        # create the file so that it is unreadable
+        self.create_sample_data_set_dir("foo.rte.log", '/tmp/dsatest3', create=True, mode=000)
+        self.assert_exception(IOError)
+
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the driver sampling
@@ -262,22 +285,53 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         Need to override this from base class to clean all three directories
         """
-        log.debug("Driver Config: %s", self._driver_config())
-        if os.path.exists('/tmp/dsatest1'):
-            log.debug("Clean all data from %s", '/tmp/dsatest1')
-            remove_all_files('/tmp/dsatest1')
-        else:
-            os.makedirs('/tmp/dsatest1')
-        if os.path.exists('/tmp/dsatest2'):
-            log.debug("Clean all data from %s", '/tmp/dsatest2')
-            remove_all_files('/tmp/dsatest2')
-        else:
-            os.makedirs('/tmp/dsatest2')
-        if os.path.exists('/tmp/dsatest3'):
-            log.debug("Clean all data from %s", '/tmp/dsatest3')
-            remove_all_files('/tmp/dsatest3')
-        else:
-            os.makedirs('/tmp/dsatest3')
+        data_dirs = self.create_data_dir()
+        log.debug("Startup Config: %s", self._driver_config().get('startup_config'))
+        for data_dir in data_dirs:
+            log.debug("Clean all data from %s", data_dir)
+            remove_all_files(data_dir)
+
+    def create_data_dir(self):
+        """
+        Verify the test data directory is created and exists.  Return the path to
+        the directory.
+        @return: path to data directory
+        @raise: IDKConfigMissing no harvester config
+        @raise: IDKException if data_dir exists, but not a directory
+        """
+        startup_config = self._driver_config().get('startup_config')
+        if not startup_config:
+            raise IDKConfigMissing("Driver config missing 'startup_config'")
+
+        harvester_config = startup_config.get('harvester')
+        if not harvester_config:
+            raise IDKConfigMissing("Startup config missing 'harvester' config")
+        
+        data_dir = []
+
+        for key in harvester_config:
+            data_dir_key = harvester_config[key].get("directory")
+            if not data_dir_key:
+                raise IDKConfigMissing("Harvester config missing 'directory'")
+
+            if not os.path.exists(data_dir_key):
+                log.debug("Creating data dir: %s", data_dir_key)
+                os.makedirs(data_dir_key)
+    
+            elif not os.path.isdir(data_dir_key):
+                raise IDKException("%s is not a directory" % data_dir_key)
+            data_dir.append(data_dir_key)
+
+        return data_dir
+
+    def remove_sample_dir(self):
+        """
+        Remove the sample dir and all files
+        """
+        data_dirs = self.create_data_dir()
+        self.clear_sample_data()
+        for data_dir in data_dirs:
+            os.rmdir(data_dir)
 
     def test_publish_path(self):
         """

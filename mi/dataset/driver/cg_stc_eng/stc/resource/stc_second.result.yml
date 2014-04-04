@@ -80,6 +80,33 @@ data:
     cg_eng_mpic_gflt3: -5.6
     cg_eng_mpic_gflt4: -2.0
     cg_eng_mpic_ld_ena: 3
+    cg_eng_mpic_ldet1: 1194.0
+    cg_eng_mpic_ldet2: 1189.0
+    cg_eng_mpic_wsrc: 2
+    cg_eng_mpic_irid: 0
+    cg_eng_mpic_irid_v: 0.0
+    cg_eng_mpic_irid_c: 0.0
+    cg_eng_mpic_irid_e: 0
+    cg_eng_mpic_fw_wifi: 3
+    cg_eng_mpic_fw_wifi_v: 11.9
+    cg_eng_mpic_fw_wifi_c: 9.8
+    cg_eng_mpic_fw_wifi_e: 0
+    cg_eng_mpic_gps: 1
+    cg_eng_mpic_sbd: 0
+    cg_eng_mpic_sbd_ce_msg: 0
+    cg_eng_mpic_pps: 0
+    cg_eng_mpic_dcl: 0
+    cg_eng_mpic_esw: 0
+    cg_eng_mpic_dsl: 0
+    cg_eng_mpic_hbeat_enable: 1
+    cg_eng_mpic_hbeat_dtime: 125
+    cg_eng_mpic_hbeat_threshold: 2
+    cg_eng_mpic_wake_cpm: 0
+    cg_eng_mpic_wpc: 3
+    cg_eng_mpic_eflag2: 0
+    cg_eng_mpic_last_update: 2.563
+    cg_eng_gps_msg_date: "2013/09/11"
+    cg_eng_gps_msg_time: "13:06:56.059"
     cg_eng_gps_date: 110913
     cg_eng_gps_time: 130655
     cg_eng_gps_latstr: "4131.4888 N"
@@ -87,3 +114,10 @@ data:
     cg_eng_gps_lat: 41.524813
     cg_eng_gps_lon: -70.671253
     cg_eng_gps_spd: 0.0
+    cg_eng_gps_cog: 0.0
+    cg_eng_gps_fix: 1
+    cg_eng_gps_nsat: 8
+    cg_eng_gps_hdop: 2.4
+    cg_eng_gps_alt: 26.3
+    cg_eng_gps_last_update: 0.0
+    cg_eng_ntp_refid: "not_sync'd"
