@@ -55,7 +55,7 @@ class CgParserUnitTestCase(ParserUnitTestCase):
         fid = open(os.path.join(RESOURCE_PATH, 'stc_status.txt'))
         data = fid.read()
         fid.close()
-        utime_grp = re.search(r'Platform.utime=(.+)\r\n', data)
+        utime_grp = re.search(r'Platform.utime=(.+?)(\r\n?|\n)', data)
         self.timestamp_a = ntplib.system_to_ntp_time(float(utime_grp.group(1)))
         self.particle_a = CgStcEngStcParserDataParticle(data, internal_timestamp=self.timestamp_a)
 

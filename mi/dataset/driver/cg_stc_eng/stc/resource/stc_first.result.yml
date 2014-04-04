@@ -3,22 +3,22 @@ header:
     particle_type: cg_stc_eng_stc
 data:
   - _index: 1
-    internal_timestamp: 3587893616.062
-    cg_eng_platform_time: '2013/09/11 13:06:56.062'
-    cg_eng_platform_utime: 1378904816.062
-    cg_eng_msg_cnts_c_gps: 61
+    internal_timestamp: 3589891622.253
+    cg_eng_platform_time: '2013/10/04 16:07:02.253'
+    cg_eng_platform_utime: 1380902822.253
+    cg_eng_msg_cnts_c_gps: 83
     cg_eng_msg_cnts_c_ntp: 0
-    cg_eng_msg_cnts_c_pps: 3
+    cg_eng_msg_cnts_c_pps: 4
     cg_eng_msg_cnts_c_power_sys: 0
     cg_eng_msg_cnts_c_superv: 7
     cg_eng_msg_cnts_c_telem: 0
-    cg_eng_err_c_gps: !!null
-    cg_eng_err_c_pps: !!null
+    cg_eng_err_c_gps: 1
+    cg_eng_err_c_pps: 1
     cg_eng_err_c_ctl: !!null
     cg_eng_err_c_status: !!null
     cg_eng_err_superv: !!null
     cg_eng_err_c_power_sys: !!null
-    cg_eng_err_c_telem_sys: !!null
+    cg_eng_err_c_telem_sys: 3
     cg_eng_err_c_irid: !!null
     cg_eng_err_c_imm: !!null
     cg_eng_err_cpm1: !!null
@@ -35,13 +35,13 @@ data:
     cg_eng_err_dlogp8: !!null
     cg_eng_err_rcmd: !!null
     cg_eng_err_bcmd: !!null
-    cg_eng_errmsg_c_gps: !!null
-    cg_eng_errmsg_c_pps: !!null
+    cg_eng_errmsg_c_gps: "***Warning, BAD GPS CHECKSUM"
+    cg_eng_errmsg_c_pps: "C_PPS: Warning: Pulse delta [790] above warning level [500], still within window [900]"
     cg_eng_errmsg_c_ctl: !!null
     cg_eng_errmsg_c_status: !!null
     cg_eng_errmsg_superv: !!null
     cg_eng_errmsg_c_power_sys: !!null
-    cg_eng_errmsg_c_telem_sys: !!null
+    cg_eng_errmsg_c_telem_sys: " \"***Error turning on fb1 [ret=No Device]"
     cg_eng_errmsg_c_irid: !!null
     cg_eng_errmsg_c_imm: !!null
     cg_eng_errmsg_cpm1: !!null
@@ -58,38 +58,38 @@ data:
     cg_eng_errmsg_dlogp8: !!null
     cg_eng_errmsg_rcmd: !!null
     cg_eng_errmsg_bcmd: !!null
-    cg_eng_cpu_uptime: "0 days 00:01:23"
-    cg_eng_cpu_load1: 0.88
-    cg_eng_cpu_load5: 0.35
+    cg_eng_cpu_uptime: "0 days 00:01:22"
+    cg_eng_cpu_load1: 1.03
+    cg_eng_cpu_load5: 0.36
     cg_eng_cpu_load15: 0.12
     cg_eng_memory_ram: 127460
-    cg_eng_memory_free: 92384
-    cg_eng_nproc: 77
-    cg_eng_mpic_eflag: 4
-    cg_eng_mpic_main_v: 14.8
-    cg_eng_mpic_main_c: 206.40
+    cg_eng_memory_free: 93396
+    cg_eng_nproc: 76
+    cg_eng_mpic_eflag: 0
+    cg_eng_mpic_main_v: 17.9
+    cg_eng_mpic_main_c: 379.2
     cg_eng_mpic_bat_v: 0.0
     cg_eng_mpic_bat_c: 0.0
-    cg_eng_mpic_temp1: 22.1
-    cg_eng_mpic_temp2: 20.5
-    cg_eng_mpic_humid: 33.1
+    cg_eng_mpic_temp1: 25.0
+    cg_eng_mpic_temp2: 23.3
+    cg_eng_mpic_humid: 31.6
     cg_eng_mpic_press: 14.7
     cg_eng_mpic_gf_ena: 15
-    cg_eng_mpic_gflt1: 1.6
-    cg_eng_mpic_gflt2: -3.2
-    cg_eng_mpic_gflt3: -5.6
-    cg_eng_mpic_gflt4: -2.0
+    cg_eng_mpic_gflt1: 7.7
+    cg_eng_mpic_gflt2: 5.2
+    cg_eng_mpic_gflt3: 2.8
+    cg_eng_mpic_gflt4: 4.0
     cg_eng_mpic_ld_ena: 3
-    cg_eng_mpic_ldet1: 1194.0
-    cg_eng_mpic_ldet2: 1189.0
-    cg_eng_mpic_wsrc: 2
+    cg_eng_mpic_ldet1: 339.0
+    cg_eng_mpic_ldet2: 339.0
+    cg_eng_mpic_wsrc: 40
     cg_eng_mpic_irid: 0
     cg_eng_mpic_irid_v: 0.0
     cg_eng_mpic_irid_c: 0.0
     cg_eng_mpic_irid_e: 0
     cg_eng_mpic_fw_wifi: 3
-    cg_eng_mpic_fw_wifi_v: 11.9
-    cg_eng_mpic_fw_wifi_c: 9.8
+    cg_eng_mpic_fw_wifi_v: 12.0
+    cg_eng_mpic_fw_wifi_c: 290.8
     cg_eng_mpic_fw_wifi_e: 0
     cg_eng_mpic_gps: 1
     cg_eng_mpic_sbd: 0
@@ -102,22 +102,22 @@ data:
     cg_eng_mpic_hbeat_dtime: 125
     cg_eng_mpic_hbeat_threshold: 2
     cg_eng_mpic_wake_cpm: 0
-    cg_eng_mpic_wpc: 3
+    cg_eng_mpic_wpc: 56
     cg_eng_mpic_eflag2: 0
-    cg_eng_mpic_last_update: 2.563
-    cg_eng_gps_msg_date: "2013/09/11"
-    cg_eng_gps_msg_time: "13:06:56.059"
-    cg_eng_gps_date: 110913
-    cg_eng_gps_time: 130655
-    cg_eng_gps_latstr: "4131.4888 N"
-    cg_eng_gps_lonstr: "07040.2752 W"
-    cg_eng_gps_lat: 41.524813
-    cg_eng_gps_lon: -70.671253
+    cg_eng_mpic_last_update: 7.087
+    cg_eng_gps_msg_date: "2013/10/04"
+    cg_eng_gps_msg_time: "16:07:02.251"
+    cg_eng_gps_date: 41013
+    cg_eng_gps_time: 160701
+    cg_eng_gps_latstr: "4132.1353 N"
+    cg_eng_gps_lonstr: "07038.8306 W"
+    cg_eng_gps_lat: 41.535588
+    cg_eng_gps_lon: -70.647177
     cg_eng_gps_spd: 0.0
     cg_eng_gps_cog: 0.0
     cg_eng_gps_fix: 1
     cg_eng_gps_nsat: 8
-    cg_eng_gps_hdop: 2.4
-    cg_eng_gps_alt: 26.3
+    cg_eng_gps_hdop: 1.3
+    cg_eng_gps_alt: 23.5
     cg_eng_gps_last_update: 0.0
     cg_eng_ntp_refid: "not_sync'd"
