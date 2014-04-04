@@ -11,9 +11,7 @@ __license__ = 'Apache 2.0'
 import re
 import numpy as np
 import ntplib
-import time
 import copy
-import pdb
 
 from math import copysign
 from functools import partial
@@ -23,7 +21,6 @@ from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, DatasetParserException
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.core.instrument.data_particle import DataParticleValue
 from mi.dataset.dataset_parser import BufferLoadingParser
 
 # start the logger
@@ -174,7 +171,7 @@ class CgldrCtdgvDelayedDataParticle(GliderParticle):
 
         @param result A returned list with sub dictionaries of the data
         """
-        return self._parsed_values(CtdgvParticleKey.KEY_LIST)
+        return self._parsed_values(CtdgvParticleKey.list())
 
 
 class DostaParticleKey(GliderParticleKey):
@@ -208,7 +205,7 @@ class CgldrDostaDelayedDataParticle(GliderParticle):
         @param gpd A GliderParser class instance.
         @param result A returned list with sub dictionaries of the data
         """
-        return self._parsed_values(DostaParticleKey.KEY_LIST)
+        return self._parsed_values(DostaParticleKey.list())
 
 
 class FlordParticleKey(GliderParticleKey):
@@ -233,32 +230,15 @@ class GgldrFlordDelayedDataParticle(GliderParticle):
 
 
 class FlortDelayedParticleKey(GliderParticleKey):
-    KEY_LIST = [
-        'sci_flbbcd_bb_units',
-        'sci_flbbcd_cdom_units'
-        'sci_flbbcd_chlor_units'
-    ]
-    # delayed
+    # science data made available via telemetry
     SCI_FLBBCD_BB_UNITS = 'sci_flbbcd_bb_units'
     SCI_FLBBCD_CDOM_UNITS = 'sci_flbbcd_cdom_units'
     SCI_FLBBCD_CHLOR_UNITS = 'sci_flbbcd_chlor_units'
 
 
+
 class FlortRecoveredParticleKey(GliderParticleKey):
-    # KEY_LIST = [
-    #     'm_gps_lat',
-    #     'm_gps_lon',
-    #     'm_lat',
-    #     'm_lon',
-    #     'sci_flbbcd_bb_units',
-    #     'sci_flbbcd_cdom_units'
-    #     'sci_flbbcd_chlor_units',
-    #     'm_present_time',  # need m_ timestamps for lats & lons
-    #     'm_present_secs_into_mission',
-    #     'sci_m_present_time',
-    #     'sci_m_present_secs_into_mission'
-    # ]
-    # recovered
+    # science data made available via glider recovery
     SCI_FLBBCD_TIMESTAMP = 'sci_flbbcd_timestamp'
     SCI_FLBBCD_BB_REF = 'sci_flbbcd_bb_ref'
     SCI_FLBBCD_BB_SIG = 'sci_flbbcd_bb_sig'
@@ -288,7 +268,7 @@ class CgldrFlortDelayedDataParticle(GliderParticle):
         @throws SampleException if the data is not a glider data dictionary
             produced by GliderParser._read_data
         """
-        return self._parsed_values(FlortDelayedParticleKey.KEY_LIST)
+        return self._parsed_values(FlortDelayedParticleKey.list())
 
 
 class EngineeringParticleKey(BaseEnum):
@@ -484,7 +464,7 @@ class GliderParser(BufferLoadingParser):
         row_count = 0
         #
         # THIS METHOD ASSUMES A 14 ROW HEADER
-        # IF the number of header row lines in the glider ASCII input file changes from 14,
+        # If the number of header row lines in the glider ASCII input file changes from 14,
         # this method will NOT WORK
         num_hdr_lines = 14
 
@@ -689,12 +669,9 @@ class GliderParser(BufferLoadingParser):
                     # create the particle
                     particle = self._extract_sample(self._particle_class, None, data_dict, timestamp)
 
-
-
-                    log.info(" ### GliderParser.parse_chunks():  PARTICLE = %s", particle.get_particle_list())
-
-                    # use the log statement below to help setup expected test results yml files
-                    # log.info("XX XX XX X XXXXXX timestamp is: %f", timestamp)
+                    ##
+                    ## use the log statement below to help setup expected test results yml files
+                    ## log.info("XX XX XX X XXXXXX timestamp is: %f", timestamp)
                     self._increment_state(end)
                     result_particles.append((particle, copy.copy(self._read_state)))
                 else:
@@ -725,6 +702,8 @@ class GliderParser(BufferLoadingParser):
         log.trace("Split data: %s", data)
 
         if num_columns != len(data):
+
+            log.info(" ### ### GliderParser._read_data(): Num Of Columns NOT EQUAL to Num of Data items: Expected Columns= %s vs Actual Data= %s", num_columns, len(data))
 
             raise SampleException('Glider data file does not have the ' +
                                   'same number of columns as described ' +
