@@ -320,7 +320,7 @@ class RASFLSampleDataParticle(DataParticle):
                   '\s*(\d+)' +  # VOLUME_COMMANDED
                   '\s*(\d+)' +  # FLOW RATE COMMANDED
                   '\s*(\d+)' +  # MIN RATE COMMANDED
-                  '\s*(\d+)\s*\|' +  # TLIM - TODO
+                  '\s*(\d+)\s*\|' +  # TLIM - TODO - Giora to investigate
                   '\s*(\d*\.?\d+)' +  # VOLUME (actual)
                   '\s*(\d*\.?\d+)' +  # FLOW RATE (actual)
                   '\s*(\d*\.?\d+)' +  # MIN RATE (actual)
@@ -474,6 +474,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.ACQUIRE_SAMPLE, self._handler_acquire_sample),
                 (ProtocolEvent.EXIT, self._handler_acquire_exit),
                 # TODO - do we want to allow abort (ctrl-C) in the middle of a collect?
+                # TODO - would be nice to have
                 #(ProtocolEvent.STOP, self._handler_acquire_interrupt),
             ],
             ProtocolState.DIRECT_ACCESS: [
