@@ -58,6 +58,7 @@ class ScheduledJob(BaseEnum):
     CLOCK_SYNC = 'clock_sync'
 
 
+#TODO:Re-visit what commands need to be implemented
 class Command(BaseEnum):
 
         GET_CD = 'GetCD'
@@ -72,6 +73,8 @@ class Command(BaseEnum):
 
         #TODO: not specified in IOS
         SET = 'set'
+
+#TODO: Look at Capability enum in other seabird driver. Should this be inherited? Or are our capabilities a subset?
 
 
 class Parameter(DriverParameter):
@@ -107,6 +110,24 @@ class Parameter(DriverParameter):
     PUMP_DELAY = "PumpDelay"
     AUTO_RUN = "AutoRun"
     IGNORE_SWITCH = "IgnoreSwitch"
+
+#TODO: do we need a Confirmed Parameter class like the other driver?
+class ConfirmedParameter(BaseEnum):
+    """
+    List of all parameters that require confirmation
+    i.e. set sent twice to confirm.
+    """
+    PTYPE    =  Parameter.PTYPE
+    SBE38    =  Parameter.SBE38
+    GTD      =  Parameter.GTD
+    OPTODE   =  Parameter.OPTODE
+    WETLABS  =  Parameter.WETLABS
+    VOLT0    =  Parameter.VOLT0
+    VOLT1    =  Parameter.VOLT1
+    VOLT2    =  Parameter.VOLT2
+    VOLT3    =  Parameter.VOLT3
+    VOLT4    =  Parameter.VOLT4
+    VOLT5    =  Parameter.VOLT5
 
 
 ###############################################################################
@@ -367,10 +388,10 @@ class SBE19HardwareParticleKey(BaseEnum):
     MANUFACTURE_DATE = "manufacture_date"
     TEMPERATURE_SENSOR_TYPE = 'temperature_sensor_type'
     TEMPERATURE_SENSOR_SERIAL_NUMBER = 'temperature_sensor_serial_number'
-    CONDUCTIVITY_SENSOR_TYPE = 'temperature_sensor_type'
+    CONDUCTIVITY_SENSOR_TYPE = 'conductivity_sensor_type'
     CONDUCTIVITY_SENSOR_SERIAL_NUMBER = 'conductivity_sensor_serial_number'
     PRESSURE_SENSOR_TYPE = 'pressure_sensor_type'
-    QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER = 'quartz_pressure_sensor_serial_number'
+    PRESSURE_SENSOR_SERIAL_NUMBER = 'pressure_sensor_serial_number'
 
 class SBE19HardwareParticle(SeaBirdParticle):
 
@@ -503,7 +524,7 @@ class SBE19HardwareParticle(SeaBirdParticle):
                    DataParticleKey.VALUE: conductivity_sensor_serial_number},
                    {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.CONDUCTIVITY_SENSOR_TYPE,
                    DataParticleKey.VALUE: conductivity_sensor_type},
-                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER,
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.PRESSURE_SENSOR_SERIAL_NUMBER,
                    DataParticleKey.VALUE: pressure_sensor_serial_number},
                   {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.PRESSURE_SENSOR_TYPE,
                    DataParticleKey.VALUE: pressure_sensor_type},
@@ -676,7 +697,7 @@ class SBE19CalibrationParticle(SeaBirdParticle):
         for calibration in calibration_elements:
             id = calibration.getAttribute(ID)
             if id == TEMPERATURE_SENSOR_ID:
-                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TEMP_SENSOR_SERIAL_NUMBER, str))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TEMP_SENSOR_SERIAL_NUMBER, int))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TEMP_CAL_DATE, str))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TA0))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TA1))
@@ -684,7 +705,7 @@ class SBE19CalibrationParticle(SeaBirdParticle):
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TA3))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.TOFFSET))
             elif id == CONDUCTIVITY_SENSOR_ID:
-                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.COND_SENSOR_SERIAL_NUMBER, str))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.COND_SENSOR_SERIAL_NUMBER, int))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.COND_CAL_DATE, str))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.CONDG))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.CONDH))
@@ -694,7 +715,7 @@ class SBE19CalibrationParticle(SeaBirdParticle):
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.CTCOR))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.CSLOPE))
             elif id == PRESSURE_SENSOR_ID:
-                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PRES_SERIAL_NUMBER, str))
+                result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PRES_SERIAL_NUMBER, int))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PRES_CAL_DATE, str))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PA0))
                 result.append(self._get_xml_parameter(calibration, SBE19CalibrationParticleKey.PA1))
@@ -917,6 +938,8 @@ class SBE19Protocol(SBE16Protocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_get)
+
+        #TODO: do we want to support QS in either command or autosample mode?
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.QUIT_SESSION, self._handler_command_autosample_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_autosample_acquire_status)
@@ -977,8 +1000,6 @@ class SBE19Protocol(SBE16Protocol):
 
 
     #TODO: Investigate the following methods inherited from base class:
-    # _filter_capabilities
-    # _set_params
     # _update_params
 
     @staticmethod
@@ -1000,6 +1021,31 @@ class SBE19Protocol(SBE16Protocol):
                 return_list.append((match.start(), match.end()))
 
         return return_list
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        self._verify_not_readonly(*args, **kwargs)
+
+        for (key, val) in params.iteritems():
+            log.debug("KEY = %s VALUE = %s", key, val)
+
+            if(key in ConfirmedParameter.list()):
+                # We add a write delay here because this command has to be sent
+                # twice, the write delay allows it to process the first command
+                # before it receives the beginning of the second.
+                response = self._do_cmd_resp(Command.SET, key, val, write_delay=0.2)
+            else:
+                response = self._do_cmd_resp(Command.SET, key, val, **kwargs)
+
+        log.debug("set complete, update params")
+        self._update_params()
 
     def _handler_command_get_configuration(self, *args, **kwargs):
         """
@@ -1218,6 +1264,7 @@ class SBE19Protocol(SBE16Protocol):
         # Add parameter handlers to parameter dict.
 
         #TODO: re-visit visibility for all parameters once IOS is in good shape
+        #TODO: parse XML tags or DS-like output?
 
         #TODO: verify if this lambda function is correct, check for completeness of DATE_TIME
         self._param_dict.add(Parameter.DATE_TIME,
