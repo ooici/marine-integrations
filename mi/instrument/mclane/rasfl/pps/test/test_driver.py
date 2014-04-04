@@ -28,29 +28,34 @@ from mi.core.log import get_logger
 log = get_logger()
 
 # MI imports.
-from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.idk.unit_test import DriverTestMixin
-from mi.idk.unit_test import ParameterTestConfigKey
-from mi.idk.unit_test import AgentCapabilityType
+from mi.idk.unit_test import \
+    InstrumentDriverTestCase, \
+    InstrumentDriverUnitTestCase, \
+    InstrumentDriverIntegrationTestCase, \
+    InstrumentDriverQualificationTestCase, \
+    DriverTestMixin, \
+    ParameterTestConfigKey, \
+    AgentCapabilityType
 
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverEvent
 
-from mi.instrument.mclane.rasfl.pps.driver import InstrumentDriver, Timeout
-from mi.instrument.mclane.rasfl.pps.driver import DataParticleType
-from mi.instrument.mclane.rasfl.pps.driver import Command
-from mi.instrument.mclane.rasfl.pps.driver import ProtocolState
-from mi.instrument.mclane.rasfl.pps.driver import ProtocolEvent
-from mi.instrument.mclane.rasfl.pps.driver import Capability
-from mi.instrument.mclane.rasfl.pps.driver import Parameter
-from mi.instrument.mclane.rasfl.pps.driver import Protocol
-from mi.instrument.mclane.rasfl.pps.driver import Prompt
-from mi.instrument.mclane.rasfl.pps.driver import NEWLINE
-from mi.instrument.mclane.rasfl.pps.driver import RASFLSampleDataParticleKey
-from mi.instrument.mclane.rasfl.pps.driver import RASFLSampleDataParticle
+from mi.instrument.mclane.driver import \
+    Timeout, \
+    ProtocolState, \
+    ProtocolEvent, \
+    Capability, \
+    Prompt, \
+    NEWLINE
+
+from mi.instrument.mclane.rasfl.pps.driver import \
+    InstrumentDriver, \
+    DataParticleType, \
+    Command, \
+    Parameter, \
+    Protocol, \
+    PPSDNSampleDataParticleKey, \
+    PPSDNSampleDataParticle
 
 from mi.core.exceptions import SampleException
 from interface.objects import AgentCommand
@@ -164,19 +169,19 @@ class UtilMixin(DriverTestMixin):
     ### 
     _sample_parameters = {
         # particle data defined in the OPTAA Driver doc
-        RASFLSampleDataParticleKey.PORT: {'type': int, 'value': 0},
-        RASFLSampleDataParticleKey.VOLUME_COMMANDED: {'type': int, 'value': 75},
-        RASFLSampleDataParticleKey.FLOW_RATE_COMMANDED: {'type': int, 'value': 100},
-        RASFLSampleDataParticleKey.MIN_FLOW_COMMANDED: {'type': int, 'value': 25},
-        RASFLSampleDataParticleKey.TIME_LIMIT: {'type': int, 'value': 4},
-        RASFLSampleDataParticleKey.VOLUME_ACTUAL: {'type': float, 'value': 1.5},
-        RASFLSampleDataParticleKey.FLOW_RATE_ACTUAL: {'type': float, 'value': 90.7},
-        RASFLSampleDataParticleKey.MIN_FLOW_ACTUAL: {'type': float, 'value': 0.907},
-        RASFLSampleDataParticleKey.TIMER: {'type': int, 'value': 1},
-        RASFLSampleDataParticleKey.DATE: {'type': unicode, 'value': '031514'},
-        RASFLSampleDataParticleKey.TIME: {'type': unicode, 'value': '001727'},
-        RASFLSampleDataParticleKey.BATTERY: {'type': float, 'value': 29.9},
-        RASFLSampleDataParticleKey.CODE: {'type': int, 'value': 0},
+        PPSDNSampleDataParticleKey.PORT: {'type': int, 'value': 0},
+        PPSDNSampleDataParticleKey.VOLUME_COMMANDED: {'type': int, 'value': 75},
+        PPSDNSampleDataParticleKey.FLOW_RATE_COMMANDED: {'type': int, 'value': 100},
+        PPSDNSampleDataParticleKey.MIN_FLOW_COMMANDED: {'type': int, 'value': 25},
+        PPSDNSampleDataParticleKey.TIME_LIMIT: {'type': int, 'value': 4},
+        PPSDNSampleDataParticleKey.VOLUME_ACTUAL: {'type': float, 'value': 1.5},
+        PPSDNSampleDataParticleKey.FLOW_RATE_ACTUAL: {'type': float, 'value': 90.7},
+        PPSDNSampleDataParticleKey.MIN_FLOW_ACTUAL: {'type': float, 'value': 0.907},
+        PPSDNSampleDataParticleKey.TIMER: {'type': int, 'value': 1},
+        PPSDNSampleDataParticleKey.DATE: {'type': unicode, 'value': '031514'},
+        PPSDNSampleDataParticleKey.TIME: {'type': unicode, 'value': '001727'},
+        PPSDNSampleDataParticleKey.BATTERY: {'type': float, 'value': 29.9},
+        PPSDNSampleDataParticleKey.CODE: {'type': int, 'value': 0},
     }
 
     ###
@@ -285,7 +290,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 
     def test_corrupt_data_sample(self):
         # garbage is not okay
-        particle = RASFLSampleDataParticle(self.RASFL_SAMPLE_DATA1.replace('00', 'foo'),
+        particle = PPSDNSampleDataParticle(self.RASFL_SAMPLE_DATA1.replace('00', 'foo'),
                                            port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
@@ -343,8 +348,8 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
                 ProtocolEvent.ACQUIRE_SAMPLE,
                 ProtocolEvent.CLOCK_SYNC,
             ],
-            ProtocolState.ACQUIRE_SAMPLE: [
-                ProtocolEvent.ACQUIRE_SAMPLE,
+            ProtocolState.CLEAR: [
+                ProtocolEvent.CLEAR,
             ],
             ProtocolState.DIRECT_ACCESS: [
                 ProtocolEvent.STOP_DIRECT,
