@@ -444,19 +444,19 @@ class Protocol(SamiProtocol):
         SamiProtocol.__init__(self, prompts, newline, driver_event)
 
         ## Continue building protocol state machine from SamiProtocol
-        self._protocol_fsm.add_handler(
-            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
-            self._handler_sample_success)
-        self._protocol_fsm.add_handler(
-            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
-            self._handler_sample_timeout)
-
-        self._protocol_fsm.add_handler(
-            ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
-            self._handler_sample_success)
-        self._protocol_fsm.add_handler(
-            ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
-            self._handler_sample_timeout)
+        # self._protocol_fsm.add_handler(
+        #     ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
+        #     self._handler_sample_success)
+        # self._protocol_fsm.add_handler(
+        #     ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
+        #     self._handler_sample_timeout)
+        #
+        # self._protocol_fsm.add_handler(
+        #     ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
+        #     self._handler_sample_success)
+        # self._protocol_fsm.add_handler(
+        #     ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
+        #     self._handler_sample_timeout)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -514,6 +514,7 @@ class Protocol(SamiProtocol):
     # Build Parameter dictionary
     ####################################################################
 
+## TODO: Review parameter dictionary default values
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.

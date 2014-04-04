@@ -442,6 +442,8 @@ class Protocol(SamiProtocol):
 
         # Build protocol state machine.
 
+        ## TODO: Can move to the base class, timeout and success conditions can be provided from the subclasses
+
         ###
         # most of these are defined in the base class with exception of handlers
         # defined below that differ for the two instruments (what defines
@@ -452,20 +454,20 @@ class Protocol(SamiProtocol):
         # while in the AUTOSAMPLE state and will last anywhere from a few
         # seconds to ~12 minutes depending on instrument and the type of
         # sampling.
-        self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
-                                       self._handler_sample_success)
-        self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
-                                       self._handler_sample_timeout)
+        # self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
+        #                                self._handler_sample_success)
+        # self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
+        #                                self._handler_sample_timeout)
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
         # while in either the COMMAND state (or via the discover transition
         # from the UNKNOWN state with the instrument unresponsive) and will
         # last anywhere from a few seconds to 3 minutes depending on instrument
         # and sample type.
-        self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
-                                       self._handler_sample_success)
-        self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
-                                       self._handler_sample_timeout)
+        # self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
+        #                                self._handler_sample_success)
+        # self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
+        #                                self._handler_sample_timeout)
 
         # Add build handlers for device commands.
         ### primarily defined in base class
@@ -544,11 +546,6 @@ class Protocol(SamiProtocol):
         #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + NEWLINE
         #
         ###
-
-        """
-        TODO: Might have to change configuration file? to a name value format? if anyone wants
-        to understand enough to modify.
-        """
 
         # TODO: can move most additions to base class.  Will it be understandable?
         self._param_dict.add(Parameter.LAUNCH_TIME, CONFIGURATION_REGEX,
@@ -844,6 +841,8 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='number of extra pump cycles')
 
+## TODO: Add parameter to turn recording on or off
+
     #########################################################################
     ## General (for POLLED and SCHEDULED states) Sample handlers.
     #########################################################################
@@ -869,6 +868,8 @@ class Protocol(SamiProtocol):
     ########################################################################
     # Configuration string.
     ########################################################################
+
+## TODO: Overridden methods below to add to PHSEN
 
     def _build_configuration_string_specific(self):
         log.debug('herb: ' + 'Protocol._build_configuration_string_specific()')
@@ -914,3 +915,5 @@ class Protocol(SamiProtocol):
 
         return configuration_string
 
+    def _get_configuration_string_regex(self):
+        return CONFIGURATION_REGEX_MATCHER

@@ -68,7 +68,7 @@ SAMI_TO_UNIX = 2082844800
 # Conversion from SAMI time (seconds since 1904-01-01) to NTP timestamps
 # (seconds since 1900-01-01). Subtract this value to convert NTP timestamps to
 # SAMI, and add for the reverse.
-SAMI_TO_NTP =  126144000
+SAMI_TO_NTP =  126144000  ## TODO: Do we use NTP time for anything?
 
 # Acceptable time difference as specified in the IOS
 TIME_THRESHOLD = 1
@@ -125,6 +125,9 @@ ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
 # Currently used to handle unexpected responses
 WILD_CARD_REGEX  = r'.*' + NEWLINE
 WILD_CARD_REGEX_MATCHER = re.compile(WILD_CARD_REGEX)
+
+NEW_LINE_REGEX = NEWLINE
+NEW_LINE_REGEX_MATCHER = re.compile(NEW_LINE_REGEX)
 
 ###
 #    Begin Classes
@@ -230,7 +233,7 @@ class SamiParameter(DriverParameter):
     # the portions of the configuration that is unique to each.
 
 # TODO: Prompt is an edge case which should never ever occur.  If prompt ever appears device should go back to
-# TODO: discover state and reconfigure
+# TODO: discover state and reconfigure (if possible)
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
@@ -263,8 +266,12 @@ class SamiInstrumentCommand(BaseEnum):
     GET_CONFIG = 'L'
     SET_CONFIG = 'L5A'
     ERASE_ALL = 'E5A'
+
+    # TODO: Will not use if recording on instrument is not done
     START = 'G5A'
     STOP = 'Q5A'
+
+    ACQUIRE_BLANK_SAMPLE_SAMI = 'C'
     ACQUIRE_SAMPLE_SAMI = 'R0'
     # TODO: See prompt comment above, this command should not be necessary if total reconfiguration
     ESCAPE_BOOT = 'u'
@@ -649,9 +656,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER,
             self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(
-            ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT,
-            self._handler_command_start_direct)
 
         self._protocol_fsm.add_handler(
             ProtocolState.WAITING, ProtocolEvent.ENTER,
@@ -669,15 +673,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.EXIT,
             self._handler_command_exit)
-
         ## TODO: Don't think we will be doing any getting or setting
-        self._protocol_fsm.add_handler(
-            ProtocolState.COMMAND, ProtocolEvent.GET,
-            self._handler_command_get)
-        self._protocol_fsm.add_handler(
-            ProtocolState.COMMAND, ProtocolEvent.SET,
-            self._handler_command_set)
-
+        # self._protocol_fsm.add_handler(
+        #     ProtocolState.COMMAND, ProtocolEvent.GET,
+        #     self._handler_command_get)
+        # self._protocol_fsm.add_handler(
+        #     ProtocolState.COMMAND, ProtocolEvent.SET,
+        #     self._handler_command_set)
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,
             self._handler_command_start_direct)
@@ -726,12 +728,18 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         # occurred while in the AUTOSAMPLE state and will last anywhere
         # from 10 seconds to 3 minutes depending on instrument and the
         # type of sampling.
+
+
         self._protocol_fsm.add_handler(
             ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.ENTER,
             self._handler_scheduled_sample_enter)
         self._protocol_fsm.add_handler(
             ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.EXIT,
             self._handler_scheduled_sample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
+                                       self._handler_sample_success)
+        self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
+                                       self._handler_sample_timeout)
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event
         # occurred while in either the COMMAND state (or via the
@@ -744,7 +752,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.POLLED_SAMPLE, ProtocolEvent.EXIT,
             self._handler_polled_sample_exit)
-
+        self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
+                                       self._handler_sample_success)
+        self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
+                                       self._handler_sample_timeout)
         # Construct the parameter dictionary containing device
         # parameters, current parameter values, and set formatting
         # functions.
@@ -754,22 +765,27 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         # Add build handlers for device commands.
         self._add_build_handler(SamiInstrumentCommand.GET_STATUS, self._build_simple_command)
-        self._add_build_handler(SamiInstrumentCommand.START_STATUS, self._build_simple_command)
+        self._add_build_handler(SamiInstrumentCommand.START_STATUS, self._build_simple_command)  # Never want to do this
         self._add_build_handler(SamiInstrumentCommand.STOP_STATUS, self._build_simple_command)
+
+        ## TODO: Not sure if get and set are needed
         self._add_build_handler(SamiInstrumentCommand.GET_CONFIG, self._build_simple_command)
-        self._add_build_handler(SamiInstrumentCommand.SET_CONFIG, self._build_set_config)
+        self._add_build_handler(SamiInstrumentCommand.SET_CONFIG, self._build_simple_command)
+
         self._add_build_handler(SamiInstrumentCommand.ERASE_ALL, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.START, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.STOP, self._build_simple_command)
-        self._add_build_handler(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_sample_sami)
+        self._add_build_handler(SamiInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, self._build_simple_command)
+        self._add_build_handler(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.ESCAPE_BOOT, self._build_escape_boot)
 
         # Add response handlers for device commands.
-        self._add_response_handler(SamiInstrumentCommand.GET_STATUS, self._build_response_get_status)
-        self._add_response_handler(SamiInstrumentCommand.GET_CONFIG, self._build_response_get_config)
-        self._add_response_handler(SamiInstrumentCommand.SET_CONFIG, self._build_response_set_config)
-        self._add_response_handler(SamiInstrumentCommand.ERASE_ALL, self._build_response_erase_all)
-        self._add_response_handler(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_response_sample_sami)
+        self._add_response_handler(SamiInstrumentCommand.GET_STATUS, self._parse_response_get_status)
+        self._add_response_handler(SamiInstrumentCommand.GET_CONFIG, self._parse_response_get_config)
+        self._add_response_handler(SamiInstrumentCommand.SET_CONFIG, self._parse_response_set_config)
+        self._add_response_handler(SamiInstrumentCommand.ERASE_ALL, self._parse_response_erase_all)
+        self._add_response_handler(SamiInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, self._parse_response_blank_sample_sami)
+        self._add_response_handler(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._parse_response_sample_sami)
 
         # Add sample handlers.
 
@@ -884,7 +900,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             else:
                 log.debug("_handler_waiting_discover: discover failed, attempt %d of 3", count)
                 count += 1
-                ## TODO: Make configurable?
+                ## TODO: Make configurable or longer?
                 time.sleep(20)
 
         log.debug("_handler_waiting_discover: discover failed")
@@ -1228,12 +1244,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         return cmd + NEWLINE
 
-    def _build_set_config(self):
-
-        log.debug('herb: ' + 'SamiProtocol._build_set_config')
-
-        pass
-
     def _build_sample_sami(self):
 
         log.debug('herb: ' + 'SamiProtocol._build_sample_sami')
@@ -1249,24 +1259,30 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Response handlers.
     ########################################################################
-    def _build_response_get_status(self, response, prompt):
-        log.debug('herb: ' + 'SamiProtocol._build_response_get_status: response = ' + repr(response))
+    def _parse_response_get_status(self, response, prompt):
+        log.debug('herb: ' + 'SamiProtocol._parse_response_get_status: response = ' + repr(response))
         return response
 
-    def _build_response_get_config(self):
-        log.debug('herb: ' + 'SamiProtocol._build_response_get_config')
+## TODO: Should be overridden in sub classes maybe?
+    def _parse_response_get_config(self, response, prompt):
+        log.debug('herb: ' + 'SamiProtocol._parse_response_get_config')
+        return response
+
+    def _parse_response_set_config(self, response, prompt):
+        log.debug('herb: ' + 'SamiProtocol._parse_response_set_config')
         pass
 
-    def _build_response_set_config(self):
-        log.debug('herb: ' + 'SamiProtocol._build_response_set_config')
+    def _parse_response_erase_all(self, response, prompt):
+        log.debug('herb: ' + 'SamiProtocol._parse_response_erase_all')
         pass
 
-    def _build_response_erase_all(self):
-        log.debug('herb: ' + 'SamiProtocol._build_response_erase_all')
+## TODO: Should be overridden in sub classes maybe?
+    def _parse_response_blank_sample_sami(self, response, prompt):
+        log.debug('herb: ' + 'SamiProtocol._parse_response_sample_sami')
         pass
 
-    def _build_response_sample_sami(self):
-        log.debug('herb: ' + 'SamiProtocol._build_response_sample_sami')
+    def _parse_response_sample_sami(self, response, prompt):
+        log.debug('herb: ' + 'SamiProtocol._parse_response_sample_sami')
         pass
 
     ########################################################################
@@ -1313,18 +1329,40 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         # Acquire the current instrument status
         status = self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS, timeout=10, response_regex=REGULAR_STATUS_REGEX_MATCHER)
-
         log.debug('herb: ' + 'SamiProtocol._discover: status = ' + status)
+
+        time.sleep(1)
+
+        #Erase memory before setting configuration
+        ## TODO: Should handle response
+        self._do_cmd_direct(SamiInstrumentCommand.ERASE_ALL + NEWLINE)
+
+        time.sleep(1)
+
 ## TODO: Execute send configuration string sequence.  Note periodic status must be stopped upon configuration.
         configuration_string = self._build_configuration_string_specific()
 
-##        status_match = REGULAR_STATUS_REGEX_MATCHER.match(":" + status)
-##
-##        log.debug('herb: ' + 'SamiProtocol._discover: status_match = ' + str(status_match))
-##        if status is None or not status_match:
+        # Send the configuration string
+        self._do_cmd_resp(SamiInstrumentCommand.SET_CONFIG, timeout=10, response_regex=NEW_LINE_REGEX_MATCHER)
+        # Important: Need to do right after to prevent bricking
+        self._do_cmd_direct(configuration_string + CONFIG_TERMINATOR + NEWLINE)
 
-## TODO: Check that status time stamp matches current time also within one second
+## TODO: Make sure auto status is stopped again
+
+        time.sleep(1)
+
+        log.debug('herb: ' + 'SamiProtocol._discover: STOP_STATUS_PERIODIC again')
+        self._do_cmd_no_resp(SamiInstrumentCommand.STOP_STATUS)
+
+## TODO: Get configuration and verify it's set correctly, if not an exception is raised
+
+        time.sleep(1)
+
+        self._verify_configuration_string(configuration_string)
+
 ## TODO: Verify configuration is set correctly
+
+## TODO: Move this code somewhere else, perhaps make this an exception catchall?
         if status is None:
             # No response received in the timeout period, or response that does
             # not match the status string format is received. In either case,
@@ -1424,9 +1462,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         config_string_length_0_and_f_padding = len(configuration_string)
         log.debug('herb: ' + 'Protocol._add_config_str_padding(): config_string_length_0_and_f_padding = ' + str(config_string_length_0_and_f_padding))
 
-        configuration_string += CONFIG_TERMINATOR
-        config_string_length_terminated = len(configuration_string)
-        log.debug('herb: ' + 'Protocol._add_config_str_padding(): config_string_length_terminated = ' + str(config_string_length_terminated))
+##        configuration_string += CONFIG_TERMINATOR
+##        config_string_length_terminated = len(configuration_string)
+##        log.debug('herb: ' + 'Protocol._add_config_str_padding(): config_string_length_terminated = ' + str(config_string_length_terminated))
 
         return configuration_string
 
@@ -1457,6 +1495,40 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
 
         # TODO: raise an unimplemented exception
+
+        pass
+
+    # def _verify_configuration_string_specific(self, configuration_string):
+    #     """
+    #     Overridden by device specific subclasses.
+    #     """
+    #
+    #     # TODO: raise an unimplemented exception
+    #
+    #     pass
+
+    def _get_configuration_string_regex(self):
+        """
+        Overridden by device specific subclasses.
+        """
+
+        # TODO: raise an unimplemented exception
+
+        pass
+
+    def _verify_configuration_string(self, configuration_string):
+
+        log.debug('herb: ' + 'Protocol._verify_configuration_string()')
+
+        configuration_string_regex = self._get_configuration_string_regex()
+
+        instrument_configuration_string = self._do_cmd_resp(SamiInstrumentCommand.GET_CONFIG, timeout=10, response_regex=configuration_string_regex)
+
+        if configuration_string == instrument_configuration_string.strip(NEWLINE):
+            log.debug('herb: ' + 'Protocol._verify_configuration_string(): CONFIGURATION STRING IS VALID')
+        else:
+            ## TODO: Throw an exception
+            log.error('herb: ' + 'Protocol._verify_configuration_string(): CONFIGURATION STRING IS INVALID')
 
         pass
 
