@@ -13,8 +13,10 @@ USAGE:
        $ bin/test_driver -q [-t testname]
 """
 
-__author__ = 'Christopher Wingard'
+__author__ = 'Christopher Wingard & Kevin Stiemke'
 __license__ = 'Apache 2.0'
+
+# TODO: Add negative test cases
 
 import unittest
 
@@ -44,8 +46,8 @@ from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import InstrumentDriver
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import DataParticleType
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import InstrumentCommand
+from mi.instrument.sunburst.driver import SamiDataParticleType
+from mi.instrument.sunburst.driver import SamiInstrumentCommand
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import ProtocolState
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import ProtocolEvent
 from mi.instrument.sunburst.driver import Capability
@@ -55,23 +57,25 @@ from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import NEWLINE
 from mi.instrument.sunburst.driver import SAMI_TO_UNIX
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wSamiSampleDataParticleKey
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wDev1SampleDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wConfigurationDataParticleKey
 
 # Added Imports (Note, these pick up some of the base classes not directly imported above)
 from mi.instrument.sunburst.test.test_driver import SamiMixin
 from mi.instrument.sunburst.test.test_driver import SamiUnitTest
 
+log.debug('herb: ' + 'import sami2_pco2/ooicore/test_driver.py')
+
 ###
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
+
     driver_module='mi.instrument.sunburst.sami2_pco2.ooicore.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id='V7HE4T',
     instrument_agent_name='sunburst_sami2_pco2_ooicore',
-    instrument_agent_packet_config=DataParticleType(),
+    instrument_agent_packet_config=SamiDataParticleType(),
 
     driver_startup_config={}
 )
@@ -107,6 +111,9 @@ InstrumentDriverTestCase.initialize(
 # methods for validating data particles.                                      #
 ###############################################################################
 class DriverTestMixinSub(SamiMixin):
+
+    log.debug('herb: ' + 'class pco2.DriverTestMixinSub(SamiMixin)')
+
     '''
     Mixin class used for storing data particle constants and common data
     assertion methods.
@@ -134,10 +141,10 @@ class DriverTestMixinSub(SamiMixin):
     # string.
     VALID_CONFIG_STRING = 'CEE90B0002C7EA0001E133800A000E100402000E10010B' + \
                           '000000000D000000000D000000000D07' + \
-                          '1020FF54181C01003814' + \
+                          '1020FF54181C010038' + \
                           '000000000000000000000000000000000000000000000000000' + \
                           '000000000000000000000000000000000000000000000000000' + \
-                          '0000000000000000000000000000' + \
+                          '000000000000000000000000000000' + \
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
@@ -151,7 +158,6 @@ class DriverTestMixinSub(SamiMixin):
                             '74003B0018096106800732074E0D82066124' + NEWLINE
     VALID_R0_DATA_SAMPLE = '*542704CEE91CC8003B001909620155073003E908A1232' + \
                            'D0043001A09620154072F03EA0D92065F46' + NEWLINE
-    VALID_R1_SAMPLE = '*540711CEE91DE2CE' + NEWLINE
 
     ## Control records
     #VALID_CONTROL_RECORD = '*541280CEE90B170041000001000000000200AF' + NEWLINE
@@ -219,8 +225,6 @@ class DriverTestMixinSub(SamiMixin):
                                              DEFAULT: 0x00, VALUE: 0x00},
         Parameter.NUMBER_EXTRA_PUMP_CYCLES: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x38, VALUE: 0x38},
-        Parameter.EXTERNAL_PUMP_SETTINGS:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
-                                             DEFAULT: 0x14, VALUE: 0x14}
     }
 
     _sami_data_sample_parameters = {
@@ -251,15 +255,6 @@ class DriverTestMixinSub(SamiMixin):
         Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTERY:     {TYPE: int, VALUE: 0x0D82, REQUIRED: True},
         Pco2wSamiSampleDataParticleKey.THERMISTER_RAW:      {TYPE: int, VALUE: 0x0661, REQUIRED: True},
         Pco2wSamiSampleDataParticleKey.CHECKSUM:            {TYPE: int, VALUE: 0x24, REQUIRED: True}
-    }
-
-    _dev1_sample_parameters = {
-        # Device 1 (external pump) Type 17 sample
-        Pco2wDev1SampleDataParticleKey.UNIQUE_ID:        {TYPE: int, VALUE: 0x54, REQUIRED: True},
-        Pco2wDev1SampleDataParticleKey.RECORD_LENGTH:    {TYPE: int, VALUE: 0x07, REQUIRED: True},
-        Pco2wDev1SampleDataParticleKey.RECORD_TYPE:      {TYPE: int, VALUE: 0x11,  REQUIRED: True},
-        Pco2wDev1SampleDataParticleKey.RECORD_TIME:      {TYPE: int, VALUE: 0xCEE91DE2, REQUIRED: True},
-        Pco2wDev1SampleDataParticleKey.CHECKSUM:         {TYPE: int, VALUE: 0xCE, REQUIRED: True}
     }
 
     _configuration_parameters = {
@@ -304,7 +299,6 @@ class DriverTestMixinSub(SamiMixin):
         Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH:    {TYPE: bool, VALUE: False, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE:     {TYPE: bool, VALUE: False, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES:     {TYPE: int,  VALUE: 0x38, REQUIRED: True},
-        Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTINGS:       {TYPE: int,  VALUE: 0x14, REQUIRED: True}
     }
 
     ###
@@ -330,7 +324,7 @@ class DriverTestMixinSub(SamiMixin):
         self.assert_data_particle_keys(Pco2wSamiSampleDataParticleKey,
                                        self._sami_data_sample_parameters)
         self.assert_data_particle_header(data_particle,
-                                         DataParticleType.SAMI_SAMPLE)
+                                         SamiDataParticleType.SAMI_SAMPLE)
         self.assert_data_particle_parameters(data_particle,
                                              self._sami_data_sample_parameters,
                                              verify_values)
@@ -344,23 +338,9 @@ class DriverTestMixinSub(SamiMixin):
         self.assert_data_particle_keys(Pco2wSamiSampleDataParticleKey,
                                        self._sami_blank_sample_parameters)
         self.assert_data_particle_header(data_particle,
-                                         DataParticleType.SAMI_SAMPLE)
+                                         SamiDataParticleType.SAMI_SAMPLE)
         self.assert_data_particle_parameters(data_particle,
                                              self._sami_blank_sample_parameters,
-                                             verify_values)
-
-    def assert_particle_dev1_sample(self, data_particle, verify_values=False):
-        '''
-        Verify dev1_sample particle
-        @param data_particle: Pco2wDev1SampleDataParticle data particle
-        @param verify_values: bool, should we verify parameter values
-        '''
-        self.assert_data_particle_keys(Pco2wDev1SampleDataParticleKey,
-                                       self._dev1_sample_parameters)
-        self.assert_data_particle_header(data_particle,
-                                         DataParticleType.DEV1_SAMPLE)
-        self.assert_data_particle_parameters(data_particle,
-                                             self._dev1_sample_parameters,
                                              verify_values)
 
     def assert_particle_configuration(self, data_particle, verify_values=False):
@@ -372,7 +352,7 @@ class DriverTestMixinSub(SamiMixin):
         self.assert_data_particle_keys(Pco2wConfigurationDataParticleKey,
                                        self._configuration_parameters)
         self.assert_data_particle_header(data_particle,
-                                         DataParticleType.CONFIGURATION)
+                                         SamiDataParticleType.CONFIGURATION)
         self.assert_data_particle_parameters(data_particle,
                                              self._configuration_parameters,
                                              verify_values)
@@ -394,10 +374,13 @@ class DriverTestMixinSub(SamiMixin):
 @attr('UNIT', group='mi')
 class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
 
+    log.debug('herb: ' + 'class pco2.DriverUnitTest(SamiUnitTest, DriverTestMixinSub)')
+
     def test_driver_schema(self):
         """
         get the driver schema and verify it is configured properly
         """
+        log.debug('herb: ' + 'class pco2.DriverUnitTest.test_driver_schema()')
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
@@ -406,14 +389,16 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         Verify that all driver enumeration has no duplicate values that might
         cause confusion. Also do a little extra validation for the Capabilites
         """
-        self.assert_enum_has_no_duplicates(DataParticleType())
+        log.debug('herb: ' + 'class DriverUnitTest.test_driver_enums()')
+        self.assert_enum_has_no_duplicates(SamiDataParticleType())
         self.assert_enum_has_no_duplicates(Parameter())
-        self.assert_enum_has_no_duplicates(InstrumentCommand())
+        self.assert_enum_has_no_duplicates(SamiInstrumentCommand())
 
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
         """
+        log.debug('herb: ' + 'class DriverUnitTest.test_chunker()')
         chunker = StringChunker(Protocol.sieve_function)
 
         self.assert_chunker_sample(chunker, self.VALID_STATUS_MESSAGE)
@@ -436,11 +421,6 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         self.assert_chunker_fragmented_sample(chunker, self.VALID_R0_DATA_SAMPLE)
         self.assert_chunker_combined_sample(chunker, self.VALID_R0_DATA_SAMPLE)
 
-        self.assert_chunker_sample(chunker, self.VALID_R1_SAMPLE)
-        self.assert_chunker_sample_with_noise(chunker, self.VALID_R1_SAMPLE)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_R1_SAMPLE)
-        self.assert_chunker_combined_sample(chunker, self.VALID_R1_SAMPLE)
-
         self.assert_chunker_sample(chunker, self.VALID_CONFIG_STRING)
         self.assert_chunker_sample_with_noise(chunker, self.VALID_CONFIG_STRING)
         self.assert_chunker_fragmented_sample(chunker, self.VALID_CONFIG_STRING)
@@ -451,6 +431,7 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         Verify sample data passed through the got data method produces the
         correct data particles
         """
+        log.debug('herb: ' + 'class DriverUnitTest.test_got_data()')
         # Create and initialize the instrument driver with a mock port agent
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
@@ -466,8 +447,6 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
                                        self.assert_particle_sami_blank_sample, True)
         self.assert_particle_published(driver, self.VALID_R0_DATA_SAMPLE,
                                        self.assert_particle_sami_data_sample, True)
-        self.assert_particle_published(driver, self.VALID_R1_SAMPLE,
-                                       self.assert_particle_dev1_sample, True)
         self.assert_particle_published(driver, self.VALID_CONFIG_STRING,
                                        self.assert_particle_configuration, True)
 
@@ -478,6 +457,7 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         filter. Test silly made up capabilities to verify they are blocked by
         filter.
         """
+        log.debug('herb: ' + 'class DriverUnitTest.test_protocol_filter_capabilities()')
         mock_callback = Mock()
         protocol = Protocol(Prompt, NEWLINE, mock_callback)
         driver_capabilities = Capability().list()
@@ -496,6 +476,7 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         this dict must also be defined in the protocol FSM. Note, the EXIT and
         ENTER DRIVER_EVENTS don't need to be listed here.
         """
+        log.debug('herb: ' + 'class DriverUnitTest.test_capabilities()')
         # capabilities defined in base class test_driver.
 
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -514,6 +495,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
+    def test_paramters(self):
+        self.assert_initialize_driver()
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
