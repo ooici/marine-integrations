@@ -122,6 +122,9 @@ CONTROL_RECORD_REGEX_MATCHER = re.compile(CONTROL_RECORD_REGEX)
 ERROR_REGEX = r'[?]([0-9A-Fa-f]{2})' + NEWLINE
 ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
 
+# Currently used to handle unexpected responses
+WILD_CARD_REGEX  = r'.*' + NEWLINE
+WILD_CARD_REGEX_MATCHER = re.compile(WILD_CARD_REGEX)
 
 ###
 #    Begin Classes
@@ -496,7 +499,7 @@ class SamiControlRecordDataParticle(DataParticle):
                          SamiControlRecordDataParticleKey.CHECKSUM]
 
         result = []
-        grp_index = 1  # used to index through match groups, starting at 1
+        grp_index = 1  # used to index through match groups, starting at 1/
         bit_index = 0  # used to index through the bit fields represented by
                        # the two bytes after CLOCK_ACTIVE.
 
@@ -666,12 +669,15 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.EXIT,
             self._handler_command_exit)
+
+        ## TODO: Don't think we will be doing any getting or setting
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.GET,
             self._handler_command_get)
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.SET,
             self._handler_command_set)
+
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,
             self._handler_command_start_direct)
@@ -684,6 +690,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
             self._handler_command_start_autosample)
+        ## TODO: Is get configuration not required?
         # the ACQUIRE_CONFIGURATION event may not be necessary
         #self._protocol_fsm.add_handler(
         #    ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION,
@@ -1302,13 +1309,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._discover: GET_STATUS')
 
-## TODO: Catch and handle timeout exception, will need to retry since instrument is not always fully awake, so commands could be double pumped
+## TODO: Catch and handle timeout exception, will need to retry since instrument is not always fully awake
 
         # Acquire the current instrument status
         status = self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS, timeout=10, response_regex=REGULAR_STATUS_REGEX_MATCHER)
 
         log.debug('herb: ' + 'SamiProtocol._discover: status = ' + status)
-
+## TODO: Execute send configuration string sequence.  Note periodic status must be stopped upon configuration.
         configuration_string = self._build_configuration_string_specific()
 
 ##        status_match = REGULAR_STATUS_REGEX_MATCHER.match(":" + status)
@@ -1316,6 +1323,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 ##        log.debug('herb: ' + 'SamiProtocol._discover: status_match = ' + str(status_match))
 ##        if status is None or not status_match:
 
+## TODO: Check that status time stamp matches current time also within one second
+## TODO: Verify configuration is set correctly
         if status is None:
             # No response received in the timeout period, or response that does
             # not match the status string format is received. In either case,
@@ -1359,18 +1368,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         else:
             hexstr = format(val, 'X')
             return hexstr.zfill(slen)
-# TODO: remove
-#     @staticmethod
-#     def _epoch_to_sami():
-#         """
-#         Create a timestamp in seconds using January 1, 1904 as the Epoch
-#         @retval an integer value representing the number of seconds since
-#             January 1, 1904.
-#         """
-#
-#         log.debug('herb: ' + 'SamiProtocol._epoch_to_sami')
-#
-#         return int(time.time()) + SAMI_TO_UNIX
 
     def _current_sami_time(self):
         """
