@@ -46,6 +46,9 @@ from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX_MATCHER
 from mi.instrument.sunburst.driver import CONTROL_RECORD_REGEX_MATCHER
 from mi.instrument.sunburst.driver import ERROR_REGEX_MATCHER
 from mi.instrument.sunburst.driver import NEWLINE
+from mi.instrument.sunburst.driver import CONFIG_WITH_0_PADDING
+from mi.instrument.sunburst.driver import CONFIG_WITH_0_AND_F_PADDING
+from mi.instrument.sunburst.driver import CONFIG_TERMINATOR
 from mi.instrument.sunburst.driver import TIMEOUT
 from mi.instrument.sunburst.driver import SAMI_TO_UNIX
 from mi.instrument.sunburst.driver import SAMI_TO_NTP
@@ -80,7 +83,6 @@ SAMI_SAMPLE_REGEX = (
 SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
 
 # PCO2W Configuration Record
-#   TODO: Not configured for external pump, will have to remove external settings and adjust padding
 CONFIGURATION_REGEX = (
     r'([0-9A-Fa-f]{8})' +  # Launch time timestamp (seconds since 1904)
     '([0-9A-Fa-f]{8})' +  # start time (seconds from launch time)
@@ -111,11 +113,9 @@ CONFIGURATION_REGEX = (
     '([0-9A-Fa-f]{2})' +  # pCO2-7: flush pump interval
     '([0-9A-Fa-f]{2})' +  # pCO2-8: bit switches
     '([0-9A-Fa-f]{2})' +  # pCO2-9: extra pumps + cycle interval
-    '([0-9A-Fa-f]{2})' +  # Device 1 (external pump) setting
-    '([0-9A-Fa-f]{414})' +  # padding of 0's and then F's
+    '([0-9A-Fa-f]{416})' +  # padding of 0's and then F's
     NEWLINE)
 CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
-
 
 ###
 #    Begin Classes
@@ -169,7 +169,7 @@ class Pco2wSamiSampleDataParticle(DataParticle):
 
     log.debug('herb: ' + 'class Pco2wSamiSampleDataParticle(DataParticle)')
 
-    _data_particle_type = DataParticleType.SAMI_SAMPLE
+    _data_particle_type = SamiDataParticleType.SAMI_SAMPLE
 
     def _build_parsed_values(self):
         """
@@ -250,7 +250,7 @@ class Pco2wConfigurationDataParticle(DataParticle):
 
     log.debug('herb: ' + 'class Pco2wConfigurationDataParticle(DataParticle)')
 
-    _data_particle_type = DataParticleType.CONFIGURATION
+    _data_particle_type = SamiDataParticleType.CONFIGURATION
 
     def _build_parsed_values(self):
         """
@@ -266,7 +266,7 @@ class Pco2wConfigurationDataParticle(DataParticle):
         # would not be received this way):
         #
         #   CEE90B0002C7EA0001E133800A000E100402000E10010B000000000D000000000D
-        #   000000000D071020FF54181C010038140000000000000000000000000000000000
+        #   000000000D071020FF54181C010038000000000000000000000000000000000000
         #   000000000000000000000000000000000000000000000000000000000000000000
         #   000000000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
         #   FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
@@ -322,9 +322,7 @@ class Pco2wConfigurationDataParticle(DataParticle):
                          Pco2wConfigurationDataParticleKey.FLUSH_PUMP_INTERVAL,
                          Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH,
                          Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE,
-                         Pco2wConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES,
-                         #   TODO: Not configured for external pump
-                         Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTINGS]
+                         Pco2wConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES]
 
         result = []
         grp_index = 1   # used to index through match groups, starting at 1
@@ -531,14 +529,13 @@ class Protocol(SamiProtocol):
         # Add parameter handlers to parameter dict.
         self._param_dict = ProtocolParameterDict()
 
-        #   TODO: Not configured for external pump,update this string
         ### example configuration string
         # VALID_CONFIG_STRING = 'CEE90B0002C7EA0001E133800A000E100402000E10010B' + \
         #                       '000000000D000000000D000000000D07' + \
-        #                       '1020FF54181C01003814' + \
+        #                       '1020FF54181C010038' + \
         #                       '000000000000000000000000000000000000000000000000000' + \
         #                       '000000000000000000000000000000000000000000000000000' + \
-        #                       '0000000000000000000000000000' + \
+        #                       '000000000000000000000000000000' + \
         #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
         #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
         #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
@@ -553,6 +550,7 @@ class Protocol(SamiProtocol):
         to understand enough to modify.
         """
 
+        # TODO: can move most additions to base class.  Will it be understandable?
         self._param_dict.add(Parameter.LAUNCH_TIME, CONFIGURATION_REGEX,
                              lambda match: int(match.group(1), 16),
                              lambda x: self._int_to_hexstring(x, 8),
@@ -872,23 +870,11 @@ class Protocol(SamiProtocol):
     # Configuration string.
     ########################################################################
 
-    # TODO: Move to base class
-    def _get_config_value_str(self, param):
-        value = self._param_dict.get_config_value(param)
-        log.debug('herb: ' + 'Protocol._get_config_value_str(): ' + param + ' = ' + str(value))
-        value_str = self._param_dict.format(param, value)
-        log.debug('herb: ' + 'Protocol._get_config_value_str(): ' + param + ' = ' + value_str)
+    def _build_configuration_string_specific(self):
+        log.debug('herb: ' + 'Protocol._build_configuration_string_specific()')
 
-        return value_str
-
-    def _build_configuration_string(self):
-        log.debug('herb: ' + 'Protocol._build_configuration_string()')
-        configuration_string = ''
-
-        # LAUNCH_TIME always set to current GMT sami time
-        sami_time_hex_str = self._current_sami_time_hex_str()
-        log.debug('herb: ' + 'Protocol._build_configuration_string(): LAUNCH TIME = ' + sami_time_hex_str)
-        configuration_string += sami_time_hex_str
+# TODO: Can move most of parameter list to base class. Can make class wrapper around list to extend.
+# TODO:   Will it be understandable?
 
         # An ordered list of parameters, can not use unordered dict
         # PCO2W driver extends the base class (SamiParameter)
@@ -921,14 +907,10 @@ class Protocol(SamiProtocol):
                           Parameter.BIT_SWITCHES,
                           Parameter.NUMBER_EXTRA_PUMP_CYCLES]
 
-        for param in parameter_list:
-            config_value_hex_str = self._get_config_value_str(param)
-            configuration_string += config_value_hex_str
+        configuration_string = self._build_configuration_string_base(parameter_list)
 
-        # TODO: Add 0x00 and 0xFF padding and 00 terminator
-        config_string_length_no_padding = len(configuration_string)
-        log.debug('herb: ' + 'Protocol._build_configuration_string(): config_string_length_no_padding = ' + str(config_string_length_no_padding))
-
-        log.debug('herb: ' + 'Protocol._build_configuration_string(): CONFIGURATION STRING = ' + configuration_string)
+        log.debug('herb: ' + 'Protocol._build_configuration_string_specific(): CONFIGURATION STRING = '
+                  + configuration_string)
 
         return configuration_string
+

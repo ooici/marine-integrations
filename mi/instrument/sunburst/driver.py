@@ -15,7 +15,7 @@ Release notes:
     Center
 """
 
-__author__ = 'Chris Wingard & Stuart Pearce'
+__author__ = 'Chris Wingard, Stuart Pearce & Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
 import re
@@ -72,6 +72,20 @@ SAMI_TO_NTP =  126144000
 
 # Acceptable time difference as specified in the IOS
 TIME_THRESHOLD = 1
+
+# Length of configuration string with '0' padding
+# used to calculate number of '0' padding
+CONFIG_WITH_0_PADDING = 232
+
+# Length of configuration string with 'f' padding
+# used to calculate number of 'f' padding
+CONFIG_WITH_0_AND_F_PADDING = 512
+
+# Length of an entire configuration string minus the NEWLINE, TODO: not currently used
+CONFIG_WITH_PADDING_AND_TERMINATOR = 514
+
+# Terminator at the end of a configuration string
+CONFIG_TERMINATOR = '00'
 
 ###
 #    Driver RegEx Definitions
@@ -1265,7 +1279,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @retval (next_state, result)
         """
 
-
         log.debug('herb: ' + 'SamiProtocol._discover')
 
         # Exit states can be either COMMAND, DISCOVER or back to UNKNOWN.
@@ -1279,19 +1292,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         # Otherwise, sampling can take up to ~3 minutes to complete. Partial
         # strings are output during that time period.
 
-#        kwargs['timeout'] = 10
-
-        # Send newline to wake up instrument.  TODO: Do we want to add this to the wake up method?
-#        log.debug('herb: ' + 'SamiProtocol._discover: Send newline to wake up')
-#        self._do_cmd_direct(NEWLINE)
-#        self._wakeup(0)
-
         # Make sure automatic-status updates are off. This will stop the
         # broadcast of information while we are trying to get data.
         log.debug('herb: ' + 'SamiProtocol._discover: STOP_STATUS_PERIODIC')
-#        cmd = self._build_simple_command(SamiInstrumentCommand.STOP_STATUS)
-#        self._do_cmd_direct(cmd)
-#        self._do_cmd_no_resp(cmd)
         self._do_cmd_no_resp(SamiInstrumentCommand.STOP_STATUS)
 
 ## TODO: Is this delay needed?  Instrument doesn't seem to like 2 commands sent quickly in secession.
@@ -1306,7 +1309,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._discover: status = ' + status)
 
-        self._build_configuration_string()
+        configuration_string = self._build_configuration_string_specific()
 
 ##        status_match = REGULAR_STATUS_REGEX_MATCHER.match(":" + status)
 ##
@@ -1356,18 +1359,18 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         else:
             hexstr = format(val, 'X')
             return hexstr.zfill(slen)
-
-    @staticmethod
-    def _epoch_to_sami():
-        """
-        Create a timestamp in seconds using January 1, 1904 as the Epoch
-        @retval an integer value representing the number of seconds since
-            January 1, 1904.
-        """
-
-        log.debug('herb: ' + 'SamiProtocol._epoch_to_sami')
-
-        return int(time.time()) + SAMI_TO_UNIX
+# TODO: remove
+#     @staticmethod
+#     def _epoch_to_sami():
+#         """
+#         Create a timestamp in seconds using January 1, 1904 as the Epoch
+#         @retval an integer value representing the number of seconds since
+#             January 1, 1904.
+#         """
+#
+#         log.debug('herb: ' + 'SamiProtocol._epoch_to_sami')
+#
+#         return int(time.time()) + SAMI_TO_UNIX
 
     def _current_sami_time(self):
         """
@@ -1397,6 +1400,68 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         sami_seconds_hex_string = sami_seconds_hex_string.zfill(8)
 
         return sami_seconds_hex_string
+
+    def _get_config_value_str(self, param):
+        value = self._param_dict.get_config_value(param)
+        log.debug('herb: ' + 'SamiProtocol._get_config_value_str(): ' + param + ' = ' + str(value))
+        value_str = self._param_dict.format(param, value)
+        log.debug('herb: ' + 'SamiProtocol._get_config_value_str(): ' + param + ' = ' + value_str)
+
+        return value_str
+
+    @staticmethod
+    def _add_config_str_padding(configuration_string):
+
+        config_string_length_no_padding = len(configuration_string)
+        log.debug('herb: ' + 'Protocol._add_config_str_padding(): config_string_length_no_padding = ' + str(config_string_length_no_padding))
+
+        zero_padding_length = CONFIG_WITH_0_PADDING - config_string_length_no_padding
+        zero_padding = '0' * zero_padding_length
+        configuration_string += zero_padding
+        config_string_length_0_padding = len(configuration_string)
+        log.debug('herb: ' + 'Protocol._add_config_str_padding(): config_string_length_0_padding = ' + str(config_string_length_0_padding))
+
+        f_padding_length = CONFIG_WITH_0_AND_F_PADDING - config_string_length_0_padding
+        f_padding = 'F' * f_padding_length
+        configuration_string += f_padding
+        config_string_length_0_and_f_padding = len(configuration_string)
+        log.debug('herb: ' + 'Protocol._add_config_str_padding(): config_string_length_0_and_f_padding = ' + str(config_string_length_0_and_f_padding))
+
+        configuration_string += CONFIG_TERMINATOR
+        config_string_length_terminated = len(configuration_string)
+        log.debug('herb: ' + 'Protocol._add_config_str_padding(): config_string_length_terminated = ' + str(config_string_length_terminated))
+
+        return configuration_string
+
+# TODO: During refactoring build configuration string as a list and join for efficiency
+    def _build_configuration_string_base(self, parameter_list):
+
+        configuration_string = ''
+
+        # LAUNCH_TIME always set to current GMT sami time
+        sami_time_hex_str = self._current_sami_time_hex_str()
+        log.debug('herb: ' + 'Protocol._build_configuration_string_base(): LAUNCH TIME = ' + sami_time_hex_str)
+        configuration_string += sami_time_hex_str
+
+        for param in parameter_list:
+            config_value_hex_str = self._get_config_value_str(param)
+            configuration_string += config_value_hex_str
+
+        config_string_length_no_padding = len(configuration_string)
+        log.debug('herb: ' + 'Protocol._build_configuration_string_base(): config_string_length_no_padding = ' + str(config_string_length_no_padding))
+
+        configuration_string = SamiProtocol._add_config_str_padding(configuration_string)
+
+        return configuration_string
+
+    def _build_configuration_string_specific(self):
+        """
+        Overridden by device specific subclasses.
+        """
+
+        # TODO: raise an unimplemented exception
+
+        pass
 
     @staticmethod
     def calc_crc(s, num_points):

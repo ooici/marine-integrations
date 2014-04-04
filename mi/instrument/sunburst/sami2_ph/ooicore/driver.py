@@ -13,7 +13,7 @@ Release notes:
     SAMI2 operating structure.
 """
 
-__author__ = 'Stuart Pearce'
+__author__ = 'Stuart Pearce & Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
 import re
