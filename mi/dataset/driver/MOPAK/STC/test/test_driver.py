@@ -29,20 +29,20 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 
-from mi.dataset.driver.MOPAK.STC.driver import MOPAK__STC_DataSetDriver
-from mi.dataset.parser.mopak__stc import Mopak__stcAccelParserDataParticle, Mopak__stcRateParserDataParticle, DataParticleType
+from mi.dataset.driver.MOPAK.STC.driver import MopakOStcDataSetDriver
+from mi.dataset.parser.mopak_o_stc import MopakOStcAccelParserDataParticle, MopakOStcRateParserDataParticle, DataParticleType
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
 
 # Fill in driver details
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.MOPAK.STC.driver',
-    driver_class='MOPAK__STC_DataSetDriver',
+    driver_class='MopakOStcDataSetDriver',
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = MOPAK__STC_DataSetDriver.stream_config(),
+    agent_packet_config = MopakOStcDataSetDriver.stream_config(),
     startup_config = {
-        DataSourceConfigKey.RESOURCE_ID: 'mopak__stc',
+        DataSourceConfigKey.RESOURCE_ID: 'mopak_o_stc',
         DataSourceConfigKey.HARVESTER:
         {
             DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
@@ -59,6 +59,7 @@ DataSetTestCase.initialize(
 # Device specific integration tests are for                                   #
 # testing device specific capabilities                                        #
 ###############################################################################
+@unittest.skip('In process of merging with RTE')
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
  
@@ -74,11 +75,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('first.mopak.log', "20140120_140004.mopak.log")
-        self.assert_data_multiple_class('first.result.yml', count=5, timeout=10)
+        self.assert_data(None, 'first.result.yml', count=5, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('second.mopak.log', "20140120_150004.mopak.log")
-        self.assert_data_multiple_class('second.result.yml', count=2, timeout=10)
+        self.assert_data(None, 'second.result.yml', count=2, timeout=10)
 
     def test_get_rate(self):
         """
@@ -91,11 +92,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('first_rate.mopak.log', "20140313_191853.mopak.log")
-        self.assert_data_multiple_class('first_rate.result.yml', count=6, timeout=10)
+        self.assert_data(None, 'first_rate.result.yml', count=6, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('second_rate.mopak.log', "20140313_201853.mopak.log")
-        self.assert_data_multiple_class('second_rate.result.yml', count=3, timeout=10)
+        self.assert_data(None, 'second_rate.result.yml', count=3, timeout=10)
 
     def test_stop_resume(self):
         """
@@ -117,7 +118,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data_multiple_class('partial_first_second.result.yml', count=3, timeout=10)
+        self.assert_data(None, 'partial_first_second.result.yml', count=3, timeout=10)
 
     def test_stop_start_ingest(self):
         """
@@ -130,14 +131,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.create_sample_data('first.mopak.log', "20140120_140004.mopak.log")
         self.create_sample_data('second.mopak.log', "20140120_150004.mopak.log")
-        self.assert_data_multiple_class('first.result.yml', count=5, timeout=10)
+        self.assert_data(None, 'first.result.yml', count=5, timeout=10)
         self.assert_file_ingested("20140120_140004.mopak.log")
         self.assert_file_not_ingested("20140120_150004.mopak.log")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data_multiple_class('second.result.yml', count=2, timeout=10)
+        self.assert_data(None, 'second.result.yml', count=2, timeout=10)
         self.assert_file_ingested("20140120_150004.mopak.log")
 
     def test_sample_exception(self):
@@ -160,6 +161,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 # Device specific qualification tests are for                                 #
 # testing device specific capabilities                                        #
 ###############################################################################
+@unittest.skip('In process of merging with RTE')
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
 
