@@ -24,7 +24,9 @@ from mock import Mock
 from mi.idk.util import remove_all_files
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.exceptions import SampleEncodingException, UnexpectedDataException
 from mi.idk.exceptions import SampleTimeout
+
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentConnectionLostErrorEvent
 from interface.objects import ResourceAgentErrorEvent
@@ -109,52 +111,72 @@ class IntegrationTest(DataSetIntegrationTestCase):
         
         self.clear_async_data()
         self.create_sample_data_set_dir('stc_status.txt', '/tmp/dsatest1')
-        self.assert_data(CgStcEngStcParserDataParticle, 'stc_first.result.yml', count=1, timeout=10)
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_first.result.yml',
+                         count=1, timeout=10)
 
-        self.create_sample_data_set_dir('first.mopak.log', '/tmp/dsatest2', "20140120_140004.mopak.log")
-        self.assert_data((MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle),
+        self.create_sample_data_set_dir('first.mopak.log', '/tmp/dsatest2',
+                                        "20140120_140004.mopak.log")
+        self.assert_data((MopakODclAccelParserDataParticle,
+                          MopakODclRateParserDataParticle),
             'first_mopak.result.yml', count=5, timeout=10)
         
         self.clear_async_data()
-        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3', "20140120_140004.rte.log")
-        self.assert_data(RteODclParserDataParticle, 'first_rte.result.yml', count=2, timeout=10)
+        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3',
+                                        "20140120_140004.rte.log")
+        self.assert_data(RteODclParserDataParticle, 'first_rte.result.yml',
+                         count=2, timeout=10)
         
         self.clear_async_data()
         self.create_sample_data_set_dir('stc_status_second.txt', '/tmp/dsatest1')
-        self.assert_data(CgStcEngStcParserDataParticle, 'stc_second.result.yml', count=1, timeout=10)
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_second.result.yml',
+                         count=1, timeout=10)
 
         self.clear_async_data()
-        self.create_sample_data_set_dir('second.mopak.log', '/tmp/dsatest2', "20140120_150004.mopak.log")
-        self.assert_data((MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle),
-            'second_mopak.result.yml', count=2, timeout=10)
+        self.create_sample_data_set_dir('second.mopak.log', '/tmp/dsatest2',
+                                        "20140120_150004.mopak.log")
+        self.assert_data((MopakODclAccelParserDataParticle,
+                          MopakODclRateParserDataParticle),
+                          'second_mopak.result.yml', count=2, timeout=10)
 
         self.clear_async_data()
-        self.create_sample_data_set_dir('second.rte.log', '/tmp/dsatest3', "20140120_150004.rte.log")
-        self.assert_data(RteODclParserDataParticle, 'second_rte.result.yml', count=2, timeout=10)
+        self.create_sample_data_set_dir('second.rte.log', '/tmp/dsatest3',
+                                        "20140120_150004.rte.log")
+        self.assert_data(RteODclParserDataParticle, 'second_rte.result.yml',
+                         count=2, timeout=10)
 
     def test_get_any_order(self):
         """
-        Test that we can get data from files for all 3 harvester / parsers by just creating many files and
-        getting results in any order.  
+        Test that we can get data from files for all 3 harvester / parsers by just 
+        creating many files and getting results in any order.  
         """
         # Start sampling and watch for an exception
         self.driver.start_sampling()
 
         self.create_sample_data_set_dir('stc_status.txt', '/tmp/dsatest1')
-        self.create_sample_data_set_dir('stc_status_second.txt', '/tmp/dsatest1')
-        self.create_sample_data_set_dir('first_rate.mopak.log', '/tmp/dsatest2', "20140313_191853.mopak.log")
-        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3', "20140120_140004.rte.log")
-        self.create_sample_data_set_dir('second_rate.mopak.log', '/tmp/dsatest2', "20140313_201853.mopak.log")
-        self.create_sample_data_set_dir('second.rte.log', '/tmp/dsatest3', "20140120_150004.rte.log")
+        self.create_sample_data_set_dir('stc_status_all.txt', '/tmp/dsatest1')
+        self.create_sample_data_set_dir('first_rate.mopak.log', '/tmp/dsatest2',
+                                        "20140313_191853.mopak.log")
+        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3',
+                                        "20140120_140004.rte.log")
+        self.create_sample_data_set_dir('second_rate.mopak.log', '/tmp/dsatest2',
+                                        "20140313_201853.mopak.log")
+        self.create_sample_data_set_dir('second.rte.log', '/tmp/dsatest3',
+                                        "20140120_150004.rte.log")
         
-        self.assert_data(CgStcEngStcParserDataParticle, 'stc_first.result.yml', count=1, timeout=10)
-        self.assert_data(CgStcEngStcParserDataParticle, 'stc_second.result.yml', count=1, timeout=10)
-        self.assert_data((MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle),
-            'first_rate_mopak.result.yml', count=6, timeout=10)
-        self.assert_data(RteODclParserDataParticle, 'first_rte.result.yml', count=2, timeout=10)
-        self.assert_data((MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle),
-            'second_rate_mopak.result.yml', count=3, timeout=10)
-        self.assert_data(RteODclParserDataParticle, 'second_rte.result.yml', count=2, timeout=10)
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_first.result.yml',
+                         count=1, timeout=10)
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_all.result.yml',
+                         count=1, timeout=10)
+        self.assert_data((MopakODclAccelParserDataParticle,
+                          MopakODclRateParserDataParticle),
+                          'first_rate_mopak.result.yml', count=6, timeout=10)
+        self.assert_data(RteODclParserDataParticle, 'first_rte.result.yml',
+                         count=2, timeout=10)
+        self.assert_data((MopakODclAccelParserDataParticle,
+                          MopakODclRateParserDataParticle),
+                          'second_rate_mopak.result.yml', count=3, timeout=10)
+        self.assert_data(RteODclParserDataParticle, 'second_rte.result.yml',
+                         count=2, timeout=10)
 
     def test_harvester_new_file_exception(self):
         """
@@ -162,7 +184,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         the file read.  Should call the exception callback.
         """
         # create the file so that it is unreadable
-        self.create_sample_data_set_dir("20140313_191853.mopak.log", '/tmp/dsatest2', create=True, mode=000)
+        self.create_sample_data_set_dir("20140313_191853.mopak.log", '/tmp/dsatest2',
+                                        create=True, mode=000)
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
@@ -171,12 +194,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
 
         # create the file so that it is unreadable
-        self.create_sample_data_set_dir("stc_status.txt", '/tmp/dsatest1', create=True, mode=000)
+        self.create_sample_data_set_dir("stc_status.txt", '/tmp/dsatest1',
+                                        create=True, mode=000)
         self.assert_exception(IOError)
         self.clear_async_data()
 
         # create the file so that it is unreadable
-        self.create_sample_data_set_dir("foo.rte.log", '/tmp/dsatest3', create=True, mode=000)
+        self.create_sample_data_set_dir("foo.rte.log", '/tmp/dsatest3',
+                                        create=True, mode=000)
         self.assert_exception(IOError)
 
     def test_stop_resume(self):
@@ -187,10 +212,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
         path_1 = self.create_sample_data_set_dir('stc_status.txt', '/tmp/dsatest1')
         path_2 = self.create_sample_data_set_dir('stc_status_second.txt', '/tmp/dsatest1')
         path_3 = self.create_sample_data_set_dir('stc_status_third.txt', '/tmp/dsatest1')
-        path_4 = self.create_sample_data_set_dir('first.mopak.log', '/tmp/dsatest2', "20140120_140004.mopak.log")
-        path_5 = self.create_sample_data_set_dir('second.mopak.log', '/tmp/dsatest2', "20140120_150004.mopak.log")
-        path_6 = self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3', "20140120_140004.rte.log")
-        path_7 = self.create_sample_data_set_dir('second_resume.rte.log', '/tmp/dsatest3', "20140120_150004.rte.log")
+        path_4 = self.create_sample_data_set_dir('first.mopak.log', '/tmp/dsatest2',
+                                                 "20140120_140004.mopak.log")
+        path_5 = self.create_sample_data_set_dir('second.mopak.log', '/tmp/dsatest2',
+                                                 "20140120_150004.mopak.log")
+        path_6 = self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3',
+                                                 "20140120_140004.rte.log")
+        path_7 = self.create_sample_data_set_dir('second_resume.rte.log', '/tmp/dsatest3',
+                                                 "20140120_150004.rte.log")
 
         # Create and store the new driver state
         state = {
@@ -207,10 +236,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data((MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle),
-            'partial_second_mopak.result.yml', count=3, timeout=10)
-        self.assert_data(RteODclParserDataParticle, 'second_resume_rte.result.yml', count=2, timeout=10)
-        self.assert_data(CgStcEngStcParserDataParticle, 'stc_third.result.yml', count=1, timeout=10)
+        self.assert_data((MopakODclAccelParserDataParticle,
+                          MopakODclRateParserDataParticle),
+                            'partial_second_mopak.result.yml', count=3, timeout=10)
+        self.assert_data(RteODclParserDataParticle, 'second_resume_rte.result.yml',
+                         count=2, timeout=10)
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_third.result.yml',
+                         count=1, timeout=10)
 
     def test_stop_start_resume(self):
         """
@@ -221,28 +253,38 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.create_sample_data_set_dir('stc_status.txt', '/tmp/dsatest1')
         self.create_sample_data_set_dir('stc_status_second.txt', '/tmp/dsatest1')
-        self.create_sample_data_set_dir('first.mopak.log', '/tmp/dsatest2', "20140120_140004.mopak.log")
-        self.create_sample_data_set_dir('second.mopak.log', '/tmp/dsatest2', "20140120_150004.mopak.log")
-        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3', "20140120_140004.rte.log")
-        self.create_sample_data_set_dir('second.rte.log', '/tmp/dsatest3', "20140120_150004.rte.log")
+        self.create_sample_data_set_dir('first.mopak.log', '/tmp/dsatest2',
+                                        "20140120_140004.mopak.log")
+        self.create_sample_data_set_dir('second.mopak.log', '/tmp/dsatest2',
+                                        "20140120_150004.mopak.log")
+        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3',
+                                        "20140120_140004.rte.log")
+        self.create_sample_data_set_dir('second.rte.log', '/tmp/dsatest3',
+                                        "20140120_150004.rte.log")
 
-        self.assert_data((MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle),
-            'first_mopak.result.yml', count=5, timeout=10)
+        self.assert_data((MopakODclAccelParserDataParticle,
+                          MopakODclRateParserDataParticle),
+                          'first_mopak.result.yml', count=5, timeout=10)
         self.assert_file_ingested("20140120_140004.mopak.log")
-        self.assert_data(RteODclParserDataParticle, 'first_rte.result.yml', count=2, timeout=10)
+        self.assert_data(RteODclParserDataParticle, 'first_rte.result.yml',
+                         count=2, timeout=10)
         self.assert_file_ingested("20140120_140004.rte.log")
-        self.assert_data(CgStcEngStcParserDataParticle, 'stc_first.result.yml', count=1, timeout=10)
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_first.result.yml',
+                         count=1, timeout=10)
         self.assert_file_ingested("stc_status.txt")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data((MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle),
-            'second_mopak.result.yml', count=2, timeout=10)
+        self.assert_data((MopakODclAccelParserDataParticle,
+                          MopakODclRateParserDataParticle),
+                          'second_mopak.result.yml', count=2, timeout=10)
         self.assert_file_ingested("20140120_150004.mopak.log")
-        self.assert_data(RteODclParserDataParticle, 'second_rte.result.yml', count=2, timeout=10)
+        self.assert_data(RteODclParserDataParticle, 'second_rte.result.yml',
+                         count=2, timeout=10)
         self.assert_file_ingested("20140120_150004.rte.log")
-        self.assert_data(CgStcEngStcParserDataParticle, 'stc_second.result.yml', count=1, timeout=10)
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_second.result.yml',
+                         count=1, timeout=10)
         self.assert_file_ingested("stc_status_second.txt")
 
     def test_sample_exception_mopak(self):
@@ -255,7 +297,12 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
-        # an event catches the sample exception
+        self.assert_data((MopakODclAccelParserDataParticle,
+                          MopakODclRateParserDataParticle),
+                          'first_mopak.result.yml', count=5, timeout=10)
+        # there is a bug in the dataset agent when a callback is used, for now use sample_exception_callback,
+        # check the following when this is fixed
+        #self.assert_exception(UnexpectedDataException)
         self.assert_event('ResourceAgentErrorEvent')
         self.assert_file_ingested("20140120_140004.mopak.log")
 
@@ -272,6 +319,20 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_event('ResourceAgentErrorEvent')
         self.assert_file_ingested('stc_status_missing_time.txt')
 
+    def test_encoding_exception(self):
+        self.create_sample_data_set_dir('stc_status_bad_encode.txt', '/tmp/dsatest1')
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        # assert that the exception callback received a sample encoding exception
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_bad_encode.result.yml',
+                         count=1, timeout=10)
+        self.assert_event('ResourceAgentErrorEvent')
+        # there is a bug in the dataset agent when a callback is used, for now use sample_exception_callback,
+        # check the following when this is fixed
+        #self.assert_exception(SampleEncodingException)
+        self.assert_file_ingested('stc_status_bad_encode.txt')
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -317,7 +378,7 @@ class QualificationTest(DataSetQualificationTestCase):
             if not os.path.exists(data_dir_key):
                 log.debug("Creating data dir: %s", data_dir_key)
                 os.makedirs(data_dir_key)
-    
+
             elif not os.path.isdir(data_dir_key):
                 raise IDKException("%s is not a directory" % data_dir_key)
             data_dir.append(data_dir_key)
@@ -339,8 +400,10 @@ class QualificationTest(DataSetQualificationTestCase):
         published out the agent
         """
         self.create_sample_data_set_dir('stc_status.txt', '/tmp/dsatest1')
-        self.create_sample_data_set_dir('first.mopak.log', '/tmp/dsatest2', "20140120_140004.mopak.log")
-        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3', "20140120_140004.rte.log")
+        self.create_sample_data_set_dir('first.mopak.log', '/tmp/dsatest2',
+                                        "20140120_140004.mopak.log")
+        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3',
+                                        "20140120_140004.rte.log")
 
         self.assert_initialize()
 
@@ -423,8 +486,10 @@ class QualificationTest(DataSetQualificationTestCase):
         at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data_set_dir('first_rate.mopak.log', '/tmp/dsatest2', "20140313_191853.mopak.log")
-        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3', "20140120_140004.rte.log")
+        self.create_sample_data_set_dir('first_rate.mopak.log', '/tmp/dsatest2',
+                                        "20140313_191853.mopak.log")
+        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3',
+                                        "20140120_140004.rte.log")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -445,14 +510,16 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_sample_queue_size(MopakDataParticleType.ACCEL, 0)
             self.assert_sample_queue_size(MopakDataParticleType.RATE, 0)
 
-            self.create_sample_data_set_dir('second_rate.mopak.log', '/tmp/dsatest2', "20140313_201853.mopak.log")
+            self.create_sample_data_set_dir('second_rate.mopak.log', '/tmp/dsatest2',
+                                            "20140313_201853.mopak.log")
 
             # verify rte values
             result_rte = self.get_samples(RteDataParticleType.SAMPLE, 2)
             self.assert_data_values(result_rte, 'first_rte.result.yml')
             self.assert_sample_queue_size(RteDataParticleType.SAMPLE, 0)
             
-            self.create_sample_data_set_dir('four_samp.rte.log', '/tmp/dsatest3', "20140120.rte.log")
+            self.create_sample_data_set_dir('four_samp.rte.log', '/tmp/dsatest3',
+                                            "20140120.rte.log")
 
             # Now read the first records of the second mopak file then stop in the middle
             result_mopak = self.get_samples(MopakDataParticleType.RATE, 1)
@@ -491,8 +558,10 @@ class QualificationTest(DataSetQualificationTestCase):
         and confirm it restarts at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data_set_dir('first_rate.mopak.log', '/tmp/dsatest2', "20140313_191853.mopak.log")
-        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3', "20140120_140004.rte.log")
+        self.create_sample_data_set_dir('first_rate.mopak.log', '/tmp/dsatest2',
+                                        "20140313_191853.mopak.log")
+        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3',
+                                        "20140120_140004.rte.log")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -513,14 +582,16 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_sample_queue_size(MopakDataParticleType.ACCEL, 0)
             self.assert_sample_queue_size(MopakDataParticleType.RATE, 0)
 
-            self.create_sample_data_set_dir('second_rate.mopak.log', '/tmp/dsatest2', "20140313_201853.mopak.log")
+            self.create_sample_data_set_dir('second_rate.mopak.log', '/tmp/dsatest2',
+                                            "20140313_201853.mopak.log")
 
             # verify rte values
             result_rte = self.get_samples(RteDataParticleType.SAMPLE, 2)
             self.assert_data_values(result_rte, 'first_rte.result.yml')
             self.assert_sample_queue_size(RteDataParticleType.SAMPLE, 0)
             
-            self.create_sample_data_set_dir('four_samp.rte.log', '/tmp/dsatest3', "20140120.rte.log")
+            self.create_sample_data_set_dir('four_samp.rte.log', '/tmp/dsatest3',
+                                            "20140120.rte.log")
 
             # Now read the first records of the second mopak file then stop in the middle
             result_mopak = self.get_samples(MopakDataParticleType.RATE, 1)
@@ -564,21 +635,21 @@ class QualificationTest(DataSetQualificationTestCase):
         record parsing.
         """
         # file contains invalid sample values
-        self.create_sample_data_set_dir('noise.mopak.log', '/tmp/dsatest2', "20140120_140004.mopak.log")
+        self.create_sample_data_set_dir('noise.mopak.log', '/tmp/dsatest2',
+                                        "20140120_140004.mopak.log")
 
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
         result = self.get_samples(MopakDataParticleType.ACCEL, 5)
-        self.assert_sample_queue_size(MopakDataParticleType.ACCEL, 0)
-        
         self.assert_data_values(result, 'first_mopak.result.yml')
+        self.assert_sample_queue_size(MopakDataParticleType.ACCEL, 0)
 
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 10)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
 
-    def test_parser_exception_rte(self):
+    def test_parser_sample_exception_stc(self):
         """
         Test an exception is raised after the driver is started during
         record parsing.
@@ -589,7 +660,26 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        self.assert_sample_queue_size(RteDataParticleType.SAMPLE, 0)
+        self.assert_sample_queue_size(CgDataParticleType.SAMPLE, 0)
+
+        # Verify an event was raised and we are in our retry state
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
+    def test_parser_exception_stc(self):
+        """
+        Test an exception is raised after the driver is started during
+        record parsing.
+        """
+        # file contains invalid sample values
+        self.create_sample_data_set_dir('stc_status_bad_encode.txt', '/tmp/dsatest1')
+
+        self.assert_initialize()
+
+        self.event_subscribers.clear_events()
+        result = self.get_samples(CgDataParticleType.SAMPLE, 1)
+        self.assert_data_values(result, 'stc_bad_encode.result.yml')
+        self.assert_sample_queue_size(CgDataParticleType.SAMPLE, 0)
 
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 10)
