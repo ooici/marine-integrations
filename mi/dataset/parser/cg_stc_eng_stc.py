@@ -375,11 +375,7 @@ class CgStcEngStcParserDataParticle(DataParticle):
               lambda match : float(match.group(1)),
               float)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PLATFORM_TIME,
-<<<<<<< HEAD
-              r'Platform.time=(.+)(\r\n?|\n)',
-=======
               r'Platform.time=(.+?)(\r\n?|\n)',
->>>>>>> fec8e69be078f851021a65366cae0d5e3006d731
               lambda match : match.group(1),
               str)
         # msg
@@ -864,18 +860,18 @@ class CgStcEngStcParserDataParticle(DataParticle):
               r'GPS\.timestamp=(\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d{3})',
               lambda match: match.group(1),
               str)
-        p.add(CgStcEngStcParserDataParticleKey.CG_ENGGPS_MSG_TIME,
+        p.add(CgStcEngStcParserDataParticleKey.CG_ENG_GPS_MSG_TIME,
               r'GPS\.timestamp=(\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d{3})',
               lambda match: match.group(2),
               str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_GPS_DATE,
               r'GPS\.date=(.+)(\r\n?|\n)',
               lambda match: int(match.group(1)),
-              int32)
+              int)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_GPS_TIME,
               r'GPS\.time=(.+)(\r\n?|\n)',
               lambda match: int(match.group(1)),
-              int32)
+              int)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_GPS_LATSTR,
               r'GPS.lat_str=(.+?)(\r\n?|\n)',
               lambda match: match.group(1),
@@ -1343,6 +1339,7 @@ class CgStcEngStcParserDataParticle(DataParticle):
               lambda match: int(match.group(7)),
               int)
         #8
+        
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_DCLP8_ENABLE,
               r'DCL\.port\.8=(\d)  (\d+\.\d+)   (\d+\.\d+) (\d)  vsel: \
                              (\d+) clim: (\d+) prot: (\d+)(\r\n?|\n)',
@@ -1382,576 +1379,216 @@ class CgStcEngStcParserDataParticle(DataParticle):
               r'DCL.pstatus.last_update=(\d+\.\d+)',
               lambda match: float(match.group(1)),    
               float)
+        
+        DLOG_REGEX = r'(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  '\
+                       'good: (\d+)  bad: (\d+)  bb: (\d+)  ld: '\
+                       '([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)'
+        DLOG_LC_REGEX = r'(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  '\
+                       'good: (\d+)  bad: (\d+)  bb: (\d+)  ld: '\
+                       '([-\d]+)\s+(lc:\s+([-\d]+))\s+lu:\s?([-\d.]+)(\r\n?|\n)'
+        #1
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG1_NAME,
-              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(1),
-              str)
+              r'DLOGP1='+DLOG_REGEX,lambda match: match.group(1),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG1_STATE,
-              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(2),
-              str)
+              r'DLOGP1='+DLOG_REGEX,lambda match: match.group(2),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG1_TX,
-              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(3)),
-              long)
+              r'DLOGP1='+DLOG_REGEX,lambda match: long(match.group(3)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG1_RX,
-              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(4)),
-              long)
+              r'DLOGP1='+DLOG_REGEX,lambda match: long(match.group(4)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG1_LOG,
-              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(5)),
-              long)
+              r'DLOGP1='+DLOG_REGEX,lambda match: long(match.group(5)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG1_GOOD,
-              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(6)),
-              long)
+              r'DLOGP1='+DLOG_REGEX,lambda match: long(match.group(6)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG1_BAD,
-              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(7)),
-              long)
+              r'DLOGP1='+DLOG_REGEX,lambda match: long(match.group(7)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG1_BB,
-              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(8)),
-              long)
+              r'DLOGP1='+DLOG_REGEX,lambda match: long(match.group(8)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG1_LD,
-              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(9)),
-              long)
+              r'DLOGP1='+DLOG_REGEX,lambda match: long(match.group(9)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG1_LC,
-              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(11)),
-              float)
+              r'DLOGP1='+DLOG_LC_REGEX,lambda match: float(match.group(11)),float)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG1_LU,
-              r'DLOGP1=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(12)),
-              float)
+              r'DLOGP1='+DLOG_REGEX,lambda match: float(match.group(12)),float)
         #2
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG2_NAME,
-              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(1),
-              str)
+              r'DLOGP2='+DLOG_REGEX,lambda match: match.group(1),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG2_STATE,
-              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(2),
-              str)
+              r'DLOGP2='+DLOG_REGEX,lambda match: match.group(2),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG2_TX,
-              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(3)),
-              long)
+              r'DLOGP2='+DLOG_REGEX,lambda match: long(match.group(3)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG2_RX,
-              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(4)),
-              long)
+              r'DLOGP2='+DLOG_REGEX,lambda match: long(match.group(4)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG2_LOG,
-              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(5)),
-              long)
+              r'DLOGP2='+DLOG_REGEX,lambda match: long(match.group(5)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG2_GOOD,
-              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(6)),
-              long)
+              r'DLOGP2='+DLOG_REGEX,lambda match: long(match.group(6)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG2_BAD,
-              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(7)),
-              long)
+              r'DLOGP2='+DLOG_REGEX,lambda match: long(match.group(7)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG2_BB,
-              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(8)),
-              long)
+              r'DLOGP2='+DLOG_REGEX,lambda match: long(match.group(8)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG2_LD,
-              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(9)),
-              long)
+              r'DLOGP2='+DLOG_REGEX,lambda match: long(match.group(9)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG2_LC,
-              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(11)),
-              float)
+              r'DLOGP2='+DLOG_LC_REGEX,lambda match: float(match.group(11)),float)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG2_LU,
-              r'DLOGP2=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(12)),
-              float)
+              r'DLOGP2='+DLOG_REGEX,lambda match: float(match.group(12)),float)
         #3
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG3_NAME,
-              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(1),
-              str)
+              r'DLOGP3='+DLOG_REGEX,lambda match: match.group(1),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG3_STATE,
-              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(2),
-              str)
+              r'DLOGP3='+DLOG_REGEX,lambda match: match.group(2),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG3_TX,
-              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(3)),
-              long)
+              r'DLOGP3='+DLOG_REGEX,lambda match: long(match.group(3)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG3_RX,
-              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(4)),
-              long)
+              r'DLOGP3='+DLOG_REGEX,lambda match: long(match.group(4)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG3_LOG,
-              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(5)),
-              long)
+              r'DLOGP3='+DLOG_REGEX,lambda match: long(match.group(5)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG3_GOOD,
-              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(6)),
-              long)
+              r'DLOGP3='+DLOG_REGEX,lambda match: long(match.group(6)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG3_BAD,
-              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(7)),
-              long)
+              r'DLOGP3='+DLOG_REGEX,lambda match: long(match.group(7)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG3_BB,
-              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(8)),
-              long)
+              r'DLOGP3='+DLOG_REGEX,lambda match: long(match.group(8)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG3_LD,
-              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(9)),
-              long)
+              r'DLOGP3='+DLOG_REGEX,lambda match: long(match.group(9)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG3_LC,
-              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(11)),
-              float)
+              r'DLOGP3='+DLOG_LC_REGEX,lambda match: float(match.group(11)),float)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG3_LU,
-              r'DLOGP3=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(12)),
-              float)
+              r'DLOGP3='+DLOG_REGEX,lambda match: float(match.group(12)),float)
         #4
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG4_NAME,
-              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(1),
-              str)
+              r'DLOGP4='+DLOG_REGEX,lambda match: match.group(1),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG4_STATE,
-              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(2),
-              str)
+              r'DLOGP4='+DLOG_REGEX,lambda match: match.group(2),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG4_TX,
-              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(3)),
-              long)
+              r'DLOGP4='+DLOG_REGEX,lambda match: long(match.group(3)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG4_RX,
-              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(4)),
-              long)
+              r'DLOGP4='+DLOG_REGEX,lambda match: long(match.group(4)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG4_LOG,
-              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(5)),
-              long)
+              r'DLOGP4='+DLOG_REGEX,lambda match: long(match.group(5)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG4_GOOD,
-              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(6)),
-              long)
+              r'DLOGP4='+DLOG_REGEX,lambda match: long(match.group(6)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG4_BAD,
-              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(7)),
-              long)
+              r'DLOGP4='+DLOG_REGEX,lambda match: long(match.group(7)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG4_BB,
-              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(8)),
-              long)
+              r'DLOGP4='+DLOG_REGEX,lambda match: long(match.group(8)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG4_LD,
-              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(9)),
-              long)
+              r'DLOGP4='+DLOG_REGEX,lambda match: long(match.group(9)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG4_LC,
-              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(11)),
-              float)
+              r'DLOGP4='+DLOG_LC_REGEX,lambda match: float(match.group(11)),float)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG4_LU,
-              r'DLOGP4=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(12)),
-              float)
+              r'DLOGP4='+DLOG_REGEX,lambda match: float(match.group(12)),float)
         #5
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG5_NAME,
-              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(1),
-              str)
+              r'DLOGP5='+DLOG_REGEX,lambda match: match.group(1),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG5_STATE,
-              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(2),
-              str)
+              r'DLOGP5='+DLOG_REGEX,lambda match: match.group(2),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG5_TX,
-              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(3)),
-              long)
+              r'DLOGP5='+DLOG_REGEX,lambda match: long(match.group(3)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG5_RX,
-              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(4)),
-              long)
+              r'DLOGP5='+DLOG_REGEX,lambda match: long(match.group(4)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG5_LOG,
-              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(5)),
-              long)
+              r'DLOGP5='+DLOG_REGEX,lambda match: long(match.group(5)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG5_GOOD,
-              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(6)),
-              long)
+              r'DLOGP5='+DLOG_REGEX,lambda match: long(match.group(6)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG5_BAD,
-              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(7)),
-              long)
+              r'DLOGP5='+DLOG_REGEX,lambda match: long(match.group(7)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG5_BB,
-              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(8)),
-              long)
+              r'DLOGP5='+DLOG_REGEX,lambda match: long(match.group(8)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG5_LD,
-              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(9)),
-              long)
+              r'DLOGP5='+DLOG_REGEX,lambda match: long(match.group(9)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG5_LC,
-              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(11)),
-              float)
+              r'DLOGP5='+DLOG_LC_REGEX,lambda match: float(match.group(11)),float)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG5_LU,
-              r'DLOGP5=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(12)),
-              float)
+              r'DLOGP5='+DLOG_REGEX,lambda match: float(match.group(12)),float)
         #6
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG6_NAME,
-              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(1),
-              str)
+              r'DLOGP6='+DLOG_REGEX,lambda match: match.group(1),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG6_STATE,
-              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(2),
-              str)
+              r'DLOGP6='+DLOG_REGEX,lambda match: match.group(2),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG6_TX,
-              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(3)),
-              long)
+              r'DLOGP6='+DLOG_REGEX,lambda match: long(match.group(3)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG6_RX,
-              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(4)),
-              long)
+              r'DLOGP6='+DLOG_REGEX,lambda match: long(match.group(4)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG6_LOG,
-              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(5)),
-              long)
+              r'DLOGP6='+DLOG_REGEX,lambda match: long(match.group(5)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG6_GOOD,
-              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(6)),
-              long)
+              r'DLOGP6='+DLOG_REGEX,lambda match: long(match.group(6)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG6_BAD,
-              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(7)),
-              long)
+              r'DLOGP6='+DLOG_REGEX,lambda match: long(match.group(7)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG6_BB,
-              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(8)),
-              long)
+              r'DLOGP6='+DLOG_REGEX,lambda match: long(match.group(8)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG6_LD,
-              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(9)),
-              long)
+              r'DLOGP6='+DLOG_REGEX,lambda match: long(match.group(9)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG6_LC,
-              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(11)),
-              float)
+              r'DLOGP6='+DLOG_LC_REGEX,lambda match: float(match.group(11)),float)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG6_LU,
-              r'DLOGP6=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(12)),
-              float)
+              r'DLOGP6='+DLOG_REGEX,lambda match: float(match.group(12)),float)
         #7
-        p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG1_NAME,
-              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(1),
-              str)
+        p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG7_NAME,
+              r'DLOGP7='+DLOG_REGEX,lambda match: match.group(1),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG7_STATE,
-              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(2),
-              str)
+              r'DLOGP7='+DLOG_REGEX,lambda match: match.group(2),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG7_TX,
-              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(3)),
-              long)
+              r'DLOGP7='+DLOG_REGEX,lambda match: long(match.group(3)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG7_RX,
-              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(4)),
-              long)
+              r'DLOGP7='+DLOG_REGEX,lambda match: long(match.group(4)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG7_LOG,
-              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(5)),
-              long)
+              r'DLOGP7='+DLOG_REGEX,lambda match: long(match.group(5)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG7_GOOD,
-              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(6)),
-              long)
+              r'DLOGP7='+DLOG_REGEX,lambda match: long(match.group(6)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG7_BAD,
-              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(7)),
-              long)
+              r'DLOGP7='+DLOG_REGEX,lambda match: long(match.group(7)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG7_BB,
-              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(8)),
-              long)
+              r'DLOGP7='+DLOG_REGEX,lambda match: long(match.group(8)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG7_LD,
-              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(9)),
-              long)
+              r'DLOGP7='+DLOG_REGEX,lambda match: long(match.group(9)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG7_LC,
-              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(11)),
-              float)
+              r'DLOGP7='+DLOG_LC_REGEX,lambda match: float(match.group(11)),float)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG7_LU,
-              r'DLOGP7=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(12)),
-              float)
-        #8
+              r'DLOGP7='+DLOG_REGEX,lambda match: float(match.group(12)),float)
+        #8        
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG8_NAME,
-              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(1),
-              str)
+              r'DLOGP8='+DLOG_REGEX,lambda match: match.group(1),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG8_STATE,
-              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: match.group(2),
-              str)
+              r'DLOGP8='+DLOG_REGEX,lambda match: match.group(2),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG8_TX,
-              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(3)),
-              long)
+              r'DLOGP8='+DLOG_REGEX,lambda match: long(match.group(3)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG8_RX,
-              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(4)),
-              long)
+              r'DLOGP8='+DLOG_REGEX,lambda match: long(match.group(4)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG8_LOG,
-              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(5)),
-              long)
+              r'DLOGP8='+DLOG_REGEX,lambda match: long(match.group(5)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG8_GOOD,
-              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(6)),
-              long)
+              r'DLOGP8='+DLOG_REGEX,lambda match: long(match.group(6)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG8_BAD,
-              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(7)),
-              long)
+              r'DLOGP8='+DLOG_REGEX,lambda match: long(match.group(7)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG8_BB,
-              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(8)),
-              long)
+              r'DLOGP8='+DLOG_REGEX,lambda match: long(match.group(8)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG8_LD,
-              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: long(match.group(9)),
-              long)
+              r'DLOGP8='+DLOG_REGEX,lambda match: long(match.group(9)),long)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG8_LC,
-              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(11)),
-              float)
+              r'DLOGP8='+DLOG_LC_REGEX,lambda match: float(match.group(11)),float)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_PORT_DLOG8_LU,
-              r'DLOGP8=(.+) (.+)  tx: (\d+)  rx: (\d+)  log: (\d+)  \
-                       good: (\d+)  bad: (\d+)  bb: (\d+)  ld: \
-                       ([-\d]+)\s+(lc:\s+([-\d]+))?\s+lu:\s?([-\d.]+)(\r\n?|\n)',
-              lambda match: float(match.group(12)),
-              float)
+              r'DLOGP8='+DLOG_REGEX,lambda match: float(match.group(12)),float)
+        
+        
+        DMGR_REGEX = r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) '\
+                            'act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)(\r\n?|\n)'
+        
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_DMGRSTATUS_DATE,
-              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
-                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)(\r\n?|\n)',
-              lambda match: match.group(1),
-              str)
+              DMGR_REGEX,lambda match: match.group(1),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_DMGRSTATUS_TIME,
-              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
-                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)(\r\n?|\n)',
-              lambda match: match.group(2),
-              str)
+              DMGR_REGEX,lambda match: match.group(2),str)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_DMGRSTATUS_ACTIVE,
-              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
-                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)(\r\n?|\n)',
-              lambda match: int(match.group(3)),
-              int)
+              DMGR_REGEX,lambda match: int(match.group(3)), int)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_DMGRSTATUS_STARTED,
-              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
-                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)(\r\n?|\n)',
-              lambda match: int(match.group(4)),
-              int)
+              DMGR_REGEX,lambda match: int(match.group(4)), int)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_DMGRSTATUS_HALTED,
-              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
-                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)(\r\n?|\n)',
-              lambda match: int(match.group(5)),
-              int)
+              DMGR_REGEX,lambda match: int(match.group(5)), int)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_DMGRSTATUS_FAILED,
-              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
-                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)(\r\n?|\n)',
-              lambda match: int(match.group(6)),
-              int)
+              DMGR_REGEX,lambda match: int(match.group(6)), int)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_DMGRSTATUS_MAP,
-              r'DMGR.status=dmgrstatus: (\d{4}/\d{2}/\d{2}) (\d{2}:\d{2}:\d{2}\.\d+) \
-                            act:(\d+) str:(\d+) hlt:(\d+) fld:(\d+) map:(.+)(\r\n?|\n)',
-              lambda match: int('0x'+match.group(7),0),
-              int)
+              DMGR_REGEX,lambda match: int('0x'+match.group(7),0), int)
         p.add(CgStcEngStcParserDataParticleKey.CG_ENG_DMGRSTATUS_UPDATE,
               r'DMGR.last_update=(\d+\.\d+)(\r\n?|\n)',
               lambda match: float(match.group(1)),
