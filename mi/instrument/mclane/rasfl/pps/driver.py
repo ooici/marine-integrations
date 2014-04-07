@@ -1,5 +1,5 @@
 """
-@package mi.instrument.mclane.ras.ooicore.driver
+@package mi.instrument.mclane.rasfl.pps.driver
 @file marine-integrations/mi/instrument/mclane/ras/ooicore/driver.py
 @author Dan Mergens
 @brief Driver for the PPSDN
@@ -7,6 +7,7 @@ Release notes:
 
 initial version
 """
+from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 
 __author__ = 'Dan Mergens'
 __license__ = 'Apache 2.0'
@@ -17,8 +18,6 @@ from mi.core.log import get_logger
 
 log = get_logger()
 
-from mi.core.instrument.instrument_driver import ResourceAgentState
-
 from mi.core.instrument.protocol_param_dict import \
     ProtocolParameterDict, \
     ParameterDictType, \
@@ -26,50 +25,33 @@ from mi.core.instrument.protocol_param_dict import \
 
 from mi.instrument.mclane.driver import \
     NEWLINE, \
-    McLanePumpConfig, \
-    McLaneParameter, \
+    ProtocolEvent, \
+    Parameter, \
+    Prompt, \
     McLaneCommand, \
     McLaneResponse, \
     McLaneDataParticleType, \
     McLaneSampleDataParticle, \
     McLaneSampleDataParticleKey, \
-    McLaneInstrumentDriver, \
-    McLaneProtocol
+    McLaneProtocol, \
+    ProtocolState
 
-NUM_PORTS = 24  # number of collection bags
+NUM_PORTS = 24  # number of collection filters
 
 ####
 #    Driver Constant Definitions
 ####
 
 
-class PumpConfig(McLanePumpConfig):
-    rate_error_factor = 1.15  # PPS is off in it's flow rate measurement by 14.5%
-
-    default_flush_volume = flush_volume = 150
-    default_flush_rate = flush_rate = 100
-    default_flush_min_rate = flush_min_rate = 75
-    default_fill_volume = fill_volume = 4000
-    default_fill_rate = fill_rate = 100
-    default_fill_min_rate = fill_min_rate = 75
-    default_clear_volume = clear_volume = 100
-    default_clear_rate = clear_rate = 100
-    default_clear_min_rate = clear_min_rate = 75
-
-
-class Parameter(McLaneParameter):
-    """
-    Device specific parameters.
-    """
-    FLUSH_VOLUME = "PPSFlush_volume"
-    FLUSH_FLOWRATE = "PPSFlush_flowrate"
-    FLUSH_MINFLOW = "PPSFlush_minflow"
-    FILL_VOLUME = "PPSFill_volume"
-    FILL_FLOWRATE = "PPSFill_flowrate"
-    FILL_MINFLOW = "PPSFill_minflow"
-    REVERSE_VOLUME = "PPSReverse_volume"
-    REVERSE_FLOWRATE = "PPSReverse_flowrate"
-    REVERSE_MINFLOW = "PPSReverse_minflow"
+FLUSH_VOLUME = 150
+FLUSH_RATE = 100
+FLUSH_MIN_RATE = 75
+FILL_VOLUME = 4000
+FILL_RATE = 100
+FILL_MIN_RATE = 75
+CLEAR_VOLUME = 100
+CLEAR_RATE = 100
+CLEAR_MIN_RATE = 75
 
 
 class Command(McLaneCommand):
@@ -85,11 +67,6 @@ class Response(McLaneResponse):
     """
     # e.g. 03/25/14 20:24:02 PPS ML13003-01>
     READY = re.compile(r'(\d+/\d+/\d+\s+\d+:\d+:\d+\s+)PPS (.*)>')
-    # Result 00 |  75 100  25   4 |  77.2  98.5  99.1  47 031514 001813 | 29.8 1
-    # Result 00 |  10 100  75  60 |  10.0  85.5 100.0   7 032814 193855 | 30.0 1
-    PUMP = re.compile(r'(Status|Result).*(\d+)' + NEWLINE)
-    # Battery: 30.1V [Alkaline, 18V minimum]
-    BATTERY = re.compile(r'Battery:\s+(\d*\.\d+)V\s+\[.*\]')  # battery voltage
     # Capacity: Maxon 250mL
     CAPACITY = re.compile(r'Capacity:\s(Maxon|Pittman)\s+(\d+)mL')  # pump make and capacity
     # McLane Research Laboratories, Inc.
@@ -103,9 +80,6 @@ class Response(McLaneResponse):
         r'.*$'
     )
 
-
-#####
-# Codes for pump termination
 
 class DataParticleType(McLaneDataParticleType):
     """
@@ -123,6 +97,7 @@ class DataParticleType(McLaneDataParticleType):
 ###############################################################################
 
 class PPSDNSampleDataParticleKey(McLaneSampleDataParticleKey):
+    # TODO - just use base class
     PUMP_STATUS = 'pump_status'
     PORT = 'port'
     VOLUME_COMMANDED = 'volume_commanded'
@@ -152,14 +127,35 @@ class PPSDNSampleDataParticle(McLaneSampleDataParticle):
 # Driver
 ###############################################################################
 
-class InstrumentDriver(McLaneInstrumentDriver):
+class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
     """
     def __init__(self, evt_callback):
-        McLaneInstrumentDriver.__init__(self, evt_callback)
+        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+
+    ########################################################################
+    # Superclass overrides for resource query.
+    ########################################################################
+
+    @staticmethod
+    def get_resource_params():
+        """
+        Return list of device parameters available.
+        """
+        return Parameter.list()
+
+    ########################################################################
+    # Protocol builder.
+    ########################################################################
+
+    def _build_protocol(self):
+        """
+        Construct the driver protocol state machine.
+        """
+        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
 
 
 ###########################################################################
@@ -187,14 +183,28 @@ class Protocol(McLaneProtocol):
         # TODO - need to persist state for next_port to save driver restart
         self.next_port = 1  # next available port
 
-    def _handler_command_status(self, *args, **kwargs):
         # get the following:
         # - VERSION
         # - CAPACITY (pump flow)
         # - BATTERY
         # - CODES (termination codes)
         # - COPYRIGHT (termination codes)
-        return None, ResourceAgentState.COMMAND
+
+    def _got_chunk(self, chunk, timestamp):
+        """
+        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
+        with the appropriate particle objects and REGEXes.
+        """
+        filling = self.get_current_state() == ProtocolState.FILL
+        log.debug("_got_chunk:\n%s", chunk)
+        sample_dict = self._extract_sample(PPSDNSampleDataParticle,
+                                           PPSDNSampleDataParticle.regex_compiled(), chunk, timestamp, publish=filling)
+
+        if sample_dict:
+            self._linebuf = ''
+            self._promptbuf = ''
+            self._protocol_fsm.on_event(ProtocolEvent.PUMP_STATUS,
+                                        PPSDNSampleDataParticle.regex_compiled().search(chunk))
 
     def _build_param_dict(self):
         """
@@ -210,8 +220,7 @@ class Protocol(McLaneProtocol):
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             # default_value=150,
-                             default_value=10,  # djm - fast test value
+                             default_value=FLUSH_VOLUME,
                              units='mL',
                              startup_param=True,
                              display_name="flush_volume",
@@ -221,8 +230,8 @@ class Protocol(McLaneProtocol):
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             default_value=100,
-                             units='mL/sec',
+                             default_value=FLUSH_RATE,
+                             units='mL/min',
                              startup_param=True,
                              display_name="flush_flow_rate",
                              visibility=ParameterDictVisibility.IMMUTABLE)
@@ -231,8 +240,8 @@ class Protocol(McLaneProtocol):
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             default_value=75,
-                             units='mL/sec',
+                             default_value=FLUSH_MIN_RATE,
+                             units='mL/min',
                              startup_param=True,
                              display_name="flush_min_flow",
                              visibility=ParameterDictVisibility.IMMUTABLE)
@@ -241,8 +250,7 @@ class Protocol(McLaneProtocol):
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             # default_value=4000,
-                             default_value=10,  # djm - fast test value
+                             default_value=FILL_VOLUME,
                              units='mL',
                              startup_param=True,
                              display_name="fill_volume",
@@ -252,8 +260,8 @@ class Protocol(McLaneProtocol):
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             default_value=100,
-                             units='mL/sec',
+                             default_value=FILL_RATE,
+                             units='mL/min',
                              startup_param=True,
                              display_name="fill_flow_rate",
                              visibility=ParameterDictVisibility.IMMUTABLE)
@@ -262,39 +270,48 @@ class Protocol(McLaneProtocol):
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             default_value=75,
-                             units='mL/sec',
+                             default_value=FILL_MIN_RATE,
+                             units='mL/min',
                              startup_param=True,
                              display_name="fill_min_flow",
                              visibility=ParameterDictVisibility.IMMUTABLE)
-        self._param_dict.add(Parameter.REVERSE_VOLUME,
+        self._param_dict.add(Parameter.CLEAR_VOLUME,
                              r'Reverse Volume: (.*)V',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             # default_value=100,
-                             default_value=10,  # djm - fast test value
+                             default_value=CLEAR_VOLUME,
                              units='mL',
                              startup_param=True,
                              display_name="reverse_volume",
                              visibility=ParameterDictVisibility.IMMUTABLE)
-        self._param_dict.add(Parameter.REVERSE_FLOWRATE,
+        self._param_dict.add(Parameter.CLEAR_FLOWRATE,
                              r'Reverse Flow Rate: (.*)V',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             default_value=100,
-                             units='mL/sec',
+                             default_value=CLEAR_RATE,
+                             units='mL/min',
                              startup_param=True,
                              display_name="reverse_flow_rate",
                              visibility=ParameterDictVisibility.IMMUTABLE)
-        self._param_dict.add(Parameter.REVERSE_MINFLOW,
+        self._param_dict.add(Parameter.CLEAR_MINFLOW,
                              r'Reverse Min Flow: (.*)V',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             default_value=75,
-                             units='mL/sec',
+                             default_value=CLEAR_MIN_RATE,
+                             units='mL/min',
                              startup_param=True,
                              display_name="reverse_min_flow",
                              visibility=ParameterDictVisibility.IMMUTABLE)
+
+        self._param_dict.set_value(Parameter.FLUSH_VOLUME, FLUSH_VOLUME)
+        self._param_dict.set_value(Parameter.FLUSH_FLOWRATE, FLUSH_RATE)
+        self._param_dict.set_value(Parameter.FLUSH_MINFLOW, FLUSH_MIN_RATE)
+        self._param_dict.set_value(Parameter.FILL_VOLUME, FILL_VOLUME)
+        self._param_dict.set_value(Parameter.FILL_FLOWRATE, FILL_RATE)
+        self._param_dict.set_value(Parameter.FILL_MINFLOW, FILL_MIN_RATE)
+        self._param_dict.set_value(Parameter.CLEAR_VOLUME, CLEAR_VOLUME)
+        self._param_dict.set_value(Parameter.CLEAR_FLOWRATE, CLEAR_RATE)
+        self._param_dict.set_value(Parameter.CLEAR_MINFLOW, CLEAR_MIN_RATE)

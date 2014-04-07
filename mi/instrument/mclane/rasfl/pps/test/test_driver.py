@@ -41,7 +41,6 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.instrument.mclane.driver import \
-    Timeout, \
     ProtocolState, \
     ProtocolEvent, \
     Capability, \
@@ -67,6 +66,9 @@ from pyon.agent.agent import ResourceAgentState
 # Globals
 raw_stream_received = False
 parsed_stream_received = False
+
+ACQUIRE_TIMEOUT = 45 * 60 + 50
+CLEAR_TIMEOUT = 110
 
 ###
 #   Driver parameters for the tests
@@ -138,9 +140,9 @@ class UtilMixin(DriverTestMixin):
         " Configured for: Maxon 250ml pump" + NEWLINE
 
     # response from collect sample meta command (from FORWARD or REVERSE command)
-    RASFL_SAMPLE_DATA1 = "Status 00 |  75 100  25   4 |   1.5  90.7  .907*  1 031514 001727 | 29.9 0" + NEWLINE
-    RASFL_SAMPLE_DATA2 = "Status 00 |  75 100  25   4 |   3.2 101.2 101.2*  2 031514 001728 | 29.9 0" + NEWLINE
-    RASFL_SAMPLE_DATA3 = "Result 00 |  75 100  25   4 |  77.2  98.5  99.1  47 031514 001813 | 29.8 1" + NEWLINE
+    PPSDN_SAMPLE_DATA1 = "Status 00 |  75 100  25   4 |   1.5  90.7  .907*  1 031514 001727 | 29.9 0" + NEWLINE
+    PPSDN_SAMPLE_DATA2 = "Status 00 |  75 100  25   4 |   3.2 101.2 101.2*  2 031514 001728 | 29.9 0" + NEWLINE
+    PPSDN_SAMPLE_DATA3 = "Result 00 |  75 100  25   4 |  77.2  98.5  99.1  47 031514 001813 | 29.8 1" + NEWLINE
 
     _driver_capabilities = {
         # capabilities defined in the IOS
@@ -153,22 +155,18 @@ class UtilMixin(DriverTestMixin):
     _driver_parameters = {
         Parameter.FLUSH_VOLUME: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 150, REQUIRED: True},
         Parameter.FLUSH_FLOWRATE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 100, REQUIRED: True},
-        # note that spec says to use a minflow value of 25, but it is out of bounds (75-100)
         Parameter.FLUSH_MINFLOW: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 75, REQUIRED: True},
         Parameter.FILL_VOLUME: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 4000, REQUIRED: True},
         Parameter.FILL_FLOWRATE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 100, REQUIRED: True},
-        # note that spec says to use a minflow value of 25, but it is out of bounds (75-100)
         Parameter.FILL_MINFLOW: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 75, REQUIRED: True},
-        Parameter.REVERSE_VOLUME: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 100, REQUIRED: True},
-        Parameter.REVERSE_FLOWRATE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 100, REQUIRED: True},
-        # note that spec says to use a minflow value of 25, but it is out of bounds (75-100)
-        Parameter.REVERSE_MINFLOW: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 75, REQUIRED: True}}
+        Parameter.CLEAR_VOLUME: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 100, REQUIRED: True},
+        Parameter.CLEAR_FLOWRATE: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 100, REQUIRED: True},
+        Parameter.CLEAR_MINFLOW: {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 75, REQUIRED: True}}
 
     ###
     # Data Particle Parameters
     ### 
     _sample_parameters = {
-        # particle data defined in the OPTAA Driver doc
         PPSDNSampleDataParticleKey.PORT: {'type': int, 'value': 0},
         PPSDNSampleDataParticleKey.VOLUME_COMMANDED: {'type': int, 'value': 75},
         PPSDNSampleDataParticleKey.FLOW_RATE_COMMANDED: {'type': int, 'value': 100},
@@ -200,34 +198,22 @@ class UtilMixin(DriverTestMixin):
     ### 
     def assert_data_particle_sample(self, data_particle, verify_values=False):
         """
-        Verify an optaa sample data particle
+        Verify an PPSDN sample data particle
         @param data_particle: OPTAAA_SampleDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        #self.assert_data_particle_header(data_particle, DataParticleType.METBK_PARSED)
+        self.assert_data_particle_header(data_particle, DataParticleType.PPSDN_PARSED)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
 
+    # TODO - need to define status particle values
     def assert_data_particle_status(self, data_particle, verify_values=False):
         """
-        Verify an optaa status data particle
-        @param data_particle: OPTAAA_StatusDataParticle data particle
+        Verify a PPSDN pump status data particle
+        @param data_particle: PPSDN_StatusDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         """
-        # TODO - what are we attempting to test here?
-        # self.assert_data_particle_header(data_particle, DataParticleType.RASFL_STATUS)
+        # self.assert_data_particle_header(data_particle, DataParticleType.PPSDN_STATUS)
         # self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
-
-        # TODO - assert_particle_published is not implemented - is it necessary?
-        # def assert_particle_not_published(self, driver, sample_data, particle_assert_method, verify_values=False):
-        #     try:
-        #         self.assert_particle_published(driver, sample_data, particle_assert_method, verify_values)
-        #     except AssertionError as e:
-        #         if str(e) == "0 != 1":
-        #             return
-        #         else:
-        #             raise e
-        #     else:
-        #         raise IDKException("assert_particle_not_published: particle was published")
 
 
 ###############################################################################
@@ -273,24 +259,24 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         """
         chunker = StringChunker(Protocol.sieve_function)
 
-        self.assert_chunker_sample(chunker, self.RASFL_SAMPLE_DATA1)
-        self.assert_chunker_sample_with_noise(chunker, self.RASFL_SAMPLE_DATA1)
-        self.assert_chunker_fragmented_sample(chunker, self.RASFL_SAMPLE_DATA1)
-        self.assert_chunker_combined_sample(chunker, self.RASFL_SAMPLE_DATA1)
+        self.assert_chunker_sample(chunker, self.PPSDN_SAMPLE_DATA1)
+        self.assert_chunker_sample_with_noise(chunker, self.PPSDN_SAMPLE_DATA1)
+        self.assert_chunker_fragmented_sample(chunker, self.PPSDN_SAMPLE_DATA1)
+        self.assert_chunker_combined_sample(chunker, self.PPSDN_SAMPLE_DATA1)
 
-        self.assert_chunker_sample(chunker, self.RASFL_SAMPLE_DATA2)
-        self.assert_chunker_sample_with_noise(chunker, self.RASFL_SAMPLE_DATA2)
-        self.assert_chunker_fragmented_sample(chunker, self.RASFL_SAMPLE_DATA2)
-        self.assert_chunker_combined_sample(chunker, self.RASFL_SAMPLE_DATA2)
+        self.assert_chunker_sample(chunker, self.PPSDN_SAMPLE_DATA2)
+        self.assert_chunker_sample_with_noise(chunker, self.PPSDN_SAMPLE_DATA2)
+        self.assert_chunker_fragmented_sample(chunker, self.PPSDN_SAMPLE_DATA2)
+        self.assert_chunker_combined_sample(chunker, self.PPSDN_SAMPLE_DATA2)
 
-        self.assert_chunker_sample(chunker, self.RASFL_SAMPLE_DATA3)
-        self.assert_chunker_sample_with_noise(chunker, self.RASFL_SAMPLE_DATA3)
-        self.assert_chunker_fragmented_sample(chunker, self.RASFL_SAMPLE_DATA3)
-        self.assert_chunker_combined_sample(chunker, self.RASFL_SAMPLE_DATA3)
+        self.assert_chunker_sample(chunker, self.PPSDN_SAMPLE_DATA3)
+        self.assert_chunker_sample_with_noise(chunker, self.PPSDN_SAMPLE_DATA3)
+        self.assert_chunker_fragmented_sample(chunker, self.PPSDN_SAMPLE_DATA3)
+        self.assert_chunker_combined_sample(chunker, self.PPSDN_SAMPLE_DATA3)
 
     def test_corrupt_data_sample(self):
         # garbage is not okay
-        particle = PPSDNSampleDataParticle(self.RASFL_SAMPLE_DATA1.replace('00', 'foo'),
+        particle = PPSDNSampleDataParticle(self.PPSDN_SAMPLE_DATA1.replace('00', 'foo'),
                                            port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
@@ -306,13 +292,13 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         self.assert_raw_particle_published(driver, True)
 
         # validating data particles are published
-        self.assert_particle_published(driver, self.RASFL_SAMPLE_DATA1, self.assert_data_particle_sample, True)
+        self.assert_particle_published(driver, self.PPSDN_SAMPLE_DATA1, self.assert_data_particle_sample, True)
 
         # validate that a duplicate sample is not published - TODO
         #self.assert_particle_not_published(driver, self.RASFL_SAMPLE_DATA1, self.assert_data_particle_sample, True)
 
         # validate that a new sample is published
-        self.assert_particle_published(driver, self.RASFL_SAMPLE_DATA2, self.assert_data_particle_sample, False)
+        self.assert_particle_published(driver, self.PPSDN_SAMPLE_DATA2, self.assert_data_particle_sample, False)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -421,15 +407,15 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         Test that we can generate sample particle with command
         """
         self.assert_initialize_driver()
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE,
-                                   driver_timeout=Timeout.get_sample_timeout())
-        self.assert_state_change(ProtocolState.FLUSH, Timeout.get_sample_timeout())
-        self.assert_state_change(ProtocolState.FILL, Timeout.get_sample_timeout())
-        self.assert_state_change(ProtocolState.CLEAR, Timeout.get_sample_timeout())
-        self.assert_state_change(ProtocolState.COMMAND, Timeout.get_sample_timeout())
-        log.debug('--- djm --- checking particle generation')
-        # self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.RASFL_PARSED,
-        #                                 self.assert_data_particle_sample)
+        self.assert_set('flush_volume', 10)
+        self.assert_set('fill_volume', 10)
+        self.assert_set('clear_volume', 10)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE, driver_timeout=ACQUIRE_TIMEOUT)
+        self.assert_state_change(ProtocolState.FLUSH, ACQUIRE_TIMEOUT)
+        self.assert_state_change(ProtocolState.FILL, ACQUIRE_TIMEOUT)
+        self.assert_state_change(ProtocolState.CLEAR, ACQUIRE_TIMEOUT)
+        self.assert_state_change(ProtocolState.COMMAND, ACQUIRE_TIMEOUT)
+        self.assert_async_particle_generation(DataParticleType.PPSDN_PARSED, Mock(), 7)
 
     def test_clear(self):
         """
@@ -437,8 +423,8 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         """
         self.assert_initialize_driver()
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLEAR)
-        self.assert_state_change(ProtocolState.CLEAR, Timeout.get_clear_timeout())
-        self.assert_state_change(ProtocolState.COMMAND, Timeout.get_clear_timeout())
+        self.assert_state_change(ProtocolState.CLEAR, CLEAR_TIMEOUT)
+        self.assert_state_change(ProtocolState.COMMAND, CLEAR_TIMEOUT)
         log.debug('test_clear complete')
 
     @unittest.skip('not completed yet')
@@ -583,7 +569,8 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
     def test_get_capabilities(self):
         """
-        @brief Walk through all driver protocol states and verify capabilities returned by get_current_capabilities
+        @brief Walk through all driver protocol states and verify capabilities
+        returned by get_current_capabilities
         """
         self.assert_enter_command_mode()
 
