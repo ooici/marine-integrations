@@ -38,9 +38,9 @@ from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKe
 from mi.dataset.dataset_driver import DriverParameter
 from mi.dataset.driver.cg_stc_eng.stc.driver import CgStcEngStcDataSetDriver, DataTypeKey
 from mi.dataset.parser.cg_stc_eng_stc import CgStcEngStcParserDataParticle, CgDataParticleType
-from mi.dataset.parser.rte_o_stc import RteODclParserDataParticle, RteDataParticleType
-from mi.dataset.parser.mopak_o_stc import MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle
-from mi.dataset.parser.mopak_o_stc import MopakDataParticleType
+from mi.dataset.parser.rte_o_dcl import RteODclParserDataParticle, RteDataParticleType
+from mi.dataset.parser.mopak_o_dcl import MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle
+from mi.dataset.parser.mopak_o_dcl import MopakDataParticleType
 
 # Fill in driver details
 DataSetTestCase.initialize(

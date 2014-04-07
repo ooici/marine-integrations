@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.test.test_mopak_o_stc
-@file marine-integrations/mi/dataset/parser/test/test_mopak_o_stc.py
+@package mi.dataset.parser.test.test_mopak_o_dcl
+@file marine-integrations/mi/dataset/parser/test/test_mopak_o_dcl.py
 @author Emily Hahn
-@brief Test code for a mopak_o_stc data parser
+@brief Test code for a mopak_o_dcl data parser
 """
 import ntplib
 import struct
@@ -19,13 +19,13 @@ from mi.core.exceptions import SampleException
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.dataset.parser.mopak_o_stc import MopakODclParser, StateKey
-from mi.dataset.parser.mopak_o_stc import MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle
+from mi.dataset.parser.mopak_o_dcl import MopakODclParser, StateKey
+from mi.dataset.parser.mopak_o_dcl import MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle
 
 from mi.idk.config import Config
 RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
-			     'dataset', 'driver', 'MOPAK',
-			     'STC', 'resource')
+			     'dataset', 'driver', 'cg_stc_eng',
+			     'stc', 'resource')
 
 @attr('UNIT', group='mi')
 class MopakODclParserUnitTestCase(ParserUnitTestCase):
@@ -50,7 +50,7 @@ class MopakODclParserUnitTestCase(ParserUnitTestCase):
     def setUp(self):
         ParserUnitTestCase.setUp(self)
         self.config = {
-            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.mopak_o_stc',
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.mopak_o_dcl',
             DataSetDriverConfigKeys.PARTICLE_CLASS: ['MopakODclAccelParserDataParticle',
                                                      'MopakODclRateParserDataParticle']
             }

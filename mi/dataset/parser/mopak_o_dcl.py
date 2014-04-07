@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.mopak_o_stc
-@file marine-integrations/mi/dataset/parser/mopak_o_stc.py
+@package mi.dataset.parser.mopak_o_dcl
+@file marine-integrations/mi/dataset/parser/mopak_o_dcl.py
 @author Emily Hahn
 @brief Parser for the mopak_o_dcl dataset driver
 Release notes:
