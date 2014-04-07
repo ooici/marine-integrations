@@ -41,7 +41,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
-from mi.instrument.um.thsph.thsph.driver import THSPHInstrumentDriver, THSPHDataParticleKey
+from mi.instrument.um.thsph.thsph.driver import InstrumentDriver, THSPHDataParticleKey
 from mi.instrument.um.thsph.thsph.driver import DataParticleType
 from mi.instrument.um.thsph.thsph.driver import Command
 from mi.instrument.um.thsph.thsph.driver import ProtocolState
@@ -98,7 +98,7 @@ GO_ACTIVE_TIMEOUT=180
 ###############################################################################
 class THSPHMixinSub(DriverTestMixin):
 
-    InstrumentDriver = THSPHInstrumentDriver
+    InstrumentDriver = InstrumentDriver
 
     '''
     Mixin class used for storing data particle constants and common data assertion methods.
@@ -114,8 +114,9 @@ class THSPHMixinSub(DriverTestMixin):
     STATES    = ParameterTestConfigKey.STATES
 
     INVALID_SAMPLE  = "This is an invalid sample; it had better cause an exception." + NEWLINE
-    VALID_SAMPLE_01 = "aH200A200720DE20AA10883FFF2211225E#" + NEWLINE
-    VALID_SAMPLE_02 = "aH200A200720E120AB108A3FFF21FF2420#" + NEWLINE
+    VALID_SAMPLE_01 = "aH200A200720DE20AA10883FFF2211225E#"
+    VALID_SAMPLE_02 = "aH200A200720E120AB108A3FFF21FF2420#"
+    #VALID_SAMPLE_02 = "aH200A200720E120AB108A3FFF21FF2420#" + NEWLINE
 
     ###
     #  Parameter and Type Definitions
@@ -261,7 +262,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, THSPHMixinSub):
         Verify sample data passed through the got data method produces the correct data particles
         """
         # Create and initialize the instrument driver with a mock port agent
-        driver = THSPHInstrumentDriver(self._got_data_event_callback)
+        driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
         self.assert_raw_particle_published(driver, True)
@@ -316,9 +317,44 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, THSPHMixinSub):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
+class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, THSPHMixinSub):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
+
+
+    def test_connection(self):
+
+         self.assert_initialize_driver()
+
+
+    def test_data_on(self):
+        """
+        @brief Test for turning data on
+        """
+        self.assert_initialize_driver()
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE,
+                                        DataParticleType.THSPH_PARSED,
+                                        self.assert_particle_sample,
+                                        delay=2)
+
+
+    def test_autosample_on(self):
+        """
+        @brief Test for turning data on
+        """
+        self.assert_initialize_driver()
+        self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE,
+                                        DataParticleType.THSPH_PARSED,
+                                        self.assert_particle_sample,
+                                        delay=2)
+        self.assert_async_particle_generation(DataParticleType.THSPH_PARSED,
+                                                self.assert_particle_sample,
+                                                particle_count=10,
+                                                timeout=12)
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+
+
+
 
 
 
