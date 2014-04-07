@@ -8,6 +8,8 @@ Release notes:
 Driver for NANO TILT on the RSN-BOTPT instrument (v.6)
 
 """
+from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
+from mi.core.instrument.protocol_param_dict import ParameterDictType
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
@@ -24,7 +26,7 @@ log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_fsm import InstrumentFSM
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
+from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver, DriverAsyncEvent, DriverConfigKey
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
@@ -33,23 +35,28 @@ from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
-from mi.instrument.noaa.botpt.driver import BotptProtocol
+from mi.instrument.noaa.botpt.driver import BotptProtocol, BotptStatusParticle
 from mi.instrument.noaa.botpt.driver import NEWLINE
 
-from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import InstrumentTimeoutException, InstrumentProtocolException
 from mi.core.exceptions import SampleException
 
 ###
 #    Driver Constant Definitions
 ###
 
-# newline.
 NANO_STRING = 'NANO,'
 NANO_COMMAND_STRING = '*0100'
 NANO_DATA_ON = 'E4'  # turns on continuous data
 NANO_DATA_OFF = 'E3'  # turns off continuous data
-NANO_DUMP_SETTINGS = '1F'  # outputs current settings
+NANO_DUMP_SETTINGS = 'IF'  # outputs current settings
 NANO_SET_TIME = 'TS'  # Tells the CPU to set the NANO time
+NANO_SET_RATE = '*0100EW*0100TH='
+NANO_RATE_RESPONSE = '*0001TH'
+
+MIN_SAMPLE_RATE = 1
+MAX_SAMPLE_RATE = 40
+DEFAULT_SYNC_INTERVAL = 24 * 60 * 60
 
 
 class ProtocolState(BaseEnum):
@@ -63,6 +70,7 @@ class ProtocolState(BaseEnum):
 
 class ExportedInstrumentCommand(BaseEnum):
     SET_TIME = "EXPORTED_INSTRUMENT_SET_TIME"
+    SET_RATE = "EXPORTED_INSTRUMENT_SET_RATE"
 
 
 class ProtocolEvent(BaseEnum):
@@ -78,6 +86,7 @@ class ProtocolEvent(BaseEnum):
     DISCOVER = DriverEvent.DISCOVER
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
     SET_TIME = ExportedInstrumentCommand.SET_TIME
+    SET_RATE = ExportedInstrumentCommand.SET_RATE
 
 
 class Capability(BaseEnum):
@@ -96,12 +105,18 @@ class Parameter(DriverParameter):
     """
     Device specific parameters.
     """
+    OUTPUT_RATE = 'output_rate_hz'
+    SYNC_INTERVAL = 'time_sync_interval'
 
 
 class Prompt(BaseEnum):
     """
     Device i/o prompts..
     """
+
+
+class ScheduledJob(BaseEnum):
+    SET_TIME = 'scheduled_time_sync'
 
 
 ###############################################################################
@@ -116,7 +131,8 @@ class InstrumentCommand(BaseEnum):
     DATA_ON = NANO_STRING + NANO_COMMAND_STRING + NANO_DATA_ON  # turns on continuous data
     DATA_OFF = NANO_STRING + NANO_COMMAND_STRING + NANO_DATA_OFF  # turns off continuous data
     DUMP_SETTINGS = NANO_STRING + NANO_COMMAND_STRING + NANO_DUMP_SETTINGS  # outputs current settings
-    SET_TIME = NANO_STRING + NANO_SET_TIME  # outputs current settings
+    SET_TIME = NANO_STRING + NANO_SET_TIME  # requests the SBC to update the NANO time
+    SET_RATE = NANO_STRING + NANO_SET_RATE  # sets the sample rate in Hz
 
 
 ###############################################################################
@@ -221,12 +237,196 @@ class NANODataParticle(DataParticle):
         return result
 
 
+class NANOStatusParticleKey(BaseEnum):
+    MODEL_NUMBER = 'model_number'
+    SERIAL_NUMBER = 'serial_number'
+    FIRMWARE_REVISION = 'firmware_revision'
+    FIRMWARE_DATE = 'firmware_date'
+    PPS_STATUS = 'pps_status'
+    AA = 'AA'
+    AC = 'AC'
+    AH = 'AH'
+    AM = 'AM'
+    AP = 'AP'
+    AR = 'AR'
+    BL = 'BL'
+    BR1 = 'BR1'
+    BR2 = 'BR2'
+    BV = 'BV'
+    BX = 'BX'
+    C1 = 'C1'
+    C2 = 'C2'
+    C3 = 'C3'
+    CF = 'CF'
+    CM = 'CM'
+    CS = 'CS'
+    D1 = 'D1'
+    D2 = 'D2'
+    DH = 'DH'
+    DL = 'DL'
+    DM = 'DM'
+    DO = 'DO'
+    DP = 'DP'
+    DZ = 'DZ'
+    EM = 'EM'
+    ET = 'ET'
+    FD = 'FD'
+    FM = 'FM'
+    GD = 'GD'
+    GE = 'GE'
+    GF = 'GF'
+    GP = 'GP'
+    GT = 'GT'
+    IA1 = 'IA1'
+    IA2 = 'IA2'
+    IB = 'IB'
+    ID = 'ID'
+    IE = 'IE'
+    IK = 'IK'
+    IM = 'IM'
+    IS = 'IS'
+    IY = 'IY'
+    KH = 'KH'
+    LH = 'LH'
+    LL = 'LL'
+    M1 = 'M1'
+    M3 = 'M3'
+    MA = 'MA'
+    MD = 'MD'
+    MU = 'MU'
+    MX = 'MX'
+    NO = 'NO'
+    OI = 'OI'
+    OP = 'OP'
+    OR = 'OR'
+    OY = 'OY'
+    OZ = 'OZ'
+    PA = 'PA'
+    PC = 'PC'
+    PF = 'PF'
+    PI = 'PI'
+    PL = 'PL'
+    PM = 'PM'
+    PO = 'PO'
+    PR = 'PR'
+    PS = 'PS'
+    PT = 'PT'
+    PX = 'PX'
+    RE = 'RE'
+    RS = 'RS'
+    RU = 'RU'
+    SD = 'SD'
+    SE = 'SE'
+    SI = 'SI'
+    SK = 'SK'
+    SL = 'SL'
+    SM = 'SM'
+    SP = 'SP'
+    ST = 'ST'
+    SU = 'SU'
+    T1 = 'T1'
+    T2 = 'T2'
+    T3 = 'T3'
+    T4 = 'T4'
+    T5 = 'T5'
+    TC = 'TC'
+    TF = 'TF'
+    TH = 'TH'
+    TI = 'TI'
+    TJ = 'TJ'
+    TP = 'TP'
+    TQ = 'TQ'
+    TR = 'TR'
+    TS = 'TS'
+    TU = 'TU'
+    U0 = 'U0'
+    UE = 'UE'
+    UF = 'UF'
+    UL = 'UL'
+    UM = 'UM'
+    UN = 'UN'
+    US = 'US'
+    VP = 'VP'
+    WI = 'WI'
+    XC = 'XC'
+    XD = 'XD'
+    XM = 'XM'
+    XN = 'XN'
+    XS = 'XS'
+    XX = 'XX'
+    Y1 = 'Y1'
+    Y2 = 'Y2'
+    Y3 = 'Y3'
+    ZE = 'ZE'
+    ZI = 'ZI'
+    ZL = 'ZL'
+    ZM = 'ZM'
+    ZS = 'ZS'
+    ZV = 'ZV'
+
+
 ###############################################################################
 # Status Particles
 ###############################################################################
-class NANOStatus01Particle(DataParticle):
+class NANOStatusParticle(BotptStatusParticle):
     _data_particle_type = DataParticleType.NANO_STATUS
-    nano_status_response = "No response found."
+    _DEFAULT_ENCODER_KEY = int
+    _encoders = {
+        NANOStatusParticleKey.MODEL_NUMBER: unicode,
+        NANOStatusParticleKey.SERIAL_NUMBER: unicode,
+        NANOStatusParticleKey.FIRMWARE_REVISION: unicode,
+        NANOStatusParticleKey.FIRMWARE_DATE: unicode,
+        NANOStatusParticleKey.AA: float,
+        NANOStatusParticleKey.AC: float,
+        NANOStatusParticleKey.AH: float,
+        NANOStatusParticleKey.AR: float,
+        NANOStatusParticleKey.BV: float,
+        NANOStatusParticleKey.C1: float,
+        NANOStatusParticleKey.C2: float,
+        NANOStatusParticleKey.C3: float,
+        NANOStatusParticleKey.CF: unicode,
+        NANOStatusParticleKey.D1: float,
+        NANOStatusParticleKey.D2: float,
+        NANOStatusParticleKey.DH: float,
+        NANOStatusParticleKey.DZ: float,
+        NANOStatusParticleKey.FD: float,
+        NANOStatusParticleKey.GP: unicode,
+        NANOStatusParticleKey.LH: float,
+        NANOStatusParticleKey.LL: float,
+        NANOStatusParticleKey.M1: float,
+        NANOStatusParticleKey.M3: float,
+        NANOStatusParticleKey.MA: unicode,
+        NANOStatusParticleKey.MU: unicode,
+        NANOStatusParticleKey.OP: float,
+        NANOStatusParticleKey.OR: float,
+        NANOStatusParticleKey.OY: float,
+        NANOStatusParticleKey.PA: float,
+        NANOStatusParticleKey.PC: float,
+        NANOStatusParticleKey.PF: float,
+        NANOStatusParticleKey.PL: float,
+        NANOStatusParticleKey.PM: float,
+        NANOStatusParticleKey.PT: unicode,
+        NANOStatusParticleKey.SI: unicode,
+        NANOStatusParticleKey.SM: unicode,
+        NANOStatusParticleKey.T1: float,
+        NANOStatusParticleKey.T2: float,
+        NANOStatusParticleKey.T3: float,
+        NANOStatusParticleKey.T4: float,
+        NANOStatusParticleKey.T5: float,
+        NANOStatusParticleKey.TC: float,
+        NANOStatusParticleKey.TF: float,
+        NANOStatusParticleKey.TH: unicode,
+        NANOStatusParticleKey.U0: float,
+        NANOStatusParticleKey.UF: float,
+        NANOStatusParticleKey.UL: unicode,
+        NANOStatusParticleKey.UM: unicode,
+        NANOStatusParticleKey.WI: unicode,
+        NANOStatusParticleKey.XD: unicode,
+        NANOStatusParticleKey.Y1: float,
+        NANOStatusParticleKey.Y2: float,
+        NANOStatusParticleKey.Y3: float,
+        NANOStatusParticleKey.ZV: float,
+    }
 
     @staticmethod
     def regex():
@@ -273,32 +473,141 @@ class NANOStatus01Particle(DataParticle):
         NANO,*Y3:.0000000     ZE:0            ZI:0            ZL:0            
         NANO,*ZM:0            ZS:0            ZV:.0000000     
         """
-
-        pattern = r'NANO,\*----.*' + NEWLINE  # pattern starts with NANO '
-        pattern += r'NANO,\*PAROSCIENTIFIC SMT SYSTEM INFORMATION.*' + NEWLINE
-        pattern += r'NANO,.*ZM.*' + NEWLINE
-        return pattern
+        return r'(NANO,\*_.*ZV:\s*?\S*)'
 
     @staticmethod
     def regex_compiled():
-        return re.compile(NANOStatus01Particle.regex(), re.DOTALL)
+        return re.compile(NANOStatusParticle.regex(), re.DOTALL)
 
-    def _build_parsed_values(self):
-        pass
-
-    def build_response(self):
-        """
-        build the response to the command that initiated this status.  In this 
-        case just assign the string to the nano_status_response.  In the   
-        future, we might want to cook the string, as in remove some
-        of the other sensor's chunks.
-        
-        The nano_status_response is pulled out later when do_cmd_resp calls
-        the response handler.  The response handler gets passed the particle
-        object, and it then uses that to access the objects attribute that
-        contains the response string.
-        """
-        self.nano_status_response = self.raw_data
+    @classmethod
+    def _regex_multiline(cls):
+        return {
+            NANOStatusParticleKey.MODEL_NUMBER: r'Model Number: \S+',
+            NANOStatusParticleKey.SERIAL_NUMBER: r'Serial Number: \S+',
+            NANOStatusParticleKey.FIRMWARE_REVISION: r'Firmware Revision: \S+',
+            NANOStatusParticleKey.FIRMWARE_DATE: r'Firmware Release Date: \S+',
+            NANOStatusParticleKey.PPS_STATUS: r'PPS status: .+',
+            NANOStatusParticleKey.AA: r'AA:(\S*)',
+            NANOStatusParticleKey.AC: r'AC:(\S*)',
+            NANOStatusParticleKey.AH: r'AH:(\S*)',
+            NANOStatusParticleKey.AM: r'AM:(\S*)',
+            NANOStatusParticleKey.AP: r'AP:(\S*)',
+            NANOStatusParticleKey.AR: r'AR:(\S*)',
+            NANOStatusParticleKey.BL: r'BL:(\S*)',
+            NANOStatusParticleKey.BR1: r'BR1:(\S*)',
+            NANOStatusParticleKey.BR2: r'BR2:(\S*)',
+            NANOStatusParticleKey.BV: r'BV:(\S*)',
+            NANOStatusParticleKey.BX: r'BX:(\S*)',
+            NANOStatusParticleKey.C1: r'C1:(\S*)',
+            NANOStatusParticleKey.C2: r'C2:(\S*)',
+            NANOStatusParticleKey.C3: r'C3:(\S*)',
+            NANOStatusParticleKey.CF: r'CF:(\S*)',
+            NANOStatusParticleKey.CM: r'CM:(\S*)',
+            NANOStatusParticleKey.CS: r'CS:(\S*)',
+            NANOStatusParticleKey.D1: r'D1:(\S*)',
+            NANOStatusParticleKey.D2: r'D2:(\S*)',
+            NANOStatusParticleKey.DH: r'DH:(\S*)',
+            NANOStatusParticleKey.DL: r'DL:(\S*)',
+            NANOStatusParticleKey.DM: r'DM:(\S*)',
+            NANOStatusParticleKey.DO: r'DO:(\S*)',
+            NANOStatusParticleKey.DP: r'DP:(\S*)',
+            NANOStatusParticleKey.DZ: r'DZ:(\S*)',
+            NANOStatusParticleKey.EM: r'EM:(\S*)',
+            NANOStatusParticleKey.ET: r'ET:(\S*)',
+            NANOStatusParticleKey.FD: r'FD:(\S*)',
+            NANOStatusParticleKey.FM: r'FM:(\S*)',
+            NANOStatusParticleKey.GD: r'GD:(\S*)',
+            NANOStatusParticleKey.GE: r'GE:(\S*)',
+            NANOStatusParticleKey.GF: r'GF:(\S*)',
+            NANOStatusParticleKey.GP: r'GP:(\S*)',
+            NANOStatusParticleKey.GT: r'GT:(\S*)',
+            NANOStatusParticleKey.IA1: r'IA1:(\S*)',
+            NANOStatusParticleKey.IA2: r'IA2:(\S*)',
+            NANOStatusParticleKey.IB: r'IB:(\S*)',
+            NANOStatusParticleKey.ID: r'ID:(\S*)',
+            NANOStatusParticleKey.IE: r'IE:(\S*)',
+            NANOStatusParticleKey.IK: r'IK:(\S*)',
+            NANOStatusParticleKey.IM: r'IM:(\S*)',
+            NANOStatusParticleKey.IS: r'IS:(\S*)',
+            NANOStatusParticleKey.IY: r'IY:(\S*)',
+            NANOStatusParticleKey.KH: r'KH:(\S*)',
+            NANOStatusParticleKey.LH: r'LH:(\S*)',
+            NANOStatusParticleKey.LL: r'LL:(\S*)',
+            NANOStatusParticleKey.M1: r'M1:(\S*)',
+            NANOStatusParticleKey.M3: r'M3:(\S*)',
+            NANOStatusParticleKey.MA: r'MA:(\S*)',
+            NANOStatusParticleKey.MD: r'MD:(\S*)',
+            NANOStatusParticleKey.MU: r'MU:(\S*)',
+            NANOStatusParticleKey.MX: r'MX:(\S*)',
+            NANOStatusParticleKey.NO: r'NO:(\S*)',
+            NANOStatusParticleKey.OI: r'OI:(\S*)',
+            NANOStatusParticleKey.OP: r'OP:(\S*)',
+            NANOStatusParticleKey.OR: r'OR:(\S*)',
+            NANOStatusParticleKey.OY: r'OY:(\S*)',
+            NANOStatusParticleKey.OZ: r'OZ:(\S*)',
+            NANOStatusParticleKey.PA: r'PA:(\S*)',
+            NANOStatusParticleKey.PC: r'PC:(\S*)',
+            NANOStatusParticleKey.PF: r'PF:(\S*)',
+            NANOStatusParticleKey.PI: r'PI:(\S*)',
+            NANOStatusParticleKey.PL: r'PL:(\S*)',
+            NANOStatusParticleKey.PM: r'PM:(\S*)',
+            NANOStatusParticleKey.PO: r'PO:(\S*)',
+            NANOStatusParticleKey.PR: r'PR:(\S*)',
+            NANOStatusParticleKey.PS: r'PS:(\S*)',
+            NANOStatusParticleKey.PT: r'PT:(\S*)',
+            NANOStatusParticleKey.PX: r'PX:(\S*)',
+            NANOStatusParticleKey.RE: r'RE:(\S*)',
+            NANOStatusParticleKey.RS: r'RS:(\S*)',
+            NANOStatusParticleKey.RU: r'RU:(\S*)',
+            NANOStatusParticleKey.SD: r'SD:(\S*)',
+            NANOStatusParticleKey.SE: r'SE:(\S*)',
+            NANOStatusParticleKey.SI: r'SI:(\S*)',
+            NANOStatusParticleKey.SK: r'SK:(\S*)',
+            NANOStatusParticleKey.SL: r'SL:(\S*)',
+            NANOStatusParticleKey.SM: r'SM:(\S*)',
+            NANOStatusParticleKey.SP: r'SP:(\S*)',
+            NANOStatusParticleKey.ST: r'ST:(\S*)',
+            NANOStatusParticleKey.SU: r'SU:(\S*)',
+            NANOStatusParticleKey.T1: r'T1:(\S*)',
+            NANOStatusParticleKey.T2: r'T2:(\S*)',
+            NANOStatusParticleKey.T3: r'T3:(\S*)',
+            NANOStatusParticleKey.T4: r'T4:(\S*)',
+            NANOStatusParticleKey.T5: r'T5:(\S*)',
+            NANOStatusParticleKey.TC: r'TC:(\S*)',
+            NANOStatusParticleKey.TF: r'TF:(\S*)',
+            NANOStatusParticleKey.TH: r'TH:(\S*)',
+            NANOStatusParticleKey.TI: r'TI:(\S*)',
+            NANOStatusParticleKey.TJ: r'TJ:(\S*)',
+            NANOStatusParticleKey.TP: r'TP:(\S*)',
+            NANOStatusParticleKey.TQ: r'TQ:(\S*)',
+            NANOStatusParticleKey.TR: r'TR:(\S*)',
+            NANOStatusParticleKey.TS: r'TS:(\S*)',
+            NANOStatusParticleKey.TU: r'TU:(\S*)',
+            NANOStatusParticleKey.U0: r'U0:(\S*)',
+            NANOStatusParticleKey.UE: r'UE:(\S*)',
+            NANOStatusParticleKey.UF: r'UF:(\S*)',
+            NANOStatusParticleKey.UL: r'UL:(\S*)',
+            NANOStatusParticleKey.UM: r'UM:(\S*)',
+            NANOStatusParticleKey.UN: r'UN:(\S*)',
+            NANOStatusParticleKey.US: r'US:(\S*)',
+            NANOStatusParticleKey.VP: r'VP:(\S*)',
+            NANOStatusParticleKey.WI: r'WI:(\S*)',
+            NANOStatusParticleKey.XC: r'XC:(\S*)',
+            NANOStatusParticleKey.XD: r'XD:(\S*)',
+            NANOStatusParticleKey.XM: r'XM:(\S*)',
+            NANOStatusParticleKey.XN: r'XN:(\S*)',
+            NANOStatusParticleKey.XS: r'XS:(\S*)',
+            NANOStatusParticleKey.XX: r'XX:(\S*)',
+            NANOStatusParticleKey.Y1: r'Y1:(\S*)',
+            NANOStatusParticleKey.Y2: r'Y2:(\S*)',
+            NANOStatusParticleKey.Y3: r'Y3:(\S*)',
+            NANOStatusParticleKey.ZE: r'ZE:(\S*)',
+            NANOStatusParticleKey.ZI: r'ZI:(\S*)',
+            NANOStatusParticleKey.ZL: r'ZL:(\S*)',
+            NANOStatusParticleKey.ZM: r'ZM:(\S*)',
+            NANOStatusParticleKey.ZS: r'ZS:(\S*)',
+            NANOStatusParticleKey.ZV: r'ZV:(\S*)',
+        }
 
 
 ###############################################################################
@@ -337,7 +646,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
 
 
-# noinspection PyMethodMayBeStatic
+# noinspection PyMethodMayBeStatic,PyUnusedLocal
 class Protocol(BotptProtocol):
     """
     Instrument protocol class
@@ -396,11 +705,12 @@ class Protocol(BotptProtocol):
         self._add_build_handler(InstrumentCommand.DATA_OFF, self._build_command)
         self._add_build_handler(InstrumentCommand.DUMP_SETTINGS, self._build_command)
         self._add_build_handler(InstrumentCommand.SET_TIME, self._build_command)
+        self._add_build_handler(InstrumentCommand.SET_RATE, self._build_rate_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCommand.DATA_ON, self._parse_data_on_off_resp)
         self._add_response_handler(InstrumentCommand.DATA_OFF, self._parse_data_on_off_resp)
-        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS, self._parse_status_01_resp)
+        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS, self._parse_dump_settings_resp)
 
         # Add sample handlers.
 
@@ -415,9 +725,31 @@ class Protocol(BotptProtocol):
 
         # set up the regexes now so we don't have to do it repeatedly
         self.data_regex = NANODataParticle.regex_compiled()
-        self.status_01_regex = NANOStatus01Particle.regex_compiled()
+        self.status_01_regex = NANOStatusParticle.regex_compiled()
         self._last_data_timestamp = 0
         self._filter_string = NANO_STRING
+        self.initialize_scheduler()
+
+    def _config_scheduler(self):
+        job_name = ScheduledJob.SET_TIME
+        config = {
+            DriverConfigKey.SCHEDULER: {
+                job_name: {
+                    DriverSchedulerConfigKey.TRIGGER: {
+                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                        DriverSchedulerConfigKey.SECONDS: self._param_dict.get(Parameter.SYNC_INTERVAL)
+                    },
+                }
+            }
+        }
+        if self._scheduler is not None:
+            try:
+                self._remove_scheduler(ScheduledJob.SET_TIME)
+            except KeyError:
+                log.debug("_remove_scheduler could not find: %s", ScheduledJob.SET_TIME)
+
+        self.set_init_params(config)
+        self._add_scheduler_event(ScheduledJob.SET_TIME, ProtocolEvent.SET_TIME)
 
     @staticmethod
     def sieve_function(raw_data):
@@ -429,7 +761,7 @@ class Protocol(BotptProtocol):
         return_list = []
 
         matchers.append(NANODataParticle.regex_compiled())
-        matchers.append(NANOStatus01Particle.regex_compiled())
+        matchers.append(NANOStatusParticle.regex_compiled())
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
@@ -458,7 +790,25 @@ class Protocol(BotptProtocol):
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
-        pass
+        self._param_dict.add(Parameter.OUTPUT_RATE,
+                             'TH:(\d+)',
+                             lambda x: int(x.group(1)),
+                             int,
+                             type=ParameterDictType.INT,
+                             display_name='NANO pressure sensor output rate (Hz)',
+                             default_value=40)
+        self._param_dict.add(Parameter.SYNC_INTERVAL,
+                             'None - Not Applicable',
+                             None,
+                             int,
+                             type=ParameterDictType.INT,
+                             display_name='NANO time sync interval, in seconds',
+                             default_value=DEFAULT_SYNC_INTERVAL)
+        self._param_dict.set_value(Parameter.OUTPUT_RATE, 40)
+        self._param_dict.set_value(Parameter.SYNC_INTERVAL, DEFAULT_SYNC_INTERVAL)
+
+    def _build_rate_command(self, cmd, *args, **kwargs):
+        return '%s%d%s' % (cmd, self._param_dict.get(Parameter.OUTPUT_RATE), NEWLINE)
 
     def _got_chunk(self, chunk, timestamp):
         """
@@ -466,19 +816,21 @@ class Protocol(BotptProtocol):
         # TODO docstring
         log.debug("_got_chunk_: %s", chunk)
         if not (self._extract_sample(NANODataParticle, NANODataParticle.regex_compiled(), chunk, timestamp) or
-                    self._extract_sample(NANOStatus01Particle, NANOStatus01Particle.regex_compiled(), chunk,
-                                         timestamp)):
-            pass
+                    self._extract_sample(NANOStatusParticle, NANOStatusParticle.regex_compiled(), chunk, timestamp)):
+            raise InstrumentProtocolException('unhandled chunk: %r', chunk)
 
     def _parse_data_on_off_resp(self, response, prompt):
         log.debug("_parse_data_on_off_resp: response: %r; prompt: %s", response, prompt)
-        #return response.nano_command_response
-        return
 
-    def _parse_status_01_resp(self, response, prompt):
-        log.debug("_parse_status_01_resp: response: %r; prompt: %s", response, prompt)
-        #return response.nano_status_response
-        return
+    def _parse_dump_settings_resp(self, response, prompt):
+        log.debug("_parse_dump_settings_resp: response: %r; prompt: %s", response, prompt)
+        if self.get_current_state() == ProtocolState.UNKNOWN:
+            self._param_dict.update(response)
+        else:
+            old_config = self._param_dict.get_config()
+            self._param_dict.update(response)
+            if old_config != self._param_dict.get_config():
+                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     ########################################################################
     # Unknown handlers.
@@ -505,11 +857,35 @@ class Protocol(BotptProtocol):
         # timed out, assume command
         except InstrumentTimeoutException:
             pass
+
+        # Verify scheduled job exists for daily time sync
+        # If not, request an immediate sync, then schedule the next one
+        scheduler_config = self._get_scheduler_config()
+        log.debug('scheduler_config: %r', scheduler_config)
+        if scheduler_config is None:
+            self._handler_command_autosample_set_time()
+            # setting the time starts autosampling.  If next_state is COMMAND, stop it.
+            if next_state == ProtocolState.COMMAND:
+                self._handler_autosample_stop_autosample()
+            self._config_scheduler()
+        # Acquire the configuration to populate the config dict
+        self._handler_command_autosample_acquire_status()
+
         return next_state, (next_agent_state, result)
 
     ########################################################################
     # Autosample handlers.
     ########################################################################
+
+    def _handler_autosample_enter(self, *args, **kwargs):
+        """
+        Enter autosample state
+        """
+        log.debug("_handler_autosample_enter")
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_autosample_stop_autosample(self):
         """
@@ -517,9 +893,17 @@ class Protocol(BotptProtocol):
         """
         return self._handler_command_generic(InstrumentCommand.DATA_OFF,
                                              ProtocolState.COMMAND,
-                                             ResourceAgentState.COMMAND,
-                                             None,
-                                             expected_prompt=None)
+                                             ResourceAgentState.COMMAND)
+
+    ########################################################################
+    # Unknown handlers.
+    ########################################################################
+
+    def _handler_unknown_exit(self, *args, **kwargs):
+        """
+        Exit unknown state.
+        """
+        log.debug("_handler_unknown_exit")
 
     ########################################################################
     # Command handlers.
@@ -529,20 +913,72 @@ class Protocol(BotptProtocol):
         """
         Get parameter
         """
+        log.debug("_handler_command_get")
 
         next_state = None
-        result = {}
+
+        param_list = args[0]
+        if param_list == Parameter.ALL:
+            result = self._param_dict.get_all()
+        else:
+            result = {}
+
+            for param in param_list:
+                if param not in self._param_dict.get_keys():
+                    raise InstrumentProtocolException("Unknown parameter: %s" % param)
+                else:
+                    value = self._param_dict.get(param)
+                    log.debug('Adding parameter %s, value %s to result of _get', param, value)
+                    result[param] = value
 
         return next_state, result
 
     def _handler_command_set(self, *args, **kwargs):
         """
-        Set parameter
+        Set parameter.  NANO only has one parameter, Parameter.OUTPUT_RATE
         """
+        log.debug("_handler_command_set")
+
         next_state = None
         result = None
+        found = False
+        rate_change = False
+        sync_change = False
 
-        params = args[0]
+        input_params = args[0]
+        log.debug('input_params: %r', input_params)
+
+        for key, value in input_params.items():
+            if not Parameter.has(key):
+                raise InstrumentProtocolException('Invalid parameter supplied to set: %s' % key)
+
+            try:
+                value = int(value)
+            except TypeError:
+                raise InstrumentProtocolException('Invalid value [%s] for parameter %s' % (value, key))
+
+            if key == Parameter.OUTPUT_RATE:
+                if value < MIN_SAMPLE_RATE or value > MAX_SAMPLE_RATE:
+                    raise InstrumentProtocolException('Invalid sample rate: %s' % value)
+                rate_change = True
+            if key == Parameter.SYNC_INTERVAL:
+                sync_change = True
+            # Did the value change?
+            old_value = self._param_dict.get(key)
+            if value == old_value:
+                log.info('Parameter %s already %s, not changing', key, value)
+            else:
+                log.info('Setting parameter %s to %s', key, value)
+                self._param_dict.set_value(key, value)
+                found = True
+        if found:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+            if rate_change:
+                self._handler_command_generic(InstrumentCommand.SET_RATE,
+                                              None, None,
+                                              expected_prompt=NANO_RATE_RESPONSE)
+            if sync_change:
+                self._config_scheduler()
 
         return next_state, result
 
@@ -553,8 +989,7 @@ class Protocol(BotptProtocol):
         return self._handler_command_generic(InstrumentCommand.DATA_ON,
                                              ProtocolState.AUTOSAMPLE,
                                              ResourceAgentState.STREAMING,
-                                             None,
-                                             expected_prompt=None)
+                                             expected_prompt=NANO_STRING)
 
     ########################################################################
     # Handlers common to Command and Autosample States.
@@ -565,11 +1000,12 @@ class Protocol(BotptProtocol):
         Get device status
         """
         return self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS,
-                                             None, None, None, None)
+                                             None, None,
+                                             response_regex=NANOStatusParticle.regex_compiled())
 
     def _handler_command_autosample_set_time(self, *args, **kwargs):
         """
-        Get device status
+        Request the SBC to update the NANO time
         """
         next_state = None
         next_agent_state = None
@@ -577,12 +1013,12 @@ class Protocol(BotptProtocol):
         log.debug("_handler_command_autosample_set_time")
 
         timeout = kwargs.get('timeout')
-
-        if timeout is None:
-            result = self._do_cmd_resp(InstrumentCommand.SET_TIME)
-        else:
-            result = self._do_cmd_resp(InstrumentCommand.SET_TIME, timeout=timeout)
-
-        log.debug("SET_TIME response: %s", result)
+        self._handler_command_generic(InstrumentCommand.SET_TIME,
+                                      None, None,
+                                      expected_prompt='*0001GR')
+        # setting the time starts autosampling!
+        # stop if we're actually in the command state.
+        if self.get_current_state() == ProtocolState.COMMAND:
+            self._handler_autosample_stop_autosample()
 
         return next_state, (next_agent_state, result)

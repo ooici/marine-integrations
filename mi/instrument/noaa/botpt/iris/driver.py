@@ -406,16 +406,12 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.EXIT, self._handler_autosample_exit),
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
-                (ProtocolEvent.DUMP_01, self._handler_command_autosample_dump01),
-                (ProtocolEvent.DUMP_02, self._handler_command_autosample_dump02),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
                 (ProtocolEvent.EXIT, self._handler_command_exit),
                 (ProtocolEvent.GET, self._handler_command_get),
                 (ProtocolEvent.SET, self._handler_command_set),
-                (ProtocolEvent.DUMP_01, self._handler_command_autosample_dump01),
-                (ProtocolEvent.DUMP_02, self._handler_command_autosample_dump02),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
@@ -443,10 +439,10 @@ class Protocol(BotptProtocol):
             self._add_build_handler(command, self._build_command)
 
         # Add response handlers for device commands.
-        self._add_response_handler(InstrumentCommand.DATA_ON, self._data_on_resp_handler)
-        self._add_response_handler(InstrumentCommand.DATA_OFF, self._data_off_resp_handler)
-        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_01, self._dump01_resp_handler)
-        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_02, self._dump02_resp_handler)
+        self._add_response_handler(InstrumentCommand.DATA_ON, self._resp_handler)
+        self._add_response_handler(InstrumentCommand.DATA_OFF, self._resp_handler)
+        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_01, self._resp_handler)
+        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_02, self._resp_handler)
 
         # Add sample handlers.
 
@@ -515,25 +511,9 @@ class Protocol(BotptProtocol):
         else:
             raise InstrumentProtocolException('Unhandled chunk')
 
-    def _data_on_resp_handler(self, response, prompt):
-        log.debug('response: %r prompt: %r', response, prompt)
-        if response.endswith(IRIS_DATA_ON):
-            return response
-
-    def _data_off_resp_handler(self, response, prompt):
-        log.debug('response: %r prompt: %r', response, prompt)
-        if response.endswith(IRIS_DATA_OFF):
-            return response
-
-    def _dump01_resp_handler(self, response, prompt):
-        log.debug('response: %r prompt: %r', response, prompt)
-        if response.endswith(IRIS_DUMP_01):
-            return response
-
-    def _dump02_resp_handler(self, response, prompt):
-        log.debug('response: %r prompt: %r', response, prompt)
-        if response.endswith(IRIS_DUMP_02):
-            return response
+    def _resp_handler(self, response, prompt):
+        print response, prompt
+        return response
 
     ########################################################################
     # Unknown handlers.
@@ -561,12 +541,9 @@ class Protocol(BotptProtocol):
         """
         Turn the iris data off
         """
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        result = self._do_cmd_resp(InstrumentCommand.DATA_OFF, expected_prompt=IRIS_DATA_OFF)
-
-        return next_state, (next_agent_state, result)
+        return self._handler_command_generic(InstrumentCommand.DATA_OFF,
+                                             ProtocolState.COMMAND, ResourceAgentState.COMMAND,
+                                             expected_prompt=IRIS_DATA_OFF)
 
     ########################################################################
     # Command handlers.
@@ -576,13 +553,9 @@ class Protocol(BotptProtocol):
         """
         Turn the iris data on
         """
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-
-        # call _do_cmd_resp, passing our IRIS_DATA_ON as the expected_prompt
-        result = self._do_cmd_resp(InstrumentCommand.DATA_ON, expected_prompt=IRIS_DATA_ON)
-
-        return next_state, (next_agent_state, result)
+        return self._handler_command_generic(InstrumentCommand.DATA_ON,
+                                             ProtocolState.AUTOSAMPLE, ResourceAgentState.STREAMING,
+                                             expected_prompt=IRIS_DATA_ON)
 
     ########################################################################
     # Handlers common to Command and Autosample States.
@@ -592,43 +565,10 @@ class Protocol(BotptProtocol):
         """
         Get device status
         """
-        next_state = None
-        next_agent_state = None
-        result = None
         log.debug("_handler_command_autosample_acquire_status")
-        result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_01)
-        log.debug("DUMP_SETTINGS_01 response: %r", result)
-        result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_02)
-        log.debug("DUMP_SETTINGS_02 response: %r", result)
-
-        return next_state, (next_agent_state, result)
-
-    def _handler_command_autosample_dump01(self, *args, **kwargs):
-        """
-        Get device status
-        """
-        next_state = None
-        next_agent_state = None
-        result = None
-        log.debug("_handler_command_autosample_dump01")
-
-        result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_01, expected_prompt=IRIS_DUMP_01)
-
-        log.debug("DUMP_SETTINGS_01 response: %r", result)
-
-        return next_state, (next_agent_state, result)
-
-    def _handler_command_autosample_dump02(self, *args, **kwargs):
-        """
-        Get device status
-        """
-        next_state = None
-        next_agent_state = None
-        result = None
-        log.debug("_handler_command_autosample_dump02")
-
-        result = self._do_cmd_resp(InstrumentCommand.DUMP_SETTINGS_02, expected_prompt=IRIS_DUMP_02)
-
-        log.debug("DUMP_SETTINGS_02 response: %r", result)
-
-        return next_state, (next_agent_state, result)
+        result = self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_01,
+                                               None, None, expected_prompt=IRIS_DUMP_01)
+        r_string = str(result[1][1])
+        result = self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_02,
+                                               None, None, expected_prompt=IRIS_DUMP_02)
+        return None, (None, r_string + str(result[1][1]))

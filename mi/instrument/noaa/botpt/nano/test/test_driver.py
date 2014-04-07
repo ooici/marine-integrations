@@ -12,12 +12,13 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
+import time
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 from nose.plugins.attrib import attr
-from mock import Mock, call
+from mock import Mock
 
 from mi.core.log import get_logger
 
@@ -37,7 +38,7 @@ from mi.core.instrument.port_agent_client import PortAgentPacket
 
 from mi.core.instrument.chunker import StringChunker
 
-from mi.instrument.noaa.botpt.nano.driver import InstrumentDriver
+from mi.instrument.noaa.botpt.nano.driver import InstrumentDriver, NANOStatusParticleKey, NANO_STRING
 from mi.instrument.noaa.botpt.nano.driver import DataParticleType
 from mi.instrument.noaa.botpt.nano.driver import NANODataParticleKey
 from mi.instrument.noaa.botpt.nano.driver import NANODataParticle
@@ -101,7 +102,7 @@ BOTPT_FIREHOSE_01 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 SET_TIME_RESPONSE = "NANO,*0001GR=08/28/13 18:15:15" + NEWLINE
 
 DUMP_STATUS = \
-    "NANO,*--------------------------------------------------------------" + NEWLINE + \
+    "NANO,*______________________________________________________________" + NEWLINE + \
     "NANO,*PAROSCIENTIFIC SMT SYSTEM INFORMATION" + NEWLINE + \
     "NANO,*Model Number: 42.4K-265" + NEWLINE + \
     "NANO,*Serial Number: 120785" + NEWLINE + \
@@ -139,7 +140,7 @@ DUMP_STATUS = \
     "NANO,*XC:8            XD:A            XM:1            XN:0" + NEWLINE + \
     "NANO,*XS:0011         XX:1            Y1:-3818.141    Y2:-10271.53" + NEWLINE + \
     "NANO,*Y3:.0000000     ZE:0            ZI:0            ZL:0" + NEWLINE + \
-    "NANO,*ZM:0            ZS:0            ZV:.0000000" + NEWLINE
+    "NANO,*ZM:0            ZS:0            ZV:.0000000"
 
 
 ###############################################################################
@@ -182,38 +183,153 @@ class NANOTestMixinSub(DriverTestMixin):
         NANODataParticleKey.PPS_SYNC: {TYPE: bool, VALUE: True, REQUIRED: True},
     }
 
-    def assert_particle_sample_01(self, data_particle, verify_values=False):
+    _status_parameters = {
+        NANOStatusParticleKey.MODEL_NUMBER: {TYPE: unicode, VALUE: u'42.4K-265', REQUIRED: True},
+        NANOStatusParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: u'120785', REQUIRED: True},
+        NANOStatusParticleKey.FIRMWARE_REVISION: {TYPE: unicode, VALUE: u'R5.20', REQUIRED: True},
+        NANOStatusParticleKey.FIRMWARE_DATE: {TYPE: unicode, VALUE: u'03-25-13', REQUIRED: True},
+        NANOStatusParticleKey.PPS_STATUS: {TYPE: unicode, VALUE: u'V : PPS signal NOT detected.', REQUIRED: True},
+        NANOStatusParticleKey.AA: {TYPE: float, VALUE: 7.1618, REQUIRED: True},
+        NANOStatusParticleKey.AC: {TYPE: float, VALUE: 7.29, REQUIRED: True},
+        NANOStatusParticleKey.AH: {TYPE: float, VALUE: 160.0, REQUIRED: True},
+        NANOStatusParticleKey.AM: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.AP: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.AR: {TYPE: float, VALUE: 160.0, REQUIRED: True},
+        NANOStatusParticleKey.BL: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.BR1: {TYPE: int, VALUE: 115200, REQUIRED: True},
+        NANOStatusParticleKey.BR2: {TYPE: int, VALUE: 115200, REQUIRED: True},
+        NANOStatusParticleKey.BV: {TYPE: float, VALUE: 10.9, REQUIRED: True},
+        NANOStatusParticleKey.BX: {TYPE: int, VALUE: 112, REQUIRED: True},
+        NANOStatusParticleKey.C1: {TYPE: float, VALUE: -9747.897, REQUIRED: True},
+        NANOStatusParticleKey.C2: {TYPE: float, VALUE: 288.5739, REQUIRED: True},
+        NANOStatusParticleKey.C3: {TYPE: float, VALUE: 27200.78, REQUIRED: True},
+        NANOStatusParticleKey.CF: {TYPE: unicode, VALUE: u'BA0F', REQUIRED: True},
+        NANOStatusParticleKey.CM: {TYPE: int, VALUE: 4, REQUIRED: True},
+        NANOStatusParticleKey.CS: {TYPE: int, VALUE: 7412, REQUIRED: True},
+        NANOStatusParticleKey.D1: {TYPE: float, VALUE: 0.0572567, REQUIRED: True},
+        NANOStatusParticleKey.D2: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        NANOStatusParticleKey.DH: {TYPE: float, VALUE: 2000.0, REQUIRED: True},
+        NANOStatusParticleKey.DL: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.DM: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.DO: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.DP: {TYPE: int, VALUE: 6, REQUIRED: True},
+        NANOStatusParticleKey.DZ: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        NANOStatusParticleKey.EM: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.ET: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.FD: {TYPE: float, VALUE: 0.153479, REQUIRED: True},
+        NANOStatusParticleKey.FM: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.GD: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.GE: {TYPE: int, VALUE: 2, REQUIRED: True},
+        NANOStatusParticleKey.GF: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.GP: {TYPE: unicode, VALUE: u':', REQUIRED: True},
+        NANOStatusParticleKey.GT: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NANOStatusParticleKey.IA1: {TYPE: int, VALUE: 8, REQUIRED: True},
+        NANOStatusParticleKey.IA2: {TYPE: int, VALUE: 12, REQUIRED: True},
+        NANOStatusParticleKey.IB: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.ID: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NANOStatusParticleKey.IE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.IK: {TYPE: int, VALUE: 46, REQUIRED: True},
+        NANOStatusParticleKey.IM: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.IS: {TYPE: int, VALUE: 5, REQUIRED: True},
+        NANOStatusParticleKey.IY: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.KH: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.LH: {TYPE: float, VALUE: 2250.0, REQUIRED: True},
+        NANOStatusParticleKey.LL: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        NANOStatusParticleKey.M1: {TYPE: float, VALUE: 13.880032, REQUIRED: True},
+        NANOStatusParticleKey.M3: {TYPE: float, VALUE: 14.090198, REQUIRED: True},
+        NANOStatusParticleKey.MA: {TYPE: unicode, VALUE: u'', REQUIRED: True},
+        NANOStatusParticleKey.MD: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.MU: {TYPE: unicode, VALUE: u'', REQUIRED: True},
+        NANOStatusParticleKey.MX: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.NO: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.OI: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.OP: {TYPE: float, VALUE: 2100.0, REQUIRED: True},
+        NANOStatusParticleKey.OR: {TYPE: float, VALUE: 1.0, REQUIRED: True},
+        NANOStatusParticleKey.OY: {TYPE: float, VALUE: 1.0, REQUIRED: True},
+        NANOStatusParticleKey.OZ: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.PA: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        NANOStatusParticleKey.PC: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        NANOStatusParticleKey.PF: {TYPE: float, VALUE: 2000.0, REQUIRED: True},
+        NANOStatusParticleKey.PI: {TYPE: int, VALUE: 25, REQUIRED: True},
+        NANOStatusParticleKey.PL: {TYPE: float, VALUE: 2400.0, REQUIRED: True},
+        NANOStatusParticleKey.PM: {TYPE: float, VALUE: 1.0, REQUIRED: True},
+        NANOStatusParticleKey.PO: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.PR: {TYPE: int, VALUE: 238, REQUIRED: True},
+        NANOStatusParticleKey.PS: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.PT: {TYPE: unicode, VALUE: u'N', REQUIRED: True},
+        NANOStatusParticleKey.PX: {TYPE: int, VALUE: 3, REQUIRED: True},
+        NANOStatusParticleKey.RE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.RS: {TYPE: int, VALUE: 5, REQUIRED: True},
+        NANOStatusParticleKey.RU: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.SD: {TYPE: int, VALUE: 12, REQUIRED: True},
+        NANOStatusParticleKey.SE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.SI: {TYPE: unicode, VALUE: u'OFF', REQUIRED: True},
+        NANOStatusParticleKey.SK: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.SL: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.SM: {TYPE: unicode, VALUE: u'OFF', REQUIRED: True},
+        NANOStatusParticleKey.SP: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.ST: {TYPE: int, VALUE: 10, REQUIRED: True},
+        NANOStatusParticleKey.SU: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.T1: {TYPE: float, VALUE: 30.00412, REQUIRED: True},
+        NANOStatusParticleKey.T2: {TYPE: float, VALUE: 1.251426, REQUIRED: True},
+        NANOStatusParticleKey.T3: {TYPE: float, VALUE: 50.64434, REQUIRED: True},
+        NANOStatusParticleKey.T4: {TYPE: float, VALUE: 134.5816, REQUIRED: True},
+        NANOStatusParticleKey.T5: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        NANOStatusParticleKey.TC: {TYPE: float, VALUE: 0.6781681, REQUIRED: True},
+        NANOStatusParticleKey.TF: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        NANOStatusParticleKey.TH: {TYPE: unicode, VALUE: u'1,P4;>OK', REQUIRED: True},
+        NANOStatusParticleKey.TI: {TYPE: int, VALUE: 25, REQUIRED: True},
+        NANOStatusParticleKey.TJ: {TYPE: int, VALUE: 2, REQUIRED: True},
+        NANOStatusParticleKey.TP: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.TQ: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NANOStatusParticleKey.TR: {TYPE: int, VALUE: 952, REQUIRED: True},
+        NANOStatusParticleKey.TS: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NANOStatusParticleKey.TU: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.U0: {TYPE: float, VALUE: 5.839037, REQUIRED: True},
+        NANOStatusParticleKey.UE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.UF: {TYPE: float, VALUE: 1.0, REQUIRED: True},
+        NANOStatusParticleKey.UL: {TYPE: unicode, VALUE: u'', REQUIRED: True},
+        NANOStatusParticleKey.UM: {TYPE: unicode, VALUE: u'user', REQUIRED: True},
+        NANOStatusParticleKey.UN: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NANOStatusParticleKey.US: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.VP: {TYPE: int, VALUE: 4, REQUIRED: True},
+        NANOStatusParticleKey.WI: {TYPE: unicode, VALUE: u'Def=15:00-061311', REQUIRED: True},
+        NANOStatusParticleKey.XC: {TYPE: int, VALUE: 8, REQUIRED: True},
+        NANOStatusParticleKey.XD: {TYPE: unicode, VALUE: u'A', REQUIRED: True},
+        NANOStatusParticleKey.XM: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NANOStatusParticleKey.XN: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.XS: {TYPE: int, VALUE: 11, REQUIRED: True},
+        NANOStatusParticleKey.XX: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NANOStatusParticleKey.Y1: {TYPE: float, VALUE: -3818.141, REQUIRED: True},
+        NANOStatusParticleKey.Y2: {TYPE: float, VALUE: -10271.53, REQUIRED: True},
+        NANOStatusParticleKey.Y3: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        NANOStatusParticleKey.ZE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.ZI: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.ZL: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.ZM: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.ZS: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NANOStatusParticleKey.ZV: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+    }
+
+    def assert_particle(self, data_particle, particle_key, particle_type, params, verify_values=False):
         """
         Verify sample particle
-        @param data_particle:  NANODataParticle data particle
-        @param verify_values:  bool, should we verify parameter values
         """
-        self.assert_data_particle_keys(NANODataParticleKey, self._sample_parameters_01)
-        self.assert_data_particle_header(data_particle, DataParticleType.NANO_PARSED, require_instrument_timestamp=True)
-        self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
+        self.assert_data_particle_keys(particle_key, params)
+        self.assert_data_particle_header(data_particle, particle_type, require_instrument_timestamp=True)
+        self.assert_data_particle_parameters(data_particle, params, verify_values)
+
+    def assert_particle_sample_01(self, data_particle, verify_values=False):
+        self.assert_particle(data_particle, NANODataParticleKey, DataParticleType.NANO_PARSED,
+                             self._sample_parameters_01, verify_values)
 
     def assert_particle_sample_02(self, data_particle, verify_values=False):
-        """
-        Verify sample particle
-        @param data_particle:  NANODataParticle data particle
-        @param verify_values:  bool, should we verify parameter values
-        """
-        self.assert_data_particle_keys(NANODataParticleKey, self._sample_parameters_02)
-        self.assert_data_particle_header(data_particle, DataParticleType.NANO_PARSED, require_instrument_timestamp=True)
-        self.assert_data_particle_parameters(data_particle, self._sample_parameters_02, verify_values)
+        self.assert_particle(data_particle, NANODataParticleKey, DataParticleType.NANO_PARSED,
+                             self._sample_parameters_02, verify_values)
 
-    def assert_particle_sample_firehose(self, data_particle, verify_values=False):
-        """
-        Verify sample particle
-        @param data_particle:  NANODataParticle data particle
-        @param verify_values:  bool, should we verify parameter values
-        """
-        self.assert_data_particle_keys(NANODataParticleKey, self._sample_parameters_01)
-        self.assert_data_particle_header(data_particle, DataParticleType.NANO_PARSED, require_instrument_timestamp=True)
-        self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
-
-    def assert_particle_status(self, status_particle, verify_values=False):
-        pass
+    def assert_particle_status(self, data_particle, verify_values=False):
+        self.assert_particle(data_particle, NANOStatusParticleKey, DataParticleType.NANO_STATUS,
+                             self._status_parameters, verify_values)
 
 
 ###############################################################################
@@ -242,6 +358,23 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         port_agent_packet.pack_header()
         # Push the response into the driver
         driver._protocol.got_data(port_agent_packet)
+
+    @staticmethod
+    def my_send(driver):
+        def inner(data):
+            if data.startswith(InstrumentCommand.DATA_ON):
+                my_response = NANO_STRING + NEWLINE
+            elif data.startswith(InstrumentCommand.DUMP_SETTINGS):
+                my_response = DUMP_STATUS + NEWLINE
+            else:
+                my_response = None
+            if my_response is not None:
+                log.debug("my_send: data: %s, my_response: %s", data, my_response)
+                driver._protocol._promptbuf += my_response
+                driver._protocol._linebuf += my_response
+                return len(my_response)
+
+        return inner
 
     def test_driver_enums(self):
         """
@@ -272,6 +405,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         """
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, initial_protocol_state)
+        driver._connection.send.side_effect = self.my_send(driver)
         return driver
 
     def test_data_build_parsed_values(self):
@@ -311,7 +445,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
         self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
 
-    def test_status_01(self):
+    def test_status(self):
         """
         Verify that the driver correctly parses the DUMP-SETTINGS response
         """
@@ -322,26 +456,18 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         driver = self.test_connect()
         driver._protocol._protocol_fsm.on_event(ProtocolEvent.START_AUTOSAMPLE)
         self.assertEqual(driver._protocol.get_current_state(), ProtocolState.AUTOSAMPLE)
+        driver._connection.send.assert_called_once_with(InstrumentCommand.DATA_ON + NEWLINE)
 
     def test_stop_autosample(self):
-        driver = self.test_connect()
-        driver._protocol._protocol_fsm.on_event(ProtocolEvent.START_AUTOSAMPLE)
-        self.assertEqual(driver._protocol.get_current_state(), ProtocolState.AUTOSAMPLE)
+        driver = self.test_connect(initial_protocol_state=ProtocolState.AUTOSAMPLE)
         driver._protocol._protocol_fsm.on_event(ProtocolEvent.STOP_AUTOSAMPLE)
         self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
-
-        expected = [call(InstrumentCommand.DATA_ON + NEWLINE), call(InstrumentCommand.DATA_OFF + NEWLINE)]
-        self.assertEqual(driver._connection.send.call_args_list, expected)
+        driver._connection.send.assert_called_once_with(InstrumentCommand.DATA_OFF + NEWLINE)
 
     def test_status_01_handler(self):
         driver = self.test_connect()
         driver._protocol._protocol_fsm.on_event(ProtocolEvent.ACQUIRE_STATUS)
         driver._connection.send.assert_called_once_with(InstrumentCommand.DUMP_SETTINGS + NEWLINE)
-
-    def test_dump_01(self):
-        driver = self.test_connect()
-        ts = self.get_ntp_timestamp()
-        driver._protocol._got_chunk(DUMP_STATUS, ts)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -374,17 +500,73 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, NANOTestMixinSu
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
+    def assert_particle_count(self, particle_type, particle_count, timeout):
+        end_time = time.time() + timeout
+        while True:
+            num_samples = len(self.get_sample_events(particle_type))
+            if num_samples > particle_count:
+                elapsed = timeout - (end_time - time.time())
+                rate = 1.0 * num_samples / elapsed
+                log.debug('Found %d samples, approx data rate: %.2f Hz', num_samples, rate)
+                break
+            else:
+                log.debug('Found %d samples of %d expected', num_samples, particle_count)
+            self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
+            time.sleep(.1)
+
     def test_connection(self):
         self.assert_initialize_driver()
 
+    def test_commands(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.SET_TIME)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+
     def test_get(self):
-        pass
+        self.assert_initialize_driver()
+        self.assert_get(Parameter.OUTPUT_RATE, 40)
 
     def test_set(self):
         """
         Test all set commands. Verify all exception cases.
         """
-        pass
+        self.assert_initialize_driver()
+        test_data = [
+            (Parameter.OUTPUT_RATE, 1, True),
+            (Parameter.OUTPUT_RATE, 40, True),
+            (Parameter.OUTPUT_RATE, -1, False),
+            (Parameter.SYNC_INTERVAL, 1, True),
+            (Parameter.SYNC_INTERVAL, 'x', False),
+        ]
+
+        for param, value, is_valid in test_data:
+            threw_exception = False
+            try:
+                self.assert_set(param, value)
+            except:
+                threw_exception = True
+            self.assertNotEqual(is_valid, threw_exception)
+
+    def test_data_rates(self):
+        self.assert_initialize_driver()
+        self.assert_set(Parameter.OUTPUT_RATE, 1)
+        self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE, DataParticleType.NANO_PARSED,
+                                        self.assert_particle_sample_01, delay=5)
+        try:
+            self.assert_particle_count(DataParticleType.NANO_PARSED, particle_count=20, timeout=5)
+            self.assertTrue(False, msg='Generated too many particles for 1 Hz!')
+        except AssertionError:
+            pass
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
+        self.assert_set(Parameter.OUTPUT_RATE, 40)
+        # testing each particle takes too long, making it difficult to verify that we are actually
+        # sampling at 40Hz.  Instead we will just get a count.
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
+        # Wait up to 12 seconds to get 400 samples
+        self.assert_particle_count(DataParticleType.NANO_PARSED, particle_count=400, timeout=12)
 
     def test_data_on(self):
         """
@@ -400,13 +582,13 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, NANOTestMixinSu
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
         self.assert_state_change(ProtocolState.COMMAND, 10)
 
-    def test_dump_01(self):
+    def test_acquire_status(self):
         """
         @brief Test for acquiring status
         """
         self.assert_initialize_driver()
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.NANO_STATUS, self.assert_particle_sample_01)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.NANO_STATUS,
+                                        self.assert_particle_status, delay=2)
 
 
 ###############################################################################

@@ -463,9 +463,8 @@ class Protocol(BotptProtocol):
         # new duration
         self._handler_command_heat_off()
         # call _do_cmd_resp, passing our heat_duration parameter as the expected_prompt
-        result = self._do_cmd_resp(InstrumentCommand.HEAT_ON, expected_prompt=',*%d' % self._heat_duration)
-
-        return next_state, result
+        return self._handler_command_generic(InstrumentCommand.HEAT_ON, None, None,
+                                             expected_prompt=',*%d' % self._heat_duration)
 
     def _handler_command_heat_off(self, *args, **kwargs):
         """
@@ -475,5 +474,4 @@ class Protocol(BotptProtocol):
         result = None
 
         # call _do_cmd_resp, passing our heat_duration parameter as the expected_prompt
-        result = self._do_cmd_resp(InstrumentCommand.HEAT_OFF, expected_prompt=',*0')
-        return next_state, result
+        return self._handler_command_generic(InstrumentCommand.HEAT_OFF, None, None, expected_prompt=',*0')

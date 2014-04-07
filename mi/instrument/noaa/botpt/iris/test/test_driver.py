@@ -321,6 +321,26 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         port_agent_packet.pack_header()
         driver._protocol.got_data(port_agent_packet)
 
+    @staticmethod
+    def my_send(driver):
+        def inner(data):
+            if data.startswith(InstrumentCommand.DATA_ON):
+                my_response = DATA_ON_COMMAND_RESPONSE
+            elif data.startswith(InstrumentCommand.DATA_OFF):
+                my_response = DATA_OFF_COMMAND_RESPONSE
+            elif data.startswith(InstrumentCommand.DUMP_SETTINGS_01):
+                my_response = DUMP_01_COMMAND_RESPONSE
+            elif data.startswith(InstrumentCommand.DUMP_SETTINGS_02):
+                my_response = DUMP_02_COMMAND_RESPONSE
+            else:
+                my_response = None
+            if my_response is not None:
+                log.debug("my_send: data: %s, my_response: %s", data, my_response)
+                driver._protocol._promptbuf += my_response
+                return len(my_response)
+
+        return inner
+
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -413,33 +433,20 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
             ('_handler_command_start_autosample',
              ProtocolState.COMMAND,
              ProtocolState.AUTOSAMPLE,
-             DATA_ON_COMMAND_RESPONSE,
              IRIS_DATA_ON),
             ('_handler_autosample_stop_autosample',
              ProtocolState.AUTOSAMPLE,
              ProtocolState.COMMAND,
-             DATA_OFF_COMMAND_RESPONSE,
              IRIS_DATA_OFF),
-            ('_handler_command_autosample_dump01',
+            ('_handler_command_autosample_acquire_status',
              ProtocolState.COMMAND,
              None,
-             DUMP_01_COMMAND_RESPONSE,
-             IRIS_DUMP_01),
-            ('_handler_command_autosample_dump02',
-             ProtocolState.COMMAND,
-             None,
-             DUMP_02_COMMAND_RESPONSE,
              IRIS_DUMP_02),
         ]
 
-        for handler, initial_state, expected_state, response, prompt in items:
-            def my_send(data):
-                log.debug("my_send: data: %r, response: %r", data, response)
-                driver._protocol._promptbuf += response
-                return len(response)
-
+        for handler, initial_state, expected_state, prompt in items:
             driver = self.test_connect(initial_protocol_state=initial_state)
-            driver._connection.send.side_effect = my_send
+            driver._connection.send.side_effect = self.my_send(driver)
             result = getattr(driver._protocol, handler)()
             log.debug('handler: %r - result: %r expected: %r', handler, result, prompt)
             next_state = result[0]
@@ -510,7 +517,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, IRISTestMixinSu
         self.assert_initialize_driver()
 
         # Issues acquire status command
-        self.assert_particle_generation(ProtocolEvent.DUMP_01,
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS,
                                         DataParticleType.IRIS_STATUS1,
                                         self.assert_particle_status_01,
                                         delay=2)
@@ -522,7 +529,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, IRISTestMixinSu
         self.assert_initialize_driver()
 
         # Issues acquire status command
-        self.assert_particle_generation(ProtocolEvent.DUMP_02,
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS,
                                         DataParticleType.IRIS_STATUS2,
                                         self.assert_particle_status_02,
                                         delay=2)

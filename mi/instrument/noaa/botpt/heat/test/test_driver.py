@@ -342,10 +342,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_initialize_driver()
 
         self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
-        self.assert_get(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
-
         self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_3)
-        self.assert_get(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_3)
 
     def test_heat_on(self):
         """
@@ -355,15 +352,14 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         # Set the heat duration to a known value so that we can test for it later
         self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
-        self.assert_get(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
 
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.HEAT_ON)
         log.debug("HEAT_ON returned: %r", response)
-        self.assertTrue(response.endswith(',*2'))
+        self.assertTrue(response[1].endswith(',*2'))
 
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.HEAT_OFF)
         log.debug("HEAT_OFF returned: %r", response)
-        self.assertTrue(response.endswith(',*0'))
+        self.assertTrue(response[1].endswith(',*0'))
 
     def test_direct_access(self):
         """

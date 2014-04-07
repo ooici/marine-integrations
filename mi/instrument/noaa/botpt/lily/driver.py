@@ -68,7 +68,7 @@ LILY_TIME_REGEX = r'(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d)'
 FLOAT_REGEX = r'(-?\d*\.\d*)'
 WORD_REGEX = r'(\S+)'
 
-DEFAULT_LEVELING_TIMEOUT = 120
+DEFAULT_LEVELING_TIMEOUT = 600
 DEFAULT_MAX_XTILT = 300
 DEFAULT_MAX_YTILT = 300
 DEFAULT_AUTO_RELEVEL = True  # default to be true
@@ -869,7 +869,6 @@ class Protocol(BotptProtocol):
         return self._handler_command_generic(InstrumentCommand.DATA_OFF,
                                              ProtocolState.COMMAND,
                                              ResourceAgentState.COMMAND,
-                                             None,
                                              expected_prompt=LILY_DATA_OFF)
 
     def _handler_autosample_start_leveling(self, *args, **kwargs):
@@ -879,7 +878,6 @@ class Protocol(BotptProtocol):
         return self._handler_command_generic(InstrumentCommand.START_LEVELING,
                                              ProtocolState.AUTOSAMPLE_LEVELING,
                                              ResourceAgentState.CALIBRATE,
-                                             kwargs.get('timeout'),
                                              expected_prompt=LILY_LEVEL_ON)
 
     ########################################################################
@@ -944,7 +942,6 @@ class Protocol(BotptProtocol):
         return self._handler_command_generic(InstrumentCommand.DATA_ON,
                                              ProtocolState.AUTOSAMPLE,
                                              ResourceAgentState.STREAMING,
-                                             None,
                                              expected_prompt=LILY_DATA_ON)
 
     def _handler_command_start_leveling(self, *args, **kwargs):
@@ -954,7 +951,6 @@ class Protocol(BotptProtocol):
         return self._handler_command_generic(InstrumentCommand.START_LEVELING,
                                              ProtocolState.COMMAND_LEVELING,
                                              ResourceAgentState.CALIBRATE,
-                                             kwargs.get('timeout'),
                                              expected_prompt=LILY_LEVEL_ON)
 
     ########################################################################
@@ -987,7 +983,7 @@ class Protocol(BotptProtocol):
         """
         Take instrument out of leveling mode, returning to the previous state
         """
-        self._handler_command_generic(InstrumentCommand.STOP_LEVELING, None, None, None, expected_prompt=LILY_LEVEL_OFF)
+        self._handler_command_generic(InstrumentCommand.STOP_LEVELING, None, None, expected_prompt=LILY_LEVEL_OFF)
         if self.get_current_state() == ProtocolState.AUTOSAMPLE_LEVELING:
             return self._handler_command_start_autosample()
         else:
@@ -1020,13 +1016,6 @@ class Protocol(BotptProtocol):
         """
         Get device status
         """
-        self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_01,
-                                      None,
-                                      None,
-                                      kwargs.get('timeout'),
-                                      expected_prompt=LILY_DUMP_01)
-        return self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_02,
-                                             None,
-                                             None,
-                                             kwargs.get('timeout'),
+        self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_01, None, None, expected_prompt=LILY_DUMP_01)
+        return self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_02, None, None,
                                              expected_prompt=LILY_DUMP_02)
