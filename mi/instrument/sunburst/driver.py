@@ -47,6 +47,11 @@ from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import FunctionParameter
 
+from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import NotImplementedException
+from mi.core.exceptions import SampleException
+
 from mi.core.time import get_timestamp
 from mi.core.time import get_timestamp_delayed
 
@@ -105,7 +110,7 @@ REGULAR_STATUS_REGEX_MATCHER = re.compile(REGULAR_STATUS_REGEX)
 
 # Control Records (Types 0x80 - 0xFF)
 CONTROL_RECORD_REGEX = (
-    r'[*]' +  # record identifier
+    r'[\*]' +  # record identifier
     '([0-9A-Fa-f]{2})' +  # unique instrument identifier
     '([0-9A-Fa-f]{2})' +  # control record length (bytes)
     '([8-9A-Fa-f][0-9A-Fa-f])' +  # type of control record 0x80-FF
@@ -119,8 +124,14 @@ CONTROL_RECORD_REGEX = (
 CONTROL_RECORD_REGEX_MATCHER = re.compile(CONTROL_RECORD_REGEX)
 
 # Error records
-ERROR_REGEX = r'[?]([0-9A-Fa-f]{2})' + NEWLINE
+ERROR_REGEX = r'[\?]([0-9A-Fa-f]{2})' + NEWLINE
 ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
+
+## These are returned immediately after SAMI sample commands
+BLANK_SAMPLE_RETURN_REGEX = (r'\^05')
+BLANK_SAMPLE_RETURN_REGEX_MATCHER = re.compile(BLANK_SAMPLE_RETURN_REGEX)
+SAMPLE_RETURN_REGEX = (r'\^04')
+SAMPLE_RETURN_REGEX_MATCHER = re.compile(SAMPLE_RETURN_REGEX)
 
 # Currently used to handle unexpected responses
 WILD_CARD_REGEX  = r'.*' + NEWLINE
@@ -195,6 +206,7 @@ class Capability(BaseEnum):
     log.debug('herb: ' + 'class Capability(BaseEnum)')
 
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
+    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     START_DIRECT = ProtocolEvent.START_DIRECT
@@ -244,7 +256,7 @@ class Prompt(BaseEnum):
     # The boot prompt is the prompt of the SAMI2's Lower Level operating
     # system. If this prompt is reached, it means the SAMI2 instrument
     # software has crashed and needs to be restarted with the command
-    # 'u'. If this has occured, the instrument has been reset and will
+    # 'u'. If this has occurred, the instrument has been reset and will
     # be in an unconfigured state.
     BOOT_PROMPT = '7.7Boot>'
 
@@ -673,13 +685,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.EXIT,
             self._handler_command_exit)
-        ## TODO: Don't think we will be doing any getting or setting
-        # self._protocol_fsm.add_handler(
-        #     ProtocolState.COMMAND, ProtocolEvent.GET,
-        #     self._handler_command_get)
-        # self._protocol_fsm.add_handler(
-        #     ProtocolState.COMMAND, ProtocolEvent.SET,
-        #     self._handler_command_set)
+        ## TODO: Don't think we will be doing any getting or setting?  Other than discovery.
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.GET,
+            self._handler_command_get)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.SET,
+            self._handler_command_set)
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.START_DIRECT,
             self._handler_command_start_direct)
@@ -736,15 +748,16 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.EXIT,
             self._handler_scheduled_sample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
-                                       self._handler_sample_success)
-        self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
-                                       self._handler_sample_timeout)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
+            self._handler_sample_success)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
+            self._handler_sample_timeout)
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event
-        # occurred while in either the COMMAND state (or via the
-        # discover transition from the UNKNOWN state with the instrument
-        # unresponsive) and will last anywhere from a few seconds to 3
+        # occurred while in either the COMMAND state
+        # and will last anywhere from a few seconds to 3
         # minutes depending on instrument and sample type.
         self._protocol_fsm.add_handler(
             ProtocolState.POLLED_SAMPLE, ProtocolEvent.ENTER,
@@ -752,10 +765,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.POLLED_SAMPLE, ProtocolEvent.EXIT,
             self._handler_polled_sample_exit)
-        self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
-                                       self._handler_sample_success)
-        self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
-                                       self._handler_sample_timeout)
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
+            self._handler_sample_success)
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
+            self._handler_sample_timeout)
+
         # Construct the parameter dictionary containing device
         # parameters, current parameter values, and set formatting
         # functions.
@@ -900,7 +916,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             else:
                 log.debug("_handler_waiting_discover: discover failed, attempt %d of 3", count)
                 count += 1
-                ## TODO: Make configurable or longer?
+                ## TODO: Make configurable or longer?  Function of the timeout values?
                 time.sleep(20)
 
         log.debug("_handler_waiting_discover: discover failed")
@@ -1030,13 +1046,14 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_command_start_autosample()')
 
-        next_state = ProtocolState.START_AUTOSAMPLE
-        next_agent_state = ResourceAgentState.START_AUTOSAMPLE
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING  ## TODO: Not sure?
         result = None
         log.debug("_handler_command_start_autosample: entering Autosample mode")
-        return (next_state, (next_agent_state, result))
 
-        return (next_state, result)
+        ## return (next_state, (next_agent_state, result))
+        ## return (next_state, next_agent_state)
+        ## return (next_state, result)
 
     ########################################################################
     # Direct access handlers.
@@ -1269,10 +1286,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         return response
 
     def _parse_response_set_config(self, response, prompt):
+## TODO: Should return a 4 character checksum?
         log.debug('herb: ' + 'SamiProtocol._parse_response_set_config')
         pass
 
     def _parse_response_erase_all(self, response, prompt):
+## TODO: Should return a value, 4 characters?
         log.debug('herb: ' + 'SamiProtocol._parse_response_erase_all')
         pass
 
@@ -1334,7 +1353,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         time.sleep(1)
 
         #Erase memory before setting configuration
-        ## TODO: Should handle response
+        ## TODO: Should handle response, not a direct command
         self._do_cmd_direct(SamiInstrumentCommand.ERASE_ALL + NEWLINE)
 
         time.sleep(1)
@@ -1358,9 +1377,15 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         time.sleep(1)
 
+## TODO: Verify configuration is set correctly
         self._verify_configuration_string(configuration_string)
 
-## TODO: Verify configuration is set correctly
+        time.sleep(1)
+
+## TODO: Remove, just here for testing purposes.
+##        self._take_blank_sample()
+##        log.debug('herb: ' + 'SamiProtocol._discover: sleeping awaiting blank sample')
+##        time.sleep(115)
 
 ## TODO: Move this code somewhere else, perhaps make this an exception catchall?
         if status is None:
@@ -1379,7 +1404,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             log.debug('herb: ' + 'SamiProtocol._discover: Move to command state')
 
             next_state = ProtocolState.COMMAND
-            next_agent_state = ResourceAgentState.IDLE
+##            next_agent_state = ResourceAgentState.IDLE
+            next_agent_state = ResourceAgentState.COMMAND
 
         log.debug("_discover. result start: %s" % next_state)
         return (next_state, next_agent_state)
@@ -1462,10 +1488,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         config_string_length_0_and_f_padding = len(configuration_string)
         log.debug('herb: ' + 'Protocol._add_config_str_padding(): config_string_length_0_and_f_padding = ' + str(config_string_length_0_and_f_padding))
 
-##        configuration_string += CONFIG_TERMINATOR
-##        config_string_length_terminated = len(configuration_string)
-##        log.debug('herb: ' + 'Protocol._add_config_str_padding(): config_string_length_terminated = ' + str(config_string_length_terminated))
-
         return configuration_string
 
 # TODO: During refactoring build configuration string as a list and join for efficiency
@@ -1494,16 +1516,14 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Overridden by device specific subclasses.
         """
 
-        # TODO: raise an unimplemented exception
-
-        pass
+        raise NotImplementedException()
 
     # def _verify_configuration_string_specific(self, configuration_string):
     #     """
     #     Overridden by device specific subclasses.
     #     """
     #
-    #     # TODO: raise an unimplemented exception
+    #    raise NotImplementedException()
     #
     #     pass
 
@@ -1512,7 +1532,25 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Overridden by device specific subclasses.
         """
 
-        # TODO: raise an unimplemented exception
+        raise NotImplementedException()
+
+        pass
+
+    def _get_blank_sample_timeout(self):
+        """
+        Overridden by device specific subclasses.
+        """
+
+        raise NotImplementedException()
+
+        pass
+
+    def _get_sample_timeout(self):
+        """
+        Overridden by device specific subclasses.
+        """
+
+        raise NotImplementedException()
 
         pass
 
@@ -1529,9 +1567,24 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         else:
             ## TODO: Throw an exception
             log.error('herb: ' + 'Protocol._verify_configuration_string(): CONFIGURATION STRING IS INVALID')
-
+            raise InstrumentProtocolException("Invalid Configuration String")
         pass
 
+## TODO: Execute asynchronous commands to get samples.
+    def _take_sample(self):
+        ## An exception is raised if timeout is hit.
+        ## Should return immediately
+        log.debug('herb: ' + 'Protocol._take_sample()')
+        return self._do_cmd_resp(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, timeout = 10, response_regex=BLANK_SAMPLE_RETURN_REGEX_MATCHER)
+
+    def _take_blank_sample(self):
+
+        ## An exception is raised if timeout is hit.
+        ## Should return immediately
+        log.debug('herb: ' + 'Protocol._take_blank_sample()')
+        return self._do_cmd_resp(SamiInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, timeout = 10, response_regex=BLANK_SAMPLE_RETURN_REGEX_MATCHER)
+
+## TODO: Use in test app to test first
     @staticmethod
     def calc_crc(s, num_points):
         """

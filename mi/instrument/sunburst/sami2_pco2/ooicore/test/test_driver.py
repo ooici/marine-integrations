@@ -50,6 +50,7 @@ from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiInstrumentCommand
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import ProtocolState
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import ProtocolEvent
+# from mi.instrument.sunburst.driver import ProtocolEvent
 from mi.instrument.sunburst.driver import Capability
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Parameter
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Protocol
@@ -495,8 +496,23 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    def test_paramters(self):
+##    def test_paramters(self):
+##        self.assert_initialize_driver()
+
+    def test_acquire_status(self):
+         self.assert_initialize_driver()
+         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+
+    def test_acquire_sample(self):
         self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+
+    def test_auto_sample(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
+
+##    def test_direct_access(self):
+##        self.assert_initialize_driver()
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

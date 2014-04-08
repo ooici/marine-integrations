@@ -19,6 +19,7 @@ __license__ = 'Apache 2.0'
 import re
 
 from mi.core.log import get_logger
+
 log = get_logger()
 
 from mi.core.exceptions import SampleException
@@ -433,6 +434,7 @@ class Protocol(SamiProtocol):
     Instrument protocol class
     Subclasses SamiProtocol and CommandResponseInstrumentProtocol
     """
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -472,6 +474,8 @@ class Protocol(SamiProtocol):
 
         return_list = []
 
+## TODO: Missing regular expressions?  Add boot prompt?
+
         sieve_matchers = [REGULAR_STATUS_REGEX_MATCHER,
                           CONTROL_RECORD_REGEX_MATCHER,
                           SAMI_SAMPLE_REGEX_MATCHER,
@@ -489,6 +493,7 @@ class Protocol(SamiProtocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
+## TODO: Add error and prompt?
         self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(PhsenSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
@@ -510,11 +515,11 @@ class Protocol(SamiProtocol):
 
         return (next_state, result)
 
-    ####################################################################
-    # Build Parameter dictionary
-    ####################################################################
+        ####################################################################
+        # Build Parameter dictionary
+        ####################################################################
 
-## TODO: Review parameter dictionary default values
+    ## TODO: Review parameter dictionary default values
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
@@ -877,5 +882,68 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='number of samples averaged',
                              description='')
+
+    ## TODO: Overridden methods below to add to PHSEN
+
+    def _build_configuration_string_specific(self):
+        log.debug('herb: ' + 'Protocol._build_configuration_string_specific()')
+
+        # TODO: Can move most of parameter list to base class. Can make class wrapper around list to extend.
+        # TODO:   Will it be understandable?
+
+        # An ordered list of parameters, can not use unordered dict
+        # PCO2W driver extends the base class (SamiParameter)
+        parameter_list = [Parameter.START_TIME_FROM_LAUNCH,
+                          Parameter.STOP_TIME_FROM_START,
+                          Parameter.MODE_BITS,
+                          Parameter.SAMI_SAMPLE_INTERVAL,
+                          Parameter.SAMI_DRIVER_VERSION,
+                          Parameter.SAMI_PARAMS_POINTER,
+                          Parameter.DEVICE1_SAMPLE_INTERVAL,
+                          Parameter.DEVICE1_DRIVER_VERSION,
+                          Parameter.DEVICE1_PARAMS_POINTER,
+                          Parameter.DEVICE2_SAMPLE_INTERVAL,
+                          Parameter.DEVICE2_DRIVER_VERSION,
+                          Parameter.DEVICE2_PARAMS_POINTER,
+                          Parameter.DEVICE3_SAMPLE_INTERVAL,
+                          Parameter.DEVICE3_DRIVER_VERSION,
+                          Parameter.DEVICE3_PARAMS_POINTER,
+                          Parameter.PRESTART_SAMPLE_INTERVAL,
+                          Parameter.PRESTART_DRIVER_VERSION,
+                          Parameter.PRESTART_PARAMS_POINTER,
+                          Parameter.GLOBAL_CONFIGURATION,
+                          Parameter.PUMP_PULSE,
+                          Parameter.PUMP_DURATION,
+                          Parameter.SAMPLES_PER_MEASUREMENT,
+                          Parameter.CYCLES_BETWEEN_BLANKS,
+                          Parameter.NUMBER_REAGENT_CYCLES,
+                          Parameter.NUMBER_BLANK_CYCLES,
+                          Parameter.FLUSH_PUMP_INTERVAL,
+                          Parameter.BIT_SWITCHES,
+                          Parameter.NUMBER_EXTRA_PUMP_CYCLES,
+                          Parameter.NUMBER_SAMPLES_AVERAGED,
+                          Parameter.NUMBER_FLUSHES,
+                          Parameter.PUMP_ON_FLUSH,
+                          Parameter.PUMP_OFF_FLUSH,
+                          Parameter.NUMBER_REAGENT_PUMPS,
+                          Parameter.VALVE_DELAY,
+                          Parameter.PUMP_ON_IND,
+                          Parameter.PV_OFF_IND,
+                          Parameter.NUMBER_BLANKS,
+                          Parameter.PUMP_MEASURE_T,
+                          Parameter.PUMP_OFF_TO_MEASURE,
+                          Parameter.MEASURE_TO_PUMP_ON,
+                          Parameter.NUMBER_MEASUREMENTS,
+                          Parameter.SALINITY_DELAY]
+
+        configuration_string = self._build_configuration_string_base(parameter_list)
+
+        log.debug('herb: ' + 'Protocol._build_configuration_string_specific(): CONFIGURATION STRING = '
+                  + configuration_string)
+
+        return configuration_string
+
+    def _get_configuration_string_regex(self):
+        return CONFIGURATION_REGEX_MATCHER
 
 # End of File driver.py

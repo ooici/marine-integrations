@@ -490,12 +490,13 @@ class Protocol(SamiProtocol):
 
         return_list = []
 
-## TODO: Missing regular expressions such as ERROR?
+## TODO: Missing regular expressions?  Add boot prompt?
 
         sieve_matchers = [REGULAR_STATUS_REGEX_MATCHER,
                           CONTROL_RECORD_REGEX_MATCHER,
                           SAMI_SAMPLE_REGEX_MATCHER,
-                          CONFIGURATION_REGEX_MATCHER]
+                          CONFIGURATION_REGEX_MATCHER,
+                          ERROR_REGEX_MATCHER]
 
         for matcher in sieve_matchers:
             for match in matcher.finditer(raw_data):
@@ -508,9 +509,8 @@ class Protocol(SamiProtocol):
         The base class got_data has gotten a chunk from the chunker. Pass it to
         extract_sample with the appropriate particle objects and REGEXes.
         """
-
         log.debug('herb: ' + 'Protocol._got_chunk()')
-
+## TODO: Add error and prompt?
         self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(Pco2wSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
@@ -578,14 +578,15 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='stop time after start time')
 
-        # TODO: Invalid default value?  Should indicate there is no external device, "0x02"
+        # Changed from 0x0A to 0x02 to indicate there is no external device
+        # TODO: Can probably be set to 0 to indicate SAMI sampling schedule is not used
         self._param_dict.add(Parameter.MODE_BITS, CONFIGURATION_REGEX,
                              lambda match: int(match.group(4), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
                              startup_param=False,
                              direct_access=True,
-                             default_value=0x0A,
+                             default_value=0x02,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='mode bits (set to 00001010)')
 
@@ -618,34 +619,36 @@ class Protocol(SamiProtocol):
                              default_value=0x02,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='sami parameter pointer')
-
+        ## Changed from 0x000E10 to 0x000000 to indicate there is not external device
         self._param_dict.add(Parameter.DEVICE1_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
                              lambda match: int(match.group(8), 16),
                              lambda x: self._int_to_hexstring(x, 6),
                              type=ParameterDictType.INT,
                              startup_param=False,
                              direct_access=True,
-                             default_value=0x000E10,
+                             default_value=0x000000,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 1 sample interval')
 
+        ## Changed from 0x01 to 0x00 to indicate there is not external device
         self._param_dict.add(Parameter.DEVICE1_DRIVER_VERSION, CONFIGURATION_REGEX,
                              lambda match: int(match.group(9), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
                              startup_param=False,
                              direct_access=True,
-                             default_value=0x01,
+                             default_value=0x00,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 1 driver version')
 
+        ## Changed from 0x0B to 0x00 to indicate there is not external device
         self._param_dict.add(Parameter.DEVICE1_PARAMS_POINTER, CONFIGURATION_REGEX,
                              lambda match: int(match.group(10), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
                              startup_param=False,
                              direct_access=True,
-                             default_value=0x0B,
+                             default_value=0x00,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 1 parameter pointer')
 
@@ -669,13 +672,14 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 2 driver version')
 
+        ## Changed from 0x0D to 0x00 since there is not external device
         self._param_dict.add(Parameter.DEVICE2_PARAMS_POINTER, CONFIGURATION_REGEX,
                              lambda match: int(match.group(13), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
                              startup_param=False,
                              direct_access=True,
-                             default_value=0x0D,
+                             default_value=0x00,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 2 parameter pointer')
 
@@ -699,13 +703,14 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 3 driver version')
 
+        ## Changed from 0x0D to 0x00 since there is not external device
         self._param_dict.add(Parameter.DEVICE3_PARAMS_POINTER, CONFIGURATION_REGEX,
                              lambda match: int(match.group(16), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
                              startup_param=False,
                              direct_access=True,
-                             default_value=0x0D,
+                             default_value=0x00,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 3 parameter pointer')
 
@@ -729,24 +734,26 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='prestart driver version')
 
+        ## Changed from 0x0D to 0x00 since there is not external device
         self._param_dict.add(Parameter.PRESTART_PARAMS_POINTER, CONFIGURATION_REGEX,
                              lambda match: int(match.group(19), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
                              startup_param=False,
                              direct_access=True,
-                             default_value=0x0D,
+                             default_value=0x00,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='prestart parameter pointer')
 
-        # TODO: Invalid default value?
+        # Changed from invalid value 0x00 to 0x07 setting bits, (2) Send live records, (1) Send ^(record type),
+        #   (0) 57600 serial port
         self._param_dict.add(Parameter.GLOBAL_CONFIGURATION, CONFIGURATION_REGEX,
                              lambda match: int(match.group(20), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
                              startup_param=False,
                              direct_access=True,
-                             default_value=0x00,
+                             default_value=0x07,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='global bits (set to 00000111)')
 
@@ -780,7 +787,7 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='samples per measurement')
 
-        # TODO: Invalid default value?
+        # TODO: What is default value?
         self._param_dict.add(Parameter.CYCLES_BETWEEN_BLANKS, CONFIGURATION_REGEX,
                              lambda match: int(match.group(24), 16),
                              lambda x: self._int_to_hexstring(x, 2),
@@ -841,7 +848,8 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='number of extra pump cycles')
 
-## TODO: Add parameter to turn recording on or off
+## TODO: Add base parameter to turn recording on or off
+## TODO: Add base parameter to set blank and sample timeouts
 
     #########################################################################
     ## General (for POLLED and SCHEDULED states) Sample handlers.
@@ -917,3 +925,9 @@ class Protocol(SamiProtocol):
 
     def _get_configuration_string_regex(self):
         return CONFIGURATION_REGEX_MATCHER
+
+## TODO: Implement
+    def _get_blank_sample_timeout(self):
+        pass
+    def _get_sample_timeout(self):
+        pass
