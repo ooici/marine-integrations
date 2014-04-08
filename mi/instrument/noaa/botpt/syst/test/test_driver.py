@@ -82,6 +82,57 @@ InstrumentDriverTestCase.initialize(
 ###
 #   Driver constant definitions
 ###
+STATUS = '''SYST,2014/04/07 21:23:18,*BOTPT BPR and tilt instrument controller
+SYST,2014/04/07 21:23:18,*ts7550n3
+SYST,2014/04/07 21:23:18,*System uptime
+SYST,2014/04/07 21:23:18,* 21:17:01 up 13 days, 20:11,  0 users,  load average: 0.00, 0.00, 0.00
+SYST,2014/04/07 21:23:18,*Memory stats
+SYST,2014/04/07 21:23:18,*             total       used       free     shared    buffers     cached
+SYST,2014/04/07 21:23:18,*Mem:         62888      18508      44380          0       2268       5120
+SYST,2014/04/07 21:23:18,*-/+ buffers/cache:      11120      51768
+SYST,2014/04/07 21:23:18,*Swap:            0          0          0
+SYST,2014/04/07 21:23:18,*MemTotal:        62888 kB
+SYST,2014/04/07 21:23:18,*MemFree:         44404 kB
+SYST,2014/04/07 21:23:18,*Buffers:          2268 kB
+SYST,2014/04/07 21:23:18,*Cached:           5120 kB
+SYST,2014/04/07 21:23:18,*SwapCached:          0 kB
+SYST,2014/04/07 21:23:18,*Active:           9936 kB
+SYST,2014/04/07 21:23:18,*Inactive:         3440 kB
+SYST,2014/04/07 21:23:18,*SwapTotal:           0 kB
+SYST,2014/04/07 21:23:18,*SwapFree:            0 kB
+SYST,2014/04/07 21:23:18,*Dirty:               0 kB
+SYST,2014/04/07 21:23:18,*Writeback:           0 kB
+SYST,2014/04/07 21:23:18,*AnonPages:        6008 kB
+SYST,2014/04/07 21:23:18,*Mapped:           3976 kB
+SYST,2014/04/07 21:23:18,*Slab:             3096 kB
+SYST,2014/04/07 21:23:18,*SReclaimable:      804 kB
+SYST,2014/04/07 21:23:18,*SUnreclaim:       2292 kB
+SYST,2014/04/07 21:23:18,*PageTables:        512 kB
+SYST,2014/04/07 21:23:18,*NFS_Unstable:        0 kB
+SYST,2014/04/07 21:23:18,*Bounce:              0 kB
+SYST,2014/04/07 21:23:18,*CommitLimit:     31444 kB
+SYST,2014/04/07 21:23:18,*Committed_AS:   167276 kB
+SYST,2014/04/07 21:23:18,*VmallocTotal:   188416 kB
+SYST,2014/04/07 21:23:18,*VmallocUsed:         0 kB
+SYST,2014/04/07 21:23:18,*VmallocChunk:   188416 kB
+SYST,2014/04/07 21:23:18,*Listening network services
+SYST,2014/04/07 21:23:18,*tcp        0      0 *:9337-commands         *:*                     LISTEN
+SYST,2014/04/07 21:23:18,*tcp        0      0 *:9338-data             *:*                     LISTEN
+SYST,2014/04/07 21:23:18,*udp        0      0 *:323                   *:*
+SYST,2014/04/07 21:23:18,*udp        0      0 *:54361                 *:*
+SYST,2014/04/07 21:23:18,*udp        0      0 *:mdns                  *:*
+SYST,2014/04/07 21:23:18,*udp        0      0 *:ntp                   *:*
+SYST,2014/04/07 21:23:18,*Data processes
+SYST,2014/04/07 21:23:18,*root       643  0.0  2.2  20100  1436 ?        Sl   Mar25   0:01 /root/bin/COMMANDER
+SYST,2014/04/07 21:23:18,*root       647  0.0  2.5  21124  1604 ?        Sl   Mar25   0:16 /root/bin/SEND_DATA
+SYST,2014/04/07 21:23:18,*root       650  0.0  2.2  19960  1388 ?        Sl   Mar25   0:00 /root/bin/DIO_Rel1
+SYST,2014/04/07 21:23:18,*root       654  0.0  2.1  19960  1360 ?        Sl   Mar25   0:02 /root/bin/HEAT
+SYST,2014/04/07 21:23:18,*root       667  0.0  2.2  19960  1396 ?        Sl   Mar25   0:00 /root/bin/IRIS
+SYST,2014/04/07 21:23:18,*root       672  0.0  2.2  19960  1396 ?        Sl   Mar25   0:01 /root/bin/LILY
+SYST,2014/04/07 21:23:18,*root       678  0.0  2.2  19964  1400 ?        Sl   Mar25   0:12 /root/bin/NANO
+SYST,2014/04/07 21:23:18,*root       685  0.0  2.2  19960  1404 ?        Sl   Mar25   0:00 /root/bin/RESO
+SYST,2014/04/07 21:23:18,*root      7880  0.0  0.9   1704   604 ?        S    21:17   0:00 grep root/bin
+'''
 
 
 ###############################################################################
@@ -139,18 +190,16 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BOTPTTestMixinSub):
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(InstrumentCommand())
 
-        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
-        print 'Cabability: ' + repr(Capability().list())
-        print 'Event: ' + repr(ProtocolEvent().list())
+        # Test capabilities for duplicates, then verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(Capability())
-        # DHE: there are no capabilities so this next test would fail.
-        #self.assert_enum_complete(Capability(), ProtocolEvent())
+        self.assert_enum_complete(Capability(), ProtocolEvent())
 
     def test_chunker(self):
         """
         Test the chunker and verify the particles created.
         """
-        StringChunker(Protocol.sieve_function)
+        chunker = StringChunker(Protocol.sieve_function)
+        self.assert_chunker_sample(chunker, STATUS)
 
     def test_got_data(self):
         """

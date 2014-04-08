@@ -1,12 +1,12 @@
 """
 @package mi.instrument.noaa.driver
 @file marine-integrations/mi/instrument/noaa/driver.py
-@author David Everett, Pete Cable
+@author Pete Cable
 @brief Common items for BOTPT
 Release notes:
 """
 
-__author__ = 'David Everett'
+__author__ = 'Pete Cable'
 __license__ = 'Apache 2.0'
 
 import re
@@ -21,6 +21,7 @@ log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.instrument_protocol import DEFAULT_CMD_TIMEOUT
 from mi.core.instrument.instrument_driver import DriverEvent, DriverAsyncEvent, ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.data_particle import DataParticle
@@ -85,32 +86,32 @@ class BotptCapability(BaseEnum):
 
 
 class BotptStatusParticleKey(BaseEnum):
-    TIME = "botpt_time"
+    TIME = "time"
 
 
 class BotptStatus01ParticleKey(BotptStatusParticleKey):
-    MODEL = "botpt_model"
-    FIRMWARE_VERSION = "botpt_firmware_version"
-    SERIAL_NUMBER = "botpt_serial_number"
-    ID_NUMBER = "botpt_id_number"
-    VBIAS = "botpt_vbias"
-    VGAIN = "botpt_vgain"
-    VMIN = "botpt_vmin"
-    VMAX = "botpt_vmax"
-    AVALS_0 = "botpt_avals_0"
-    AVALS_1 = "botpt_avals_1"
-    AVALS_2 = "botpt_avals_2"
-    AVALS_3 = "botpt_avals_3"
-    TCOEF0_KS = "botpt_tcoef0_ks"
-    TCOEF0_KZ = 'botpt_tcoef0_kz'
-    TCOEF0_TCAL = 'botpt_tcoef0_tcal'
-    TCOEF1_KS = "botpt_tcoef1_ks"
-    TCOEF1_KZ = 'botpt_tcoef1_kz'
-    TCOEF1_TCAL = 'botpt_tcoef1_tcal'
-    N_SAMP = "botpt_n_samp"
-    XZERO = "botpt_xzero"
-    YZERO = "botpt_yzero"
-    BAUD = "botpt_baud"
+    MODEL = "model"
+    FIRMWARE_VERSION = "firmware_version"
+    SERIAL_NUMBER = "serial_number"
+    ID_NUMBER = "id_number"
+    VBIAS = "vbias"
+    VGAIN = "vgain"
+    VMIN = "vmin"
+    VMAX = "vmax"
+    AVALS_0 = "avals_0"
+    AVALS_1 = "avals_1"
+    AVALS_2 = "avals_2"
+    AVALS_3 = "avals_3"
+    TCOEF0_KS = "tcoef0_ks"
+    TCOEF0_KZ = 'tcoef0_kz'
+    TCOEF0_TCAL = 'tcoef0_tcal'
+    TCOEF1_KS = "tcoef1_ks"
+    TCOEF1_KZ = 'tcoef1_kz'
+    TCOEF1_TCAL = 'tcoef1_tcal'
+    N_SAMP = "n_samp"
+    XZERO = "xzero"
+    YZERO = "yzero"
+    BAUD = "baud"
 
 
 class BotptDataParticleType(BaseEnum):
@@ -178,7 +179,13 @@ class BotptStatusParticle(DataParticle):
                 groups = match.groups()
                 encoder = self._get_encoder(key)
                 value = [encoder(v) for v in groups]
-                if len(value) == 1:
+                log.debug('groups: %s value: %s', groups, value)
+                if len(value) == 0:
+                    if encoder in [float, int]:
+                        value = encoder(0)
+                    else:
+                        value = encoder('')
+                elif len(value) == 1:
                     value = value[0]
                 log.trace('multiline match %s = [%r]', key, value)
                 result.append({
@@ -294,30 +301,30 @@ class BotptStatus01Particle(BotptStatusParticle):
 
 
 class BotptStatus02ParticleKey(BotptStatusParticleKey):
-    TBIAS = 'botpt_tbias'
-    ABOVE = 'botpt_kzmintemp_above'
-    BELOW = 'botpt_kzmintemp_below'
-    KZVALS = 'botpt_kzvals'
-    ADC_DELAY = 'botpt_adc_delay'
-    PCA_MODEL = 'botpt_pca_model'
-    FIRMWARE_REV = 'botpt_firmware_rev'
-    XCHAN_GAIN = 'botpt_xchan_gain'
-    YCHAN_GAIN = 'botpt_ychan_gain'
-    TEMP_GAIN = 'botpt_temp_gain'
-    RS232 = 'botpt_rs232'
-    RTC_INSTALLED = 'botpt_rtc_installed'
-    RTC_TIMING = 'botpt_rtc_timing'
-    CAL_METHOD = 'botpt_calibration_method'
-    POS_LIMIT = 'botpt_positive_limit'
-    NEG_LIMIT = 'botpt_negative_limit'
-    NUM_CAL_POINTS = 'botpt_calibration_points'
-    CAL_POINTS_X = 'botpt_cal_points_x'
-    CAL_POINTS_Y = 'botpt_cal_points_y'
-    ADC_TYPE = 'botpt_adc_type'
-    OUTPUT_MODE = 'botpt_output_mode'
-    CAL_MODE = 'botpt_cal_mode'
-    EXT_FLASH_CAPACITY = 'botpt_external_flash_capacity_bytes'
-    SENSOR_TYPE = 'botpt_sensor_type'
+    TBIAS = 'tbias'
+    ABOVE = 'kzmintemp_above'
+    BELOW = 'kzmintemp_below'
+    KZVALS = 'kzvals'
+    ADC_DELAY = 'adc_delay'
+    PCA_MODEL = 'pca_model'
+    FIRMWARE_REV = 'firmware_rev'
+    XCHAN_GAIN = 'xchan_gain'
+    YCHAN_GAIN = 'ychan_gain'
+    TEMP_GAIN = 'temp_gain'
+    RS232 = 'rs232'
+    RTC_INSTALLED = 'rtc_installed'
+    RTC_TIMING = 'rtc_timing'
+    CAL_METHOD = 'calibration_method'
+    POS_LIMIT = 'positive_limit'
+    NEG_LIMIT = 'negative_limit'
+    NUM_CAL_POINTS = 'calibration_points'
+    CAL_POINTS_X = 'cal_points_x'
+    CAL_POINTS_Y = 'cal_points_y'
+    ADC_TYPE = 'adc_type'
+    OUTPUT_MODE = 'output_mode'
+    CAL_MODE = 'cal_mode'
+    EXT_FLASH_CAPACITY = 'external_flash_capacity_bytes'
+    SENSOR_TYPE = 'sensor_type'
 
     # CONTROL = 'iris_control'
     # XPOS_RELAY_THRESHOLD = 'iris_xpos_relay_threshold'
@@ -484,19 +491,17 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
     def _got_chunk(self, chunk, timestamp):
         raise NotImplementedException('_got_chunk not implemented')
 
-    def _handler_command_generic(self, command, next_state, next_agent_state, timeout, expected_prompt=None):
+    def _handler_command_generic(self, command, next_state, next_agent_state,
+                                 timeout=DEFAULT_CMD_TIMEOUT, expected_prompt=None, response_regex=None):
         """
         Generic method to command the instrument
         """
         log.debug('_handler_command: %s %s %s %s', command, next_state, next_agent_state, timeout)
-
-        if expected_prompt is None:
+        if expected_prompt is None and response_regex is None:
             result = self._do_cmd_no_resp(command)
         else:
-            if timeout is None:
-                result = self._do_cmd_resp(command, expected_prompt=expected_prompt)
-            else:
-                result = self._do_cmd_resp(command, expected_prompt=expected_prompt, timeout=timeout)
+            result = self._do_cmd_resp(command, expected_prompt=expected_prompt,
+                                       response_regex=response_regex, timeout=timeout)
 
         log.debug('%s response: %s', command, result)
         return next_state, (next_agent_state, result)
@@ -526,14 +531,13 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         Also add data to the chunker and when received call got_chunk
         to publish results.
         """
-        data_length = port_agent_packet.get_data_length()
         data = self._filter_raw(port_agent_packet.get_data())
         timestamp = port_agent_packet.get_timestamp()
 
-        log.debug("Got Data: %s" % data)
+        log.debug("Got Data: %r" % data)
         log.debug("Add Port Agent Timestamp: %s" % timestamp)
 
-        if data_length > 0:
+        if len(data) > 0:
             if self.get_current_state() == DriverProtocolState.DIRECT_ACCESS:
                 self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
 
@@ -544,25 +548,6 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
             while chunk:
                 self._got_chunk(chunk, timestamp)
                 timestamp, chunk = self._chunker.get_next_data()
-
-    # def _clean_buffer(self, my_buffer):
-    #     return NEWLINE.join(my_buffer.split(NEWLINE)[-MAX_BUFFER_LENGTH:])
-    #
-    # def add_to_buffer(self, data):
-    #     """
-    #     Add a chunk of data to the internal data buffers, filtering out data not for this sensor.
-    #     Limit buffer length to MAX_BUFFER_LENGTH lines
-    #     @param data: bytes to add to the buffer
-    #     """
-    #     # Update the line and prompt buffers.
-    #     self._linebuf += data
-    #     self._promptbuf += data
-    #     self._linebuf = self._clean_buffer(self._linebuf)
-    #     self._promptbuf = self._clean_buffer(self._promptbuf)
-    #     self._last_data_timestamp = time.time()
-    #
-    #     log.debug("LINE BUF: %s", self._linebuf)
-    #     log.debug("PROMPT BUF: %s", self._promptbuf)
 
     def _build_command(self, cmd, *args, **kwargs):
         command = cmd + NEWLINE
