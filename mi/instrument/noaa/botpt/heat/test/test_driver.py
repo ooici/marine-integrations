@@ -12,7 +12,7 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-import unittest
+from mi.core.exceptions import SampleException
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
@@ -34,11 +34,10 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
+from mi.core.common import BaseEnum
 from mi.core.instrument.port_agent_client import PortAgentPacket
-
 from mi.core.instrument.chunker import StringChunker
-
-from mi.instrument.noaa.botpt.heat.driver import InstrumentDriver
+from mi.instrument.noaa.botpt.heat.driver import InstrumentDriver, HEATDataParticle
 from mi.instrument.noaa.botpt.heat.driver import DataParticleType
 from mi.instrument.noaa.botpt.heat.driver import HEATDataParticleKey
 from mi.instrument.noaa.botpt.heat.driver import InstrumentCommand
@@ -47,9 +46,7 @@ from mi.instrument.noaa.botpt.heat.driver import ProtocolEvent
 from mi.instrument.noaa.botpt.heat.driver import Capability
 from mi.instrument.noaa.botpt.heat.driver import Parameter
 from mi.instrument.noaa.botpt.heat.driver import Protocol
-from mi.instrument.noaa.botpt.heat.driver import Prompt
 from mi.instrument.noaa.botpt.heat.driver import NEWLINE
-
 from pyon.agent.agent import ResourceAgentState
 
 ###
@@ -88,6 +85,7 @@ TEST_HEAT_ON_DURATION_2 = 2  # Heat duration constant for tests
 TEST_HEAT_ON_DURATION_3 = 3  # Heat duration constant for tests
 TEST_HEAT_OFF = 0  # Heat off
 
+INVALID_SAMPLE = "HEAT,2013/04/19 22:54:11,-001,0001,ERROR0025" + NEWLINE
 VALID_SAMPLE_01 = "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 VALID_SAMPLE_02 = "HEAT,2013/04/19 22:54:11,001,0001,0025" + NEWLINE
 HEAT_ON_COMMAND_RESPONSE = "HEAT,2013/04/19 22:54:11,*" + str(TEST_HEAT_ON_DURATION_2) + NEWLINE
@@ -169,9 +167,6 @@ class HEATTestMixinSub(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.HEAT_PARSED, require_instrument_timestamp=True)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
 
-    def assert_heat_on_response(self, response, verify_values=False):
-        pass
-
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -219,7 +214,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
 
     def test_chunker(self):
         """
-        Test the chunker and verify the particles created.
+        Test the chunker
         """
         chunker = StringChunker(Protocol.sieve_function)
         self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
@@ -231,6 +226,30 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, initial_protocol_state)
         return driver
+
+    def test_data_build_parsed_values(self):
+        """
+        Verify that the BOTPT IRIS driver build_parsed_values method
+        raises SampleException when an invalid sample is encountered
+        and that it returns a result when a valid sample is encountered
+        """
+        items = [
+            (INVALID_SAMPLE, False),
+            (VALID_SAMPLE_01, True),
+            (VALID_SAMPLE_02, True),
+        ]
+
+        for raw_data, is_valid in items:
+            sample_exception = False
+            result = None
+            try:
+                result = HEATDataParticle(raw_data)._build_parsed_values()
+            except SampleException as e:
+                log.debug('SampleException caught: %s.', e)
+                sample_exception = True
+            if is_valid:
+                self.assertFalse(sample_exception)
+                self.assertIsInstance(result, list)
 
     def test_got_data(self):
         """
@@ -304,7 +323,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         Test silly made up capabilities to verify they are blocked by filter.
         """
         mock_callback = Mock()
-        protocol = Protocol(Prompt, NEWLINE, mock_callback)
+        protocol = Protocol(BaseEnum, NEWLINE, mock_callback)
         driver_capabilities = Capability().list()
         test_capabilities = Capability().list()
 
@@ -344,15 +363,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, HEATTestMixinSu
         self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
         self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_3)
 
-    def test_raw(self):
-        self.assert_initialize_driver()
-        self.assert_async_particle_generation(DataParticleType.RAW, self.assert_particle_raw,
-                                              particle_count=10, timeout=10)
-
     def test_particle(self):
         self.assert_initialize_driver()
         self.assert_async_particle_generation(DataParticleType.HEAT_PARSED, self.assert_particle_sample_01,
-                                              particle_count=10, timeout=15)
+                                              particle_count=3, timeout=15)
 
     def test_heat_on(self):
         """
@@ -405,7 +419,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, HEATTestMix
         self.assert_state_change(ResourceAgentState.DIRECT_ACCESS, ProtocolState.DIRECT_ACCESS, 30)
         self.assert_reset()
 
-    @unittest.skip('Not applicable to this driver')
+    # N/A
     def test_discover(self):
         pass
 
@@ -420,7 +434,12 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, HEATTestMix
     def test_sample_particles(self):
         self.assert_enter_command_mode()
         self.assert_particle_async(DataParticleType.HEAT_PARSED, self.assert_particle_sample_01,
-                                   particle_count=10, timeout=12)
+                                   particle_count=3, timeout=15)
+
+    def test_heat_on(self):
+        self.assert_enter_command_mode()
+        self.assert_execute_resource(Capability.HEAT_ON)
+        self.assert_execute_resource(Capability.HEAT_OFF)
 
     def test_get_capabilities(self):
         """

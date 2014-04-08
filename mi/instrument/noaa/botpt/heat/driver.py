@@ -8,7 +8,6 @@ Release notes:
 Driver for LILY HEATER on the RSN-BOTPT instrument (v.6)
 
 """
-from mi.instrument.noaa.botpt.driver import BotptProtocol
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
@@ -19,7 +18,6 @@ import time
 import ntplib
 
 from mi.core.log import get_logger
-
 
 log = get_logger()
 
@@ -35,23 +33,18 @@ from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
-from mi.core.instrument.data_particle import DataParticle, CommonDataParticleType
+from mi.core.instrument.data_particle import DataParticle
+from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
-
+from mi.instrument.noaa.botpt.driver import BotptProtocol
+from mi.instrument.noaa.botpt.driver import NEWLINE
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import SampleException
 
 ###
 #    Driver Constant Definitions
-###
-
-# newline.
-NEWLINE = '\x0a'
-MAX_BUFFER_LENGTH = 10
-
-# default timeout.
-TIMEOUT = 10
+###=
 
 OFF_HEAT_DURATION = 0
 DEFAULT_HEAT_DURATION = 2
@@ -102,12 +95,6 @@ class Parameter(DriverParameter):
     Device specific parameters.
     """
     HEAT_DURATION = "heat_duration"
-
-
-class Prompt(BaseEnum):
-    """
-    Device i/o prompts..
-    """
 
 
 class InstrumentCommand(BaseEnum):
@@ -255,7 +242,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
+        self._protocol = Protocol(BaseEnum, NEWLINE, self._driver_event)
 
 
 ###########################################################################
@@ -331,7 +318,6 @@ class Protocol(BotptProtocol):
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        #
         self._chunker = StringChunker(Protocol.sieve_function)
 
         self._heat_duration = DEFAULT_HEAT_DURATION

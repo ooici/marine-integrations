@@ -534,8 +534,8 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         data = self._filter_raw(port_agent_packet.get_data())
         timestamp = port_agent_packet.get_timestamp()
 
-        log.debug("Got Data: %r" % data)
-        log.debug("Add Port Agent Timestamp: %s" % timestamp)
+        log.trace("Got Data: %r" % data)
+        log.trace("Add Port Agent Timestamp: %s" % timestamp)
 
         if len(data) > 0:
             if self.get_current_state() == DriverProtocolState.DIRECT_ACCESS:
