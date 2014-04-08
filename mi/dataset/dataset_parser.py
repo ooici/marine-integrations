@@ -113,14 +113,17 @@ class Parser(object):
         try:
             if regex is None or regex.match(raw_data):
                 particle = particle_class(raw_data, internal_timestamp=timestamp,
-                                          preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP, new_sequence=self._new_sequence)
+                                          preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP,
+                                          new_sequence=self._new_sequence)
                 if self._new_sequence:
                     self._new_sequence = False
 
+                # need to actually parse the particle fields to find out of there are errors
+                particle.generate()
                 encoding_errors = particle.get_encoding_errors()
                 if encoding_errors:
                     log.warn("Failed to encode: %s", encoding_errors)
-                    raise SampleEncodingException("Failed to encode: %s", encoding_errors)
+                    raise SampleEncodingException("Failed to encode: %s" % encoding_errors)
 
         except (RecoverableSampleException, SampleEncodingException) as e:
             log.error("Sample exception detected: %s raw data: %s", e, raw_data)
@@ -181,8 +184,19 @@ class BufferLoadingParser(Parser):
             while len(self._record_buffer) < num_records:
                 self._load_particle_buffer()        
         except EOFError:
-            pass            
+            # not ready to possibly break lots of drivers yet with this, uncomment when read to add
+            #self._process_end_of_file()
+            pass
         return self._yank_particles(num_records)
+
+    def _process_end_of_file(self):
+        """
+        Confirm that the chunker does not have any extra bytes left at the end of the file
+        """
+        (nd_timestamp, non_data) = self._chunker.get_next_non_data()
+        (timestamp, chunk) = self._chunker.get_next_data()
+        if (non_data and len(non_data) > 0) or (chunk and len(chunk) > 0):
+            raise SampleException("Have extra unexplained bytes at the end of the file")
 
     def _yank_particles(self, num_records):
         """
