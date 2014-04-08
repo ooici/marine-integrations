@@ -35,7 +35,7 @@ from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
-from mi.core.instrument.data_particle import DataParticle
+from mi.core.instrument.data_particle import DataParticle, CommonDataParticleType
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
 
@@ -119,6 +119,7 @@ class InstrumentCommand(BaseEnum):
 
 
 class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
     HEAT_PARSED = 'botpt_heat_sample'
 
 
