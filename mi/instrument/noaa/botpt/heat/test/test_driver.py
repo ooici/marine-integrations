@@ -324,7 +324,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
 ###############################################################################
 # noinspection PyProtectedMember
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
+class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, HEATTestMixinSub):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
@@ -343,6 +343,16 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
         self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_3)
+
+    def test_raw(self):
+        self.assert_initialize_driver()
+        self.assert_async_particle_generation(DataParticleType.RAW, self.assert_particle_raw,
+                                              particle_count=10, timeout=10)
+
+    def test_particle(self):
+        self.assert_initialize_driver()
+        self.assert_async_particle_generation(DataParticleType.HEAT_PARSED, self.assert_particle_sample_01,
+                                              particle_count=10, timeout=15)
 
     def test_heat_on(self):
         """
@@ -405,8 +415,12 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, HEATTestMix
         ensuring that read only parameters fail on set.
         """
         self.assert_enter_command_mode()
-        self.assert_set_parameter(Parameter.HEAT_DURATION, 1, True)
-        self.assert_get_parameter(Parameter.HEAT_DURATION, 1)
+        self.assert_set_parameter(Parameter.HEAT_DURATION, 1)
+
+    def test_sample_particles(self):
+        self.assert_enter_command_mode()
+        self.assert_particle_async(DataParticleType.HEAT_PARSED, self.assert_particle_sample_01,
+                                   particle_count=10, timeout=12)
 
     def test_get_capabilities(self):
         """
