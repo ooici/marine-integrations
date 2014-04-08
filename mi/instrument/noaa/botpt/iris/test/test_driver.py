@@ -544,7 +544,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
         self.tcp_client.send_data(InstrumentCommand.DATA_ON + NEWLINE)
-        self.tcp_client.expect(DATA_ON_COMMAND_RESPONSE)
+        result = self.tcp_client.expect(IRIS_DATA_ON)
+        self.assertTrue(result, msg='Failed to receive expected response in direct access mode.')
         self.assert_direct_access_stop_telnet()
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
 
