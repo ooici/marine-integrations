@@ -504,17 +504,59 @@ class Protocol(SamiProtocol):
 
         return return_list
 
+## TODO: Move to base class
+## TODO: Handle brick prompt, fix prompt and put back in discover state
+
     def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker. Pass it to
         extract_sample with the appropriate particle objects and REGEXes.
         """
         log.debug('herb: ' + 'Protocol._got_chunk()')
-## TODO: Add error and prompt?
+
+        ## TODO: Add error and prompt?
+
         self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(Pco2wSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(Pco2wConfigurationDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
+        sample = self._extract_sample(Pco2wSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
+
+        log.debug('herb: ' + 'Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
+
+        if sample:
+
+            matched = SAMI_SAMPLE_REGEX_MATCHER.match(chunk)
+            record_type = matched.group(3)
+            log.debug('herb: ' + 'Protocol._got_chunk(): record_type == ' + record_type)
+
+            current_state = self.get_current_state()
+
+            if current_state == ProtocolState.BLANK_SAMPLE:
+                if record_type == '05':  ## Blank sample
+                    ## Send success event to execute next step.
+##                    self._protocol_fsm.on_event(ProtocolEvent.SUCCESS)
+                    self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
+                else:
+                    ## TODO: Error: Invalid record type in this state
+                    pass
+            elif current_state == ProtocolState.REGULAR_SAMPLE:
+                if record_type == '04':  ## Regular sample
+                    ## Send success event to execute next step.
+##                    self._protocol_fsm.on_event(ProtocolEvent.SUCCESS)
+                    self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
+                else:
+                    ## TODO: Error: Invalid record type in this state
+                    pass
+            else:
+                ## TODO: Error:  Should not receive a sample in this state
+                pass
+
+        ## TODO: Check timestamp and throw exception
+
+
+
+
+
 
     ########################################################################
     # Build Command, Driver and Parameter dictionaries

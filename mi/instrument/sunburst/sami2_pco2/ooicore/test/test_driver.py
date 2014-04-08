@@ -499,17 +499,20 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 ##    def test_paramters(self):
 ##        self.assert_initialize_driver()
 
-    def test_acquire_status(self):
-         self.assert_initialize_driver()
-         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+##    def test_acquire_status(self):
+##        self.assert_initialize_driver()
+##        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
 
+## TODO: On acquire sample, make sure the correct states are returned to, COMMAND or AUTOSAMPLING
     def test_acquire_sample(self):
         self.assert_initialize_driver()
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=160)  ## TODO: No delay to test waiting state
 
-    def test_auto_sample(self):
-        self.assert_initialize_driver()
-        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
+##  TODO: Test all commands and states
+
+##    def test_auto_sample(self):
+##        self.assert_initialize_driver()
+##        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
 
 ##    def test_direct_access(self):
 ##        self.assert_initialize_driver()
