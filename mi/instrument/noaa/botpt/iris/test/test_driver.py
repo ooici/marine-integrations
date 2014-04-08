@@ -12,7 +12,6 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-from mi.instrument.noaa.botpt.driver import BotptStatus01ParticleKey
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
@@ -35,12 +34,13 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
-
 from mi.core.instrument.port_agent_client import PortAgentPacket
-
 from mi.core.instrument.chunker import StringChunker
-
-from mi.instrument.noaa.botpt.iris.driver import InstrumentDriver, IRISStatus02ParticleKey
+from mi.core.common import BaseEnum
+from mi.core.instrument.instrument_driver import DriverParameter
+from mi.instrument.noaa.botpt.driver import BotptStatus01ParticleKey
+from mi.instrument.noaa.botpt.iris.driver import InstrumentDriver
+from mi.instrument.noaa.botpt.iris.driver import IRISStatus02ParticleKey
 from mi.instrument.noaa.botpt.iris.driver import DataParticleType
 from mi.instrument.noaa.botpt.iris.driver import IRISDataParticleKey
 from mi.instrument.noaa.botpt.iris.driver import IRISDataParticle
@@ -48,9 +48,7 @@ from mi.instrument.noaa.botpt.iris.driver import InstrumentCommand
 from mi.instrument.noaa.botpt.iris.driver import ProtocolState
 from mi.instrument.noaa.botpt.iris.driver import ProtocolEvent
 from mi.instrument.noaa.botpt.iris.driver import Capability
-from mi.instrument.noaa.botpt.iris.driver import Parameter
 from mi.instrument.noaa.botpt.iris.driver import Protocol
-from mi.instrument.noaa.botpt.iris.driver import Prompt
 from mi.instrument.noaa.botpt.iris.driver import NEWLINE
 from mi.instrument.noaa.botpt.iris.driver import IRIS_COMMAND_STRING
 from mi.instrument.noaa.botpt.iris.driver import IRIS_STRING
@@ -349,7 +347,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(ProtocolState())
         self.assert_enum_has_no_duplicates(ProtocolEvent())
-        self.assert_enum_has_no_duplicates(Parameter())
+        self.assert_enum_has_no_duplicates(DriverParameter())
         self.assert_enum_has_no_duplicates(InstrumentCommand())
 
         # Test capabilities for duplicates, them verify that capabilities is a subset of proto events
@@ -430,18 +428,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
 
     def test_handlers(self):
         items = [
-            ('_handler_command_start_autosample',
-             ProtocolState.COMMAND,
-             ProtocolState.AUTOSAMPLE,
-             IRIS_DATA_ON),
-            ('_handler_autosample_stop_autosample',
-             ProtocolState.AUTOSAMPLE,
-             ProtocolState.COMMAND,
-             IRIS_DATA_OFF),
-            ('_handler_command_autosample_acquire_status',
-             ProtocolState.COMMAND,
-             None,
-             IRIS_DUMP_02),
+            ('_handler_command_start_autosample', ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE, IRIS_DATA_ON),
+            ('_handler_autosample_stop_autosample', ProtocolState.AUTOSAMPLE, ProtocolState.COMMAND, IRIS_DATA_OFF),
+            ('_handler_command_autosample_acquire_status', ProtocolState.COMMAND, None, IRIS_DUMP_02),
         ]
 
         for handler, initial_state, expected_state, prompt in items:
@@ -467,7 +456,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         Test silly made up capabilities to verify they are blocked by filter.
         """
         mock_callback = Mock()
-        protocol = Protocol(Prompt, NEWLINE, mock_callback)
+        protocol = Protocol(BaseEnum, NEWLINE, mock_callback)
         driver_capabilities = Capability().list()
         test_capabilities = Capability().list()
 
@@ -475,8 +464,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         test_capabilities.append("BOGUS_CAPABILITY")
 
         # Verify "BOGUS_CAPABILITY was filtered out
-        self.assertEquals(sorted(driver_capabilities),
-                          sorted(protocol._filter_capabilities(test_capabilities)))
+        self.assertEquals(sorted(driver_capabilities), sorted(protocol._filter_capabilities(test_capabilities)))
 
 
 ###############################################################################
@@ -510,29 +498,16 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, IRISTestMixinSu
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
         self.assertTrue(response[1].endswith(IRIS_DATA_OFF))
 
-    def test_dump_01(self):
+    def test_acquire_status(self):
         """
         @brief Test for acquiring status dump 01
         """
         self.assert_initialize_driver()
 
-        # Issues acquire status command
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS,
-                                        DataParticleType.IRIS_STATUS1,
-                                        self.assert_particle_status_01,
-                                        delay=2)
-
-    def test_dump_02(self):
-        """
-        @brief Test for acquiring status dump 02
-        """
-        self.assert_initialize_driver()
-
-        # Issues acquire status command
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS,
-                                        DataParticleType.IRIS_STATUS2,
-                                        self.assert_particle_status_02,
-                                        delay=2)
+        # Issue acquire status command
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_async_particle_generation(DataParticleType.IRIS_STATUS1, self.assert_particle_status_01)
+        self.assert_async_particle_generation(DataParticleType.IRIS_STATUS2, self.assert_particle_status_02)
 
     def test_direct_access(self):
         """
@@ -542,6 +517,12 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, IRISTestMixinSu
         self.assert_state_change(ProtocolState.COMMAND, 5)
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
         self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
+
+    def test_commands(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(Capability.START_AUTOSAMPLE)
+        self.assert_driver_command(Capability.STOP_AUTOSAMPLE)
+        self.assert_driver_command(Capability.ACQUIRE_STATUS)
 
 
 ###############################################################################
@@ -567,6 +548,16 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
         self.assert_direct_access_stop_telnet()
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
 
+    def test_sample_particles(self):
+        self.assert_sample_autosample(self.assert_particle_sample_01, DataParticleType.IRIS_PARSED)
+
+    def test_status_particles(self):
+        self.assert_enter_command_mode()
+        self.assert_particle_polled(Capability.ACQUIRE_STATUS, self.assert_particle_status_01,
+                                    DataParticleType.IRIS_STATUS1)
+        self.assert_particle_polled(Capability.ACQUIRE_STATUS, self.assert_particle_status_02,
+                                    DataParticleType.IRIS_STATUS2)
+
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -584,8 +575,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
                 ProtocolEvent.GET,
                 ProtocolEvent.SET,
                 ProtocolEvent.START_AUTOSAMPLE,
-                ProtocolEvent.DUMP_01,
-                ProtocolEvent.DUMP_02,
                 ProtocolEvent.ACQUIRE_STATUS,
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
@@ -601,8 +590,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
             ProtocolEvent.STOP_AUTOSAMPLE,
-            ProtocolEvent.DUMP_01,
-            ProtocolEvent.DUMP_02,
             ProtocolEvent.ACQUIRE_STATUS,
         ]
 

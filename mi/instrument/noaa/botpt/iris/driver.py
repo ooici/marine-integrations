@@ -9,7 +9,7 @@ Driver for IRIS TILT on the RSN-BOTPT instrument (v.6)
 
 """
 from mi.instrument.noaa.botpt.driver import BotptProtocol, BotptStatus01Particle, BotptStatus02ParticleKey, \
-    BotptStatus02Particle
+    BotptStatus02Particle, NEWLINE
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
@@ -44,18 +44,12 @@ from mi.core.exceptions import SampleException
 #    Driver Constant Definitions
 ###
 
-# newline.
-NEWLINE = '\x0a'
-MAX_BUFFER_LENGTH = 10
 IRIS_STRING = 'IRIS,'
 IRIS_COMMAND_STRING = '*9900XY'
 IRIS_DATA_ON = 'C2'  # turns on continuous data
 IRIS_DATA_OFF = 'C-OFF'  # turns off continuous data
 IRIS_DUMP_01 = '-DUMP-SETTINGS'  # outputs current settings
 IRIS_DUMP_02 = '-DUMP2'  # outputs current extended settings
-
-# default timeout.
-TIMEOUT = 10
 
 
 class ProtocolState(BaseEnum):
@@ -66,11 +60,6 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-
-
-class ExportedInstrumentCommand(BaseEnum):
-    DUMP_01 = "EXPORTED_INSTRUMENT_DUMP_SETTINGS"
-    DUMP_02 = "EXPORTED_INSTRUMENT_DUMP_EXTENDED_SETTINGS"
 
 
 class ProtocolEvent(BaseEnum):
@@ -84,8 +73,6 @@ class ProtocolEvent(BaseEnum):
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     DISCOVER = DriverEvent.DISCOVER
-    DUMP_01 = ExportedInstrumentCommand.DUMP_01
-    DUMP_02 = ExportedInstrumentCommand.DUMP_02
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
     START_DIRECT = DriverEvent.START_DIRECT
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
@@ -100,21 +87,7 @@ class Capability(BaseEnum):
     SET = ProtocolEvent.SET
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    DUMP_01 = ProtocolEvent.DUMP_01
-    DUMP_02 = ProtocolEvent.DUMP_02
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
-
-
-class Parameter(DriverParameter):
-    """
-    Device specific parameters.
-    """
-
-
-class Prompt(BaseEnum):
-    """
-    Device i/o prompts..
-    """
 
 
 class InstrumentCommand(BaseEnum):
@@ -333,6 +306,7 @@ class IRISStatus02Particle(BotptStatus02Particle):
 # Driver
 ###############################################################################
 
+# noinspection PyMethodMayBeStatic
 class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass
@@ -352,12 +326,11 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     # Superclass overrides for resource query.
     ########################################################################
 
-    # noinspection PyMethodMayBeStatic
     def get_resource_params(self):
         """
         Return list of device parameters available.
         """
-        return Parameter.list()
+        return DriverParameter.list()
 
     ########################################################################
     # Protocol builder.
@@ -367,7 +340,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
+        self._protocol = Protocol(BaseEnum, NEWLINE, self._driver_event)
 
 
 ###########################################################################
@@ -395,6 +368,7 @@ class Protocol(BotptProtocol):
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
                                            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
+        # Add event handlers for protocol state machine.
         handlers = {
             ProtocolState.UNKNOWN: [
                 (ProtocolEvent.ENTER, self._handler_unknown_enter),
@@ -428,12 +402,6 @@ class Protocol(BotptProtocol):
             for event, handler in handlers[state]:
                 self._protocol_fsm.add_handler(state, event, handler)
 
-        # Add event handlers for protocol state machine.
-
-        # Construct the parameter dictionary containing device parameters,
-        # current parameter values, and set formatting functions.
-        self._build_param_dict()
-
         # Add build handlers for device commands.
         for command in InstrumentCommand.list():
             self._add_build_handler(command, self._build_command)
@@ -456,7 +424,7 @@ class Protocol(BotptProtocol):
         self.status_01_regex = IRISStatus01Particle.regex_compiled()
         self.status_02_regex = IRISStatus02Particle.regex_compiled()
         self._last_data_timestamp = 0
-        self._filter_string = 'IRIS'
+        self._filter_string = IRIS_STRING
 
     @staticmethod
     def sieve_function(raw_data):
@@ -489,15 +457,6 @@ class Protocol(BotptProtocol):
         """
         self._cmd_dict = ProtocolCommandDict()
 
-    def _build_param_dict(self):
-        """
-        Populate the parameter dictionary with parameters.
-        For each parameter key, add match string, match lambda function,
-        and value formatting function for set commands.
-        """
-        # Add parameter handlers to parameter dict.
-        pass
-
     def _got_chunk(self, chunk, timestamp):
         """
         Extract particles from our chunks
@@ -509,10 +468,10 @@ class Protocol(BotptProtocol):
                 self._extract_sample(IRISStatus02Particle, self.status_02_regex, chunk, timestamp):
             return
         else:
-            raise InstrumentProtocolException('Unhandled chunk')
+            raise InstrumentProtocolException('Unhandled chunk %r' % chunk)
 
     def _resp_handler(self, response, prompt):
-        print response, prompt
+        log.debug('_resp_handler - response: %r prompt: %r', response, prompt)
         return response
 
     ########################################################################
@@ -524,6 +483,7 @@ class Protocol(BotptProtocol):
         Discover current state
         @retval (next_state, result)
         """
+        # attempt to find a data particle.  If found, go to AUTOSAMPLE, else COMMAND
         try:
             result = self._get_response(timeout=2, response_regex=IRISDataParticle.regex_compiled())
             next_state = ProtocolState.AUTOSAMPLE
@@ -566,9 +526,8 @@ class Protocol(BotptProtocol):
         Get device status
         """
         log.debug("_handler_command_autosample_acquire_status")
-        result = self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_01,
-                                               None, None, expected_prompt=IRIS_DUMP_01)
-        r_string = str(result[1][1])
-        result = self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_02,
-                                               None, None, expected_prompt=IRIS_DUMP_02)
-        return None, (None, r_string + str(result[1][1]))
+        result1 = self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_01,
+                                                None, None, expected_prompt=IRIS_DUMP_01)
+        result2 = self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_02,
+                                                None, None, expected_prompt=IRIS_DUMP_02)
+        return None, (None, '%s %s' % (result1[1][1], result2[1][1]))
