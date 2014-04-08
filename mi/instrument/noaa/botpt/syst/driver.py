@@ -43,6 +43,7 @@ class DataParticleType(BaseEnum):
     Data particle types produced by this driver
     """
     RAW = CommonDataParticleType.RAW
+    STATUS = 'syst_status'
 
 
 class ProtocolState(BaseEnum):
@@ -72,18 +73,6 @@ class Capability(BaseEnum):
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 
-class Parameter(DriverParameter):
-    """
-    Device specific parameters.
-    """
-
-
-class Prompt(BaseEnum):
-    """
-    Device i/o prompts..
-    """
-
-
 class InstrumentCommand(BaseEnum):
     """
     Instrument command strings
@@ -111,24 +100,36 @@ class SYSTStatusParticleKey(BotptStatusParticleKey):
     SWAP_FREE = 'swap_free'
     DIRTY = 'dirty'
     WRITEBACK = 'writeback'
-    ANONPAGES = 'AnonPages'
-    MAPPED = 'Mapped'
-    SLAB = 'Slab'
-    S_RECLAIMABLE = 'SReclaimable'
-    S_UNRECLAIMABLE = 'SUnreclaim'
-    PAGE_TABLES = 'PageTables'
-    NFS_UNSTABLE = 'NFS_Unstable'
-    BOUNCE = 'Bounce'
-    COMMIT_LIMIT = 'CommitLimit'
-    COMMITTED_AS = 'Committed_AS'
-    VMALLOC_TOTAL = 'VmallocTotal'
-    VMALLOC_USED = 'VmallocUsed'
-    VMALLOC_CHUNK = 'VmallocChunk'
+    ANONPAGES = 'anon_pages'
+    MAPPED = 'mapped'
+    SLAB = 'slab'
+    S_RECLAIMABLE = 's_reclaimable'
+    S_UNRECLAIMABLE = 's_unreclaimable'
+    PAGE_TABLES = 'pagetables'
+    NFS_UNSTABLE = 'nfs_unstable'
+    BOUNCE = 'bounce'
+    COMMIT_LIMIT = 'commit_limit'
+    COMMITTED_AS = 'committed_as'
+    VMALLOC_TOTAL = 'vmalloc_total'
+    VMALLOC_USED = 'vmalloc_used'
+    VMALLOC_CHUNK = 'vmalloc_chunk'
     NETSTAT = 'netstat'
     PROCESSES = 'processes'
 
 
 class SYSTStatusParticle(BotptStatusParticle):
+    _data_particle_type = DataParticleType.STATUS
+    _DEFAULT_ENCODER_KEY = int
+    _timestamp_re = r'(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})'
+    _encoders = {
+        SYSTStatusParticleKey.TIME: BotptStatusParticle.timestamp_to_ntp,
+        SYSTStatusParticleKey.NAME: unicode,
+        SYSTStatusParticleKey.SERIAL_NUMBER: unicode,
+        SYSTStatusParticleKey.UPTIME: unicode,
+        SYSTStatusParticleKey.MEM_STATS: unicode,
+        SYSTStatusParticleKey.NETSTAT: unicode,
+        SYSTStatusParticleKey.PROCESSES: unicode,
+    }
     # SYST,2014/04/07 20:46:35,*BOTPT BPR and tilt instrument controller
     # SYST,2014/04/07 20:46:35,*ts7550n3
     # SYST,2014/04/07 20:46:35,*System uptime
@@ -180,6 +181,11 @@ class SYSTStatusParticle(BotptStatusParticle):
     # SYST,2014/04/07 20:46:35,*root       685  0.0  2.2  19960  1396 ?        Sl   Mar25   0:00 /root/bin/RESO
     # SYST,2014/04/07 20:46:35,*root      7860  0.0  0.9   1704   604 ?        S    20:17   0:00 grep root/bin
 
+    def __init__(self, *args, **kwargs):
+        BotptStatusParticle.__init__(self, *args, **kwargs)
+        self._orig_raw_data = self.raw_data
+        self._clean_raw()
+
     @staticmethod
     def regex():
         return r'(SYST,.*?BOTPT BPR.*grep.*)'
@@ -188,40 +194,62 @@ class SYSTStatusParticle(BotptStatusParticle):
     def regex_compiled():
         return re.compile(SYSTStatusParticle.regex(), re.DOTALL)
 
-    @staticmethod
-    def _regex_multiline():
+    def _regex_multiline(self):
         return {
-            SYSTStatusParticleKey.NAME: r',\*(BOTPT.*?)' + NEWLINE,
-            SYSTStatusParticleKey.SERIAL_NUMBER: r',\*(ts.*)',
-            SYSTStatusParticleKey.UPTIME: r'(.*System uptime.*' + NEWLINE + r'.*)',
-            SYSTStatusParticleKey.MEM_STATS: r'(.*Memory stats.*' + '.*'.join([NEWLINE] * 4) + '.*)',
-            SYSTStatusParticleKey.MEM_TOTAL: r',\*MemTotal:\s+(\d+) kB',
-            SYSTStatusParticleKey.MEM_FREE: r',\*MemFree:\s+(\d+) kB',
-            SYSTStatusParticleKey.BUFFERS: r',\*Buffers:\s+(\d+) kB',
-            SYSTStatusParticleKey.CACHED: r',\*Cached:\s+(\d+) kB',
-            SYSTStatusParticleKey.SWAP_CACHED: r',\*SwapCached:\s+(\d+) kB',
-            SYSTStatusParticleKey.ACTIVE: r',\*Active:\s+(\d+) kB',
-            SYSTStatusParticleKey.INACTIVE: r',\*Inactive:\s+(\d+) kB',
-            SYSTStatusParticleKey.SWAP_TOTAL: r',\*SwapTotal:\s+(\d+) kB',
-            SYSTStatusParticleKey.SWAP_FREE: r',\*SwapFree:\s+(\d+) kB',
-            SYSTStatusParticleKey.DIRTY: r',\*Dirty:\s+(\d+) kB',
-            SYSTStatusParticleKey.WRITEBACK: r',\*Writeback:\s+(\d+) kB',
-            SYSTStatusParticleKey.ANONPAGES: r',\*AnonPages:\s+(\d+) kB',
-            SYSTStatusParticleKey.MAPPED: r',\*Mapped:\s+(\d+) kB',
-            SYSTStatusParticleKey.SLAB: r',\*Slab:\s+(\d+) kB',
-            SYSTStatusParticleKey.S_RECLAIMABLE: r',\*SReclaimable:\s+(\d+) kB',
-            SYSTStatusParticleKey.S_UNRECLAIMABLE: r',\*SUnreclaim:\s+(\d+) kB',
-            SYSTStatusParticleKey.PAGE_TABLES: r',\*PageTables:\s+(\d+) kB',
-            SYSTStatusParticleKey.NFS_UNSTABLE: r',\*NFS_Unstable:\s+(\d+) kB',
-            SYSTStatusParticleKey.BOUNCE: r',\*Bounce:\s+(\d+) kB',
-            SYSTStatusParticleKey.COMMIT_LIMIT: r',\*CommitLimit:\s+(\d+) kB',
-            SYSTStatusParticleKey.COMMITTED_AS: r',\*Committed_AS:\s+(\d+) kB',
-            SYSTStatusParticleKey.VMALLOC_TOTAL: r',\*VmallocTotal:\s+(\d+) kB',
-            SYSTStatusParticleKey.VMALLOC_USED: r',\*VmallocUsed:\s+(\d+) kB',
-            SYSTStatusParticleKey.VMALLOC_CHUNK: r',\*VmallocChunk:\s+(\d+) kB',
-            SYSTStatusParticleKey.NETSTAT: r'((?:tcp|udp).*)',
+            SYSTStatusParticleKey.TIME: self._timestamp_re,
+            SYSTStatusParticleKey.NAME: r'(BOTPT.*?)' + NEWLINE,
+            SYSTStatusParticleKey.SERIAL_NUMBER: r'(ts.*?)' + NEWLINE,
+            SYSTStatusParticleKey.UPTIME: r'(System uptime.*?' + NEWLINE + r'.*?)' + NEWLINE,
+            SYSTStatusParticleKey.MEM_STATS: r'(Memory stats.*?' + '.*?'.join([NEWLINE] * 4) + '.*?)' + NEWLINE,
+            SYSTStatusParticleKey.MEM_TOTAL: r'MemTotal:\s+(\d+) kB',
+            SYSTStatusParticleKey.MEM_FREE: r'MemFree:\s+(\d+) kB',
+            SYSTStatusParticleKey.BUFFERS: r'Buffers:\s+(\d+) kB',
+            SYSTStatusParticleKey.CACHED: r'Cached:\s+(\d+) kB',
+            SYSTStatusParticleKey.SWAP_CACHED: r'SwapCached:\s+(\d+) kB',
+            SYSTStatusParticleKey.ACTIVE: r'Active:\s+(\d+) kB',
+            SYSTStatusParticleKey.INACTIVE: r'Inactive:\s+(\d+) kB',
+            SYSTStatusParticleKey.SWAP_TOTAL: r'SwapTotal:\s+(\d+) kB',
+            SYSTStatusParticleKey.SWAP_FREE: r'SwapFree:\s+(\d+) kB',
+            SYSTStatusParticleKey.DIRTY: r'Dirty:\s+(\d+) kB',
+            SYSTStatusParticleKey.WRITEBACK: r'Writeback:\s+(\d+) kB',
+            SYSTStatusParticleKey.ANONPAGES: r'AnonPages:\s+(\d+) kB',
+            SYSTStatusParticleKey.MAPPED: r'Mapped:\s+(\d+) kB',
+            SYSTStatusParticleKey.SLAB: r'Slab:\s+(\d+) kB',
+            SYSTStatusParticleKey.S_RECLAIMABLE: r'SReclaimable:\s+(\d+) kB',
+            SYSTStatusParticleKey.S_UNRECLAIMABLE: r'SUnreclaim:\s+(\d+) kB',
+            SYSTStatusParticleKey.PAGE_TABLES: r'PageTables:\s+(\d+) kB',
+            SYSTStatusParticleKey.NFS_UNSTABLE: r'NFS_Unstable:\s+(\d+) kB',
+            SYSTStatusParticleKey.BOUNCE: r'Bounce:\s+(\d+) kB',
+            SYSTStatusParticleKey.COMMIT_LIMIT: r'CommitLimit:\s+(\d+) kB',
+            SYSTStatusParticleKey.COMMITTED_AS: r'Committed_AS:\s+(\d+) kB',
+            SYSTStatusParticleKey.VMALLOC_TOTAL: r'VmallocTotal:\s+(\d+) kB',
+            SYSTStatusParticleKey.VMALLOC_USED: r'VmallocUsed:\s+(\d+) kB',
+            SYSTStatusParticleKey.VMALLOC_CHUNK: r'VmallocChunk:\s+(\d+) kB',
+            SYSTStatusParticleKey.NETSTAT: r'Listening network services(.*)Data processes',
             SYSTStatusParticleKey.PROCESSES: r'(root.*)',
         }
+
+    def _regex_multiline_compiled(self):
+        """
+        return a dictionary containing compiled regex used to match patterns
+        in SBE multiline results.  Overridden to use re.DOTALL.
+        @return: dictionary of compiled regexes
+        """
+        result = {}
+        for key, regex in self._regex_multiline().iteritems():
+            if key not in result:
+                result[key] = re.compile(regex, re.DOTALL)
+        return result
+
+    def _clean_raw(self):
+        """
+        Strip leading 'SYST,date time,*' from each line, preserving the first instance
+        on a separate line.
+        """
+        delimiter = ',*'
+        first_time_stamp = self.raw_data.split(delimiter)[0]
+        cleaned = re.sub(r'SYST,%s,\*' % self._timestamp_re, '', self.raw_data)
+        self.raw_data = first_time_stamp + NEWLINE + cleaned
 
 
 ###############################################################################
@@ -252,7 +280,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         Return list of device parameters available.
         """
-        return Parameter.list()
+        return DriverParameter.list()
 
     ########################################################################
     # Protocol builder.
@@ -262,7 +290,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
+        self._protocol = Protocol(BaseEnum, NEWLINE, self._driver_event)
 
 
 ###########################################################################
@@ -309,10 +337,6 @@ class Protocol(BotptProtocol):
             for event, handler in handlers[state]:
                 self._protocol_fsm.add_handler(state, event, handler)
 
-        # Construct the parameter dictionary containing device parameters,
-        # current parameter values, and set formatting functions.
-        self._build_param_dict()
-
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCommand.ACQUIRE_STATUS, self._build_command)
 
@@ -328,7 +352,6 @@ class Protocol(BotptProtocol):
 
         #
         self._chunker = StringChunker(Protocol.sieve_function)
-        self._filter_string = SYST_STRING
 
     @staticmethod
     def sieve_function(raw_data):
@@ -345,15 +368,6 @@ class Protocol(BotptProtocol):
                 return_list.append((match.start(), match.end()))
 
         return return_list
-
-    # noinspection PyMethodMayBeStatic
-    def _build_param_dict(self):
-        """
-        Populate the parameter dictionary with parameters.
-        For each parameter key, add match string match lambda function,
-        and value formatting function for set commands.
-        """
-        # Add parameter handlers to parameter dict.
 
     def got_raw(self, port_agent_packet):
         """

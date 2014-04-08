@@ -12,6 +12,7 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
+from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import RawDataParticle
 
 __author__ = 'David Everett'
@@ -25,29 +26,25 @@ from mi.core.log import get_logger
 log = get_logger()
 
 # MI imports.
-from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
-from pyon.core.exception import Conflict
 from pyon.agent.agent import ResourceAgentState
-from pyon.agent.agent import ResourceAgentEvent
 
-from mi.instrument.noaa.botpt.syst.driver import InstrumentDriver
+from mi.instrument.noaa.botpt.syst.driver import InstrumentDriver, SYSTStatusParticleKey
 from mi.instrument.noaa.botpt.syst.driver import DataParticleType
 from mi.instrument.noaa.botpt.syst.driver import InstrumentCommand
 from mi.instrument.noaa.botpt.syst.driver import ProtocolState
 from mi.instrument.noaa.botpt.syst.driver import ProtocolEvent
 from mi.instrument.noaa.botpt.syst.driver import Capability
-from mi.instrument.noaa.botpt.syst.driver import Parameter
 from mi.instrument.noaa.botpt.syst.driver import Protocol
-from mi.instrument.noaa.botpt.syst.driver import Prompt
 from mi.instrument.noaa.botpt.syst.driver import NEWLINE
 
 GO_ACTIVE_TIMEOUT = 180
@@ -134,6 +131,28 @@ SYST,2014/04/07 21:23:18,*root       685  0.0  2.2  19960  1404 ?        Sl   Ma
 SYST,2014/04/07 21:23:18,*root      7880  0.0  0.9   1704   604 ?        S    21:17   0:00 grep root/bin
 '''
 
+uptime = 'System uptime\n 21:17:01 up 13 days, 20:11,  0 users,  load average: 0.00, 0.00, 0.00'
+mem_stats = '''Memory stats
+             total       used       free     shared    buffers     cached
+Mem:         62888      18508      44380          0       2268       5120
+-/+ buffers/cache:      11120      51768
+Swap:            0          0          0'''
+netstat = '''tcp        0      0 *:9337-commands         *:*                     LISTEN
+tcp        0      0 *:9338-data             *:*                     LISTEN
+udp        0      0 *:323                   *:*
+udp        0      0 *:54361                 *:*
+udp        0      0 *:mdns                  *:*
+udp        0      0 *:ntp                   *:*'''
+processes = '''root       643  0.0  2.2  20100  1436 ?        Sl   Mar25   0:01 /root/bin/COMMANDER
+root       647  0.0  2.5  21124  1604 ?        Sl   Mar25   0:16 /root/bin/SEND_DATA
+root       650  0.0  2.2  19960  1388 ?        Sl   Mar25   0:00 /root/bin/DIO_Rel1
+root       654  0.0  2.1  19960  1360 ?        Sl   Mar25   0:02 /root/bin/HEAT
+root       667  0.0  2.2  19960  1396 ?        Sl   Mar25   0:00 /root/bin/IRIS
+root       672  0.0  2.2  19960  1396 ?        Sl   Mar25   0:01 /root/bin/LILY
+root       678  0.0  2.2  19964  1400 ?        Sl   Mar25   0:12 /root/bin/NANO
+root       685  0.0  2.2  19960  1404 ?        Sl   Mar25   0:00 /root/bin/RESO
+root      7880  0.0  0.9   1704   604 ?        S    21:17   0:00 grep root/bin'''
+
 
 ###############################################################################
 #                           DRIVER TEST MIXIN                                  #
@@ -148,6 +167,49 @@ SYST,2014/04/07 21:23:18,*root      7880  0.0  0.9   1704   604 ?        S    21
 # methods for validating data particles.                                      #
 ###############################################################################
 class BOTPTTestMixinSub(DriverTestMixin):
+    TYPE = ParameterTestConfigKey.TYPE
+    READONLY = ParameterTestConfigKey.READONLY
+    STARTUP = ParameterTestConfigKey.STARTUP
+    DA = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE = ParameterTestConfigKey.VALUE
+    REQUIRED = ParameterTestConfigKey.REQUIRED
+    DEFAULT = ParameterTestConfigKey.DEFAULT
+    STATES = ParameterTestConfigKey.STATES
+
+    _status_params = {
+        SYSTStatusParticleKey.TIME: {TYPE: float, VALUE: 3605919798.0, REQUIRED: True},
+        SYSTStatusParticleKey.NAME: {TYPE: unicode, VALUE: u'BOTPT BPR and tilt instrument controller', REQUIRED: True},
+        SYSTStatusParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: u'ts7550n3', REQUIRED: True},
+        SYSTStatusParticleKey.UPTIME: {TYPE: unicode, VALUE: uptime, REQUIRED: True},
+        SYSTStatusParticleKey.MEM_STATS: {TYPE: unicode, VALUE: mem_stats, REQUIRED: True},
+        SYSTStatusParticleKey.MEM_TOTAL: {TYPE: int, VALUE: 62888, REQUIRED: True},
+        SYSTStatusParticleKey.MEM_FREE: {TYPE: int, VALUE: 44404, REQUIRED: True},
+        SYSTStatusParticleKey.BUFFERS: {TYPE: int, VALUE: 2268, REQUIRED: True},
+        SYSTStatusParticleKey.CACHED: {TYPE: int, VALUE: 5120, REQUIRED: True},
+        SYSTStatusParticleKey.SWAP_CACHED: {TYPE: int, VALUE: 0, REQUIRED: True},
+        SYSTStatusParticleKey.ACTIVE: {TYPE: int, VALUE: 9936, REQUIRED: True},
+        SYSTStatusParticleKey.INACTIVE: {TYPE: int, VALUE: 3440, REQUIRED: True},
+        SYSTStatusParticleKey.SWAP_TOTAL: {TYPE: int, VALUE: 0, REQUIRED: True},
+        SYSTStatusParticleKey.SWAP_FREE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        SYSTStatusParticleKey.DIRTY: {TYPE: int, VALUE: 0, REQUIRED: True},
+        SYSTStatusParticleKey.WRITEBACK: {TYPE: int, VALUE: 0, REQUIRED: True},
+        SYSTStatusParticleKey.ANONPAGES: {TYPE: int, VALUE: 6008, REQUIRED: True},
+        SYSTStatusParticleKey.MAPPED: {TYPE: int, VALUE: 3976, REQUIRED: True},
+        SYSTStatusParticleKey.SLAB: {TYPE: int, VALUE: 3096, REQUIRED: True},
+        SYSTStatusParticleKey.S_RECLAIMABLE: {TYPE: int, VALUE: 804, REQUIRED: True},
+        SYSTStatusParticleKey.S_UNRECLAIMABLE: {TYPE: int, VALUE: 2292, REQUIRED: True},
+        SYSTStatusParticleKey.PAGE_TABLES: {TYPE: int, VALUE: 512, REQUIRED: True},
+        SYSTStatusParticleKey.NFS_UNSTABLE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        SYSTStatusParticleKey.BOUNCE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        SYSTStatusParticleKey.COMMIT_LIMIT: {TYPE: int, VALUE: 31444, REQUIRED: True},
+        SYSTStatusParticleKey.COMMITTED_AS: {TYPE: int, VALUE: 167276, REQUIRED: True},
+        SYSTStatusParticleKey.VMALLOC_TOTAL: {TYPE: int, VALUE: 188416, REQUIRED: True},
+        SYSTStatusParticleKey.VMALLOC_USED: {TYPE: int, VALUE: 0, REQUIRED: True},
+        SYSTStatusParticleKey.VMALLOC_CHUNK: {TYPE: int, VALUE: 188416, REQUIRED: True},
+        SYSTStatusParticleKey.NETSTAT: {TYPE: unicode, VALUE: netstat, REQUIRED: True},
+        SYSTStatusParticleKey.PROCESSES: {TYPE: unicode, VALUE: processes, REQUIRED: True},
+    }
+
     def assert_sample_data_particle(self, data_particle):
         """
         Verify a particle is a know particle to this driver and verify the particle is
@@ -159,6 +221,14 @@ class BOTPTTestMixinSub(DriverTestMixin):
         else:
             log.error("Unknown Particle Detected: %s" % data_particle)
             self.assertFalse(True)
+
+    def assert_status_particle(self, data_particle, verify_values=False):
+        """
+        Verify sample particle
+        """
+        self.assert_data_particle_keys(SYSTStatusParticleKey, self._status_params)
+        self.assert_data_particle_header(data_particle, DataParticleType.STATUS, require_instrument_timestamp=True)
+        self.assert_data_particle_parameters(data_particle, self._status_params, verify_values)
 
 
 ###############################################################################
@@ -187,7 +257,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BOTPTTestMixinSub):
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(ProtocolState())
         self.assert_enum_has_no_duplicates(ProtocolEvent())
-        self.assert_enum_has_no_duplicates(Parameter())
+        self.assert_enum_has_no_duplicates(DriverParameter())
         self.assert_enum_has_no_duplicates(InstrumentCommand())
 
         # Test capabilities for duplicates, then verify that capabilities is a subset of protocol events
@@ -210,8 +280,13 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BOTPTTestMixinSub):
         self.assert_initialize_driver(driver)
 
         self.assert_raw_particle_published(driver, True)
+        self.assert_particle_published(driver, STATUS, self.assert_status_particle, True)
 
-    # noinspection PyProtectedMember
+    def test_status(self):
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+        driver._protocol._got_chunk(STATUS, self.get_ntp_timestamp())
+
     def test_protocol_filter_capabilities(self):
         """
         This tests driver filter_capabilities.
@@ -219,7 +294,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BOTPTTestMixinSub):
         Test silly made up capabilities to verify they are blocked by filter.
         """
         mock_callback = Mock()
-        protocol = Protocol(Prompt, NEWLINE, mock_callback)
+        protocol = Protocol(BaseEnum, NEWLINE, mock_callback)
         driver_capabilities = Capability().list()
         test_capabilities = Capability().list()
 
@@ -239,39 +314,17 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BOTPTTestMixinSub):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
+class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, BOTPTTestMixinSub):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    def assert_initialize_driver(self, final_state=DriverProtocolState.AUTOSAMPLE):
+    def test_acquire_status(self):
         """
-        Walk an uninitialized driver through it's initialize process.  Verify the final
-        state is command mode.  If the final state is auto sample then we will stop
-        which should land us in autosample
+        @brief Test for acquiring status
         """
-        log.info("test_connect test started")
-
-        # Test the driver is in state unconfigured.
-        self.assert_current_state(DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver for comms and transition to disconnected.
-        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test the driver is configured for comms.
-        self.assert_current_state(DriverConnectionState.DISCONNECTED)
-
-        # Configure driver for comms and transition to disconnected.
-        self.driver_client.cmd_dvr('connect')
-
-        # Test the driver is in unknown state.
-        self.assert_current_state(DriverProtocolState.UNKNOWN)
-
-        # Configure driver for comms and transition to disconnected.
-        self.driver_client.cmd_dvr('discover_state')
-
-        # Assert that this driver is in streaming mode
-        state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(state, DriverProtocolState.AUTOSAMPLE)
+        self.assert_initialize_driver()
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.STATUS,
+                                        self.assert_status_particle, delay=2)
 
 
 ###############################################################################
@@ -285,12 +338,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    # Overridden because does not apply for this driver
-    def assert_sample_autosample(self, sample_data_assert, sample_queue,
-                                 timeout=GO_ACTIVE_TIMEOUT, sample_count=3):
-        pass
-
-    # Overridden because base class tries to do direct access
+    # Overridden because base class tries to do autosample
     def test_reset(self):
         """
         Verify the agent can be reset
@@ -299,19 +347,12 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         self.assert_reset()
 
         self.assert_enter_command_mode()
-        self.assert_start_autosample()
+        self.assert_direct_access_start_telnet(inactivity_timeout=60, session_timeout=60)
+        self.assert_state_change(ResourceAgentState.DIRECT_ACCESS, DriverProtocolState.DIRECT_ACCESS, 30)
         self.assert_reset()
 
     # Overridden because does not apply for this driver
     def test_discover(self):
-        pass
-
-    # Overridden because does not apply for this driver
-    def test_direct_access_telnet_mode(self):
-        """
-        @brief This test manually tests that the Instrument Driver properly supports direct access
-        to the physical instrument. (telnet mode)
-        """
         pass
 
     # Overridden because does not apply for this driver
@@ -328,85 +369,85 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         """
         pass
 
-    def test_instrument_agent_common_state_model_lifecycle(self, timeout=GO_ACTIVE_TIMEOUT):
-        """
-        @brief Test agent state transitions.
-               This test verifies that the instrument agent can
-               properly command the instrument through the following states.
-
-                COMMANDS TESTED
-                *ResourceAgentEvent.INITIALIZE
-                *ResourceAgentEvent.RESET
-                *ResourceAgentEvent.GO_ACTIVE
-                *ResourceAgentEvent.RUN
-                *ResourceAgentEvent.PAUSE
-                *ResourceAgentEvent.RESUME
-                *ResourceAgentEvent.GO_COMMAND
-                *ResourceAgentEvent.GO_INACTIVE
-                *ResourceAgentEvent.PING_RESOURCE
-                *ResourceAgentEvent.CLEAR
-
-                COMMANDS NOT TESTED
-                * ResourceAgentEvent.GO_DIRECT_ACCESS
-                * ResourceAgentEvent.GET_RESOURCE_STATE
-                * ResourceAgentEvent.GET_RESOURCE
-                * ResourceAgentEvent.SET_RESOURCE
-                * ResourceAgentEvent.EXECUTE_RESOURCE
-
-                STATES ACHIEVED:
-                * ResourceAgentState.UNINITIALIZED
-                * ResourceAgentState.INACTIVE
-                * ResourceAgentState.IDLE'
-                * ResourceAgentState.STOPPED
-                * ResourceAgentState.COMMAND
-
-                STATES NOT ACHIEVED:
-                * ResourceAgentState.DIRECT_ACCESS
-                * ResourceAgentState.STREAMING
-                * ResourceAgentState.TEST
-                * ResourceAgentState.CALIBRATE
-                * ResourceAgentState.BUSY
-                -- Not tested because they may not be implemented in the driver
-        """
-        ####
-        # UNINITIALIZED
-        ####
-        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
-
-        # Try to run some commands that aren't available in this state
-        self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
-        self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
-        self.assert_agent_command_exception(ResourceAgentEvent.GO_DIRECT_ACCESS, exception_class=Conflict)
-
-        ####
-        # INACTIVE
-        ####
-        self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
-        self.assert_agent_state(ResourceAgentState.INACTIVE)
-
-        # Try to run some commands that aren't available in this state
-        self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
-
-        ####
-        # IDLE
-        ####
-        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
-
-        # Try to run some commands that aren't available in this state
-        self.assert_agent_command_exception(ResourceAgentEvent.INITIALIZE, exception_class=Conflict)
-        self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
-        self.assert_agent_command_exception(ResourceAgentEvent.RESUME, exception_class=Conflict)
-
-        # Verify we can go inactive
-        self.assert_agent_command(ResourceAgentEvent.GO_INACTIVE)
-        self.assert_agent_state(ResourceAgentState.INACTIVE)
-
-        # Get back to idle
-        self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
-
-        # Reset
-        self.assert_agent_command(ResourceAgentEvent.RESET)
-        self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
+    # def test_instrument_agent_common_state_model_lifecycle(self, timeout=GO_ACTIVE_TIMEOUT):
+    #     """
+    #     @brief Test agent state transitions.
+    #            This test verifies that the instrument agent can
+    #            properly command the instrument through the following states.
+    #
+    #             COMMANDS TESTED
+    #             *ResourceAgentEvent.INITIALIZE
+    #             *ResourceAgentEvent.RESET
+    #             *ResourceAgentEvent.GO_ACTIVE
+    #             *ResourceAgentEvent.RUN
+    #             *ResourceAgentEvent.PAUSE
+    #             *ResourceAgentEvent.RESUME
+    #             *ResourceAgentEvent.GO_COMMAND
+    #             *ResourceAgentEvent.GO_INACTIVE
+    #             *ResourceAgentEvent.PING_RESOURCE
+    #             *ResourceAgentEvent.CLEAR
+    #
+    #             COMMANDS NOT TESTED
+    #             * ResourceAgentEvent.GO_DIRECT_ACCESS
+    #             * ResourceAgentEvent.GET_RESOURCE_STATE
+    #             * ResourceAgentEvent.GET_RESOURCE
+    #             * ResourceAgentEvent.SET_RESOURCE
+    #             * ResourceAgentEvent.EXECUTE_RESOURCE
+    #
+    #             STATES ACHIEVED:
+    #             * ResourceAgentState.UNINITIALIZED
+    #             * ResourceAgentState.INACTIVE
+    #             * ResourceAgentState.IDLE'
+    #             * ResourceAgentState.STOPPED
+    #             * ResourceAgentState.COMMAND
+    #
+    #             STATES NOT ACHIEVED:
+    #             * ResourceAgentState.DIRECT_ACCESS
+    #             * ResourceAgentState.STREAMING
+    #             * ResourceAgentState.TEST
+    #             * ResourceAgentState.CALIBRATE
+    #             * ResourceAgentState.BUSY
+    #             -- Not tested because they may not be implemented in the driver
+    #     """
+    #     ####
+    #     # UNINITIALIZED
+    #     ####
+    #     self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
+    #
+    #     # Try to run some commands that aren't available in this state
+    #     self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
+    #     self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
+    #     self.assert_agent_command_exception(ResourceAgentEvent.GO_DIRECT_ACCESS, exception_class=Conflict)
+    #
+    #     ####
+    #     # INACTIVE
+    #     ####
+    #     self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
+    #     self.assert_agent_state(ResourceAgentState.INACTIVE)
+    #
+    #     # Try to run some commands that aren't available in this state
+    #     self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
+    #
+    #     ####
+    #     # IDLE
+    #     ####
+    #     self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
+    #
+    #     # Try to run some commands that aren't available in this state
+    #     self.assert_agent_command_exception(ResourceAgentEvent.INITIALIZE, exception_class=Conflict)
+    #     self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
+    #     self.assert_agent_command_exception(ResourceAgentEvent.RESUME, exception_class=Conflict)
+    #
+    #     # Verify we can go inactive
+    #     self.assert_agent_command(ResourceAgentEvent.GO_INACTIVE)
+    #     self.assert_agent_state(ResourceAgentState.INACTIVE)
+    #
+    #     # Get back to idle
+    #     self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
+    #
+    #     # Reset
+    #     self.assert_agent_command(ResourceAgentEvent.RESET)
+    #     self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
 
     def test_get_capabilities(self):
         """

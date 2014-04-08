@@ -172,14 +172,14 @@ class BotptStatusParticle(DataParticle):
         @return: dictionary of compiled regexes
         """
         result = []
-
+        log.trace('_get_multiline_values: raw_data = %s', self.raw_data)
         for key, matcher in self._regex_multiline_compiled().items():
             match = matcher.search(self.raw_data)
             if match:
                 groups = match.groups()
                 encoder = self._get_encoder(key)
-                value = [encoder(v) for v in groups]
-                log.debug('groups: %s value: %s', groups, value)
+                log.debug('_get_multiline_values -- groups: %s encoder: %s', groups, encoder)
+                value = [encoder(v.strip()) for v in groups]
                 if len(value) == 0:
                     if encoder in [float, int]:
                         value = encoder(0)
@@ -187,7 +187,7 @@ class BotptStatusParticle(DataParticle):
                         value = encoder('')
                 elif len(value) == 1:
                     value = value[0]
-                log.trace('multiline match %s = [%r]', key, value)
+                log.debug('_get_multiline_values: match %s = %r', key, value)
                 result.append({
                     DataParticleKey.VALUE_ID: key,
                     DataParticleKey.VALUE: value
@@ -514,7 +514,7 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
 
     def _filter_raw(self, data):
         """
-        BOTPT puts out lots of data not destined for LILY.  Filter it out.
+        BOTPT puts out lots of data. Filter it out per sensor.
         """
         if self._filter_string is None:
             return data
