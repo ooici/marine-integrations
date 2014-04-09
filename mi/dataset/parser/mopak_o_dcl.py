@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.mopak_o_stc
-@file marine-integrations/mi/dataset/parser/mopak_o_stc.py
+@package mi.dataset.parser.mopak_o_dcl
+@file marine-integrations/mi/dataset/parser/mopak_o_dcl.py
 @author Emily Hahn
 @brief Parser for the mopak_o_dcl dataset driver
 Release notes:
@@ -17,6 +17,7 @@ import copy
 import re
 import ntplib
 import struct
+import binascii
 from datetime import datetime
 import time
 from functools import partial
@@ -141,7 +142,6 @@ class MopakODclParser(BufferLoadingFilenameParser):
         file_datetime = datetime.strptime(filename[:15], "%Y%m%d_%H%M%S")
         local_seconds = time.mktime(file_datetime.timetuple())
         self._start_time_utc = local_seconds - time.timezone
-        log.debug("starting at time %s", self._start_time_utc)
         super(MopakODclParser, self).__init__(config,
                                                stream_handle,
                                                filename,
@@ -287,26 +287,28 @@ class MopakODclParser(BufferLoadingFilenameParser):
                 # unexpected data since we know what it is
                 if non_data[data_index] == ACCEL_ID and (non_data_len - data_index) >= ACCEL_BYTES and \
                     not self.compare_checksum(non_data[data_index:data_index+ACCEL_BYTES]):
-                    log.error("Ignoring accel sample whose checksum doesn't match:%s", non_data[data_index:data_index+ACCEL_BYTES])
-                    self._exception_callback(SampleException("Found accel sample whose checksum doesn't match:%s" %
-                                                             non_data[data_index:data_index+ACCEL_BYTES]))
+                    log.error("Ignoring accel sample whose checksum doesn't match:0x%s",
+                              binascii.hexlify(non_data[data_index:data_index+ACCEL_BYTES]))
                     self._increment_state(ACCEL_BYTES)
+                    self._exception_callback(SampleException("Found accel sample whose checksum doesn't match:0x%s" %
+                                                             binascii.hexlify(non_data[data_index:data_index+ACCEL_BYTES])))
                     data_index += ACCEL_BYTES
                 elif non_data[data_index] == RATE_ID and (non_data_len - data_index) >= RATE_BYTES and \
                       not self.compare_checksum(non_data[data_index:data_index+RATE_BYTES]):
-                    log.error("Found rate sample whose checksum doesn't match:%s", non_data[data_index:data_index+RATE_BYTES])
-                    self._exception_callback(SampleException("Found rate sample whose checksum doesn't match:%s" %
-                                                             non_data[data_index:data_index+RATE_BYTES]))
+                    log.error("Found rate sample whose checksum doesn't match:0x%s",
+                              binascii.hexlify(non_data[data_index:data_index+RATE_BYTES]))
                     self._increment_state(RATE_BYTES)
+                    self._exception_callback(SampleException("Found rate sample whose checksum doesn't match:0x%s" %
+                                                             binascii.hexlify(non_data[data_index:data_index+RATE_BYTES])))
                     data_index += RATE_BYTES
                 else:
                     # there should never be any non-data, send a sample exception to indicate we have unexpected data in the file
                     # if there are more chunks we want to keep processing this file, so directly call the exception callback
                     # rather than raising the error here
-                    log.error("Found %d bytes of unexpected non-data:%s", non_data_len, non_data)
-                    self._exception_callback(UnexpectedDataException("Found %d bytes of un-expected non-data:%s" %
-                                                                     (non_data_len, non_data)))
+                    log.error("Found %d bytes of unexpected non-data:0x%s", non_data_len, binascii.hexlify(non_data))
                     self._increment_state(non_data_len)
+                    self._exception_callback(UnexpectedDataException("Found %d bytes of un-expected non-data:0x%s" %
+                                                                     (non_data_len, binascii.hexlify(non_data))))
                     data_index = non_data_len
 
     def timer_to_timestamp(self, timer):

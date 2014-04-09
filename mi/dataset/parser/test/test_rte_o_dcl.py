@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.test.test_rte_o_stc
-@file marine-integrations/mi/dataset/parser/test/test_rte_o_stc.py
+@package mi.dataset.parser.test.test_rte_o_dcl
+@file marine-integrations/mi/dataset/parser/test/test_rte_o_dcl.py
 @author Jeff Roy
 @brief Test code for a rte_o_dcl data parser
 """
@@ -22,7 +22,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.dataset.parser.rte_o_stc import RteODclParser, RteODclParserDataParticle, StateKey, LOG_TIME_MATCHER
+from mi.dataset.parser.rte_o_dcl import RteODclParser, RteODclParserDataParticle, StateKey, LOG_TIME_MATCHER
 
 @attr('UNIT', group='mi')
 class RteODclParserUnitTestCase(ParserUnitTestCase):
@@ -97,7 +97,7 @@ class RteODclParserUnitTestCase(ParserUnitTestCase):
     def setUp(self):
         ParserUnitTestCase.setUp(self)
         self.config = {
-            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.rte_o_stc',
+            DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.rte_o_dcl',
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'RteODclParserDataParticle'
             }
         # Define test data particles and their associated timestamps which will be 

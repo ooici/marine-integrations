@@ -13,7 +13,7 @@ import ntplib
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger ; log = get_logger()
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, SampleEncodingException
 from mi.core.instrument.data_particle import DataParticleKey
 
 from mi.dataset.test.test_parser import ParserUnitTestCase
@@ -440,4 +440,12 @@ class CgParserUnitTestCase(ParserUnitTestCase):
         """
         Create an encoding error in the data and make sure an encoding error shows up
         """
-        pass
+	stream_handle = open(os.path.join(RESOURCE_PATH, 'stc_status_bad_encode.txt'))
+	self.parser = CgStcEngStcParser(self.config, None, stream_handle, 'stc_status.txt',
+					self.state_callback, self.pub_callback,
+					self.exception_callback)
+	result = self.parser.get_records(1)
+	res_dict = result[0].generate_dict()
+	errors = result[0].get_encoding_errors()
+	log.debug("encoding errors: %s", errors)
+	self.assertNotEqual(errors, [])

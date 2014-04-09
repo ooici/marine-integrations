@@ -504,6 +504,12 @@ class DataSetIntegrationTestCase(DataSetTestCase):
             self.fail("File %s was ingested when we expected it not to be" % filename)
 
     def get_samples(self, particle_class=None, count=1, timeout=10):
+        """
+        pop samples of the specified class from the data callback result queue
+        @param particle_class None, a single particle class or a tuple of classes
+        @param count the number of particles to return
+        @param timeout how many seconds to wait for the specified number of particles
+        """
         to = gevent.Timeout(timeout)
         to.start()
         result = []
@@ -512,19 +518,26 @@ class DataSetIntegrationTestCase(DataSetTestCase):
 
         try:
             while(not done):
-                current_found = 0
-                for i, data in enumerate(self.data_callback_result):
+                check_idx = 0
+                # enumerate does not necessarily keep the particles in order as we remove other samples,
+                # loop over data callback results starting with lowest index
+                while len(self.data_callback_result) > 0 and found < count and \
+                check_idx < len(self.data_callback_result):
+                    data = self.data_callback_result[check_idx]
                     if particle_class is None or isinstance(data, particle_class):
-                        index = i - current_found
                         found += 1
-                        current_found += 1
-                        result.append(self.data_callback_result.pop(index))
-                        log.debug("Found sample index %d, #%d", index, found)
+                        result.append(self.data_callback_result.pop(check_idx))
+                        log.debug("Found sample index %d, #%d", check_idx, found)
+                    else:
+                        # skip past a particle that doesn't match our particle class
+                        check_idx += 1
 
                     if found >= count:
                         log.debug("All done. %d >= %d", found, count)
                         done = True
                         break
+                    # in case we have lots of callback results to check lets sleep
+                    gevent.sleep(0)
 
                 # data_callback_result may get updated while counting particles, check again
                 if not done and self.data_callback_result == []:

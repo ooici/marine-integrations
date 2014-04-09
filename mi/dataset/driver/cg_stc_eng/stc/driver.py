@@ -18,8 +18,8 @@ from mi.core.common import BaseEnum
 
 from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver
 from mi.dataset.parser.cg_stc_eng_stc import CgStcEngStcParser, CgStcEngStcParserDataParticle
-from mi.dataset.parser.mopak_o_stc import MopakODclParser, MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle
-from mi.dataset.parser.rte_o_stc import RteODclParser, RteODclParserDataParticle
+from mi.dataset.parser.mopak_o_dcl import MopakODclParser, MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle
+from mi.dataset.parser.rte_o_dcl import RteODclParser, RteODclParserDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
 class DataTypeKey(BaseEnum):
@@ -105,7 +105,7 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
         """
         config = self._parser_config
         config.update({
-            'particle_module': 'mi.dataset.parser.mopak_o_stc',
+            'particle_module': 'mi.dataset.parser.mopak_o_dcl',
             'particle_class': ['MopakODclAccelParserDataParticle',
                                'MopakODclRateParserDataParticle']
         })
@@ -127,7 +127,7 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
         """
         config = self._parser_config
         config.update({
-            'particle_module': 'mi.dataset.parser.rte_o_stc',
+            'particle_module': 'mi.dataset.parser.rte_o_dcl',
             'particle_class': 'RteODclParserDataParticle'
         })
         log.debug("My Config: %s", config)
