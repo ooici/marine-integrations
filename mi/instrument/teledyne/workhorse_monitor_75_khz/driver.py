@@ -17,7 +17,7 @@ from mi.instrument.teledyne.driver import TeledyneInstrumentCmds
 from mi.instrument.teledyne.driver import TeledyneParameter
 from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledyneCapability
-from mi.instrument.teledyne.workhorse_monitor_75_khz.particles import *
+from mi.instrument.teledyne.particles import *
 
 from mi.core.instrument.chunker import StringChunker
 
@@ -32,13 +32,13 @@ class WorkhorseParameter(TeledyneParameter):
     #
     # set-able parameters
     #
-    SERIAL_FLOW_CONTROL = 'CF'
-    BANNER = 'CH'
-    SLEEP_ENABLE = 'CL'
-    SAVE_NVRAM_TO_RECORDER = 'CN'
-    POLLED_MODE = 'CP'
-    PITCH = 'EP'
-    ROLL = 'ER'
+    #SERIAL_FLOW_CONTROL = 'CF'
+    #BANNER = 'CH'
+    #SLEEP_ENABLE = 'CL'
+    #SAVE_NVRAM_TO_RECORDER = 'CN'
+    #POLLED_MODE = 'CP'
+    #PITCH = 'EP'
+    #ROLL = 'ER'
 
 
 
@@ -158,6 +158,11 @@ class WorkhorseProtocol(TeledyneProtocol):
                            display_name="clear fault log")
         self._cmd_dict.add(TeledyneCapability.RUN_TEST_200,
                            display_name="run test 200")
+
+        self._cmd_dict.add(TeledyneCapability.USER_SETS,
+                           display_name="set user sets")
+        self._cmd_dict.add(TeledyneCapability.FACTORY_SETS,
+                           display_name="set factory sets")
 
     ########################################################################
     # Private helpers.
