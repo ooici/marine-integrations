@@ -283,7 +283,7 @@ class SBE19StatusParticleKey(BaseEnum):
     SERIAL_CURRENT = "serial_current"
 
     MEMORY_FREE = "mem_free"
-    NUMBER_OF_SAMPLES = "numm_samples"
+    NUMBER_OF_SAMPLES = "num_samples"
     SAMPLES_FREE = "samples_free"
     SAMPLE_LENGTH = "sample_length"
     PROFILES = "profiles"
@@ -859,7 +859,7 @@ class SBE19DataParticle(SeaBirdParticle):
 # Driver
 ###############################################################################
 
-class SBE19InstrumentDriver(SeaBirdInstrumentDriver):
+class InstrumentDriver(SeaBirdInstrumentDriver):
     """
     InstrumentDriver subclass
     Subclasses SingleConnectionInstrumentDriver with connection state
@@ -938,9 +938,6 @@ class SBE19Protocol(SBE16Protocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET, self._handler_command_get)
-
-        #TODO: do we want to support QS in either command or autosample mode?
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.QUIT_SESSION, self._handler_command_autosample_quit_session)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_autosample_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET_CONFIGURATION, self._handler_autosample_get_configuration)
@@ -977,7 +974,7 @@ class SBE19Protocol(SBE16Protocol):
 
 
         #TODO: Maybe we would like to implement DS and DCal, and use the response handlers in the base class to update
-        # the param dict. In that case, build_param_dict would need to be updated to not parse XML.
+        # the param dict (also see _update_params function). In that case, build_param_dict would need to be updated to not parse XML.
 
         # Add response handlers for device commands.
         # these are here to ensure that correct responses to the commands are received before the next command is sent
@@ -1047,6 +1044,30 @@ class SBE19Protocol(SBE16Protocol):
         log.debug("set complete, update params")
         self._update_params()
 
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        """
+        Switch into autosample mode.
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        (next_agent_state, None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        #TODO: commented out for now, but does a similar check need to be performed?
+        # Assure the device is transmitting.
+        #if not self._param_dict.get(Parameter.TXREALTIME):
+        #    self._do_cmd_resp(Command.SET, Parameter.TXREALTIME, True, **kwargs)
+
+        self._start_logging(*args, **kwargs)
+
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
+        return (next_state, (next_agent_state, result))
+
     def _handler_command_get_configuration(self, *args, **kwargs):
         """
         GetCC from SBE16.
@@ -1060,7 +1081,7 @@ class SBE19Protocol(SBE16Protocol):
         result = None
 
         kwargs['timeout'] = TIMEOUT
-        result = self._do_cmd_resp(Command.GET_CC, expected_prompt=Prompt.EXECUTED, *args, **kwargs)
+        result = self._do_cmd_resp(Command.GET_CC, *args, **kwargs)
         log.debug("_handler_command_get_configuration: GetCC Response: %s", result)
 
         return (next_state, (next_agent_state, result))
@@ -1073,14 +1094,16 @@ class SBE19Protocol(SBE16Protocol):
         next_agent_state = None
         result = None
 
-        result = self._do_cmd_resp(Command.GET_SD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
-        log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_HD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
-        log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        #TODO: next line is test code - remove!
+        result = '';
+        #result = self._do_cmd_resp(Command.GET_SD, timeout=TIMEOUT)
+        #log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
+        #result += self._do_cmd_resp(Command.GET_HD, timeout=TIMEOUT)
+        #log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
+        result += self._do_cmd_resp(Command.GET_CD, timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CC, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
-        log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
+        #result += self._do_cmd_resp(Command.GET_CC, timeout=TIMEOUT)
+        #log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
 
         return (next_state, (next_agent_state, result))
 
@@ -1096,17 +1119,16 @@ class SBE19Protocol(SBE16Protocol):
         prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
         prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
-        result = self._do_cmd_resp(Command.GET_SD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        result = self._do_cmd_resp(Command.GET_SD, timeout=TIMEOUT)
         log.debug("_handler_autosample_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_HD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
+        result += self._do_cmd_resp(Command.GET_HD, timeout=TIMEOUT)
         log.debug("_handler_autosample_acquire_status: GetHD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CD, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
-        log.debug("_handler_autosample_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CC, timeout=TIMEOUT, expected_prompt=Prompt.EXECUTED)
-        log.debug("_handler_autosample_acquire_status: GetCC Response: %s", result)
 
-        log.debug("_handler_autosample_acquire_status: sending the QS command to restart sampling")
-        self._protocol_fsm.on_event(ProtocolEvent.QUIT_SESSION)
+        #TODO: the test for getCD fails
+        #result += self._do_cmd_resp(Command.GET_CD, timeout=TIMEOUT)
+        #log.debug("_handler_autosample_acquire_status: GetCD Response: %s", result)
+        result += self._do_cmd_resp(Command.GET_CC, timeout=TIMEOUT)
+        log.debug("_handler_autosample_acquire_status: GetCC Response: %s", result)
 
         return (next_state, (next_agent_state, result))
 
@@ -1128,14 +1150,79 @@ class SBE19Protocol(SBE16Protocol):
         prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
         kwargs['timeout'] = TIMEOUT
-        result = self._do_cmd_resp(Command.GET_CC, expected_prompt=Prompt.EXECUTED, *args, **kwargs)
+        result = self._do_cmd_resp(Command.GET_CC, *args, **kwargs)
         log.debug("_handler_autosample_get_configuration: GetCC Response: %s", result)
-
-        log.debug("_handler_autosample_get_configuration: sending the QS command to restart sampling")
-        self._protocol_fsm.on_event(ProtocolEvent.QUIT_SESSION)
 
         return (next_state, (next_agent_state, result))
 
+    #can't override this method as our Command set is different
+    def _start_logging(self, *args, **kwargs):
+        """
+        Command the instrument to start logging
+        @param timeout: how long to wait for a prompt
+        @return: True if successful
+        @raise: InstrumentProtocolException if failed to start logging
+        """
+        log.debug("Start Logging!")
+        if(self._is_logging()):
+            return True
+
+        self._do_cmd_no_resp(Command.START_NOW, *args, **kwargs)
+        time.sleep(2)
+
+        #TODO: uncomment below once is_logging is in shape!!
+        #if not self._is_logging(20):
+        #    raise InstrumentProtocolException("failed to start logging")
+
+        return True
+
+    #can't override this method as our Command set is different
+    def _stop_logging(self, *args, **kwargs):
+        """
+        Command the instrument to stop logging
+        @param timeout: how long to wait for a prompt
+        @return: True if successful
+        @raise: InstrumentTimeoutException if prompt isn't seen
+        @raise: InstrumentProtocolException failed to stop logging
+        """
+        log.debug("Stop Logging!")
+
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+
+        # Issue the stop command.
+        if(self.get_current_state() == ProtocolState.AUTOSAMPLE):
+            log.debug("sending stop logging command")
+            kwargs['timeout'] = TIMEOUT
+            self._do_cmd_resp(Command.STOP, *args, **kwargs)
+        else:
+            log.debug("Instrument not logging, current state %s", self.get_current_state())
+
+        if self._is_logging(*args, **kwargs):
+            raise InstrumentProtocolException("failed to stop logging")
+
+        return True
+
+
+    #TODO: impelement this!
+    def _is_logging(self, *args, **kwargs):
+        """
+        Wake up the instrument and inspect the prompt to determine if we
+        are in streaming
+        @param: timeout - Command timeout
+        @return: True - instrument logging, False - not logging,
+                 None - unknown logging state
+        @raise: InstrumentProtocolException if we can't identify the prompt
+        """
+        #basetime = self._param_dict.get_current_timestamp()
+
+        #prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+
+        #self._update_params()
+
+        #pd = self._param_dict.get_all(basetime)
+        #return pd.get(Parameter.LOGGING)
+        return False
 
     ########################################################################
     # response handlers.
