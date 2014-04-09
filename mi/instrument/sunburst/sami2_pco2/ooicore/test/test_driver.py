@@ -19,6 +19,7 @@ __license__ = 'Apache 2.0'
 # TODO: Add negative test cases
 
 import unittest
+import time
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -504,15 +505,18 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 ##        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
 
 ## TODO: On acquire sample, make sure the correct states are returned to, COMMAND or AUTOSAMPLING
-    def test_acquire_sample(self):
-        self.assert_initialize_driver()
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=160)  ## TODO: No delay to test waiting state
+##    def test_acquire_sample(self):
+##        self.assert_initialize_driver()
+##        time.sleep(180)
+##        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)  ## TODO: No delay to test waiting state
+        ##self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)  ## TODO: No delay to test waiting state
+        ##self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)  ## TODO: No delay to test waiting state
 
 ##  TODO: Test all commands and states
 
-##    def test_auto_sample(self):
-##        self.assert_initialize_driver()
-##        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE)
+    def test_auto_sample(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, delay=1200)
 
 ##    def test_direct_access(self):
 ##        self.assert_initialize_driver()

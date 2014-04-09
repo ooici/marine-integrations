@@ -28,6 +28,10 @@ from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
 
+from mi.core.driver_scheduler import \
+    DriverSchedulerConfigKey, \
+    TriggerType
+
 from mi.core.common import BaseEnum
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
@@ -40,6 +44,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictType
@@ -143,6 +148,11 @@ NEW_LINE_REGEX_MATCHER = re.compile(NEW_LINE_REGEX)
 ###
 #    Begin Classes
 ###
+
+class ScheduledJob(BaseEnum):
+## TODO:    ACQUIRE_SAMPLE_TIMEOUT = 'acquire_sample_timeout'
+    AUTO_SAMPLE = 'auto_sample'
+
 class SamiDataParticleType(BaseEnum):
     """
     Base class Data particle types produced by a SAMI instrument. Should be
@@ -811,11 +821,45 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
+        # add scheduled tasks
+        self._setup_scheduler_config()
+
+        # initialize scheduler
+        if not self._scheduler:
+            self.initialize_scheduler()
+
         # indicates if we are in the autosample state, used to indicate if we return to the autosample or command
         #   state after exiting the sample states
-        self._autosampling = False
+        self._autosample_mode = False
+
+        # indicates there is a sample ongoing, will be used to ignore subsequent sample requests if already sampling
+        self._sampling = False
 
         # continue __init__ in the sub-class in the specific driver
+
+    def _setup_scheduler_config(self):
+
+        log.debug('herb: ' + 'SamiProtocol._setup_scheduler_config')
+
+        config = {
+            DriverConfigKey.SCHEDULER: {
+                ScheduledJob.AUTO_SAMPLE: {
+                    DriverSchedulerConfigKey.TRIGGER: {
+                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                        DriverSchedulerConfigKey.SECONDS: 160  ## TODO: Get from config data
+                    }
+                }
+                ## TODO: ScheduledJob.ACQUIRE_SAMPLE_TIMEOUT: {
+                ##    DriverSchedulerConfigKey.TRIGGER: {
+                ##        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                ##        DriverSchedulerConfigKey.SECONDS: 600  ## TODO: Get from config data
+                ##    }
+                }
+
+            }
+        # }
+
+        self.set_init_params(config)
 
     def _filter_capabilities(self, events):
         """
@@ -1055,10 +1099,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_command_start_autosample()')
 
-        self._autosampling = True
-
-        ## TODO: Start sample scheduler, will not stop unless a stop autosample event occurs
-
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
         result = None
@@ -1131,31 +1171,50 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     # Autosample handlers.
     ########################################################################
 
-    def _handler_autosample_enter(self, ):
+    ## TODO: Remove Test Code
+    def _test_autosample_callback(self):
+        log.debug('herb: ' + 'SamiProtocol._test_autosample_callback CALLED')
+    def _test_timeout_callback(self):
+        log.debug('herb: ' + 'SamiProtocol._test_timeout_callback CALLED')
+        ## Handle error if we are trying to remove a nonexistent job
+##        self._remove_scheduler(ScheduledJob.ACQUIRE_SAMPLE_TIMEOUT)
+
+    def _handler_autosample_enter(self):
         """
         Enter Autosample state
         """
 
         log.debug('herb: ' + 'SamiProtocol._handler_autosample_enter')
 
-        ## Can not set here, would reset sample schedule every time sample occurred
-        ## self._autosampling = True
+        ##        self._add_scheduler(ScheduledJob.ACQUIRE_SAMPLE_TIMEOUT, self._test_timeout_callback)
+        ##        self._add_scheduler(ScheduledJob.AUTO_SAMPLE, self._test_autosample_callback)
+
+        ## Note: start ordering seems important for the scheduler, could be a bug in the base code, scheduler blocks
+        ##       until last job added to scheduler hits.  Means an autosample could be missed while waiting for
+        ##       a sample timeout.  This should be OK.
+
+        ## Fresh transition into autosampling.  If not true, transitioned here after acquiring a sample
+        if self._autosample_mode == False:
+##            self._add_scheduler_event(ScheduledJob.AUTO_SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE)
+##            self._add_scheduler(ScheduledJob.AUTO_SAMPLE, self._take_regular_sample)
+            self._add_scheduler(ScheduledJob.AUTO_SAMPLE, self._take_blank_sample)
+            self._autosample_mode = True
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        self._sent_cmds = []  # TODO: Do we need to do this here?
 
     def _handler_autosample_exit(self, *args, **kwargs):
         """
         Exit autosample state
         """
 
-        ## Can not set here, would reset sample schedule every time sample occurred
-        ## self._autosampling = False
-
         log.debug('herb: ' + 'SamiProtocol._handler_autosample_exit')
+
+        ## Exiting autosample mode due to a command.  Stop the scheduler.  Other case is exiting to take a sample.
+        ##   Keep the scheduler going in this case.
+        if self._autosample_mode == False:
+            self._remove_scheduler(ScheduledJob.AUTO_SAMPLE)
 
         pass
 
@@ -1166,12 +1225,14 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_autosample_stop')
 
-        self._autosampling = False
+        self._autosample_mode = False
 
-        next_state = None
-        result = None
+        log.debug('herb: ' + 'SamiProtocol._handler_autosample_stop: Move to command state')
 
-        return (next_state, result)
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.IDLE
+
+        return (next_state, next_agent_state)
 
     def _handler_autosample_acquire_sample(self, *args, **kwargs):
         """
@@ -1180,10 +1241,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_autosample_acquire_sample')
 
-        next_state = None
+        next_state = ProtocolState.BLANK_SAMPLE
+        next_agent_state = ResourceAgentState.BUSY
         result = None
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Blank Sample handlers.
@@ -1196,13 +1258,15 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_blank_sample_enter')
 
+        ## Start timeout timer
+        ## TODO: self._add_scheduler_event(ScheduledJob.ACQUIRE_SAMPLE_TIMEOUT, ProtocolEvent.TIMEOUT)
+
+        ## handle timeout event here also?
         self._take_blank_sample()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
-        self._sent_cmds = []  # TODO: Do we need to do this here?
 
     def _handler_blank_sample_exit(self, *args, **kwargs):
         """
@@ -1234,7 +1298,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_blank_sample_timeout')
 
-        ## TODO:  Go to the unknown state
+        if self._autosample_mode == True:
+            ## Stop the periodic.  Needed because we are not directly in the autosample state
+            self._remove_scheduler(ScheduledJob.AUTO_SAMPLE)
+            self._autosample_mode = False
+
+        ## TODO:  Go to the unknown or waiting state
 
         next_state = None
         result = None
@@ -1260,8 +1329,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-        self._sent_cmds = []
-
     def _handler_regular_sample_exit(self, *args, **kwargs):
         """
         Exit busy state.
@@ -1278,20 +1345,23 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_blank_sample_success')
 
-        ## TODO: Transition to new state
+        ## Stop timeout timer.
+        ## TODO: self._remove_scheduler(ScheduledJob.ACQUIRE_SAMPLE_TIMEOUT)
 
         next_state = None
-        result = None
+        next_agent_state = None
 
-        if self._autosampling:
+        ## Go back to autosampling if acquiring a sample was triggered in that state.
+        if self._autosample_mode:
             next_state = ProtocolState.AUTOSAMPLE
             next_agent_state = ResourceAgentState.STREAMING
         else:
             next_state = ProtocolState.COMMAND
             next_agent_state = ResourceAgentState.IDLE
 
-        return (next_state, (next_agent_state, result))
+        return (next_state, next_agent_state)
 
+## TODO: Only need one timeout callback most likely
     def _handler_regular_sample_timeout(self, *args, **kwargs):
         """
         Exit busy state.
@@ -1299,7 +1369,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_blank_sample_timeout')
 
-        ## TODO:  Go to the unknown state
+        if self._autosample_mode == True:
+            ## Stop the periodic.  Needed because we are not directly in the autosample state
+            self._remove_scheduler(ScheduledJob.AUTO_SAMPLE)
+            self._autosample_mode = False
+
+        ## TODO:  Go to the unknown or waiting state?
 
         next_state = None
         result = None
@@ -1394,8 +1469,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     def _wakeup(self, timeout, delay=1):
 
         # Send newline to wake up instrument.
-        log.debug('herb: ' + 'SamiProtocol._wakeup: Send newline to wake up')
+        log.debug('herb: ' + 'SamiProtocol._wakeup: Send first newline to wake up')
         self._do_cmd_direct(NEWLINE)
+        time.sleep(1)
+        log.debug('herb: ' + 'SamiProtocol._wakeup: Send second newline to wake up')
+        self._do_cmd_direct(NEWLINE)  ## Send another to make sure
 
 ##    @staticmethod
 ##    def _discover():
@@ -1415,7 +1493,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         # indicates if we are in the autosample state, used to indicate if we return to the autosample or command
         #   state after exiting the sample states
-        self._autosampling = False
+        self._autosample_mode = False
 
         # Set response timeout to 10 seconds. Should be immediate if
         # communications are enabled and the instrument is not sampling.
@@ -1662,14 +1740,18 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     def _take_regular_sample(self):
         ## An exception is raised if timeout is hit.
         ## Should return immediately with a record code
+        ## TODO: If timeout exception occurs, execute a timeout event
         log.debug('herb: ' + 'Protocol._take_sample()')
+        time.sleep(1)
         return self._do_cmd_resp(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, timeout = 10, response_regex=SAMPLE_RETURN_REGEX_MATCHER)
 
     def _take_blank_sample(self):
 
         ## An exception is raised if timeout is hit.
         ## Should return immediately with a record code
+        ## TODO: If timeout exception occurs, execute a timeout event
         log.debug('herb: ' + 'Protocol._take_blank_sample()')
+        time.sleep(1)
         return self._do_cmd_resp(SamiInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, timeout = 10, response_regex=BLANK_SAMPLE_RETURN_REGEX_MATCHER)
 
 ## TODO: Use in test app to test first
