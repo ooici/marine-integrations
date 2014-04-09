@@ -39,9 +39,6 @@ from struct import pack
 # newline.
 NEWLINE = '\n'
 
-# default timeout.
-#TIMEOUT = 10
-
 INDEX_OF_PACKET_RECORD_LENGTH = 4
 INDEX_OF_START_OF_SCAN_DATA = 32
 SIZEOF_PACKET_RECORD_LENGTH = 2
