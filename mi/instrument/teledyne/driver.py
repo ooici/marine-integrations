@@ -94,6 +94,24 @@ class TeledyneParameter(DriverParameter):
     PING_WEIGHT = 'WU'                  # 0 Ping Weighting (0=Box,1=Triangle)
     AMBIGUITY_VELOCITY = 'WV'           # 175 Mode 1 Ambiguity Vel (cm/s radial)
 
+    SERIAL_FLOW_CONTROL = 'CF'
+    BANNER = 'CH'
+    SLEEP_ENABLE = 'CL'
+    SAVE_NVRAM_TO_RECORDER = 'CN'
+    POLLED_MODE = 'CP'
+    PITCH = 'EP'
+    ROLL = 'ER'
+
+    LATENCY_TRIGGER = 'CX'
+    HEADING_ALIGNMENT = 'EA'
+    DATA_STREAM_SELECTION ='PD'
+    ENSEMBLE_PER_BURST ='TC'
+    BUFFERED_OUTPUT_PERIOD ='TX'
+    SAMPLE_AMBIENT_SOUND ='WQ'
+    TRANSDUCER_DEPTH ='ED'
+
+
+
 class TeledyneInstrumentCmds(BaseEnum):
     """
     Device specific commands
@@ -105,10 +123,12 @@ class TeledyneInstrumentCmds(BaseEnum):
     BREAK = 'break' # < case sensitive!!!!
     SEND_LAST_SAMPLE = 'CE'
     SAVE_SETUP_TO_RAM = 'CK'
+    FACTORY_SETS = 'CR1' #Factory default  Sung
+    USER_SETS = 'CR0'  #User default  Sung
     START_LOGGING = 'CS'
     CLEAR_ERROR_STATUS_WORD = 'CY0'         # May combine with next
     DISPLAY_ERROR_STATUS_WORD = 'CY1'       # May combine with prior
-    POWER_DOWN = 'CZ'
+    #POWER_DOWN = 'CZ'
     CLEAR_FAULT_LOG = 'FC'
     GET_FAULT_LOG = 'FD'
 
@@ -154,6 +174,8 @@ class TeledyneProtocolEvent(BaseEnum):
     GET_INSTRUMENT_TRANSFORM_MATRIX = "PROTOCOL_EVENT_GET_INSTRUMENT_TRANSFORM_MATRIX"
     RUN_TEST_200 = "PROTOCOL_EVENT_RUN_TEST_200"
 
+    FACTORY_SETS = "FACTORY_DEFAULT_SETTINGS"
+    USER_SETS = "USER_DEFAULT_SETTINGS"
     GET = DriverEvent.GET
     SET = DriverEvent.SET
 
@@ -171,7 +193,7 @@ class TeledyneProtocolEvent(BaseEnum):
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     RECOVER_AUTOSAMPLE = 'PROTOCOL_EVENT_RECOVER_AUTOSAMPLE'
     RESTORE_FACTORY_PARAMS = "PROTOCOL_EVENT_RESTORE_FACTORY_PARAMS"
-    POWER_DOWN = "PROTOCOL_EVENT_POWER_DOWN"
+    #POWER_DOWN = "PROTOCOL_EVENT_POWER_DOWN"
 
 
 class TeledyneCapability(BaseEnum):
@@ -191,6 +213,8 @@ class TeledyneCapability(BaseEnum):
     CLEAR_FAULT_LOG = TeledyneProtocolEvent.CLEAR_FAULT_LOG
     GET_INSTRUMENT_TRANSFORM_MATRIX = TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX
     RUN_TEST_200 = TeledyneProtocolEvent.RUN_TEST_200
+    FACTORY_SETS = TeledyneProtocolEvent.FACTORY_SETS
+    USER_SETS = TeledyneProtocolEvent.USER_SETS
     #POWER_DOWN = TeledyneProtocolEvent.POWER_DOWN
 
 class TeledyneScheduledJob(BaseEnum):
@@ -274,7 +298,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX, self._handler_command_get_instrument_transform_matrix)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.RUN_TEST_200, self._handler_command_run_test_200)
-
+        #//
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.FACTORY_SETS, self._handler_command_factory_sets)
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.USER_SETS, self._handler_command_user_sets)
+        #//
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_ERROR_STATUS_WORD, self._handler_command_acquire_error_status_word)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, self._handler_command_clear_error_status_word)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.CLEAR_FAULT_LOG, self._handler_command_clear_fault_log)
@@ -320,6 +347,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.RUN_TEST_200, self._build_simple_command)
+        self._add_build_handler(TeledyneInstrumentCmds.FACTORY_SETS, self._build_simple_command)
+        self._add_build_handler(TeledyneInstrumentCmds.USER_SETS, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.SET, self._build_set_command)
         self._add_build_handler(TeledyneInstrumentCmds.GET, self._build_get_command)
         #
@@ -339,6 +368,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         self._add_response_handler(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, self._parse_instrument_transform_matrix_response)
         self._add_response_handler(TeledyneInstrumentCmds.RUN_TEST_200, self._parse_test_response)
+
+        self._add_response_handler(TeledyneInstrumentCmds.FACTORY_SETS, self._parse_test_response)
+        self._add_response_handler(TeledyneInstrumentCmds.USER_SETS, self._parse_test_response)
+
         self._add_response_handler(TeledyneInstrumentCmds.SET, self._parse_set_response)
         self._add_response_handler(TeledyneInstrumentCmds.GET, self._parse_get_response)
 
@@ -470,6 +503,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug("IN _apply_params")
         config = self.get_startup_config()
+        log.error("****Sung apply params %s", repr(config))
         # Pass true to _set_params so we know these are startup values
         self._set_params(config, True)
 
@@ -610,13 +644,16 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             startup = args[1]
         except IndexError:
             pass
-
+        log.error("***Sung in _set_params verify not readonly %s", repr(args))
         log.trace("_set_params calling _verify_not_readonly ARGS = " + repr(args))
         self._verify_not_readonly(*args, **kwargs)
-
+        log.error("***Sung in _set_params verify not readonly Done")
         for (key, val) in params.iteritems():
+            log.error("***Sung in _set_params key %s", repr(key))
+            log.error("***Sung in _set_params value %s", repr(val))
             result = self._do_cmd_resp(TeledyneInstrumentCmds.SET, key, val, **kwargs)
         log.trace("_set_params calling _update_params")
+        log.error("***Sung in _set_params calling update_params")
         self._update_params()
         return result
 
@@ -640,7 +677,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         Send a BREAK to attempt to wake the device.
         """
-        log.trace("HOW DID I GET HERE......")
+        log.error("SENDING BREAK TO PORT AGENT......")
+        #self._connection.send_break(duration)
 
     def _send_break(self, duration=500):
         """
@@ -657,16 +695,18 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
         "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
         "All Rights Reserved.")
+
         break_confirmation.append("[BREAK Wakeup A]")
         found = False
         timeout = 30
         count = 0
         while (not found):
-            log.trace("WAIT FOR BREAK TRY #" + str(count))
+            log.error("WAIT FOR BREAK TRY #" + str(count))
+            log.error("ROGER self._linebuf = " + str(self._linebuf))
             count += 1
             for break_message in break_confirmation:
                 if break_message in self._linebuf:
-                    log.trace("GOT A BREAK MATCH ==> " + str(break_message))
+                    log.error("GOT A BREAK MATCH ==> " + str(break_message))
                     found = True
             if count > (timeout * 10):
                 if True != found:
@@ -833,6 +873,28 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         kwargs['timeout'] = 30
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND
         result = self._do_cmd_resp(TeledyneInstrumentCmds.RUN_TEST_200, *args, **kwargs)
+
+        return (next_state, result)
+
+    def _handler_command_factory_sets(self, *args, **kwargs):
+        """
+        run test PT200
+        """
+        next_state = None
+        kwargs['timeout'] = 30
+        kwargs['expected_prompt'] = TeledynePrompt.COMMAND
+        result = self._do_cmd_resp(TeledyneInstrumentCmds.FACTORY_SETS, *args, **kwargs)
+
+        return (next_state, result)
+
+    def _handler_command_user_sets(self, *args, **kwargs):
+        """
+        run test PT200
+        """
+        next_state = None
+        kwargs['timeout'] = 30
+        kwargs['expected_prompt'] = TeledynePrompt.COMMAND
+        result = self._do_cmd_resp(TeledyneInstrumentCmds.USER_SETS, *args, **kwargs)
 
         return (next_state, result)
 
