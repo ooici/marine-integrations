@@ -1,0 +1,44 @@
+# Result data after parsing first_test.data
+
+header:
+  particle_object: RteODclParserDataParticle
+  particle_type: rte_o_dcl_instrument
+
+data:
+  - _index: 1
+    internal_timestamp: '2013-11-15T00:09:58.047Z'
+    rte_time: '2013/11/15 00:09:58.047'
+    rte_coulombs: 1.1091
+    rte_avg_q_current: 0.002
+    rte_avg_voltage: 12.03 
+    rte_avg_supply_voltage: 12.11
+    rte_hits: 0
+    rte_state: 1
+  - _index: 2
+    internal_timestamp: '2013-11-15T00:19:58.590Z'
+    rte_time: '2013/11/15 00:19:58.590'
+    rte_coulombs: 1.1036
+    rte_avg_q_current: 0.002
+    rte_avg_voltage: 12.03 
+    rte_avg_supply_voltage: 12.11
+    rte_hits: 0
+    rte_state: 1
+  - _index: 3
+    internal_timestamp: '2013-11-15T00:29:59.759Z'
+    rte_time: '2013/11/15 00:29:59.759'
+    rte_coulombs: 1.1055
+    rte_avg_q_current: 0.002
+    rte_avg_voltage: 12.03
+    rte_avg_supply_voltage: 12.12
+    rte_hits: 0
+    rte_state: 1
+  - _index: 4
+    internal_timestamp: '2013-11-15T00:40:02.069Z'
+    rte_time: '2013/11/15 00:40:02.069'
+    rte_coulombs: 1.1073
+    rte_avg_q_current: 0.002
+    rte_avg_voltage: 12.03
+    rte_avg_supply_voltage: 12.12
+    rte_hits: 0
+    rte_state: 1
+

@@ -300,18 +300,17 @@ class ResultSet(object):
             errors.append("particle_timestamp expected, but not defined in particle")
 
         elif particle_timestamp:
-            if isinstance(particle_timestamp, str):
+            if isinstance(expected_time, str):
                 expected = self._string_to_ntp_date_time(expected_time)
             else:
                 # if not a string, timestamp should alread be in ntp
-                expected = particle_timestamp
+                expected = expected_time
             ts_diff =  abs(particle_timestamp - expected)
             log.debug("verify timestamp: abs(%s - %s) = %s", expected, particle_timestamp, ts_diff)
 
             if ts_diff > allow_diff:
                 errors.append("expected internal_timestamp mismatch, %.9f != %.9f (%.9f)" %
                               (expected, particle_timestamp, ts_diff))
-            log.debug("Timestamp match: %s ~= %s", expected, particle_timestamp)
 
         # verify the stream name, unless multiple are returned, type checking is done
         # in get_particle_data_errors if so
@@ -373,9 +372,6 @@ class ResultSet(object):
             particle_keys.append(value['value_id'])
             pv[value['value_id']] = value['value']
 
-        log.debug("Expected keys: %s", sorted(expected_keys))
-        log.debug("Particle keys: %s", sorted(particle_keys))
-
         if sorted(expected_keys) != sorted(particle_keys):
             errors.append("expected / particle keys mismatch: %s != %s" %
                           (sorted(expected_keys), sorted(particle_keys)))
@@ -409,8 +405,6 @@ class ResultSet(object):
         if ex_value is None:
             log.debug("No value to compare, ignoring")
             return None
-
-        log.debug("Test %s == %s", ex_value, particle_value)
 
         if round_factor is not None and particle_value is not None:
             particle_value = round(particle_value, round_factor)
