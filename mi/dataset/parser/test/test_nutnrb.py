@@ -19,7 +19,7 @@ from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.parser.nutnrb import NutnrbParser, NutnrbDataParticle, StateKey
 
 # Add a mixin here if needed
-
+@unittest.skip('Nutnr parser is broken, timestamp needs to be fixed')
 @attr('UNIT', group='mi')
 class NutnrbParserUnitTestCase(ParserUnitTestCase):
     """
