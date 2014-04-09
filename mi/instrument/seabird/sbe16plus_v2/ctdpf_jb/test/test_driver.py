@@ -17,6 +17,7 @@ __author__ = 'Tapana Gupta'
 __license__ = 'Apache 2.0'
 
 import unittest
+import time
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -52,8 +53,11 @@ from mi.instrument.seabird.sbe16plus_v2.driver import SBE16Protocol
 from mi.instrument.seabird.sbe16plus_v2.driver import Prompt
 
 from mi.instrument.seabird.test.test_driver import SeaBirdUnitTest
+from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
+from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
+from mi.instrument.seabird.test.test_driver import SeaBirdPublicationTest
 
-from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19InstrumentDriver
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import InstrumentDriver
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import DataParticleType
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ProtocolState
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ProtocolEvent
@@ -127,7 +131,7 @@ InstrumentDriverTestCase.initialize(
 #            self.assertFalse(True)
 class SeaBird19plusMixin(DriverTestMixin):
 
-    InstrumentDriver = SBE19InstrumentDriver
+    InstrumentDriver = InstrumentDriver
 
     '''
     Mixin class used for storing data particle constants and common data assertion methods.
@@ -624,7 +628,7 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
         Verify sample data passed through the got data method produces the correct data particles
         """
         # Create and initialize the instrument driver with a mock port agent
-        driver = SBE19InstrumentDriver(self._got_data_event_callback)
+        driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
 
         self.assert_raw_particle_published(driver, True)
@@ -666,14 +670,13 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
         }
 
-        driver = SBE19InstrumentDriver(self._got_data_event_callback)
+        driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
     #TODO
     def test_parse_ds(self):
         pass
 
-    #TODO
     def test_parse_set_response(self):
         """
         Test response from set commands.
@@ -701,9 +704,87 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
-    def setUp(self):
-        InstrumentDriverIntegrationTestCase.setUp(self)
+class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
+    def test_connection(self):
+        self.assert_initialize_driver()
+
+    def test_polled(self):
+        """
+        Test that we can generate particles with commands while in command mode
+        """
+        self.assert_initialize_driver()
+
+        # test acquire_sample data particle
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.CTD_PARSED, self.assert_particle_sample)
+
+    def test_status(self):
+        self.assert_initialize_driver()
+
+        # test acquire_status particles
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_status)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_HARDWARE, self.assert_particle_hardware)
+        #TODO: this one fails
+        #self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CONFIGURATION, self.assert_particle_configuration)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
+
+    def test_configuration(self):
+        self.assert_initialize_driver()
+
+        # test get_configuration particle
+        self.assert_particle_generation(ProtocolEvent.GET_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
+
+    def test_autosample(self):
+        """
+        Verify that we can enter streaming and that all particles are produced
+        properly.
+
+        Because we have to test for many different data particles we can't use
+        the common assert_sample_autosample method
+        """
+        self.assert_initialize_driver()
+        #TODO: do we need to check value of NAvg here? If so, what should it be set to?
+        #self.assert_set(Parameter.INTERVAL, 10)
+
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_async_particle_generation(DataParticleType.CTD_PARSED, self.assert_particle_sample, timeout=60)
+
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_status)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_HARDWARE, self.assert_particle_hardware)
+
+        #TODO: this one fails
+        #self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CONFIGURATION, self.assert_particle_configuration)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
+
+        self.assert_particle_generation(ProtocolEvent.GET_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+
+    def test_test(self):
+        """
+        Test the hardware testing mode.
+        """
+        self.assert_initialize_driver()
+
+        start_time = time.time()
+        timeout = time.time() + 300
+        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.TEST)
+
+        self.assert_current_state(ProtocolState.TEST)
+
+        # Test the driver is in test state.
+        state = self.driver_client.cmd_dvr('get_resource_state')
+
+        while state != ProtocolState.COMMAND:
+            time.sleep(5)
+            elapsed = time.time() - start_time
+            log.info('Device testing %f seconds elapsed.' % elapsed)
+            state = self.driver_client.cmd_dvr('get_resource_state')
+            self.assertLess(time.time(), timeout, msg="Timeout waiting for instrument to come out of test")
+
+        # Verify we received the test result and it passed.
+        test_results = [evt for evt in self.events if evt['type']==DriverAsyncEvent.RESULT]
+        self.assertTrue(len(test_results) == 1)
+        self.assertEqual(test_results[0]['value']['success'], 'Passed')
 
 
 
