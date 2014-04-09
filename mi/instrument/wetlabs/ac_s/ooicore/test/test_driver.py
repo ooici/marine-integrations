@@ -526,21 +526,29 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
     @unittest.skip('Only enable and use when not running a batch')
-    def test_autosample_particle_generation(self):
+    def test_status_particle_generation(self):
+        """
+        To test status particle instrument must be off and powered on while test is waiting
+        The status particle is sent only once when the instrument is powered on
+        cannot start the driver and instrument simultaneously, therefore need to start
+        test with instrument off, start the driver, then start the instrument to capture the
+        status particle
+
+        """
 
         #Test that we can generate particles when in autosample.
         self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
-
-        #To test status particle instrument must be off and powered on while test is waiting
-        #The status particle is sent only once when the instrument is powered on
-        #cannot start the driver and instrument simultaneously, therefore need to start
-        #test with instrument off, start the driver, then start the instrument to capture the
-        #status particle
 
         #NOTE: cannot timeout BEFORE reaching particle count or an error is thrown
         log.debug("turn off, then on the instrument")
         log.debug("waiting 30 seconds for 1 particle status")
         self.assert_async_particle_generation(DataParticleType.OPTAA_STATUS, self.assert_sample_data_particle, particle_count = 1, timeout = 30)
+
+    def test_autosample_particle_generation(self):
+
+        #Test that we can generate particles when in autosample.
+        self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
+
         log.debug("waiting 100 seconds for 50 particle samples")
         self.assert_async_particle_generation(DataParticleType.OPTAA_SAMPLE, self.assert_sample_data_particle, particle_count = 50, timeout = 100)
 
@@ -660,7 +668,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
 ###############################################################################
 #                             PUBLICATION TESTS                               #
-# Device specific publication tests are for                                    #
+# Device specific publication tests are for                                   #
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('PUB', group='mi')
