@@ -184,9 +184,7 @@ class BufferLoadingParser(Parser):
             while len(self._record_buffer) < num_records:
                 self._load_particle_buffer()        
         except EOFError:
-            # not ready to possibly break lots of drivers yet with this, uncomment when read to add
-            #self._process_end_of_file()
-            pass
+            self._process_end_of_file()
         return self._yank_particles(num_records)
 
     def _process_end_of_file(self):
