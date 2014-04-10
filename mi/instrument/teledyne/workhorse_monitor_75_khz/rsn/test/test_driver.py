@@ -165,7 +165,7 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.COORDINATE_TRANSFORMATION: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00111', VALUE: '00111'},
         Parameter.SENSOR_SOURCE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: "1111101", VALUE: "1111101"},
         Parameter.TIME_PER_ENSEMBLE: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: '00:00:00.00'},
-        #Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
+        Parameter.TIME_OF_FIRST_PING: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: False}, # STARTUP: True, VALUE: '****/**/**,**:**:**'
         Parameter.TIME_PER_PING: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:01.00', VALUE: '00:01.00'},
         Parameter.FALSE_TARGET_THRESHOLD: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '050,001', VALUE: '050,001'},
         Parameter.BANDWIDTH_CONTROL: {TYPE: int, READONLY: False, DA: False, STARTUP: True, DEFAULT: False, VALUE: 0},
@@ -803,6 +803,10 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self.assert_initialize_driver()
         self._test_set_parameter_test()
 
+    def _test_set_time_first_ping(self):
+        self.assert_initialize_driver()
+        self._test_set_time_of_first_ping_readonly()
+
     def _test_test_set_ranges(self):
         self.assert_initialize_driver()
         fail = False
@@ -833,7 +837,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self._test_set_coordinate_transformation()
         self._test_set_sensor_source()
         self._test_set_time_per_ensemble()
-        # self._test_set_time_of_first_ping() # EVIL COMMAND
+        self._test_set_time_of_first_ping_readonly()
         self._test_set_time_per_ping()
         self._test_set_false_target_threshold()
         self._test_set_bandwidth_control()
@@ -857,7 +861,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self._test_set_serial_out_fw_switches_readonly()
         self._test_set_water_profiling_mode_readonly()
 
-        self._test_parameter_test_set()
+        self._test_set_parameter_test()
 
         fail = False
 
@@ -885,7 +889,7 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 @attr('QUAL', group='mi')
 class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
 
-    def _test_recover_from_TG(self):
+    def test_recover_from_TG(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
