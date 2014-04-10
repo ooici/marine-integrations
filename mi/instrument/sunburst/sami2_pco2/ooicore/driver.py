@@ -59,6 +59,8 @@ log.debug('herb: ' + 'import sunburst/sami2_pco2/ooicore/driver.py')
 #    Driver Constant Definitions
 ###
 
+SAMPLE_DELAY = 180 ## TODO: Make configurable
+
 # Imported from base class
 
 ###
@@ -531,25 +533,27 @@ class Protocol(SamiProtocol):
 
             current_state = self.get_current_state()
 
-            if current_state == ProtocolState.BLANK_SAMPLE:
-                if record_type == '05':  ## Blank sample
-                    ## Send success event to execute next step.
+##            if current_state == ProtocolState.:
+##                if record_type == '05':  ## Blank sample
+##                    ## Send success event to execute next step.
 ##                    self._protocol_fsm.on_event(ProtocolEvent.SUCCESS)
-                    self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
-                else:
-                    ## TODO: Error: Invalid record type in this state
-                    pass
-            elif current_state == ProtocolState.REGULAR_SAMPLE:
-                if record_type == '04':  ## Regular sample
-                    ## Send success event to execute next step.
+##                    self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
+##                    pass
+##                else:
+##                    ## TODO: Error: Invalid record type in this state
+##                    pass
+##            elif current_state == ProtocolState.REGULAR_SAMPLE:
+##                if record_type == '04':  ## Regular sample
+##                    ## Send success event to execute next step.
 ##                    self._protocol_fsm.on_event(ProtocolEvent.SUCCESS)
-                    self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
-                else:
-                    ## TODO: Error: Invalid record type in this state
-                    pass
-            else:
-                ## TODO: Error:  Should not receive a sample in this state
-                pass
+##                    self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
+##                    pass
+##                else:
+##                    ## TODO: Error: Invalid record type in this state
+##                    pass
+##            else:
+##                ## TODO: Error:  Should not receive a sample in this state
+##                pass
 
         ## TODO: Check timestamp and throw exception
 
@@ -968,8 +972,12 @@ class Protocol(SamiProtocol):
     def _get_configuration_string_regex(self):
         return CONFIGURATION_REGEX_MATCHER
 
-## TODO: Implement
     def _get_blank_sample_timeout(self):
-        pass
+        log.debug('herb: ' + 'Protocol._get_blank_sample_timeout()')
+        return SAMPLE_DELAY
     def _get_sample_timeout(self):
-        pass
+        log.debug('herb: ' + 'Protocol._get_sample_timeout()')
+        return SAMPLE_DELAY
+    def _get_sample_regex(self):
+        log.debug('herb: ' + 'Protocol._get_sample_regex()')
+        return SAMI_SAMPLE_REGEX_MATCHER

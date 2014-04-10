@@ -130,7 +130,7 @@ class SamiMixin(DriverTestMixin):
     _driver_capabilities = {
         # capabilities defined in the IOS
         Capability.ACQUIRE_STATUS:      {STATES: [ProtocolState.COMMAND]},
-        #Capability.ACQUIRE_SAMPLE:      {STATES: [ProtocolState.COMMAND]},
+        Capability.ACQUIRE_SAMPLE:      {STATES: [ProtocolState.COMMAND]},
         Capability.START_AUTOSAMPLE:    {STATES: [ProtocolState.COMMAND,
                                                   ProtocolState.AUTOSAMPLE]},
         Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
@@ -298,13 +298,12 @@ class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
     capabilities_test_dict = {
-        ProtocolState.UNKNOWN:          ['DRIVER_EVENT_START_DIRECT',
-                                         'DRIVER_EVENT_DISCOVER'],
+        ProtocolState.UNKNOWN:          ['DRIVER_EVENT_DISCOVER'],
         ProtocolState.WAITING:          ['DRIVER_EVENT_DISCOVER'],
         ProtocolState.COMMAND:          ['DRIVER_EVENT_GET',
                                          'DRIVER_EVENT_SET',
                                          'DRIVER_EVENT_START_DIRECT',
-                                         #'DRIVER_EVENT_ACQUIRE_CONFIGURATION',
+                                         # 'DRIVER_EVENT_ACQUIRE_CONFIGURATION',
                                          'DRIVER_EVENT_ACQUIRE_STATUS',
                                          'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                          'DRIVER_EVENT_START_AUTOSAMPLE'],
@@ -312,10 +311,12 @@ class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
                                          'DRIVER_EVENT_STOP_AUTOSAMPLE'],
         ProtocolState.DIRECT_ACCESS:    ['EXECUTE_DIRECT',
                                          'DRIVER_EVENT_STOP_DIRECT'],
-        ProtocolState.SCHEDULED_SAMPLE: ['PROTOCOL_EVENT_SUCCESS',
-                                         'PROTOCOL_EVENT_TIMEOUT'],
-        ProtocolState.POLLED_SAMPLE:    ['PROTOCOL_EVENT_SUCCESS',
-                                         'PROTOCOL_EVENT_TIMEOUT']
+        ProtocolState.POLLED_SAMPLE:     ['PROTOCOL_EVENT_TAKE_SAMPLE',
+                                          'PROTOCOL_EVENT_SUCCESS',
+                                          'PROTOCOL_EVENT_TIMEOUT'],
+        ProtocolState.SCHEDULED_SAMPLE:   ['PROTOCOL_EVENT_TAKE_SAMPLE',
+                                           'PROTOCOL_EVENT_SUCCESS',
+                                           'PROTOCOL_EVENT_TIMEOUT']
     }
 
 
