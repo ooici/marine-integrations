@@ -14,7 +14,8 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.exceptions import SampleException, RecoverableSampleException, SampleEncodingException, NotImplementedException
+from mi.core.exceptions import SampleException, RecoverableSampleException, SampleEncodingException
+from mi.core.exceptions import NotImplementedException, UnexpectedDataException
 
 class Parser(object):
     """ abstract class to show API needed for plugin poller objects """
@@ -194,7 +195,7 @@ class BufferLoadingParser(Parser):
         (nd_timestamp, non_data) = self._chunker.get_next_non_data()
         (timestamp, chunk) = self._chunker.get_next_data()
         if (non_data and len(non_data) > 0) or (chunk and len(chunk) > 0):
-            raise SampleException("Have extra unexplained bytes at the end of the file")
+            raise UnexpectedDataException("Have extra unexplained bytes at the end of the file")
 
     def _yank_particles(self, num_records):
         """
