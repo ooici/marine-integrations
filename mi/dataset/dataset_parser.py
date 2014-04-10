@@ -194,8 +194,12 @@ class BufferLoadingParser(Parser):
         """
         (nd_timestamp, non_data) = self._chunker.get_next_non_data()
         (timestamp, chunk) = self._chunker.get_next_data()
-        if (non_data and len(non_data) > 0) or (chunk and len(chunk) > 0):
-            raise UnexpectedDataException("Have extra unexplained bytes at the end of the file")
+        if (non_data and len(non_data) > 0):
+            log.warn("Have extra unexplained non-data bytes at the end of the file:%s", non_data)
+            raise UnexpectedDataException("Have extra unexplained non-data bytes at the end of the file:%s" % non_data)
+        elif (chunk and len(chunk) > 0):
+            log.warn("Have extra unexplained data chunk bytes at the end of the file:%s", chunk)
+            raise UnexpectedDataException("Have extra unexplained data chunk bytes at the end of the file:%s" % chunk)
 
     def _yank_particles(self, num_records):
         """
