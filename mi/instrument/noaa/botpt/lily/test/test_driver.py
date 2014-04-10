@@ -12,6 +12,7 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
+from mi.core.common import BaseEnum
 from mi.instrument.noaa.botpt.driver import BotptStatus01ParticleKey, BotptStatus01Particle
 
 __author__ = 'David Everett'
@@ -50,7 +51,6 @@ from mi.instrument.noaa.botpt.lily.driver import ProtocolEvent
 from mi.instrument.noaa.botpt.lily.driver import Capability
 from mi.instrument.noaa.botpt.lily.driver import Parameter
 from mi.instrument.noaa.botpt.lily.driver import Protocol
-from mi.instrument.noaa.botpt.lily.driver import Prompt
 from mi.instrument.noaa.botpt.lily.driver import NEWLINE
 from mi.instrument.noaa.botpt.lily.driver import LILY_COMMAND_STRING
 from mi.instrument.noaa.botpt.lily.driver import LILY_DATA_ON
@@ -138,7 +138,7 @@ DUMP_01_STATUS = \
     "LILY,2013/06/24 23:35:41,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
     "LILY,2013/06/24 23:35:41,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
     "LILY,2013/06/24 23:35:41,*01: N_SAMP= 360 Xzero=  0.00 Yzero=  0.00" + NEWLINE + \
-    "LILY,2013/06/24 23:35:41,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP 19200 baud FV-"
+    "LILY,2013/06/24 23:35:41,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP 19200 baud FV-" + NEWLINE
 
 DUMP_02_STATUS = \
     "LILY,2013/06/24 23:36:05,*01: TBias: 5.00" + NEWLINE + \
@@ -170,7 +170,7 @@ DUMP_02_STATUS = \
     "LILY,2013/06/24 23:36:06,*01: Memory Save Mode: Off" + NEWLINE + \
     "LILY,2013/06/24 23:36:06,*01: Outputting Data: Yes" + NEWLINE + \
     "LILY,2013/06/24 23:36:06,*01: Auto Power-Off Recovery Mode: Off" + NEWLINE + \
-    "LILY,2013/06/24 23:36:06,*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No"
+    "LILY,2013/06/24 23:36:06,*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No" + NEWLINE
 
 LEVELING_STATUS = \
     "LILY,2013/07/24 20:36:27,*  14.667,  81.642,185.21, 33.67,11.59,N9651" + NEWLINE
@@ -422,24 +422,27 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         Test the chunker and verify the particles created.
         """
         chunker = StringChunker(Protocol.sieve_function)
-        self.assert_chunker_sample(chunker, LEVELED_STATUS)
-        self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
-        self.assert_chunker_sample(chunker, DUMP_01_STATUS)
-        self.assert_chunker_sample(chunker, DUMP_02_STATUS)
+
+        for sample in [LEVELED_STATUS, VALID_SAMPLE_01, VALID_SAMPLE_02, DUMP_01_STATUS, DUMP_02_STATUS]:
+            self.assert_chunker_sample(chunker, sample)
+            self.assert_chunker_fragmented_sample(chunker, sample)
+            self.assert_chunker_combined_sample(chunker, sample)
+            self.assert_chunker_sample_with_noise(chunker, sample)
 
     def test_get_handler(self):
         driver = self.test_connect()
-
-        args = [Parameter.AUTO_RELEVEL]
-        result = driver._protocol._handler_command_get(args)
-        dict_response = result[1]
-        get_auto_relevel_response = dict_response['auto_relevel']
-        log.debug("get_auto_relevel_response: %r", get_auto_relevel_response)
-        self.assertTrue(get_auto_relevel_response)
+        for param in Parameter.list():
+            result = driver._protocol._handler_get([param])
+            result_dict = result[1]
+            self.assertNotEqual(result_dict, {})
 
     def test_set_handler(self):
         driver = self.test_connect()
         driver._protocol._handler_command_set({Parameter.XTILT_TRIGGER: 10})
+        driver._protocol._handler_command_set({Parameter.YTILT_TRIGGER: 10})
+        driver._protocol._handler_command_set({Parameter.LEVELING_TIMEOUT: 10})
+        driver._protocol._handler_command_set({Parameter.LEVELING_FAILED: True})
+        driver._protocol._handler_command_set({Parameter.AUTO_RELEVEL: False})
 
     def test_combined_samples(self):
         chunker = StringChunker(Protocol.sieve_function)
@@ -511,7 +514,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         """
         Verify sample data passed through the got data method produces the correct data particles
         """
-        # Create and initialize the instrument driver with a mock port agent
         driver = self.test_connect()
 
         self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
@@ -525,7 +527,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         Verify that the BOTPT LILY driver publishes a particle correctly when the LILY packet is
         embedded in the stream of other BOTPT sensor output.
         """
-        # Create and initialize the instrument driver with a mock port agent
         driver = self.test_connect()
         self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
 
@@ -534,23 +535,18 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         Verify that the driver correctly parses the DATA_ON response
         """
         driver = self.test_connect()
-        log.debug("DATA ON command response: %s", DATA_ON_COMMAND_RESPONSE)
         # Create and populate the port agent packet.
         self._send_port_agent_packet(driver, DATA_ON_COMMAND_RESPONSE)
         self.assertTrue(driver._protocol._get_response(expected_prompt=LILY_DATA_ON))
 
     def test_data_on_response_with_data(self):
         """
-        Verify that the driver correctly parses the DATA_ON response works
+        Verify that the driver correctly parses the DATA_ON response
         when a data packet is right in front of it
         """
         driver = self.test_connect()
-        # Create a data packet and push to the driver
-        log.debug("VALID SAMPLE : %s", VALID_SAMPLE_01)
         # Create and populate the port agent packet.
         self._send_port_agent_packet(driver, VALID_SAMPLE_01)
-
-        log.debug("DATA ON command response: %s", DATA_ON_COMMAND_RESPONSE)
         # Create and populate the port agent packet.
         self._send_port_agent_packet(driver, DATA_ON_COMMAND_RESPONSE)
         self.assertTrue(driver._protocol._get_response(expected_prompt=LILY_DATA_ON))
@@ -666,7 +662,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
         Test silly made up capabilities to verify they are blocked by filter.
         """
         mock_callback = Mock()
-        protocol = Protocol(Prompt, NEWLINE, mock_callback)
+        protocol = Protocol(BaseEnum, NEWLINE, mock_callback)
         driver_capabilities = Capability().list()
         test_capabilities = Capability().list()
 
@@ -862,7 +858,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, LILYTestMix
                 ProtocolEvent.GET,
                 ProtocolEvent.SET,
                 ProtocolEvent.START_AUTOSAMPLE,
-                ProtocolEvent.ACQUIRE_STATUS
+                ProtocolEvent.ACQUIRE_STATUS,
+                ProtocolEvent.START_LEVELING,
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -876,8 +873,11 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, LILYTestMix
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
+            ProtocolEvent.GET,
+            ProtocolEvent.SET,
             ProtocolEvent.STOP_AUTOSAMPLE,
-            ProtocolEvent.ACQUIRE_STATUS
+            ProtocolEvent.ACQUIRE_STATUS,
+            ProtocolEvent.START_LEVELING,
         ]
 
         self.assert_start_autosample()

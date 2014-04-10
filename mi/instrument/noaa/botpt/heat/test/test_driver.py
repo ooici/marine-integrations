@@ -218,6 +218,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         """
         chunker = StringChunker(Protocol.sieve_function)
         self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
+        self.assert_chunker_fragmented_sample(chunker, VALID_SAMPLE_01)
+        self.assert_chunker_sample_with_noise(chunker, VALID_SAMPLE_01)
+        self.assert_chunker_combined_sample(chunker, VALID_SAMPLE_01)
 
     def test_connect(self, initial_protocol_state=ProtocolState.COMMAND):
         """
@@ -419,7 +422,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, HEATTestMix
         self.assert_state_change(ResourceAgentState.DIRECT_ACCESS, ProtocolState.DIRECT_ACCESS, 30)
         self.assert_reset()
 
-    # N/A
+    # N/A, this instrument always samples automatically
+    # so it has no autosample state.
     def test_discover(self):
         pass
 
@@ -474,6 +478,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, HEATTestMix
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
         self.tcp_client.send_data(InstrumentCommand.HEAT_OFF + NEWLINE)
-        self.tcp_client.expect(',*0')
+        result = self.tcp_client.expect(',*0')
+        self.assertTrue(result, msg='Failed to receive expected response in direct access mode.')
         self.assert_direct_access_stop_telnet()
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)

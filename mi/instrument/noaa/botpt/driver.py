@@ -257,7 +257,7 @@ class BotptStatus01Particle(BotptStatusParticle):
 
     @staticmethod
     def regex():
-        pattern = '(?:IRIS|LILY),.*\*APPLIED GEOMECHANICS.*baud FV-'
+        pattern = '(?:IRIS|LILY),.*?\*APPLIED GEOMECHANICS.*?baud FV-.*?' + NEWLINE
         return pattern
 
     @staticmethod
@@ -415,7 +415,7 @@ class BotptStatus02Particle(BotptStatusParticle):
         # LILY,2014/03/31 23:18:49,*01: Outputting Data: No
         # LILY,2014/03/31 23:18:49,*01: Auto Power-Off Recovery Mode: On
         # LILY,2014/03/31 23:18:49,*01: Advanced Memory Mode: Off, Delete with XY-MEMD: No
-        return r'(?:IRIS|LILY),.*\*01: TBias.*(?:\(arcseconds/bit\)|XY-MEMD: \S+)'
+        return r'(?:IRIS|LILY),.*?\*01: TBias.*?(?:\(arcseconds/bit\)|XY-MEMD: \S+).*?' + NEWLINE
 
     @staticmethod
     def regex_compiled():
@@ -487,6 +487,8 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         self._chunker = None
         self._last_data_timestamp = 0
         self._sent_cmds = []
+        # temporary buffer to cache incomplete lines received by the port agent
+        self.temp_buf = ''
 
     def _got_chunk(self, chunk, timestamp):
         raise NotImplementedException('_got_chunk not implemented')
@@ -496,14 +498,14 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         """
         Generic method to command the instrument
         """
-        log.debug('_handler_command: %s %s %s %s', command, next_state, next_agent_state, timeout)
+        log.debug('enter _handler_command_generic: %s %s %s %s', command, next_state, next_agent_state, timeout)
         if expected_prompt is None and response_regex is None:
             result = self._do_cmd_no_resp(command)
         else:
             result = self._do_cmd_resp(command, expected_prompt=expected_prompt,
                                        response_regex=response_regex, timeout=timeout)
 
-        log.debug('%s response: %s', command, result)
+        log.debug('result _handler_command_generic -- command: %s result: %s', command, result)
         return next_state, (next_agent_state, result)
 
     def got_raw(self, port_agent_packet):
@@ -516,12 +518,21 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         """
         BOTPT puts out lots of data. Filter it out per sensor.
         """
+        # just return the data if no filter exists
         if self._filter_string is None:
             return data
-        my_filter = lambda s: (s.startswith(self._filter_string) or len(s) == 0)
-        lines = data.split(NEWLINE)
-        lines = filter(my_filter, lines)
-        return NEWLINE.join(lines)
+        # rejoin our temp buffer and the data, then split into lines for filtering
+        lines = (self.temp_buf + data).split(NEWLINE)
+        # store off our last line
+        self.temp_buf = lines[-1]
+        # filter the remaining lines
+        lines = filter(lambda x: x.startswith(self._filter_string), lines[:-1])
+        log.trace('FILTER_DATA: IN = %r OUT = %r HOLD = %r', data, lines, self.temp_buf)
+        # if data remains, return it, otherwise return an empty string
+        if lines:
+            return NEWLINE.join(lines) + NEWLINE
+        else:
+            return ''
 
     def got_data(self, port_agent_packet):
         """
@@ -534,10 +545,10 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         data = self._filter_raw(port_agent_packet.get_data())
         timestamp = port_agent_packet.get_timestamp()
 
-        log.trace("Got Data: %r" % data)
-        log.trace("Add Port Agent Timestamp: %s" % timestamp)
-
         if len(data) > 0:
+            log.debug("Got Data: %r" % data)
+            log.debug("Add Port Agent Timestamp: %s" % timestamp)
+
             if self.get_current_state() == DriverProtocolState.DIRECT_ACCESS:
                 self._driver_event(DriverAsyncEvent.DIRECT_ACCESS, data)
 
@@ -661,6 +672,7 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         """
         Enter direct access state.
         """
+        log.debug("_handler_direct_access_enter")
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -671,11 +683,12 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         """
         Exit direct access state.
         """
-        pass
+        log.debug("_handler_direct_access_exit")
 
     def _handler_direct_access_execute_direct(self, data):
         """
         """
+        log.debug("_handler_direct_access_execute_direct: %r", data)
         next_state = None
         result = None
         next_agent_state = None
@@ -688,7 +701,7 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
             commands = [x for x in commands if x.startswith(self._filter_string)]
 
         for command in commands:
-            self._do_cmd_direct(command)
+            self._do_cmd_direct(command + NEWLINE)
 
             # add sent command to list for 'echo' filtering in callback
             self._sent_cmds.append(command)
@@ -699,6 +712,7 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         """
         @throw InstrumentProtocolException on invalid command
         """
+        log.debug("_handler_direct_access_stop_direct")
         result = None
 
         next_state = DriverProtocolState.COMMAND

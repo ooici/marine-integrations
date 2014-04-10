@@ -12,7 +12,6 @@ __license__ = 'Apache 2.0'
 import re
 import time
 import json
-import threading
 
 import ntplib
 
@@ -47,7 +46,8 @@ from mi.instrument.noaa.botpt.driver import NEWLINE
 from mi.instrument.noaa.botpt.driver import BotptProtocol
 from mi.instrument.noaa.botpt.driver import BotptStatus02ParticleKey
 
-from mi.core.exceptions import InstrumentProtocolException, InstrumentDataException
+from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentDataException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import SampleException
 
@@ -74,8 +74,6 @@ DEFAULT_MAX_YTILT = 300
 DEFAULT_AUTO_RELEVEL = True  # default to be true
 
 DISCOVER_REGEX = re.compile(r'(LILY,.*%s)' % NEWLINE)
-
-promptbuf_mutex = threading.Lock()
 
 
 class ScheduledJob(BaseEnum):
@@ -121,17 +119,6 @@ class Parameter(DriverParameter):
     YTILT_TRIGGER = "ytilt_relevel_trigger"
     LEVELING_TIMEOUT = "relevel_timeout"
     LEVELING_FAILED = "leveling_failed"
-
-
-class Prompt(BaseEnum):
-    """
-    Device i/o prompts..
-    """
-
-
-class LevelingTriggers(object):
-    xtilt_relevel_trigger = DEFAULT_MAX_XTILT
-    ytilt_relevel_trigger = DEFAULT_MAX_YTILT
 
 
 ###############################################################################
@@ -535,6 +522,7 @@ class LILYLevelingParticle(DataParticle):
 # Driver
 ###############################################################################
 
+# noinspection PyMethodMayBeStatic
 class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass
@@ -554,7 +542,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     # Superclass overrides for resource query.
     ########################################################################
 
-    # noinspection PyMethodMayBeStatic
     def get_resource_params(self):
         """
         Return list of device parameters available.
@@ -569,7 +556,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
+        self._protocol = Protocol(BaseEnum, NEWLINE, self._driver_event)
 
 
 ###########################################################################
@@ -714,7 +701,6 @@ class Protocol(BotptProtocol):
         Currently LILY only supports DATA_ON and DATA_OFF.
         """
         self._cmd_dict = ProtocolCommandDict()
-        # TODO
 
     def _build_param_dict(self):
         """
@@ -798,6 +784,11 @@ class Protocol(BotptProtocol):
             if relevel:
                 self._async_raise_fsm_event(ProtocolEvent.START_LEVELING)
 
+    def _failed_leveling(self, axis):
+        log.error('Detected leveling error in %s axis!', axis)
+        self._handler_command_set({Parameter.LEVELING_FAILED: True, Parameter.AUTO_RELEVEL: False})
+        raise InstrumentDataException('LILY Leveling (%s) Failed.  Disabling auto relevel' % axis)
+
     def _check_completed_leveling(self, sample):
         values = sample.get(u'values', [])
         for each in values:
@@ -808,24 +799,20 @@ class Protocol(BotptProtocol):
                     # Leveling status update received
                     # If leveling complete, send STOP_LEVELING, set the _leveling_failed flag to False
                     if 'Leveled' in value:
-                        self._handler_command_set({Parameter.LEVELING_FAILED: False})
+                        if self._param_dict.get(Parameter.LEVELING_FAILED):
+                            self._handler_command_set({Parameter.LEVELING_FAILED: False})
+                            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
                         self._async_raise_fsm_event(ProtocolEvent.STOP_LEVELING)
                     # Leveling X failed!  Set the flag and raise an exception to notify the operator
-                    # and disable auto leveling through the set handler. Let the instrument attempt to level
+                    # and disable auto leveling. Let the instrument attempt to level
                     # in the Y axis.
                     elif 'X Axis out of range' in value:
-                        log.error('Detected leveling error in X axis! [%r]', value)
-                        self._handler_command_set({Parameter.LEVELING_FAILED: True})
-                        self._handler_command_set({Parameter.AUTO_RELEVEL: False})
-                        raise InstrumentDataException('LILY Leveling (X) Failed.  Disabling auto relevel')
+                        self._failed_leveling('X')
                     # Leveling X failed!  Set the flag and raise an exception to notify the operator
-                    # and disable auto leveling through the set handler. Send STOP_LEVELING
+                    # and disable auto leveling. Send STOP_LEVELING
                     elif 'Y Axis out of range' in value:
-                        log.error('Detected leveling error in Y axis! [%r]', value)
-                        self._handler_command_set({Parameter.LEVELING_FAILED: True})
-                        self._handler_command_set({Parameter.AUTO_RELEVEL: False})
                         self._async_raise_fsm_event(ProtocolEvent.STOP_LEVELING)
-                        raise InstrumentDataException('LILY Leveling (Y) Failed.  Disabling auto relevel')
+                        self._failed_leveling('Y')
 
     ########################################################################
     # Unknown handlers.
@@ -1006,7 +993,7 @@ class Protocol(BotptProtocol):
         self._handler_command_set({Parameter.LEVELING_FAILED: True})
         self._handler_command_set({Parameter.AUTO_RELEVEL: False})
         self._async_raise_fsm_event(ProtocolEvent.STOP_LEVELING)
-        raise InstrumentDataException('LILY Leveling timed out')
+        raise InstrumentDataException('LILY Leveling timed out, Disabling auto relevel.')
 
     ########################################################################
     # Handlers common to Command and Autosample States.
@@ -1016,6 +1003,9 @@ class Protocol(BotptProtocol):
         """
         Get device status
         """
-        self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_01, None, None, expected_prompt=LILY_DUMP_01)
-        return self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_02, None, None,
-                                             expected_prompt=LILY_DUMP_02)
+        log.debug("_handler_command_autosample_acquire_status")
+        _, (_, result1) = self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_01,
+                                                        None, None, expected_prompt=LILY_DUMP_01)
+        _, (_, result2) = self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS_02,
+                                                        None, None, expected_prompt=LILY_DUMP_02)
+        return None, (None, '%s %s' % (result1, result2))

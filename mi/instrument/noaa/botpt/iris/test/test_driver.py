@@ -126,7 +126,7 @@ DUMP_01_STATUS = \
     "IRIS,2013/06/12 18:03:44,*01: Tcoef 0: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
     "IRIS,2013/06/12 18:03:44,*01: Tcoef 1: Ks=           0 Kz=           0 Tcal=           0" + NEWLINE + \
     "IRIS,2013/06/12 18:03:44,*01: N_SAMP= 460 Xzero=  0.00 Yzero=  0.00" + NEWLINE + \
-    "IRIS,2013/06/12 18:03:44,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-"
+    "IRIS,2013/06/12 18:03:44,*01: TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-" + NEWLINE
 
 DUMP_02_STATUS = \
     "IRIS,2013/06/12 23:55:09,*01: TBias: 8.85" + NEWLINE + \
@@ -157,7 +157,7 @@ DUMP_02_STATUS = \
     "IRIS,2013/06/12 18:04:02,*01: DAC Output Scale Factor: 0.10 Volts/Degree" + NEWLINE + \
     "HEAT,2013/06/12 18:04:02,-001,0001,0024" + NEWLINE + \
     "IRIS,2013/06/12 18:04:02,*01: Total Sample Storage Capacity: 372" + NEWLINE + \
-    "IRIS,2013/06/12 18:04:02,*01: BAE Scale Factor:  2.88388 (arcseconds/bit)"
+    "IRIS,2013/06/12 18:04:02,*01: BAE Scale Factor:  2.88388 (arcseconds/bit)" + NEWLINE
 
 DUMP_01_STATUS_RESP = NEWLINE.join([line for line in DUMP_01_STATUS.split(NEWLINE) if line.startswith(IRIS_STRING)])
 DUMP_02_STATUS_RESP = NEWLINE.join([line for line in DUMP_02_STATUS.split(NEWLINE) if line.startswith(IRIS_STRING)])
@@ -360,9 +360,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, IRISTestMixinSub):
         """
         chunker = StringChunker(Protocol.sieve_function)
 
-        self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
-        self.assert_chunker_sample(chunker, DUMP_01_STATUS)
-        self.assert_chunker_sample(chunker, DUMP_02_STATUS)
+        for sample in [VALID_SAMPLE_01, VALID_SAMPLE_02, DUMP_01_STATUS, DUMP_02_STATUS]:
+            self.assert_chunker_sample(chunker, sample)
+            self.assert_chunker_fragmented_sample(chunker, sample)
+            self.assert_chunker_combined_sample(chunker, sample)
+            self.assert_chunker_sample_with_noise(chunker, sample)
 
     def test_connect(self, initial_protocol_state=ProtocolState.COMMAND):
         """

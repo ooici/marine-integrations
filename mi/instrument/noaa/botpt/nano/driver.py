@@ -473,7 +473,7 @@ class NANOStatusParticle(BotptStatusParticle):
         NANO,*Y3:.0000000     ZE:0            ZI:0            ZL:0            
         NANO,*ZM:0            ZS:0            ZV:.0000000     
         """
-        return r'(NANO,\*_.*ZV:\s*?\S*)'
+        return r'(NANO,\*_.*?ZV:\s*\S*.*?)' + NEWLINE
 
     @staticmethod
     def regex_compiled():

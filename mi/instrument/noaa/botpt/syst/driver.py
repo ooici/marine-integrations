@@ -188,7 +188,7 @@ class SYSTStatusParticle(BotptStatusParticle):
 
     @staticmethod
     def regex():
-        return r'(SYST,.*?BOTPT BPR.*grep.*)'
+        return r'(SYST,.*?BOTPT BPR.*?grep.*?)' + NEWLINE
 
     @staticmethod
     def regex_compiled():
@@ -340,18 +340,14 @@ class Protocol(BotptProtocol):
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCommand.ACQUIRE_STATUS, self._build_command)
 
-        # Add response handlers for device commands.
-
-        # Add sample handlers.
-
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        #
         self._chunker = StringChunker(Protocol.sieve_function)
+        self._filter_string = SYST_STRING
 
     @staticmethod
     def sieve_function(raw_data):

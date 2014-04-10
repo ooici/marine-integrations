@@ -19,10 +19,10 @@ import ntplib
 
 from mi.core.log import get_logger
 
+
 log = get_logger()
 
 from mi.core.common import BaseEnum
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -264,7 +264,7 @@ class Protocol(BotptProtocol):
         @param driver_event Driver process event callback.
         """
         # Construct protocol superclass.
-        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+        BotptProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,

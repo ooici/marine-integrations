@@ -26,7 +26,7 @@ from mi.core.log import get_logger
 log = get_logger()
 
 # MI imports.
-from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
+from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey, AgentCapabilityType
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
@@ -46,8 +46,6 @@ from mi.instrument.noaa.botpt.syst.driver import ProtocolEvent
 from mi.instrument.noaa.botpt.syst.driver import Capability
 from mi.instrument.noaa.botpt.syst.driver import Protocol
 from mi.instrument.noaa.botpt.syst.driver import NEWLINE
-
-GO_ACTIVE_TIMEOUT = 180
 
 ###
 #   Driver parameters for the tests
@@ -244,6 +242,7 @@ class BOTPTTestMixinSub(DriverTestMixin):
 #   Unit tests do not start up external processes like the port agent or      #
 #   driver process.                                                           #
 ###############################################################################
+# noinspection PyProtectedMember
 @attr('UNIT', group='mi')
 class DriverUnitTest(InstrumentDriverUnitTestCase, BOTPTTestMixinSub):
     def setUp(self):
@@ -270,6 +269,9 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, BOTPTTestMixinSub):
         """
         chunker = StringChunker(Protocol.sieve_function)
         self.assert_chunker_sample(chunker, STATUS)
+        self.assert_chunker_fragmented_sample(chunker, STATUS)
+        self.assert_chunker_sample_with_noise(chunker, STATUS)
+        self.assert_chunker_combined_sample(chunker, STATUS)
 
     def test_got_data(self):
         """
@@ -357,97 +359,11 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
     # Overridden because does not apply for this driver
     def test_poll(self):
-        """
-        No polling for a single sample
-        """
+        pass
 
     # Overridden because does not apply for this driver
     def test_get_set_parameters(self):
-        """
-        verify that all parameters can be get set properly, this includes
-        ensuring that read only parameters fail on set.
-        """
         pass
-
-    # def test_instrument_agent_common_state_model_lifecycle(self, timeout=GO_ACTIVE_TIMEOUT):
-    #     """
-    #     @brief Test agent state transitions.
-    #            This test verifies that the instrument agent can
-    #            properly command the instrument through the following states.
-    #
-    #             COMMANDS TESTED
-    #             *ResourceAgentEvent.INITIALIZE
-    #             *ResourceAgentEvent.RESET
-    #             *ResourceAgentEvent.GO_ACTIVE
-    #             *ResourceAgentEvent.RUN
-    #             *ResourceAgentEvent.PAUSE
-    #             *ResourceAgentEvent.RESUME
-    #             *ResourceAgentEvent.GO_COMMAND
-    #             *ResourceAgentEvent.GO_INACTIVE
-    #             *ResourceAgentEvent.PING_RESOURCE
-    #             *ResourceAgentEvent.CLEAR
-    #
-    #             COMMANDS NOT TESTED
-    #             * ResourceAgentEvent.GO_DIRECT_ACCESS
-    #             * ResourceAgentEvent.GET_RESOURCE_STATE
-    #             * ResourceAgentEvent.GET_RESOURCE
-    #             * ResourceAgentEvent.SET_RESOURCE
-    #             * ResourceAgentEvent.EXECUTE_RESOURCE
-    #
-    #             STATES ACHIEVED:
-    #             * ResourceAgentState.UNINITIALIZED
-    #             * ResourceAgentState.INACTIVE
-    #             * ResourceAgentState.IDLE'
-    #             * ResourceAgentState.STOPPED
-    #             * ResourceAgentState.COMMAND
-    #
-    #             STATES NOT ACHIEVED:
-    #             * ResourceAgentState.DIRECT_ACCESS
-    #             * ResourceAgentState.STREAMING
-    #             * ResourceAgentState.TEST
-    #             * ResourceAgentState.CALIBRATE
-    #             * ResourceAgentState.BUSY
-    #             -- Not tested because they may not be implemented in the driver
-    #     """
-    #     ####
-    #     # UNINITIALIZED
-    #     ####
-    #     self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
-    #
-    #     # Try to run some commands that aren't available in this state
-    #     self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
-    #     self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
-    #     self.assert_agent_command_exception(ResourceAgentEvent.GO_DIRECT_ACCESS, exception_class=Conflict)
-    #
-    #     ####
-    #     # INACTIVE
-    #     ####
-    #     self.assert_agent_command(ResourceAgentEvent.INITIALIZE)
-    #     self.assert_agent_state(ResourceAgentState.INACTIVE)
-    #
-    #     # Try to run some commands that aren't available in this state
-    #     self.assert_agent_command_exception(ResourceAgentEvent.RUN, exception_class=Conflict)
-    #
-    #     ####
-    #     # IDLE
-    #     ####
-    #     self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
-    #
-    #     # Try to run some commands that aren't available in this state
-    #     self.assert_agent_command_exception(ResourceAgentEvent.INITIALIZE, exception_class=Conflict)
-    #     self.assert_agent_command_exception(ResourceAgentEvent.GO_ACTIVE, exception_class=Conflict)
-    #     self.assert_agent_command_exception(ResourceAgentEvent.RESUME, exception_class=Conflict)
-    #
-    #     # Verify we can go inactive
-    #     self.assert_agent_command(ResourceAgentEvent.GO_INACTIVE)
-    #     self.assert_agent_state(ResourceAgentState.INACTIVE)
-    #
-    #     # Get back to idle
-    #     self.assert_agent_command(ResourceAgentEvent.GO_ACTIVE, timeout=600)
-    #
-    #     # Reset
-    #     self.assert_agent_command(ResourceAgentEvent.RESET)
-    #     self.assert_agent_state(ResourceAgentState.UNINITIALIZED)
 
     def test_get_capabilities(self):
         """
@@ -455,3 +371,31 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         returned by get_current_capabilities
         """
         self.assert_enter_command_mode()
+
+        ##################
+        #  Command Mode
+        ##################
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: [
+                ProtocolEvent.ACQUIRE_STATUS,
+            ],
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
+        }
+
+        self.assert_capabilities(capabilities)
+
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports
+        direct access to the physical instrument. (telnet mode)
+        """
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data(InstrumentCommand.ACQUIRE_STATUS + NEWLINE)
+        result = self.tcp_client.expect('SYST,')
+        self.assertTrue(result, msg='Failed to receive expected response in direct access mode.')
+        self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)

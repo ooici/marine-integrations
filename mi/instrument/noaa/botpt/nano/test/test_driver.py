@@ -140,7 +140,7 @@ DUMP_STATUS = \
     "NANO,*XC:8            XD:A            XM:1            XN:0" + NEWLINE + \
     "NANO,*XS:0011         XX:1            Y1:-3818.141    Y2:-10271.53" + NEWLINE + \
     "NANO,*Y3:.0000000     ZE:0            ZI:0            ZL:0" + NEWLINE + \
-    "NANO,*ZM:0            ZS:0            ZV:.0000000"
+    "NANO,*ZM:0            ZS:0            ZV:.0000000" + NEWLINE
 
 
 ###############################################################################
@@ -396,8 +396,12 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
         Test the chunker and verify the particles created.
         """
         chunker = StringChunker(Protocol.sieve_function)
-        self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
-        self.assert_chunker_sample(chunker, DUMP_STATUS)
+
+        for sample in [VALID_SAMPLE_01, VALID_SAMPLE_02, DUMP_STATUS]:
+            self.assert_chunker_sample(chunker, sample)
+            self.assert_chunker_fragmented_sample(chunker, sample)
+            self.assert_chunker_combined_sample(chunker, sample)
+            self.assert_chunker_sample_with_noise(chunker, sample)
 
     def test_connect(self, initial_protocol_state=ProtocolState.COMMAND):
         """
