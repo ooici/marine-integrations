@@ -300,9 +300,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data((MopakODclAccelParserDataParticle,
                           MopakODclRateParserDataParticle),
                           'first_mopak.result.yml', count=5, timeout=10)
-        # there is a bug in the dataset agent when a callback is used, for now use sample_exception_callback,
-        # check the following when this is fixed
-        #self.assert_exception(UnexpectedDataException)
         self.assert_event('ResourceAgentErrorEvent')
         self.assert_file_ingested("20140120_140004.mopak.log")
 
@@ -329,9 +326,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(CgStcEngStcParserDataParticle, 'stc_bad_encode.result.yml',
                          count=1, timeout=10)
         self.assert_event('ResourceAgentErrorEvent')
-        # there is a bug in the dataset agent when a callback is used, for now use sample_exception_callback,
-        # check the following when this is fixed
-        #self.assert_exception(SampleEncodingException)
         self.assert_file_ingested('stc_status_bad_encode.txt')
 
 ###############################################################################
