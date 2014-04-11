@@ -50,7 +50,7 @@ NEWLINE = '\r\n'
 # default timeout.
 TIMEOUT = 10
 
-#Maximum number of communication test to wake up the instrument
+# Maximum number of communication test to wake up the instrument
 MAX_COMM_TEST = 2
 
 # Time wait for the instrument response
@@ -86,9 +86,9 @@ class ProtocolState(BaseEnum):
     """
     Instrument protocol states
     """
+    UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
-    UNKNOWN = DriverProtocolState.UNKNOWN
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 
 
@@ -101,10 +101,10 @@ class ProtocolEvent(BaseEnum):
     DISCOVER = DriverEvent.DISCOVER
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
-    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     GET = DriverEvent.GET
     SET = DriverEvent.SET
 
@@ -138,13 +138,13 @@ class Prompt(BaseEnum):
 # Data Particles
 ###############################################################################
 class THSPHDataParticleKey(BaseEnum):
-    HIGH_IMPEDANCE_ELECTRODE_1 = "hiie1"  # High Impedance Electrode 1 for pH
-    HIGH_IMPEDANCE_ELECTRODE_2 = "hiie2"  # High Impedance Electrode 2 for pH
+    HIGH_IMPEDANCE_ELECTRODE_1 = "hie1"   # High Impedance Electrode 1 for pH
+    HIGH_IMPEDANCE_ELECTRODE_2 = "hie2"   # High Impedance Electrode 2 for pH
     H2_ELECTRODE = "h2electrode"          # H2 electrode
     S2_ELECTRODE = "s2electrode"          # Sulfide Electrode
     THERMOCOUPLE1 = "thermocouple1"       # Type E thermocouple 1-high
     THERMOCOUPLE2 = "thermocouple2"       # Type E thermocouple 2-low
-    REFERENCE_THERMISTOR = "thermistor"   # Reference Thermistor
+    REFERENCE_THERMISTOR = "rthermistor"  # Reference Thermistor
     BOARD_THERMISTOR = "bthermistor"      # Board Thermistor
 
 
@@ -182,7 +182,7 @@ class THSPHParticle(DataParticle):
         Regular expression to match a sample pattern
         @return: regex string
         """
-        pattern = r'aH'  # pattern starts with 'aH'
+        pattern = r'aH'              # pattern starts with 'aH'
         pattern += r'([0-9A-F]{4})'  # Chanel 1 High Input Impedance Electrode
         pattern += r'([0-9A-F]{4})'  # Chanel 2 High Input Impedance Electrode
         pattern += r'([0-9A-F]{4})'  # H2 Electrode
@@ -191,8 +191,7 @@ class THSPHParticle(DataParticle):
         pattern += r'([0-9A-F]{4})'  # Type E Thermocouple 2
         pattern += r'([0-9A-F]{4})'  # Reference Thermistor
         pattern += r'([0-9A-F]{4})'  # Board Thermocouple
-        pattern += r'#'               # pattern ends with '#'
-        # pattern += NEWLINE
+        pattern += r'#'              # pattern ends with '#'
         return pattern
 
     @staticmethod
@@ -215,7 +214,7 @@ class THSPHParticle(DataParticle):
         match = THSPHParticle.regex_compiled().match(self.raw_data)
 
         if not match:
-            raise SampleException("No regex match of parsed sample data: [%s]" %
+            raise SampleException("No regex match of THSPH parsed sample data: [%s]" %
                                   self.raw_data)
 
         try:
@@ -254,13 +253,13 @@ class THSPHParticle(DataParticle):
 
     def hex2value(self, hex_value, divisor=None):
         """
-        Convert a ADC hex value to a int value.  If a divisor is passed in as
+        Convert a ADC hex value to an int value.  If a divisor is passed in as
         a parameter, the int value will be divided by the divisor.
         @param hex_value: string to convert
         @param divisor: conversion value
         @return: int or float of the converted value
         """
-        log.debug("hex2value: hex_value = %s", hex_value)
+
         if not isinstance(hex_value, str):
             raise InstrumentParameterException("hex value not a string")
 
@@ -358,8 +357,6 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
 
-
-
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_driver_dict()
@@ -373,17 +370,12 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         # Add response handlers for device commands.
 
         # State state machine in COMMAND state.
-        #self._protocol_fsm.start(ProtocolState.COMMAND)
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
         # commands sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        #
         self._chunker = StringChunker(THSPHProtocol.sieve_function)
-
-        # Schedule autosample task
-        #self._add_scheduler_event(ScheduledJob.AUTO_SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE)
 
 
     @staticmethod
@@ -434,8 +426,8 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         For each parameter key, add match string, match lambda function,
         and value formatting function for set commands.
         """
-        # Add parameter handlers to parameter dict.
 
+        # Add parameter handlers to parameter dict.
         self._param_dict.add(Parameter.INTERVAL,
                              r'Auto Polled Interval = (\d+)',
                              lambda match: int(match.group(1)),
@@ -455,7 +447,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
 
     ########################################################################
-    # Command handlers.
+    # Unknown State handlers.
     ########################################################################
     def _handler_unknown_enter(self, *args, **kwargs):
         """
@@ -474,32 +466,30 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
-        Discover current state; can be COMMAND or AUTOSAMPLE.
-        @retval (next_state, result), (ProtocolState.COMMAND, None) if successful.
+        Discover current state; Change next state to be COMMAND state.
+        @retval (next_state, result).
         """
-
+        log.debug('_handler_unknown_discover ')
 
         next_state = ProtocolState.COMMAND
         result = ResourceAgentState.IDLE
 
-        log.debug("_handler_unknown_discover: next state = %s", next_state)
         return next_state, result
 
     ########################################################################
-    # Command handlers.
+    # Command State handlers.
     ########################################################################
     def _handler_command_acquire_sample(self, *args, **kwargs):
         """
         Get device status
         """
+        log.debug("_handler_command_acquire_sample")
+
         next_state = None
         next_agent_state = None
         result = None
-        log.debug("_handler_command_acquire_sample")
 
         self._do_cmd_no_resp(Command.GET_SAMPLE, timeout=TIMEOUT)
-
-        log.debug("Sending AH Cmd")
 
         return (next_state, (next_agent_state, result))
 
@@ -534,7 +524,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         @raise InstrumentParameterExpirationException If we fail to update a parameter
         on the second pass this exception will be raised on expired data
         """
-        log.debug('$$ _handler_command_get enter')
+        log.debug("_handler_command_get enter ")
         return self._handler_get(*args, **kwargs)
 
     def _handler_command_set(self, *args, **kwargs):
@@ -551,7 +541,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         result = None
         startup = False
 
-        log.debug('$$_handler_command_set enter')
+        log.debug("_handler_command_set enter ")
         # Retrieve required parameter.
         # Raise if no parameter provided, or not a dict.
         try:
@@ -580,10 +570,10 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
     def _set_params(self, *args, **kwargs):
         """
-        Set various parameters internally to the driver. No issuing commands to the instrument
-        needed for this driver.
+        Set various parameters internally to the driver. No issuing commands to the
+        instrument needed for this driver.
         """
-        log.debug('$$$ _set_param start....')
+        log.debug("_set_params ")
         try:
             params = args[0]
         except IndexError:
@@ -593,15 +583,11 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         # Do a range check before we start all sets
         for (key, val) in params.iteritems():
             if(key == Parameter.INTERVAL and val not in range(1,601)):
-                log_debug('$$$ Auto Sample Interval not in 1 to 600 range')
+                log.debug("Auto Sample Interval not in 1 to 600 range ")
                 raise InstrumentParameterException("sample interval out of range")
             log.debug('key = (%s), value = (%s)' % (key, val))
 
-        log.debug('$$$ Before_set_param_dict interval')
-        log.debug('$$$ parameter inerval = %s, param interval val = %s' % (Parameter.INTERVAL, params[Parameter.INTERVAL]))
-        #self._param_dict[Parameter.INTERVAL] = params[Parameter.INTERVAL]
-        self._param_dict.set_value(Parameter.INTERVAL, params[Parameter.INTERVAL] )
-        log.debug('$$$ After_set_param_dict interval')
+        self._param_dict.set_value(Parameter.INTERVAL, params[Parameter.INTERVAL])
 
 
     def _handler_command_exit(self, *args, **kwargs):
@@ -609,6 +595,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         Exit command state.
         """
         pass
+
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
@@ -618,19 +605,33 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
+        log.debug("_handler_command_start_autosample ")
+
         next_state = None
         next_agent_state = None
         result = None
-
-        log.debug("$$ _handler_command_start_autosample")
 
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
         return (next_state, (next_agent_state, result))
 
+
+    def _handler_command_start_direct(self):
+        """
+        Start direct access
+        """
+        log.debug("_handler_command_start_direct ")
+
+        next_state = ProtocolState.DIRECT_ACCESS
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+        result = None
+
+        log.debug("_handler_command_start_direct: entering DA mode")
+        return (next_state, (next_agent_state, result))
+
     #######################################################################
-    # Autosample handlers.
+    # Autosample State handlers.
     ########################################################################
 
     def _handler_autosample_enter(self, *args, **kwargs):
@@ -640,7 +641,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         autosample state.  This scheduler raises events to poll the
         instrument for data.
         """
-        log.debug("$$ _handler_autosample_enter")
+        log.debug("_handler_autosample_enter ")
 
         next_state = None
         next_agent_state = None
@@ -650,10 +651,10 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         self._setup_autosample_config()
 
-         # Schedule autosample task
+        # Schedule auto sample task
         self._add_scheduler_event(ScheduledJob.AUTO_SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE)
 
-         # Tell driver superclass to send a state change event.
+        # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
@@ -662,12 +663,12 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
     def _setup_autosample_config(self):
         """
-        Set up autosample configuration and add it to the scheduler.
+        Set up auto sample configuration and add it to the scheduler.
         """
         # Start the scheduler to poll the instrument for
         # data every sample interval seconds
 
-        log.debug('$$$$ _setup_autosample_config() enter ')
+        log.debug("_setup_autosample_config")
         job_name = ScheduledJob.AUTO_SAMPLE
         polled_interval = self._param_dict.get_config_value(Parameter.INTERVAL)
         config = {
@@ -681,24 +682,23 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
             }
         }
         self.set_init_params(config)
-        log.debug('$$$$ after set_init_params()')
+
         #self._scheduler.add_config(config)
 
         # Start the scheduler if it is not running
         if not self._scheduler:
-            log.debug('$$$$ before calling initialize_scheduler')
             self.initialize_scheduler()
-            log.debug('$$$$ after calling initialize_scheduler()')
+
 
     def _handler_autosample_exit(self, *args, **kwargs):
         """
-        Exit autosample state. Remove the autosample task
+        Exit auto sample state. Remove the auto sample task
         """
+        log.debug("_handler_autosample_exit ")
+
         next_state = None
         next_agent_state = None
         result = None
-
-        log.debug("$$_handler_autosample_exit: starts")
 
         return (next_state, (next_agent_state, result))
 
@@ -707,31 +707,21 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
-        Remove the autosample task. Exit Autosample state
+        Remove the auto sample task. Exit Auto sample state
         """
+        log.debug("_handler_autosample_stop_autosample ")
+
         next_state = None
         next_agent_state = None
         result = None
 
-        log.debug("&&&& _handler_autosample_stop_autosample: starts")
         # Stop the Auto Poll scheduling
         self._remove_scheduler(ScheduledJob.AUTO_SAMPLE)
 
-        log.debug("$$ After removed auto sample from scheduler ")
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_start_direct(self):
-        """
-        Start direct access
-        """
-        log.debug('$$ _handler_command_start_direct: enter')
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-        log.debug("_handler_command_start_direct: entering DA mode")
-        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Direct access handlers.
@@ -744,27 +734,28 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
-        log.debug('$$ _handler_direct_access_enter: enter')
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        log.debug("_handler_direct_access_enter ")
 
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._sent_cmds = []
 
     def _handler_direct_access_exit(self, *args, **kwargs):
         """
         Exit direct access state.
         """
-        log.debug('$$_handler_direct_access_exit: enter')
         pass
 
 
     def _handler_direct_access_execute_direct(self, data):
         """
+        Execute direct command
         """
+        log.debug("_handler_direct_access_execute_direct: data = %s" % data)
+
         next_state = None
         result = None
         next_agent_state = None
 
-        log.debug('$$ _handler_direct_access_execute_direct: data = %s' % data)
         self._do_cmd_direct(data)
 
         # add sent command to list for 'echo' filtering in callback
@@ -779,12 +770,12 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        log.debug('&&& _handler_direct_access_stop_direct: enter')
+        log.debug("_handler_direct_access_stop_direct ")
+
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
         return (next_state, (next_agent_state, result))
-        #return next_state, next_agent_state
 
 
     def _build_simple_command(self, cmd):
@@ -822,13 +813,13 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
     def _wakeup(self, wakeup_timeout=WAKEUP_TIMEOUT, response_timeout=RESPONSE_TIMEOUT):
         """
-        waking this instrument up by sending 5 consecutive communication test command
+        waking this instrument up by sending MAX_COM_TEST communication test commands
         (aP*)
         @param wakeup_timeout The timeout to wake the device.
         @param response_timeout The time to look for response to a wakeup attempt.
         @throw InstrumentTimeoutException if the device could not be woken.
         """
-        log.debug('_wakeup() enter')
+        log.debug("_wakeup ")
 
         sleep_time = CMD_RESP_TIME
         cmd = Command.COMM_TEST
@@ -843,24 +834,21 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         test_count = 0;
         while test_count < MAX_COMM_TEST:
             # Clear the prompt buffer.
-            log.debug("_wakeup: clearing promptbuf: %s", self._promptbuf)
             self._promptbuf = ''
 
             # Send a communication test command and wait delay amount for response.
-            log.debug('_wakeup: Sending command %s, delay=%s', cmd_line, sleep_time)
             self._connection.send(cmd_line)
             time.sleep(sleep_time)
             if self._promptbuf.find(Prompt.COMM_RESPONSE) != -1:
                 # instrument is awake
-                log.debug('_wakeup: got command input prompt %s', Prompt.COMM_RESPONSE)
+                log.debug('_wakeup: got communication test response %s', Prompt.COMM_RESPONSE)
                 test_count += 1
             else:
-                #clear test_count since we want 5 consecutive successful communication test
+                #clear test_count since we want MAX_COMM_TEST consecutive successful communication test
                 test_count = 0;
             # Stop wake up the instrument if the wake up time out has elapsed
             if time.time() > start_time + wakeup_timeout:
                 break;
-
 
         if test_count != MAX_COMM_TEST:
             log.debug('instrument failed to wakeup in %d seconds time' % wakeup_timeout)
@@ -868,7 +856,5 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
                     "_wakeup(): instrument failed to wakeup in %d seconds time" % wakeup_timeout)
 
         else:
-            log.debug('received 2 wakeup responses')
             return Prompt.COMM_RESPONSE
-
 
