@@ -352,6 +352,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
                                        self._handler_autosample_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE,
                                        self._handler_autosample_stop_autosample)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
@@ -473,15 +474,15 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
-        Discover current state; can only be COMMAND (instrument has no actual AUTOSAMPLE mode).
+        Discover current state; can be COMMAND or AUTOSAMPLE.
         @retval (next_state, result), (ProtocolState.COMMAND, None) if successful.
         """
 
-        # force to command mode, this instrument has no autosample mode
-        next_state = ProtocolState.COMMAND
-        result = ResourceAgentState.COMMAND
 
-        log.debug("_handler_unknown_discover: state = %s", next_state)
+        next_state = ProtocolState.COMMAND
+        result = ResourceAgentState.IDLE
+
+        log.debug("_handler_unknown_discover: next state = %s", next_state)
         return next_state, result
 
     ########################################################################
@@ -519,21 +520,6 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         """
         pass
 
-    def _handler_command_start_autosample(self, *args, **kwargs):
-        """
-        Switch into autosample mode.
-        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
-        (next_agent_state, None).
-        """
-
-        next_state = None
-        next_agent_state = None
-        result = True
-
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-
-        return (next_state, (next_agent_state, result))
 
     def _handler_command_get(self, *args, **kwargs):
         """
@@ -636,7 +622,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        log.debug("_handler_command_start_autosample")
+        log.debug("$$ _handler_command_start_autosample")
 
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -654,7 +640,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         autosample state.  This scheduler raises events to poll the
         instrument for data.
         """
-        log.debug("_handler_autosample_enter")
+        log.debug("$$ _handler_autosample_enter")
 
         next_state = None
         next_agent_state = None
@@ -712,7 +698,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        log.debug("_handler_autosample_exit: starts")
+        log.debug("$$_handler_autosample_exit: starts")
 
         return (next_state, (next_agent_state, result))
 
@@ -727,7 +713,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        log.debug("_handler_autosample_stop_autosample: starts")
+        log.debug("&&&& _handler_autosample_stop_autosample: starts")
         # Stop the Auto Poll scheduling
         self._remove_scheduler(ScheduledJob.AUTO_SAMPLE)
 
@@ -740,7 +726,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         """
         Start direct access
         """
-        log.debug('_handler_command_start_direct: enter')
+        log.debug('$$ _handler_command_start_direct: enter')
         next_state = ProtocolState.DIRECT_ACCESS
         next_agent_state = ResourceAgentState.DIRECT_ACCESS
         result = None
@@ -758,7 +744,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
-        log.debug('_handler_direct_access_enter: enter')
+        log.debug('$$ _handler_direct_access_enter: enter')
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
         self._sent_cmds = []
@@ -767,7 +753,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         """
         Exit direct access state.
         """
-        log.debug('_handler_direct_access_exit: enter')
+        log.debug('$$_handler_direct_access_exit: enter')
         pass
 
 
@@ -778,7 +764,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         result = None
         next_agent_state = None
 
-        log.debug('_handler_direct_access_execute_direct: data = %s' % data)
+        log.debug('$$ _handler_direct_access_execute_direct: data = %s' % data)
         self._do_cmd_direct(data)
 
         # add sent command to list for 'echo' filtering in callback
@@ -793,11 +779,12 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        log.debug('_handler_direct_access_stop_direct: enter')
+        log.debug('&&& _handler_direct_access_stop_direct: enter')
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
         return (next_state, (next_agent_state, result))
+        #return next_state, next_agent_state
 
 
     def _build_simple_command(self, cmd):
