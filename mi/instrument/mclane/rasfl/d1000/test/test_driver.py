@@ -555,22 +555,6 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
-    def test_discover(self):
-        """
-        over-ridden because instrument doesn't actually have an autosample mode and therefore
-        driver will always go to command mode during the discover process after a reset.
-        """
-        # Verify the agent is in command mode
-        self.assert_enter_command_mode()
-
-        self.assert_start_autosample()
-
-        # Now reset and try to discover.  This will stop the driver and cause it to re-discover which
-        # will always go back to command for this instrument
-        self.assert_reset()
-        self.assert_discover(ResourceAgentState.COMMAND)
-
-
     def test_get_capabilities(self):
         """
         @brief Walk through all driver protocol states and verify capabilities

@@ -518,6 +518,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter unknown state.
         """
+        log.debug('entering driver state: %s from %s', ProtocolState.UNKNOWN, self.get_current_state())
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -530,8 +531,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
-        Discover current state; can only be COMMAND (instrument has no actual AUTOSAMPLE mode).
-        @retval (next_state, result), (ProtocolState.COMMAND, None) if successful.
+        Discover current state
+        @retval (next_state, current state), (ProtocolState.COMMAND, None) if successful.
         """
 
         # force to command mode, this instrument has no autosample mode
@@ -539,7 +540,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = ResourceAgentState.COMMAND
 
         log.debug("_handler_unknown_discover: state = %s", next_state)
-        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
+        return ProtocolState.COMMAND, ResourceAgentState.COMMAND
 
     ########################################################################
     # Event handlers for COMMAND state.
@@ -549,6 +550,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter command state.
         """
+        log.debug('entering driver state: %s from %s', ProtocolState.COMMAND, self.get_current_state())
 
         # Command device to update parameters and send a config change event if needed.
         self._update_params()
@@ -589,7 +591,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Begin autosample.
         """
-        return ProtocolState.AUTOSAMPLE, None
+        return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, None)
 
     def _handler_command_start_direct(self, *args, **kwargs):
         """
@@ -604,7 +606,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Start auto polling the temperature sensors.
         """
-        log.debug('--- djm --- _handler_autosample_enter')
+        log.debug('entering driver state: %s from %s', ProtocolState.AUTOSAMPLE, self.get_current_state())
 
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._protocol_fsm.on_event(ProtocolEvent.ACQUIRE_SAMPLE)
@@ -667,6 +669,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter direct access state.
         """
+        log.debug('entering driver state: %s from %s', ProtocolState.DIRECT_ACCESS, self.get_current_state())
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
