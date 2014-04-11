@@ -121,7 +121,6 @@ class THSPHMixinSub(DriverTestMixin):
     INVALID_SAMPLE  = "This is an invalid sample; it had better cause an exception." + NEWLINE
     VALID_SAMPLE_01 = "aH200A200720DE20AA10883FFF2211225E#"
     VALID_SAMPLE_02 = "aH200A200720E120AB108A3FFF21FF2420#"
-    #VALID_SAMPLE_02 = "aH200A200720E120AB108A3FFF21FF2420#" + NEWLINE
 
     ###
     #  Parameter and Type Definitions
@@ -165,7 +164,7 @@ class THSPHMixinSub(DriverTestMixin):
     }
 
     _status_parameters = {
-        #SBE16StatusParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: '2.5', REQUIRED: True },
+        #THSPHStatusParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: '2.5', REQUIRED: True },
 
     }
 
@@ -388,8 +387,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, THSPHMixinSub):
                                         delay=2)
         self.assert_async_particle_generation(DataParticleType.THSPH_PARSED,
                                               self.assert_particle_sample,
-                                                particle_count=10,
-                                               timeout=13)
+                                              particle_count=10,
+                                              timeout=13)
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
 
 
@@ -457,19 +456,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, THSPHMixinS
 
         self.assert_capabilities(capabilities)
 
-        ##################
-        #  Streaming Mode
-        ##################
-        #capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
-        #capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-        #    ProtocolEvent.STOP_AUTOSAMPLE,
-        #    ProtocolEvent.ACQUIRE_STATUS,
-        #]
-
-        #self.assert_start_autosample()
-        #self.assert_capabilities(capabilities)
-        #self.assert_stop_autosample()
-
 
     def test_streaming_capabilities(self):
         """
@@ -514,11 +500,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, THSPHMixinS
 
     def test_discover(self):
         """
-        over-ridden because instrument doesn't actually have a command mode and therefore
-        driver will always go to autosample mode during the discover process after a reset.
-        verify we can discover our instrument state from streaming and autosample.  This
-        method assumes that the instrument has a command and streaming mode. If not you will
-        need to explicitly overload this test in your driver tests.
+        over-ridden because instrument doesn't actually have a autosample mode and therefore
+        driver will always go to command mode during the discover process after a reset.
+
         """
         # Verify the agent is in command mode
         self.assert_enter_command_mode()
@@ -528,16 +512,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, THSPHMixinS
         self.assert_reset()
         self.assert_discover(ResourceAgentState.COMMAND)
 
-        # Now put the instrument in streaming and reset the driver again.
-        self.assert_start_autosample()
-        self.assert_reset()
-
-        # When the driver reconnects it should be streaming
-        self.assert_discover(ResourceAgentState.STREAMING)
-        self.assert_reset()
-
-
-
 
     def test_get_set_parameters(self):
         '''
@@ -545,7 +519,4 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, THSPHMixinS
         ensuring that read only parameters fail on set.
         '''
         self.assert_enter_command_mode()
-
-
-
-
+        self.assert_set_parameter(Parameter.INTERVAL, TEST_POLLED_INTERVAL, verify=True)
