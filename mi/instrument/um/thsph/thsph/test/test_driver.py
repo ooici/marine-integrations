@@ -30,7 +30,7 @@ from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
-
+from mi.idk.unit_test import AgentCapabilityType
 
 from interface.objects import AgentCommand
 
@@ -40,6 +40,7 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
+
 
 from mi.instrument.um.thsph.thsph.driver import InstrumentDriver, THSPHDataParticleKey
 from mi.instrument.um.thsph.thsph.driver import DataParticleType
@@ -51,6 +52,8 @@ from mi.instrument.um.thsph.thsph.driver import Parameter
 from mi.instrument.um.thsph.thsph.driver import THSPHProtocol
 from mi.instrument.um.thsph.thsph.driver import Prompt
 from mi.instrument.um.thsph.thsph.driver import NEWLINE
+
+from pyon.agent.agent import ResourceAgentState
 
 ###
 #   Driver parameters for the tests
@@ -67,6 +70,7 @@ InstrumentDriverTestCase.initialize(
 )
 
 GO_ACTIVE_TIMEOUT=180
+TEST_POLLED_INTERVAL = 12
 #################################### RULES ####################################
 #                                                                             #
 # Common capabilities in the base class                                       #
@@ -83,6 +87,7 @@ GO_ACTIVE_TIMEOUT=180
 ###
 #   Driver constant definitions
 ###
+COMM_TEST_RESPONSE = "AP*" + NEWLINE
 
 ###############################################################################
 #                           DRIVER TEST MIXIN        		                  #
@@ -299,10 +304,15 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, THSPHMixinSub):
             ProtocolState.COMMAND: ['DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                     'DRIVER_EVENT_GET',
-                                    'DRIVER_EVENT_SET'],
+                                    'DRIVER_EVENT_SET',
+                                    'DRIVER_EVENT_START_DIRECT'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
                                        'DRIVER_EVENT_START_AUTOSAMPLE',
-                                       'DRIVER_EVENT_STOP_AUTOSAMPLE'],
+                                       'DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                       'DRIVER_EVENT_ACQUIRE_SAMPLE'],
+            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
+                                          'EXECUTE_DIRECT'],
+
             ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER']
         }
         driver = self.InstrumentDriver(self._got_data_event_callback)
@@ -326,6 +336,22 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, THSPHMixinSub):
 
          self.assert_initialize_driver()
 
+    def test_get(self):
+        self.assert_initialize_driver()
+        value = self.assert_get(Parameter.INTERVAL)
+
+
+    def test_set(self):
+        """
+        Test all set commands. Verify all exception cases.
+        """
+        self.assert_initialize_driver()
+
+        self.assert_set(Parameter.INTERVAL, TEST_POLLED_INTERVAL)
+        value = self.assert_get(Parameter.INTERVAL, TEST_POLLED_INTERVAL)
+        pass
+
+
 
     def test_data_on(self):
         """
@@ -347,14 +373,34 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, THSPHMixinSub):
                                         DataParticleType.THSPH_PARSED,
                                         self.assert_particle_sample,
                                         delay=2)
-        self.assert_async_particle_generation(DataParticleType.THSPH_PARSED,
-                                                self.assert_particle_sample,
-                                                particle_count=10,
-                                                timeout=12)
+
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
 
 
+    def test_async_particle_generation(self):
+        """
+        @brief Test for asynchronous particle generation
+        """
+        self.assert_initialize_driver()
+        self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE,
+                                        DataParticleType.THSPH_PARSED,
+                                        self.assert_particle_sample,
+                                        delay=2)
+        self.assert_async_particle_generation(DataParticleType.THSPH_PARSED,
+                                              self.assert_particle_sample,
+                                                particle_count=10,
+                                               timeout=13)
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
 
+
+    def test_direct_access(self):
+            """
+            Verify we can enter the direct access state
+            """
+            self.assert_initialize_driver(ProtocolState.COMMAND)
+            self.assert_state_change(ProtocolState.COMMAND, 5)
+            self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
+            self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
 
 
 
@@ -365,34 +411,132 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, THSPHMixinSub):
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class DriverQualificationTest(InstrumentDriverQualificationTestCase):
+class DriverQualificationTest(InstrumentDriverQualificationTestCase, THSPHMixinSub ):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical
+        instrument. (telnet mode)
         """
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
-        ###
-        #   Add instrument specific code here.
-        ###
-
+        self.tcp_client.send_data(Command.COMM_TEST + NEWLINE)
+        self.tcp_client.expect(COMM_TEST_RESPONSE)
         self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
+
+    def test_sample_particles(self):
+        self.assert_sample_autosample(self.assert_particle_sample, DataParticleType.THSPH_PARSED)
 
 
-    def test_poll(self):
-        '''
-        No polling for a single sample
-        '''
+    def test_get_capabilities(self):
+        """
+        @brief Verify that the correct capabilities are returned from get_capabilities
+        at various driver/agent states.
+        """
+        self.assert_enter_command_mode()
+
+        ##################
+        #  Command Mode
+        ##################
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: [
+                ProtocolEvent.GET,
+                ProtocolEvent.SET,
+                ProtocolEvent.START_AUTOSAMPLE,
+                ProtocolEvent.ACQUIRE_SAMPLE,
+            ],
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
+        }
+
+        self.assert_capabilities(capabilities)
+
+        ##################
+        #  Streaming Mode
+        ##################
+        #capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        #capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
+        #    ProtocolEvent.STOP_AUTOSAMPLE,
+        #    ProtocolEvent.ACQUIRE_STATUS,
+        #]
+
+        #self.assert_start_autosample()
+        #self.assert_capabilities(capabilities)
+        #self.assert_stop_autosample()
 
 
-    def test_autosample(self):
-        '''
-        start and stop autosample and verify data particle
-        '''
+    def test_streaming_capabilities(self):
+        """
+        @brief Verify that the correct capabilities are returned from get_capabilities
+        at various driver/agent states.
+        """
+        self.assert_enter_command_mode()
+
+        ##################
+        #  Command Mode
+        ##################
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: [
+                ProtocolEvent.GET,
+                ProtocolEvent.SET,
+                ProtocolEvent.START_AUTOSAMPLE,
+                ProtocolEvent.ACQUIRE_SAMPLE,
+            ],
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
+        }
+
+        self.assert_capabilities(capabilities)
+
+        ##################
+        #  Streaming Mode
+        ##################
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
+            ProtocolEvent.START_AUTOSAMPLE,
+            ProtocolEvent.STOP_AUTOSAMPLE,
+            ProtocolEvent.GET,
+            ProtocolEvent.ACQUIRE_SAMPLE,
+        ]
+
+        self.assert_start_autosample()
+        self.assert_capabilities(capabilities)
+        self.assert_stop_autosample()
+
+
+    def test_discover(self):
+        """
+        over-ridden because instrument doesn't actually have a command mode and therefore
+        driver will always go to autosample mode during the discover process after a reset.
+        verify we can discover our instrument state from streaming and autosample.  This
+        method assumes that the instrument has a command and streaming mode. If not you will
+        need to explicitly overload this test in your driver tests.
+        """
+        # Verify the agent is in command mode
+        self.assert_enter_command_mode()
+
+        # Now reset and try to discover.  This will stop the driver and cause it to re-discover which
+        # will always go back to command for this instrument
+        self.assert_reset()
+        self.assert_discover(ResourceAgentState.COMMAND)
+
+        # Now put the instrument in streaming and reset the driver again.
+        self.assert_start_autosample()
+        self.assert_reset()
+
+        # When the driver reconnects it should be streaming
+        self.assert_discover(ResourceAgentState.STREAMING)
+        self.assert_reset()
+
+
 
 
     def test_get_set_parameters(self):
@@ -403,9 +547,5 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         self.assert_enter_command_mode()
 
 
-    def test_get_capabilities(self):
-        """
-        @brief Walk through all driver protocol states and verify capabilities
-        returned by get_current_capabilities
-        """
-        self.assert_enter_command_mode()
+
+
