@@ -12,15 +12,23 @@ __author__ = 'Art Teranishi'
 __license__ = 'Apache 2.0'
 
 import re
-import string
-import time
-import binascii
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
 from mi.core.common import BaseEnum
+
+from mi.core.util import dict_equal
+
+from mi.core.exceptions import SampleException
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentTimeoutException
+
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+
 from mi.core.instrument.instrument_fsm import InstrumentFSM
+
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -40,7 +48,7 @@ from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.driver_dict import DriverDictKey
 
 # newline.
-NEWLINE = '\n'
+NEWLINE = '\r\n'
 
 # default timeout.
 TIMEOUT = 10
@@ -60,6 +68,7 @@ class DataParticleType(BaseEnum):
     FlortD_DUMP_MEMORY = 'flortd_dump_memory'
     FlortD_SAMPLE = 'flortd_sample'
 
+
 class ProtocolState(BaseEnum):
     """
     Instrument protocol states
@@ -68,8 +77,7 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    #TEST = DriverProtocolState.TEST
-    #CALIBRATE = DriverProtocolState.CALIBRATE
+
 
 class ProtocolEvent(BaseEnum):
     """
@@ -82,76 +90,85 @@ class ProtocolEvent(BaseEnum):
     DISCOVER = DriverEvent.DISCOVER
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
-    #ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
-    #CLOCK_SYNC = DriverEvent.CLOCK_SYNC
-    #ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-    #INIT_PARAMS = DriverEvent.INIT_PARAMS
     GET_MENU = 'PROTOCOL_EVENT_GET_MENU'
     GET_METADATA = 'PROTOCOL_EVENT_GET_METADATA'
     INTERRUPT_INSTRUMENT = 'PROTOCOL_EVENT_INTERRUPT_INSTRUMENT'
+
 
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    #ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    #CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    #ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
     GET_MENU = ProtocolEvent.GET_MENU
     GET_METADATA = ProtocolEvent.GET_METADATA
-    #INTERRUPT_INSTRUMENT = ProtocolEvent.INTERRUPT_INSTRUMENT
+
 
 class Parameter(DriverParameter):
     """
     Device specific parameters.
     """
-    Analog_scaling_value = "Asv"                # "Analog scaling value"  # int
-    Measurements_per_reported_value = "Ave"     # "Measurements per reported value"  # int
-    Measurement_1_dark_count_value = "M1d"      # "Measurement 1 dark count"  # int
-    Measurement_1_slope_value = "M1s"           # "Measurement 1 slope value"  # float
-    Measurement_2_dark_count_value = "M2d"      # "Measurement 2 dark count"  # int
-    Measurement_2_slope_value = "M2s"           # "Measurement 2 slope value"  # float
-    Measurement_3_dark_count_value = "M3d"      # "Measurement 3 dark count"  # int
-    Measurement_3_slope_value = "M3s"           # "Measurement 3 slope value"  # float
-    Measurements_per_packet_value = "Pkt"       # "Measurements per packet"  # int
-    Baud_rate_value = "Rat"                     # "Baud rate"  # int
-    Packets_per_set_value = "Set"               # "Packets per set"  # int
-    Predefined_output_sequence_value = "Seq"    # "Predefined output sequence"  # int
-    Recording_mode_value = "Rec"                # "Recording mode"  # int
-    Manual_mode_value = "Man"                   # "Manual mode"  # int
-    Sampling_interval_value = "Int"             # "Sampling interval"  # str
-    Date_value = "Dat"                          # "Date"  # str
-    Time_value = "Clk"                          # "Time"  # str
-    Manual_start_time_value = "Mst"             # "Manual start time"  # str
+    Measurements_per_reported_value = "ave"     # Measurements per reported value   # int
+    Measurement_1_dark_count_value = "m1d"      # Measurement 1 dark count          # int
+    Measurement_1_slope_value = "m1s"           # Measurement 1 slope value         # float
+    Measurement_2_dark_count_value = "m2d"      # Measurement 2 dark count          # int
+    Measurement_2_slope_value = "m2s"           # Measurement 2 slope value         # float
+    Measurement_3_dark_count_value = "m3d"      # Measurement 3 dark count          # int
+    Measurement_3_slope_value = "m3s"           # Measurement 3 slope value         # float
+    Measurements_per_packet_value = "pkt"       # Measurements per packet           # int
+    Baud_rate_value = "rat"                     # Baud rate                         # int
+    Packets_per_set_value = "set"               # Packets per set                   # int
+    Predefined_output_sequence_value = "seq"    # Predefined output sequence        # int
+    Recording_mode_value = "rec"                # Recording mode                    # int
+    Manual_mode_value = "man"                   # Manual mode                       # int
+    Sampling_interval_value = "int"             # Sampling interval                 # str
+    Date_value = "dat"                          # Date                              # str
+    Time_value = "clk"                          # Time                              # str
+    Manual_start_time_value = "mst"             # Manual start time                 # str
 
-    #
-    # Hardware Data
-    #
+    """
+    Hardware Data
+    """
+    Serial_number_value = "ser"                 # Serial number                     # str
+    Firmware_version_value = "ver"              # Firmware version                  # str
+    Internal_memory_value = "mem"               # Internal memory                   # int
 
-    Serial_number_value = "Ser"                 # "Serial number"  # str
-    Firmware_version_value = "Ver"              # "Firmware version"  # str
-    Internal_memory_value = "Mem"               # "Internal memory"  # int
+
 
 class Prompt(BaseEnum):
     """
-    Device i/o prompts..
-    
+    Device I/O prompts.
     FLORT-D does not have a prompt.
     """
-    #Unrecognized_Command = "unrecognized command"
-    #End_Of_Memory_Dump = "etx"
+
 
 class InstrumentCommand(BaseEnum):
     """
     Instrument command strings
+    At this time (3/25/2014 IOS) the driver does not support:
+    Reload_factory_settings = "$rfd"
+    Reload_settings_from_flash = "$rls"
+    Store_settings_to_flash = "$sto"
+    Erase_memory = "$emc"
+    Dump_memory = "$get"
     """
     Interrupt_instrument = "!!!!!"
-    Analog_scaling = "$asv"
+    Print_metadata = "$met"
+    Print_menu = "$mnu"
+    Run_settings = "$run"
+    Run_wiper = "$mvs"
+
+    # Parameter Commands - sent at startup
+    # At this time (3/25/2014 IOS) the driver does not support:
+    # Analog_scaling = "$asv"
+    # Baud_rate = "$rat"
+    # Sampling_interval = "$int"
+    # Manual_mode = "$man"
+    # Manual_start_time = "$mst"
     Averaging_value = "$ave"
     Measurement_1_dark_count = "$m1d"
     Measurement_1_slope = "$m1s"
@@ -159,46 +176,48 @@ class InstrumentCommand(BaseEnum):
     Measurement_2_slope = "$m2s"
     Measurement_3_dark_count = "$m3d"
     Measurement_3_slope = "$m3s"
-    Print_metadata = "$met"
-    Print_menu = "$mnu"
     Packet_size = "$pkt"
-    Baud_rate = "$rat"
-    Reload_factory_settings = "$rfd"
-    Reload_settings_from_flash = "$rls"
-    Run_settings = "$run"
     Select_predefined_output_sequence = "$seq"
-    Store_settings_to_flash = "$sto"
     Set_clock = "$clk"
     Set_date = "$dat"
-    Erase_memory = "$emc"
-    Dump_memory = "$get"
-    Sampling_interval = "$int"
-    Manual_mode = "$man"
-    Manual_start_time = "$mst"
     Recording_mode = "$rec"
     Set_size = "$set"
+
+    def from_string(self, str):
+        InstrumentCommandDictionary = {
+            "ave" : InstrumentCommand.Averaging_value,
+            "m1d" : InstrumentCommand.Measurement_1_dark_count,
+            "m2d" : InstrumentCommand.Measurement_2_dark_count,
+            "m3d" : InstrumentCommand.Measurement_3_dark_count,
+            "m1s" : InstrumentCommand.Measurement_1_slope,
+            "m2s" : InstrumentCommand.Measurement_2_slope,
+            "m3s" : InstrumentCommand.Measurement_3_slope,
+            "pkt" : InstrumentCommand.Packet_size,
+            "seq" : InstrumentCommand.Select_predefined_output_sequence,
+            "clk" : InstrumentCommand.Set_clock,
+            "dat" : InstrumentCommand.Set_date,
+            "rec" : InstrumentCommand.Recording_mode,
+            "set" : InstrumentCommand.Set_size
+        }
+        return InstrumentCommandDictionary.get(str)
+
+
+
 
 ###############################################################################
 # Data Particles
 ###############################################################################
 
-#MNU_REGEX = r"(Ser.*?Mem.*?\S+)"
-MNU_REGEX = r"(Ser.*?Mem [0-9]{1,6}\n)"
+MNU_REGEX = r"(Ser.*?Mem\s\S+)"
 MNU_REGEX_MATCHER = re.compile(MNU_REGEX, re.DOTALL)
 
-#RUN_REGEX = r"(mvs.*?\S+)"
-RUN_REGEX = r"(mvs [0-9])"
+RUN_REGEX = r"(mvs.*Mem.*?)"
 RUN_REGEX_MATCHER = re.compile(RUN_REGEX, re.DOTALL)
 
-#MET_REGEX = r"(0,.*?IOM=.)"
-MET_REGEX = r"(0,.*?IOM=[0-9]\n)"
+MET_REGEX = r"(IOM=[0-9])"
 MET_REGEX_MATCHER = re.compile(MET_REGEX, re.DOTALL)
 
-DUMP_MEMORY_REGEX = r"([0-9]{1,10} records to read\n)"  # '77222 records to read'
-DUMP_MEMORY_REGEX_MATCHER = re.compile(DUMP_MEMORY_REGEX, re.DOTALL)
-
-#SAMPLE_REGEX = r"(^[0-1][0-9]/.*?$\n)"
-SAMPLE_REGEX = r"([0-1][0-9]/[0-3][0-9]/[0-1][0-9]\t[0-1][0-9]:[0-5][0-9]:[0-5][0-9](\t[0-9]{1,10}){7}\n)"
+SAMPLE_REGEX = r"([0-1][0-9]/[0-3][0-9]/[0-9][0-9]\s[0-1][0-9]:[0-5][0-9]:[0-5][0-9](\s[0-9]{1,10}){7})"
 SAMPLE_REGEX_MATCHER = re.compile(SAMPLE_REGEX, re.DOTALL)
 
 
@@ -228,39 +247,38 @@ class FlortDMNU_ParticleKey(BaseEnum):
 class FlortDMNU_Particle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
-    the building of values, and the rest should come along for free.
+    the building of values, and the rest comes along for free.
     """
     _data_particle_type = DataParticleType.FlortD_MNU
 
-    LINE01 = r"Ser .*?"
-    LINE02 = r"Ver .*?"
-    LINE03 = r"Ave .*?"
-    LINE04 = r"Pkt .*?"
-    LINE05 = r"M1d .*?"
-    LINE06 = r"M2d .*?"
-    LINE07 = r"M3d .*?"
-    LINE08 = r"M1s .*?"
-    LINE09 = r"M2s .*?"
-    LINE10 = r"M3s .*?"
-    LINE11 = r"Seq .*?"
-    LINE12 = r"Rat .*?"
-    LINE13 = r"Set .*?"
-    LINE14 = r"Rec .*?"
-    LINE15 = r"Man .*?"
-    LINE16 = r"Int .*?"
-    LINE17 = r"Dat .*?"
-    LINE18 = r"Clk .*?"
-    LINE19 = r"Mst .*?"
-    LINE20 = r"Mem .*?"
+    LINE01 = r"Ser\s*(\S*)"
+    LINE02 = r"Ver\s*(\S*)"
+    LINE03 = r"Ave\s*(\S*)"
+    LINE04 = r"Pkt\s*(\S*)"
+    LINE05 = r"M1d\s*(\S*)"
+    LINE06 = r"M2d\s*(\S*)"
+    LINE07 = r"M3d\s*(\S*)"
+    LINE08 = r"M1s\s*(\S*)"
+    LINE09 = r"M2s\s*(\S*)"
+    LINE10 = r"M3s\s*(\S*)"
+    LINE11 = r"Seq\s*(\S*)"
+    LINE12 = r"Rat\s*(\S*)"
+    LINE13 = r"Set\s*(\S*)"
+    LINE14 = r"Rec\s*(\S*)"
+    LINE15 = r"Man\s*(\S*)"
+    LINE16 = r"Int\s*(\S*)"
+    LINE17 = r"Dat\s*(\S*)"
+    LINE18 = r"Clk\s*(\S*)"
+    LINE19 = r"Mst\s*(\S*)"
+    LINE20 = r"Mem\s*(\S*)"
 
     def _build_parsed_values(self):
         """
         Take something in the StatusData format and split it into
         values with appropriate tags
-
         @throws SampleException If there is a problem with sample creation
         """
-
+        log.debug("%% IN FlortDMNU_Particle:_build_parsed_values")
         # Initialize
         single_var_matches = {
             FlortDMNU_ParticleKey.Serial_number: None,
@@ -350,16 +368,16 @@ class FlortDMNU_Particle(DataParticle):
 
         linecount = 0
 
-        for line in self.raw_data.split('\n'):
-            linecount = linecount + 1
+        for line in self.raw_data.split(NEWLINE):
+            linecount += 1
 
             for (matcher, keys) in multi_var_matchers.iteritems():
                 match = matcher.match(line)
                 if match:
                     index = 0
                     for key in keys:
-                        index = index + 1
-                        #val = match.group(index)
+                        index += 1
+                        log.debug('_build_parsed_values -- line: %r, matcher: %r', line, matcher.pattern)
                         val = line.split(' ')[1]
                         # str
                         if key in [
@@ -397,7 +415,6 @@ class FlortDMNU_Particle(DataParticle):
                             FlortDMNU_ParticleKey.Dat
                         ]:
                             # mm/dd/yy
-                            #single_var_matches[key] = time.strptime(val, "%m/%d/%y")
                             single_var_matches[key] = val
 
                         # time
@@ -407,7 +424,6 @@ class FlortDMNU_Particle(DataParticle):
                             FlortDMNU_ParticleKey.Mst
                         ]:
                             # hh:mm:ss
-                            #single_var_matches[key] = time.strptime(val, "%H:%M:%S")
                             single_var_matches[key] = val
 
                         else:
@@ -444,28 +460,27 @@ class FlortDMET_Particle(DataParticle):
     """
     _data_particle_type = DataParticleType.FlortD_MET
 
-    LINE00 = r"0,.*?"
-    LINE01 = r"1,.*?"
-    LINE02 = r"2,.*?"
-    LINE03 = r"3,.*?"
-    LINE04 = r"4,.*?"
-    LINE05 = r"5,.*?"
-    LINE06 = r"6,.*?"
-    LINE07 = r"7,.*?"
-    LINE08 = r"8,.*?"
-    LINE09 = r"9,.*?"
-    LINE10 = r"10,.*?"
-    LINE11 = r"IHM=.*?"
-    LINE12 = r"IOM=.*?"
+    LINE00 = r"0,(\S*)"
+    LINE01 = r"1,(\S*)"
+    LINE02 = r"2,(\S*)"
+    LINE03 = r"3,(\S*)"
+    LINE04 = r"4,(\S*)"
+    LINE05 = r"5,(\S*)"
+    LINE06 = r"6,(\S*)"
+    LINE07 = r"7,(\S*)"
+    LINE08 = r"8,(\S*)"
+    LINE09 = r"9,(\S*)"
+    LINE10 = r"10,(\S*)"
+    LINE11 = r"IHM=(\S*)"
+    LINE12 = r"IOM=(\S*)"
 
     def _build_parsed_values(self):
         """
         Take something in the StatusData format and split it into
         values with appropriate tags
-
         @throws SampleException If there is a problem with sample creation
         """
-
+        log.debug("%% IN FlortDMET_Particle:_build_parsed_values")
         # Initialize
         single_var_matches = {
             FlortDMET_ParticleKey.Column_delimiter: None,
@@ -531,8 +546,7 @@ class FlortDMET_Particle(DataParticle):
                 if match:
                     index = 0
                     for key in keys:
-                        index = index + 1
-                        #val = match.group(index)
+                        index += 1
                         val = line.rstrip('\r\n').lstrip('\r\n')
 
                         # str
@@ -577,11 +591,11 @@ class FlortDRUN_ParticleKey(BaseEnum):
 class FlortDRUN_Particle(DataParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
-    the building of values, and the rest should come along for free.
+    the building of values, and the rest comes along for free.
     """
     _data_particle_type = DataParticleType.FlortD_RUN
 
-    LINE1 = r"mvs .*?"
+    LINE1 = r"mvs (.*?)"
 
     def _build_parsed_values(self):
         """
@@ -590,7 +604,7 @@ class FlortDRUN_Particle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
-
+        log.debug("%% IN FLORTDRUN_Particle:_build_parsed_values")
         # Initialize
         single_var_matches = {
             FlortDRUN_ParticleKey.MVS: None
@@ -608,8 +622,7 @@ class FlortDRUN_Particle(DataParticle):
                 if match:
                     index = 0
                     for key in keys:
-                        index = index + 1
-                        #val = match.group(index)
+                        index += 1
                         val = line.split(' ')[1]
 
                         # int
@@ -620,66 +633,6 @@ class FlortDRUN_Particle(DataParticle):
 
                         else:
                             raise SampleException("Unknown variable type in FlortDRUN_Particle._build_parsed_values")
-
-        result = []
-        for (key, value) in single_var_matches.iteritems():
-            result.append({DataParticleKey.VALUE_ID: key,
-                           DataParticleKey.VALUE: value})
-
-        return result
-
-
-class FlortDDUMP_MEMORY_ParticleKey(BaseEnum):
-    Get_response = "get_response"
-
-
-class FlortDDUMP_MEMORY_Particle(DataParticle):
-    """
-    Routines for parsing raw data into a data particle structure. Override
-    the building of values, and the rest should come along for free.
-    """
-    _data_particle_type = DataParticleType.FlortD_DUMP_MEMORY
-
-    #LINE1 = r"[0-9]* records to read.*?\n"
-    LINE1 = r"[0-9]{1,10} records"
-
-    def _build_parsed_values(self):
-        """
-        Take something in the StatusData format and split it into
-        values with appropriate tags
-
-        @throws SampleException If there is a problem with sample creation
-        """
-
-        # Initialize
-        single_var_matches = {
-            FlortDDUMP_MEMORY_ParticleKey.Get_response: None
-        }
-
-        multi_var_matchers = {
-            re.compile(self.LINE1, re.DOTALL | re.MULTILINE): [
-                FlortDDUMP_MEMORY_ParticleKey.Get_response,
-            ]
-        }
-
-        for line in self.raw_data.split(NEWLINE):
-            for (matcher, keys) in multi_var_matchers.iteritems():
-                match = matcher.match(line)
-                if match:
-                    index = 0
-                    for key in keys:
-                        index = index + 1
-                        #val = match.group(index)
-                        val = line.split(' ')[0]
-
-                        # int
-                        if key in [
-                            FlortDDUMP_MEMORY_ParticleKey.Get_response
-                        ]:
-                            single_var_matches[key] = int(val)
-
-                        else:
-                            raise SampleException("Unknown variable type in FlortDDUMP_MEMORY_Particle._build_parsed_values")
 
         result = []
         for (key, value) in single_var_matches.iteritems():
@@ -700,8 +653,29 @@ class FlortDSample_Particle(DataParticle):
     """
     _data_particle_type = DataParticleType.FlortD_SAMPLE
 
-    #LINE1 = r".*?\t.*?\t.*?\t.*?\t.*?\t.*?\t.*?\t.*?\t.*?\n"
-    LINE1 = r"[0-1][0-9]/[0-3][0-9]/[0-1][0-9]\t[0-1][0-9]:[0-5][0-9]:[0-5][0-9](\t[0-9]{1,10}){7}"
+    LINE1 = SAMPLE_REGEX
+    _compiled_regex = None
+
+    @staticmethod
+    def regex_compiled():
+        """
+        get the compiled regex pattern
+        @return: compiled re
+        """
+        if FlortDSample_Particle._compiled_regex is None:
+            FlortDSample_Particle._compiled_regex = re.compile(FlortDSample_Particle.regex())
+        return FlortDSample_Particle._compiled_regex
+
+    @staticmethod
+    def regex():
+        """
+        Regular expression to match a sample pattern
+        @return: regex string
+        """
+        pattern = [
+           SAMPLE_REGEX
+        ]
+        return r'\s*,\s*'.join(pattern)
 
     def _build_parsed_values(self):
         """
@@ -710,6 +684,7 @@ class FlortDSample_Particle(DataParticle):
 
         @throws SampleException If there is a problem with sample creation
         """
+        log.debug("%% IN FLORTDSample_Particle:_build_parsed_values")
 
         # Initialize
         single_var_matches = {
@@ -728,8 +703,7 @@ class FlortDSample_Particle(DataParticle):
                 if match:
                     index = 0
                     for key in keys:
-                        index = index + 1
-                        #val = match.group(index)
+                        index += 1
                         val = line
 
                         # str
@@ -748,6 +722,7 @@ class FlortDSample_Particle(DataParticle):
 
         return result
 
+
 ################################ /Particles ###################################
 
 ###############################################################################
@@ -761,6 +736,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
     """
+
     def __init__(self, evt_callback):
         """
         Driver constructor.
@@ -773,7 +749,8 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
     # Superclass overrides for resource query.
     ########################################################################
 
-    def get_resource_params(self):
+    @staticmethod
+    def get_resource_params():
         """
         Return list of device parameters available.
         """
@@ -801,6 +778,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -808,35 +786,34 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
+        log.debug("%% IN Protocol:__init__")
         # Construct protocol superclass.
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
         self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
-                            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+                                           ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
-        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.START_DIRECT, self._handler_start_direct)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.EXIT, self._handler_command_exit)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_MENU, self._handler_command_get_menu)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_METADATA, self._handler_command_get_metadata)
-#        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.INIT_PARAMS, self._handler_command_init_params)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.INTERRUPT_INSTRUMENT, self._handler_interrupt_instrument)
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.INTERRUPT_INSTRUMENT, self._handler_interrupt_instrument)
-#        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.INIT_PARAMS, self._handler_autosample_init_params)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -851,7 +828,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCommand.Interrupt_instrument, self._build_no_eol_command)
-        self._add_build_handler(InstrumentCommand.Analog_scaling, self._build_single_parameter_command)
         self._add_build_handler(InstrumentCommand.Averaging_value, self._build_single_parameter_command)
         self._add_build_handler(InstrumentCommand.Measurement_1_dark_count, self._build_single_parameter_command)
         self._add_build_handler(InstrumentCommand.Measurement_1_slope, self._build_single_parameter_command)
@@ -859,81 +835,59 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCommand.Measurement_2_slope, self._build_single_parameter_command)
         self._add_build_handler(InstrumentCommand.Measurement_3_dark_count, self._build_single_parameter_command)
         self._add_build_handler(InstrumentCommand.Measurement_3_slope, self._build_single_parameter_command)
-        self._add_build_handler(InstrumentCommand.Print_metadata, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.Print_menu, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.Packet_size, self._build_single_parameter_command)
-        self._add_build_handler(InstrumentCommand.Baud_rate, self._build_single_parameter_command)
-        self._add_build_handler(InstrumentCommand.Reload_factory_settings, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.Reload_settings_from_flash, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.Run_settings, self._build_simple_command)
         self._add_build_handler(InstrumentCommand.Select_predefined_output_sequence, self._build_single_parameter_command)
-        self._add_build_handler(InstrumentCommand.Store_settings_to_flash, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.Packet_size, self._build_single_parameter_command)
         self._add_build_handler(InstrumentCommand.Set_clock, self._build_single_parameter_command)
         self._add_build_handler(InstrumentCommand.Set_date, self._build_single_parameter_command)
-        self._add_build_handler(InstrumentCommand.Erase_memory, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.Dump_memory, self._build_simple_command)
-        self._add_build_handler(InstrumentCommand.Sampling_interval, self._build_single_parameter_command)
-        self._add_build_handler(InstrumentCommand.Manual_mode, self._build_single_parameter_command)
-        self._add_build_handler(InstrumentCommand.Manual_start_time, self._build_single_parameter_command)
         self._add_build_handler(InstrumentCommand.Recording_mode, self._build_single_parameter_command)
         self._add_build_handler(InstrumentCommand.Set_size, self._build_single_parameter_command)
+        self._add_build_handler(InstrumentCommand.Run_settings, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.Print_metadata, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.Print_menu, self._build_simple_command)
+        self._add_build_handler(InstrumentCommand.Run_wiper, self._build_simple_command)
 
-        # Add response handlers for device commands.
-        self._add_response_handler(InstrumentCommand.Interrupt_instrument, self._parse_interrupt_response)
-        self._add_response_handler(InstrumentCommand.Analog_scaling, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Averaging_value, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Measurement_1_dark_count, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Measurement_1_slope, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Measurement_2_dark_count, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Measurement_2_slope, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Measurement_3_dark_count, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Measurement_3_slope, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Print_metadata, self._parse_met_response)
-        self._add_response_handler(InstrumentCommand.Print_menu, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Packet_size, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Baud_rate, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Reload_factory_settings, self._parse_rfd_response)
-        self._add_response_handler(InstrumentCommand.Reload_settings_from_flash, self._parse_rls_response)
-        self._add_response_handler(InstrumentCommand.Run_settings, self._parse_run_response)
-        self._add_response_handler(InstrumentCommand.Select_predefined_output_sequence, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Store_settings_to_flash, self._parse_sto_response)
-        self._add_response_handler(InstrumentCommand.Set_clock, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Set_date, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Erase_memory, self._parse_erase_response)
-        self._add_response_handler(InstrumentCommand.Dump_memory, self._parse_get_response)
-        self._add_response_handler(InstrumentCommand.Sampling_interval, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Manual_mode, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Manual_start_time, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Recording_mode, self._parse_set_response)
-        self._add_response_handler(InstrumentCommand.Set_size, self._parse_set_response)
+        #all commands return a 'unrecognized command' if not recognized by the instrument
+        self._add_response_handler(InstrumentCommand.Interrupt_instrument, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Averaging_value, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Measurement_1_dark_count, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Measurement_1_slope, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Measurement_2_dark_count, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Measurement_2_slope, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Measurement_3_dark_count, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Measurement_3_slope, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Select_predefined_output_sequence, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Packet_size, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Set_clock, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Set_date, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Recording_mode, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Set_size, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Run_settings, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Print_metadata, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Print_menu, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Run_wiper, self._parse_command_response)
 
-        # Add sample handlers.
-
-        # State state machine in UNKNOWN state.
-        self._protocol_fsm.start(ProtocolState.UNKNOWN)
-
-        # commands sent sent to device to be filtered in responses for telnet DA
+        # commands sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
-
-        #
         self._chunker = StringChunker(Protocol.sieve_function)
 
+        # State state machine in UNKNOWN state.
+        log.debug("%%% Starting in UNKNOWN state")
+        self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
     @staticmethod
     def sieve_function(raw_data):
         """
         The method that splits samples
         """
-
+        log.debug("%% IN sieve_function")
         return_list = []
 
-        sieve_matchers = [ MNU_REGEX_MATCHER,
-                           RUN_REGEX_MATCHER,
-                           MET_REGEX_MATCHER,
-                           DUMP_MEMORY_REGEX_MATCHER,
-                           SAMPLE_REGEX_MATCHER ]
+        sieve_match = [MNU_REGEX_MATCHER,
+                          RUN_REGEX_MATCHER,
+                          MET_REGEX_MATCHER,
+                          SAMPLE_REGEX_MATCHER]
 
-        for matcher in sieve_matchers:
+        for matcher in sieve_match:
             for match in matcher.finditer(raw_data):
                 return_list.append((match.start(), match.end()))
 
@@ -943,110 +897,33 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Return a list of currently available capabilities.
         """
+        log.debug("%% IN _filter_capabilities")
         return [x for x in events if Capability.has(x)]
 
-    def _parse_set_response(self, response, prompt):
-        """
-        Parse handler for set command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if set command misunderstood.
-        """
-        log.debug("_parse_set_response RESPONSE = " + str(response))
+    def _parse_command_response(self, response, prompt):
+        log.debug("%% IN _parse_command_response RESPONSE = " + repr(response))
+        #instrument will return 'unrecognized command' if command is not valid
+        #log error and ignore
 
-        if ('unrecognized command' in response):
-            raise InstrumentParameterException('Protocol._parse_set_response : Set command not recognized: %s' % response)
+        if 'unrecognized command' in response:
+            log.debug('command was not recognized')
 
         return response
 
-    def _parse_get_response(self, response, prompt):
-
-        log.debug("IN _parse_get_response RESPONSE = " + repr(response))
-
-        if ('unrecognized command' in response):
-            raise InstrumentParameterException('Protocol._parse_get_response : Set command not recognized: %s' % response)
-
-        return response
-
-    def _parse_interrupt_response(self, response, prompt):
-
-        log.debug("IN _parse_interrupt_response RESPONSE = " + repr(response))
-
-        if ('unrecognized command' in response):
-            raise InstrumentParameterException('Protocol._parse_interrupt_response : Set command not recognized: %s' % response)
-
-        return response
-
-    def _parse_met_response(self, response, prompt):
-
-        log.debug("IN _parse_met_response RESPONSE = " + repr(response))
-
-        if ('unrecognized command' in response):
-            raise InstrumentParameterException('Protocol._parse_met_response : Set command not recognized: %s' % response)
-
-        return response
-
-    def _parse_rfd_response(self, response, prompt):
-
-        log.debug("IN _parse_rfd_response RESPONSE = " + repr(response))
-
-        if ('unrecognized command' in response):
-            raise InstrumentParameterException('Protocol._parse_rfd_response : Set command not recognized: %s' % response)
-
-        return response
-
-    def _parse_rls_response(self, response, prompt):
-
-        log.debug("IN _parse_rls_response RESPONSE = " + repr(response))
-
-        if ('unrecognized command' in response):
-            raise InstrumentParameterException('Protocol._parse_rls_response : Set command not recognized: %s' % response)
-
-        return response
-
-    def _parse_run_response(self, response, prompt):
-
-        log.debug("IN _parse_run_response RESPONSE = " + repr(response))
-
-        if ('unrecognized command' in response):
-            raise InstrumentParameterException('Protocol._parse_run_response : Set command not recognized: %s' % response)
-
-        return response
-
-    def _parse_sto_response(self, response, prompt):
-
-        log.debug("IN _parse_sto_response RESPONSE = " + repr(response))
-
-        if ('unrecognized command' in response):
-            raise InstrumentParameterException('Protocol._parse_sto_response : Set command not recognized: %s' % response)
-
-        return response
-
-    def _parse_erase_response(self, response, prompt):
-
-        log.debug("IN _parse_erase_response RESPONSE = " + repr(response))
-
-        if ('unrecognized command' in response):
-            raise InstrumentParameterException('Protocol._parse_erase_response : Set command not recognized: %s' % response)
-
-        return response
 
     ########################################################################
     # Unknown handlers.
     ########################################################################
-
     def _handler_unknown_enter(self, *args, **kwargs):
-        """
-        Enter unknown state.
-        """
+
+        log.debug("%%% IN _handler_unknown_enter")
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_unknown_exit(self, *args, **kwargs):
-        """
-        Exit unknown state.
-        """
+        #Exit unknown state.
+        log.debug("%%% IN _handler_unknown_exit")
         pass
 
     def _handler_unknown_discover(self, *args, **kwargs):
@@ -1056,21 +933,31 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         log.debug("%%% IN _handler_unknown_discover")
 
-        """
-        #If we decide to listen for samples to determine the current state...
+        try:
+            #Listen to data stream to determine the current state
+            response = self._get_response(timeout=1, response_regex=SAMPLE_REGEX_MATCHER)[0]
+            log.debug('_handler_unknown_discover: response: [%r]', response)
 
-        (protocol_state, agent_state) =  self._discover()
+            if FlortDSample_Particle.regex_compiled().search(response):
+                next_state = DriverProtocolState.AUTOSAMPLE
+                next_agent_state = ResourceAgentState.STREAMING
+                result = ProtocolState.AUTOSAMPLE
+            else:
+                next_state = DriverProtocolState.COMMAND
+                next_agent_state = ResourceAgentState.COMMAND
+                result = ProtocolState.COMMAND
 
-        if(protocol_state == ProtocolState.COMMAND):
-            agent_state = ResourceAgentState.IDLE
+        except InstrumentTimeoutException:
+            #if an exception is caught, the response timed out looking for a SAMPLE in the buffer
+            #if there are no samples in the buffer, than we are likely in command mode
+            next_state = DriverProtocolState.COMMAND
+            next_agent_state = ResourceAgentState.COMMAND
+            result = ProtocolState.COMMAND
 
-        return (protocol_state, agent_state)
-        """
+        finally:
 
-        timeout = kwargs.get('timeout', TIMEOUT)
-        #result = self._do_cmd_resp(InstrumentCmds.Interrupt_instrument, timeout=timeout)
-        result = self._do_cmd_resp(InstrumentCommand.Interrupt_instrument, timeout=timeout, response_regex=RUN_REGEX_MATCHER)
-        return (ProtocolState.COMMAND, ResourceAgentState.IDLE)
+            log.debug("_handler_unknown_discover. result start: %s" % next_state)
+            return next_state, (next_agent_state, result)
 
     ########################################################################
     # Command handlers.
@@ -1082,57 +969,20 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
+        log.debug('%% IN _handler_command_enter')
         # Command device to update parameters and send a config change event.
-        #self._update_params()
+        self._update_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    #def _handler_command_get(self, *args, **kwargs):
-        """
-    #    Get parameter
-        """
-    #    next_state = None
-    #    result = None
-
-    #    return (next_state, result)
-
-    #def _handler_command_set(self, *args, **kwargs):
-        """
-    #    Set parameter
-        """
-    #    next_state = None
-    #    result = None
-
-    #    return (next_state, result)
-
     def _handler_command_get(self, *args, **kwargs):
-        """
-        Get device parameters from the parameter dict.  First we set a baseline timestamp
-        that all data expirations will be calculated against.  Then we try to get parameter
-        value.  If we catch an expired parameter then we will update all parameters and get
-        values using the original baseline time that we set at the beginning of this method.
-        Assuming our _update_params is updating all parameter values properly then we can
-        ensure that all data will be fresh.  Nobody likes stale data!
-        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
-        @raise InstrumentParameterException if missing or invalid parameter.
-        @raise InstrumentParameterExpirationException If we fail to update a parameter
-        on the second pass this exception will be raised on expired data
-        """
+        log.debug('%% IN _handler_command_get')
         return self._handler_get(*args, **kwargs)
 
     def _handler_command_set(self, *args, **kwargs):
-        """
-        Perform a set command.
-        @param args[0] parameter : value dict.
-        @param args[1] parameter : startup parameters?
-        @retval (next_state, result) tuple, (None, None).
-        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
-        not a dict, or if paramter can't be properly formatted.
-        @throws InstrumentTimeoutException if device cannot be woken for set command.
-        @throws InstrumentProtocolException if set command could not be built or misunderstood.
-        """
+        log.debug('%% IN _handler_command_set')
         next_state = None
         result = None
         startup = False
@@ -1155,69 +1005,60 @@ class Protocol(CommandResponseInstrumentProtocol):
         else:
             self._set_params(params, startup)
 
-        return (next_state, result)
+        return next_state, result
 
     def _handler_command_exit(self, *args, **kwargs):
-        """
-        Exit command state.
-        """
+        #Exit command state.
+        log.debug('%% IN _handler_command_exit')
         pass
-
-    def _handler_command_start_direct(self):
-        """
-        Start direct access
-        """
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-        log.debug("_handler_command_start_direct: entering DA mode")
-        return (next_state, (next_agent_state, result))
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
-        Switch into autosample mode.
+        Switch into autosample mode. ($run)
         """
+        log.debug('%% IN _handler_command_start_autosample')
+        timeout = kwargs.get('timeout', TIMEOUT)
         next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.AUTOSAMPLE
-        result = None
-        log.debug("_handler_command_start_autosample: entering Autosample mode")
-        return (next_state, (next_agent_state, result))
+        next_agent_state = ResourceAgentState.STREAMING
+        result = self._do_cmd_resp(InstrumentCommand.Run_settings, timeout=timeout, response_regex=SAMPLE_REGEX_MATCHER)
+
+        return next_state, (next_agent_state, result)
 
     def _handler_command_get_menu(self, *args, **kwargs):
         """
-        Run the $mnu Command
+        Run the $mnu Command (print menu)
         """
+        log.debug('%% IN _handler_command_get_menu')
         timeout = kwargs.get('timeout', TIMEOUT)
-
         next_state = None
         next_agent_state = None
-        #result = self._do_cmd_resp(InstrumentCmds.Print_menu, timeout=timeout)
-        result = self._do_cmd_resp(InstrumentCmds.Print_menu, timeout=timeout, response_regex=MNU_REGEX_MATCHER)
+        result = self._do_cmd_resp(InstrumentCommand.Print_menu, timeout=timeout, response_regex=MNU_REGEX_MATCHER)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_get_metadata(self, *args, **kwargs):
         """
-        Run the $met Command
+        Run the $met Command (print meta data)
         """
+        log.debug('%% IN _handler_command_get_metadata')
         timeout = kwargs.get('timeout', TIMEOUT)
 
         next_state = None
         next_agent_state = None
-        #result = self._do_cmd_resp(InstrumentCmds.Print_metadata, timeout=timeout)
-        result = self._do_cmd_resp(InstrumentCmds.Print_metadata, timeout=timeout, response_regex=MET_REGEX_MATCHER)
+        result = self._do_cmd_resp(InstrumentCommand.Print_metadata, timeout=timeout, response_regex=MET_REGEX_MATCHER)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_init_params(self, *args, **kwargs):
         """
         initialize parameters
         """
+        log.debug('%% IN _handler_command_init_params')
         next_state = None
         result = None
 
         self._init_params()
-        return (next_state, result)
+        return next_state, result
 
     ########################################################################
     # Autosample handlers.
@@ -1229,137 +1070,91 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
-        # Command device to update parameters and send a config change event.
-        #self._update_params()
-
+        log.debug('%% IN _handler_autosample_enter')
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-    def _handler_command_start_autosample(self, *args, **kwargs):
-        """
-        Switch into autosample mode.
-        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
-        None) if successful.
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
-        """
-
-        next_state = None
-        result = None
-
-        # Issue start command and switch to autosample if successful.
-        result = self._do_cmd_no_resp(InstrumentCmds.Run_settings, *args, **kwargs)
-
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-
-        return (next_state, (next_agent_state, result))
-
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Stop autosample and switch back to command mode.
-        @retval (next_state, result) tuple, (ProtocolState.COMMAND,
-        None) if successful.
+        @retval (next_state, result) tuple, (ProtocolState.COMMAND, None) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command misunderstood or
-        incorrect prompt received.
+        @throws InstrumentProtocolException if command misunderstood or incorrect prompt received.
         """
-
         log.debug("%%% IN _handler_autosample_stop_autosample")
 
-        next_state = None
-        result = None
-
-        # Wake up the device, continuing until autosample prompt seen.
-        timeout = kwargs.get('timeout', TIMEOUT)
-        #self._wakeup_until(timeout, Prompt.AUTOSAMPLE)
-
         # Issue the stop command.
-        #result = self._do_cmd_resp(InstrumentCmds.Interrupt_instrument, *args, **kwargs)
-        result = self._do_cmd_resp(InstrumentCmds.Interrupt_instrument, *args, timeout=timeout, response_regex=RUN_REGEX_MATCHER)
-
-        # Prompt device until command prompt is seen.
-        #self._wakeup_until(timeout, Prompt.COMMAND)
+        timeout = kwargs.get('timeout', TIMEOUT)
+        result = self._do_cmd_resp(InstrumentCommand.Interrupt_instrument, *args, timeout=timeout,
+                                   response_regex=RUN_REGEX_MATCHER)
 
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_interrupt_instrument(self, *args, **kwargs):
         """
         Stop autosample and switch back to command mode.
-        @retval (next_state, result) tuple, (ProtocolState.COMMAND,
-        None) if successful.
+        @retval (next_state, result) tuple, (ProtocolState.COMMAND, None) if successful.
         @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command misunderstood or
-        incorrect prompt received.
+        @throws InstrumentProtocolException if command misunderstood or incorrect prompt received.
         """
-
         log.debug("%%% IN _handler_instrument_interrupt")
 
-        next_state = None
-        result = None
-
-        # Wake up the device, continuing until autosample prompt seen.
-        timeout = kwargs.get('timeout', TIMEOUT)
-        #self._wakeup_until(timeout, Prompt.AUTOSAMPLE)
-
         # Issue the stop command.
-        #result = self._do_cmd_resp(InstrumentCmds.Interrupt_instrument, *args, **kwargs)
-        result = self._do_cmd_resp(InstrumentCmds.Interrupt_instrument, *args, timeout=timeout, response_regex=RUN_REGEX_MATCHER)
-
-        # Prompt device until command prompt is seen.
-        #self._wakeup_until(timeout, Prompt.COMMAND)
+        timeout = kwargs.get('timeout', TIMEOUT)
+        result = self._do_cmd_resp(InstrumentCommand.Interrupt_instrument, *args, timeout=timeout,
+                                   response_regex=RUN_REGEX_MATCHER)
 
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_autosample_exit(self, *args, **kwargs):
         """
         Exit autosample state.
         """
-
         log.debug("%%% IN _handler_autosample_exit")
-
         pass
 
     def _handler_autosample_init_params(self, *args, **kwargs):
         """
         initialize parameters
         """
+        log.debug('%% IN _handler_autosample_init_params')
         next_state = None
         result = None
 
         self._init_params()
-        return (next_state, result)
+        return next_state, result
 
     ########################################################################
     # Direct access handlers.
     ########################################################################
-
     def _handler_direct_access_enter(self, *args, **kwargs):
         """
         Enter direct access state.
         """
+        log.debug('%% IN _handler_direct_access_enter')
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
         self._sent_cmds = []
 
     def _handler_direct_access_exit(self, *args, **kwargs):
         """
         Exit direct access state.
         """
+        log.debug('%% IN _handler_direct_access_exit')
         pass
 
     def _handler_direct_access_execute_direct(self, data):
         """
         """
+        log.debug('%% IN _handler_direct_access_execute_direct')
         next_state = None
         result = None
         next_agent_state = None
@@ -1369,153 +1164,156 @@ class Protocol(CommandResponseInstrumentProtocol):
         # add sent command to list for 'echo' filtering in callback
         self._sent_cmds.append(data)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_direct_access_stop_direct(self):
         """
         @throw InstrumentProtocolException on invalid command
         """
-        next_state = None
+        log.debug('%% IN _handler_direct_access_stop_direct')
         result = None
 
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        next_state = ProtocolState.UNKNOWN
+        next_agent_state = ResourceAgentState.ACTIVE_UNKNOWN
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
+
+    def _handler_start_direct(self):
+        """
+        Start direct access
+        """
+        log.debug('%% IN _handler_start_direct')
+        next_state = ProtocolState.DIRECT_ACCESS
+        next_agent_state = ResourceAgentState.DIRECT_ACCESS
+        result = None
+        log.debug("_handler_start_direct: entering DA mode")
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Startup parameter handlers
     ########################################################################
     def apply_startup_params(self):
         """
-        Apply all startup parameters.  First we check the instrument to see
-        if we need to set the parameters.  If they are they are set
-        correctly then we don't do anything.
-
-        If we need to set parameters then we might need to be in command mode.
+        Apply all startup parameters.  First we check the instrument to see if we need to set the parameters.
+        If they are they are set correctly then we don't do anything.
         """
-        # Let's give it a try in unknown state
+        log.debug('%% IN apply_startup_params')
         log.debug("CURRENT STATE: %s", self.get_current_state())
-        if (self.get_current_state() != DriverProtocolState.COMMAND) :
+        if self.get_current_state() != DriverProtocolState.COMMAND:
             raise InstrumentProtocolException("Not in command state. Unable to apply startup params")
 
-        error = None
-
         log.debug("apply_startup_params now")
+        config = self.get_startup_config()
+        log.debug("_apply_params startup config: %s", config)
+        # Pass true to _set_params so we know these are startup values
+        #self._set_params(config, True)
+        #log.debug("_apply_params done")
         self._apply_params()
-
-        if(error):
-            log.error("Error in apply_startup_params: %s", error)
-            raise error
 
     ########################################################################
     # Private helpers.
     ########################################################################
-
-    def _discover(self, *args, **kwargs):
-        """
-        Discover current state; can be COMMAND or AUTOSAMPLE.
-        @retval (next_state, result)
-        @retval (next_state, result), (ProtocolState.COMMAND or
-        State.AUTOSAMPLE, None) if successful.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentStateException if the device response does not correspond to
-        an expected state.
-        """
-        timeout = kwargs.get('timeout', TIMEOUT)
-
-        log.debug("_handler_unknown_discover")
-        next_state = None
-        next_agent_state = None
-
-        """
-        sampling = self._is_sampling()
-        log.debug("are we sampling? %s" % sampling)
-
-        if(sampling == None):
-            next_state = DriverProtocolState.UNKNOWN
-            next_agent_state = ResourceAgentState.ACTIVE_UNKNOWN
-
-        elif(sampling):
-            next_state = DriverProtocolState.AUTOSAMPLE
-            next_agent_state = ResourceAgentState.STREAMING
-
-        else:
-            next_state = DriverProtocolState.COMMAND
-            next_agent_state = ResourceAgentState.COMMAND
-        """
-        
-        log.debug("_handler_unknown_discover. result start: %s" % next_state)
-        return (next_state, next_agent_state)
-
     def _set_params(self, *args, **kwargs):
+
+
+        #TODO
         """
         Issue commands to the instrument to set various parameters
         """
-        log.debug("_set_params start")
+        log.debug("%% IN _set_params")
 
-        startup = False
-        try:
-            params = args[0]
-        except IndexError:
-            raise InstrumentParameterException('Set command requires a parameter dict.')
+        params = args[0]
 
         try:
-            startup = args[1]
-        except IndexError:
-            pass
+            self._verify_not_readonly(*args, **kwargs)
 
-        self._verify_not_readonly(*args, **kwargs)
+            response = None
+            for (key, val) in params.iteritems():
+                log.debug("KEY = " + str(key) + " VALUE = " + str(val))
+                arg_command = InstrumentCommand.from_string(InstrumentCommand(), key)
+                log.debug('arg_command %s', arg_command)
+                response = self._do_cmd_resp(arg_command, key, val, response_regex=MNU_REGEX_MATCHER)
 
-        for (key, val) in params.iteritems():
-            log.debug("KEY = " + str(key) + " VALUE = " + str(val))
-            #result = self._do_cmd_resp(InstrumentCmds.SET, key, val, **kwargs)
-            result = self._do_cmd_resp(InstrumentCmds.SET, key, val, response_regex=MNU_REGEX_MATCHER)
+            self._update_params()
 
-        log.debug("_set_params update_params")
-        self._update_params()
-        log.debug("_set_params complete")
+        except InstrumentParameterException as e:
+            log.debug("Attempt to set read only parameter(s) (%s)", params)
 
-    def _build_set_command(self, cmd, param, val):
+
+        # log.debug("_set_params update_params")
+        #
+        # old_config = self._param_dict.get_config()
+        # #Update the parameter dictionary. Issue display status and display calibration commands. The parameter
+        # #dict will match line output and update itself.
+        # log.debug("configure command response: %s" % response)
+        # self._param_dict.update(response)
+        #
+        # # Get new param dict config. If it differs from the old config,
+        # # tell driver superclass to publish a config change event.
+        # new_config = self._param_dict.get_config()
+        # log.debug("new_config: %s == old_config: %s" % (new_config, old_config))
+        # if not dict_equal(old_config, new_config, ignore_keys=Parameter.Time_value):
+        #     log.debug("configuration has changed.  Send driver event")
+        #     self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+    def _update_params(self, *args, **kwargs):
         """
-        Build handler for set commands. SETparam=val followed by newline.
-        String val constructed by param dict formatting function.  <--- needs a better/clearer way
-        @param param the parameter key to set.
-        @param val the parameter value to set.
-        @ retval The set command to be sent to the device.
-        @ retval The set command to be sent to the device.
-        @throws InstrumentProtocolException if the parameter is not valid or
-        if the formatting function could not accept the value passed.
+        Update the parameter dictionary. Issue display status and display calibration commands. The parameter
+        dict will match line output and update itself.
+        @throws InstrumentTimeoutException if device cannot be timely woken.
+        @throws InstrumentProtocolException if ds/dc misunderstood.
         """
-        try:
-            str_val = self._param_dict.format(param, val)
-            if None == str_val:
-                raise InstrumentParameterException("Driver PARAM was None!!!!")
-            set_cmd = '$%s %s' % (param, str_val)
-            set_cmd = set_cmd + NEWLINE
-            log.debug("set_cmd = " + repr(set_cmd))
-        except KeyError:
-            raise InstrumentParameterException('Unknown driver parameter %s' % param)
+        log.debug("%% IN _update_params")
+        # Get old param dict config.
+        old_config = self._param_dict.get_config()
 
-        return set_cmd
+        # Issue display commands and parse results.
+        timeout = kwargs.get('timeout', TIMEOUT)
+
+        log.debug("Run configure command: %s" % InstrumentCommand.Print_menu)
+        response = self._do_cmd_resp(InstrumentCommand.Print_menu, timeout=timeout, response_regex=MNU_REGEX_MATCHER)
+        # for line in response.split(NEWLINE):
+        #     self._param_dict.update(line)
+        self._param_dict.update(response)
+        log.debug("configure command response: %s" % response)
+
+        # Get new param dict config. If it differs from the old config,
+        # tell driver superclass to publish a config change event.
+        new_config = self._param_dict.get_config()
+        log.debug("new_config: %s == old_config: %s" % (new_config, old_config))
+        if not dict_equal(old_config, new_config, ignore_keys=Parameter.Time_value):
+            log.debug("configuration has changed.  Send driver event")
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+    def _apply_params(self):
+        """
+        apply startup parameters to the instrument.
+        @raise: InstrumentProtocolException if in wrong mode.
+        """
+        log.debug("%% IN _apply_params")
+        config = self.get_startup_config()
+        log.debug("_apply_params startup config: %s", config)
+        # Pass true to _set_params so we know these are startup values
+        self._set_params(config, True)
+        log.debug("_apply_params done")
 
     def _build_single_parameter_command(self, cmd, param, val):
         """
         Build handler for set commands. param val followed by newline.
-        String val constructed by param dict formatting function.  <--- needs a better/clearer way
+        String val constructed by param dict formatting function.
         @param param the parameter key to set.
         @param val the parameter value to set.
-        @ retval The set command to be sent to the device.
-        @ retval The set command to be sent to the device.
-        @throws InstrumentProtocolException if the parameter is not valid or
-        if the formatting function could not accept the value passed.
+        @retval The set command to be sent to the device.
+        @throws InstrumentProtocolException if the parameter is not valid or if the formatting function could not
+                                            accept the value passed.
         """
+        log.debug('%% IN _build_single_parameter_command')
         try:
             str_val = self._param_dict.format(param, val)
-            if None == str_val:
+            if str_val == None:
                 raise InstrumentParameterException("Driver PARAM was None!!!!")
             set_cmd = '%s %s' % (cmd, str_val)
-            set_cmd = set_cmd + NEWLINE
+            set_cmd += NEWLINE
             log.debug("set_cmd = " + repr(set_cmd))
         except KeyError:
             raise InstrumentParameterException('Unknown driver parameter %s' % param)
@@ -1529,16 +1327,63 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("%%% IN _build_no_eol_command")
         return cmd
 
+    def _build_simple_command(self, cmd, *args):
+        """
+        Build handler for basic commands.
+        @param cmd the simple  command to format.
+        @retval The command to be sent to the device.
+        """
+        log.debug("%%% IN _build_simple_command")
+        return cmd + NEWLINE
+
+    def _got_chunk(self, chunk, timestamp):
+        """
+        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
+        with the appropriate particle objects and REGEXes.
+        """
+        log.debug('%% IN _got_chunk')
+        if self._extract_sample(FlortDMNU_Particle, MNU_REGEX_MATCHER, chunk, timestamp):
+            return
+        if self._extract_sample(FlortDMET_Particle, MET_REGEX_MATCHER, chunk, timestamp):
+            return
+        if self._extract_sample(FlortDRUN_Particle, RUN_REGEX_MATCHER, chunk, timestamp):
+            return
+        if self._extract_sample(FlortDSample_Particle, SAMPLE_REGEX_MATCHER, chunk, timestamp):
+            return
+
+    def _wakeup(self, timeout, delay=1):
+        """
+        Override method: There is no prompt for this instrument
+        """
+        log.debug('%% IN _wakeup')
+        pass
+
+    @staticmethod
+    def _float_to_string(v):
+        """
+        Override base class method because it returns an exponential formatted float and that is not what is needed here
+        Write a float value to string formatted for set operations.
+        @param v A float val.
+        @retval a float string formatted for set operations.
+        @throws InstrumentParameterException if value is not a float.
+        """
+        if not isinstance(v, float):
+            raise InstrumentParameterException('Value %s is not a float.' % v)
+        else:
+            return str(v)
+
     def _build_driver_dict(self):
         """
         Populate the driver dictionary with options
         """
+        log.debug("%%% IN _build_driver_dict")
         self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
 
     def _build_command_dict(self):
         """
-        Populate the command dictionary with command.
+        Populate the command dictionary with commands
         """
+        log.debug("%%% IN _build_command_dict")
         self._cmd_dict.add(Capability.GET_MENU, display_name="get menu")
         self._cmd_dict.add(Capability.GET_METADATA, display_name="get metadata")
         self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
@@ -1546,15 +1391,11 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _build_param_dict(self):
         """
-        Populate the parameter dictionary with parameters.
-        For each parameter key, add match stirng, match lambda function,
-        and value formatting function for set commands.
+        Populate the parameter dictionary with parameters. For each parameter key, add match string, match lambda
+        function, and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
         log.debug("%%% IN _build_param_dict")
-        # THIS wants to take advantage of the particle code,
-        # as the particles handle parsing the fields out
-        # no sense doing it again here
 
         #
         # StatusData
@@ -1566,8 +1407,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="serial number"
-                             )
+                             display_name="serial number",
+                             default_value=None,
+                             startup_param=False,
+                             direct_access=False)
 
         self._param_dict.add(Parameter.Firmware_version_value,
                              FlortDMNU_Particle.LINE02,
@@ -1576,8 +1419,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="firmware version"
-                             )
+                             display_name="firmware version",
+                             default_value=None,
+                             startup_param=False,
+                             direct_access=False)
 
         self._param_dict.add(Parameter.Measurements_per_reported_value,
                              FlortDMNU_Particle.LINE03,
@@ -1585,12 +1430,11 @@ class Protocol(CommandResponseInstrumentProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              expiration=None,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="measurements per reported value",
                              default_value=1,
-                             startup_param=True,
-                             direct_access=False
-                             )
+                             startup_param=False,
+                             direct_access=False)
 
         self._param_dict.add(Parameter.Measurements_per_packet_value,
                              FlortDMNU_Particle.LINE04,
@@ -1602,8 +1446,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="measurements per packet",
                              default_value=0,
                              startup_param=True,
-                             direct_access=True
-                             )
+                             direct_access=True)
 
         self._param_dict.add(Parameter.Measurement_1_dark_count_value,
                              FlortDMNU_Particle.LINE05,
@@ -1611,12 +1454,11 @@ class Protocol(CommandResponseInstrumentProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              expiration=None,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name="measurement 1 dark count",
-                             default_value=0,
-                             startup_param=True,
-                             direct_access=False
-                             )
+                             default_value=None,
+                             startup_param=False,
+                             direct_access=False)
 
         self._param_dict.add(Parameter.Measurement_2_dark_count_value,
                              FlortDMNU_Particle.LINE06,
@@ -1624,12 +1466,11 @@ class Protocol(CommandResponseInstrumentProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              expiration=None,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name="measurement 2 dark count",
-                             default_value=0,
-                             startup_param=True,
-                             direct_access=False
-                             )
+                             default_value=None,
+                             startup_param=False,
+                             direct_access=False)
 
         self._param_dict.add(Parameter.Measurement_3_dark_count_value,
                              FlortDMNU_Particle.LINE07,
@@ -1637,51 +1478,47 @@ class Protocol(CommandResponseInstrumentProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              expiration=None,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name="measurement 3 dark count",
-                             default_value=0,
-                             startup_param=True,
-                             direct_access=False
-                             )
+                             default_value=None,
+                             startup_param=False,
+                             direct_access=False)
 
         self._param_dict.add(Parameter.Measurement_1_slope_value,
                              FlortDMNU_Particle.LINE08,
-                             lambda match: int(match.group(1)),
+                             lambda match: float(match.group(1)),
                              self._float_to_string,
                              type=ParameterDictType.FLOAT,
                              expiration=None,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name="measurement 1 slope value",
-                             default_value=1.000E+00,
-                             startup_param=True,
-                             direct_access=False
-                             )
+                             default_value=None,
+                             startup_param=False,
+                             direct_access=False)
 
         self._param_dict.add(Parameter.Measurement_2_slope_value,
                              FlortDMNU_Particle.LINE09,
-                             lambda match: int(match.group(1)),
+                             lambda match: float(match.group(1)),
                              self._float_to_string,
                              type=ParameterDictType.FLOAT,
                              expiration=None,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name="measurement 2 slope value",
-                             default_value=1.000E+00,
-                             startup_param=True,
-                             direct_access=False
-                             )
+                             default_value=None,
+                             startup_param=False,
+                             direct_access=False)
 
         self._param_dict.add(Parameter.Measurement_3_slope_value,
                              FlortDMNU_Particle.LINE10,
-                             lambda match: int(match.group(1)),
+                             lambda match: float(match.group(1)),
                              self._float_to_string,
                              type=ParameterDictType.FLOAT,
                              expiration=None,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name="measurement 3 slope value",
-                             default_value=1.000E+00,
-                             startup_param=True,
-                             direct_access=False
-                             )
+                             default_value=None,
+                             startup_param=False,
+                             direct_access=False)
 
         self._param_dict.add(Parameter.Predefined_output_sequence_value,
                              FlortDMNU_Particle.LINE11,
@@ -1693,8 +1530,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="predefined output sequence",
                              default_value=0,
                              startup_param=True,
-                             direct_access=True
-                             )
+                             direct_access=True)
 
         self._param_dict.add(Parameter.Baud_rate_value,
                              FlortDMNU_Particle.LINE12,
@@ -1704,10 +1540,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name="baud rate",
-                             default_value=19200,
+                             default_value=None,
                              startup_param=False,
-                             direct_access=False
-                             )
+                             direct_access=False)
 
         self._param_dict.add(Parameter.Packets_per_set_value,
                              FlortDMNU_Particle.LINE13,
@@ -1719,8 +1554,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="packets per set",
                              default_value=0,
                              startup_param=True,
-                             direct_access=True
-                             )
+                             direct_access=True)
 
         self._param_dict.add(Parameter.Recording_mode_value,
                              FlortDMNU_Particle.LINE14,
@@ -1730,10 +1564,9 @@ class Protocol(CommandResponseInstrumentProtocol):
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="recording mode",
-                             default_value=1,
+                             default_value=0,
                              startup_param=True,
-                             direct_access=True
-                             )
+                             direct_access=True)
 
         self._param_dict.add(Parameter.Manual_mode_value,
                              FlortDMNU_Particle.LINE15,
@@ -1741,16 +1574,15 @@ class Protocol(CommandResponseInstrumentProtocol):
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              expiration=None,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="manual mode",
                              default_value=0,
                              startup_param=True,
-                             direct_access=False
-                             )
+                             direct_access=True)
 
         self._param_dict.add(Parameter.Sampling_interval_value,
                              FlortDMNU_Particle.LINE16,
-                             lambda match: int(match.group(1)),
+                             lambda match: match.group(1),
                              str,
                              type=ParameterDictType.STRING,
                              expiration=None,
@@ -1758,8 +1590,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="Time interval between packets",
                              default_value=None,
                              startup_param=False,
-                             direct_access=False
-                             )
+                             direct_access=False)
 
         self._param_dict.add(Parameter.Date_value,
                              FlortDMNU_Particle.LINE17,
@@ -1770,9 +1601,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="date",
                              default_value=None,
-                             startup_param=True,
-                             direct_access=True
-                             )
+                             startup_param=False,
+                             direct_access=True)
 
         self._param_dict.add(Parameter.Time_value,
                              FlortDMNU_Particle.LINE18,
@@ -1783,9 +1613,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="time",
                              default_value=None,
-                             startup_param=True,
-                             direct_access=True
-                             )
+                             startup_param=False,
+                             direct_access=True)
 
         self._param_dict.add(Parameter.Manual_start_time_value,
                              FlortDMNU_Particle.LINE19,
@@ -1797,8 +1626,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              display_name="manual start time",
                              default_value=None,
                              startup_param=False,
-                             direct_access=False
-                             )
+                             direct_access=False)
 
         self._param_dict.add(Parameter.Internal_memory_value,
                              FlortDMNU_Particle.LINE20,
@@ -1807,122 +1635,10 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="internal memory size"
-                             )
+                             display_name="internal memory size",
+                             default_value=None,
+                             startup_param=False,
+                             direct_access=False)
 
-    def _got_chunk(self, chunk, timestamp):
-        """
-        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
-        with the appropriate particle objects and REGEXes.
-        """
-        if(self._extract_sample(FlortDMNU_Particle, MNU_REGEX_MATCHER, chunk, timestamp)) : return
-        if(self._extract_sample(FlortDMET_Particle, MET_REGEX_MATCHER, chunk, timestamp)) : return
-        if(self._extract_sample(FlortDRUN_Particle, RUN_REGEX_MATCHER, chunk, timestamp)) : return
-        if(self._extract_sample(FlortDDUMP_MEMORY_Particle, DUMP_MEMORY_REGEX_MATCHER, chunk, timestamp)) : return
-        if(self._extract_sample(FlortDSample_Particle, SAMPLE_REGEX_MATCHER, chunk, timestamp)) : return
-
-    def _send_wakeup(self):
-        """
-        Send a newline to attempt to wake the sbe26plus device.
-        """
-        log.debug("%%% IN _send_wakeup")
-        self._connection.send(NEWLINE)
-
-    def _build_simple_command(self, cmd):
-        """
-        Build handler for basic sbe26plus commands.
-        @param cmd the simple sbe37 command to format.
-        @retval The command to be sent to the device.
-        """
-        log.debug("%%% IN _build_simple_command")
-        return cmd + NEWLINE
-
-    def _update_params(self, *args, **kwargs):
-        """
-        Update the parameter dictionary. Wake the device then issue
-        display status and display calibration commands. The parameter
-        dict will match line output and udpate itself.
-        @throws InstrumentTimeoutException if device cannot be timely woken.
-        @throws InstrumentProtocolException if ds/dc misunderstood.
-        """
-        log.debug("start _update_params")
-        # Get old param dict config.
-        old_config = self._param_dict.get_config()
-
-        # Issue display commands and parse results.
-        timeout = kwargs.get('timeout', TIMEOUT)
-
-        log.debug("Run configure command: %s" % InstrumentCmds.Print_menu)
-        #response = self._do_cmd_resp(InstrumentCmds.Print_menu, timeout=timeout)
-        response = self._do_cmd_resp(InstrumentCmds.Print_menu, timeout=timeout, response_regex=MNU_REGEX_MATCHER)
-        for line in response.split(NEWLINE):
-            self._param_dict.update(line)
-        log.debug("configure command response: %s" % response)
-
-        # Get new param dict config. If it differs from the old config,
-        # tell driver superclass to publish a config change event.
-        new_config = self._param_dict.get_config()
-        log.debug("new_config: %s == old_config: %s" % (new_config, old_config))
-        if not dict_equal(old_config, new_config, ignore_keys=Parameter.TIME):
-            log.debug("configuration has changed.  Send driver event")
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-
-    def _apply_params(self):
-        """
-        apply startup parameters to the instrument.
-        @raise: InstrumentProtocolException if in wrong mode.
-        """
-        log.debug("_apply_params start")
-        config = self.get_startup_config()
-        log.debug("_apply_params startup config: %s", config)
-        # Pass true to _set_params so we know these are startup values
-        self._set_params(config, True)
-        log.debug("_apply_params done")
-
-    #
-    # Many of these will want to rise up to base class if not there already
-    #
-    @staticmethod
-    def _int_to_string(v):
-        """
-        Write an int value to string formatted for set operations.
-        @param v An int val.
-        @retval an int string formatted for set operations.
-        @throws InstrumentParameterException if value not an int.
-        """
-        log.debug("IN _int_to_string")
-
-        if not isinstance(v,int):
-            raise InstrumentParameterException('Value %s is not an int.' % str(v))
-        else:
-            return '%i' % v
-
-    @staticmethod
-    def _float_to_string(v):
-        """
-        Write a float value to string formatted for set operations.
-        @param v A float val.
-        @retval a float string formatted for set operations.
-        @throws InstrumentParameterException if value is not a float.
-        """
-        log.debug("IN _float_to_string")
-
-        if not isinstance(v, float):
-            raise InstrumentParameterException('Value %s is not a float.' % v)
-        else:
-            #return '%e' % v #This returns a exponential formatted float
-            # every time. not what is needed
-            return str(v) #return a simple float
-
-    @staticmethod
-    def _bool_to_int_string(v):
-        # return a string of an into of 1 or 0 to indicate true/false
-
-        if True == v:
-            return "1"
-        elif False == v:
-            return "0"
-        else:
-            return None
 
 ################################ /Protocol #############################
