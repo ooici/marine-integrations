@@ -355,18 +355,18 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         also be defined in the protocol FSM.
         """
         capabilities = {
-            ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
-            ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
-                                    'DRIVER_EVENT_SET',
-                                    'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                    'DRIVER_EVENT_START_AUTOSAMPLE',
-                                    'DRIVER_EVENT_START_DIRECT',
+            ProtocolState.UNKNOWN: [ProtocolEvent.DISCOVER],
+            ProtocolState.COMMAND: [ProtocolEvent.GET,
+                                    ProtocolEvent.SET,
+                                    ProtocolEvent.ACQUIRE_SAMPLE,
+                                    ProtocolEvent.START_AUTOSAMPLE,
+                                    ProtocolEvent.START_DIRECT,
             ],
-            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                       'DRIVER_EVENT_ACQUIRE_SAMPLE',
+            ProtocolState.AUTOSAMPLE: [ProtocolEvent.STOP_AUTOSAMPLE,
+                                       ProtocolEvent.ACQUIRE_SAMPLE,
             ],
-            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
-                                          'EXECUTE_DIRECT',
+            ProtocolState.DIRECT_ACCESS: [ProtocolEvent.STOP_DIRECT,
+                                          ProtocolEvent.EXECUTE_DIRECT,
             ]
         }
 
@@ -498,6 +498,27 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     #     self.assert_reset()
     #     self.doCleanups()
 
+    def test_discover(self):
+        """
+        verify we can discover our instrument state from streaming and autosample.
+        Overloaded to account for this instrument not having an autosample mode.
+        """
+        # Verify the agent is in command mode
+        self.assert_enter_command_mode()
+
+        # Now reset and try to discover.  This will stop the driver which holds the current
+        # instrument state.
+        self.assert_reset()
+        self.assert_discover(ResourceAgentState.COMMAND)
+
+        # Now put the instrument in streaming and reset the driver again.
+        self.assert_start_autosample()
+        self.assert_reset()
+
+        # When the driver reconnects it should be in command mode
+        self.assert_discover(ResourceAgentState.COMMAND)
+        self.assert_reset()
+
     def test_poll(self):
         """
         poll for a single sample
@@ -560,6 +581,8 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         @brief Walk through all driver protocol states and verify capabilities
         returned by get_current_capabilities
         """
+        fn = 'test_get_capabilities'
+        # log.debug('%s: assert_enter_command_mode', fn)
         self.assert_enter_command_mode()
 
         ##################
@@ -574,12 +597,12 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
                 ProtocolEvent.SET,
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.ACQUIRE_SAMPLE,
-                ProtocolEvent.SET_RATE,
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }
 
+        # log.debug('%s: assert_capabilities', fn)
         self.assert_capabilities(capabilities)
 
         ##################
@@ -592,8 +615,11 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
             ProtocolEvent.STOP_AUTOSAMPLE,
         ]
 
+        # log.debug('%s: assert_start_autosample', fn)
         self.assert_start_autosample()
+        # log.debug('%s: assert_capabilities', fn)
         self.assert_capabilities(capabilities)
+        # log.debug('%s: assert_stop_autosample', fn)
         self.assert_stop_autosample()
 
         ##################
@@ -603,8 +629,11 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
 
+        # log.debug('%s: assert_direct_access_start_telnet', fn)
         self.assert_direct_access_start_telnet()
+        # log.debug('%s: assert_capabilities', fn)
         self.assert_capabilities(capabilities)
+        # log.debug('%s: assert_direct_access_stop_telnet', fn)
         self.assert_direct_access_stop_telnet()
 
         #######################
@@ -616,7 +645,9 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
 
+        # log.debug('%s: assert_reset', fn)
         self.assert_reset()
+        # log.debug('%s: assert_capabilities', fn)
         self.assert_capabilities(capabilities)
 
     @unittest.skip("doesn't pass because IA doesn't apply the startup parameters yet")

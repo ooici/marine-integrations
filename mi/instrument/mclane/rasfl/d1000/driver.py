@@ -78,10 +78,6 @@ class ProtocolState(BaseEnum):
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 
 
-class ExportedInstrumentCommand(BaseEnum):
-    SET_RATE = "EXPORTED_INSTRUMENT_SET_RATE"
-
-
 class ProtocolEvent(BaseEnum):
     """
     Protocol events
@@ -94,7 +90,6 @@ class ProtocolEvent(BaseEnum):
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     DISCOVER = DriverEvent.DISCOVER
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    SET_RATE = ExportedInstrumentCommand.SET_RATE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
@@ -108,6 +103,7 @@ class Capability(BaseEnum):
     SET = ProtocolEvent.SET
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
 
 
 class Parameter(DriverParameter):
@@ -499,7 +495,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              default_value=1,
                              startup_param=True,
-                             display_name='D1000 sample periodicty (sec)',
+                             display_name='D1000 sample periodicity (sec)',
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.set_value(Parameter.SAMPLE_INTERVAL, 10)
 
@@ -540,7 +536,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         result = ResourceAgentState.COMMAND
 
         log.debug("_handler_unknown_discover: state = %s", next_state)
-        return ProtocolState.COMMAND, ResourceAgentState.COMMAND
+        return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
     ########################################################################
     # Event handlers for COMMAND state.
