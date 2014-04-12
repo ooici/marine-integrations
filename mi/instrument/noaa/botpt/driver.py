@@ -5,6 +5,7 @@
 @brief Common items for BOTPT
 Release notes:
 """
+from mi.core.instrument.driver_dict import DriverDictKey
 
 __author__ = 'Pete Cable'
 __license__ = 'Apache 2.0'
@@ -34,12 +35,6 @@ from mi.core.exceptions import SampleException, NotImplementedException
 
 # newline.
 NEWLINE = '\x0a'
-
-# default timeout.
-TIMEOUT = 10
-
-# default max promptbuf/linebuf length
-MAX_BUFFER_LENGTH = 10
 
 
 class BotptProtocolState(BaseEnum):
@@ -193,7 +188,8 @@ class BotptStatusParticle(DataParticle):
                     DataParticleKey.VALUE: value
                 })
             else:
-                log.debug('multiline match -- no match found for matcher: %s %r', key, matcher.pattern)
+                log.error('multiline match -- no match found for matcher: %s %r', key, matcher.pattern)
+                raise SampleException('Failed to find required key to generate status particle.')
         log.trace('BOTPT Status particle: [%r]', result)
         return result
 
@@ -483,12 +479,19 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         """
         # Construct protocol superclass.
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+        self._build_driver_dict()
         self._filter_string = None
         self._chunker = None
         self._last_data_timestamp = 0
         self._sent_cmds = []
         # temporary buffer to cache incomplete lines received by the port agent
         self.temp_buf = ''
+
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with options
+        """
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
 
     def _got_chunk(self, chunk, timestamp):
         raise NotImplementedException('_got_chunk not implemented')
@@ -710,7 +713,6 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_direct_access_stop_direct(self):
         """
-        @throw InstrumentProtocolException on invalid command
         """
         log.debug("_handler_direct_access_stop_direct")
         result = None

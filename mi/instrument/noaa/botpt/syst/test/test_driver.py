@@ -12,14 +12,13 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import RawDataParticle
+from mi.instrument.noaa.botpt.test.test_driver import BotptDriverUnitTest
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 from nose.plugins.attrib import attr
-from mock import Mock
 
 from mi.core.log import get_logger
 
@@ -27,18 +26,16 @@ log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey, AgentCapabilityType
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 
-from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
 from pyon.agent.agent import ResourceAgentState
 
-from mi.instrument.noaa.botpt.syst.driver import InstrumentDriver, SYSTStatusParticleKey
+from mi.instrument.noaa.botpt.syst.driver import InstrumentDriver, SYSTStatusParticleKey, SYSTStatusParticle
 from mi.instrument.noaa.botpt.syst.driver import DataParticleType
 from mi.instrument.noaa.botpt.syst.driver import InstrumentCommand
 from mi.instrument.noaa.botpt.syst.driver import ProtocolState
@@ -77,6 +74,9 @@ InstrumentDriverTestCase.initialize(
 ###
 #   Driver constant definitions
 ###
+
+INVALID_SAMPLE = 'SYS1T,2014/04/07 21:23:18,*BOTPT BPR' + NEWLINE + 'NANO,123' + NEWLINE + 'grep root/bin' + NEWLINE
+
 STATUS = '''SYST,2014/04/07 21:23:18,*BOTPT BPR and tilt instrument controller
 SYST,2014/04/07 21:23:18,*ts7550n3
 SYST,2014/04/07 21:23:18,*System uptime
@@ -165,6 +165,15 @@ root      7880  0.0  0.9   1704   604 ?        S    21:17   0:00 grep root/bin''
 # methods for validating data particles.                                      #
 ###############################################################################
 class BOTPTTestMixinSub(DriverTestMixin):
+    _Driver = InstrumentDriver
+    _DataParticleType = DataParticleType
+    _ProtocolState = ProtocolState
+    _ProtocolEvent = ProtocolEvent
+    _DriverParameter = DriverParameter
+    _InstrumentCommand = InstrumentCommand
+    _Capability = Capability
+    _Protocol = Protocol
+
     TYPE = ParameterTestConfigKey.TYPE
     READONLY = ParameterTestConfigKey.READONLY
     STARTUP = ParameterTestConfigKey.STARTUP
@@ -173,6 +182,40 @@ class BOTPTTestMixinSub(DriverTestMixin):
     REQUIRED = ParameterTestConfigKey.REQUIRED
     DEFAULT = ParameterTestConfigKey.DEFAULT
     STATES = ParameterTestConfigKey.STATES
+
+    _driver_parameters = {
+        # Parameters defined in the IOS
+    }
+
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        Capability.ACQUIRE_STATUS: {STATES: [ProtocolState.COMMAND]},
+    }
+
+    _capabilities = {
+        ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
+        ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_STATUS',
+                                'DRIVER_EVENT_GET',
+                                'DRIVER_EVENT_SET',
+                                'DRIVER_EVENT_START_DIRECT'],
+        ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
+                                      'EXECUTE_DIRECT']
+    }
+
+    _sample_chunks = [STATUS]
+
+    _build_parsed_values_items = [
+        (INVALID_SAMPLE, SYSTStatusParticle, False),
+        (STATUS, SYSTStatusParticle, True),
+    ]
+
+    _test_handlers_items = [
+        ('_handler_command_acquire_status', ProtocolState.COMMAND, None, STATUS.strip()),
+    ]
+
+    _command_response_items = [
+        (STATUS, STATUS),
+    ]
 
     _status_params = {
         SYSTStatusParticleKey.TIME: {TYPE: float, VALUE: 3605919798.0, REQUIRED: True},
@@ -244,68 +287,34 @@ class BOTPTTestMixinSub(DriverTestMixin):
 ###############################################################################
 # noinspection PyProtectedMember
 @attr('UNIT', group='mi')
-class DriverUnitTest(InstrumentDriverUnitTestCase, BOTPTTestMixinSub):
-    def setUp(self):
-        InstrumentDriverUnitTestCase.setUp(self)
+class DriverUnitTest(BotptDriverUnitTest, BOTPTTestMixinSub):
+    @staticmethod
+    def my_send(driver):
+        def inner(data):
+            if data.startswith(InstrumentCommand.ACQUIRE_STATUS):
+                my_response = STATUS
+            else:
+                my_response = None
+            if my_response is not None:
+                log.debug("my_send: data: %s, my_response: %s", data, my_response)
+                driver._protocol._promptbuf += my_response
+                driver._protocol._linebuf += my_response
+                return len(my_response)
 
-    def test_driver_enums(self):
-        """
-        Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilities
-        """
-        self.assert_enum_has_no_duplicates(DataParticleType())
-        self.assert_enum_has_no_duplicates(ProtocolState())
-        self.assert_enum_has_no_duplicates(ProtocolEvent())
-        self.assert_enum_has_no_duplicates(DriverParameter())
-        self.assert_enum_has_no_duplicates(InstrumentCommand())
-
-        # Test capabilities for duplicates, then verify that capabilities is a subset of protocol events
-        self.assert_enum_has_no_duplicates(Capability())
-        self.assert_enum_complete(Capability(), ProtocolEvent())
-
-    def test_chunker(self):
-        """
-        Test the chunker and verify the particles created.
-        """
-        chunker = StringChunker(Protocol.sieve_function)
-        self.assert_chunker_sample(chunker, STATUS)
-        self.assert_chunker_fragmented_sample(chunker, STATUS)
-        self.assert_chunker_sample_with_noise(chunker, STATUS)
-        self.assert_chunker_combined_sample(chunker, STATUS)
+        return inner
 
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
         """
         # Create and initialize the instrument driver with a mock port agent
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
-
+        driver = self.test_connect()
         self.assert_raw_particle_published(driver, True)
         self.assert_particle_published(driver, STATUS, self.assert_status_particle, True)
 
-    def test_status(self):
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
-        driver._protocol._got_chunk(STATUS, self.get_ntp_timestamp())
-
-    def test_protocol_filter_capabilities(self):
-        """
-        This tests driver filter_capabilities.
-        Iterate through available capabilities, and verify that they can pass successfully through the filter.
-        Test silly made up capabilities to verify they are blocked by filter.
-        """
-        mock_callback = Mock()
-        protocol = Protocol(BaseEnum, NEWLINE, mock_callback)
-        driver_capabilities = Capability().list()
-        test_capabilities = Capability().list()
-
-        # Add a bogus capability that will be filtered out.
-        test_capabilities.append("BOGUS_CAPABILITY")
-
-        # Verify "BOGUS_CAPABILITY was filtered out
-        self.assertEquals(sorted(driver_capabilities),
-                          sorted(protocol._filter_capabilities(test_capabilities)))
+    def test_status_01(self):
+        driver = self.test_connect()
+        self._send_port_agent_packet(driver, STATUS)
 
 
 ###############################################################################
@@ -385,6 +394,29 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }
 
+        self.assert_capabilities(capabilities)
+
+        ##################
+        #  DA Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
+
+        self.assert_direct_access_start_telnet()
+        self.assert_capabilities(capabilities)
+        self.assert_direct_access_stop_telnet()
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
         self.assert_capabilities(capabilities)
 
     def test_direct_access_telnet_mode(self):

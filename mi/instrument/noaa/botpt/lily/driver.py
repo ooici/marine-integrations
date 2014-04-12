@@ -26,7 +26,6 @@ from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDrive
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.data_particle import DataParticle
@@ -599,6 +598,7 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
                 (ProtocolEvent.START_LEVELING, self._handler_autosample_start_leveling),
+                # (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -641,6 +641,7 @@ class Protocol(BotptProtocol):
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
+        # self._build_command_dict()
 
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCommand.DATA_ON, self._build_command)
@@ -649,6 +650,10 @@ class Protocol(BotptProtocol):
         self._add_build_handler(InstrumentCommand.DUMP_SETTINGS_02, self._build_command)
         self._add_build_handler(InstrumentCommand.START_LEVELING, self._build_command)
         self._add_build_handler(InstrumentCommand.STOP_LEVELING, self._build_command)
+
+        # # Add response handlers for device commands.
+        # for command in InstrumentCommand.list():
+        #     self._add_response_handler(command, self._resp_handler)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -695,12 +700,15 @@ class Protocol(BotptProtocol):
         events_out = [x for x in events if Capability.has(x)]
         return events_out
 
-    def _build_cmd_dict(self):
+    def _build_command_dict(self):
         """
-        Populate the command dictionary with NOAA LILY Driver metadata information. 
-        Currently LILY only supports DATA_ON and DATA_OFF.
+        Populate the command dictionary with command.
         """
-        self._cmd_dict = ProtocolCommandDict()
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
+        self._cmd_dict.add(Capability.START_LEVELING, display_name="start leveling")
+        self._cmd_dict.add(Capability.STOP_LEVELING, display_name="stop leveling")
 
     def _build_param_dict(self):
         """
@@ -741,6 +749,10 @@ class Protocol(BotptProtocol):
                 return
 
         raise InstrumentProtocolException('unhandled chunk received by _got_chunk: [%r]', chunk)
+
+    def _resp_handler(self, response, prompt):
+        log.debug('_resp_handler - response: %r prompt: %r', response, prompt)
+        return response
 
     def _extract_sample(self, particle_class, regex, line, timestamp, publish=True):
         """
@@ -843,6 +855,7 @@ class Protocol(BotptProtocol):
         # timed out, assume command
         except InstrumentTimeoutException:
             pass
+        log.debug('_handler_unknown_discover: returning: %r', (next_state, (next_agent_state, result)))
         return next_state, (next_agent_state, result)
 
     ########################################################################
@@ -970,13 +983,14 @@ class Protocol(BotptProtocol):
         """
         Take instrument out of leveling mode, returning to the previous state
         """
-        self._handler_command_generic(InstrumentCommand.STOP_LEVELING, None, None, expected_prompt=LILY_LEVEL_OFF)
+        _, (_, result) = self._handler_command_generic(InstrumentCommand.STOP_LEVELING, None, None,
+                                                       expected_prompt=LILY_LEVEL_OFF)
         if self.get_current_state() == ProtocolState.AUTOSAMPLE_LEVELING:
             return self._handler_command_start_autosample()
         else:
             next_state = ProtocolState.COMMAND
             next_agent_state = ResourceAgentState.COMMAND
-            return next_state, next_agent_state
+            return next_state, (next_agent_state, result)
 
     def _handler_leveling_exit(self, *args, **kwargs):
         try:

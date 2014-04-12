@@ -14,11 +14,15 @@ USAGE:
 """
 import time
 
+from mi.core.instrument.instrument_driver import DriverParameter
+from mi.instrument.noaa.botpt.test.test_driver import BotptDriverUnitTest
+
+
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 from nose.plugins.attrib import attr
-from mock import Mock
+from mock import call
 
 from mi.core.log import get_logger
 
@@ -27,16 +31,11 @@ log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
-
-from mi.core.instrument.port_agent_client import PortAgentPacket
-
-from mi.core.instrument.chunker import StringChunker
 
 from mi.instrument.noaa.botpt.nano.driver import InstrumentDriver, NANOStatusParticleKey, NANO_STRING
 from mi.instrument.noaa.botpt.nano.driver import DataParticleType
@@ -48,10 +47,8 @@ from mi.instrument.noaa.botpt.nano.driver import ProtocolEvent
 from mi.instrument.noaa.botpt.nano.driver import Capability
 from mi.instrument.noaa.botpt.nano.driver import Parameter
 from mi.instrument.noaa.botpt.nano.driver import Protocol
-from mi.instrument.noaa.botpt.nano.driver import Prompt
 from mi.instrument.noaa.botpt.nano.driver import NEWLINE
 
-from mi.core.exceptions import SampleException
 from pyon.agent.agent import ResourceAgentState
 
 ###
@@ -156,6 +153,15 @@ DUMP_STATUS = \
 # methods for validating data particles.                                      #
 ###############################################################################
 class NANOTestMixinSub(DriverTestMixin):
+    _Driver = InstrumentDriver
+    _DataParticleType = DataParticleType
+    _ProtocolState = ProtocolState
+    _ProtocolEvent = ProtocolEvent
+    _DriverParameter = DriverParameter
+    _InstrumentCommand = InstrumentCommand
+    _Capability = Capability
+    _Protocol = Protocol
+
     TYPE = ParameterTestConfigKey.TYPE
     READONLY = ParameterTestConfigKey.READONLY
     STARTUP = ParameterTestConfigKey.STARTUP
@@ -167,7 +173,47 @@ class NANOTestMixinSub(DriverTestMixin):
 
     _driver_parameters = {
         # Parameters defined in the IOS
+        Parameter.OUTPUT_RATE: {TYPE: int, READONLY: False, DA: False, STARTUP: False},
+        Parameter.SYNC_INTERVAL: {TYPE: int, READONLY: False, DA: False, STARTUP: False},
     }
+
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        Capability.START_AUTOSAMPLE: {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_AUTOSAMPLE: {STATES: [ProtocolState.AUTOSAMPLE]},
+        Capability.ACQUIRE_STATUS: {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.SET_TIME: {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+    }
+
+    _capabilities = {
+        ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
+        ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_STATUS',
+                                'DRIVER_EVENT_GET',
+                                'DRIVER_EVENT_SET',
+                                'DRIVER_EVENT_START_AUTOSAMPLE',
+                                'EXPORTED_INSTRUMENT_SET_TIME',
+                                'DRIVER_EVENT_START_DIRECT'],
+        ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                   'EXPORTED_INSTRUMENT_SET_TIME',
+                                   'DRIVER_EVENT_ACQUIRE_STATUS',
+                                   'DRIVER_EVENT_START_DIRECT'],
+        ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
+                                      'EXECUTE_DIRECT']
+    }
+
+    _sample_chunks = [VALID_SAMPLE_01, VALID_SAMPLE_02, DUMP_STATUS]
+
+    _build_parsed_values_items = [
+        (INVALID_SAMPLE, NANODataParticle, False),
+        (VALID_SAMPLE_01, NANODataParticle, True),
+        (VALID_SAMPLE_02, NANODataParticle, True),
+    ]
+
+    _test_handlers_items = [
+        ('_handler_command_start_autosample', ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE, None),
+        ('_handler_autosample_stop_autosample', ProtocolState.AUTOSAMPLE, ProtocolState.COMMAND, None),
+        ('_handler_command_autosample_acquire_status', ProtocolState.COMMAND, None, None),
+    ]
 
     _sample_parameters_01 = {
         NANODataParticleKey.TIME: {TYPE: float, VALUE: 3586225716.0, REQUIRED: True},
@@ -347,18 +393,7 @@ class NANOTestMixinSub(DriverTestMixin):
 ###############################################################################
 # noinspection PyProtectedMember
 @attr('UNIT', group='mi')
-class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
-    def setUp(self):
-        InstrumentDriverUnitTestCase.setUp(self)
-
-    def _send_port_agent_packet(self, driver, data):
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(data)
-        port_agent_packet.attach_timestamp(self.get_ntp_timestamp())
-        port_agent_packet.pack_header()
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
-
+class DriverUnitTest(BotptDriverUnitTest, NANOTestMixinSub):
     @staticmethod
     def my_send(driver):
         def inner(data):
@@ -376,120 +411,43 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, NANOTestMixinSub):
 
         return inner
 
-    def test_driver_enums(self):
-        """
-        Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilities
-        """
-        self.assert_enum_has_no_duplicates(DataParticleType())
-        self.assert_enum_has_no_duplicates(ProtocolState())
-        self.assert_enum_has_no_duplicates(ProtocolEvent())
-        self.assert_enum_has_no_duplicates(Parameter())
-        self.assert_enum_has_no_duplicates(InstrumentCommand())
-
-        # Test capabilities for duplicates, them verify that capabilities is a subset of proto events
-        self.assert_enum_has_no_duplicates(Capability())
-        self.assert_enum_complete(Capability(), ProtocolEvent())
-
-    def test_chunker(self):
-        """
-        Test the chunker and verify the particles created.
-        """
-        chunker = StringChunker(Protocol.sieve_function)
-
-        for sample in [VALID_SAMPLE_01, VALID_SAMPLE_02, DUMP_STATUS]:
-            self.assert_chunker_sample(chunker, sample)
-            self.assert_chunker_fragmented_sample(chunker, sample)
-            self.assert_chunker_combined_sample(chunker, sample)
-            self.assert_chunker_sample_with_noise(chunker, sample)
-
-    def test_connect(self, initial_protocol_state=ProtocolState.COMMAND):
-        """
-        Test driver can change state to COMMAND
-        """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, initial_protocol_state)
-        driver._connection.send.side_effect = self.my_send(driver)
-        return driver
-
-    def test_data_build_parsed_values(self):
-        """
-        Verify that the BOTPT NANO driver build_parsed_values method
-        raises SampleException when an invalid sample is encountered
-        and that it returns a result when a valid sample is encountered
-        """
-        samples = [
-            (INVALID_SAMPLE, False),
-            (VALID_SAMPLE_01, True),
-            (VALID_SAMPLE_02, True),
-        ]
-
-        for sample, is_valid in samples:
-            sample_exception = False
-            result = False
-            try:
-                test_particle = NANODataParticle(sample)
-                result = test_particle._build_parsed_values()
-            except SampleException as e:
-                log.debug('SampleException caught: %s.', e)
-                sample_exception = True
-            finally:
-                if is_valid:
-                    self.assertTrue(isinstance(result, list))
-                    self.assertFalse(sample_exception)
-                else:
-                    self.assertTrue(sample_exception)
+    # not valid for NANO
+    def test_command_responses(self):
+        pass
 
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
         """
         driver = self.test_connect()
+        driver._connection.send.side_effect = self.my_send(driver)
         self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
         self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
         self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
 
-    def test_status(self):
+    def test_status_01(self):
         """
         Verify that the driver correctly parses the DUMP-SETTINGS response
         """
         driver = self.test_connect()
+        driver._connection.send.side_effect = self.my_send(driver)
         self._send_port_agent_packet(driver, DUMP_STATUS)
 
-    def test_start_autosample(self):
+    def test_start_stop_autosample(self):
         driver = self.test_connect()
+        driver._connection.send.side_effect = self.my_send(driver)
         driver._protocol._protocol_fsm.on_event(ProtocolEvent.START_AUTOSAMPLE)
         self.assertEqual(driver._protocol.get_current_state(), ProtocolState.AUTOSAMPLE)
-        driver._connection.send.assert_called_once_with(InstrumentCommand.DATA_ON + NEWLINE)
-
-    def test_stop_autosample(self):
-        driver = self.test_connect(initial_protocol_state=ProtocolState.AUTOSAMPLE)
         driver._protocol._protocol_fsm.on_event(ProtocolEvent.STOP_AUTOSAMPLE)
         self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
-        driver._connection.send.assert_called_once_with(InstrumentCommand.DATA_OFF + NEWLINE)
+        driver._connection.send.assert_has_calls([call(InstrumentCommand.DATA_ON + NEWLINE),
+                                                  call(InstrumentCommand.DATA_OFF + NEWLINE)])
 
     def test_status_01_handler(self):
         driver = self.test_connect()
+        driver._connection.send.side_effect = self.my_send(driver)
         driver._protocol._protocol_fsm.on_event(ProtocolEvent.ACQUIRE_STATUS)
         driver._connection.send.assert_called_once_with(InstrumentCommand.DUMP_SETTINGS + NEWLINE)
-
-    def test_protocol_filter_capabilities(self):
-        """
-        This tests driver filter_capabilities.
-        Iterate through available capabilities, and verify that they can pass successfully through the filter.
-        Test silly made up capabilities to verify they are blocked by filter.
-        """
-        mock_callback = Mock()
-        protocol = Protocol(Prompt, NEWLINE, mock_callback)
-        driver_capabilities = Capability().list()
-        test_capabilities = Capability().list()
-
-        # Add a bogus capability that will be filtered out.
-        test_capabilities.append("BOGUS_CAPABILITY")
-
-        # Verify "BOGUS_CAPABILITY was filtered out
-        self.assertEquals(sorted(driver_capabilities),
-                          sorted(protocol._filter_capabilities(test_capabilities)))
 
 
 ###############################################################################
@@ -518,7 +476,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, NANOTestMixinSu
             self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
             time.sleep(.1)
 
-    def test_connection(self):
+    def test_connect(self):
         self.assert_initialize_driver()
 
     def test_commands(self):
@@ -606,17 +564,14 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, NANOTestMix
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    def test_poll(self):
-        """
-        No polling for a single sample
-        """
-
     def test_get_set_parameters(self):
         """
         verify that all parameters can be get set properly, this includes
         ensuring that read only parameters fail on set.
         """
         self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.OUTPUT_RATE, 1)
+        self.assert_set_parameter(Parameter.SYNC_INTERVAL, 60)
 
     def test_get_capabilities(self):
         """
@@ -656,3 +611,26 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, NANOTestMix
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
         self.assert_stop_autosample()
+
+        ##################
+        #  DA Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
+
+        self.assert_direct_access_start_telnet()
+        self.assert_capabilities(capabilities)
+        self.assert_direct_access_stop_telnet()
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_capabilities(capabilities)

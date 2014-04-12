@@ -12,31 +12,24 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-from mi.core.exceptions import SampleException
+from mi.core.instrument.instrument_driver import DriverParameter
+from mi.instrument.noaa.botpt.test.test_driver import BotptDriverUnitTest
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
-import time
-
-import ntplib
 from nose.plugins.attrib import attr
-from mock import Mock
 from mi.core.log import get_logger
 
 log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
-from mi.core.common import BaseEnum
-from mi.core.instrument.port_agent_client import PortAgentPacket
-from mi.core.instrument.chunker import StringChunker
 from mi.instrument.noaa.botpt.heat.driver import InstrumentDriver, HEATDataParticle
 from mi.instrument.noaa.botpt.heat.driver import DataParticleType
 from mi.instrument.noaa.botpt.heat.driver import HEATDataParticleKey
@@ -95,6 +88,9 @@ BOTPT_FIREHOSE_01 += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + N
 BOTPT_FIREHOSE_01 += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
 BOTPT_FIREHOSE_01 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 
+HEAT_ON = ',*2'
+HEAT_OFF = ',*0'
+
 
 ###############################################################################
 #                           DRIVER TEST MIXIN                                  #
@@ -109,6 +105,15 @@ BOTPT_FIREHOSE_01 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 # methods for validating data particles.                                      #
 ###############################################################################
 class HEATTestMixinSub(DriverTestMixin):
+    _Driver = InstrumentDriver
+    _DataParticleType = DataParticleType
+    _ProtocolState = ProtocolState
+    _ProtocolEvent = ProtocolEvent
+    _DriverParameter = DriverParameter
+    _InstrumentCommand = InstrumentCommand
+    _Capability = Capability
+    _Protocol = Protocol
+
     TYPE = ParameterTestConfigKey.TYPE
     READONLY = ParameterTestConfigKey.READONLY
     STARTUP = ParameterTestConfigKey.STARTUP
@@ -121,6 +126,23 @@ class HEATTestMixinSub(DriverTestMixin):
     _driver_parameters = {
         # Parameters defined in the IOS
         Parameter.HEAT_DURATION: {TYPE: int, READONLY: False, DA: False, STARTUP: False},
+    }
+
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        Capability.HEAT_ON: {STATES: [ProtocolState.COMMAND]},
+        Capability.HEAT_OFF: {STATES: [ProtocolState.COMMAND]},
+    }
+
+    _capabilities = {
+        ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
+        ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
+                                'DRIVER_EVENT_SET',
+                                'EXPORTED_INSTRUMENT_CMD_HEAT_OFF',
+                                'EXPORTED_INSTRUMENT_CMD_HEAT_ON',
+                                'DRIVER_EVENT_START_DIRECT'],
+        ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
+                                      'EXECUTE_DIRECT']
     }
 
     _sample_parameters_01 = {
@@ -136,6 +158,24 @@ class HEATTestMixinSub(DriverTestMixin):
         HEATDataParticleKey.Y_TILT: {TYPE: int, VALUE: 1, REQUIRED: True},
         HEATDataParticleKey.TEMP: {TYPE: int, VALUE: 25, REQUIRED: True}
     }
+
+    _sample_chunks = [VALID_SAMPLE_01]
+
+    _build_parsed_values_items = [
+        (INVALID_SAMPLE, HEATDataParticle, False),
+        (VALID_SAMPLE_01, HEATDataParticle, False),
+        (VALID_SAMPLE_02, HEATDataParticle, False),
+    ]
+
+    _command_response_items = [
+        (HEAT_ON_COMMAND_RESPONSE, HEAT_ON),
+        (HEAT_OFF_COMMAND_RESPONSE, HEAT_OFF),
+    ]
+
+    _test_handlers_items = [
+        ('_handler_command_heat_on', ProtocolState.COMMAND, None, HEAT_ON),
+        ('_handler_command_heat_off', ProtocolState.COMMAND, None, HEAT_OFF),
+    ]
 
     def assert_particle_sample_01(self, data_particle, verify_values=False):
         """
@@ -183,76 +223,24 @@ class HEATTestMixinSub(DriverTestMixin):
 ###############################################################################
 # noinspection PyProtectedMember
 @attr('UNIT', group='mi')
-class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
-    def setUp(self):
-        InstrumentDriverUnitTestCase.setUp(self)
+class DriverUnitTest(BotptDriverUnitTest, HEATTestMixinSub):
+    @staticmethod
+    def my_send(driver):
+        responses = {
+            InstrumentCommand.HEAT_ON: HEAT_ON_COMMAND_RESPONSE,
+            InstrumentCommand.HEAT_OFF: HEAT_OFF_COMMAND_RESPONSE,
+        }
 
-    def _send_port_agent_packet(self, driver, data):
-        ts = ntplib.system_to_ntp_time(time.time())
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(data)
-        port_agent_packet.attach_timestamp(ts)
-        port_agent_packet.pack_header()
+        def inner(data):
+            my_response = None
+            for key in responses:
+                if data.startswith(key): my_response = responses[key]
+            if my_response is not None:
+                log.debug("my_send: data: %s, my_response: %s", data, my_response)
+                driver._protocol._promptbuf += my_response
+                return len(my_response)
 
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
-
-    def test_driver_enums(self):
-        """
-        Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilities
-        """
-        self.assert_enum_has_no_duplicates(DataParticleType())
-        self.assert_enum_has_no_duplicates(ProtocolState())
-        self.assert_enum_has_no_duplicates(ProtocolEvent())
-        self.assert_enum_has_no_duplicates(Parameter())
-        self.assert_enum_has_no_duplicates(InstrumentCommand())
-
-        # Test capabilities for duplicates, them verify that capabilities is a subset of proto events
-        self.assert_enum_has_no_duplicates(Capability())
-        self.assert_enum_complete(Capability(), ProtocolEvent())
-
-    def test_chunker(self):
-        """
-        Test the chunker
-        """
-        chunker = StringChunker(Protocol.sieve_function)
-        self.assert_chunker_sample(chunker, VALID_SAMPLE_01)
-        self.assert_chunker_fragmented_sample(chunker, VALID_SAMPLE_01)
-        self.assert_chunker_sample_with_noise(chunker, VALID_SAMPLE_01)
-        self.assert_chunker_combined_sample(chunker, VALID_SAMPLE_01)
-
-    def test_connect(self, initial_protocol_state=ProtocolState.COMMAND):
-        """
-        Verify driver can transition to the COMMAND state
-        """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, initial_protocol_state)
-        return driver
-
-    def test_data_build_parsed_values(self):
-        """
-        Verify that the BOTPT IRIS driver build_parsed_values method
-        raises SampleException when an invalid sample is encountered
-        and that it returns a result when a valid sample is encountered
-        """
-        items = [
-            (INVALID_SAMPLE, False),
-            (VALID_SAMPLE_01, True),
-            (VALID_SAMPLE_02, True),
-        ]
-
-        for raw_data, is_valid in items:
-            sample_exception = False
-            result = None
-            try:
-                result = HEATDataParticle(raw_data)._build_parsed_values()
-            except SampleException as e:
-                log.debug('SampleException caught: %s.', e)
-                sample_exception = True
-            if is_valid:
-                self.assertFalse(sample_exception)
-                self.assertIsInstance(result, list)
+        return inner
 
     def test_got_data(self):
         """
@@ -264,77 +252,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, HEATTestMixinSub):
         self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
         self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
         self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
-
-    def test_command_responses(self):
-        """
-        Verify that the driver correctly handles the various responses
-        """
-        driver = self.test_connect()
-
-        items = [
-            (HEAT_ON_COMMAND_RESPONSE, ',*2'),
-            (HEAT_OFF_COMMAND_RESPONSE, ',*0'),
-        ]
-
-        for response, expected_prompt in items:
-            log.debug('test_command_response: response: %r expected_prompt: %r', response, expected_prompt)
-            self._send_port_agent_packet(driver, response)
-            self.assertTrue(driver._protocol._get_response(expected_prompt=expected_prompt))
-
-    def test_handlers(self):
-        items = [
-            ('_handler_command_heat_on',
-             ProtocolState.COMMAND,
-             None,
-             HEAT_OFF_COMMAND_RESPONSE + NEWLINE + HEAT_ON_COMMAND_RESPONSE,
-             ',*2'),
-            ('_handler_command_heat_off',
-             ProtocolState.COMMAND,
-             None,
-             HEAT_OFF_COMMAND_RESPONSE,
-             ',*0'),
-        ]
-
-        for handler, initial_state, expected_state, response, prompt in items:
-            def my_send(data):
-                log.debug("my_send: data: %r, response: %r", data, response)
-                driver._protocol._promptbuf += response
-                return len(response)
-
-            driver = self.test_connect(initial_protocol_state=initial_state)
-            driver._connection.send.side_effect = my_send
-            result = getattr(driver._protocol, handler)()
-            log.debug('handler: %r - result: %r expected: %r', handler, result, prompt)
-            next_state = result[0]
-            if type(result[1]) == str:
-                return_value = result[1]
-            else:
-                return_value = result[1][1]
-            self.assertEqual(next_state, expected_state)
-            self.assertTrue(return_value.endswith(prompt))
-
-    def test_direct_access(self):
-        driver = self.test_connect()
-        driver._protocol._handler_direct_access_execute_direct(InstrumentCommand.HEAT_OFF)
-        driver._protocol._handler_direct_access_execute_direct('LILY,BAD_COMMAND_HERE')
-        self.assertEqual(driver._protocol._sent_cmds, [InstrumentCommand.HEAT_OFF])
-
-    def test_protocol_filter_capabilities(self):
-        """
-        This tests driver filter_capabilities.
-        Iterate through available capabilities, and verify that they can pass successfully through the filter.
-        Test silly made up capabilities to verify they are blocked by filter.
-        """
-        mock_callback = Mock()
-        protocol = Protocol(BaseEnum, NEWLINE, mock_callback)
-        driver_capabilities = Capability().list()
-        test_capabilities = Capability().list()
-
-        # Add a bogus capability that will be filtered out.
-        test_capabilities.append("BOGUS_CAPABILITY")
-
-        # Verify "BOGUS_CAPABILITY was filtered out
-        self.assertEquals(sorted(driver_capabilities), sorted(protocol._filter_capabilities(test_capabilities)))
 
 
 ###############################################################################
@@ -468,6 +385,29 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, HEATTestMix
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }
 
+        self.assert_capabilities(capabilities)
+
+        ##################
+        #  DA Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
+
+        self.assert_direct_access_start_telnet()
+        self.assert_capabilities(capabilities)
+        self.assert_direct_access_stop_telnet()
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
         self.assert_capabilities(capabilities)
 
     def test_direct_access_telnet_mode(self):

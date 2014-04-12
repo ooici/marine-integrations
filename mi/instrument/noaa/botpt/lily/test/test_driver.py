@@ -12,8 +12,6 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-from mi.core.common import BaseEnum
-from mi.instrument.noaa.botpt.driver import BotptStatus01ParticleKey, BotptStatus01Particle
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
@@ -21,7 +19,6 @@ __license__ = 'Apache 2.0'
 import time
 
 from nose.plugins.attrib import attr
-from mock import Mock
 
 from mi.core.log import get_logger
 
@@ -37,9 +34,13 @@ from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
 
-from mi.core.instrument.port_agent_client import PortAgentPacket
-
 from mi.core.instrument.chunker import StringChunker
+
+from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import ResourceAgentState
+
+from mi.instrument.noaa.botpt.driver import BotptStatus01ParticleKey, BotptStatus01Particle
+from mi.instrument.noaa.botpt.test.test_driver import BotptDriverUnitTest
 
 from mi.instrument.noaa.botpt.lily.driver import InstrumentDriver, LILYStatus02ParticleKey, LILYStatus02Particle
 from mi.instrument.noaa.botpt.lily.driver import DataParticleType
@@ -63,8 +64,7 @@ from mi.instrument.noaa.botpt.lily.driver import DEFAULT_MAX_XTILT
 from mi.instrument.noaa.botpt.lily.driver import DEFAULT_MAX_YTILT
 from mi.instrument.noaa.botpt.lily.driver import DEFAULT_LEVELING_TIMEOUT
 
-from mi.core.exceptions import SampleException, InstrumentDataException
-from pyon.agent.agent import ResourceAgentState
+from mi.core.exceptions import InstrumentDataException
 
 ###
 #   Driver parameters for the tests
@@ -200,6 +200,15 @@ Y_OUT_OF_RANGE = \
 # methods for validating data particles.                                      #
 ###############################################################################
 class LILYTestMixinSub(DriverTestMixin):
+    _Driver = InstrumentDriver
+    _DataParticleType = DataParticleType
+    _ProtocolState = ProtocolState
+    _ProtocolEvent = ProtocolEvent
+    _DriverParameter = DriverParameter
+    _InstrumentCommand = InstrumentCommand
+    _Capability = Capability
+    _Protocol = Protocol
+
     TYPE = ParameterTestConfigKey.TYPE
     READONLY = ParameterTestConfigKey.READONLY
     STARTUP = ParameterTestConfigKey.STARTUP
@@ -212,7 +221,79 @@ class LILYTestMixinSub(DriverTestMixin):
     _driver_parameters = {
         # Parameters defined in the IOS
         Parameter.AUTO_RELEVEL: {TYPE: bool, READONLY: False, DA: False, STARTUP: False},
+        Parameter.XTILT_TRIGGER: {TYPE: float, READONLY: False, DA: False, STARTUP: False},
+        Parameter.YTILT_TRIGGER: {TYPE: float, READONLY: False, DA: False, STARTUP: False},
+        Parameter.LEVELING_TIMEOUT: {TYPE: int, READONLY: False, DA: False, STARTUP: False},
+        Parameter.LEVELING_FAILED: {TYPE: bool, READONLY: True, DA: False, STARTUP: False},
     }
+
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        Capability.ACQUIRE_STATUS: {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.START_AUTOSAMPLE: {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_AUTOSAMPLE: {STATES: [ProtocolState.AUTOSAMPLE]},
+        Capability.START_LEVELING: {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.STOP_LEVELING: {STATES: [ProtocolState.COMMAND_LEVELING, ProtocolState.AUTOSAMPLE_LEVELING]},
+    }
+
+    _capabilities = {
+        ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
+        ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_STATUS',
+                                'DRIVER_EVENT_GET',
+                                'DRIVER_EVENT_SET',
+                                'DRIVER_EVENT_START_AUTOSAMPLE',
+                                'DRIVER_EVENT_START_DIRECT',
+                                'EXPORTED_INSTRUMENT_START_LEVELING'],
+        ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                   'DRIVER_EVENT_ACQUIRE_STATUS',
+                                   'DRIVER_EVENT_GET',
+                                   'DRIVER_EVENT_SET',
+                                   'DRIVER_EVENT_START_DIRECT',
+                                   'EXPORTED_INSTRUMENT_START_LEVELING'],
+        ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
+                                      'EXECUTE_DIRECT'],
+        ProtocolState.COMMAND_LEVELING: ['EXPORTED_INSTRUMENT_STOP_LEVELING',
+                                         'DRIVER_EVENT_GET',
+                                         'DRIVER_EVENT_SET',
+                                         'PROTOCOL_EVENT_LEVELING_TIMEOUT'],
+        ProtocolState.AUTOSAMPLE_LEVELING: ['EXPORTED_INSTRUMENT_STOP_LEVELING',
+                                            'DRIVER_EVENT_GET',
+                                            'DRIVER_EVENT_SET',
+                                            'PROTOCOL_EVENT_LEVELING_TIMEOUT']
+    }
+
+    _sample_chunks = [LEVELED_STATUS, VALID_SAMPLE_01, VALID_SAMPLE_02, DUMP_01_STATUS, DUMP_02_STATUS]
+
+    _build_parsed_values_items = [
+        (INVALID_SAMPLE, LILYDataParticle, False),
+        (VALID_SAMPLE_01, LILYDataParticle, False),
+        (VALID_SAMPLE_02, LILYDataParticle, False),
+        (DUMP_01_STATUS, BotptStatus01Particle, True),
+        (DUMP_02_STATUS, LILYStatus02Particle, True),
+    ]
+
+    _command_response_items = [
+        (DATA_ON_COMMAND_RESPONSE, LILY_DATA_ON),
+        (DATA_OFF_COMMAND_RESPONSE, LILY_DATA_OFF),
+        (DUMP_01_COMMAND_RESPONSE, LILY_DUMP_01),
+        (DUMP_02_COMMAND_RESPONSE, LILY_DUMP_02),
+        (START_LEVELING_COMMAND_RESPONSE, LILY_LEVEL_ON),
+        (STOP_LEVELING_COMMAND_RESPONSE, LILY_LEVEL_OFF),
+    ]
+
+    _test_handlers_items = [
+        ('_handler_command_start_autosample', ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE, LILY_DATA_ON),
+        ('_handler_autosample_stop_autosample', ProtocolState.AUTOSAMPLE, ProtocolState.COMMAND, LILY_DATA_OFF),
+        ('_handler_command_autosample_acquire_status', ProtocolState.COMMAND, None, LILY_DUMP_02),
+        ('_handler_autosample_start_leveling', ProtocolState.AUTOSAMPLE,
+         ProtocolState.AUTOSAMPLE_LEVELING, LILY_LEVEL_ON),
+        ('_handler_stop_leveling', ProtocolState.AUTOSAMPLE_LEVELING,
+         ProtocolState.AUTOSAMPLE, LILY_DATA_ON),
+        ('_handler_command_start_leveling', ProtocolState.COMMAND,
+         ProtocolState.COMMAND_LEVELING, LILY_LEVEL_ON),
+        ('_handler_stop_leveling', ProtocolState.COMMAND_LEVELING,
+         ProtocolState.COMMAND, LILY_LEVEL_OFF),
+    ]
 
     _sample_parameters_01 = {
         LILYDataParticleKey.TIME: {TYPE: float, VALUE: 3581130962.0, REQUIRED: True},
@@ -358,7 +439,7 @@ class LILYTestMixinSub(DriverTestMixin):
 ###############################################################################
 # noinspection PyProtectedMember,PyUnusedLocal
 @attr('UNIT', group='mi')
-class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
+class DriverUnitTest(BotptDriverUnitTest, LILYTestMixinSub):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
@@ -386,48 +467,17 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         return inner
 
-    def _send_port_agent_packet(self, driver, data):
-        port_agent_packet = PortAgentPacket()
-        port_agent_packet.attach_data(data)
-        port_agent_packet.attach_timestamp(self.get_ntp_timestamp())
-        port_agent_packet.pack_header()
-        # Push the response into the driver
-        driver._protocol.got_data(port_agent_packet)
+    def test_got_data(self):
+        """
+        Verify sample data passed through the got data method produces the correct data particles
+        """
+        driver = self.test_connect()
 
-    def test_connect(self, initial_protocol_state=ProtocolState.COMMAND):
-        """
-        Test driver can change state to COMMAND
-        """
-        driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver, initial_protocol_state)
-        return driver
-
-    def test_driver_enums(self):
-        """
-        Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilities
-        """
-        self.assert_enum_has_no_duplicates(DataParticleType())
-        self.assert_enum_has_no_duplicates(ProtocolState())
-        self.assert_enum_has_no_duplicates(ProtocolEvent())
-        self.assert_enum_has_no_duplicates(Parameter())
-        self.assert_enum_has_no_duplicates(InstrumentCommand())
-
-        # Test capabilities for duplicates, then verify that capabilities is a subset of protocol events
-        self.assert_enum_has_no_duplicates(Capability())
-        self.assert_enum_complete(Capability(), ProtocolEvent())
-
-    def test_chunker(self):
-        """
-        Test the chunker and verify the particles created.
-        """
-        chunker = StringChunker(Protocol.sieve_function)
-
-        for sample in [LEVELED_STATUS, VALID_SAMPLE_01, VALID_SAMPLE_02, DUMP_01_STATUS, DUMP_02_STATUS]:
-            self.assert_chunker_sample(chunker, sample)
-            self.assert_chunker_fragmented_sample(chunker, sample)
-            self.assert_chunker_combined_sample(chunker, sample)
-            self.assert_chunker_sample_with_noise(chunker, sample)
+        self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
+        self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
+        self.assert_particle_published(driver, DUMP_01_STATUS, self.assert_particle_status_01, True)
+        self.assert_particle_published(driver, DUMP_02_STATUS, self.assert_particle_status_02, True)
+        self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
 
     def test_get_handler(self):
         driver = self.test_connect()
@@ -477,58 +527,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
 
         (timestamp, result) = chunker.get_next_data()
         self.assertEqual(result, None)
-
-    def test_data_build_parsed_values(self):
-        """
-        Verify that the BOTPT LILY driver build_parsed_values method
-        raises SampleException when an invalid sample is encountered
-        and that it returns a result when a valid sample is encountered
-        """
-        driver = self.test_connect()
-
-        items = [
-            (INVALID_SAMPLE, LILYDataParticle, False),
-            (VALID_SAMPLE_01, LILYDataParticle, True),
-            (VALID_SAMPLE_02, LILYDataParticle, True),
-            (DUMP_01_STATUS, BotptStatus01Particle, True),
-            (DUMP_02_STATUS, LILYStatus02Particle, True),
-        ]
-
-        for raw_data, particle_class, is_valid in items:
-            sample_exception = False
-            result = None
-            try:
-                test_particle = particle_class(raw_data, False)
-                result = test_particle._build_parsed_values()
-            except SampleException as e:
-                log.debug('SampleException caught: %s.', e)
-                sample_exception = True
-            finally:
-                if is_valid:
-                    self.assertFalse(sample_exception)
-                    self.assertTrue(isinstance(result, list))
-                else:
-                    self.assertTrue(sample_exception)
-
-    def test_got_data(self):
-        """
-        Verify sample data passed through the got data method produces the correct data particles
-        """
-        driver = self.test_connect()
-
-        self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
-        self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
-        self.assert_particle_published(driver, DUMP_01_STATUS, self.assert_particle_status_01, True)
-        self.assert_particle_published(driver, DUMP_02_STATUS, self.assert_particle_status_02, True)
-
-    def test_firehose(self):
-        """
-        Verify sample data passed through the got data method produces the correct data particles
-        Verify that the BOTPT LILY driver publishes a particle correctly when the LILY packet is
-        embedded in the stream of other BOTPT sensor output.
-        """
-        driver = self.test_connect()
-        self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
 
     def test_data_on_response(self):
         """
@@ -655,24 +653,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, LILYTestMixinSub):
             self.assertFalse(driver._protocol._param_dict.get(Parameter.AUTO_RELEVEL))
         self.assertEqual(driver._protocol.get_current_state(), ProtocolState.COMMAND)
 
-    def test_protocol_filter_capabilities(self):
-        """
-        This tests driver filter_capabilities.
-        Iterate through available capabilities, and verify that they can pass successfully through the filter.
-        Test silly made up capabilities to verify they are blocked by filter.
-        """
-        mock_callback = Mock()
-        protocol = Protocol(BaseEnum, NEWLINE, mock_callback)
-        driver_capabilities = Capability().list()
-        test_capabilities = Capability().list()
-
-        # Add a bogus capability that will be filtered out.
-        test_capabilities.append("BOGUS_CAPABILITY")
-
-        # Verify "BOGUS_CAPABILITY was filtered out
-        self.assertEquals(sorted(driver_capabilities),
-                          sorted(protocol._filter_capabilities(test_capabilities)))
-
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -761,20 +741,20 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, LILYTestMixinSu
         self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
 
         # set the leveling timeout low, so we're not here for long
-        self.assert_set(Parameter.LEVELING_TIMEOUT, 5)
+        self.assert_set(Parameter.LEVELING_TIMEOUT, 5, no_get=True)
 
         # Set the XTILT to a low threshold so that the driver will
         # automatically start the re-leveling operation
         # NOTE: This test MAY fail if the instrument completes
         # leveling before the triggers have been reset to 300
-        self.assert_set(Parameter.XTILT_TRIGGER, 0)
+        self.assert_set(Parameter.XTILT_TRIGGER, 0, no_get=True)
 
         # verify we have started leveling
         self.assert_state_change(ProtocolState.AUTOSAMPLE_LEVELING, 30)
 
         # Now set the XTILT back to normal so that the driver will not
         # automatically start the re-leveling operation
-        self.assert_set(Parameter.XTILT_TRIGGER, 300)
+        self.assert_set(Parameter.XTILT_TRIGGER, 300, no_get=True)
 
         self.assert_state_change(ProtocolState.AUTOSAMPLE, 30)
 
@@ -829,10 +809,31 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, LILYTestMix
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    def test_poll(self):
-        """
-        No polling for a single sample
-        """
+    def assert_cycle(self):
+        self.assert_start_autosample()
+        self.assert_particle_async(DataParticleType.LILY_PARSED, self.assert_particle_sample_01)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status_01,
+                                    DataParticleType.LILY_STATUS_01, sample_count=1, timeout=5)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status_02,
+                                    DataParticleType.LILY_STATUS_02, sample_count=1, timeout=5)
+
+        self.assert_stop_autosample()
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status_01,
+                                    DataParticleType.LILY_STATUS_01, sample_count=1, timeout=5)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status_02,
+                                    DataParticleType.LILY_STATUS_02, sample_count=1, timeout=5)
+
+    def test_cycle(self):
+        self.assert_enter_command_mode()
+        for x in range(4):
+            log.debug('test_cycle -- PASS %d', x + 1)
+            self.assert_cycle()
+
+    def test_leveling(self):
+        self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.LEVELING_TIMEOUT, 5, False)
+        self.assert_agent_command(Capability.START_LEVELING)
+        self.assert_enter_command_mode(10)
 
     def test_get_set_parameters(self):
         """
@@ -840,6 +841,11 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, LILYTestMix
         ensuring that read only parameters fail on set.
         """
         self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.LEVELING_TIMEOUT, 5)
+        self.assert_set_parameter(Parameter.AUTO_RELEVEL, False)
+        self.assert_set_parameter(Parameter.XTILT_TRIGGER, 200)
+        self.assert_set_parameter(Parameter.YTILT_TRIGGER, 200)
+        self.assert_read_only_parameter(Parameter.LEVELING_FAILED, True)
 
     def test_get_capabilities(self):
         """
@@ -883,3 +889,26 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, LILYTestMix
         self.assert_start_autosample()
         self.assert_capabilities(capabilities)
         self.assert_stop_autosample()
+
+        ##################
+        #  DA Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
+
+        self.assert_direct_access_start_telnet()
+        self.assert_capabilities(capabilities)
+        self.assert_direct_access_stop_telnet()
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_capabilities(capabilities)

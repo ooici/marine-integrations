@@ -30,7 +30,6 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.data_particle import DataParticle
@@ -298,8 +297,7 @@ class Protocol(BotptProtocol):
             for event, handler in handlers[state]:
                 self._protocol_fsm.add_handler(state, event, handler)
 
-        # Construct the parameter dictionary containing device parameters,
-        # current parameter values, and set formatting functions.
+        self._build_command_dict()
         self._build_param_dict()
 
         # Add build handlers for device commands.
@@ -340,12 +338,12 @@ class Protocol(BotptProtocol):
 
         return return_list
 
-    def _build_cmd_dict(self):
+    def _build_command_dict(self):
         """
-        Populate the command dictionary with NOAA HEAT Driver metadata information. 
-        Currently HEAT only supports HEAT_ON and HEAT_OFF.
+        Populate the command dictionary with command.
         """
-        self._cmd_dict = ProtocolCommandDict()
+        self._cmd_dict.add(Capability.HEAT_ON, display_name="turn heater on")
+        self._cmd_dict.add(Capability.HEAT_OFF, display_name="turn heater off")
 
     def _build_param_dict(self):
         """

@@ -31,7 +31,6 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
@@ -380,6 +379,7 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.EXIT, self._handler_autosample_exit),
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
+                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -407,12 +407,11 @@ class Protocol(BotptProtocol):
             self._add_build_handler(command, self._build_command)
 
         # Add response handlers for device commands.
-        self._add_response_handler(InstrumentCommand.DATA_ON, self._resp_handler)
-        self._add_response_handler(InstrumentCommand.DATA_OFF, self._resp_handler)
-        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_01, self._resp_handler)
-        self._add_response_handler(InstrumentCommand.DUMP_SETTINGS_02, self._resp_handler)
+        for command in InstrumentCommand.list():
+            self._add_response_handler(command, self._resp_handler)
 
-        # Add sample handlers.
+        self._build_command_dict()
+        self._build_param_dict()
 
         # Start state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -450,12 +449,16 @@ class Protocol(BotptProtocol):
         events_out = [x for x in events if Capability.has(x)]
         return events_out
 
-    def _build_cmd_dict(self):
+    def _build_command_dict(self):
         """
-        Populate the command dictionary with NOAA IRIS Driver metadata information. 
-        Currently IRIS only supports DATA_ON and DATA_OFF.
+        Populate the command dictionary with command.
         """
-        self._cmd_dict = ProtocolCommandDict()
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
+
+    def _build_param_dict(self):
+        pass
 
     def _got_chunk(self, chunk, timestamp):
         """

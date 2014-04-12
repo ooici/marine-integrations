@@ -52,6 +52,7 @@ class ProtocolState(BaseEnum):
     """
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
+    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 
 
 class ProtocolEvent(BaseEnum):
@@ -64,6 +65,9 @@ class ProtocolEvent(BaseEnum):
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    START_DIRECT = DriverEvent.START_DIRECT
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
 
 
 class Capability(BaseEnum):
@@ -331,6 +335,13 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.GET, self._handler_command_get),
                 (ProtocolEvent.SET, self._handler_command_set),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status),
+                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
+            ],
+            ProtocolState.DIRECT_ACCESS: [
+                (ProtocolEvent.ENTER, self._handler_direct_access_enter),
+                (ProtocolEvent.EXIT, self._handler_direct_access_exit),
+                (ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct),
+                (ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct),
             ]
         }
         for state in handlers:
@@ -339,9 +350,12 @@ class Protocol(BotptProtocol):
 
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCommand.ACQUIRE_STATUS, self._build_command)
+        self._add_response_handler(InstrumentCommand.ACQUIRE_STATUS, self._resp_handler)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
+
+        self._build_command_dict()
 
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
@@ -380,11 +394,21 @@ class Protocol(BotptProtocol):
         if not self._extract_sample(SYSTStatusParticle, SYSTStatusParticle.regex_compiled(), chunk, ts):
             raise InstrumentProtocolException('Unhandled chunk: %r', chunk)
 
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
+
     def _filter_capabilities(self, events):
         """
         Return a list of currently available capabilities.
         """
         return [x for x in events if Capability.has(x)]
+
+    def _resp_handler(self, response, prompt):
+        log.debug('_resp_handler - response: %r prompt: %r', response, prompt)
+        return response
 
     ########################################################################
     # Unknown handlers.
@@ -395,7 +419,7 @@ class Protocol(BotptProtocol):
         Always in COMMAND
         """
         next_state = ProtocolState.COMMAND
-        result = ResourceAgentState.COMMAND
+        result = ResourceAgentState.IDLE
 
         return next_state, result
 

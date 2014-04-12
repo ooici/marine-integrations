@@ -31,7 +31,6 @@ from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
@@ -66,6 +65,7 @@ class ProtocolState(BaseEnum):
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
+    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
 
 
 class ExportedInstrumentCommand(BaseEnum):
@@ -87,6 +87,9 @@ class ProtocolEvent(BaseEnum):
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
     SET_TIME = ExportedInstrumentCommand.SET_TIME
     SET_RATE = ExportedInstrumentCommand.SET_RATE
+    START_DIRECT = DriverEvent.START_DIRECT
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
 
 
 class Capability(BaseEnum):
@@ -680,6 +683,7 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.SET_TIME, self._handler_command_autosample_set_time),
+                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -689,6 +693,13 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.SET_TIME, self._handler_command_autosample_set_time),
                 (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
+                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
+            ],
+            ProtocolState.DIRECT_ACCESS: [
+                (ProtocolEvent.ENTER, self._handler_direct_access_enter),
+                (ProtocolEvent.EXIT, self._handler_direct_access_exit),
+                (ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct),
+                (ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct),
             ],
         }
 
@@ -699,6 +710,7 @@ class Protocol(BotptProtocol):
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
+        self._build_command_dict()
 
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCommand.DATA_ON, self._build_command)
@@ -776,12 +788,14 @@ class Protocol(BotptProtocol):
         events_out = [x for x in events if Capability.has(x)]
         return events_out
 
-    def _build_cmd_dict(self):
+    def _build_command_dict(self):
         """
-        Populate the command dictionary with NOAA NANO Driver metadata information. 
-        Currently NANO only supports DATA_ON and DATA_OFF.
+        Populate the command dictionary with command.
         """
-        self._cmd_dict = ProtocolCommandDict()
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
+        self._cmd_dict.add(Capability.SET_TIME, display_name="set time from sbc")
 
     def _build_param_dict(self):
         """
@@ -844,7 +858,7 @@ class Protocol(BotptProtocol):
         # Attempt to find a line containing a NANO sample
         # If a sample is found, go to AUTOSAMPLE, otherwise COMMAND
         next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        next_agent_state = ResourceAgentState.IDLE
         result = None
         try:
             response = self._get_response(timeout=1, response_regex=self.data_regex)
