@@ -18,6 +18,7 @@ import string
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum
+from mi.core.util import dict_equal
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.data_particle import DataParticleKey, CommonDataParticleType
 from mi.core.instrument.instrument_fsm import InstrumentFSM
@@ -61,6 +62,7 @@ class ScheduledJob(BaseEnum):
 #TODO:Re-visit what commands need to be implemented
 class Command(BaseEnum):
 
+        DS = 'ds'
         GET_CD = 'GetCD'
         GET_SD = 'GetSD'
         GET_CC = 'GetCC'
@@ -82,10 +84,6 @@ class Parameter(DriverParameter):
     Device specific parameters for SBE19.
     """
     DATE_TIME = "DateTime"
-
-    #TODO: do we need this?
-    LOGGING = "logging"
-
     ECHO = "Echo"
     OUTPUT_EXEC_TAG = 'OutputExecutedTag'
     PTYPE = "PType"
@@ -98,20 +96,17 @@ class Parameter(DriverParameter):
     SBE38 = "SBE38"
     WETLABS = "WetLabs"
     GTD = "GTD"
-    DUAL_GTD = "DUAL_GTD"
-    TGTD = "TGTD"
-    SEND_GTD = "SendGTD"
+    DUAL_GTD = "DualGTD"
     OPTODE = "OPTODE"
-    SEND_OPTODE = "SendOptode"
     OUTPUT_FORMAT = "OutputFormat"
-    PROFILING_MODE = "MP"
     NUM_AVG_SAMPLES = "Navg"
     MIN_COND_FREQ = "MinCondFreq"
     PUMP_DELAY = "PumpDelay"
     AUTO_RUN = "AutoRun"
     IGNORE_SWITCH = "IgnoreSwitch"
+    LOGGING = "logging"
 
-#TODO: do we need a Confirmed Parameter class like the other driver?
+
 class ConfirmedParameter(BaseEnum):
     """
     List of all parameters that require confirmation
@@ -120,6 +115,7 @@ class ConfirmedParameter(BaseEnum):
     PTYPE    =  Parameter.PTYPE
     SBE38    =  Parameter.SBE38
     GTD      =  Parameter.GTD
+    DUAL_GTD =  Parameter.DUAL_GTD
     OPTODE   =  Parameter.OPTODE
     WETLABS  =  Parameter.WETLABS
     VOLT0    =  Parameter.VOLT0
@@ -927,7 +923,9 @@ class SBE19Protocol(SBE16Protocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_CONFIGURATION, self._handler_command_get_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.RESET_EC, self._handler_command_reset_ec)
+
+        #TODO: does reset need to be implemented?
+        #self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.RESET_EC, self._handler_command_reset_ec)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
@@ -960,6 +958,7 @@ class SBE19Protocol(SBE16Protocol):
 
         # Add build handlers for device commands.
 
+        self._add_build_handler(Command.DS, self._build_simple_command)
         self._add_build_handler(Command.GET_CD, self._build_simple_command)
         self._add_build_handler(Command.GET_SD, self._build_simple_command)
         self._add_build_handler(Command.GET_CC, self._build_simple_command)
@@ -978,6 +977,7 @@ class SBE19Protocol(SBE16Protocol):
 
         # Add response handlers for device commands.
         # these are here to ensure that correct responses to the commands are received before the next command is sent
+        self._add_response_handler(Command.DS, self._parse_dsdc_response)
         self._add_response_handler(Command.SET, self._parse_set_response)
         self._add_response_handler(Command.GET_SD, self._validate_GetSD_response)
         self._add_response_handler(Command.GET_HD, self._validate_GetHD_response)
@@ -1044,6 +1044,35 @@ class SBE19Protocol(SBE16Protocol):
         log.debug("set complete, update params")
         self._update_params()
 
+    def _handler_unknown_discover(self, *args, **kwargs):
+        """
+        Discover current state; can be COMMAND or AUTOSAMPLE.
+        @retval (next_state, next_agent_state), (ProtocolState.COMMAND or
+        SBE16State.AUTOSAMPLE, next_agent_state) if successful.
+        @throws InstrumentTimeoutException if the device cannot be woken.
+        @throws InstrumentProtocolException if the device response does not correspond to
+        an expected state.
+        """
+        next_state = None
+        next_agent_state = None
+
+        log.debug("_handler_unknown_discover")
+
+        logging = self._is_logging(*args, **kwargs)
+        log.debug("are we logging? %s", logging)
+
+        if(logging == None):
+            raise InstrumentProtocolException('_handler_unknown_discover - unable to to determine state')
+        elif(logging == True):
+            next_state = ProtocolState.AUTOSAMPLE
+            next_agent_state = ResourceAgentState.STREAMING
+        else:
+            next_state = ProtocolState.COMMAND
+            next_agent_state = ResourceAgentState.IDLE
+
+        log.debug("_handler_unknown_discover. result start: %s", next_state)
+        return (next_state, next_agent_state)
+
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Switch into autosample mode.
@@ -1096,14 +1125,16 @@ class SBE19Protocol(SBE16Protocol):
 
         #TODO: next line is test code - remove!
         result = '';
-        #result = self._do_cmd_resp(Command.GET_SD, timeout=TIMEOUT)
-        #log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
-        #result += self._do_cmd_resp(Command.GET_HD, timeout=TIMEOUT)
-        #log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CD, timeout=TIMEOUT)
-        log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
-        #result += self._do_cmd_resp(Command.GET_CC, timeout=TIMEOUT)
-        #log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
+        result = self._do_cmd_resp(Command.GET_SD, timeout=TIMEOUT)
+        log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
+        result += self._do_cmd_resp(Command.GET_HD, timeout=TIMEOUT)
+        log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
+
+        #TODO: test for getCD fails
+        #result += self._do_cmd_resp(Command.GET_CD, timeout=TIMEOUT)
+        #log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
+        result += self._do_cmd_resp(Command.GET_CC, timeout=TIMEOUT)
+        log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
 
         return (next_state, (next_agent_state, result))
 
@@ -1155,7 +1186,65 @@ class SBE19Protocol(SBE16Protocol):
 
         return (next_state, (next_agent_state, result))
 
-    #can't override this method as our Command set is different
+    # need to override this method as time format for SBE19 is different
+    def _handler_command_clock_sync_clock(self, *args, **kwargs):
+        """
+        sync clock close to a second edge
+        @retval (next_state, result) tuple, (None, None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT)
+
+        self._sync_clock(Command.SET, Parameter.DATE_TIME, TIMEOUT, time_format="%Y-%m-%dT%H:%M:%S")
+
+        return (next_state, (next_agent_state, result))
+
+    # need to override this method as time format for SBE19 is different
+    def _handler_autosample_clock_sync(self, *args, **kwargs):
+        """
+        execute a clock sync on the leading edge of a second change from
+        autosample mode.  For this command we have to move the instrument
+        into command mode, do the clock sync, then switch back.  If an
+        exception is thrown we will try to get ourselves back into
+        streaming and then raise that exception.
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+        error = None
+
+        try:
+            # Switch to command mode,
+            self._stop_logging(*args, **kwargs)
+
+            # Sync the clock
+            self._sync_clock(Command.SET, Parameter.DATE_TIME, TIMEOUT, time_format="%Y-%m-%dT%H:%M:%S")
+
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            error = e
+
+        finally:
+            # Switch back to streaming
+            self._start_logging(*args, **kwargs)
+
+        if(error):
+            raise error
+
+        return (next_state, (next_agent_state, result))
+
+    #need to override this method as our Command set is different
     def _start_logging(self, *args, **kwargs):
         """
         Command the instrument to start logging
@@ -1171,8 +1260,8 @@ class SBE19Protocol(SBE16Protocol):
         time.sleep(2)
 
         #TODO: uncomment below once is_logging is in shape!!
-        #if not self._is_logging(20):
-        #    raise InstrumentProtocolException("failed to start logging")
+        if not self._is_logging(20):
+            raise InstrumentProtocolException("failed to start logging")
 
         return True
 
@@ -1214,15 +1303,102 @@ class SBE19Protocol(SBE16Protocol):
                  None - unknown logging state
         @raise: InstrumentProtocolException if we can't identify the prompt
         """
-        #basetime = self._param_dict.get_current_timestamp()
+        basetime = self._param_dict.get_current_timestamp()
 
-        #prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
-        #self._update_params()
+        self._update_params()
 
-        #pd = self._param_dict.get_all(basetime)
-        #return pd.get(Parameter.LOGGING)
-        return False
+        pd = self._param_dict.get_all(basetime)
+        return pd.get(Parameter.LOGGING)
+
+
+    def _update_params(self, *args, **kwargs):
+        """
+        Update the parameter dictionary. Wake the device then issue
+        display status and display calibration commands. The parameter
+        dict will match line output and udpate itself.
+        @throws InstrumentTimeoutException if device cannot be timely woken.
+        @throws InstrumentProtocolException if ds/dc misunderstood.
+        """
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+
+        # For some reason when in streaming we require a second wakeup
+        prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
+
+        # Get old param dict config.
+        old_config = self._param_dict.get_config()
+        baseline = self._param_dict.get_current_timestamp()
+
+        # Issue display commands and parse results.
+        log.debug("device status from _update_params")
+        self._do_cmd_resp(Command.DS, timeout=TIMEOUT)
+
+        # Get new param dict config. If it differs from the old config,
+        # tell driver superclass to publish a config change event.
+        new_config = self._param_dict.get_config()
+
+        ###
+        # The 16plus V2 responds only to GetCD, GetSD, GetCC, GetEC,
+        # ResetEC, GetHD, DS, DCal, TS, SL, SLT, GetLastSamples:x, QS, and
+        # Stop while sampling autonomously. If you wake the 16plus V2 while it is
+        # sampling autonomously (for example, to send DS to check on progress), it
+        # temporarily stops sampling. Autonomous sampling resumes when it
+        ###
+        #if(self._param_dict.get(Parameter.LOGGING, baseline)):
+        #    log.debug("Sending QS to resume logging")
+        #    self._do_cmd_no_resp(Command.QS, timeout=TIMEOUT)
+
+        log.debug("Old Config: %s", old_config)
+        log.debug("New Config: %s", new_config)
+        if not dict_equal(new_config, old_config) and self._protocol_fsm.get_current_state() != ProtocolState.UNKNOWN:
+            log.debug("parameters updated, sending event")
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        else:
+            log.debug("no configuration change.")
+
+
+    def _build_set_command(self, cmd, param, val):
+        """
+        Build handler for set commands. param=val followed by newline.
+        String val constructed by param dict formatting function.
+        @param param the parameter key to set.
+        @param val the parameter value to set.
+        @ retval The set command to be sent to the device.
+        @throws InstrumentProtocolException if the parameter is not valid or
+        if the formatting function could not accept the value passed.
+        """
+        try:
+            str_val = self._param_dict.format(param, val)
+
+            set_cmd = '%s=%s' % (param, str_val)
+            set_cmd = set_cmd + NEWLINE
+
+            # Some set commands need to be sent twice to confirm
+            if(param in ConfirmedParameter.list()):
+                set_cmd = set_cmd + set_cmd
+
+        except KeyError:
+            raise InstrumentParameterException('Unknown driver parameter %s' % param)
+
+        return set_cmd
+
+
+    def _parse_dsdc_response(self, response, prompt):
+        """
+        Parse handler for dsdc commands.
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if dsdc command misunderstood.
+        """
+        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
+            raise InstrumentProtocolException('dsdc command not recognized: %s.' % response)
+
+        for line in response.split(NEWLINE):
+            self._param_dict.update(line)
+
+        return response
+
 
     ########################################################################
     # response handlers.
@@ -1351,19 +1527,26 @@ class SBE19Protocol(SBE16Protocol):
         # Add parameter handlers to parameter dict.
 
         #TODO: re-visit visibility for all parameters once IOS is in good shape
-        #TODO: parse XML tags or DS-like output?
 
-        #TODO: verify if this lambda function is correct, check for completeness of DATE_TIME
+        #TODO: is DATE_TIME needed?
+        #self._param_dict.add(Parameter.DATE_TIME,
+        #                     r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})',
+        #                     lambda match : match,
+        #                     self._date_time_string_to_numeric,
+        #                     type=ParameterDictType.STRING,
+        #                     display_name="Date/Time",
+        #                     #expiration=0,
+        #                     visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.DATE_TIME,
-                             r'(\d{4})-(\d{2})-(\d{2})T(\d{2})\:(\d{2})\:(\d{2})',
-                             lambda match : match,
+                             r'SBE 19plus V ([\w.]+) +SERIAL NO. (\d+) +(\d{2} [a-zA-Z]{3,4} \d{4} +[\d:]+)',
+                             lambda match : string.upper(match.group(3)),
                              self._string_to_numeric_date_time_string,
                              type=ParameterDictType.STRING,
                              display_name="Date/Time",
                              #expiration=0,
-                             visibility=ParameterDictVisibility.READ_WRITE)
+                             visibility=ParameterDictVisibility.READ_ONLY)
         self._param_dict.add(Parameter.ECHO,
-                             r'<EchoCharacters>(yes|no)</EchoCharacters>',
+                             r'echo characters = (yes|no)',
                              lambda match : True if match.group(1)=='yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1373,18 +1556,16 @@ class SBE19Protocol(SBE16Protocol):
                              default_value = False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.LOGGING,
-                             r'<LoggingState>(not )?logging</LoggingState>',
+                             r'status = (not )?logging',
                              lambda match : False if (match.group(1)) else True,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Is Logging",
                              #expiration=0,
                              visibility=ParameterDictVisibility.READ_ONLY)
-
-        #TODO: RegEx for this one?
         self._param_dict.add(Parameter.OUTPUT_EXEC_TAG,
                              r'.',
-                             lambda match : True,
+                             lambda match : False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
                              display_name="Output Execute Tag",
@@ -1392,12 +1573,10 @@ class SBE19Protocol(SBE16Protocol):
                              direct_access = True,
                              default_value = False,
                              visibility=ParameterDictVisibility.READ_WRITE)
-
-        #TODO: RegEx for this one? This should always be 1
         self._param_dict.add(Parameter.PTYPE,
-                             r'',
-                             1,
-                             self._int_to_string,
+                             r'pressure sensor = ([\w\s]+),',
+                             self._pressure_sensor_to_int,
+                             str,
                              type=ParameterDictType.INT,
                              display_name="Pressure Sensor Type",
                              startup_param = True,
@@ -1408,7 +1587,7 @@ class SBE19Protocol(SBE16Protocol):
         #TODO: default value is conditional for Volt0 and Volt1
         #Current defaults assume Anderra Optode
         self._param_dict.add(Parameter.VOLT0,
-                             r'<ExtVolt0>([\w]+)</ExtVolt0>',
+                             r'Ext Volt 0 = ([\w]+)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1418,7 +1597,7 @@ class SBE19Protocol(SBE16Protocol):
                              default_value = True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.VOLT1,
-                             r'<ExtVolt1>([\w]+)</ExtVolt1>',
+                             r'Ext Volt 1 = ([\w]+)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1428,7 +1607,7 @@ class SBE19Protocol(SBE16Protocol):
                              default_value = True,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.VOLT2,
-                             r'<ExtVolt2>([\w]+)</ExtVolt2>',
+                             r'Ext Volt 2 = ([\w]+)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1438,7 +1617,7 @@ class SBE19Protocol(SBE16Protocol):
                              default_value = False,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.VOLT3,
-                             r'<ExtVolt3>([\w]+)</ExtVolt3>',
+                             r'Ext Volt 3 = ([\w]+)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1448,7 +1627,7 @@ class SBE19Protocol(SBE16Protocol):
                              default_value = False,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.VOLT4,
-                             r'<ExtVolt4>([\w]+)</ExtVolt4>',
+                             r'Ext Volt 4 = ([\w]+)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1458,7 +1637,7 @@ class SBE19Protocol(SBE16Protocol):
                              default_value = False,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.VOLT5,
-                             r'<ExtVolt5>([\w]+)</ExtVolt5>',
+                             r'Ext Volt 5 = ([\w]+)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1468,7 +1647,7 @@ class SBE19Protocol(SBE16Protocol):
                              default_value = False,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.SBE38,
-                             r'<SBE38>(yes|no)</SBE38>',
+                             r'SBE 38 = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1478,7 +1657,7 @@ class SBE19Protocol(SBE16Protocol):
                              default_value = False,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.WETLABS,
-                             r'<WETLABS>(yes|no)</WETLABS>',
+                             r'WETLABS = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1488,7 +1667,7 @@ class SBE19Protocol(SBE16Protocol):
                              default_value = False,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.GTD,
-                             r'<GTD>(yes|no)</GTD>',
+                             r'Gas Tension Device = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1498,7 +1677,7 @@ class SBE19Protocol(SBE16Protocol):
                              default_value = False,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.DUAL_GTD,
-                             r'<DualGTD>(yes|no)</DualGTD>',
+                             r'Gas Tension Device = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1507,20 +1686,10 @@ class SBE19Protocol(SBE16Protocol):
                              direct_access = True,
                              default_value = False,
                              visibility=ParameterDictVisibility.READ_WRITE)
-        self._param_dict.add(Parameter.TGTD,
-                             r'<TGTD>(yes|no)</TGTD>',
-                             lambda match : True if match.group(1) == 'yes' else False,
-                             self._true_false_to_string,
-                             type=ParameterDictType.BOOL,
-                             display_name="GTD Attached",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = False,
-                             visibility=ParameterDictVisibility.READ_WRITE)
 
         #TODO: This assumes we have Anderra Optode
         self._param_dict.add(Parameter.OPTODE,
-                             r'<OPTODE>(yes|no)</OPTODE>',
+                             r'OPTODE = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1529,10 +1698,8 @@ class SBE19Protocol(SBE16Protocol):
                              direct_access = True,
                              default_value = True,
                              visibility=ParameterDictVisibility.READ_WRITE)
-
-
         self._param_dict.add(Parameter.OUTPUT_FORMAT,
-                             r'<OutputFormat>([\w]+)</OutputFormat>',
+                             r'output format = (raw HEX)',
                              self._output_format_string_2_int,
                              int,
                              type=ParameterDictType.INT,
@@ -1541,42 +1708,38 @@ class SBE19Protocol(SBE16Protocol):
                              direct_access = True,
                              default_value = 0,
                              visibility=ParameterDictVisibility.READ_WRITE)
-
         self._param_dict.add(Parameter.NUM_AVG_SAMPLES,
-                             r'<ScansToAverage>([\d]+)</ScansToAverage>',
-                             lambda match : match.group(1),
-                             self._int_to_string,
+                             r'number of scans to average = ([\d]+)',
+                             lambda match : int(match.group(1)),
+                             str,
                              type=ParameterDictType.INT,
                              display_name="Scans To Average",
                              startup_param = True,
                              direct_access = True,
                              default_value = 4,
                              visibility=ParameterDictVisibility.READ_WRITE)
-
         self._param_dict.add(Parameter.MIN_COND_FREQ,
-                             r'<MinimumCondFreq>([\d]+)</MinimumCondFreq>',
-                             lambda match : match.group(1),
-                             self._int_to_string,
+                             r'minimum cond freq = ([\d]+)',
+                             lambda match : int(match.group(1)),
+                             str,
                              type=ParameterDictType.INT,
                              display_name="Minimum Conductivity Frequency",
                              startup_param = True,
                              direct_access = True,
                              default_value = 500,
                              visibility=ParameterDictVisibility.IMMUTABLE)
-
         self._param_dict.add(Parameter.PUMP_DELAY,
-                             r'<PumpDelay>([\d]+)</PumpDelay>',
-                             lambda match : match.group(1),
-                             self._int_to_string,
+                             r'pump delay = ([\d]+) sec',
+                             lambda match : int(match.group(1)),
+                             str,
                              type=ParameterDictType.INT,
                              display_name="Pump Delay",
                              startup_param = True,
                              direct_access = True,
                              default_value = 60,
                              visibility=ParameterDictVisibility.READ_WRITE)
-
         self._param_dict.add(Parameter.AUTO_RUN,
-                             r'<AutoRun>(yes|no)</AutoRun>',
+                             r'autorun = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1585,9 +1748,8 @@ class SBE19Protocol(SBE16Protocol):
                              direct_access = True,
                              default_value = False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
-
         self._param_dict.add(Parameter.IGNORE_SWITCH,
-                             r'<IgnoreSwitch>(yes|no)</IgnoreSwitch>',
+                             r'ignore magnetic switch = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
@@ -1596,9 +1758,6 @@ class SBE19Protocol(SBE16Protocol):
                              direct_access = True,
                              default_value = True,
                              visibility=ParameterDictVisibility.IMMUTABLE)
-
-
-        #TODO: SendGTD, SendOptode, MP?
 
 
 
@@ -1621,7 +1780,7 @@ class SBE19Protocol(SBE16Protocol):
     ########################################################################
 
     @staticmethod
-    def _string_to_numeric_date_time_string(date_time_string):
+    def _date_time_string_to_numeric(date_time_string):
         """
         convert string from "2014-03-27T14:36:15" to numeric "mmddyyyyhhmmss"
         """
