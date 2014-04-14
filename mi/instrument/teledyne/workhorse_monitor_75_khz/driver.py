@@ -8,7 +8,7 @@ Release notes:
 
 __author__ = 'Roger Unwin'
 __license__ = 'Apache 2.0'
-
+import socket
 from mi.instrument.teledyne.driver import TeledyneInstrumentDriver
 from mi.instrument.teledyne.driver import TeledyneProtocol
 from mi.instrument.teledyne.driver import TeledynePrompt
@@ -201,5 +201,22 @@ class WorkhorseProtocol(TeledyneProtocol):
 
     def _has_parameter(self, param):
         return WorkhorseParameter.has(param)
+
+    def _send_break_cmd(self, delay):
+        """
+        Send a BREAK to attempt to wake the device.
+        """
+        log.trace("IN _send_break_cmd")
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        except socket.error, msg:
+            log.trace("WHOOPS! 1")
+
+        try:
+            sock.connect(('10.180.80.178', 2102))
+        except socket.error, msg:
+            log.trace("WHOOPS! 2")
+        sock.send("break " + str(delay) + "\r\n")
+        sock.close()
     
     
