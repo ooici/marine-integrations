@@ -15,7 +15,7 @@ from mi.core.log import get_logger
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
 from mi.dataset.parser.glider import GliderParser
-from mi.dataset.parser.glider import CgldrFlortDelayedDataParticle
+from mi.dataset.parser.glider import FlortTelemeteredDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
 log = get_logger()
@@ -24,13 +24,13 @@ log = get_logger()
 class FLORTDataSetDriver(SimpleDataSetDriver):
     @classmethod
     def stream_config(cls):
-        return [CgldrFlortDelayedDataParticle.type()]
+        return [FlortTelemeteredDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
         config = self._parser_config
         config.update({
             'particle_module': 'mi.dataset.parser.glider',
-            'particle_class': 'CgldrFlortDelayedDataParticle'
+            'particle_class': 'FlortTelemeteredDataParticle'
         })
         log.debug("MYCONFIG: %s", config)
         self._parser = GliderParser(

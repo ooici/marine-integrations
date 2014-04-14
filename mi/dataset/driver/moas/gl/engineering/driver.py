@@ -16,20 +16,20 @@ log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
 from mi.dataset.parser.glider import GliderParser
-from mi.dataset.parser.glider import GgldrEngDelayedDataParticle
+from mi.dataset.parser.glider import EngineeringTelemeteredDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
 
-class EngDataSetDriver(SimpleDataSetDriver):
+class EngineeringDataSetDriver(SimpleDataSetDriver):
     @classmethod
     def stream_config(cls):
-        return [GgldrEngDelayedDataParticle.type()]
+        return [EngineeringTelemeteredDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
         config = self._parser_config
         config.update({
             'particle_module': 'mi.dataset.parser.glider',
-            'particle_class': 'GgldrEngDelayedDataParticle'
+            'particle_class': 'EngineeringTelemeteredDataParticle'
         })
         log.debug("MYCONFIG: %s", config)
         self._parser = GliderParser(

@@ -15,11 +15,9 @@ USAGE:
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
-import gevent
 import unittest
 
 from nose.plugins.attrib import attr
-from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -33,25 +31,25 @@ from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
-from mi.dataset.driver.moas.gl.engineering.driver import EngDataSetDriver
+from mi.dataset.driver.moas.gl.engineering.driver import EngineeringDataSetDriver
 
-from mi.dataset.parser.glider import GgldrEngDelayedDataParticle
+from mi.dataset.parser.glider import EngineeringTelemeteredDataParticle
 from pyon.agent.agent import ResourceAgentState
 
 from interface.objects import ResourceAgentErrorEvent
 
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.moas.gl.engineering.driver',
-    driver_class="EngDataSetDriver",
+    driver_class="EngineeringDataSetDriver",
 
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = EngDataSetDriver.stream_config(),
+    agent_packet_config = EngineeringDataSetDriver.stream_config(),
     startup_config = {
         DataSourceConfigKey.HARVESTER:
         {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
+            DataSetDriverConfigKeys.DIRECTORY: '/tmp/engtest',
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_engineeringtest',
             DataSetDriverConfigKeys.PATTERN: '*.mrg',
             DataSetDriverConfigKeys.FREQUENCY: 1,
         },
@@ -59,7 +57,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM='ggldr_eng_delayed'
+SAMPLE_STREAM = 'glider_eng_telemetered'
     
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -79,30 +77,31 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         self.clear_async_data()
-        self.create_sample_data('single_eng_record.mrg', "unit_363_2013_245_6_6.mrg")
-        self.assert_data(GgldrEngDelayedDataParticle, 'single_eng_record.mrg.result.yml', count=1, timeout=10)
+        self.create_sample_data('single_glider_record-engDataOnly.mrg', "CopyOf-single_glider_record-engDataOnly.mrg")
+        # Results file, Number of Particles (rows) expected to compare, timeout
+        self.assert_data(EngineeringTelemeteredDataParticle, 'single_engineering_record.mrg.result.yml', count=1, timeout=10)
 
-        self.clear_async_data()
-        self.create_sample_data('multiple_eng_record.mrg', "unit_363_2013_245_7_6.mrg")
-        self.assert_data(GgldrEngDelayedDataParticle, 'multiple_eng_record.mrg.result.yml', count=2, timeout=10)
-
-        log.debug("Start second file ingestion")
-        # Verify sort order isn't ascii, but numeric
-        self.clear_async_data()
-        self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
-        self.assert_data(GgldrEngDelayedDataParticle, count=66, timeout=30)
+        # self.clear_async_data()
+        # self.create_sample_data('multiple_glider_record.mrg', "CopyOf-multiple_glider_record.mrg")
+        # # Results file, Number of Particles (rows) expected to compare, timeout
+        # self.assert_data(EngineeringTelemeteredDataParticle, 'multiple_engineering_record.mrg.result.yml', count=4, timeout=10)
+        #
+        # log.debug("IntegrationTest.test_get(): Start second file ingestion")
+        # self.clear_async_data()
+        # self.create_sample_data('unit_247_2012_051_0_0-sciDataOnly.mrg', "CopyOf-unit_247_2012_051_0_0-sciDataOnly.mrg")
+        # self.assert_data(EngineeringTelemeteredDataParticle, count=115, timeout=30)
 
     def test_stop_resume(self):
         """
         Test the ability to stop and restart the process
         """
-        path_1 = self.create_sample_data('single_eng_record.mrg', "unit_363_2013_245_6_8.mrg")
-        path_2 = self.create_sample_data('multiple_eng_record.mrg', "unit_363_2013_245_6_9.mrg")
+        path_1 = self.create_sample_data('single_glider_record.mrg', "CopyOf-single_glider_record.mrg")
+        path_2 = self.create_sample_data('multiple_glider_record.mrg', "CopyOf-multiple_glider_record.mrg")
 
         # Create and store the new driver state
         state = {
-            'unit_363_2013_245_6_8.mrg': self.get_file_state(path_1, True, 1160),
-            'unit_363_2013_245_6_9.mrg': self.get_file_state(path_2, False, 1367)
+            'CopyOf-single_glider_record.mrg': self.get_file_state(path_1, True, 1160),
+            'CopyOf-multiple_glider_record.mrg': self.get_file_state(path_2, False, 10537)
         }
         self.driver = self._get_driver_object(memento=state)
 
@@ -112,7 +111,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrEngDelayedDataParticle, 'merged_eng_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_data(EngineeringTelemeteredDataParticle, 'merged_engineering_record.mrg.result.yml', count=3, timeout=10)
 
     def test_stop_start_ingest(self):
         """
@@ -123,17 +122,17 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.start_sampling()
 
-        self.create_sample_data('single_eng_record.mrg', "unit_363_2013_245_6_6.mrg")
-        self.create_sample_data('multiple_eng_record.mrg', "unit_363_2013_245_7_6.mrg")
-        self.assert_data(GgldrEngDelayedDataParticle, 'single_eng_record.mrg.result.yml', count=1, timeout=10)
-        self.assert_file_ingested("unit_363_2013_245_6_6.mrg")
-        self.assert_file_not_ingested("unit_363_2013_245_7_6.mrg")
+        self.create_sample_data('single_glider_record.mrg', "CopyOf-single_glider_record.mrg")
+        self.create_sample_data('multiple_glider_record.mrg', "xCopyOf-multiple_glider_record.mrg")
+        self.assert_data(EngineeringTelemeteredDataParticle, 'single_engineering_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_file_ingested("CopyOf-single_glider_record.mrg")
+        self.assert_file_not_ingested("xCopyOf-multiple_glider_record.mrg")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data(GgldrEngDelayedDataParticle, 'multiple_eng_record.mrg.result.yml', count=2, timeout=10)
-        self.assert_file_ingested("unit_363_2013_245_7_6.mrg")
+        self.assert_data(EngineeringTelemeteredDataParticle, 'multiple_engineering_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_file_ingested("xCopyOf-multiple_glider_record.mrg")
 
     def test_bad_sample(self):
         """
@@ -142,18 +141,19 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # create some data to parse
         self.clear_async_data()
 
-        path = self.create_sample_data('multiple_eng_record.mrg', "unit_363_2013_245_6_9.mrg")
+        path = self.create_sample_data('multiple_glider_record-engDataOnly.mrg', "CopyOf-multiple_glider_record-engDataOnly.mrg")
 
         # Create and store the new driver state
         state = {
-            'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 1330),
+            'CopyOf-multiple_glider_record-engDataOnly.mrg': self.get_file_state(path, False, 12167),
         }
         self.driver = self._get_driver_object(memento=state)
 
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrEngDelayedDataParticle, 'bad_sample_eng_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_data(EngineeringTelemeteredDataParticle, 'bad_sample_engineering_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_file_ingested("CopyOf-multiple_glider_record-engDataOnly.mrg")
 
     def test_sample_exception(self):
         """
@@ -186,7 +186,7 @@ class QualificationTest(DataSetQualificationTestCase):
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        self.create_sample_data('single_eng_record.mrg', 'unit_363_2013_245_6_9.mrg')
+        self.create_sample_data('single_glider_record.mrg', 'CopyOf-single_glider_record.mrg')
         self.assert_initialize()
 
         # Verify we get one sample
@@ -195,7 +195,7 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'single_eng_record.mrg.result.yml')
+            self.assert_data_values(result, 'single_engineering_record.mrg.result.yml')
         except Exception as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
@@ -206,10 +206,11 @@ class QualificationTest(DataSetQualificationTestCase):
         there was speculation this was due to blocking behavior in the agent.
         https://jira.oceanobservatories.org/tasks/browse/OOIION-1284
         """
-        self.create_sample_data('unit_363_2013_245_6_6.mrg')
+
+        self.create_sample_data('unit_247_2012_051_0_0-sciDataOnly.mrg')
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,66,120)
+        result = self.get_samples(SAMPLE_STREAM, 115, 120)
 
     def test_stop_start(self):
         """
@@ -217,7 +218,7 @@ class QualificationTest(DataSetQualificationTestCase):
         at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('single_eng_record.mrg', "unit_363_2013_245_6_6.mrg")
+        self.create_sample_data('single_glider_record.mrg', "CopyOf-single_glider_record.mrg")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -232,10 +233,10 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'single_eng_record.mrg.result.yml')
+            self.assert_data_values(result, 'single_engineering_record.mrg.result.yml')
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
-            self.create_sample_data('multiple_eng_record.mrg', "unit_363_2013_245_7_6.mrg")
+            self.create_sample_data('multiple_glider_record.mrg', "CopyOf-multiple_glider_record.mrg")
             # Now read the first three records of the second file then stop
             result = self.get_samples(SAMPLE_STREAM, 1)
             log.debug("got result 1 %s", result)
@@ -244,9 +245,9 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()
-            result = self.get_samples(SAMPLE_STREAM, 1)
+            result = self.get_samples(SAMPLE_STREAM, 3)
             log.debug("got result 2 %s", result)
-            self.assert_data_values(result, 'merged_eng_record.mrg.result.yml')
+            self.assert_data_values(result, 'merged_engineering_record.mrg.result.yml')
 
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
         except SampleTimeout as e:
@@ -259,7 +260,7 @@ class QualificationTest(DataSetQualificationTestCase):
         at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('single_eng_record.mrg', "unit_363_2013_245_6_6.mrg")
+        self.create_sample_data('single_glider_record.mrg', "CopyOf-single_glider_record.mrg")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -274,10 +275,10 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'single_eng_record.mrg.result.yml')
+            self.assert_data_values(result, 'single_engineering_record.mrg.result.yml')
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
-            self.create_sample_data('multiple_eng_record.mrg', "unit_363_2013_245_7_6.mrg")
+            self.create_sample_data('multiple_glider_record.mrg', "CopyOf-multiple_glider_record.mrg")
             # Now read the first records of the second file then stop
             result = self.get_samples(SAMPLE_STREAM, 1)
             log.debug("got result 1 %s", result)
@@ -291,9 +292,9 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_initialize(final_state=ResourceAgentState.COMMAND)
             # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()
-            result = self.get_samples(SAMPLE_STREAM, 1)
+            result = self.get_samples(SAMPLE_STREAM, 3)
             log.debug("got result 2 %s", result)
-            self.assert_data_values(result, 'merged_eng_record.mrg.result.yml')
+            self.assert_data_values(result, 'merged_engineering_record.mrg.result.yml')
 
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
         except SampleTimeout as e:

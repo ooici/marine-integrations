@@ -1,0 +1,39 @@
+# Expected Results
+
+header:
+  particle_object: ParadTelemeteredDataParticle
+  particle_type: parad_m_glider_instrument
+
+data:
+  - _index: 1
+    _new_sequence: False
+    internal_timestamp: 3538838522.927949905
+    m_present_time: 1329849722.92795
+    m_present_secs_into_mission: 153.928
+    sci_m_present_time: 1329849722.92795
+    sci_m_present_secs_into_mission: 153.928
+    sci_bsipar_par: 664.424
+  - _index: 2
+    _new_sequence: False
+    internal_timestamp: 3538838523.943940163
+    m_present_time: 1329849723.94394
+    m_present_secs_into_mission: 154.944
+    sci_m_present_time: 1329849723.94394
+    sci_m_present_secs_into_mission: 154.944
+    sci_bsipar_par: 645.569
+  - _index: 3
+    _new_sequence: False
+    internal_timestamp: 3538838525.085750103
+    m_present_time: 1329849725.08575
+    m_present_secs_into_mission: 156.086
+    sci_m_present_time: 1329849725.08575
+    sci_m_present_secs_into_mission: 156.086
+    sci_bsipar_par: 605.209
+  - _index: 4
+    _new_sequence: False
+    internal_timestamp: 3538838526.168370247
+    m_present_time: 1329849726.16837
+    m_present_secs_into_mission: 157.168
+    sci_m_present_time: 1329849726.16837
+    sci_m_present_secs_into_mission: 157.168
+    sci_bsipar_par: 633.461

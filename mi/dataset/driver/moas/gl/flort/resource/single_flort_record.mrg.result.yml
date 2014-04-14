@@ -1,8 +1,8 @@
-# Result data after parsing test_data_1.txt 
+# Expected Results
 
 header:
-  particle_object: CgldrFlortDelayedDataParticle
-  particle_type: cgldr_flort_delayed
+  particle_object: FlortTelemeteredDataParticle
+  particle_type: flort_m_glider_instrument
 
 data:
   - _index: 1

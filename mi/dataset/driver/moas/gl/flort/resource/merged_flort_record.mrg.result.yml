@@ -1,6 +1,8 @@
+# Expected Results
+
 header:
-  particle_object: CgldrFlortDelayedDataParticle
-  particle_type: cgldr_flort_delayed
+  particle_object: FlortTelemeteredDataParticle
+  particle_type: flort_m_glider_instrument
 
 data:
   - _index: 1
@@ -33,35 +35,3 @@ data:
     sci_flbbcd_bb_units: 0.000266046
     sci_flbbcd_cdom_units: 1.9504
     sci_flbbcd_chlor_units: 0.9922
-#  - _index: 1
-#    _new_sequence: False
-#    internal_timestamp: 3538838522.927949905
-#    m_present_time: 1329849703.63263
-#    m_present_secs_into_mission: 134.633
-#    sci_m_present_time: 1329849703.63263
-#    sci_m_present_secs_into_mission: 134.633
-#    sci_flbbcd_bb_units: 0
-#    sci_flbbcd_cdom_units: 0
-#    sci_flbbcd_chlor_units: 0
-#  - _index: 2
-#    _new_sequence: False
-#    internal_timestamp: 3538838523.943940163
-#    m_present_time: 1329849711.68835
-#    m_present_secs_into_mission: 142.688
-#    sci_m_present_time: 1329849711.68835
-#    sci_m_present_secs_into_mission: 142.688
-#    sci_flbbcd_bb_units: 0
-#    sci_flbbcd_cdom_units: 0
-#    sci_flbbcd_chlor_units: 0
-#  - _index: 3
-#    _new_sequence: False
-#    internal_timestamp: 3538838525.085750103
-#    m_present_time: 1329849719.71756
-#    m_present_secs_into_mission: 150.718
-#    sci_m_present_time: 1329849719.71756
-#    sci_m_present_secs_into_mission: 150.718
-#    sci_flbbcd_bb_units: 0.000299684
-#    sci_flbbcd_cdom_units: 1.696
-#    sci_flbbcd_chlor_units: 0.8349
-
-

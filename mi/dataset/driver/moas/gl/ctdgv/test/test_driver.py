@@ -18,36 +18,25 @@ __license__ = 'Apache 2.0'
 import gevent
 import unittest
 import os
-import hashlib
-import shutil
-import copy
 
 from nose.plugins.attrib import attr
-from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
 
 from exceptions import Exception
 
 from mi.idk.dataset.unit_test import DataSetTestCase
-from mi.idk.dataset.unit_test import DataSetTestConfig
-from mi.idk.dataset.unit_test import DataSetUnitTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
-from mi.core.exceptions import ConfigurationException
-from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentParameterException
 from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.dataset.parser.glider import GliderParser
-from mi.dataset.parser.test.test_glider import GliderParserUnitTestCase
+
 from mi.dataset.driver.moas.gl.ctdgv.driver import CTDGVDataSetDriver
 
-from mi.dataset.parser.glider import GgldrCtdgvDelayedDataParticle
+from mi.dataset.parser.glider import CtdgvDataParticle
 from pyon.agent.agent import ResourceAgentState
 from pyon.agent.agent import ResourceAgentEvent
 
@@ -80,7 +69,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM='ggldr_ctdgv_delayed'
+SAMPLE_STREAM='ctdgv_m_glider_instrument'
     
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -101,19 +90,19 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_6.mrg")
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'single_ctdgv_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_data(CtdgvDataParticle, 'single_ctdgv_record.mrg.result.yml', count=1, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_6_6.mrg")
 
         self.clear_async_data()
         self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_7_6.mrg")
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'multiple_ctdgv_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_data(CtdgvDataParticle, 'multiple_ctdgv_record.mrg.result.yml', count=4, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_7_6.mrg")
 
         log.debug("Start second file ingestion")
         # Verify sort order isn't ascii, but numeric
         self.clear_async_data()
         self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
-        self.assert_data(GgldrCtdgvDelayedDataParticle, count=171, timeout=30)
+        self.assert_data(CtdgvDataParticle, count=171, timeout=30)
         self.assert_file_ingested("unit_363_2013_245_10_6.mrg")
 
     def test_stop_resume(self):
@@ -136,7 +125,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=3, timeout=10)
+        self.assert_data(CtdgvDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=3, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_6_9.mrg")
 
     def test_stop_start_ingest(self):
@@ -150,14 +139,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_6.mrg")
         self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_7_6.mrg")
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'single_ctdgv_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_data(CtdgvDataParticle, 'single_ctdgv_record.mrg.result.yml', count=1, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_6_6.mrg")
         self.assert_file_not_ingested("unit_363_2013_245_7_6.mrg")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'multiple_ctdgv_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_data(CtdgvDataParticle, 'multiple_ctdgv_record.mrg.result.yml', count=4, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_7_6.mrg")
 
     def test_bad_sample(self):
@@ -178,7 +167,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'bad_sample_ctdgv_record.mrg.result.yml', count=3, timeout=10)
+        self.assert_data(CtdgvDataParticle, 'bad_sample_ctdgv_record.mrg.result.yml', count=3, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_6_9.mrg")
 
     def test_sample_exception(self):
@@ -225,7 +214,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrCtdgvDelayedDataParticle, result_file, count=4, timeout=10)
+        self.assert_data(CtdgvDataParticle, result_file, count=4, timeout=10)
 
         dest_path_1 = os.path.join(storage_dir, "%s.%s" % (dest_file_1, RESOURCE_ID))
         log.debug("Dest Path 1: %s", dest_path_1)
@@ -266,7 +255,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self._get_driver_object(config=config)
         self.driver.start_sampling()
 
-        self.assert_data(GgldrCtdgvDelayedDataParticle, result_file, count=4, timeout=10)
+        self.assert_data(CtdgvDataParticle, result_file, count=4, timeout=10)
 
         self.assertFalse(os.path.exists(new_storagedir))
         os.rmdir(STORAGEDIR)
@@ -287,7 +276,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self._get_driver_object()
         self.driver.start_sampling()
 
-        self.assert_data(GgldrCtdgvDelayedDataParticle, result_file, count=4, timeout=10)
+        self.assert_data(CtdgvDataParticle, result_file, count=4, timeout=10)
 
         self.assertTrue(os.path.isfile(STORAGEDIR))
 
@@ -316,7 +305,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.start_sampling()
 
-        self.assert_data(GgldrCtdgvDelayedDataParticle, count=4, timeout=10)
+        self.assert_data(CtdgvDataParticle, count=4, timeout=10)
 
         # verify the file was staged properly
         self.assertTrue(os.path.exists(dest_path_4))
