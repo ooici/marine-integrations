@@ -25,10 +25,6 @@ from mi.dataset.parser.sio_mule_common import StateKey
 
 
 class MflmDataSetDriver(SingleFileDataSetDriver):
-    #def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
-    #    super(MflmDataSetDriver, self).__init__(config, memento, data_callback,
-    #                                            state_callback, event_callback, exception_callback)
-
 
     @classmethod
     def stream_config(cls):
