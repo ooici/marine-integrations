@@ -14,7 +14,8 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.exceptions import SampleException, RecoverableSampleException, SampleEncodingException, NotImplementedException
+from mi.core.exceptions import SampleException, RecoverableSampleException, SampleEncodingException
+from mi.core.exceptions import NotImplementedException, UnexpectedDataException
 
 class Parser(object):
     """ abstract class to show API needed for plugin poller objects """
@@ -184,9 +185,7 @@ class BufferLoadingParser(Parser):
             while len(self._record_buffer) < num_records:
                 self._load_particle_buffer()        
         except EOFError:
-            # not ready to possibly break lots of drivers yet with this, uncomment when read to add
-            #self._process_end_of_file()
-            pass
+            self._process_end_of_file()
         return self._yank_particles(num_records)
 
     def _process_end_of_file(self):
@@ -195,8 +194,12 @@ class BufferLoadingParser(Parser):
         """
         (nd_timestamp, non_data) = self._chunker.get_next_non_data()
         (timestamp, chunk) = self._chunker.get_next_data()
-        if (non_data and len(non_data) > 0) or (chunk and len(chunk) > 0):
-            raise SampleException("Have extra unexplained bytes at the end of the file")
+        if (non_data and len(non_data) > 0):
+            log.warn("Have extra unexplained non-data bytes at the end of the file:%s", non_data)
+            raise UnexpectedDataException("Have extra unexplained non-data bytes at the end of the file:%s" % non_data)
+        elif (chunk and len(chunk) > 0):
+            log.warn("Have extra unexplained data chunk bytes at the end of the file:%s", chunk)
+            raise UnexpectedDataException("Have extra unexplained data chunk bytes at the end of the file:%s" % chunk)
 
     def _yank_particles(self, num_records):
         """

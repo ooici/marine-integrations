@@ -6,7 +6,6 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: False
     internal_timestamp: '2013-07-24T12:00:01'
     inductive_id: 55
     temperature: 224894
@@ -14,7 +13,6 @@ data:
     pressure: 4153
     ctd_time: 427982401
   - _index: 2
-    _new_sequence: False
     internal_timestamp: '2013-07-24T14:00:01'
     inductive_id: 55
     temperature: 204947

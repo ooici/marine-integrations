@@ -6,7 +6,6 @@ header:
 
 data:
   - _index: 1 
-    _new_sequence: True
     internal_timestamp: '2013-07-25T11:59:59'
     unique_id: 43
     record_length: 231
@@ -19,7 +18,6 @@ data:
     thermistor_end: 2048
     checksum: 42
   - _index: 2
-    _new_sequence: True 
     internal_timestamp: '2013-07-25T17:59:59'
     unique_id: 43
     record_length: 231

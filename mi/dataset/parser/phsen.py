@@ -22,8 +22,8 @@ from dateutil import parser
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.core.exceptions import SampleException, DatasetParserException
-from mi.dataset.parser.mflm import MflmParser, SIO_HEADER_MATCHER
+from mi.core.exceptions import SampleException, DatasetParserException, RecoverableSampleException
+from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
 
 DATA_REGEX = b'\^0A\r\*([0-9A-Fa-f]{4})0A([0-9A-Fa-f]{458})\r'
 DATA_MATCHER = re.compile(DATA_REGEX)
@@ -49,7 +49,7 @@ class PhsenParserDataParticle(DataParticle):
     """
 
     _data_particle_type = DataParticleType.SAMPLE
-    
+
     def _build_parsed_values(self):
         """
         Take something in the data format and turn it into
@@ -58,90 +58,74 @@ class PhsenParserDataParticle(DataParticle):
         """
         match = DATA_MATCHER.match(self.raw_data)
         if not match:
-            raise SampleException("PhsenParserDataParticle: No regex match of \
-                                  parsed sample data: [%s]", self.raw_data)
+            raise RecoverableSampleException("PhsenParserDataParticle: No regex match of \
+                                              parsed sample data: [%s]", self.raw_data)
 
-        try:
-            log.debug('Converting data %s', match.group(0))
-            # just convert directly from hex-ascii to int
-            unique_id = int(match.group(0)[5:7], 16)
-            rec_length = int(match.group(0)[7:9], 16)
-            rec_type = int(match.group(0)[9:11], 16)
-            rec_time = int(match.group(0)[11:19], 16)
-            therm_start = int(match.group(0)[19:23], 16)
-            ref_meas = []
-            for i in range(0, 16):
-                start_idx = 23 + i*4
-                end_idx = 23 + (i+1)*4
+        ref_meas = []
+        for i in range(0, 16):
+            start_idx = 23 + i*4
+            end_idx = 23 + (i+1)*4
+            try:
                 this_ref = int(match.group(0)[start_idx:end_idx], 16)
                 ref_meas.append(this_ref)
+            except Exception as e:
+                ref_meas.append(None)
+                self._encoding_errors.append({PhsenParserDataParticleKey.REFERENCE_LIGHT_MEASUREMENTS: "Error encoding %d: %s" % (i, e)})
 
-            light_meas = []
-            for i in range(0, 23):
-                for s in range(0,4):
-                    start_idx = 87 + i*16 + s*4
-                    end_idx = 87 + i*16 + (s+1)*4
+        light_meas = []
+        for i in range(0, 23):
+            for s in range(0,4):
+                start_idx = 87 + i*16 + s*4
+                end_idx = 87 + i*16 + (s+1)*4
+                try:
                     this_meas = int(match.group(0)[start_idx:end_idx], 16)
                     light_meas.append(this_meas)
-            # there are 2 non-used characters, skip from 455 to 459
-            volt_batt = int(match.group(0)[459:463], 16)
-            therm_end = int(match.group(0)[463:467], 16)
-            chksum = int(match.group(0)[467:469], 16)
+                except Exception as e:
+                    light_meas.append(None)
+                    self._encoding_errors.append({PhsenParserDataParticleKey.LIGHT_MEASUREMENTS: "Error encoding (%d,%d): %s" % (i, s, e)})
 
-            # calculate the checksum and compare with the received checksum
+        # calculate the checksum and compare with the received checksum
+        try: 
+            chksum = PhsenParserDataParticle.encode_int_16(match.group(0)[467:469])
             sum_bytes = 0
             for i in range(7, 467, 2):
                 sum_bytes += int(match.group(0)[i:i+2], 16)
             calc_chksum = sum_bytes & 255
             if calc_chksum != chksum:
-                raise ValueError('Calculated internal checksum %d does not match received %d', calc_chksum, chksum)
+                raise RecoverableSampleException('Calculated internal checksum %d does not match received %d' % (calc_chksum, chksum))
+        except Exception as e:
+            raise RecoverableSampleException('Error comparing checksums: %s' % e)
 
-        except (ValueError, TypeError, IndexError) as ex:
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, self.raw_data))
-
-        result = [{DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.UNIQUE_ID,
-                   DataParticleKey.VALUE: unique_id},
-                  {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.RECORD_LENGTH,
-                   DataParticleKey.VALUE: rec_length},
-                  {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.RECORD_TYPE,
-                   DataParticleKey.VALUE: rec_type},
-                  {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.RECORD_TIME,
-                   DataParticleKey.VALUE: rec_time},
-                  {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.THERMISTOR_START,
-                   DataParticleKey.VALUE: therm_start},
-                  {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.REFERENCE_LIGHT_MEASUREMENTS,
-                   DataParticleKey.VALUE: list(ref_meas)},
-                  {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.LIGHT_MEASUREMENTS,
-                   DataParticleKey.VALUE: list(light_meas)},
-                  {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.VOLTAGE_BATTERY,
-                   DataParticleKey.VALUE: volt_batt},
-                  {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.THERMISTOR_END,
-                   DataParticleKey.VALUE: therm_end},
-                  {DataParticleKey.VALUE_ID: PhsenParserDataParticleKey.CHECKSUM,
-                   DataParticleKey.VALUE: chksum}]
-        log.trace('PhsenParserDataParticle: particle=%s', result)
+        result = [self._encode_value(PhsenParserDataParticleKey.UNIQUE_ID, match.group(0)[5:7],
+                                     PhsenParserDataParticle.encode_int_16),
+                  self._encode_value(PhsenParserDataParticleKey.RECORD_LENGTH, match.group(0)[7:9],
+                                     PhsenParserDataParticle.encode_int_16),
+                  self._encode_value(PhsenParserDataParticleKey.RECORD_TYPE, match.group(0)[9:11],
+                                     PhsenParserDataParticle.encode_int_16),
+                  self._encode_value(PhsenParserDataParticleKey.RECORD_TIME, match.group(0)[11:19],
+                                     PhsenParserDataParticle.encode_int_16),
+                  self._encode_value(PhsenParserDataParticleKey.THERMISTOR_START, match.group(0)[19:23],
+                                     PhsenParserDataParticle.encode_int_16),
+                  self._encode_value(PhsenParserDataParticleKey.REFERENCE_LIGHT_MEASUREMENTS,
+                                     ref_meas, list),
+                  self._encode_value(PhsenParserDataParticleKey.LIGHT_MEASUREMENTS,
+                                     light_meas, list),
+                  self._encode_value(PhsenParserDataParticleKey.VOLTAGE_BATTERY, match.group(0)[459:463],
+                                     PhsenParserDataParticle.encode_int_16),
+                  self._encode_value(PhsenParserDataParticleKey.THERMISTOR_END, match.group(0)[463:467],
+                                     PhsenParserDataParticle.encode_int_16),
+                  self._encode_value(PhsenParserDataParticleKey.CHECKSUM, match.group(0)[467:469],
+                                     PhsenParserDataParticle.encode_int_16)]
         return result
 
-    def __eq__(self, arg):
+    @staticmethod
+    def encode_int_16(int_val):
         """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this 
-        particle
+        Use to convert from hex-ascii to int when encoding data particle values
         """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
-            return False
+        return int(int_val, 16)
 
-class PhsenParser(MflmParser):
+class PhsenParser(SioMuleParser):
     
     def __init__(self,
                  config,
@@ -149,6 +133,7 @@ class PhsenParser(MflmParser):
                  stream_handle,
                  state_callback,
                  publish_callback,
+                 exception_callback,
                  *args, **kwargs):
         super(PhsenParser, self).__init__(config,
                                           stream_handle,
@@ -156,6 +141,7 @@ class PhsenParser(MflmParser):
                                           self.sieve_function,
                                           state_callback,
                                           publish_callback,
+                                          exception_callback,
                                           'PH',
                                           *args,
                                           **kwargs)
@@ -169,47 +155,20 @@ class PhsenParser(MflmParser):
             parsing, plus the state. An empty list of nothing was parsed.
         """
         result_particles = []
-        # all non-data packets will be read along with all the data, so we can't just use the fact that
-        # there is or is not non-data to determine when a new sequence should occur.  The non-data will
-        # keep getting shifted lower as things get cleaned out, and when it reaches the 0 index the non-data
-        # is actually next
+
         (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-        non_data_flag = False
-        if non_data is not None and non_end <= start:
-            log.debug('start setting non_data_flag')
-            non_data_flag = True
 
         sample_count = 0
-        new_seq = 0
 
         while (chunk != None):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
-            new_seq = 0
             log.debug('parsing header %s', header_match.group(0)[1:32])
             if header_match.group(1) == self._instrument_id:
-                # Check for missing data between records
-                if non_data_flag or self._new_seq_flag:
-                    log.debug("Non matching data packet detected")
-                    # reset non data flag and new sequence flags now
-                    # that we have made a new sequence
-                    non_data = None
-                    non_data_flag = False
-                    self._new_seq_flag = False
-                    self.start_new_sequence()
-                    # need to figure out if there is a new sequence the first time through,
-                    # since if we are using in process data we don't read unprocessed again
-                    new_seq = 1
 
-                # need to do special processing on data to handle escape sequences
-                # replace 0x182b with 0x2b and 0x1858 into 0x18
-                processed_match = chunk.replace(b'\x182b', b'\x2b')
-                processed_match = processed_match.replace(b'\x1858', b'\x18')
-                log.debug("matched chunk header %s", processed_match[1:32])
-
-                for data_match in DATA_MATCHER.finditer(processed_match):
-                    log.debug('Found data match in chunk %s', processed_match[1:32])
+                for data_match in DATA_MATCHER.finditer(chunk):
+                    log.debug('Found data match in chunk %s', chunk[1:32])
                     self._timestamp = self.hex_time_to_ntp(data_match.group(0)[11:19])
                     # particle-ize the data block received, return the record
                     sample = self._extract_sample(PhsenParserDataParticle,
@@ -222,14 +181,9 @@ class PhsenParser(MflmParser):
                         sample_count += 1
 
             self._chunk_sample_count.append(sample_count)
-            self._chunk_new_seq.append(new_seq)
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-            # need to set a flag in case we read a chunk not matching the instrument ID and overwrite the non_data                    
-            if non_data is not None and non_end <= start:
-                log.debug('setting non_data_flag')
-                non_data_flag = True
 
         return result_particles
     
