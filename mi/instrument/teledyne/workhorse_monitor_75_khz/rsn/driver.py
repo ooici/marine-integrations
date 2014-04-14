@@ -310,15 +310,14 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value='00:00:00.00')
 
-        # NEVER USE THIS COMMAND.
-        #self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
-        #    r'TG (..../../..,..:..:..) - Time of First Ping ',
-        #    lambda match: str(match.group(1)),
-        #    str,
-        #    type=ParameterDictType.STRING,
-        #    display_name="time of first ping",
-        #    startup_param=False,
-        #    visibility=ParameterDictVisibility.READ_ONLY)
+        self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
+            r'TG (..../../..,..:..:..) - Time of First Ping ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="time of first ping",
+            startup_param=False,
+            visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.TIME_PER_PING,
             r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping',
@@ -484,19 +483,4 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             default_value=175)
 
-    def _send_break_cmd(self, delay):
-        """
-        Send a BREAK to attempt to wake the device.
-        """
-        log.trace("IN _send_break_cmd")
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        except socket.error, msg:
-            log.trace("WHOOPS! 1")
 
-        try:
-            sock.connect(('10.180.80.178', 2102))
-        except socket.error, msg:
-            log.trace("WHOOPS! 2")
-        sock.send("break " + str(delay) + "\r\n")
-        sock.close()
