@@ -781,7 +781,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
     def _build_simple_command(self, cmd):
         """
         Build handler for basic THSPH commands.
-        @param cmd the simple thsph command to format.
+        @param cmd the simple ooicore command to format.
         @retval The command to be sent to the device.
         """
         return "%s%s" % (cmd, NEWLINE)
