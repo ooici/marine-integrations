@@ -411,6 +411,8 @@ class ADCPTMixin(DriverTestMixin):
 
     _pd0_parameters = dict(_pd0_parameters_base.items() +
                            _coordinate_transformation_beam_parameters.items())
+    _pd0_parameters_earth = dict(_pd0_parameters_base.items() +
+                           _coordinate_transformation_earth_parameters.items())
     
     # Driver Parameter Methods
     ###
@@ -471,6 +473,15 @@ class ADCPTMixin(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_BEAM)
         self.assert_data_particle_parameters(data_particle, self._pd0_parameters) # , verify_values
 
+    def assert_particle_pd0_data_earth(self, data_particle, verify_values = True):
+        '''
+        Verify an adcpt ps0 data particle
+        @param data_particle: ADCPT_PS0DataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        log.debug("IN assert_particle_pd0_data")
+        self.assert_data_particle_header(data_particle, DataParticleType.ADCP_PD0_PARSED_EARTH)
+        self.assert_data_particle_parameters(data_particle, self._pd0_parameters_earth) # , verify_values
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -911,11 +922,35 @@ class QualFromIDK(WorkhorseDriverQualificationTest, ADCPTMixin):
 
         self.assert_get_parameter(Parameter.TIME_OF_FIRST_PING, '****/**/**,**:**:**')
 
-    def test_autosample(self):
+    def test_autosample_earth(self):
+
+        #Verify autosample works and data particles are created
+        #NOTE: If TG is set autosample behaves odd...
+
+        self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.COORDINATE_TRANSFORMATION, '11111')
+        self.assert_start_autosample()
+        self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_EARTH, self.assert_particle_pd0_data_earth, timeout=140)
+
+        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
+        self.assert_stop_autosample()
+
+        self.assert_particle_polled(ProtocolEvent.GET_CALIBRATION, self.assert_compass_calibration, DataParticleType.ADCP_COMPASS_CALIBRATION, sample_count=1)
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_configuration, DataParticleType.ADCP_SYSTEM_CONFIGURATION, sample_count=1)
+
+        # Restart autosample and gather a couple samples
+        self.assert_sample_autosample(self.assert_particle_pd0_data_earth, DataParticleType.ADCP_PD0_PARSED_EARTH)
+
+
+
+    def test_autosample_beam(self):
+
         """
         Verify autosample works and data particles are created
         """
         self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.COORDINATE_TRANSFORMATION, '00111')
         self.assert_start_autosample()
 
         self.assert_particle_async(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data, timeout=50) # ADCP_PD0_PARSED_BEAM
