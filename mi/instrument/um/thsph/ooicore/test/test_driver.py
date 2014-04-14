@@ -42,16 +42,16 @@ from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
 
-from mi.instrument.um.thsph.thsph.driver import InstrumentDriver, THSPHDataParticleKey
-from mi.instrument.um.thsph.thsph.driver import DataParticleType
-from mi.instrument.um.thsph.thsph.driver import Command
-from mi.instrument.um.thsph.thsph.driver import ProtocolState
-from mi.instrument.um.thsph.thsph.driver import ProtocolEvent
-from mi.instrument.um.thsph.thsph.driver import Capability
-from mi.instrument.um.thsph.thsph.driver import Parameter
-from mi.instrument.um.thsph.thsph.driver import THSPHProtocol
-from mi.instrument.um.thsph.thsph.driver import Prompt
-from mi.instrument.um.thsph.thsph.driver import NEWLINE
+from mi.instrument.um.thsph.ooicore.driver import InstrumentDriver, THSPHDataParticleKey
+from mi.instrument.um.thsph.ooicore.driver import DataParticleType
+from mi.instrument.um.thsph.ooicore.driver import Command
+from mi.instrument.um.thsph.ooicore.driver import ProtocolState
+from mi.instrument.um.thsph.ooicore.driver import ProtocolEvent
+from mi.instrument.um.thsph.ooicore.driver import Capability
+from mi.instrument.um.thsph.ooicore.driver import Parameter
+from mi.instrument.um.thsph.ooicore.driver import THSPHProtocol
+from mi.instrument.um.thsph.ooicore.driver import Prompt
+from mi.instrument.um.thsph.ooicore.driver import NEWLINE
 
 from pyon.agent.agent import ResourceAgentState
 
@@ -59,7 +59,7 @@ from pyon.agent.agent import ResourceAgentState
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.um.thsph.thsph.driver',
+    driver_module='mi.instrument.um.ooicore.ooicore.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id = 'WHSSRV',
