@@ -868,13 +868,57 @@ class Protocol(SamiProtocol):
     # Configuration string.
     ########################################################################
 
-## TODO: Overridden methods below to add to PHSEN
 
-    def _build_configuration_string_specific(self):
-        log.debug('herb: ' + 'Protocol._build_configuration_string_specific()')
-
+#    def _build_configuration_string_specific(self):
+#        log.debug('herb: ' + 'Protocol._build_configuration_string_specific()')
+#
 # TODO: Can move most of parameter list to base class. Can make class wrapper around list to extend.
 # TODO:   Will it be understandable?
+#
+#        # An ordered list of parameters, can not use unordered dict
+#        # PCO2W driver extends the base class (SamiParameter)
+#        parameter_list = [Parameter.START_TIME_FROM_LAUNCH,
+#                          Parameter.STOP_TIME_FROM_START,
+#                          Parameter.MODE_BITS,
+#                          Parameter.SAMI_SAMPLE_INTERVAL,
+#                          Parameter.SAMI_DRIVER_VERSION,
+#                          Parameter.SAMI_PARAMS_POINTER,
+#                          Parameter.DEVICE1_SAMPLE_INTERVAL,
+#                          Parameter.DEVICE1_DRIVER_VERSION,
+#                          Parameter.DEVICE1_PARAMS_POINTER,
+#                          Parameter.DEVICE2_SAMPLE_INTERVAL,
+#                          Parameter.DEVICE2_DRIVER_VERSION,
+#                          Parameter.DEVICE2_PARAMS_POINTER,
+#                          Parameter.DEVICE3_SAMPLE_INTERVAL,
+#                          Parameter.DEVICE3_DRIVER_VERSION,
+#                          Parameter.DEVICE3_PARAMS_POINTER,
+#                          Parameter.PRESTART_SAMPLE_INTERVAL,
+#                          Parameter.PRESTART_DRIVER_VERSION,
+#                          Parameter.PRESTART_PARAMS_POINTER,
+#                          Parameter.GLOBAL_CONFIGURATION,
+#                          Parameter.PUMP_PULSE,
+#                          Parameter.PUMP_DURATION,
+#                          Parameter.SAMPLES_PER_MEASUREMENT,
+#                          Parameter.CYCLES_BETWEEN_BLANKS,
+#                          Parameter.NUMBER_REAGENT_CYCLES,
+#                          Parameter.NUMBER_BLANK_CYCLES,
+#                          Parameter.FLUSH_PUMP_INTERVAL,
+#                          Parameter.BIT_SWITCHES,
+#                          Parameter.NUMBER_EXTRA_PUMP_CYCLES]
+#
+#        configuration_string = self._build_configuration_string_base(parameter_list)
+#
+#        log.debug('herb: ' + 'Protocol._build_configuration_string_specific(): CONFIGURATION STRING = '
+#                  + configuration_string)
+#
+#        return configuration_string
+
+## TODO: Overridden methods below to add to PC02-B and PHSEN
+
+    def _get_specific_configuration_string_parameters(self):
+        """
+        Overridden by device specific subclasses.
+        """
 
         # An ordered list of parameters, can not use unordered dict
         # PCO2W driver extends the base class (SamiParameter)
@@ -907,12 +951,7 @@ class Protocol(SamiProtocol):
                           Parameter.BIT_SWITCHES,
                           Parameter.NUMBER_EXTRA_PUMP_CYCLES]
 
-        configuration_string = self._build_configuration_string_base(parameter_list)
-
-        log.debug('herb: ' + 'Protocol._build_configuration_string_specific(): CONFIGURATION STRING = '
-                  + configuration_string)
-
-        return configuration_string
+        return parameter_list
 
     def _get_configuration_string_regex(self):
         return CONFIGURATION_REGEX_MATCHER

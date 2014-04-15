@@ -698,7 +698,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             ProtocolState.COMMAND, ProtocolEvent.EXIT,
             self._handler_command_exit)
 
-        ## TODO: Implement
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.GET,
             self._handler_command_get)
@@ -1449,7 +1448,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         ## TODO: Compare values here to send config change event
 
         if not dict_equal(old_config, new_config, ignore_keys=SamiParameter.LAUNCH_TIME):
-            log.debug("Configuration has changed.  Send driver event.")
+            log.debug("Configuration has changed.")
             if (self.get_current_state() == ProtocolState.COMMAND):
                 log.debug("Configuration has changed and in command state.  Send driver event.")
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
@@ -1554,14 +1553,14 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._set_params(): params = ' + str(params))
 
-        for (key, val) in params.iteritems():
-            self._param_dict.set_value(key, val)
+##        for (key, val) in params.iteritems():
+##            self._param_dict.set_value(key, val)
 
-        self._set_configuration(set_params=params)  ## TODO: update configuration string
+        self._set_configuration(override_params_dict=params)  ## TODO: update configuration string
 
         pass
 
-    def _set_configuration(self, set_params = {}):  ## TODO: update configuration string
+    def _set_configuration(self, override_params_dict = {}):  ## TODO: update configuration string
         # Make sure automatic-status updates are off. This will stop the
         # broadcast of information while we are trying to get/set data.
         log.debug('herb: ' + 'SamiProtocol._discover: STOP_STATUS_PERIODIC')
@@ -1577,7 +1576,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._do_cmd_direct(SamiInstrumentCommand.ERASE_ALL + NEWLINE)
 
         ## Build configuration string sequence.
-        configuration_string = self._build_configuration_string_specific()
+        ## configuration_string = self._build_configuration_string_specific()
+        configuration_string = self._build_configuration_string_base(
+            self._get_specific_configuration_string_parameters(),
+            override_params_dict)
 
         # Send the configuration string
         log.debug('herb: ' + 'SamiProtocol._discover: SET_CONFIG')
@@ -1674,8 +1676,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         return configuration_string
 
-# TODO: During refactoring build configuration string as a list and join for efficiency
-    def _build_configuration_string_base(self, parameter_list):
+    def _build_configuration_string_base(self, parameter_list, override_params_dict):
 
         configuration_string = ''
 
@@ -1685,7 +1686,14 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         configuration_string += sami_time_hex_str
 
         for param in parameter_list:
-            config_value_hex_str = self._get_config_value_str(param)
+            if param in override_params_dict:
+                log.debug('herb: ' + 'Protocol._build_configuration_string_base(): Overriding param = ' +
+                          str(param) + ' with ' +
+                          str(override_params_dict[param]))
+                config_value_hex_str = self._param_dict.format(param, override_params_dict[param])
+            else:
+                config_value_hex_str = self._get_config_value_str(param)
+
             configuration_string += config_value_hex_str
 
         config_string_length_no_padding = len(configuration_string)
@@ -1694,6 +1702,15 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         configuration_string = SamiProtocol._add_config_str_padding(configuration_string)
 
         return configuration_string
+
+    def _get_specific_configuration_string_parameters(self):
+        """
+        Overridden by device specific subclasses.
+        """
+
+        raise NotImplementedException()
+
+        pass
 
     def _build_configuration_string_specific(self):
         """
