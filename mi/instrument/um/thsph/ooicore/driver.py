@@ -436,7 +436,7 @@ class THSPHProtocol(CommandResponseInstrumentProtocol):
                              display_name="Polled Interval",
                              startup_param=True,
                              direct_access=False,
-                             default_value=1)
+                             default_value=5)
 
 
     def _filter_capabilities(self, events):
