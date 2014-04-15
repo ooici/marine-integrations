@@ -94,22 +94,6 @@ class TeledyneParameter(DriverParameter):
     PING_WEIGHT = 'WU'                  # 0 Ping Weighting (0=Box,1=Triangle)
     AMBIGUITY_VELOCITY = 'WV'           # 175 Mode 1 Ambiguity Vel (cm/s radial)
 
-    SERIAL_FLOW_CONTROL = 'CF'
-    BANNER = 'CH'
-    SLEEP_ENABLE = 'CL'
-    SAVE_NVRAM_TO_RECORDER = 'CN'
-    POLLED_MODE = 'CP'
-    PITCH = 'EP'
-    ROLL = 'ER'
-
-    LATENCY_TRIGGER = 'CX'
-    HEADING_ALIGNMENT = 'EA'
-    DATA_STREAM_SELECTION ='PD'
-    ENSEMBLE_PER_BURST ='TC'
-    BUFFERED_OUTPUT_PERIOD ='TX'
-    SAMPLE_AMBIENT_SOUND ='WQ'
-    TRANSDUCER_DEPTH ='ED'
-
 
 
 class TeledyneInstrumentCmds(BaseEnum):
@@ -123,12 +107,11 @@ class TeledyneInstrumentCmds(BaseEnum):
     BREAK = 'break' # < case sensitive!!!!
     SEND_LAST_SAMPLE = 'CE'
     SAVE_SETUP_TO_RAM = 'CK'
-    FACTORY_SETS = 'CR1' #Factory default  Sung
-    USER_SETS = 'CR0'  #User default  Sung
+    FACTORY_SETS = 'CR1' #Factory default set
+    USER_SETS = 'CR0'  #User default set
     START_LOGGING = 'CS'
     CLEAR_ERROR_STATUS_WORD = 'CY0'         # May combine with next
     DISPLAY_ERROR_STATUS_WORD = 'CY1'       # May combine with prior
-    #POWER_DOWN = 'CZ'
     CLEAR_FAULT_LOG = 'FC'
     GET_FAULT_LOG = 'FD'
 
@@ -215,12 +198,9 @@ class TeledyneCapability(BaseEnum):
     RUN_TEST_200 = TeledyneProtocolEvent.RUN_TEST_200
     FACTORY_SETS = TeledyneProtocolEvent.FACTORY_SETS
     USER_SETS = TeledyneProtocolEvent.USER_SETS
-    #POWER_DOWN = TeledyneProtocolEvent.POWER_DOWN
 
 class TeledyneScheduledJob(BaseEnum):
-    """
-    Complete this last.
-    """
+
     CLOCK_SYNC = 'clock_sync'
     GET_CONFIGURATION = 'acquire_configuration'
     GET_CALIBRATION = 'acquire_calibration'
@@ -503,7 +483,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug("IN _apply_params")
         config = self.get_startup_config()
-        log.error("****Sung apply params %s", repr(config))
         # Pass true to _set_params so we know these are startup values
         self._set_params(config, True)
 
@@ -587,7 +566,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                 # Switch to command mode,
                 self._stop_logging()
 
-            # UPDATE CODE HERE
             # Get old param dict config.
             old_config = self._param_dict.get_config()
 
@@ -644,16 +622,11 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             startup = args[1]
         except IndexError:
             pass
-        log.error("***Sung in _set_params verify not readonly %s", repr(args))
         log.trace("_set_params calling _verify_not_readonly ARGS = " + repr(args))
         self._verify_not_readonly(*args, **kwargs)
-        log.error("***Sung in _set_params verify not readonly Done")
         for (key, val) in params.iteritems():
-            log.error("***Sung in _set_params key %s", repr(key))
-            log.error("***Sung in _set_params value %s", repr(val))
             result = self._do_cmd_resp(TeledyneInstrumentCmds.SET, key, val, **kwargs)
         log.trace("_set_params calling _update_params")
-        log.error("***Sung in _set_params calling update_params")
         self._update_params()
         return result
 
