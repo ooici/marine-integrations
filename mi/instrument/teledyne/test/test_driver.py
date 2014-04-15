@@ -759,7 +759,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         log.debug("====== Testing ranges for SERIAL_DATA_OUT ======")
 
         # Test read only raise exceptions on set.
-        self.assert_set_exception(TeledyneParameter.SERIAL_DATA_OUT, '000 000 111')
+        self.assert_set(TeledyneParameter.SERIAL_DATA_OUT, '000 000 111')
         self._tested[TeledyneParameter.SERIAL_DATA_OUT] = True
 
     def _test_set_serial_out_fw_switches_readonly(self):
