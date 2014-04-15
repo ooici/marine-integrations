@@ -7,8 +7,8 @@ Release notes:
 
 Generic Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 """
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import WorkhorseInstrumentDriver
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import WorkhorseProtocol
+from mi.instrument.teledyne.workhorse.driver import WorkhorseInstrumentDriver
+from mi.instrument.teledyne.workhorse.driver import WorkhorseProtocol
 
 from mi.instrument.teledyne.driver import TeledyneScheduledJob
 from mi.instrument.teledyne.driver import TeledyneCapability
@@ -16,15 +16,14 @@ from mi.instrument.teledyne.driver import TeledyneInstrumentCmds
 from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledynePrompt
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
+from mi.instrument.teledyne.workhorse.driver import NEWLINE
 from mi.core.log import get_logger ; log = get_logger()
-import socket
-import time
+
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.instrument.teledyne.workhorse.driver import WorkhorseParameter
-from mi.instrument.teledyne.workhorse.driver import TeledyneProtocolEvent
+from mi.instrument.teledyne.driver import TeledyneProtocolEvent
 
 
 class Prompt(TeledynePrompt):
@@ -76,7 +75,7 @@ class ProtocolState(TeledyneProtocolState):
 
 class InstrumentDriver(WorkhorseInstrumentDriver):
     """
-    Specialization for this version of the workhorse_monitor_75_khz driver
+    Specialization for this version of the workhorse ADCP driver
     """
     def __init__(self, evt_callback):
         """
@@ -96,7 +95,7 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
 
 class Protocol(WorkhorseProtocol):
     """
-    Specialization for this version of the workhorse_monitor_75_khz driver
+    Specialization for this version of the workhorse driver
     """
     def __init__(self, prompts, newline, driver_event):
         log.debug("IN Protocol.__init__")
@@ -104,7 +103,7 @@ class Protocol(WorkhorseProtocol):
 
     def _build_param_dict(self):
         """
-        Populate the parameter dictionary with sbe26plus parameters.
+        Populate the parameter dictionary with ADCP parameters.
         For each parameter key, add match stirng, match lambda function,
         and value formatting function for set commands.
         """
