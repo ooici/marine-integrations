@@ -203,14 +203,12 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         Parse the base portion of the particle
         """
         log.debug("ADCP_PD0_PARSED_DataParticle._build_parsed_values")
-        log.error("Sung :ADCP_PD0_PARSED_DataParticle._build_parsed_values")
         if "[BREAK Wakeup A]" in self.raw_data:
             raise SampleException("BREAK encountered, Seems someone is escaping autosample mode.")
 
         self.final_result = []
 
         length = unpack("H", self.raw_data[2:4])[0]
-        log.error("Sung : length " + str(length) )
         data = str(self.raw_data)
 
         #
@@ -227,24 +225,18 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
 
             raise SampleException("Checksum mismatch")
 
-        log.error("Sung : append ADCP_PD0_PARSED_KEY.CHECKSUM")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.CHECKSUM,
                                   DataParticleKey.VALUE: checksum})
 
         (header_id, data_source_id, num_bytes, filler, num_data_types) = \
             unpack('!BBHBB', self.raw_data[0:6])
 
-        log.error("Sung : header id -" + str(header_id) + " num_data_type " + str(num_data_types) )
-        log.error("Sung : append ADCP_PD0_PARSED_KEY.CHECKSUM")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.HEADER_ID,
                                   DataParticleKey.VALUE: header_id})
-        log.error("Sung : append ADCP_PD0_PARSED_KEY.DATA_SOURCE_ID")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.DATA_SOURCE_ID,
                                   DataParticleKey.VALUE: data_source_id})
-        log.error("Sung : append ADCP_PD0_PARSED_KEY.NUM_BYTES")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.NUM_BYTES,
                                   DataParticleKey.VALUE: num_bytes})
-        log.error("Sung : append ADCP_PD0_PARSED_KEY.NUM_DATA_TYPES")
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.NUM_DATA_TYPES,
                                   DataParticleKey.VALUE: num_data_types})
 
@@ -252,7 +244,6 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
         for offset in range(0, num_data_types):
             value = unpack('<H', self.raw_data[(2 * offset + 6):(2 * offset + 8)])[0]
             offsets.append(value)
-        log.error("Sung : offsets %s", offsets)
         self.final_result.append({DataParticleKey.VALUE_ID: ADCP_PD0_PARSED_KEY.OFFSET_DATA_TYPES,
                                   DataParticleKey.VALUE: offsets})
         offsets.append(length - 2)
@@ -262,15 +253,11 @@ class ADCP_PD0_PARSED_DataParticle(DataParticle):
             chunks.append(self.raw_data[offsets[offset] : offsets[offset + 1] ])
 
             variable_leader_id = unpack('!H', chunks[offset][0:2])[0]
-            log.error("Sung : variable_leader_id : %s ", variable_leader_id)
-            log.error("Sung : offset : %s ", offset)
+
             if offset == 0:
-                log.error("Sung : calling parse_fixed_chunk")
                 self.parse_fixed_chunk(chunks[offset])
-                #self.parse_variable_chunk(chunks[offset]) # Sung added
             else:
                 if 32768 == variable_leader_id:
-                    #log.error("Sung1")
                     self.parse_variable_chunk(chunks[offset])
                 elif 1 == variable_leader_id:
                     self.parse_velocity_chunk(chunks[offset])
