@@ -14,7 +14,8 @@ __license__ = 'Apache 2.0'
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.exceptions import SampleException, RecoverableSampleException, SampleEncodingException, NotImplementedException
+from mi.core.exceptions import SampleException, RecoverableSampleException, SampleEncodingException
+from mi.core.exceptions import NotImplementedException, UnexpectedDataException
 
 class Parser(object):
     """ abstract class to show API needed for plugin poller objects """
@@ -113,14 +114,17 @@ class Parser(object):
         try:
             if regex is None or regex.match(raw_data):
                 particle = particle_class(raw_data, internal_timestamp=timestamp,
-                                          preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP, new_sequence=self._new_sequence)
+                                          preferred_timestamp=DataParticleKey.INTERNAL_TIMESTAMP,
+                                          new_sequence=self._new_sequence)
                 if self._new_sequence:
                     self._new_sequence = False
 
+                # need to actually parse the particle fields to find out of there are errors
+                particle.generate()
                 encoding_errors = particle.get_encoding_errors()
                 if encoding_errors:
                     log.warn("Failed to encode: %s", encoding_errors)
-                    raise SampleEncodingException("Failed to encode: %s", encoding_errors)
+                    raise SampleEncodingException("Failed to encode: %s" % encoding_errors)
 
         except (RecoverableSampleException, SampleEncodingException) as e:
             log.error("Sample exception detected: %s raw data: %s", e, raw_data)
@@ -181,8 +185,21 @@ class BufferLoadingParser(Parser):
             while len(self._record_buffer) < num_records:
                 self._load_particle_buffer()        
         except EOFError:
-            pass            
+            self._process_end_of_file()
         return self._yank_particles(num_records)
+
+    def _process_end_of_file(self):
+        """
+        Confirm that the chunker does not have any extra bytes left at the end of the file
+        """
+        (nd_timestamp, non_data) = self._chunker.get_next_non_data()
+        (timestamp, chunk) = self._chunker.get_next_data()
+        if (non_data and len(non_data) > 0):
+            log.warn("Have extra unexplained non-data bytes at the end of the file:%s", non_data)
+            raise UnexpectedDataException("Have extra unexplained non-data bytes at the end of the file:%s" % non_data)
+        elif (chunk and len(chunk) > 0):
+            log.warn("Have extra unexplained data chunk bytes at the end of the file:%s", chunk)
+            raise UnexpectedDataException("Have extra unexplained data chunk bytes at the end of the file:%s" % chunk)
 
     def _yank_particles(self, num_records):
         """
