@@ -2,7 +2,7 @@
 @package mi.instrument.teledyne.workhorse.driver
 @file marine-integrations/mi/instrument/teledyne/workhorse/driver.py
 @author Sung Ahn
-@brief generic Driver for the ADCP
+@brief generic Driver for the Workhorse
 Release notes:
 
 Generic Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
@@ -29,8 +29,23 @@ class WorkhorseParameter(TeledyneParameter):
     Device parameters
     """
     #
-    # set-able parameters
+    # Workhorse parameters
     #
+    SERIAL_FLOW_CONTROL = 'CF'
+    BANNER = 'CH'
+    SLEEP_ENABLE = 'CL'
+    SAVE_NVRAM_TO_RECORDER = 'CN'
+    POLLED_MODE = 'CP'
+    PITCH = 'EP'
+    ROLL = 'ER'
+
+    LATENCY_TRIGGER = 'CX'
+    HEADING_ALIGNMENT = 'EA'
+    DATA_STREAM_SELECTION ='PD'
+    ENSEMBLE_PER_BURST ='TC'
+    BUFFERED_OUTPUT_PERIOD ='TX'
+    SAMPLE_AMBIENT_SOUND ='WQ'
+    TRANSDUCER_DEPTH ='ED'
 
 class WorkhorseInstrumentDriver(TeledyneInstrumentDriver):
     """
