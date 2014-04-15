@@ -32,7 +32,7 @@ from mi.core.log import get_logger; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import DatasetParserException, RecoverableSampleException, \
-  SampleException, UnexpectedDataException
+    SampleException, UnexpectedDataException
 
 from mi.dataset.dataset_parser import BufferLoadingParser
 
@@ -80,12 +80,7 @@ INSTRUMENT_PARTICLE_KEYS = \
     None,                      # offsetOfData not included in particle
     'vel3d_k_serial',
     'vel3d_k_configuration',
-    'date_time_array',
-    None,                      # month included in date_time_array
-    None,                      # day included in date_time_array
-    None,                      # hour included in date_time_array
-    None,                      # minute included in date_time_array
-    None,                      # seconds included in date_time_array
+    'date_time_array',         # year, month, day, hour, minute, seconds
     'vel3d_k_micro_seconds',
     'vel3d_k_speed_sound',
     'vel3d_k_temp_c',
@@ -123,6 +118,8 @@ INSTRUMENT_PARTICLE_KEYS = \
     'vel3d_k_corr2',
     'vel3d_k_id'
 ]
+DATE_TIME_ARRAY = 'date_time_array'    # This one needs to be special-cased
+DATE_TIME_SIZE = 6                     # 6 bytes for the output date time field
 
 INDEX_STRING_ID = 0
 INDEX_STRING = 1
@@ -179,7 +176,16 @@ class Vel3dKWfpInstrumentParticle(DataParticle):
         for x in range(0, len(INSTRUMENT_PARTICLE_KEYS)):
             key = INSTRUMENT_PARTICLE_KEYS[x]
             if key is not None:
-                particle.append = (self._encode_value(key, self.raw_data[field], int))
+                if key == DATE_TIME_ARRAY:
+                    time_array = self.raw_data[field : field + DATE_TIME_SIZE]
+                    particle.append({DataParticleKey.VALUE_ID: key,
+                         DataParticleKey.VALUE: list(time_array)})
+                    field += DATE_TIME_SIZE
+                else:
+                    key_value = self._encode_value(key, self.raw_data[field], int)
+                    particle.append(key_value)
+                    field += 1
+            else:
                 field += 1
 
         return particle
@@ -271,19 +277,19 @@ class Vel3dKWfpParser(BufferLoadingParser):
                 state[StateKey.POSITION] = file_position
             if not (StateKey.RECORD_NUMBER in state):
                 state[StateKey.RECORD_NUMBER] = 0
-            if not (StateKey.TIMESTAMP in state):
-                state[StateKey.TIMESTAMP] = self.times[INDEX_TIME_ON]
+            #if not (StateKey.TIMESTAMP in state):
+            #    state[StateKey.TIMESTAMP] = self.times[INDEX_TIME_ON]
             self.set_state(state)
 
         else:
             initial_state = {StateKey.POSITION: file_position,
-                             StateKey.RECORD_NUMBER: 0,
-                             StateKey.TIMESTAMP: self.times[INDEX_TIME_ON]}
+                             StateKey.RECORD_NUMBER: 0}
+            #                 StateKey.TIMESTAMP: self.times[INDEX_TIME_ON]}
             self.set_state(initial_state)
 
         super(Vel3dKWfpParser, self).__init__(config, input_file, state,
-          self.sieve_function, state_callback, publish_callback,
-          exception_callback)
+            self.sieve_function, state_callback, publish_callback,
+            exception_callback)
 
     def calculate_checksum(self, input_buffer, values):
         """
@@ -311,8 +317,9 @@ class Vel3dKWfpParser(BufferLoadingParser):
         This function calculates the timestamp based on the current record number.
         """
         time_stamp = (self._read_state[StateKey.RECORD_NUMBER] * SAMPLE_RATE) + \
-          self.times[INDEX_TIME_ON]
+           self.times[INDEX_TIME_ON]
         ntp_time = ntplib.system_to_ntp_time(time_stamp)
+        #ntp_time = ntplib.system_to_ntp_time(self._read_state[StateKey.TIMESTAMP])
         return ntp_time
 
     def get_file_parameters(self, input_file):
@@ -355,13 +362,13 @@ class Vel3dKWfpParser(BufferLoadingParser):
             self._increment_position(len(non_data))
 
             log.warn("Found %d bytes (from %d to %d) of un-expected non-data" %
-              (len(non_data), non_start, non_end))
+                (len(non_data), non_start, non_end))
 
             # if non-data is a fatal error, directly call the exception,
             # if it is not use the _exception_callback
-            self._exception_callback(
-              UnexpectedDataException("Found %d bytes of un-expected non-data %s" %
-                                      (len(non_data), non_data)))
+            self._exception_callback(UnexpectedDataException(
+                "Found %d bytes of un-expected non-data %s" %
+                 (len(non_data), non_data)))
 
     def _increment_position(self, bytes_read):
         """
@@ -375,12 +382,13 @@ class Vel3dKWfpParser(BufferLoadingParser):
         Increment the parser record number
         """
         self._read_state[StateKey.RECORD_NUMBER] += 1
+        log.info("@@@@@@@@@@@@@@ REC %d", self._read_state[StateKey.RECORD_NUMBER])
 
-    def _increment_timestamp(self):
+    #def _increment_timestamp(self):
         """
         Increment the parser timestamp
         """
-        self._read_state[StateKey.TIMESTAMP] += SAMPLE_RATE
+        #self._read_state[StateKey.TIMESTAMP] += SAMPLE_RATE
 
     def parse_chunks(self):
         """
@@ -414,7 +422,9 @@ class Vel3dKWfpParser(BufferLoadingParser):
                 # Create the particle.
                 #
                 sample = self._extract_sample(record_type, None, record_fields,
-                  ntp_time)
+                    ntp_time)
+                log.info('??????? Rec %d, time %f',
+                    self._read_state[StateKey.RECORD_NUMBER], ntp_time)
 
                 #
                 # If a particle was created, add it to the list of particles.
@@ -427,14 +437,13 @@ class Vel3dKWfpParser(BufferLoadingParser):
                 # String particles use the previous instrument particle timestamp.
                 #
                 if record_type == Vel3dKWfpInstrumentParticle:
-                    self._increment_timestamp()
+                    #self._increment_timestamp()
                     self._increment_record_number()
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
             self.handle_non_data(non_data, non_start, non_end, start)
 
-        log.info('parse_chunks: Generated %d particles', len(result_particles))
         return result_particles
 
     def parse_data_record(self, record):
@@ -544,8 +553,9 @@ class Vel3dKWfpParser(BufferLoadingParser):
             # parse the data record payload.
             #
             if header_is_valid and \
-              header_checksum_matches and \
-              payload_checksum_matches:
+                header_checksum_matches and \
+                payload_checksum_matches:
+
                 header_id = struct.unpack('B', header.group(GROUP_HEADER_ID))[0]
 
                 if header_id == DATA_HEADER_ID_BURST_DATA or \
@@ -596,13 +606,14 @@ class Vel3dKWfpParser(BufferLoadingParser):
             raise DatasetParserException("Invalid state structure")
 
         if not (StateKey.POSITION in state_obj) or \
-          not (StateKey.TIMESTAMP in state_obj):
+            not (StateKey.RECORD_NUMBER in state_obj):
+
             raise DatasetParserException("Invalid state keys")
 
         self._record_buffer = []
         self._state = state_obj
         self._read_state = state_obj
-        self._timestamp = state_obj[StateKey.TIMESTAMP]
+        #self._timestamp = state_obj[StateKey.TIMESTAMP]
         self.input_file.seek(state_obj[StateKey.POSITION])
 
     def sieve_function(self, input_buffer):
@@ -644,7 +655,7 @@ class Vel3dKWfpParser(BufferLoadingParser):
                     # Calculate end position of the data payload in the buffer.
                     #
                     payload_size = struct.unpack('<H',
-                      header.group(GROUP_HEADER_DATA_SIZE))[0]
+                        header.group(GROUP_HEADER_DATA_SIZE))[0]
                     record_end = header_index + DATA_HEADER_SIZE + payload_size
 
                     #
@@ -653,9 +664,9 @@ class Vel3dKWfpParser(BufferLoadingParser):
                     #
                     if record_end < len(input_buffer):
                         payload_checksum_matches = \
-                          self.validate_payload_checksum(header,
-                          input_buffer[header_index + DATA_HEADER_SIZE : ],
-                          False)
+                            self.validate_payload_checksum(header,
+                            input_buffer[header_index + DATA_HEADER_SIZE : ],
+                            False)
 
                         #
                         # If the payload checksum matches,
@@ -689,7 +700,7 @@ class Vel3dKWfpParser(BufferLoadingParser):
                 time_data = self.parse_time_record(input_buffer[search_index : ])
                 if time_data == self.times:
                     indices_list.append((search_index,
-                      search_index + TIME_RECORD_SIZE))
+                        search_index + TIME_RECORD_SIZE))
                     search_index += TIME_RECORD_SIZE
                 else:
                     search_index += 1
@@ -700,7 +711,6 @@ class Vel3dKWfpParser(BufferLoadingParser):
             else:
                 break
 
-        log.info('XXX SIEVE %s', indices_list)
         return indices_list
 
     def validate_header_checksum(self, header, input_buffer, stop_on_error):
@@ -715,10 +725,10 @@ class Vel3dKWfpParser(BufferLoadingParser):
         """
 
         header_checksum = struct.unpack('<H',
-          header.group(GROUP_HEADER_CHECKSUM))[0]
+            header.group(GROUP_HEADER_CHECKSUM))[0]
 
         checksum = self.calculate_checksum(input_buffer,
-          DATA_HEADER_CHECKSUM_LENGTH)
+            DATA_HEADER_CHECKSUM_LENGTH)
 
         if checksum == header_checksum:
             checksum_matches = True
@@ -726,9 +736,9 @@ class Vel3dKWfpParser(BufferLoadingParser):
             checksum_matches = False
             if stop_on_error:
                 self.report_error(RecoverableSampleException,
-                  'Invalid Data Header checksum. '
-                  'Actual 0x%04X. Expected 0x%04X.' %
-                  (checksum, header_checksum))
+                    'Invalid Data Header checksum. '
+                    'Actual 0x%04X. Expected 0x%04X.' %
+                    (checksum, header_checksum))
 
         return checksum_matches
 
@@ -760,9 +770,9 @@ class Vel3dKWfpParser(BufferLoadingParser):
             checksum_matches = False
             if stop_on_error:
                 self.report_error(RecoverableSampleException,
-                  'Invalid Data Payload checksum. '
-                  'Actual 0x%04X. Expected 0x%04X.' %
-                  (checksum, payload_checksum))
+                    'Invalid Data Payload checksum. '
+                    'Actual 0x%04X. Expected 0x%04X.' %
+                    (checksum, payload_checksum))
 
         return checksum_matches
 
@@ -788,8 +798,8 @@ class Vel3dKWfpParser(BufferLoadingParser):
         if header_size != DATA_HEADER_SIZE:
             header_is_valid = False
             self.report_error(UnexpectedDataException,
-              'Invalid Data Header size. Actual %d. Expected %d.' %
-              (header_size, DATA_HEADER_SIZE))
+                'Invalid Data Header size. Actual %d. Expected %d.' %
+                (header_size, DATA_HEADER_SIZE))
 
         #
         # Verify that the family size is as expected.
@@ -798,23 +808,23 @@ class Vel3dKWfpParser(BufferLoadingParser):
         if header_family != DATA_HEADER_FAMILY:
             header_is_valid = False
             self.report_error(SampleException,
-              'Invalid Data Header family. Actual 0x%X. Expected 0x%X.' %
-              (header_family, DATA_HEADER_FAMILY))
+                'Invalid Data Header family. Actual 0x%X. Expected 0x%X.' %
+                (header_family, DATA_HEADER_FAMILY))
 
         #
         # Verify that the header ID is as expected.
         #
         header_id = struct.unpack('B', header.group(GROUP_HEADER_ID))[0]
         if header_id != DATA_HEADER_ID_BURST_DATA and \
-           header_id != DATA_HEADER_ID_CP_DATA and \
-           header_id != DATA_HEADER_ID_STRING:
+            header_id != DATA_HEADER_ID_CP_DATA and \
+            header_id != DATA_HEADER_ID_STRING:
 
             header_is_valid = False
             self.report_error(SampleException,
-              'Invalid Data Header ID. Actual 0x%02X. '
-              'Expected 0x%02X, 0x%02X, or 0x%02X.' %
-              (header_family, DATA_HEADER_ID_BURST_DATA,
-              DATA_HEADER_ID_CP_DATA, DATA_HEADER_ID_STRING))
+                'Invalid Data Header ID. Actual 0x%02X. '
+                'Expected 0x%02X, 0x%02X, or 0x%02X.' %
+                (header_family, DATA_HEADER_ID_BURST_DATA,
+                DATA_HEADER_ID_CP_DATA, DATA_HEADER_ID_STRING))
 
         return header_is_valid
 
