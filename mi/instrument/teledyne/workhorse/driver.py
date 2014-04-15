@@ -28,24 +28,7 @@ class WorkhorseParameter(TeledyneParameter):
     """
     Device parameters
     """
-    #
-    # Workhorse parameters
-    #
-    SERIAL_FLOW_CONTROL = 'CF'
-    BANNER = 'CH'
-    SLEEP_ENABLE = 'CL'
-    SAVE_NVRAM_TO_RECORDER = 'CN'
-    POLLED_MODE = 'CP'
-    PITCH = 'EP'
-    ROLL = 'ER'
 
-    LATENCY_TRIGGER = 'CX'
-    HEADING_ALIGNMENT = 'EA'
-    DATA_STREAM_SELECTION ='PD'
-    ENSEMBLE_PER_BURST ='TC'
-    BUFFERED_OUTPUT_PERIOD ='TX'
-    SAMPLE_AMBIENT_SOUND ='WQ'
-    TRANSDUCER_DEPTH ='ED'
 
 class WorkhorseInstrumentDriver(TeledyneInstrumentDriver):
     """
