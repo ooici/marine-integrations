@@ -27,7 +27,7 @@ from mi.dataset.dataset_parser import Parser
 # groups: ID, Number of Data Bytes, POSIX timestamp, block number, data
 # some instruments have \x03 within the data, need to check if header is
 # followed by another header or not or zeros for blank data
-SIO_HEADER_REGEX = b'\x01(CT|AD|FL|DO|PH|PS|CS|WA|WC|WE)[0-9]{7}_([0-9A-Fa-f]{4})[a-zA-Z]' \
+SIO_HEADER_REGEX = b'\x01(CT|AD|FL|DO|PH|PS|CS|WA|WC|WE|CO|PS|CS)[0-9]{7}_([0-9A-Fa-f]{4})[a-zA-Z]' \
                '([0-9A-Fa-f]{8})_([0-9A-Fa-f]{2})_([0-9A-Fa-f]{4})\x02'
 SIO_HEADER_MATCHER = re.compile(SIO_HEADER_REGEX)
 
@@ -44,7 +44,7 @@ class StateKey(BaseEnum):
 class SioMuleParser(Parser):
 
     def __init__(self, config, stream_handle, state, sieve_fn,
-                 state_callback, publish_callback, exception_callback, instrument_id):
+                 state_callback, publish_callback, exception_callback):
         """
         @param config The configuration parameters to feed into the parser
         @param stream_handle An already open file-like filehandle
@@ -70,10 +70,6 @@ class SioMuleParser(Parser):
                                          state_callback,
                                          publish_callback,
                                          exception_callback)
-
-        if instrument_id not in ['CT', 'AD', 'FL', 'DO', 'PH', 'WA', 'WC', 'WE']:
-            raise DatasetParserException('instrument id %s is not recognized', instrument_id)
-        self._instrument_id = instrument_id
 
         self._timestamp = 0.0
         self._position = [0,0] # store both the start and end point for this read of data within the file

@@ -167,7 +167,6 @@ class AdcpsParser(SioMuleParser):
                                           state_callback,
                                           publish_callback,
                                           exception_callback,
-                                          'AD',
                                           *args,
                                           **kwargs)
 
@@ -189,7 +188,7 @@ class AdcpsParser(SioMuleParser):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
             log.debug('parsing header %s', header_match.group(0)[1:32])
-            if header_match.group(1) == self._instrument_id:
+            if header_match.group(1) == 'AD':
                 log.debug("matched chunk header %s", chunk[1:32])
 
                 data_wrapper_match = DATA_WRAPPER_MATCHER.search(chunk)
