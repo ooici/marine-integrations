@@ -15,13 +15,9 @@ import socket
 from mi.instrument.teledyne.driver import TeledyneInstrumentDriver
 from mi.instrument.teledyne.driver import TeledyneProtocol
 from mi.instrument.teledyne.driver import TeledynePrompt
-from mi.instrument.teledyne.driver import TeledyneProtocolEvent
-from mi.instrument.teledyne.driver import TeledyneInstrumentCmds
 from mi.instrument.teledyne.driver import TeledyneParameter
-from mi.instrument.teledyne.driver import TeledyneProtocolState
 from mi.instrument.teledyne.driver import TeledyneCapability
 from mi.instrument.teledyne.particles import *
-
 from mi.core.instrument.chunker import StringChunker
 
 
@@ -35,19 +31,10 @@ class WorkhorseParameter(TeledyneParameter):
     #
     # set-able parameters
     #
-    #SERIAL_FLOW_CONTROL = 'CF'
-    #BANNER = 'CH'
-    #SLEEP_ENABLE = 'CL'
-    #SAVE_NVRAM_TO_RECORDER = 'CN'
-    #POLLED_MODE = 'CP'
-    #PITCH = 'EP'
-    #ROLL = 'ER'
-
-
 
 class WorkhorseInstrumentDriver(TeledyneInstrumentDriver):
     """
-    InstrumentDriver subclass for Workhorse 75khz driver.
+    InstrumentDriver subclass for Workhorse driver.
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
     """
