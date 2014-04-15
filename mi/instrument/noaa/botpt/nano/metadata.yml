@@ -1,8 +1,8 @@
 driver_metadata:
-  author: David Everett
+  author: Peter Cable
   driver_make: noaa
   driver_model: botpt
   driver_name: nano
-  email: deverett@interon.com
-  release_notes: 'Driver for NANO BPR sensor on the RSN-BOTPT instrument (v.6)'
-  version: 0.1.1
+  email: petercable@gmail.com
+  release_notes: Driver for NANO BPR sensor on the RSN-BOTPT instrument (v.6)
+  version: 0.2.0

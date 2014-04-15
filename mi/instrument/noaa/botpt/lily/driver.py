@@ -44,7 +44,6 @@ from mi.instrument.noaa.botpt.driver import BotptStatus02Particle
 from mi.instrument.noaa.botpt.driver import NEWLINE
 from mi.instrument.noaa.botpt.driver import BotptProtocol
 from mi.instrument.noaa.botpt.driver import BotptStatus02ParticleKey
-
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentDataException
 from mi.core.exceptions import InstrumentTimeoutException
@@ -149,7 +148,8 @@ class DataParticleType(BotptDataParticleType):
 
 
 class LILYDataParticleKey(BaseEnum):
-    TIME = "lily_time"
+    SENSOR_ID = 'sensor_id'
+    TIME = "date_time_string"
     X_TILT = "lily_x_tilt"
     Y_TILT = "lily_y_tilt"
     MAG_COMPASS = "lily_mag_compass"
@@ -246,7 +246,6 @@ class LILYDataParticle(DataParticle):
             lily_time = match.group(1)
             timestamp = time.strptime(lily_time, "%Y/%m/%d %H:%M:%S")
             self.set_internal_timestamp(unix_time=time.mktime(timestamp))
-            ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
             x_tilt = float(match.group(2))
             y_tilt = float(match.group(3))
             mag_compass = float(match.group(4))
@@ -259,8 +258,10 @@ class LILYDataParticle(DataParticle):
                                   self.raw_data)
 
         result = [
+            {DataParticleKey.VALUE_ID: LILYDataParticleKey.SENSOR_ID,
+             DataParticleKey.VALUE: 'LILY'},
             {DataParticleKey.VALUE_ID: LILYDataParticleKey.TIME,
-             DataParticleKey.VALUE: ntp_timestamp},
+             DataParticleKey.VALUE: lily_time},
             {DataParticleKey.VALUE_ID: LILYDataParticleKey.X_TILT,
              DataParticleKey.VALUE: x_tilt},
             {DataParticleKey.VALUE_ID: LILYDataParticleKey.Y_TILT,
@@ -641,7 +642,7 @@ class Protocol(BotptProtocol):
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_param_dict()
-        # self._build_command_dict()
+        self._build_command_dict()
 
         # Add build handlers for device commands.
         self._add_build_handler(InstrumentCommand.DATA_ON, self._build_command)
@@ -652,8 +653,8 @@ class Protocol(BotptProtocol):
         self._add_build_handler(InstrumentCommand.STOP_LEVELING, self._build_command)
 
         # # Add response handlers for device commands.
-        # for command in InstrumentCommand.list():
-        #     self._add_response_handler(command, self._resp_handler)
+        for command in InstrumentCommand.list():
+            self._add_response_handler(command, self._resp_handler)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -776,8 +777,7 @@ class Protocol(BotptProtocol):
         return sample
 
     def _check_for_autolevel(self, sample):
-        if self._param_dict.get(Parameter.AUTO_RELEVEL) and \
-                        self.get_current_state() in [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]:
+        if self._param_dict.get(Parameter.AUTO_RELEVEL) and self.get_current_state() == ProtocolState.AUTOSAMPLE:
             # Find the current X and Y tilt values
             # If they exceed the trigger parameters, begin autolevel
             relevel = False
@@ -839,24 +839,27 @@ class Protocol(BotptProtocol):
         # If leveling, STOP leveling and return to command (cannot verify leveling state)
         # If a sample is found, go to AUTOSAMPLE, otherwise COMMAND
         next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        next_agent_state = ResourceAgentState.IDLE
         result = None
         try:
-            response = self._get_response(timeout=1, response_regex=DISCOVER_REGEX)[0]
+            # clear out the buffers to ensure we are getting new data
+            # this is necessary when discovering out of direct access.
+            self._promptbuf = ''
+            self._linebuf = ''
+            response = self._get_response(timeout=2, response_regex=DISCOVER_REGEX)[0]
             log.debug('_handler_unknown_discover: response: [%r]', response)
             # autosample
             if LILYDataParticle.regex_compiled().search(response):
                 next_state = ProtocolState.AUTOSAMPLE
                 next_agent_state = ResourceAgentState.STREAMING
-                result = ProtocolState.AUTOSAMPLE
             # leveling - stop leveling, return to COMMAND
             elif LILYLevelingParticle.regex_compiled().search(response):
                 self._handler_stop_leveling()
         # timed out, assume command
         except InstrumentTimeoutException:
-            pass
-        log.debug('_handler_unknown_discover: returning: %r', (next_state, (next_agent_state, result)))
-        return next_state, (next_agent_state, result)
+            log.debug('_handler_unknown_discover: no LILY data found, going to COMMAND')
+        log.debug('_handler_unknown_discover: returning: %r', (next_state, next_agent_state))
+        return next_state, next_agent_state
 
     ########################################################################
     # Autosample handlers.
@@ -877,7 +880,7 @@ class Protocol(BotptProtocol):
         """
         return self._handler_command_generic(InstrumentCommand.START_LEVELING,
                                              ProtocolState.AUTOSAMPLE_LEVELING,
-                                             ResourceAgentState.CALIBRATE,
+                                             ResourceAgentState.BUSY,
                                              expected_prompt=LILY_LEVEL_ON)
 
     ########################################################################
@@ -888,31 +891,17 @@ class Protocol(BotptProtocol):
         """
         Get parameter
         """
-        log.debug("_handler_command_get")
-
+        log.debug("_handler_command_get [%r] [%r]", args, kwargs)
+        param_list = self._get_param_list(*args, **kwargs)
+        result = self._get_param_result(param_list, None)
         next_state = None
-
-        param_list = args[0]
-        if param_list == Parameter.ALL:
-            result = self._param_dict.get_all()
-        else:
-            result = {}
-
-            for param in param_list:
-                if param not in self._param_dict.get_keys():
-                    raise InstrumentProtocolException("Unknown parameter: %s" % param)
-                else:
-                    value = self._param_dict.get(param)
-                    log.debug('Adding parameter %s, value %s to result of _get', param, value)
-                    result[param] = value
-
         return next_state, result
 
     def _handler_command_set(self, *args, **kwargs):
         """
         Set parameter
         """
-        log.debug("_handler_command_set")
+        log.debug("_handler_command_set args: %r kwargs: %r", args, kwargs)
 
         next_state = None
         result = None
@@ -950,7 +939,7 @@ class Protocol(BotptProtocol):
         """
         return self._handler_command_generic(InstrumentCommand.START_LEVELING,
                                              ProtocolState.COMMAND_LEVELING,
-                                             ResourceAgentState.CALIBRATE,
+                                             ResourceAgentState.BUSY,
                                              expected_prompt=LILY_LEVEL_ON)
 
     ########################################################################
@@ -983,14 +972,17 @@ class Protocol(BotptProtocol):
         """
         Take instrument out of leveling mode, returning to the previous state
         """
+        log.debug('enter _handler_stop_leveling')
         _, (_, result) = self._handler_command_generic(InstrumentCommand.STOP_LEVELING, None, None,
                                                        expected_prompt=LILY_LEVEL_OFF)
         if self.get_current_state() == ProtocolState.AUTOSAMPLE_LEVELING:
-            return self._handler_command_start_autosample()
+            next_state, (next_agent_state, result) = self._handler_command_start_autosample()
         else:
             next_state = ProtocolState.COMMAND
             next_agent_state = ResourceAgentState.COMMAND
-            return next_state, (next_agent_state, result)
+        log.debug('exit _handler_stop_leveling: next_state: %s next_agent_state: %s', next_state, next_agent_state)
+        self._async_agent_state_change(next_agent_state)
+        return next_state, (next_agent_state, result)
 
     def _handler_leveling_exit(self, *args, **kwargs):
         try:

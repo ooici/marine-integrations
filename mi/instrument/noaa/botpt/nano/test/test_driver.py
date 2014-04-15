@@ -12,20 +12,16 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-import time
-
-from mi.core.instrument.instrument_driver import DriverParameter
-from mi.instrument.noaa.botpt.test.test_driver import BotptDriverUnitTest
-
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
+
+import time
 
 from nose.plugins.attrib import attr
 from mock import call
 
 from mi.core.log import get_logger
-
 
 log = get_logger()
 
@@ -36,8 +32,9 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
-
-from mi.instrument.noaa.botpt.nano.driver import InstrumentDriver, NANOStatusParticleKey, NANO_STRING
+from mi.instrument.noaa.botpt.nano.driver import InstrumentDriver
+from mi.instrument.noaa.botpt.nano.driver import NANOStatusParticleKey
+from mi.instrument.noaa.botpt.nano.driver import NANO_STRING
 from mi.instrument.noaa.botpt.nano.driver import DataParticleType
 from mi.instrument.noaa.botpt.nano.driver import NANODataParticleKey
 from mi.instrument.noaa.botpt.nano.driver import NANODataParticle
@@ -48,7 +45,9 @@ from mi.instrument.noaa.botpt.nano.driver import Capability
 from mi.instrument.noaa.botpt.nano.driver import Parameter
 from mi.instrument.noaa.botpt.nano.driver import Protocol
 from mi.instrument.noaa.botpt.nano.driver import NEWLINE
-
+from mi.core.instrument.instrument_driver import DriverParameter
+from mi.idk.exceptions import SampleTimeout
+from mi.instrument.noaa.botpt.test.test_driver import BotptDriverUnitTest
 from pyon.agent.agent import ResourceAgentState
 
 ###
@@ -59,7 +58,7 @@ InstrumentDriverTestCase.initialize(
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id='1D644T',
-    instrument_agent_name='noaa_nano_ooicore',
+    instrument_agent_name='noaa_botpt_nano',
     instrument_agent_packet_config=DataParticleType(),
 
     driver_startup_config={}
@@ -195,8 +194,7 @@ class NANOTestMixinSub(DriverTestMixin):
                                 'DRIVER_EVENT_START_DIRECT'],
         ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
                                    'EXPORTED_INSTRUMENT_SET_TIME',
-                                   'DRIVER_EVENT_ACQUIRE_STATUS',
-                                   'DRIVER_EVENT_START_DIRECT'],
+                                   'DRIVER_EVENT_ACQUIRE_STATUS'],
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
                                       'EXECUTE_DIRECT']
     }
@@ -216,20 +214,23 @@ class NANOTestMixinSub(DriverTestMixin):
     ]
 
     _sample_parameters_01 = {
-        NANODataParticleKey.TIME: {TYPE: float, VALUE: 3586225716.0, REQUIRED: True},
+        NANODataParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'NANO', REQUIRED: True},
+        NANODataParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/08/22 22:48:36.013', REQUIRED: True},
         NANODataParticleKey.PRESSURE: {TYPE: float, VALUE: 13.888533, REQUIRED: True},
         NANODataParticleKey.TEMP: {TYPE: float, VALUE: 26.147947328, REQUIRED: True},
-        NANODataParticleKey.PPS_SYNC: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NANODataParticleKey.PPS_SYNC: {TYPE: unicode, VALUE: u'V', REQUIRED: True},
     }
 
     _sample_parameters_02 = {
-        NANODataParticleKey.TIME: {TYPE: float, VALUE: 3586227216.0, REQUIRED: True},
+        NANODataParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'NANO', REQUIRED: True},
+        NANODataParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/08/22 23:13:36.000', REQUIRED: True},
         NANODataParticleKey.PRESSURE: {TYPE: float, VALUE: 13.884067, REQUIRED: True},
         NANODataParticleKey.TEMP: {TYPE: float, VALUE: 26.172926006, REQUIRED: True},
-        NANODataParticleKey.PPS_SYNC: {TYPE: bool, VALUE: True, REQUIRED: True},
+        NANODataParticleKey.PPS_SYNC: {TYPE: unicode, VALUE: u'P', REQUIRED: True},
     }
 
     _status_parameters = {
+        NANODataParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'NANO', REQUIRED: True},
         NANOStatusParticleKey.MODEL_NUMBER: {TYPE: unicode, VALUE: u'42.4K-265', REQUIRED: True},
         NANOStatusParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: u'120785', REQUIRED: True},
         NANOStatusParticleKey.FIRMWARE_REVISION: {TYPE: unicode, VALUE: u'R5.20', REQUIRED: True},
@@ -377,6 +378,20 @@ class NANOTestMixinSub(DriverTestMixin):
         self.assert_particle(data_particle, NANOStatusParticleKey, DataParticleType.NANO_STATUS,
                              self._status_parameters, verify_values)
 
+    def assert_particle_count(self, particle_type, particle_count, timeout):
+        end_time = time.time() + timeout
+        while True:
+            num_samples = len(self.get_sample_events(particle_type))
+            if num_samples > particle_count:
+                elapsed = timeout - (end_time - time.time())
+                rate = 1.0 * num_samples / elapsed
+                log.debug('Found %d samples, approx data rate: %.2f Hz', num_samples, rate)
+                break
+            else:
+                log.debug('Found %d samples of %d expected', num_samples, particle_count)
+            self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
+            time.sleep(.1)
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -461,20 +476,6 @@ class DriverUnitTest(BotptDriverUnitTest, NANOTestMixinSub):
 class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, NANOTestMixinSub):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
-
-    def assert_particle_count(self, particle_type, particle_count, timeout):
-        end_time = time.time() + timeout
-        while True:
-            num_samples = len(self.get_sample_events(particle_type))
-            if num_samples > particle_count:
-                elapsed = timeout - (end_time - time.time())
-                rate = 1.0 * num_samples / elapsed
-                log.debug('Found %d samples, approx data rate: %.2f Hz', num_samples, rate)
-                break
-            else:
-                log.debug('Found %d samples of %d expected', num_samples, particle_count)
-            self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
-            time.sleep(.1)
 
     def test_connect(self):
         self.assert_initialize_driver()
@@ -573,6 +574,83 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, NANOTestMix
         self.assert_set_parameter(Parameter.OUTPUT_RATE, 1)
         self.assert_set_parameter(Parameter.SYNC_INTERVAL, 60)
 
+    def assert_cycle(self):
+        self.assert_start_autosample()
+        self.assert_particle_async(DataParticleType.NANO_PARSED, self.assert_particle_sample_01)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status,
+                                    DataParticleType.NANO_STATUS, sample_count=1, timeout=5)
+        self.assert_resource_command(Capability.SET_TIME)
+
+        self.assert_stop_autosample()
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status,
+                                    DataParticleType.NANO_STATUS, sample_count=1, timeout=5)
+        self.assert_resource_command(Capability.SET_TIME)
+
+    def assert_sample_count(self, particle_type, count):
+        sample_count = 0
+        start_time = time.time()
+        while True:
+            try:
+                self.data_subscribers.get_samples(particle_type, 1, timeout=2)
+                sample_count += 1
+                log.debug('assert_sample_count: sample_count = %d target_count = %d', sample_count, count)
+            except SampleTimeout:
+                break
+        self.assertGreaterEqual(sample_count, count)
+        log.debug('Time elapsed while counting samples: %.2f secs', time.time() - start_time)
+
+    def test_cycle(self):
+        self.assert_enter_command_mode()
+        for x in range(4):
+            log.debug('test_cycle -- PASS %d', x + 1)
+            self.assert_cycle()
+
+    def test_rate(self):
+        # setup
+        particle_type = DataParticleType.NANO_PARSED
+        self.data_subscribers.start_data_subscribers()
+        self.addCleanup(self.data_subscribers.stop_data_subscribers)
+
+        # enter command mode, clear the sample queue
+        self.assert_enter_command_mode()
+        self.data_subscribers.clear_sample_queue(particle_type)
+
+        # set the data rate to 1hz and start autosampling
+        self.assert_set_parameter(Parameter.OUTPUT_RATE, 1, False)
+        self.assert_start_autosample()
+
+        # we should be receiving particles at around 1Hz, sleep for a bit
+        time.sleep(6)
+
+        # return to command mode and verify we received at least 5 samples
+        self.assert_enter_command_mode()
+        self.assert_sample_count(particle_type, 5)
+
+        # clear the queue, set the rate to 40hz and start autosample
+        self.data_subscribers.clear_sample_queue(particle_type)
+        self.assert_set_parameter(Parameter.OUTPUT_RATE, 40, False)
+        self.assert_start_autosample()
+
+        # we should be receiving particles at around 40Hz, sleep for a bit
+        time.sleep(6)
+
+        # return to command mode and count our samples
+        self.assert_enter_command_mode()
+        self.assert_sample_count(particle_type, 200)
+
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports
+        direct access to the physical instrument. (telnet mode)
+        """
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data(InstrumentCommand.DUMP_SETTINGS + NEWLINE)
+        result = self.tcp_client.expect(NANO_STRING)
+        self.assertTrue(result, msg='Failed to receive expected response in direct access mode.')
+        self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
+
     def test_get_capabilities(self):
         """
         @brief Verify that the correct capabilities are returned from get_capabilities
@@ -591,6 +669,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, NANOTestMix
                 ProtocolEvent.SET,
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.ACQUIRE_STATUS,
+                ProtocolEvent.SET_TIME,
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -606,6 +685,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, NANOTestMix
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
             ProtocolEvent.STOP_AUTOSAMPLE,
             ProtocolEvent.ACQUIRE_STATUS,
+            ProtocolEvent.SET_TIME,
         ]
 
         self.assert_start_autosample()
@@ -634,3 +714,19 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, NANOTestMix
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
+
+    def test_direct_access_exit_from_autosample(self):
+        """
+        Verify that direct access mode can be exited while the instrument is
+        sampling. This should be done for all instrument states. Override
+        this function on a per-instrument basis.
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access, and start sampling so ION doesnt know about it
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data(InstrumentCommand.DATA_ON + NEWLINE)
+        self.assertTrue(self.tcp_client.expect(NANO_STRING))
+        self.assert_direct_access_stop_telnet()
+        self.assert_agent_state(ResourceAgentState.STREAMING)

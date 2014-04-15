@@ -15,8 +15,6 @@ __license__ = 'Apache 2.0'
 import re
 import time
 
-import ntplib
-
 from mi.core.log import get_logger
 
 
@@ -110,7 +108,8 @@ class DataParticleType(BaseEnum):
 
 
 class HEATDataParticleKey(BaseEnum):
-    TIME = "heat_time"
+    SENSOR_ID = 'sensor_id'
+    TIME = "date_time_string"
     X_TILT = "heat_x_tilt"
     Y_TILT = "heat_y_tilt"
     TEMP = "temperature"
@@ -188,7 +187,6 @@ class HEATDataParticle(DataParticle):
             heat_time = match.group(1)
             timestamp = time.strptime(heat_time, "%Y/%m/%d %H:%M:%S")
             self.set_internal_timestamp(unix_time=time.mktime(timestamp))
-            ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
             x_tilt = int(match.group(2))
             y_tilt = int(match.group(3))
             temperature = int(match.group(4))
@@ -198,8 +196,10 @@ class HEATDataParticle(DataParticle):
                                   self.raw_data)
 
         result = [
+            {DataParticleKey.VALUE_ID: HEATDataParticleKey.SENSOR_ID,
+             DataParticleKey.VALUE: 'HEAT'},
             {DataParticleKey.VALUE_ID: HEATDataParticleKey.TIME,
-             DataParticleKey.VALUE: ntp_timestamp},
+             DataParticleKey.VALUE: heat_time},
             {DataParticleKey.VALUE_ID: HEATDataParticleKey.X_TILT,
              DataParticleKey.VALUE: x_tilt},
             {DataParticleKey.VALUE_ID: HEATDataParticleKey.Y_TILT,

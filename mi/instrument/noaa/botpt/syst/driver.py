@@ -7,13 +7,11 @@ Release notes:
 
 This is the SYST driver, which handles the raw particles as well as the SYST particles from the BOTPT.
 """
-import re
-
-from mi.core.exceptions import InstrumentProtocolException
-
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
+
+import re
 
 from mi.core.log import get_logger
 
@@ -28,8 +26,12 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
-from mi.instrument.noaa.botpt.driver import BotptProtocol, BotptStatusParticle, BotptStatusParticleKey
+from mi.instrument.noaa.botpt.driver import BotptProtocol
+from mi.instrument.noaa.botpt.driver import BotptStatusParticle
+from mi.instrument.noaa.botpt.driver import BotptStatusParticleKey
 from mi.instrument.noaa.botpt.driver import NEWLINE
+from mi.core.exceptions import InstrumentProtocolException
+
 
 ###
 #    Driver Constant Definitions
@@ -93,30 +95,30 @@ class SYSTStatusParticleKey(BotptStatusParticleKey):
     SERIAL_NUMBER = 'serial_number'
     UPTIME = 'uptime'
     MEM_STATS = 'memory_stats'
-    MEM_TOTAL = 'memory_total'
-    MEM_FREE = 'memory_free'
-    BUFFERS = 'buffers'
-    CACHED = 'cached'
-    SWAP_CACHED = 'swap_cached'
-    ACTIVE = 'active'
-    INACTIVE = 'inactive'
-    SWAP_TOTAL = 'swap_total'
-    SWAP_FREE = 'swap_free'
-    DIRTY = 'dirty'
-    WRITEBACK = 'writeback'
-    ANONPAGES = 'anon_pages'
-    MAPPED = 'mapped'
-    SLAB = 'slab'
-    S_RECLAIMABLE = 's_reclaimable'
-    S_UNRECLAIMABLE = 's_unreclaimable'
-    PAGE_TABLES = 'pagetables'
-    NFS_UNSTABLE = 'nfs_unstable'
-    BOUNCE = 'bounce'
-    COMMIT_LIMIT = 'commit_limit'
-    COMMITTED_AS = 'committed_as'
-    VMALLOC_TOTAL = 'vmalloc_total'
-    VMALLOC_USED = 'vmalloc_used'
-    VMALLOC_CHUNK = 'vmalloc_chunk'
+    MEM_TOTAL = 'memory_total_kB'
+    MEM_FREE = 'memory_free_kB'
+    BUFFERS = 'buffers_kB'
+    CACHED = 'cached_kB'
+    SWAP_CACHED = 'swap_cached_kB'
+    ACTIVE = 'active_kB'
+    INACTIVE = 'inactive_kB'
+    SWAP_TOTAL = 'swap_total_kB'
+    SWAP_FREE = 'swap_free_kB'
+    DIRTY = 'dirty_kB'
+    WRITEBACK = 'writeback_kB'
+    ANONPAGES = 'anon_pages_kB'
+    MAPPED = 'mapped_kB'
+    SLAB = 'slab_kB'
+    S_RECLAIMABLE = 's_reclaimable_kB'
+    S_UNRECLAIMABLE = 's_unreclaimable_kB'
+    PAGE_TABLES = 'pagetables_kB'
+    NFS_UNSTABLE = 'nfs_unstable_kB'
+    BOUNCE = 'bounce_kB'
+    COMMIT_LIMIT = 'commit_limit_kB'
+    COMMITTED_AS = 'committed_as_kB'
+    VMALLOC_TOTAL = 'vmalloc_total_kB'
+    VMALLOC_USED = 'vmalloc_used_kB'
+    VMALLOC_CHUNK = 'vmalloc_chunk_kB'
     NETSTAT = 'netstat'
     PROCESSES = 'processes'
 
@@ -126,7 +128,8 @@ class SYSTStatusParticle(BotptStatusParticle):
     _DEFAULT_ENCODER_KEY = int
     _timestamp_re = r'(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})'
     _encoders = {
-        SYSTStatusParticleKey.TIME: BotptStatusParticle.timestamp_to_ntp,
+        SYSTStatusParticleKey.SENSOR_ID: unicode,
+        SYSTStatusParticleKey.TIME: unicode,
         SYSTStatusParticleKey.NAME: unicode,
         SYSTStatusParticleKey.SERIAL_NUMBER: unicode,
         SYSTStatusParticleKey.UPTIME: unicode,
@@ -200,6 +203,7 @@ class SYSTStatusParticle(BotptStatusParticle):
 
     def _regex_multiline(self):
         return {
+            SYSTStatusParticleKey.SENSOR_ID: self.sensor_id,
             SYSTStatusParticleKey.TIME: self._timestamp_re,
             SYSTStatusParticleKey.NAME: r'(BOTPT.*?)' + NEWLINE,
             SYSTStatusParticleKey.SERIAL_NUMBER: r'(ts.*?)' + NEWLINE,

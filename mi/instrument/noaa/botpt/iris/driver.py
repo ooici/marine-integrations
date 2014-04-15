@@ -8,16 +8,12 @@ Release notes:
 Driver for IRIS TILT on the RSN-BOTPT instrument (v.6)
 
 """
-from mi.instrument.noaa.botpt.driver import BotptProtocol, BotptStatus01Particle, BotptStatus02ParticleKey, \
-    BotptStatus02Particle, NEWLINE
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 import re
 import time
-
-import ntplib
 
 from mi.core.log import get_logger
 
@@ -34,6 +30,11 @@ from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
+from mi.instrument.noaa.botpt.driver import BotptProtocol
+from mi.instrument.noaa.botpt.driver import BotptStatus01Particle
+from mi.instrument.noaa.botpt.driver import BotptStatus02ParticleKey
+from mi.instrument.noaa.botpt.driver import BotptStatus02Particle
+from mi.instrument.noaa.botpt.driver import NEWLINE
 
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
@@ -110,7 +111,8 @@ class DataParticleType(BaseEnum):
 
 
 class IRISDataParticleKey(BaseEnum):
-    TIME = "iris_time"
+    SENSOR_ID = "sensor_id"
+    TIME = "date_time_string"
     X_TILT = "iris_x_tilt"
     Y_TILT = "iris_y_tilt"
     TEMP = "temperature"
@@ -186,7 +188,6 @@ class IRISDataParticle(DataParticle):
             iris_time = match.group(1)
             timestamp = time.strptime(iris_time, "%Y/%m/%d %H:%M:%S")
             self.set_internal_timestamp(unix_time=time.mktime(timestamp))
-            ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
             x_tilt = float(match.group(2))
             y_tilt = float(match.group(3))
             temperature = float(match.group(4))
@@ -196,8 +197,10 @@ class IRISDataParticle(DataParticle):
             raise SampleException("ValueError while converting data: [%s]" % self.raw_data)
 
         result = [
+            {DataParticleKey.VALUE_ID: IRISDataParticleKey.SENSOR_ID,
+             DataParticleKey.VALUE: 'IRIS'},
             {DataParticleKey.VALUE_ID: IRISDataParticleKey.TIME,
-             DataParticleKey.VALUE: ntp_timestamp},
+             DataParticleKey.VALUE: iris_time},
             {DataParticleKey.VALUE_ID: IRISDataParticleKey.X_TILT,
              DataParticleKey.VALUE: x_tilt},
             {DataParticleKey.VALUE_ID: IRISDataParticleKey.Y_TILT,
@@ -488,6 +491,10 @@ class Protocol(BotptProtocol):
         """
         # attempt to find a data particle.  If found, go to AUTOSAMPLE, else COMMAND
         try:
+            # clear out the buffers to ensure we are getting new data
+            # this is necessary when discovering out of direct access.
+            self._promptbuf = ''
+            self._linebuf = ''
             result = self._get_response(timeout=2, response_regex=IRISDataParticle.regex_compiled())
             next_state = ProtocolState.AUTOSAMPLE
             next_agent_state = ResourceAgentState.STREAMING

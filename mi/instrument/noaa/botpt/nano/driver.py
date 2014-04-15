@@ -8,16 +8,12 @@ Release notes:
 Driver for NANO TILT on the RSN-BOTPT instrument (v.6)
 
 """
-from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
-from mi.core.instrument.protocol_param_dict import ParameterDictType
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 import re
 import time
-
-import ntplib
 
 from mi.core.log import get_logger
 
@@ -26,18 +22,24 @@ log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_fsm import InstrumentFSM
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver, DriverAsyncEvent, DriverConfigKey
+from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.driver_scheduler import DriverSchedulerConfigKey
+from mi.core.driver_scheduler import TriggerType
+from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
-from mi.instrument.noaa.botpt.driver import BotptProtocol, BotptStatusParticle
+from mi.instrument.noaa.botpt.driver import BotptProtocol
+from mi.instrument.noaa.botpt.driver import BotptStatusParticle
 from mi.instrument.noaa.botpt.driver import NEWLINE
-
-from mi.core.exceptions import InstrumentTimeoutException, InstrumentProtocolException
+from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import SampleException
 
 ###
@@ -112,12 +114,6 @@ class Parameter(DriverParameter):
     SYNC_INTERVAL = 'time_sync_interval'
 
 
-class Prompt(BaseEnum):
-    """
-    Device i/o prompts..
-    """
-
-
 class ScheduledJob(BaseEnum):
     SET_TIME = 'scheduled_time_sync'
 
@@ -148,7 +144,8 @@ class DataParticleType(BaseEnum):
 
 
 class NANODataParticleKey(BaseEnum):
-    TIME = "nano_time"
+    SENSOR_ID = 'sensor_id'
+    TIME = "date_time_string"
     PPS_SYNC = "nano_pps_sync"
     PRESSURE = "pressure"
     TEMP = "temperature"
@@ -214,11 +211,11 @@ class NANODataParticle(DataParticle):
                                   self.raw_data)
 
         try:
-            pps_sync = match.group(1) == 'P'
+            pps_sync = match.group(1)
             nano_time = match.group(2)
             timestamp = time.strptime(nano_time, "%Y/%m/%d %H:%M:%S.%f")
-            self.set_internal_timestamp(unix_time=time.mktime(timestamp))
-            ntp_timestamp = ntplib.system_to_ntp_time(time.mktime(timestamp))
+            fraction = float('.' + nano_time.split('.')[1])
+            self.set_internal_timestamp(unix_time=time.mktime(timestamp) + fraction)
             pressure = float(match.group(3))
             temperature = float(match.group(4))
 
@@ -227,8 +224,10 @@ class NANODataParticle(DataParticle):
                                   self.raw_data)
 
         result = [
+            {DataParticleKey.VALUE_ID: NANODataParticleKey.SENSOR_ID,
+             DataParticleKey.VALUE: 'NANO'},
             {DataParticleKey.VALUE_ID: NANODataParticleKey.TIME,
-             DataParticleKey.VALUE: ntp_timestamp},
+             DataParticleKey.VALUE: nano_time},
             {DataParticleKey.VALUE_ID: NANODataParticleKey.PRESSURE,
              DataParticleKey.VALUE: pressure},
             {DataParticleKey.VALUE_ID: NANODataParticleKey.TEMP,
@@ -241,6 +240,7 @@ class NANODataParticle(DataParticle):
 
 
 class NANOStatusParticleKey(BaseEnum):
+    SENSOR_ID = 'sensor_id'
     MODEL_NUMBER = 'model_number'
     SERIAL_NUMBER = 'serial_number'
     FIRMWARE_REVISION = 'firmware_revision'
@@ -375,6 +375,7 @@ class NANOStatusParticle(BotptStatusParticle):
     _data_particle_type = DataParticleType.NANO_STATUS
     _DEFAULT_ENCODER_KEY = int
     _encoders = {
+        NANOStatusParticleKey.SENSOR_ID: unicode,
         NANOStatusParticleKey.MODEL_NUMBER: unicode,
         NANOStatusParticleKey.SERIAL_NUMBER: unicode,
         NANOStatusParticleKey.FIRMWARE_REVISION: unicode,
@@ -485,6 +486,7 @@ class NANOStatusParticle(BotptStatusParticle):
     @classmethod
     def _regex_multiline(cls):
         return {
+            NANOStatusParticleKey.SENSOR_ID: r'(NANO),',
             NANOStatusParticleKey.MODEL_NUMBER: r'Model Number: \S+',
             NANOStatusParticleKey.SERIAL_NUMBER: r'Serial Number: \S+',
             NANOStatusParticleKey.FIRMWARE_REVISION: r'Firmware Revision: \S+',
@@ -646,7 +648,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         Construct the driver protocol state machine.
         """
-        self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
+        self._protocol = Protocol(BaseEnum, NEWLINE, self._driver_event)
 
 
 # noinspection PyMethodMayBeStatic,PyUnusedLocal
@@ -683,7 +685,6 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.SET_TIME, self._handler_command_autosample_set_time),
-                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -732,7 +733,6 @@ class Protocol(BotptProtocol):
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        #
         self._chunker = StringChunker(Protocol.sieve_function)
 
         # set up the regexes now so we don't have to do it repeatedly
@@ -826,8 +826,8 @@ class Protocol(BotptProtocol):
 
     def _got_chunk(self, chunk, timestamp):
         """
+        Got a chunk, attempt to create a particle
         """
-        # TODO docstring
         log.debug("_got_chunk_: %s", chunk)
         if not (self._extract_sample(NANODataParticle, NANODataParticle.regex_compiled(), chunk, timestamp) or
                     self._extract_sample(NANOStatusParticle, NANOStatusParticle.regex_compiled(), chunk, timestamp)):
@@ -861,7 +861,11 @@ class Protocol(BotptProtocol):
         next_agent_state = ResourceAgentState.IDLE
         result = None
         try:
-            response = self._get_response(timeout=1, response_regex=self.data_regex)
+            # clear out the buffers to ensure we are getting new data
+            # this is necessary when discovering out of direct access.
+            self._promptbuf = ''
+            self._linebuf = ''
+            response = self._get_response(timeout=2, response_regex=self.data_regex)
             log.debug('_handler_unknown_discover: response: [%r]', response)
             # autosample
             if response:
@@ -885,21 +889,11 @@ class Protocol(BotptProtocol):
         # Acquire the configuration to populate the config dict
         self._handler_command_autosample_acquire_status()
 
-        return next_state, (next_agent_state, result)
+        return next_state, next_agent_state
 
     ########################################################################
     # Autosample handlers.
     ########################################################################
-
-    def _handler_autosample_enter(self, *args, **kwargs):
-        """
-        Enter autosample state
-        """
-        log.debug("_handler_autosample_enter")
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_autosample_stop_autosample(self):
         """
@@ -910,16 +904,6 @@ class Protocol(BotptProtocol):
                                              ResourceAgentState.COMMAND)
 
     ########################################################################
-    # Unknown handlers.
-    ########################################################################
-
-    def _handler_unknown_exit(self, *args, **kwargs):
-        """
-        Exit unknown state.
-        """
-        log.debug("_handler_unknown_exit")
-
-    ########################################################################
     # Command handlers.
     ########################################################################
 
@@ -927,24 +911,10 @@ class Protocol(BotptProtocol):
         """
         Get parameter
         """
-        log.debug("_handler_command_get")
-
+        log.debug("_handler_command_get [%r] [%r]", args, kwargs)
+        param_list = self._get_param_list(*args, **kwargs)
+        result = self._get_param_result(param_list, None)
         next_state = None
-
-        param_list = args[0]
-        if param_list == Parameter.ALL:
-            result = self._param_dict.get_all()
-        else:
-            result = {}
-
-            for param in param_list:
-                if param not in self._param_dict.get_keys():
-                    raise InstrumentProtocolException("Unknown parameter: %s" % param)
-                else:
-                    value = self._param_dict.get(param)
-                    log.debug('Adding parameter %s, value %s to result of _get', param, value)
-                    result[param] = value
-
         return next_state, result
 
     def _handler_command_set(self, *args, **kwargs):

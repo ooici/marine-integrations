@@ -12,22 +12,23 @@ __license__ = 'Apache 2.0'
 
 import re
 import time
-
 import ntplib
 
 from mi.core.log import get_logger
-
 
 log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_protocol import DEFAULT_CMD_TIMEOUT
-from mi.core.instrument.instrument_driver import DriverEvent, DriverAsyncEvent, ResourceAgentState
+from mi.core.instrument.instrument_driver import DriverEvent
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.exceptions import SampleException, NotImplementedException
+from mi.core.exceptions import NotImplementedException
+from mi.core.exceptions import SampleException
 
 ###
 #    Driver Constant Definitions
@@ -81,7 +82,8 @@ class BotptCapability(BaseEnum):
 
 
 class BotptStatusParticleKey(BaseEnum):
-    TIME = "time"
+    SENSOR_ID = "sensor_id"
+    TIME = "date_time_string"
 
 
 class BotptStatus01ParticleKey(BotptStatusParticleKey):
@@ -121,6 +123,7 @@ class BotptDataParticleType(BaseEnum):
 class BotptStatusParticle(DataParticle):
     _DEFAULT_ENCODER_KEY = float
     botpt_date_time = r',(\d+/\d+/\d+ \d+:\d+:\d+),'
+    sensor_id = r'(LILY|NANO|IRIS|SYST),'
     floating_point_num = r'(-?\d+\.\d+)'
     four_floats = r'\s+?'.join([floating_point_num] * 4)
     six_floats = r'\s+?'.join([floating_point_num] * 6)
@@ -152,7 +155,7 @@ class BotptStatusParticle(DataParticle):
         self.set_internal_timestamp(unix_time=0)
         for r in results:
             if BotptStatusParticleKey.TIME in r:
-                self.set_internal_timestamp(r[BotptStatusParticleKey.TIME])
+                self.set_internal_timestamp(self.timestamp_to_ntp(r[BotptStatusParticleKey.TIME]))
 
         return results
 
@@ -236,10 +239,11 @@ class BotptStatus01Particle(BotptStatusParticle):
 
     _data_particle_type = BotptDataParticleType.BOTPT_STATUS_01
     _encoders = {
+        BotptStatus01ParticleKey.SENSOR_ID: str,
         BotptStatus01ParticleKey.MODEL: str,
         BotptStatus01ParticleKey.FIRMWARE_VERSION: str,
         BotptStatus01ParticleKey.SERIAL_NUMBER: str,
-        BotptStatus01ParticleKey.TIME: BotptStatusParticle.timestamp_to_ntp,
+        BotptStatus01ParticleKey.TIME: str,
         BotptStatus01ParticleKey.ID_NUMBER: str,
         BotptStatus01ParticleKey.TCOEF0_KS: int,
         BotptStatus01ParticleKey.TCOEF0_KZ: int,
@@ -270,6 +274,7 @@ class BotptStatus01Particle(BotptStatusParticle):
         }
 
         return {
+            BotptStatus01ParticleKey.SENSOR_ID: cls.sensor_id,
             BotptStatus01ParticleKey.TIME: cls.botpt_date_time,
             BotptStatus01ParticleKey.MODEL: r'APPLIED GEOMECHANICS (.*?) Firmware',
             BotptStatus01ParticleKey.FIRMWARE_VERSION: r'Firmware (\S+)',
@@ -339,7 +344,8 @@ class BotptStatus02ParticleKey(BotptStatusParticleKey):
 class BotptStatus02Particle(BotptStatusParticle):
     _data_particle_type = BotptDataParticleType.BOTPT_STATUS_02
     _encoders = {
-        BotptStatus02ParticleKey.TIME: BotptStatusParticle.timestamp_to_ntp,
+        BotptStatus01ParticleKey.SENSOR_ID: str,
+        BotptStatus02ParticleKey.TIME: str,
         BotptStatus02ParticleKey.KZVALS: int,
         BotptStatus02ParticleKey.ADC_DELAY: int,
         BotptStatus02ParticleKey.PCA_MODEL: str,
@@ -428,6 +434,7 @@ class BotptStatus02Particle(BotptStatusParticle):
             'newline': NEWLINE,
         }
         return {
+            BotptStatus02ParticleKey.SENSOR_ID: cls.sensor_id,
             BotptStatus02ParticleKey.TIME: cls.botpt_date_time,
             BotptStatus02ParticleKey.TBIAS: r'TBias:\s*%(float)s' % sub_dict,
             BotptStatus02ParticleKey.ABOVE: r'Above %(float)s' % sub_dict,
@@ -588,6 +595,9 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+    def _handler_unknown_discover(self, *args, **kwargs):
+        raise NotImplementedException
+
     def _handler_unknown_exit(self, *args, **kwargs):
         """
         Exit unknown state.
@@ -717,7 +727,8 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         log.debug("_handler_direct_access_stop_direct")
         result = None
 
-        next_state = DriverProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        next_state, next_agent_state = self._handler_unknown_discover()
+        if next_state == DriverProtocolState.COMMAND:
+            next_agent_state = ResourceAgentState.COMMAND
 
         return next_state, (next_agent_state, result)

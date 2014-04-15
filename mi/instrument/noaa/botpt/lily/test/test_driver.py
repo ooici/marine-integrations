@@ -22,7 +22,6 @@ from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger
 
-
 log = get_logger()
 
 # MI imports.
@@ -33,16 +32,15 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
-
 from mi.core.instrument.chunker import StringChunker
-
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-
-from mi.instrument.noaa.botpt.driver import BotptStatus01ParticleKey, BotptStatus01Particle
+from mi.instrument.noaa.botpt.driver import BotptStatus01ParticleKey
+from mi.instrument.noaa.botpt.driver import BotptStatus01Particle
 from mi.instrument.noaa.botpt.test.test_driver import BotptDriverUnitTest
-
-from mi.instrument.noaa.botpt.lily.driver import InstrumentDriver, LILYStatus02ParticleKey, LILYStatus02Particle
+from mi.instrument.noaa.botpt.lily.driver import InstrumentDriver
+from mi.instrument.noaa.botpt.lily.driver import LILYStatus02ParticleKey
+from mi.instrument.noaa.botpt.lily.driver import LILYStatus02Particle
 from mi.instrument.noaa.botpt.lily.driver import DataParticleType
 from mi.instrument.noaa.botpt.lily.driver import LILYDataParticleKey
 from mi.instrument.noaa.botpt.lily.driver import LILYDataParticle
@@ -63,7 +61,6 @@ from mi.instrument.noaa.botpt.lily.driver import LILY_LEVEL_OFF
 from mi.instrument.noaa.botpt.lily.driver import DEFAULT_MAX_XTILT
 from mi.instrument.noaa.botpt.lily.driver import DEFAULT_MAX_YTILT
 from mi.instrument.noaa.botpt.lily.driver import DEFAULT_LEVELING_TIMEOUT
-
 from mi.core.exceptions import InstrumentDataException
 
 ###
@@ -74,7 +71,7 @@ InstrumentDriverTestCase.initialize(
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id='1D644T',
-    instrument_agent_name='noaa_lily_ooicore',
+    instrument_agent_name='noaa_botpt_lily',
     instrument_agent_packet_config=DataParticleType(),
 
     driver_startup_config={}
@@ -248,7 +245,6 @@ class LILYTestMixinSub(DriverTestMixin):
                                    'DRIVER_EVENT_ACQUIRE_STATUS',
                                    'DRIVER_EVENT_GET',
                                    'DRIVER_EVENT_SET',
-                                   'DRIVER_EVENT_START_DIRECT',
                                    'EXPORTED_INSTRUMENT_START_LEVELING'],
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
                                       'EXECUTE_DIRECT'],
@@ -296,7 +292,8 @@ class LILYTestMixinSub(DriverTestMixin):
     ]
 
     _sample_parameters_01 = {
-        LILYDataParticleKey.TIME: {TYPE: float, VALUE: 3581130962.0, REQUIRED: True},
+        LILYDataParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
+        LILYDataParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/06/24 23:36:02', REQUIRED: True},
         LILYDataParticleKey.X_TILT: {TYPE: float, VALUE: -235.500, REQUIRED: True},
         LILYDataParticleKey.Y_TILT: {TYPE: float, VALUE: 25.930, REQUIRED: True},
         LILYDataParticleKey.MAG_COMPASS: {TYPE: float, VALUE: 194.30, REQUIRED: True},
@@ -307,7 +304,8 @@ class LILYTestMixinSub(DriverTestMixin):
     }
 
     _sample_parameters_02 = {
-        LILYDataParticleKey.TIME: {TYPE: float, VALUE: 3581130964.0, REQUIRED: True},
+        LILYDataParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
+        LILYDataParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/06/24 23:36:04', REQUIRED: True},
         LILYDataParticleKey.X_TILT: {TYPE: float, VALUE: -235.349, REQUIRED: True},
         LILYDataParticleKey.Y_TILT: {TYPE: float, VALUE: 26.082, REQUIRED: True},
         LILYDataParticleKey.MAG_COMPASS: {TYPE: float, VALUE: 194.26, REQUIRED: True},
@@ -318,7 +316,8 @@ class LILYTestMixinSub(DriverTestMixin):
     }
 
     _status_01_parameters = {
-        BotptStatus01ParticleKey.TIME: {TYPE: float, VALUE: 3581130941.0, REQUIRED: True},
+        BotptStatus01ParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
+        BotptStatus01ParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/06/24 23:35:41', REQUIRED: True},
         BotptStatus01ParticleKey.MODEL: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
         BotptStatus01ParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: u'V2.1', REQUIRED: True},
         BotptStatus01ParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: u'SN-N9655', REQUIRED: True},
@@ -344,7 +343,8 @@ class LILYTestMixinSub(DriverTestMixin):
     }
 
     _status_02_parameters = {
-        LILYStatus02ParticleKey.TIME: {TYPE: float, VALUE: 3581130965.0, REQUIRED: True},
+        BotptStatus01ParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'LILY', REQUIRED: True},
+        BotptStatus01ParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/06/24 23:36:05', REQUIRED: True},
         LILYStatus02ParticleKey.TBIAS: {TYPE: float, VALUE: 5.0, REQUIRED: True},
         LILYStatus02ParticleKey.ABOVE: {TYPE: float, VALUE: 0.0, REQUIRED: True},
         LILYStatus02ParticleKey.BELOW: {TYPE: float, VALUE: 0.0, REQUIRED: True},
@@ -391,7 +391,6 @@ class LILYTestMixinSub(DriverTestMixin):
         LILYStatus02ParticleKey.RECOVERY_MODE: {TYPE: unicode, VALUE: u'Off', REQUIRED: True},
         LILYStatus02ParticleKey.ADV_MEM_MODE: {TYPE: unicode, VALUE: u'Off', REQUIRED: True},
         LILYStatus02ParticleKey.DEL_W_XYMEMD: {TYPE: unicode, VALUE: u'No', REQUIRED: True},
-
     }
 
     def assert_particle(self, data_particle, particle_type, particle_keys, sample_data, verify_values=False):
@@ -666,7 +665,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, LILYTestMixinSu
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    def test_connection(self):
+    def test_connect(self):
         self.assert_initialize_driver()
 
     def test_get(self):
@@ -771,7 +770,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, LILYTestMixinSu
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
         self.assert_state_change(ProtocolState.COMMAND, 1)
 
-    def test_dump_status(self):
+    def test_acquire_status(self):
         """
         @brief Test for acquiring status
         """
@@ -813,15 +812,15 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, LILYTestMix
         self.assert_start_autosample()
         self.assert_particle_async(DataParticleType.LILY_PARSED, self.assert_particle_sample_01)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status_01,
-                                    DataParticleType.LILY_STATUS_01, sample_count=1, timeout=5)
+                                    DataParticleType.LILY_STATUS_01, sample_count=1)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status_02,
-                                    DataParticleType.LILY_STATUS_02, sample_count=1, timeout=5)
+                                    DataParticleType.LILY_STATUS_02, sample_count=1)
 
         self.assert_stop_autosample()
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status_01,
-                                    DataParticleType.LILY_STATUS_01, sample_count=1, timeout=5)
+                                    DataParticleType.LILY_STATUS_01, sample_count=1)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status_02,
-                                    DataParticleType.LILY_STATUS_02, sample_count=1, timeout=5)
+                                    DataParticleType.LILY_STATUS_02, sample_count=1)
 
     def test_cycle(self):
         self.assert_enter_command_mode()
@@ -829,11 +828,25 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, LILYTestMix
             log.debug('test_cycle -- PASS %d', x + 1)
             self.assert_cycle()
 
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test manually tests that the Instrument Driver properly supports
+        direct access to the physical instrument. (telnet mode)
+        """
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data(InstrumentCommand.DUMP_SETTINGS_01 + NEWLINE)
+        result = self.tcp_client.expect(LILY_DUMP_01)
+        self.assertTrue(result, msg='Failed to receive expected response in direct access mode.')
+        self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
+
     def test_leveling(self):
         self.assert_enter_command_mode()
         self.assert_set_parameter(Parameter.LEVELING_TIMEOUT, 5, False)
-        self.assert_agent_command(Capability.START_LEVELING)
-        self.assert_enter_command_mode(10)
+        self.assert_resource_command(Capability.START_LEVELING)
+        self.assert_state_change(ResourceAgentState.BUSY, ProtocolState.COMMAND_LEVELING, 5)
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
 
     def test_get_set_parameters(self):
         """
@@ -912,3 +925,19 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, LILYTestMix
 
         self.assert_reset()
         self.assert_capabilities(capabilities)
+
+    def test_direct_access_exit_from_autosample(self):
+        """
+        Verify that direct access mode can be exited while the instrument is
+        sampling. This should be done for all instrument states. Override
+        this function on a per-instrument basis.
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access, and start sampling so ION doesnt know about it
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data(InstrumentCommand.DATA_ON + NEWLINE)
+        self.assertTrue(self.tcp_client.expect(LILY_DATA_ON))
+        self.assert_direct_access_stop_telnet()
+        self.assert_agent_state(ResourceAgentState.STREAMING)

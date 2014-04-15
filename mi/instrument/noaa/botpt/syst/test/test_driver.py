@@ -19,23 +19,23 @@ __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 from nose.plugins.attrib import attr
-
 from mi.core.log import get_logger
 
 log = get_logger()
 
 # MI imports.
-from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey, AgentCapabilityType
+from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import ParameterTestConfigKey
+from mi.idk.unit_test import AgentCapabilityType
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
-
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverProtocolState
-
 from pyon.agent.agent import ResourceAgentState
-
-from mi.instrument.noaa.botpt.syst.driver import InstrumentDriver, SYSTStatusParticleKey, SYSTStatusParticle
+from mi.instrument.noaa.botpt.syst.driver import InstrumentDriver
+from mi.instrument.noaa.botpt.syst.driver import SYSTStatusParticleKey
+from mi.instrument.noaa.botpt.syst.driver import SYSTStatusParticle
 from mi.instrument.noaa.botpt.syst.driver import DataParticleType
 from mi.instrument.noaa.botpt.syst.driver import InstrumentCommand
 from mi.instrument.noaa.botpt.syst.driver import ProtocolState
@@ -52,7 +52,7 @@ InstrumentDriverTestCase.initialize(
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id='DZWXL3',
-    instrument_agent_name='noaa_syst_ooicore',
+    instrument_agent_name='noaa_botpt_syst',
     instrument_agent_packet_config=DataParticleType(),
 
     driver_startup_config={}
@@ -164,7 +164,7 @@ root      7880  0.0  0.9   1704   604 ?        S    21:17   0:00 grep root/bin''
 # This class defines a configuration structure for testing and common assert  #
 # methods for validating data particles.                                      #
 ###############################################################################
-class BOTPTTestMixinSub(DriverTestMixin):
+class SYSTTestMixinSub(DriverTestMixin):
     _Driver = InstrumentDriver
     _DataParticleType = DataParticleType
     _ProtocolState = ProtocolState
@@ -218,7 +218,8 @@ class BOTPTTestMixinSub(DriverTestMixin):
     ]
 
     _status_params = {
-        SYSTStatusParticleKey.TIME: {TYPE: float, VALUE: 3605919798.0, REQUIRED: True},
+        SYSTStatusParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'SYST', REQUIRED: True},
+        SYSTStatusParticleKey.TIME: {TYPE: unicode, VALUE: u'2014/04/07 21:23:18', REQUIRED: True},
         SYSTStatusParticleKey.NAME: {TYPE: unicode, VALUE: u'BOTPT BPR and tilt instrument controller', REQUIRED: True},
         SYSTStatusParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: u'ts7550n3', REQUIRED: True},
         SYSTStatusParticleKey.UPTIME: {TYPE: unicode, VALUE: uptime, REQUIRED: True},
@@ -287,7 +288,7 @@ class BOTPTTestMixinSub(DriverTestMixin):
 ###############################################################################
 # noinspection PyProtectedMember
 @attr('UNIT', group='mi')
-class DriverUnitTest(BotptDriverUnitTest, BOTPTTestMixinSub):
+class DriverUnitTest(BotptDriverUnitTest, SYSTTestMixinSub):
     @staticmethod
     def my_send(driver):
         def inner(data):
@@ -325,9 +326,12 @@ class DriverUnitTest(BotptDriverUnitTest, BOTPTTestMixinSub):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, BOTPTTestMixinSub):
+class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, SYSTTestMixinSub):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
+
+    def test_connect(self):
+        self.assert_initialize_driver()
 
     def test_acquire_status(self):
         """
@@ -345,7 +349,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, BOTPTTestMixinS
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class DriverQualificationTest(InstrumentDriverQualificationTestCase):
+class DriverQualificationTest(InstrumentDriverQualificationTestCase, SYSTTestMixinSub):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
@@ -366,13 +370,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
     def test_discover(self):
         pass
 
-    # Overridden because does not apply for this driver
-    def test_poll(self):
-        pass
-
-    # Overridden because does not apply for this driver
-    def test_get_set_parameters(self):
-        pass
+    def test_status_particles(self):
+        self.assert_enter_command_mode()
+        self.assert_particle_polled(Capability.ACQUIRE_STATUS, self.assert_status_particle, DataParticleType.STATUS)
 
     def test_get_capabilities(self):
         """

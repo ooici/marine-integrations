@@ -1,8 +1,8 @@
 driver_metadata:
-  author: David Everett
+  author: Peter Cable
   driver_make: noaa
   driver_model: botpt
   driver_name: syst
-  email: deverett@interon.com
+  email: petercable@gmail.com
   release_notes: This is the SYST driver, which handles the raw particles as well as the SYST particles from the BOTPT.
-  version: 0.1.1
+  version: 0.2.0

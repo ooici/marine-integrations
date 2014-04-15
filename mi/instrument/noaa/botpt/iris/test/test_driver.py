@@ -29,9 +29,9 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
-from mi.core.instrument.instrument_driver import DriverParameter, ResourceAgentState
+from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.instrument.noaa.botpt.test.test_driver import BotptDriverUnitTest
-
 from mi.instrument.noaa.botpt.driver import BotptStatus01ParticleKey
 from mi.instrument.noaa.botpt.iris.driver import InstrumentDriver
 from mi.instrument.noaa.botpt.iris.driver import IRISStatus02ParticleKey
@@ -59,7 +59,7 @@ InstrumentDriverTestCase.initialize(
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id='1D644T',
-    instrument_agent_name='noaa_iris_ooicore',
+    instrument_agent_name='noaa_botpt_iris',
     instrument_agent_packet_config=DataParticleType(),
 
     driver_startup_config={}
@@ -232,7 +232,8 @@ class IRISTestMixinSub(DriverTestMixin):
     ]
 
     _sample_parameters_01 = {
-        IRISDataParticleKey.TIME: {TYPE: float, VALUE: 3578801134.0, REQUIRED: True},
+        IRISDataParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'IRIS', REQUIRED: True},
+        IRISDataParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/05/29 00:25:34', REQUIRED: True},
         IRISDataParticleKey.X_TILT: {TYPE: float, VALUE: -0.0882, REQUIRED: True},
         IRISDataParticleKey.Y_TILT: {TYPE: float, VALUE: -0.7524, REQUIRED: True},
         IRISDataParticleKey.TEMP: {TYPE: float, VALUE: 28.45, REQUIRED: True},
@@ -240,7 +241,8 @@ class IRISTestMixinSub(DriverTestMixin):
     }
 
     _sample_parameters_02 = {
-        IRISDataParticleKey.TIME: {TYPE: float, VALUE: 3578801136.0, REQUIRED: True},
+        IRISDataParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'IRIS', REQUIRED: True},
+        IRISDataParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/05/29 00:25:36', REQUIRED: True},
         IRISDataParticleKey.X_TILT: {TYPE: float, VALUE: -0.0885, REQUIRED: True},
         IRISDataParticleKey.Y_TILT: {TYPE: float, VALUE: -0.7517, REQUIRED: True},
         IRISDataParticleKey.TEMP: {TYPE: float, VALUE: 28.49, REQUIRED: True},
@@ -248,7 +250,8 @@ class IRISTestMixinSub(DriverTestMixin):
     }
 
     _status_parameters_01 = {
-        BotptStatus01ParticleKey.TIME: {TYPE: float, VALUE: 3580690380.0, REQUIRED: True},
+        BotptStatus01ParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'IRIS', REQUIRED: True},
+        BotptStatus01ParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/06/19 21:13:00', REQUIRED: True},
         BotptStatus01ParticleKey.MODEL: {TYPE: unicode, VALUE: 'Model MD900-T', REQUIRED: True},
         BotptStatus01ParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: 'V5.2', REQUIRED: True},
         BotptStatus01ParticleKey.SERIAL_NUMBER: {TYPE: unicode, VALUE: 'SN-N3616', REQUIRED: True},
@@ -274,7 +277,8 @@ class IRISTestMixinSub(DriverTestMixin):
     }
 
     _status_parameters_02 = {
-        IRISStatus02ParticleKey.TIME: {TYPE: float, VALUE: 3580095309.0, REQUIRED: True},
+        BotptStatus01ParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'IRIS', REQUIRED: True},
+        BotptStatus01ParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/06/12 23:55:09', REQUIRED: True},
         IRISStatus02ParticleKey.TBIAS: {TYPE: float, VALUE: 8.85, REQUIRED: True},
         IRISStatus02ParticleKey.ABOVE: {TYPE: float, VALUE: 0.0, REQUIRED: True},
         IRISStatus02ParticleKey.BELOW: {TYPE: float, VALUE: 0.0, REQUIRED: True},
@@ -460,15 +464,15 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
         self.assert_start_autosample()
         self.assert_particle_async(DataParticleType.IRIS_PARSED, self.assert_particle_sample_01)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status_01,
-                                    DataParticleType.IRIS_STATUS1, sample_count=1, timeout=5)
+                                    DataParticleType.IRIS_STATUS1, sample_count=1)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status_02,
-                                    DataParticleType.IRIS_STATUS2, sample_count=1, timeout=5)
+                                    DataParticleType.IRIS_STATUS2, sample_count=1)
 
         self.assert_stop_autosample()
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status_01,
-                                    DataParticleType.IRIS_STATUS1, sample_count=1, timeout=5)
+                                    DataParticleType.IRIS_STATUS1, sample_count=1)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status_02,
-                                    DataParticleType.IRIS_STATUS2, sample_count=1, timeout=5)
+                                    DataParticleType.IRIS_STATUS2, sample_count=1)
 
     def test_cycle(self):
         self.assert_enter_command_mode()
@@ -483,8 +487,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
         """
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
-        self.tcp_client.send_data(InstrumentCommand.DATA_ON + NEWLINE)
-        result = self.tcp_client.expect(IRIS_DATA_ON)
+        self.tcp_client.send_data(InstrumentCommand.DUMP_SETTINGS_01 + NEWLINE)
+        result = self.tcp_client.expect(IRIS_DUMP_01)
         self.assertTrue(result, msg='Failed to receive expected response in direct access mode.')
         self.assert_direct_access_stop_telnet()
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
@@ -565,6 +569,4 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, IRISTestMix
         self.tcp_client.send_data(InstrumentCommand.DATA_ON + NEWLINE)
         self.assertTrue(self.tcp_client.expect(IRIS_DATA_ON))
         self.assert_direct_access_stop_telnet()
-        #??? TODO
-        self.assert_reset()
-        self.assert_discover(ResourceAgentState.STREAMING)
+        self.assert_agent_state(ResourceAgentState.STREAMING)

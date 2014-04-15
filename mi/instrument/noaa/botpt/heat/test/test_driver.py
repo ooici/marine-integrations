@@ -12,13 +12,12 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-from mi.core.instrument.instrument_driver import DriverParameter
-from mi.instrument.noaa.botpt.test.test_driver import BotptDriverUnitTest
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
 
 from nose.plugins.attrib import attr
+
 from mi.core.log import get_logger
 
 log = get_logger()
@@ -30,7 +29,9 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
-from mi.instrument.noaa.botpt.heat.driver import InstrumentDriver, HEATDataParticle
+from mi.core.instrument.instrument_driver import DriverParameter
+from mi.instrument.noaa.botpt.heat.driver import InstrumentDriver
+from mi.instrument.noaa.botpt.heat.driver import HEATDataParticle
 from mi.instrument.noaa.botpt.heat.driver import DataParticleType
 from mi.instrument.noaa.botpt.heat.driver import HEATDataParticleKey
 from mi.instrument.noaa.botpt.heat.driver import InstrumentCommand
@@ -40,7 +41,9 @@ from mi.instrument.noaa.botpt.heat.driver import Capability
 from mi.instrument.noaa.botpt.heat.driver import Parameter
 from mi.instrument.noaa.botpt.heat.driver import Protocol
 from mi.instrument.noaa.botpt.heat.driver import NEWLINE
+from mi.instrument.noaa.botpt.test.test_driver import BotptDriverUnitTest
 from pyon.agent.agent import ResourceAgentState
+
 
 ###
 #   Driver parameters for the tests
@@ -50,7 +53,7 @@ InstrumentDriverTestCase.initialize(
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id='1D644T',
-    instrument_agent_name='noaa_heat_ooicore',
+    instrument_agent_name='noaa_botpt_heat',
     instrument_agent_packet_config=DataParticleType(),
 
     driver_startup_config={}
@@ -146,14 +149,16 @@ class HEATTestMixinSub(DriverTestMixin):
     }
 
     _sample_parameters_01 = {
-        HEATDataParticleKey.TIME: {TYPE: float, VALUE: 3575426051.0, REQUIRED: True},
+        HEATDataParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'HEAT', REQUIRED: True},
+        HEATDataParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/04/19 22:54:11', REQUIRED: True},
         HEATDataParticleKey.X_TILT: {TYPE: int, VALUE: -1, REQUIRED: True},
         HEATDataParticleKey.Y_TILT: {TYPE: int, VALUE: 1, REQUIRED: True},
         HEATDataParticleKey.TEMP: {TYPE: int, VALUE: 25, REQUIRED: True}
     }
 
     _sample_parameters_02 = {
-        HEATDataParticleKey.TIME: {TYPE: float, VALUE: 3575426051.0, REQUIRED: True},
+        HEATDataParticleKey.SENSOR_ID: {TYPE: unicode, VALUE: u'HEAT', REQUIRED: True},
+        HEATDataParticleKey.TIME: {TYPE: unicode, VALUE: u'2013/04/19 22:54:11', REQUIRED: True},
         HEATDataParticleKey.X_TILT: {TYPE: int, VALUE: 1, REQUIRED: True},
         HEATDataParticleKey.Y_TILT: {TYPE: int, VALUE: 1, REQUIRED: True},
         HEATDataParticleKey.TEMP: {TYPE: int, VALUE: 25, REQUIRED: True}
