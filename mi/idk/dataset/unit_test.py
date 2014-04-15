@@ -14,6 +14,7 @@ import hashlib
 from mi.core.log import get_logger ; log = get_logger()
 
 import unittest
+import re
 from pprint import PrettyPrinter
 
 from mi.core.unit_test import MiIntTestCase
@@ -69,6 +70,8 @@ class DataSetTestConfig(InstrumentDriverTestConfig):
         for property, value in vars(self).iteritems():
             log.debug("key: %s, value: %s", property, value)
 
+        log.debug("Dataset Agent Test Initialized")
+
     def initialize_ingester_test(self, directory, runtime):
         self.ingestion_directory = directory
         self.ingestion_runtime = runtime
@@ -103,6 +106,7 @@ class DataSetTestCase(MiIntTestCase):
             return TestNotInitialized(msg="Tests non initialized. Missing DataSetTestCase.initialize(...)?")
 
         log.debug("Driver Config: %s", self._driver_config())
+        self._metadata = None
 
         self.clear_sample_data()
 
@@ -128,6 +132,28 @@ class DataSetTestCase(MiIntTestCase):
         }
         return config
 
+    def _get_metadata(self):
+        """
+        Get a metadata object for the test.  We will use the module name to try and determine the
+        driver path.
+        """
+        if self._metadata is None:
+
+            log.debug("Metadata self name: %s", self.__class__)
+
+            regex = re.compile(r'.*mi.dataset\.driver\.(.*)\.test\.')
+            match = regex.match(str(self.__class__))
+
+            if match:
+                driver_path = match.group(1)
+                d = driver_path.replace(".", "/")
+                log.debug("Driver path: %s", d)
+                self._metadata = Metadata(d)
+            else:
+                self.fail(IDKException("Unable to determine driver path"))
+
+        return self._metadata
+
     def _get_source_data_file(self, filename):
         """
         Search for a sample data file, first check the driver resource directory
@@ -137,7 +163,7 @@ class DataSetTestCase(MiIntTestCase):
         @return full path to the found data file
         @raise IDKException if the file isn't found
         """
-        resource_dir = Metadata().resource_dir()
+        resource_dir = self._get_metadata().resource_dir()
 
         source_path = os.path.join(resource_dir, filename)
 
@@ -247,9 +273,9 @@ class DataSetTestCase(MiIntTestCase):
 
         try:
             source_path = self._get_source_data_file(filename)
-        except IDKException:
+        except IDKException as e:
             if not create:
-                raise
+                self.fail(e)
 
         log.debug("DIR: %s", data_dir)
         if dest_filename is None and source_path is not None:
@@ -295,9 +321,9 @@ class DataSetTestCase(MiIntTestCase):
 
         try:
             source_path = self._get_source_data_file(filename)
-        except IDKException:
+        except IDKException as e:
             if not create:
-                raise
+                self.fail(e)
 
         log.debug("DIR: %s", dest_dir)
         if dest_filename is None and source_path is not None:

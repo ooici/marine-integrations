@@ -23,8 +23,10 @@ def run():
 
     opts = parseArgs()
     failure = False
+    count = 0
 
     for metadata in get_metadata(opts):
+        count += 1
         app = NoseTest(metadata,
                        testname=opts.testname,
                        suppress_stdout=opts.suppress_stdout,
@@ -45,6 +47,7 @@ def run():
 
         if(not success): failure = True
 
+    log.debug("Completed test run for %d drivers", count)
     return failure
 
 def get_metadata(opts):
@@ -61,8 +64,8 @@ def get_metadata(opts):
     if(opts.buildall):
         paths = get_driver_paths()
         for path in paths:
+            log.debug("Adding driver path: %s", path)
             result.append(Metadata(path))
-        pass
     else:
         result.append(Metadata())
 

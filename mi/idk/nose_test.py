@@ -348,5 +348,7 @@ class NoseTest(object):
     def _run_nose(self, module, args):
         log.debug("running nose tests with args: %s" % args)
         log.debug("ARGV: %s" % sys.argv)
-        return nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
+        success = nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
+        log.debug("nose test complete, result: %s", success)
+        return success
 
