@@ -215,6 +215,15 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(None, 'first_fail.result.yml', count=3, timeout=10)
         self.assert_file_ingested('adcpt_20130929_091817.DAT')
 
+    def test_unpack_err(self):
+        self.create_sample_data('adcpt_20131113_002307.DAT')
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.assert_event('ResourceAgentErrorEvent')
+        self.assert_file_ingested('adcpt_20131113_002307.DAT')
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
