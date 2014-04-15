@@ -33,6 +33,7 @@ from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import ParameterTestConfigKey
+from mi.idk.unit_test import DriverStartupConfigKey
 
 from interface.objects import AgentCommand
 
@@ -79,7 +80,12 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='sunburst_sami2_pco2_ooicore',
     instrument_agent_packet_config=SamiDataParticleType(),
 
-    driver_startup_config={}
+##    driver_startup_config={}
+    driver_startup_config={
+            DriverStartupConfigKey.PARAMETERS: {
+            Parameter.STOP_TIME_FROM_START: 7,
+        },
+    }
 )
 
 
@@ -504,23 +510,29 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 ##        self.assert_initialize_driver()
 ##        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
 
+    def test_set(self):
+        self.assert_initialize_driver()
+        self.assert_set(Parameter.CYCLES_BETWEEN_BLANKS, 7, no_get=True)
+
 ## TODO: On acquire sample, make sure the correct states are returned to, COMMAND or AUTOSAMPLING
-##    def test_acquire_sample(self):
-##        self.assert_initialize_driver()
-##        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 START')
-##        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)  ## TODO: No delay to test waiting state
-##        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 FINISH')
-##        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 START')
-##        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)  ## TODO: No delay to test waiting state
-##        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 FINISH')
+    def test_acquire_sample(self):
+        self.assert_initialize_driver()
+        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 START')
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)  ## TODO: No delay to test waiting state
+        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 FINISH')
+        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 START')
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)  ## TODO: No delay to test waiting state
+        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 FINISH')
 
 ##  TODO: Test all commands and states
 
     def test_auto_sample(self):
         self.assert_initialize_driver()
-        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, delay=640)
-        time.sleep(160)  ## Make sure last sample was completed
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+##        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, delay=640)
+##        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, delay=10)
+##        time.sleep(160)  ## Make sure last sample was completed
+##        log.debug('herb: ' + 'class test_auto_sample(): waiting 160')
+##        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
 ##    def test_direct_access(self):
 ##        self.assert_initialize_driver()

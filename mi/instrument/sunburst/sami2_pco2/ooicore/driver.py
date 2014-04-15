@@ -531,37 +531,6 @@ class Protocol(SamiProtocol):
             record_type = matched.group(3)
             log.debug('herb: ' + 'Protocol._got_chunk(): record_type == ' + record_type)
 
-            current_state = self.get_current_state()
-
-##            if current_state == ProtocolState.:
-##                if record_type == '05':  ## Blank sample
-##                    ## Send success event to execute next step.
-##                    self._protocol_fsm.on_event(ProtocolEvent.SUCCESS)
-##                    self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
-##                    pass
-##                else:
-##                    ## TODO: Error: Invalid record type in this state
-##                    pass
-##            elif current_state == ProtocolState.REGULAR_SAMPLE:
-##                if record_type == '04':  ## Regular sample
-##                    ## Send success event to execute next step.
-##                    self._protocol_fsm.on_event(ProtocolEvent.SUCCESS)
-##                    self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
-##                    pass
-##                else:
-##                    ## TODO: Error: Invalid record type in this state
-##                    pass
-##            else:
-##                ## TODO: Error:  Should not receive a sample in this state
-##                pass
-
-        ## TODO: Check timestamp and throw exception
-
-
-
-
-
-
     ########################################################################
     # Build Command, Driver and Parameter dictionaries
     ########################################################################
@@ -598,82 +567,81 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(1), 16),
                              lambda x: self._int_to_hexstring(x, 8),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00000000,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='launch time')
 
         self._param_dict.add(Parameter.START_TIME_FROM_LAUNCH, CONFIGURATION_REGEX,
                              lambda match: int(match.group(2), 16),
                              lambda x: self._int_to_hexstring(x, 8),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x02C7EA00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='start time after launch time')
 
         self._param_dict.add(Parameter.STOP_TIME_FROM_START, CONFIGURATION_REGEX,
                              lambda match: int(match.group(3), 16),
                              lambda x: self._int_to_hexstring(x, 8),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x01E13380,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='stop time after start time')
 
-        # Changed from 0x0A to 0x02 to indicate there is no external device
-        # TODO: Can probably be set to 0 to indicate SAMI sampling schedule is not used
+        # Changed from 0x0A to 0x02 to indicate there is no external device, update IOS to indicate this is 0x02
         self._param_dict.add(Parameter.MODE_BITS, CONFIGURATION_REGEX,
                              lambda match: int(match.group(4), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x02,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='mode bits (set to 00001010)')
 
         self._param_dict.add(Parameter.SAMI_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
                              lambda match: int(match.group(5), 16),
                              lambda x: self._int_to_hexstring(x, 6),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x000E10,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='sami sample interval')
 
         self._param_dict.add(Parameter.SAMI_DRIVER_VERSION, CONFIGURATION_REGEX,
                              lambda match: int(match.group(6), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x04,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='sami driver version')
 
         self._param_dict.add(Parameter.SAMI_PARAMS_POINTER, CONFIGURATION_REGEX,
                              lambda match: int(match.group(7), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x02,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='sami parameter pointer')
         ## Changed from 0x000E10 to 0x000000 to indicate there is not external device
         self._param_dict.add(Parameter.DEVICE1_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
                              lambda match: int(match.group(8), 16),
                              lambda x: self._int_to_hexstring(x, 6),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x000000,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='device 1 sample interval')
 
         ## Changed from 0x01 to 0x00 to indicate there is not external device
@@ -681,10 +649,10 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(9), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='device 1 driver version')
 
         ## Changed from 0x0B to 0x00 to indicate there is not external device
@@ -692,30 +660,30 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(10), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='device 1 parameter pointer')
 
         self._param_dict.add(Parameter.DEVICE2_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
                              lambda match: int(match.group(11), 16),
                              lambda x: self._int_to_hexstring(x, 6),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x000000,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='device 2 sample interval')
 
         self._param_dict.add(Parameter.DEVICE2_DRIVER_VERSION, CONFIGURATION_REGEX,
                              lambda match: int(match.group(12), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='device 2 driver version')
 
         ## Changed from 0x0D to 0x00 since there is not external device
@@ -723,30 +691,30 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(13), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='device 2 parameter pointer')
 
         self._param_dict.add(Parameter.DEVICE3_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
                              lambda match: int(match.group(14), 16),
                              lambda x: self._int_to_hexstring(x, 6),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x000000,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='device 3 sample interval')
 
         self._param_dict.add(Parameter.DEVICE3_DRIVER_VERSION, CONFIGURATION_REGEX,
                              lambda match: int(match.group(15), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='device 3 driver version')
 
         ## Changed from 0x0D to 0x00 since there is not external device
@@ -754,30 +722,30 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(16), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='device 3 parameter pointer')
 
         self._param_dict.add(Parameter.PRESTART_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
                              lambda match: int(match.group(17), 16),
                              lambda x: self._int_to_hexstring(x, 6),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x000000,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='prestart sample interval')
 
         self._param_dict.add(Parameter.PRESTART_DRIVER_VERSION, CONFIGURATION_REGEX,
                              lambda match: int(match.group(18), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='prestart driver version')
 
         ## Changed from 0x0D to 0x00 since there is not external device
@@ -785,10 +753,10 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(19), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='prestart parameter pointer')
 
         # Changed from invalid value 0x00 to 0x07 setting bits, (2) Send live records, (1) Send ^(record type),
@@ -797,40 +765,40 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(20), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x07,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='global bits (set to 00000111)')
 
         self._param_dict.add(Parameter.PUMP_PULSE, CONFIGURATION_REGEX,
                              lambda match: int(match.group(21), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x10,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='pump pulse duration')
 
         self._param_dict.add(Parameter.PUMP_DURATION, CONFIGURATION_REGEX,
                              lambda match: int(match.group(22), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x20,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='pump measurement duration')
 
         self._param_dict.add(Parameter.SAMPLES_PER_MEASUREMENT, CONFIGURATION_REGEX,
                              lambda match: int(match.group(23), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0xFF,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='samples per measurement')
 
         # TODO: What is default value?
@@ -838,87 +806,64 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(24), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0xA8,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='cycles between blanks')
 
         self._param_dict.add(Parameter.NUMBER_REAGENT_CYCLES, CONFIGURATION_REGEX,
                              lambda match: int(match.group(25), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x18,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='number of reagent cycles')
 
         self._param_dict.add(Parameter.NUMBER_BLANK_CYCLES, CONFIGURATION_REGEX,
                              lambda match: int(match.group(26), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x1C,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='number of blank cycles')
 
         self._param_dict.add(Parameter.FLUSH_PUMP_INTERVAL, CONFIGURATION_REGEX,
                              lambda match: int(match.group(27), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x01,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='flush pump interval')
 
         self._param_dict.add(Parameter.BIT_SWITCHES, CONFIGURATION_REGEX,
                              lambda match: int(match.group(28), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='bit switches')
 
         self._param_dict.add(Parameter.NUMBER_EXTRA_PUMP_CYCLES, CONFIGURATION_REGEX,
                              lambda match: int(match.group(29), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x38,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='number of extra pump cycles')
 
-## TODO: Add base parameter to turn recording on or off
 ## TODO: Add base parameter to set blank and sample timeouts
-
-    #########################################################################
-    ## General (for POLLED and SCHEDULED states) Sample handlers.
-    #########################################################################
-    # TODO: Check check sum
-    def _handler_sample_success(self, *args, **kwargs):
-
-        log.debug('herb: ' + 'Protocol._handler_sample_success()')
-
-        next_state = None
-        result = None
-
-        return (next_state, result)
-
-    def _handler_sample_timeout(self, ):
-
-        log.debug('herb: ' + 'Protocol._handler_sample_timeout()')
-
-        next_state = None
-        result = None
-
-        return (next_state, result)
-
+## TODO: Add engineering parameter to set auto sample rate
     ########################################################################
     # Configuration string.
     ########################################################################
