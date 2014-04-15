@@ -17,7 +17,7 @@ import ntplib
 from mi.core.log import get_logger; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.dataset.parser.mflm import MflmParser, SIO_HEADER_MATCHER
+from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
 from mi.core.exceptions import SampleException, DatasetParserException
 
 class DataParticleType(BaseEnum):
@@ -59,70 +59,23 @@ class DostadParserDataParticle(DataParticle):
         if not match:
             raise SampleException("DostadParserDataParticle: No regex match of \
                                   parsed sample data [%s]", self.raw_data)
-        try:
-            prod_num = int(match.group(1))
-            serial_num = int(match.group(2))
-            est_oxygen = float(match.group(3))
-            air_sat = float(match.group(4))
-            optode_temp = float(match.group(5))
-            calibrated_phase = float(match.group(6))
-            temp_compens_phase = float(match.group(7))
-            blue_phase = float(match.group(8))
-            red_phase = float(match.group(9))
-            blue_amp = float(match.group(10))
-            red_amp = float(match.group(11))
-            raw_temp = float(match.group(12))
 
-        except (ValueError, TypeError, IndexError) as ex:
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, match.group(0)))
+        result = [self._encode_value(DostadParserDataParticleKey.PRODUCT_NUMBER, match.group(1), int),
+                  self._encode_value(DostadParserDataParticleKey.SERIAL_NUMBER, match.group(2), int),
+                  self._encode_value(DostadParserDataParticleKey.ESTIMATED_OXYGEN, match.group(3), float),
+                  self._encode_value(DostadParserDataParticleKey.AIR_SATURATION, match.group(4), float),
+                  self._encode_value(DostadParserDataParticleKey.OPTODE_TEMPERATURE, match.group(5), float),
+                  self._encode_value(DostadParserDataParticleKey.CALIBRATED_PHASE, match.group(6), float),
+                  self._encode_value(DostadParserDataParticleKey.TEMP_COMPENSATED_PHASE, match.group(7), float),
+                  self._encode_value(DostadParserDataParticleKey.BLUE_PHASE, match.group(8), float),
+                  self._encode_value(DostadParserDataParticleKey.RED_PHASE, match.group(9), float),
+                  self._encode_value(DostadParserDataParticleKey.BLUE_AMPLITUDE, match.group(10), float),
+                  self._encode_value(DostadParserDataParticleKey.RED_AMPLITUDE, match.group(11), float),
+                  self._encode_value(DostadParserDataParticleKey.RAW_TEMP, match.group(12), float)]
 
-        result = [{DataParticleKey.VALUE_ID: DostadParserDataParticleKey.PRODUCT_NUMBER,
-                   DataParticleKey.VALUE: prod_num},
-                  {DataParticleKey.VALUE_ID: DostadParserDataParticleKey.SERIAL_NUMBER,
-                   DataParticleKey.VALUE: serial_num},
-                  {DataParticleKey.VALUE_ID: DostadParserDataParticleKey.ESTIMATED_OXYGEN,
-                   DataParticleKey.VALUE: est_oxygen},
-                  {DataParticleKey.VALUE_ID: DostadParserDataParticleKey.AIR_SATURATION,
-                   DataParticleKey.VALUE: air_sat},
-                  {DataParticleKey.VALUE_ID: DostadParserDataParticleKey.OPTODE_TEMPERATURE,
-                   DataParticleKey.VALUE: optode_temp},
-                  {DataParticleKey.VALUE_ID: DostadParserDataParticleKey.CALIBRATED_PHASE,
-                   DataParticleKey.VALUE: calibrated_phase},
-                  {DataParticleKey.VALUE_ID: DostadParserDataParticleKey.TEMP_COMPENSATED_PHASE,
-                   DataParticleKey.VALUE: temp_compens_phase},
-                  {DataParticleKey.VALUE_ID: DostadParserDataParticleKey.BLUE_PHASE,
-                   DataParticleKey.VALUE: blue_phase},
-                  {DataParticleKey.VALUE_ID: DostadParserDataParticleKey.RED_PHASE,
-                   DataParticleKey.VALUE: red_phase},
-                  {DataParticleKey.VALUE_ID: DostadParserDataParticleKey.BLUE_AMPLITUDE,
-                   DataParticleKey.VALUE: blue_amp},
-                  {DataParticleKey.VALUE_ID: DostadParserDataParticleKey.RED_AMPLITUDE,
-                   DataParticleKey.VALUE: red_amp},
-                  {DataParticleKey.VALUE_ID: DostadParserDataParticleKey.RAW_TEMP,
-                   DataParticleKey.VALUE: raw_temp}]
-
-        log.debug('DostadParserDataParticle: particle=%s', result)
         return result
 
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this particle
-        """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-            arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
-            return False
-
-class DostadParser(MflmParser):
+class DostadParser(SioMuleParser):
 
     def __init__(self,
                  config,
@@ -130,6 +83,7 @@ class DostadParser(MflmParser):
                  stream_handle,
                  state_callback,
                  publish_callback,
+                 exception_callback,
                  *args, **kwargs):
         super(DostadParser, self).__init__(config,
                                           stream_handle,
@@ -137,6 +91,7 @@ class DostadParser(MflmParser):
                                           self.sieve_function,
                                           state_callback,
                                           publish_callback,
+                                          exception_callback,
                                           'DO',
                                           *args,
                                           **kwargs)
@@ -150,49 +105,20 @@ class DostadParser(MflmParser):
             parsing, plus the state. An empty list of nothing was parsed.
         """
         result_particles = []
-        # all non-data packets will be read along with all the data, so we can't just use the fact that
-        # there is or is not non-data to determine when a new sequence should occur.  The non-data will
-        # keep getting shifted lower as things get cleaned out, and when it reaches the 0 index the non-data
-        # is actually next
         (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-        non_data_flag = False
-        if non_data is not None and non_end <= start:
-            log.debug('start setting non_data_flag')
-            non_data_flag = True
-            
+
         sample_count = 0
-        new_seq = 0
 
         while (chunk != None):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
-            new_seq = 0
             log.debug('parsing header %s', header_match.group(0)[1:32])
             if header_match.group(1) == self._instrument_id:
-                # Check for missing data between records
-                if non_data_flag or self._new_seq_flag:
-                    log.debug("Non matching data packet detected")
-                    # reset non data flag and new sequence flags now
-                    # that we have made a new sequence
-                    non_data = None
-                    non_data_flag = False
-                    self._new_seq_flag = False
-                    # Removed because we don't want to reset the connection id anymore.
-                    #self.start_new_sequence()
-                    # need to figure out if there is a new sequence the first time through,
-                    # since if we are using in process data we don't read unprocessed again
-                    new_seq = 1
 
-                # need to do special processing on data to handle escape sequences
-                # replace 0x182b with 0x2b and 0x1858 into 0x18
-                processed_match = chunk.replace(b'\x182b', b'\x2b')
-                processed_match = processed_match.replace(b'\x1858', b'\x18')
-                log.debug("matched chunk header %s", processed_match[1:32])
-
-                data_match = DATA_MATCHER.search(processed_match)
+                data_match = DATA_MATCHER.search(chunk)
                 if data_match:
-                    log.debug('Found data match in chunk %s', processed_match[1:32])
+                    log.debug('Found data match in chunk %s', chunk[1:32])
                     # get the time from the header
                     posix_time = int(header_match.group(3), 16)
                     # convert from posix to local time
@@ -212,13 +138,8 @@ class DostadParser(MflmParser):
                         sample_count += 1
 
             self._chunk_sample_count.append(sample_count)
-            self._chunk_new_seq.append(new_seq)
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-            # need to set a flag in case we read a chunk not matching the instrument ID and overwrite the non_data                    
-            if non_data is not None and non_end <= start:
-                log.debug('setting non_data_flag')
-                non_data_flag = True
 
         return result_particles
