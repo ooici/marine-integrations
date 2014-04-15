@@ -878,8 +878,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
 
         fail = False
 
-        log.error ("***** Sung tested.key %s", repr(self._tested.keys()))
-        log.error ("***** Sung driver.key %s", repr(self._driver_parameters.keys()))
         for k in self._tested.keys():
             if k not in self._driver_parameters.keys():
                 log.error("*WARNING* " + k + " was tested but is not in _driver_parameters")
