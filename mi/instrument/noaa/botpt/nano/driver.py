@@ -38,7 +38,7 @@ from mi.core.instrument.chunker import StringChunker
 from mi.instrument.noaa.botpt.driver import BotptProtocol
 from mi.instrument.noaa.botpt.driver import BotptStatusParticle
 from mi.instrument.noaa.botpt.driver import NEWLINE
-from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import InstrumentTimeoutException, InstrumentDataException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import SampleException
 
@@ -725,8 +725,6 @@ class Protocol(BotptProtocol):
         self._add_response_handler(InstrumentCommand.DATA_OFF, self._parse_data_on_off_resp)
         self._add_response_handler(InstrumentCommand.DUMP_SETTINGS, self._parse_dump_settings_resp)
 
-        # Add sample handlers.
-
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
 
@@ -734,13 +732,16 @@ class Protocol(BotptProtocol):
         self._sent_cmds = []
 
         self._chunker = StringChunker(Protocol.sieve_function)
+        self.initialize_scheduler()
 
         # set up the regexes now so we don't have to do it repeatedly
         self.data_regex = NANODataParticle.regex_compiled()
         self.status_01_regex = NANOStatusParticle.regex_compiled()
         self._last_data_timestamp = 0
         self._filter_string = NANO_STRING
-        self.initialize_scheduler()
+
+        # We start up assuming the PPS is available, so as not to send an extra TIME_SYNC.
+        self.has_pps = True
 
     def _config_scheduler(self):
         job_name = ScheduledJob.SET_TIME
@@ -828,9 +829,26 @@ class Protocol(BotptProtocol):
         """
         Got a chunk, attempt to create a particle
         """
-        log.debug("_got_chunk_: %s", chunk)
-        if not (self._extract_sample(NANODataParticle, NANODataParticle.regex_compiled(), chunk, timestamp) or
-                    self._extract_sample(NANOStatusParticle, NANOStatusParticle.regex_compiled(), chunk, timestamp)):
+        log.debug("_got_chunk: %s", chunk)
+        sync_lost = u'V'
+        sample = self._extract_sample(NANODataParticle, NANODataParticle.regex_compiled(), chunk, timestamp)
+        if sample:
+            values = sample.get(DataParticleKey.VALUES, [])
+            for v in values:
+                if v.get(DataParticleKey.VALUE_ID) == NANODataParticleKey.PPS_SYNC:
+                    pps_sync = v.get(DataParticleKey.VALUE)
+                    # last particle was in sync, this one is out of sync.
+                    if self.has_pps and pps_sync == sync_lost:
+                        log.trace('_got_chunk detected PPS lost, setting has_pps to False')
+                        self.has_pps = False
+                    # last particle was out of sync, this one is in sync.  Request time update.
+                    elif not self.has_pps and pps_sync != sync_lost:
+                        log.trace('_got_chunk detected PPS regained, raising SET_TIME event')
+                        self.has_pps = True
+                        self._async_raise_fsm_event(ProtocolEvent.SET_TIME)
+        else:
+            sample = self._extract_sample(NANOStatusParticle, NANOStatusParticle.regex_compiled(), chunk, timestamp)
+        if not sample:
             raise InstrumentProtocolException('unhandled chunk: %r', chunk)
 
     def _parse_data_on_off_resp(self, response, prompt):
@@ -888,6 +906,9 @@ class Protocol(BotptProtocol):
             self._config_scheduler()
         # Acquire the configuration to populate the config dict
         self._handler_command_autosample_acquire_status()
+        # Acquiring status stops autosample.  If we were in autosample, restart it.
+        if next_state == ProtocolState.AUTOSAMPLE:
+            self._handler_command_start_autosample()
 
         return next_state, next_agent_state
 
@@ -902,6 +923,9 @@ class Protocol(BotptProtocol):
         return self._handler_command_generic(InstrumentCommand.DATA_OFF,
                                              ProtocolState.COMMAND,
                                              ResourceAgentState.COMMAND)
+
+    def _handler_autosample_sync_lost(self):
+        raise InstrumentDataException('BOTPT NANO PPS sync lost')
 
     ########################################################################
     # Command handlers.
@@ -983,9 +1007,13 @@ class Protocol(BotptProtocol):
         """
         Get device status
         """
-        return self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS,
-                                             None, None,
-                                             response_regex=NANOStatusParticle.regex_compiled())
+        result = self._handler_command_generic(InstrumentCommand.DUMP_SETTINGS,
+                                               None, None,
+                                               response_regex=NANOStatusParticle.regex_compiled())
+        # Acquiring status stops autosample.  If we're in autosample, restart it.
+        if self._protocol_fsm.get_current_state() == ProtocolState.AUTOSAMPLE:
+            self._handler_command_start_autosample()
+        return result
 
     def _handler_command_autosample_set_time(self, *args, **kwargs):
         """

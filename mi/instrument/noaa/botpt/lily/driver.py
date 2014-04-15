@@ -781,10 +781,10 @@ class Protocol(BotptProtocol):
             # Find the current X and Y tilt values
             # If they exceed the trigger parameters, begin autolevel
             relevel = False
-            values = sample.get(u'values', [])
+            values = sample.get(DataParticleKey.VALUES, [])
             for each in values:
-                value_id = each.get(u'value_id')
-                value = each.get(u'value')
+                value_id = each.get(DataParticleKey.VALUE_ID)
+                value = each.get(DataParticleKey.VALUE)
                 if value_id == LILYDataParticleKey.X_TILT:
                     if abs(value) > self._param_dict.get(Parameter.XTILT_TRIGGER):
                         relevel = True
@@ -802,10 +802,10 @@ class Protocol(BotptProtocol):
         raise InstrumentDataException('LILY Leveling (%s) Failed.  Disabling auto relevel' % axis)
 
     def _check_completed_leveling(self, sample):
-        values = sample.get(u'values', [])
+        values = sample.get(DataParticleKey.VALUES, [])
         for each in values:
-            value_id = each.get(u'value_id')
-            value = each.get(u'value')
+            value_id = each.get(DataParticleKey.VALUE_ID)
+            value = each.get(DataParticleKey.VALUE)
             if value_id == LILYLevelingParticleKey.STATUS:
                 if value is not None:
                     # Leveling status update received

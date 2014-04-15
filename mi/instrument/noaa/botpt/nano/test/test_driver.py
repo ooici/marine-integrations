@@ -19,7 +19,7 @@ __license__ = 'Apache 2.0'
 import time
 
 from nose.plugins.attrib import attr
-from mock import call
+from mock import call, Mock
 
 from mi.core.log import get_logger
 
@@ -436,9 +436,13 @@ class DriverUnitTest(BotptDriverUnitTest, NANOTestMixinSub):
         """
         driver = self.test_connect()
         driver._connection.send.side_effect = self.my_send(driver)
+        driver._protocol._protocol_fsm.on_event = Mock()
         self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
         self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
         self.assert_particle_published(driver, BOTPT_FIREHOSE_01, self.assert_particle_sample_01, True)
+        # we transitioned from no PPS to PPS, verify a SET_TIME event was raised.
+        time.sleep(1)
+        driver._protocol._protocol_fsm.on_event.assert_called_once_with(ProtocolEvent.SET_TIME)
 
     def test_status_01(self):
         """
@@ -463,6 +467,19 @@ class DriverUnitTest(BotptDriverUnitTest, NANOTestMixinSub):
         driver._connection.send.side_effect = self.my_send(driver)
         driver._protocol._protocol_fsm.on_event(ProtocolEvent.ACQUIRE_STATUS)
         driver._connection.send.assert_called_once_with(InstrumentCommand.DUMP_SETTINGS + NEWLINE)
+
+    def test_time_sync(self):
+        # stand up the driver in test mode
+        driver = self.test_connect()
+        driver._connection.send.side_effect = self.my_send(driver)
+        driver._protocol._protocol_fsm.on_event = Mock()
+        # set the sync interval to 1 to speed up the timeout
+        driver._protocol._handler_command_set({Parameter.SYNC_INTERVAL: 1})
+        time.sleep(2)
+        # Verify that we raised a SET_TIME event
+        # Testing here because we cannot test this in integration or qualification tests.
+        driver._protocol._protocol_fsm.on_event.assert_has_calls([call(ProtocolEvent.GET, DriverParameter.ALL),
+                                                                  call(ProtocolEvent.SET_TIME)])
 
 
 ###############################################################################

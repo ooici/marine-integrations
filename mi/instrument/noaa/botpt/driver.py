@@ -498,7 +498,7 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         """
         Populate the driver dictionary with options
         """
-        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, False)
 
     def _got_chunk(self, chunk, timestamp):
         raise NotImplementedException('_got_chunk not implemented')
