@@ -5,7 +5,7 @@
 @brief Test Driver for the ADCP
 Release notes:
 
-Generic test Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
+GGeneric test Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 """
 
 __author__ = 'Sung Ahn'
@@ -43,11 +43,8 @@ from mi.instrument.teledyne.workhorse.adcp.driver import Capability
 from mi.instrument.teledyne.workhorse.adcp.driver import InstrumentCmds
 
 from mi.instrument.teledyne.workhorse.driver import ADCP_PD0_PARSED_KEY
-from mi.instrument.teledyne.workhorse.driver import ADCP_PD0_PARSED_DataParticle
 from mi.instrument.teledyne.workhorse.driver import ADCP_SYSTEM_CONFIGURATION_KEY
-from mi.instrument.teledyne.workhorse.driver import ADCP_SYSTEM_CONFIGURATION_DataParticle
 from mi.instrument.teledyne.workhorse.driver import ADCP_COMPASS_CALIBRATION_KEY
-from mi.instrument.teledyne.workhorse.driver import ADCP_COMPASS_CALIBRATION_DataParticle
 
 from mi.instrument.teledyne.workhorse.adcp.driver import InstrumentDriver
 from mi.instrument.teledyne.workhorse.adcp.driver import Protocol
