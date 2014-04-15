@@ -1,4 +1,5 @@
-from mi.instrument.wetlabs.fluorometer.flort_d.driver import NEWLINE
+
+NEWLINE = '\r\n'
 
 SAMPLE_MNU_RESPONSE = "Ser BBFL2W-993" + NEWLINE + \
                       "Ver Triplet5.20" + NEWLINE + \
@@ -19,11 +20,11 @@ SAMPLE_MNU_RESPONSE = "Ser BBFL2W-993" + NEWLINE + \
                       "Dat 07/11/13" + NEWLINE + \
                       "Clk 12:48:34" + NEWLINE + \
                       "Mst 12:48:31" + NEWLINE + \
-                      "Mem 4095\n"
+                      "Mem 4095"
 
-SAMPLE_RUN_RESPONSE = "mvs 1"
+SAMPLE_RUN_RESPONSE = "mvs 1" + NEWLINE
 
-SAMPLE_SAMPLE_RESPONSE = "07/16/13\t09:33:06\t700\t4130\t695\t1018\t460\t4130\t525\n"
+SAMPLE_SAMPLE_RESPONSE = "07/16/13\t09:33:06\t700\t4130\t695\t1018\t460\t4130\t525" + NEWLINE
 
 SAMPLE_MET_RESPONSE = "0,Delimiter,pf_tab,TAB" + NEWLINE + \
                       "1,DATE,MM/DD/YY,US_DATE" + NEWLINE + \
@@ -37,11 +38,9 @@ SAMPLE_MET_RESPONSE = "0,Delimiter,pf_tab,TAB" + NEWLINE + \
                       "9,I-Temp,counts,C,EC," + NEWLINE + \
                       "10,Termination,CRLF,Carriage_return-Line_feed" + NEWLINE + \
                       "IHM=0" + NEWLINE + \
-                      "IOM=2\n"
+                      "IOM=2"
 
-SAMPLE_DUMP_MEMORY_RESPONSE = "77222 records to read\n"
 
-                      
                       
                       
   

@@ -24,6 +24,7 @@ from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import InstrumentCommandException
 
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 
@@ -35,6 +36,7 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.instrument_driver import DriverConfigKey
 
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
@@ -47,6 +49,10 @@ from mi.core.instrument.protocol_param_dict import ParameterDictType
 
 from mi.core.instrument.driver_dict import DriverDictKey
 
+from mi.core.driver_scheduler import DriverSchedulerConfigKey
+from mi.core.driver_scheduler import TriggerType
+
+
 # newline.
 NEWLINE = '\r\n'
 
@@ -56,6 +62,7 @@ TIMEOUT = 10
 ###
 #    Driver Constant Definitions
 ###
+
 
 class DataParticleType(BaseEnum):
     """
@@ -95,23 +102,19 @@ class ProtocolEvent(BaseEnum):
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     GET_MENU = 'PROTOCOL_EVENT_GET_MENU'
     GET_METADATA = 'PROTOCOL_EVENT_GET_METADATA'
-    INTERRUPT_INSTRUMENT = 'PROTOCOL_EVENT_INTERRUPT_INSTRUMENT'
+    RUN_WIPER = 'PROTOCOL_EVENT_RUN_WIPER'
+    RUN_WIPER_SCHEDULED = 'PROTOCOL_EVENT_RUN_WIPER_SCHEDULED'
 
 
 class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
-    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    GET_MENU = ProtocolEvent.GET_MENU
-    GET_METADATA = ProtocolEvent.GET_METADATA
+    RUN_WIPER = ProtocolEvent.RUN_WIPER
 
 
 class Parameter(DriverParameter):
-    """
-    Device specific parameters.
-    """
+    #Device specific parameters.
     Measurements_per_reported_value = "ave"     # Measurements per reported value   # int
     Measurement_1_dark_count_value = "m1d"      # Measurement 1 dark count          # int
     Measurement_1_slope_value = "m1s"           # Measurement 1 slope value         # float
@@ -130,13 +133,17 @@ class Parameter(DriverParameter):
     Time_value = "clk"                          # Time                              # str
     Manual_start_time_value = "mst"             # Manual start time                 # str
 
-    """
-    Hardware Data
-    """
+    #Hardware Data
     Serial_number_value = "ser"                 # Serial number                     # str
     Firmware_version_value = "ver"              # Firmware version                  # str
     Internal_memory_value = "mem"               # Internal memory                   # int
 
+    #Command parameter
+    Run_wiper_interval = "mvs"
+
+
+class ScheduledJob(BaseEnum):
+    RUN_WIPER = 'run_wiper'
 
 
 class Prompt(BaseEnum):
@@ -147,15 +154,7 @@ class Prompt(BaseEnum):
 
 
 class InstrumentCommand(BaseEnum):
-    """
-    Instrument command strings
-    At this time (3/25/2014 IOS) the driver does not support:
-    Reload_factory_settings = "$rfd"
-    Reload_settings_from_flash = "$rls"
-    Store_settings_to_flash = "$sto"
-    Erase_memory = "$emc"
-    Dump_memory = "$get"
-    """
+    # Instrument command strings
     Interrupt_instrument = "!!!!!"
     Print_metadata = "$met"
     Print_menu = "$mnu"
@@ -163,12 +162,6 @@ class InstrumentCommand(BaseEnum):
     Run_wiper = "$mvs"
 
     # Parameter Commands - sent at startup
-    # At this time (3/25/2014 IOS) the driver does not support:
-    # Analog_scaling = "$asv"
-    # Baud_rate = "$rat"
-    # Sampling_interval = "$int"
-    # Manual_mode = "$man"
-    # Manual_start_time = "$mst"
     Averaging_value = "$ave"
     Measurement_1_dark_count = "$m1d"
     Measurement_1_slope = "$m1s"
@@ -184,40 +177,39 @@ class InstrumentCommand(BaseEnum):
     Set_size = "$set"
 
     def from_string(self, str):
-        InstrumentCommandDictionary = {
-            "ave" : InstrumentCommand.Averaging_value,
-            "m1d" : InstrumentCommand.Measurement_1_dark_count,
-            "m2d" : InstrumentCommand.Measurement_2_dark_count,
-            "m3d" : InstrumentCommand.Measurement_3_dark_count,
-            "m1s" : InstrumentCommand.Measurement_1_slope,
-            "m2s" : InstrumentCommand.Measurement_2_slope,
-            "m3s" : InstrumentCommand.Measurement_3_slope,
-            "pkt" : InstrumentCommand.Packet_size,
-            "seq" : InstrumentCommand.Select_predefined_output_sequence,
-            "clk" : InstrumentCommand.Set_clock,
-            "dat" : InstrumentCommand.Set_date,
-            "rec" : InstrumentCommand.Recording_mode,
-            "set" : InstrumentCommand.Set_size
+        instrument_cmd_dict = {
+            "ave": InstrumentCommand.Averaging_value,
+            "m1d": InstrumentCommand.Measurement_1_dark_count,
+            "m2d": InstrumentCommand.Measurement_2_dark_count,
+            "m3d": InstrumentCommand.Measurement_3_dark_count,
+            "m1s": InstrumentCommand.Measurement_1_slope,
+            "m2s": InstrumentCommand.Measurement_2_slope,
+            "m3s": InstrumentCommand.Measurement_3_slope,
+            "pkt": InstrumentCommand.Packet_size,
+            "seq": InstrumentCommand.Select_predefined_output_sequence,
+            "clk": InstrumentCommand.Set_clock,
+            "dat": InstrumentCommand.Set_date,
+            "rec": InstrumentCommand.Recording_mode,
+            "set": InstrumentCommand.Set_size,
+            "mvs": InstrumentCommand.Run_wiper
         }
-        return InstrumentCommandDictionary.get(str)
-
-
+        return instrument_cmd_dict.get(str)
 
 
 ###############################################################################
 # Data Particles
 ###############################################################################
 
-MNU_REGEX = r"(Ser.*?Mem\s\S+)"
+MNU_REGEX = r"(Ser.*?Mem\s[0-9]{1,6})"
 MNU_REGEX_MATCHER = re.compile(MNU_REGEX, re.DOTALL)
 
-RUN_REGEX = r"(mvs.*Mem.*?)"
+RUN_REGEX = r"(mvs\s[0-1]\r\n)"
 RUN_REGEX_MATCHER = re.compile(RUN_REGEX, re.DOTALL)
 
-MET_REGEX = r"(IOM=[0-9])"
+MET_REGEX = r"(0,.*?IOM=[0-9])"
 MET_REGEX_MATCHER = re.compile(MET_REGEX, re.DOTALL)
 
-SAMPLE_REGEX = r"([0-1][0-9]/[0-3][0-9]/[0-9][0-9]\s[0-1][0-9]:[0-5][0-9]:[0-5][0-9](\s[0-9]{1,10}){7})"
+SAMPLE_REGEX = r"([0-1][0-9]/[0-3][0-9]/[0-9][0-9]\s[0-1][0-9]:[0-5][0-9]:[0-5][0-9](\s[0-9]{1,10}){7}\r\n)"
 SAMPLE_REGEX_MATCHER = re.compile(SAMPLE_REGEX, re.DOTALL)
 
 
@@ -460,19 +452,19 @@ class FlortDMET_Particle(DataParticle):
     """
     _data_particle_type = DataParticleType.FlortD_MET
 
-    LINE00 = r"0,(\S*)"
-    LINE01 = r"1,(\S*)"
-    LINE02 = r"2,(\S*)"
-    LINE03 = r"3,(\S*)"
-    LINE04 = r"4,(\S*)"
-    LINE05 = r"5,(\S*)"
-    LINE06 = r"6,(\S*)"
-    LINE07 = r"7,(\S*)"
-    LINE08 = r"8,(\S*)"
-    LINE09 = r"9,(\S*)"
-    LINE10 = r"10,(\S*)"
-    LINE11 = r"IHM=(\S*)"
-    LINE12 = r"IOM=(\S*)"
+    LINE00 = r"0,\S*"
+    LINE01 = r"1,\S*"
+    LINE02 = r"2,\S*"
+    LINE03 = r"3,\S*"
+    LINE04 = r"4,\S*"
+    LINE05 = r"5,\S*"
+    LINE06 = r"6,\S*"
+    LINE07 = r"7,\S*"
+    LINE08 = r"8,\S*"
+    LINE09 = r"9,\S*"
+    LINE10 = r"10,\S*"
+    LINE11 = r"IHM=\S*"
+    LINE12 = r"IOM=\S*"
 
     def _build_parsed_values(self):
         """
@@ -673,7 +665,7 @@ class FlortDSample_Particle(DataParticle):
         @return: regex string
         """
         pattern = [
-           SAMPLE_REGEX
+            SAMPLE_REGEX
         ]
         return r'\s*,\s*'.join(pattern)
 
@@ -808,12 +800,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_MENU, self._handler_command_get_menu)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_METADATA, self._handler_command_get_metadata)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.INTERRUPT_INSTRUMENT, self._handler_interrupt_instrument)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.RUN_WIPER, self._handler_command_run_wiper)
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.INTERRUPT_INSTRUMENT, self._handler_interrupt_instrument)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.RUN_WIPER_SCHEDULED, self._handler_autosample_run_wiper)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -864,7 +856,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCommand.Run_settings, self._parse_command_response)
         self._add_response_handler(InstrumentCommand.Print_metadata, self._parse_command_response)
         self._add_response_handler(InstrumentCommand.Print_menu, self._parse_command_response)
-        self._add_response_handler(InstrumentCommand.Run_wiper, self._parse_command_response)
+        self._add_response_handler(InstrumentCommand.Run_wiper, self._parse_run_wiper_response)
 
         # commands sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
@@ -873,6 +865,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         # State state machine in UNKNOWN state.
         log.debug("%%% Starting in UNKNOWN state")
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
+        self.initialize_scheduler()
 
     @staticmethod
     def sieve_function(raw_data):
@@ -883,9 +876,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         return_list = []
 
         sieve_match = [MNU_REGEX_MATCHER,
-                          RUN_REGEX_MATCHER,
-                          MET_REGEX_MATCHER,
-                          SAMPLE_REGEX_MATCHER]
+                      RUN_REGEX_MATCHER,
+                      MET_REGEX_MATCHER,
+                      SAMPLE_REGEX_MATCHER]
 
         for matcher in sieve_match:
             for match in matcher.finditer(raw_data):
@@ -903,13 +896,26 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _parse_command_response(self, response, prompt):
         log.debug("%% IN _parse_command_response RESPONSE = " + repr(response))
         #instrument will return 'unrecognized command' if command is not valid
-        #log error and ignore
 
         if 'unrecognized command' in response:
             log.debug('command was not recognized')
+            raise InstrumentCommandException('unrecognized command')
 
         return response
 
+    def _parse_run_wiper_response(self, response, prompt):
+        log.debug("%% IN _parse_run_wiper_response RESPONSE = " + repr(response))
+        #instrument will return 'unrecognized command' if command is not valid
+
+        if 'unrecognized command' in response:
+            log.debug('command was not recognized')
+            raise InstrumentCommandException('unrecognized command')
+
+        if '0' in response:
+            log.debug('wiper was not successful')
+            raise InstrumentCommandException('run wiper was not successful')
+
+        return response
 
     ########################################################################
     # Unknown handlers.
@@ -932,6 +938,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         @retval (next_state, result)
         """
         log.debug("%%% IN _handler_unknown_discover")
+
+        next_state = None
+        next_agent_state = None
+        result = None
 
         try:
             #Listen to data stream to determine the current state
@@ -962,7 +972,6 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
-
     def _handler_command_enter(self, *args, **kwargs):
         """
         Enter command state.
@@ -970,8 +979,28 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         log.debug('%% IN _handler_command_enter')
-        # Command device to update parameters and send a config change event.
-        self._update_params()
+        # Update the parameter dictionary. Issue display status and display calibration commands. The parameter
+        # dict will match line output and update itself.
+
+        # Get old param dict config.
+        old_config = self._param_dict.get_config()
+
+        # Issue display commands and parse results.
+
+        log.debug("Run configure command: %s" % InstrumentCommand.Print_menu)
+        response = self._do_cmd_resp(InstrumentCommand.Print_menu, timeout=TIMEOUT, response_regex=MNU_REGEX_MATCHER)
+        # for line in response.split(NEWLINE):
+        #     self._param_dict.update(line)
+        self._param_dict.update(response)
+        log.debug("configure command response: %s" % response)
+
+        # Get new param dict config. If it differs from the old config,
+        # tell driver superclass to publish a config change event.
+        new_config = self._param_dict.get_config()
+        log.debug("new_config: %s == old_config: %s" % (new_config, old_config))
+        if not dict_equal(old_config, new_config, ignore_keys=Parameter.Time_value):
+            log.debug("configuration has changed.  Send driver event")
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -983,8 +1012,6 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_set(self, *args, **kwargs):
         log.debug('%% IN _handler_command_set')
-        next_state = None
-        result = None
         startup = False
 
         try:
@@ -1005,10 +1032,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         else:
             self._set_params(params, startup)
 
-        return next_state, result
+        return None, None
 
     def _handler_command_exit(self, *args, **kwargs):
-        #Exit command state.
+        """
+        Exit command state.
+        """
         log.debug('%% IN _handler_command_exit')
         pass
 
@@ -1017,63 +1046,85 @@ class Protocol(CommandResponseInstrumentProtocol):
         Switch into autosample mode. ($run)
         """
         log.debug('%% IN _handler_command_start_autosample')
-        timeout = kwargs.get('timeout', TIMEOUT)
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-        result = self._do_cmd_resp(InstrumentCommand.Run_settings, timeout=timeout, response_regex=SAMPLE_REGEX_MATCHER)
+        result = self._do_cmd_resp(InstrumentCommand.Run_settings, timeout=TIMEOUT, response_regex=SAMPLE_REGEX_MATCHER)
 
-        return next_state, (next_agent_state, result)
+        return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, result)
 
     def _handler_command_get_menu(self, *args, **kwargs):
         """
         Run the $mnu Command (print menu)
         """
         log.debug('%% IN _handler_command_get_menu')
-        timeout = kwargs.get('timeout', TIMEOUT)
-        next_state = None
-        next_agent_state = None
-        result = self._do_cmd_resp(InstrumentCommand.Print_menu, timeout=timeout, response_regex=MNU_REGEX_MATCHER)
+        result = self._do_cmd_resp(InstrumentCommand.Print_menu, timeout=TIMEOUT, response_regex=MNU_REGEX_MATCHER)
 
-        return next_state, (next_agent_state, result)
+        return None, (None, result)
 
     def _handler_command_get_metadata(self, *args, **kwargs):
         """
         Run the $met Command (print meta data)
         """
         log.debug('%% IN _handler_command_get_metadata')
-        timeout = kwargs.get('timeout', TIMEOUT)
+        result = self._do_cmd_resp(InstrumentCommand.Print_metadata, timeout=TIMEOUT, response_regex=MET_REGEX_MATCHER)
 
-        next_state = None
-        next_agent_state = None
-        result = self._do_cmd_resp(InstrumentCommand.Print_metadata, timeout=timeout, response_regex=MET_REGEX_MATCHER)
+        return None, (None, result)
 
-        return next_state, (next_agent_state, result)
+    def _handler_command_run_wiper(self, *args, **kwargs):
+        log.debug("%%% IN _handler_command_run_wiper")
+
+        #Issue the run wiper command
+        result = self._do_cmd_resp(InstrumentCommand.Run_wiper, *args, timeout=TIMEOUT,
+                                   response_regex=RUN_REGEX_MATCHER)
+        return None, (None, result)
 
     def _handler_command_init_params(self, *args, **kwargs):
         """
         initialize parameters
         """
         log.debug('%% IN _handler_command_init_params')
-        next_state = None
-        result = None
-
         self._init_params()
-        return next_state, result
+        return None, None
 
     ########################################################################
     # Autosample handlers.
     ########################################################################
-
     def _handler_autosample_enter(self, *args, **kwargs):
         """
-        Enter autosample state.
+        Enter autosample state. configure and start the scheduled run wiper
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         log.debug('%% IN _handler_autosample_enter')
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        log.debug("Configuring the scheduler to run %i", self._param_dict.get(Parameter.Run_wiper_interval))
+        if self._param_dict.get(Parameter.Run_wiper_interval) is not 0:
+
+            #start the scheduler for running the wiper
+            #job_name = ScheduledJob.RUN_WIPER
+            config = { DriverConfigKey.SCHEDULER: {
+                ScheduledJob.RUN_WIPER: {
+                    DriverSchedulerConfigKey.TRIGGER: {
+                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                        DriverSchedulerConfigKey.SECONDS: self._param_dict.get(Parameter.Run_wiper_interval)
+                        }
+                    }
+                }
+            }
+            log.debug("Initializing the scheduler")
+            self.set_init_params(config)
+            log.debug("Adding the scheduled event")
+            self._add_scheduler_event(ScheduledJob.RUN_WIPER, ProtocolEvent.RUN_WIPER_SCHEDULED)
+        else:
+            log.debug("Attempting to remove the scheduler")
+            if self._scheduler is not None:
+                try:
+                    log.debug("successfully removed scheduler")
+                    self._remove_scheduler(ScheduledJob.RUN_WIPER)
+                except KeyError:
+                    log.debug("_remove_scheduler could not find ScheduleJob.RUN_WIPER")
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
@@ -1084,40 +1135,65 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         log.debug("%%% IN _handler_autosample_stop_autosample")
 
-        # Issue the stop command.
-        timeout = kwargs.get('timeout', TIMEOUT)
-        result = self._do_cmd_resp(InstrumentCommand.Interrupt_instrument, *args, timeout=timeout,
-                                   response_regex=RUN_REGEX_MATCHER)
+        #Stop scheduled run of wiper
+        if self._scheduler is not None:
+            try:
+                log.debug("Removing scheduled job: RUN WIPER")
+                self._remove_scheduler(ScheduledJob.RUN_WIPER)
+            except KeyError:
+                log.debug("_remove_scheduler could not find ScheduleJob.RUN_WIPER")
 
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        return next_state, (next_agent_state, result)
-
-    def _handler_interrupt_instrument(self, *args, **kwargs):
-        """
-        Stop autosample and switch back to command mode.
-        @retval (next_state, result) tuple, (ProtocolState.COMMAND, None) if successful.
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command misunderstood or incorrect prompt received.
-        """
-        log.debug("%%% IN _handler_instrument_interrupt")
 
         # Issue the stop command.
-        timeout = kwargs.get('timeout', TIMEOUT)
-        result = self._do_cmd_resp(InstrumentCommand.Interrupt_instrument, *args, timeout=timeout,
+        result = self._do_cmd_resp(InstrumentCommand.Interrupt_instrument, *args, timeout=TIMEOUT,
                                    response_regex=RUN_REGEX_MATCHER)
 
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, result)
 
-        return next_state, (next_agent_state, result)
+    def _handler_autosample_run_wiper(self, *args, **kwargs):
+        log.debug("%%% IN _handler_autosample_run_wiper")
+
+        max_attempts = 5
+        attempt = 0
+        wiper_ran = False
+
+        #put instrument into command mode to send run wiper command ($mvs)
+        self._do_cmd_resp(InstrumentCommand.Interrupt_instrument, *args, timeout=TIMEOUT,
+                               response_regex=MNU_REGEX_MATCHER)
+
+        #try to send $mvs up to 5 times
+        #if an error occurred while sending command, try again
+        #if sent $mvs max times, then raise an error and do not proceed
+        #if $mvs is sent successfully, put the instrument into autosample
+        while (attempt < max_attempts) or wiper_ran == False:
+            try:
+                log.debug('Sending $mvs command, attempt %s', attempt)
+                self._do_cmd_resp(InstrumentCommand.Run_wiper, *args, timeout=TIMEOUT,
+                               response_regex=RUN_REGEX_MATCHER)
+                wiper_ran = True
+            except InstrumentCommandException as e:
+                attempt += 1
+            finally:
+                if attempt == max_attempts:
+                    raise InstrumentCommandException('ERROR: Wiper did not make it to the next cycle')
+
+        result = self._do_cmd_resp(InstrumentCommand.Run_settings, timeout=TIMEOUT, response_regex=SAMPLE_REGEX_MATCHER)
+
+        return None, (None, result)
 
     def _handler_autosample_exit(self, *args, **kwargs):
         """
         Exit autosample state.
         """
         log.debug("%%% IN _handler_autosample_exit")
+
+        #Stop scheduled run of wiper
+        if self._scheduler is not None:
+            try:
+                log.debug("Removing scheduled job: RUN WIPER")
+                self._remove_scheduler(ScheduledJob.RUN_WIPER)
+            except KeyError:
+                log.debug("_remove_scheduler could not find ScheduleJob.RUN_WIPER")
         pass
 
     def _handler_autosample_init_params(self, *args, **kwargs):
@@ -1155,39 +1231,27 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         """
         log.debug('%% IN _handler_direct_access_execute_direct')
-        next_state = None
-        result = None
-        next_agent_state = None
 
         self._do_cmd_direct(data)
 
         # add sent command to list for 'echo' filtering in callback
         self._sent_cmds.append(data)
 
-        return next_state, (next_agent_state, result)
+        return None, (None, None)
 
     def _handler_direct_access_stop_direct(self):
         """
         @throw InstrumentProtocolException on invalid command
         """
         log.debug('%% IN _handler_direct_access_stop_direct')
-        result = None
-
-        next_state = ProtocolState.UNKNOWN
-        next_agent_state = ResourceAgentState.ACTIVE_UNKNOWN
-
-        return next_state, (next_agent_state, result)
+        return ProtocolState.UNKNOWN, (ResourceAgentState.ACTIVE_UNKNOWN, None)
 
     def _handler_start_direct(self):
         """
         Start direct access
         """
-        log.debug('%% IN _handler_start_direct')
-        next_state = ProtocolState.DIRECT_ACCESS
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        result = None
-        log.debug("_handler_start_direct: entering DA mode")
-        return next_state, (next_agent_state, result)
+        log.debug('%% IN _handler_start_direct: entering DA mode')
+        return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     ########################################################################
     # Startup parameter handlers
@@ -1202,21 +1266,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         if self.get_current_state() != DriverProtocolState.COMMAND:
             raise InstrumentProtocolException("Not in command state. Unable to apply startup params")
 
-        log.debug("apply_startup_params now")
-        config = self.get_startup_config()
-        log.debug("_apply_params startup config: %s", config)
-        # Pass true to _set_params so we know these are startup values
-        #self._set_params(config, True)
-        #log.debug("_apply_params done")
-        self._apply_params()
+        self._set_params(True)
 
     ########################################################################
     # Private helpers.
     ########################################################################
     def _set_params(self, *args, **kwargs):
-
-
-        #TODO
         """
         Issue commands to the instrument to set various parameters
         """
@@ -1226,76 +1281,32 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         try:
             self._verify_not_readonly(*args, **kwargs)
+            old_config = self._param_dict.get_config()
 
             response = None
             for (key, val) in params.iteritems():
                 log.debug("KEY = " + str(key) + " VALUE = " + str(val))
-                arg_command = InstrumentCommand.from_string(InstrumentCommand(), key)
-                log.debug('arg_command %s', arg_command)
-                response = self._do_cmd_resp(arg_command, key, val, response_regex=MNU_REGEX_MATCHER)
+                #if setting the mvs interval, do not send a command
+                if key == 'mvs':
+                    self._param_dict.set_value(key, val)
+                else:
+                    arg_command = InstrumentCommand.from_string(InstrumentCommand(), key)
+                    log.debug('arg_command %s', arg_command)
+                    response = self._do_cmd_resp(arg_command, key, val, response_regex=MNU_REGEX_MATCHER)
 
-            self._update_params()
+            self._param_dict.update(response)
+            log.debug("configure command response: %s" % response)
+
+            # Get new param dict config. If it differs from the old config,
+            # tell driver superclass to publish a config change event.
+            new_config = self._param_dict.get_config()
+            log.debug("new_config: %s == old_config: %s" % (new_config, old_config))
+            if not dict_equal(old_config, new_config, ignore_keys=Parameter.Time_value):
+                log.debug("configuration has changed.  Send driver event")
+                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
         except InstrumentParameterException as e:
             log.debug("Attempt to set read only parameter(s) (%s)", params)
-
-
-        # log.debug("_set_params update_params")
-        #
-        # old_config = self._param_dict.get_config()
-        # #Update the parameter dictionary. Issue display status and display calibration commands. The parameter
-        # #dict will match line output and update itself.
-        # log.debug("configure command response: %s" % response)
-        # self._param_dict.update(response)
-        #
-        # # Get new param dict config. If it differs from the old config,
-        # # tell driver superclass to publish a config change event.
-        # new_config = self._param_dict.get_config()
-        # log.debug("new_config: %s == old_config: %s" % (new_config, old_config))
-        # if not dict_equal(old_config, new_config, ignore_keys=Parameter.Time_value):
-        #     log.debug("configuration has changed.  Send driver event")
-        #     self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-
-    def _update_params(self, *args, **kwargs):
-        """
-        Update the parameter dictionary. Issue display status and display calibration commands. The parameter
-        dict will match line output and update itself.
-        @throws InstrumentTimeoutException if device cannot be timely woken.
-        @throws InstrumentProtocolException if ds/dc misunderstood.
-        """
-        log.debug("%% IN _update_params")
-        # Get old param dict config.
-        old_config = self._param_dict.get_config()
-
-        # Issue display commands and parse results.
-        timeout = kwargs.get('timeout', TIMEOUT)
-
-        log.debug("Run configure command: %s" % InstrumentCommand.Print_menu)
-        response = self._do_cmd_resp(InstrumentCommand.Print_menu, timeout=timeout, response_regex=MNU_REGEX_MATCHER)
-        # for line in response.split(NEWLINE):
-        #     self._param_dict.update(line)
-        self._param_dict.update(response)
-        log.debug("configure command response: %s" % response)
-
-        # Get new param dict config. If it differs from the old config,
-        # tell driver superclass to publish a config change event.
-        new_config = self._param_dict.get_config()
-        log.debug("new_config: %s == old_config: %s" % (new_config, old_config))
-        if not dict_equal(old_config, new_config, ignore_keys=Parameter.Time_value):
-            log.debug("configuration has changed.  Send driver event")
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-
-    def _apply_params(self):
-        """
-        apply startup parameters to the instrument.
-        @raise: InstrumentProtocolException if in wrong mode.
-        """
-        log.debug("%% IN _apply_params")
-        config = self.get_startup_config()
-        log.debug("_apply_params startup config: %s", config)
-        # Pass true to _set_params so we know these are startup values
-        self._set_params(config, True)
-        log.debug("_apply_params done")
 
     def _build_single_parameter_command(self, cmd, param, val):
         """
@@ -1310,8 +1321,15 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug('%% IN _build_single_parameter_command')
         try:
             str_val = self._param_dict.format(param, val)
-            if str_val == None:
+            if str_val is None:
                 raise InstrumentParameterException("Driver PARAM was None!!!!")
+
+            #do extra formatting if one of these commands
+            if param == 'clk':
+                str_val = str_val.replace(":", "")
+            if param == 'dat':
+                str_val = str_val.replace("/", "")
+
             set_cmd = '%s %s' % (cmd, str_val)
             set_cmd += NEWLINE
             log.debug("set_cmd = " + repr(set_cmd))
@@ -1353,7 +1371,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _wakeup(self, timeout, delay=1):
         """
-        Override method: There is no prompt for this instrument
+        Override method: There is no wakeup for this instrument
         """
         log.debug('%% IN _wakeup')
         pass
@@ -1384,10 +1402,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Populate the command dictionary with commands
         """
         log.debug("%%% IN _build_command_dict")
-        self._cmd_dict.add(Capability.GET_MENU, display_name="get menu")
-        self._cmd_dict.add(Capability.GET_METADATA, display_name="get metadata")
-        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
-        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
+        self._cmd_dict.add(Capability.RUN_WIPER, display_name="run wiper")
 
     def _build_param_dict(self):
         """
@@ -1587,7 +1602,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.STRING,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             display_name="Time interval between packets",
+                             display_name="time interval between packets",
                              default_value=None,
                              startup_param=False,
                              direct_access=False)
@@ -1639,6 +1654,22 @@ class Protocol(CommandResponseInstrumentProtocol):
                              default_value=None,
                              startup_param=False,
                              direct_access=False)
+
+        self._param_dict.add(Parameter.Run_wiper_interval,
+                             RUN_REGEX,
+                             lambda match: int(match.group(1)),
+                             int,
+                             type=ParameterDictType.INT,
+                             expiration=None,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name="run wiper interval",
+                             default_value=60,
+                             startup_param=True,
+                             direct_access=True)
+
+        #need to set the values of the dictionary using set_default
+        for param in self._param_dict.get_keys():
+            self._param_dict.set_value(param, self._param_dict.get_default_value(param))
 
 
 ################################ /Protocol #############################
