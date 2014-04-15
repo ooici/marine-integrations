@@ -2,78 +2,44 @@
 @package mi.instrument.teledyne.workhorse.test.test_driver
 @file marine-integrations/mi/instrument/teledyne/workhorse/test/test_driver.py
 @author Sung Ahn
-@brief Test Driver for the ADCP
+@brief Test Driver for Workhorse
 Release notes:
 
-Generic Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
+Generic test Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
 """
 
 __author__ = 'Sung Ahn'
 __license__ = 'Apache 2.0'
 
-import socket
 
-import unittest
 import time as time
-import datetime as dt
-from mi.core.time import get_timestamp_delayed
 
 from nose.plugins.attrib import attr
-from mock import Mock
-from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.log import get_logger; log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import AgentCapabilityType
-from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
-from mi.idk.unit_test import ParameterTestConfigKey
-from mi.idk.unit_test import DriverStartupConfigKey
 
 from mi.instrument.teledyne.test.test_driver import TeledyneUnitTest
 from mi.instrument.teledyne.test.test_driver import TeledyneIntegrationTest
 from mi.instrument.teledyne.test.test_driver import TeledyneQualificationTest
 from mi.instrument.teledyne.test.test_driver import TeledynePublicationTest
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import WorkhorseInstrumentDriver
-
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import DataParticleType
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import TeledyneProtocolState
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import TeledyneProtocolEvent
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import WorkhorseParameter
+from mi.instrument.teledyne.workhorse.driver import DataParticleType
+from mi.instrument.teledyne.driver import TeledyneProtocolState
+from mi.instrument.teledyne.driver import TeledyneProtocolEvent
+from mi.instrument.teledyne.workhorse.driver import WorkhorseParameter
 
 from mi.instrument.teledyne.driver import TeledyneScheduledJob
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import TeledynePrompt
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import NEWLINE
+from mi.instrument.teledyne.workhorse.driver import TeledynePrompt
+from mi.instrument.teledyne.workhorse.driver import NEWLINE
 
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_KEY
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_SYSTEM_CONFIGURATION_DataParticle
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_KEY
-from mi.instrument.teledyne.workhorse_monitor_75_khz.driver import ADCP_COMPASS_CALIBRATION_DataParticle
+from mi.instrument.teledyne.workhorse.driver import ADCP_SYSTEM_CONFIGURATION_KEY
+from mi.instrument.teledyne.workhorse.driver import ADCP_COMPASS_CALIBRATION_KEY
 
-#from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import PS3_RAW_DATA
-#from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import FD_RAW_DATA
-#from mi.instrument.teledyne.workhorse_monitor_75_khz.test.test_data import PT200_RAW_DATA
-
-from mi.core.exceptions import InstrumentParameterException
-from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
-from pyon.core.exception import Conflict
-from pyon.agent.agent import ResourceAgentEvent
 
-from mi.core.instrument.instrument_driver import DriverConnectionState
-from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from random import randint
-
-from mi.idk.unit_test import AGENT_DISCOVER_TIMEOUT
-from mi.idk.unit_test import GO_ACTIVE_TIMEOUT
-from mi.idk.unit_test import GET_TIMEOUT
-from mi.idk.unit_test import SET_TIMEOUT
-from mi.idk.unit_test import EXECUTE_TIMEOUT
 
 
 #################################### RULES ####################################
@@ -138,11 +104,8 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         value.  This test confirms that parameters are being read/converted properly and that
         the startup has been applied.
         """
-        log.error("====== Sung ====== test_parameters")
         self.assert_initialize_driver()
-        log.error("====== Sung ====== test_parameters -finish initialize driver")
         reply = self.driver_client.cmd_dvr('get_resource', WorkhorseParameter.ALL)
-        log.error("====== Sung ======Assert_Driver_parameter %s", repr(reply))
         self.assert_driver_parameters(reply, True)
 
 
@@ -150,7 +113,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         Run instrument commands from both command and streaming mode.
         """
-        log.error("====== Sung ====== test_commands")
         self.assert_initialize_driver()
         ####
         # First test in command mode
@@ -172,9 +134,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_driver_command(TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX, regex='^Beam Width:')
         self.assert_driver_command(TeledyneProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
 
-        log.error("====== Sung ====== test_commands - User sets")
         self.assert_driver_command(TeledyneProtocolEvent.USER_SETS)
-        log.error("====== Sung ====== test_commands - factory sets")
         self.assert_driver_command(TeledyneProtocolEvent.FACTORY_SETS)
 
 
@@ -182,35 +142,20 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         # Test in streaming mode
         ####
         # Put us in streaming
-        log.error("====== Sung ====== test_commands - START_AUTOSAMPLE ")
         self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE, delay=1)
-        log.error("====== Sung ====== test_commands - SEND_LAST_SAMPLE ")
         self.assert_driver_command_exception(TeledyneProtocolEvent.SEND_LAST_SAMPLE, exception_class=InstrumentCommandException)
-        log.error("====== Sung ====== test_commands - SAVE_SETUP_TO_RAM ")
         self.assert_driver_command_exception(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM, exception_class=InstrumentCommandException)
-        log.error("====== Sung ====== test_commands - GET_ERROR_STATUS_WORD ")
         self.assert_driver_command_exception(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD, exception_class=InstrumentCommandException)
-        log.error("====== Sung ====== test_commands - CLEAR_ERROR_STATUS_WORD ")
         self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, exception_class=InstrumentCommandException)
-        log.error("====== Sung ====== test_commands - GET_FAULT_LOG ")
         self.assert_driver_command_exception(TeledyneProtocolEvent.GET_FAULT_LOG, exception_class=InstrumentCommandException)
-        log.error("====== Sung ====== test_commands - CLEAR_FAULT_LOG ")
         self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_FAULT_LOG, exception_class=InstrumentCommandException)
-        log.error("====== Sung ====== test_commands - GET_INSTRUMENT_TRANSFORM_MATRIX ")
         self.assert_driver_command_exception(TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX, exception_class=InstrumentCommandException)
-        log.error("====== Sung ====== test_commands - RUN_TEST_200 ")
         self.assert_driver_command_exception(TeledyneProtocolEvent.RUN_TEST_200, exception_class=InstrumentCommandException)
-        log.error("====== Sung ====== test_commands - SCHEDULED_CLOCK_SYNC ")
         self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
-        log.error("====== Sung ====== test_commands - CLOCK_SYNC ")
         self.assert_driver_command_exception(TeledyneProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
-        log.error("====== Sung ====== test_commands - GET_CALIBRATION ")
         self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
-        log.error("====== Sung ====== test_commands - GET_CONFIGURATION ")
         self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION, regex=r' Instrument S/N')
-        log.error("====== Sung ====== test_commands - STOP_AUTOSAMPLE ")
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
-        log.error("====== Sung ====== test_commands - Test bad test - InstrumentCommand Exception expected ")
 
         ####
         # Test a bad command
@@ -224,7 +169,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
 
         since nose orders the tests by ascii value this should run first.
         """
-        log.error("====== Sung ====== test_startup_params")
         self.assert_initialize_driver()
 
         get_values = {
@@ -281,17 +225,11 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         new_values = {}
       
         p = WorkhorseParameter.dict()
-        log.error("****Sung workhorse dic %s", repr(p) )
         set_dict = {}
         for k, v in new_set.items():
-        #for k, v in WorkhorseParameterAltValue.dict().items():
-        #for k, v in WorkhorseParameterAltValue.:
-        #for k, v in p.items():
-            log.error("****Sung workhorse key %s value %s", repr(k), repr(v) )
+
             if k not in ('BANNER', 'SERIAL_FLOW_CONTROL', 'SAVE_NVRAM_TO_RECORDER', 'TIME'):
-                log.error("***Sung set new value %s %s", k, v)
                 new_values[p[k]] = v
-        log.error("***Sung new value %s", repr(new_values))
         self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
 
@@ -309,7 +247,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         Verify the device configuration command can be triggered and run in command
         """
-        log.error("====== Sung ====== test_scheduled_compass_calibration_command")
         self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
@@ -318,7 +255,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         Verify the device configuration command can be triggered and run in autosample
         """
 
-        log.error("====== Sung ====== test_scheduled_compass_calibration_autosample")
         self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100,
             autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE)
         self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
@@ -328,7 +264,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         Verify a status particle was generated
         """
-        log.error("====== Sung ====== assert_acquire_status")
         self.clear_events()
         self.assert_async_particle_generation(DataParticleType.ADCP_SYSTEM_CONFIGURATION, self.assert_particle_system_configuration, timeout=120)
 
@@ -336,7 +271,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         Verify the device status command can be triggered and run in command
         """
-        log.error("====== Sung ====== test_scheduled_device_configuration_command")
         self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=100)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
@@ -344,7 +278,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         Verify the device status command can be triggered and run in autosample
         """
-        log.error("====== Sung ====== test_scheduled_device_configuration_autosample")
         self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status,
                                     autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=100)
         self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
@@ -355,7 +288,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         Verify the clock is set to at least the current date
         """
-        log.error("====== Sung ====== assert_clock_sync")
         dt = self.assert_get(WorkhorseParameter.TIME)
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:13].upper() in dt.upper())
@@ -364,7 +296,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        log.error("====== Sung ====== test_scheduled_clock_sync_command")
         self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=90)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
@@ -372,7 +303,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        log.error("====== Sung ====== test_scheduled_clock_sync_autosample")
         self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync,
                                     autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=200)
         self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
@@ -383,7 +313,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #   test get set of a variety of parameter ranges
         ###
         log.debug("====== Testing ranges for SERIAL_FLOW_CONTROL ======")
-        log.error("====== Sung ====== _test_set_serial_flow_control_readonly")
         # Test read only raise exceptions on set.
         #self.assert_set_exception(WorkhorseParameter.SERIAL_FLOW_CONTROL, '10110')
         self._tested[WorkhorseParameter.SERIAL_FLOW_CONTROL] = True
@@ -393,7 +322,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #   test get set of a variety of parameter ranges
         ###
         log.debug("====== Testing ranges for SAVE_NVRAM_TO_RECORDER ======")
-        log.error("====== Sung ====== _test_set_save_nvram_to_recorder_readonly")
         # Test read only raise exceptions on set.
         self.assert_set_exception(WorkhorseParameter.SAVE_NVRAM_TO_RECORDER, False)
         self._tested[WorkhorseParameter.SAVE_NVRAM_TO_RECORDER] = True
@@ -403,7 +331,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #   test get set of a variety of parameter ranges
         ###
         log.debug("====== Testing ranges for BANNER ======")
-        log.error("====== Sung ====== _test_set_banner_readonly")
         # Test read only raise exceptions on set.
         #self.assert_set_exception(WorkhorseParameter.BANNER, True)
         self._tested[WorkhorseParameter.BANNER] = True
@@ -413,7 +340,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #   test get set of a variety of parameter ranges
         ###
         log.debug("====== Testing ranges for PITCH ======")
-        log.error("====== Sung ====== _test_set_pitch")
         # PITCH:  -- Int -6000 to 6000
         self.assert_set(WorkhorseParameter.PITCH, -6000)
         self.assert_set(WorkhorseParameter.PITCH, -4000)
@@ -443,7 +369,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #   test get set of a variety of parameter ranges
         ###
         log.debug("====== Testing ranges for ROLL ======")
-        log.error("====== Sung ====== _test_set_roll")
         # ROLL:  -- Int -6000 to 6000
         self.assert_set(WorkhorseParameter.ROLL, -6000)
         self.assert_set(WorkhorseParameter.ROLL, -4000)
@@ -471,7 +396,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #   test get set of a variety of parameter ranges
         ###
         log.debug("====== Testing ranges for POLLED_MODE ======")
-        log.error("====== Sung ====== _test_set_polled_mode")
         # POLLED_MODE:  -- (True/False)
         self.assert_set(WorkhorseParameter.POLLED_MODE, True)
         self.assert_set_exception(WorkhorseParameter.POLLED_MODE, "LEROY JENKINS")
@@ -487,7 +411,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #   test get set of a variety of parameter ranges
         ###
         log.debug("====== Testing ranges for SLEEP_ENABLE ======")
-        log.error("====== Sung ====== _test_set_sleep_enable")
         # SLEEP_ENABLE:  -- (0,1,2)
         self.assert_set(WorkhorseParameter.SLEEP_ENABLE, 1)
         self.assert_set(WorkhorseParameter.SLEEP_ENABLE, 2)
@@ -508,7 +431,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #   test get set of a variety of parameter ranges
         ###
         log.debug("====== Testing ranges for COORDINATE_TRANSFORMATION ======")
-        log.error("====== Sung ====== _test_set_coordinate_transformation")
         # COORDINATE_TRANSFORMATION:  -- (5 bits 0 or 1)
         self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '11000')
         self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, '11111')
