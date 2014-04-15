@@ -104,7 +104,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(AdcpsParserDataParticle, count=2, timeout=10)
 
         self.driver.stop_sampling()
-        
+
     def test_harvester_new_file_exception(self):
         """
         Test an exception raised after the driver is started during

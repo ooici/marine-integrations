@@ -11,6 +11,7 @@ import os
 import sys
 import nose
 import inspect
+from nose.plugins import Plugin
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
@@ -45,6 +46,41 @@ class IDKTestClasses(BaseEnum):
     INT  = InstrumentDriverIntegrationTestCase
     QUAL = InstrumentDriverQualificationTestCase
     PUB  = InstrumentDriverPublicationTestCase
+
+class DsaNosePlugin(Plugin):
+    """
+    Plugin for aggregating test results from multiple test runs
+    """
+    # Required attributes:
+    name = 'dsa'   # invoke with --with-dsa argument to Nose
+    enabled = True
+
+    failures = 0
+    errors = 0
+    success = 0
+
+    def clearStaticValues(self):
+        failures = 0
+        errors = 0
+        success = 0
+
+    def noseReport(self):
+        return (self.success, self.errors, self.failures)
+
+    def startTest(self, test):
+        log.debug('DsaNosePlugin startTest')
+
+    def addSuccess(self, test):
+        log.debug('DsaNosePlugin addSuccess')
+        self.success += 1
+
+    def addFailure(self, test, err):
+        log.debug('DsaNosePlugin addFailure')
+        self.failures += 1
+
+    def addError(self, test, err):
+        log.debug('DsaNosePlugin addError')
+        self.errors += 1
 
 class NoseTest(object):
     """
@@ -87,6 +123,10 @@ class NoseTest(object):
 
         self._noseargs = noseargs
         self._suppress_stdout = suppress_stdout
+
+        self.error_count = 0
+        self.success_count = 0
+        self.failure_count = 0
 
     def __del__(self):
         """
@@ -346,9 +386,18 @@ class NoseTest(object):
         return result
 
     def _run_nose(self, module, args):
+        args.insert(1, "--with-dsa")
         log.debug("running nose tests with args: %s" % args)
         log.debug("ARGV: %s" % sys.argv)
-        success = nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False)
-        log.debug("nose test complete, result: %s", success)
+
+        plugin = DsaNosePlugin()
+        plugin.clearStaticValues()
+
+        success = nose.run(defaultTest=module, testRunner=self.test_runner, argv=args, exit=False, addplugins=[plugin])
+
+        self.success_count = plugin.noseReport()[0]
+        self.error_count = plugin.noseReport()[1]
+        self.failure_count = plugin.noseReport()[2]
+
         return success
 
