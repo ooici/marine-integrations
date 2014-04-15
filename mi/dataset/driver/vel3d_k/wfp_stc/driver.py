@@ -1,5 +1,5 @@
 """
-@package mi.dataset.driver.VEL3D_K.stc_imodem.driver
+@package mi.dataset.driver.vel3d_k.stc_imodem.driver
 @file marine-integrations/mi/dataset/driver/VEL3D_K/stc_imodem/driver.py
 @author Steve Myerson (Raytheon)
 @brief Driver for the VEL3D_K__stc_imodem

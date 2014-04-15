@@ -217,7 +217,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
     global flags
     flags = [False for x in range(FLAG_RECORD_SIZE)]
 
-    def __init__(self, config, input_file, state, 
+    def __init__(self, config, input_file, state,
       state_callback, publish_callback, exception_callback):
         """
         Constructor for the Vel3d_k__stc_imodemParser class.
@@ -639,7 +639,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
         37      1      ubyte   Amp1
         38      1      ubyte   Amp2
         39      1      ubyte   Cor0
-        40      1      ubyte   Cor1
+        40      1      ubyte   Cor1:
         41      1      ubyte   Cor2
         """
 
