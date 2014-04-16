@@ -59,7 +59,6 @@ from mi.instrument.wetlabs.fluorometer.flort_d.driver import MNU_REGEX
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import MET_REGEX
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import RUN_REGEX
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import NEWLINE
-from mi.instrument.wetlabs.fluorometer.flort_d.driver import ScheduledJob
 
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
@@ -260,8 +259,6 @@ class DriverTestMixinSub(DriverTestMixin):
         log.debug("ASSERTED DATA PARAMS")
 
 
-
-
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
@@ -328,7 +325,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_chunker_fragmented_sample(chunker, SAMPLE_SAMPLE_RESPONSE, 32)
         self.assert_chunker_combined_sample(chunker, SAMPLE_SAMPLE_RESPONSE)
 
-
     def test_got_data(self):
         """
         Verify sample data passed through the got data method produces the correct data particles
@@ -370,21 +366,21 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         """
         capabilities = {
             ProtocolState.UNKNOWN:      ['DRIVER_EVENT_DISCOVER',
-                                        'DRIVER_EVENT_START_DIRECT'],
+                                         'DRIVER_EVENT_START_DIRECT'],
 
             ProtocolState.COMMAND:      ['DRIVER_EVENT_GET',
-                                        'DRIVER_EVENT_SET',
-                                        'DRIVER_EVENT_START_AUTOSAMPLE',
-                                        'DRIVER_EVENT_START_DIRECT',
-                                        'PROTOCOL_EVENT_GET_MENU',
-                                        'PROTOCOL_EVENT_GET_METADATA',
-                                        'PROTOCOL_EVENT_RUN_WIPER'],
+                                         'DRIVER_EVENT_SET',
+                                         'DRIVER_EVENT_START_AUTOSAMPLE',
+                                         'DRIVER_EVENT_START_DIRECT',
+                                         'PROTOCOL_EVENT_GET_MENU',
+                                         'PROTOCOL_EVENT_GET_METADATA',
+                                         'PROTOCOL_EVENT_RUN_WIPER'],
 
             ProtocolState.AUTOSAMPLE:   ['DRIVER_EVENT_STOP_AUTOSAMPLE',
                                          'PROTOCOL_EVENT_RUN_WIPER'],
 
             ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
-                                         'EXECUTE_DIRECT']
+                                          'EXECUTE_DIRECT']
         }
 
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -453,9 +449,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
 
     def test_params(self):
         """
-        test updating, applying, and setting parameters
-        can only test exception for initializing parameters
-        cannot test more because we have no connection to the instrument
+        Verify an exception is thrown when trying to set parameters when not in command mode
         """
         mock_callback = Mock()
         protocol = Protocol(Prompt, NEWLINE, mock_callback)
@@ -636,13 +630,13 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
         #set the wiper interval to 10 seconds
         #put the instrument back into autosample to start autosampling, log will contain scheduled run wiper commands
-        self.assert_set(Parameter.Run_wiper_interval, 10)
+        self.assert_set(Parameter.Run_wiper_interval, '00:00:10')
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=30)
 
         #set the wiper interval to 0 seconds
         #put the instrument back into autosample, log should not contain scheduled run wiper commands
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
-        self.assert_set(Parameter.Run_wiper_interval, 0)
+        self.assert_set(Parameter.Run_wiper_interval, '00:00:00')
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=10)
 
 
@@ -656,7 +650,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 class DriverQualificationTest(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
-        #TODO  MAKE SURE TEST_DISCOVER IS RUN!!!!
 
     def test_direct_access_telnet_mode(self):
         """
@@ -849,6 +842,7 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.GET_MENU,
                 ProtocolEvent.GET_METADATA,
+                ProtocolEvent.RUN_WIPER
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -907,11 +901,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
         self.assert_capabilities(capabilities)
 
-
         #######################
         #  Uninitialized Mode
         #######################
-
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
