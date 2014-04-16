@@ -80,12 +80,12 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='sunburst_sami2_pco2_ooicore',
     instrument_agent_packet_config=SamiDataParticleType(),
 
-##    driver_startup_config={}
-    driver_startup_config={
-            DriverStartupConfigKey.PARAMETERS: {
-            Parameter.STOP_TIME_FROM_START: 7,
-        },
-    }
+    driver_startup_config={}
+#    driver_startup_config={
+#            DriverStartupConfigKey.PARAMETERS: {
+#            Parameter.STOP_TIME_FROM_START: 7,
+#        },
+#    }
 )
 
 
@@ -512,7 +512,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 
     def test_set(self):
         self.assert_initialize_driver()
-        self.assert_set(Parameter.CYCLES_BETWEEN_BLANKS, 7, no_get=True)
+##        self.assert_set(Parameter.CYCLES_BETWEEN_BLANKS, 7, no_get=True)
+        self.assert_set(Parameter.CYCLES_BETWEEN_BLANKS, 7)
 
 ## TODO: On acquire sample, make sure the correct states are returned to, COMMAND or AUTOSAMPLING
     def test_acquire_sample(self):
@@ -521,8 +522,11 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)  ## TODO: No delay to test waiting state
         log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 FINISH')
         log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 START')
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)  ## TODO: No delay to test waiting state
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=20)  ## TODO: No delay to test waiting state
         log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 FINISH')
+        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 3 START')
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, delay=180)  ## TODO: No delay to test waiting state
+        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 3 FINISH')
 
 ##  TODO: Test all commands and states
 

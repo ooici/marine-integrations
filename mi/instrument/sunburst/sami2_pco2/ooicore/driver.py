@@ -140,6 +140,7 @@ class Parameter(SamiParameter):
     FLUSH_PUMP_INTERVAL = 'flush_pump_interval'
     BIT_SWITCHES = 'bit_switches'
     NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
+    AUTO_SAMPLE_INTERVAL = 'auto_sample_interval'
 
 ###############################################################################
 # Data Particles
@@ -242,7 +243,6 @@ class Pco2wConfigurationDataParticleKey(SamiConfigDataParticleKey):
     MEASURE_AFTER_PUMP_PULSE = 'measure_after_pump_pulse'
     NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
 
-# TODO:  Can probably add to base class during refactoring
 class Pco2wConfigurationDataParticle(DataParticle):
     """
     Routines for parsing raw data into a configuration record data particle
@@ -444,8 +444,6 @@ class Protocol(SamiProtocol):
 
         # Build protocol state machine.
 
-        ## TODO: Can move to the base class, timeout and success conditions can be provided from the subclasses
-
         ###
         # most of these are defined in the base class with exception of handlers
         # defined below that differ for the two instruments (what defines
@@ -507,14 +505,13 @@ class Protocol(SamiProtocol):
         return return_list
 
 ## TODO: Move to base class
-## TODO: Handle brick prompt, fix prompt and put back in discover state
 
     def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker. Pass it to
         extract_sample with the appropriate particle objects and REGEXes.
         """
-        log.debug('herb: ' + 'Protocol._got_chunk()')
+        log.debug('herb: ' + 'Protocol._got_chunk(): chunk = ' + chunk)
 
         ## TODO: Add error and prompt?
 
@@ -529,7 +526,22 @@ class Protocol(SamiProtocol):
 
             matched = SAMI_SAMPLE_REGEX_MATCHER.match(chunk)
             record_type = matched.group(3)
-            log.debug('herb: ' + 'Protocol._got_chunk(): record_type == ' + record_type)
+            log.debug('herb: ' + 'Protocol._got_chunk(): sample record_type = ' + record_type)
+            log.debug('herb: ' + 'Protocol._got_chunk(): sample chunk = ' + chunk)
+
+            ## Remove any whitespace
+            sample_string = chunk.rstrip()
+            checksum = sample_string[-2:]
+            checksum_int = int(checksum, 16)
+            log.debug('Checksum = %s hex, %d dec' % (checksum, checksum_int))
+            calculated_checksum_string = sample_string[3:-2]
+            log.debug('Checksum String = %s' % calculated_checksum_string)
+            calculated_checksum = self.calc_crc(calculated_checksum_string)
+            log.debug('Checksum/Calculated Checksum = %d/%d' % (checksum_int,calculated_checksum))
+
+            if (checksum_int != calculated_checksum):
+                log.error("Sample Check Sum Invalid %d/%d, throwing exception." % (checksum_int,calculated_checksum))
+                raise SampleException("Sample Check Sum Invalid %d/%d" % (checksum_int,calculated_checksum))
 
     ########################################################################
     # Build Command, Driver and Parameter dictionaries
@@ -862,58 +874,22 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='number of extra pump cycles')
 
-## TODO: Add base parameter to set blank and sample timeouts
-## TODO: Add engineering parameter to set auto sample rate
+        ## TODO: Add engineering parameter to set auto sample rate
+        ## TODO: How to set to make an engineering parameter?
+        self._param_dict.add(Parameter.AUTO_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(29), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=False,
+                             default_value=3600,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='auto sample interval')
+
+
     ########################################################################
-    # Configuration string.
+    # Overridden base class methods
     ########################################################################
-
-
-#    def _build_configuration_string_specific(self):
-#        log.debug('herb: ' + 'Protocol._build_configuration_string_specific()')
-#
-# TODO: Can move most of parameter list to base class. Can make class wrapper around list to extend.
-# TODO:   Will it be understandable?
-#
-#        # An ordered list of parameters, can not use unordered dict
-#        # PCO2W driver extends the base class (SamiParameter)
-#        parameter_list = [Parameter.START_TIME_FROM_LAUNCH,
-#                          Parameter.STOP_TIME_FROM_START,
-#                          Parameter.MODE_BITS,
-#                          Parameter.SAMI_SAMPLE_INTERVAL,
-#                          Parameter.SAMI_DRIVER_VERSION,
-#                          Parameter.SAMI_PARAMS_POINTER,
-#                          Parameter.DEVICE1_SAMPLE_INTERVAL,
-#                          Parameter.DEVICE1_DRIVER_VERSION,
-#                          Parameter.DEVICE1_PARAMS_POINTER,
-#                          Parameter.DEVICE2_SAMPLE_INTERVAL,
-#                          Parameter.DEVICE2_DRIVER_VERSION,
-#                          Parameter.DEVICE2_PARAMS_POINTER,
-#                          Parameter.DEVICE3_SAMPLE_INTERVAL,
-#                          Parameter.DEVICE3_DRIVER_VERSION,
-#                          Parameter.DEVICE3_PARAMS_POINTER,
-#                          Parameter.PRESTART_SAMPLE_INTERVAL,
-#                          Parameter.PRESTART_DRIVER_VERSION,
-#                          Parameter.PRESTART_PARAMS_POINTER,
-#                          Parameter.GLOBAL_CONFIGURATION,
-#                          Parameter.PUMP_PULSE,
-#                          Parameter.PUMP_DURATION,
-#                          Parameter.SAMPLES_PER_MEASUREMENT,
-#                          Parameter.CYCLES_BETWEEN_BLANKS,
-#                          Parameter.NUMBER_REAGENT_CYCLES,
-#                          Parameter.NUMBER_BLANK_CYCLES,
-#                          Parameter.FLUSH_PUMP_INTERVAL,
-#                          Parameter.BIT_SWITCHES,
-#                          Parameter.NUMBER_EXTRA_PUMP_CYCLES]
-#
-#        configuration_string = self._build_configuration_string_base(parameter_list)
-#
-#        log.debug('herb: ' + 'Protocol._build_configuration_string_specific(): CONFIGURATION STRING = '
-#                  + configuration_string)
-#
-#        return configuration_string
-
-## TODO: Overridden methods below to add to PC02-B and PHSEN
 
     def _get_specific_configuration_string_parameters(self):
         """
