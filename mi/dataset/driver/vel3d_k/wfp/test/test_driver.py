@@ -20,7 +20,7 @@ import unittest
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger; log = get_logger()
 from mi.idk.exceptions import SampleTimeout
 from mi.core.exceptions import \
     DatasetParserException, \
@@ -33,9 +33,9 @@ from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
 from mi.dataset.dataset_driver import \
-  DataSourceConfigKey, \
-  DataSetDriverConfigKeys, \
-  DriverParameter
+    DataSourceConfigKey, \
+    DataSetDriverConfigKeys, \
+    DriverParameter
 
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
@@ -75,7 +75,6 @@ TIME_RECORD_SIZE = 8
 TIME_ON = 1393266602.0  # time_on from the data file
 SAMPLE_RATE = .5        # data records sample rate
 PARSER_STATE = 'parser_state'
-SAMPLE_STREAM = 'vel3d_k_wfp_parsed'
 
 # The integration and qualification tests generated here are suggested tests,
 # but may not be enough to fully test your driver. Additional tests should be
@@ -140,19 +139,19 @@ class IntegrationTest(DataSetIntegrationTestCase):
         }
         state[filename_1][PARSER_STATE][StateKey.POSITION] = file1_position
         state[filename_1][PARSER_STATE][StateKey.RECORD_NUMBER] = 5
-        state[filename_1][PARSER_STATE][StateKey.TIMESTAMP] = TIME_ON + \
-            (5 * SAMPLE_RATE)
+        state[filename_1][PARSER_STATE][StateKey.TIMESTAMP] = \
+            TIME_ON + (5 * SAMPLE_RATE)
         state[filename_2][PARSER_STATE][StateKey.POSITION] = file2_position
         state[filename_2][PARSER_STATE][StateKey.RECORD_NUMBER] = 6
-        state[filename_2][PARSER_STATE][StateKey.TIMESTAMP] = TIME_ON + \
-            (6 * SAMPLE_RATE)
+        state[filename_2][PARSER_STATE][StateKey.TIMESTAMP] = \
+            TIME_ON + (6 * SAMPLE_RATE)
         self.driver = self._get_driver_object(memento=state)
 
         self.clear_async_data()
         self.driver.start_sampling()
 
-        log.info("====== SECOND FILE A0000010_10 INTEG TEST STOP RESUME =========")
         # Verify that data is produced (last 4 data records plus time record).
+        log.info("====== SECOND FILE A0000010_10 INTEG TEST STOP RESUME =========")
         self.assert_data(None, 'A0000010_10_7_10.yml', count=5, timeout=10)
 
         log.info("============== END INTEG TEST STOP RESUME  ================")
@@ -182,8 +181,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
         self.assert_data(None, 'A0000010_5_1_5.yml', count=6, timeout=10)
 
-        log.info("========== VERIFY FIRST FILE AT EOF ============")
         # Verify that the entire file has been read.
+        log.info("========== VERIFY FIRST FILE AT EOF ============")
         self.assert_file_ingested(filename_1)
 
         log.info("========== READ SECOND FILE A0000010_10 Rec 1-3 ============")
@@ -195,8 +194,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
         log.info("========== READ SECOND FILE A0000010_10 Rec 7-10 ============")
         self.assert_data(None, 'A0000010_10_7_10.yml', count=5, timeout=10)
 
-        log.info("========== VERIFY SECOND FILE AT EOF ============")
         # Verify that the entire file has been read.
+        log.info("========== VERIFY SECOND FILE AT EOF ============")
         self.assert_file_ingested(filename_2)
 
         log.info("=========== END INTEG TEST STOP START RESUME  ================")
@@ -267,13 +266,32 @@ class QualificationTest(DataSetQualificationTestCase):
 
         log.info("=========== END QUAL TEST LARGE IMPORT =================")
 
+    def test_parser_exception_invalid_family(self):
+        """
+        Test an exception is raised after the driver is started during
+        record parsing. Should generate a SampleException.
+        """
+        log.info("========== START QUAL TEST INVALID FAMILY ==========")
+
+        self.clear_sample_data()
+        self.event_subscribers.clear_events()
+        self.assert_initialize()
+        self.create_sample_data('A0000010_5_Family.DAT', 'A0000005.DAT')
+
+        # Verify an event was raised and we are in our retry state.
+        self.verify_queue_empty()
+        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_state_change(ResourceAgentState.STREAMING, 10)
+
+        log.info("========== END QUAL TEST INVALID FAMILY ==========")
+
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
         log.info("=========== START QUAL TEST PUBLISH PATH =================")
-        self.create_sample_data('A0000010_5.DAT', "A0000005.DAT")
+        self.create_sample_data('A0000010_5.DAT', 'A0000005.DAT')
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
         self.dataset_agent_client.set_resource(
             {DriverParameter.RECORDS_PER_SECOND: 1})
@@ -304,7 +322,7 @@ class QualificationTest(DataSetQualificationTestCase):
         and confirm it restarts at the correct spot.
         """
         log.info("========== START QUAL TEST SHUTDOWN RESTART ===============")
-        self.create_sample_data('A0000010_10.DAT', "A0000010.DAT")
+        self.create_sample_data('A0000010_10.DAT', 'A0000010.DAT')
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
         self.dataset_agent_client.set_resource(
             {DriverParameter.RECORDS_PER_SECOND: 1})
@@ -325,7 +343,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Read the first 2 data records of the second file then stop.
             log.info("======== SECOND FILE READ RECORDS 1-2 =============")
-            self.create_sample_data('A0000010_5.DAT', "A0000005.DAT")
+            self.create_sample_data('A0000010_5.DAT', 'A0000005.DAT')
             result = self.get_samples(DataParticleType.INSTRUMENT_PARTICLE, 2)
             self.assert_stop_sampling()
 
@@ -365,7 +383,6 @@ class QualificationTest(DataSetQualificationTestCase):
         log.info("=========== START QUAL TEST SMALL IMPORT =================")
 
         self.create_sample_data('A0000010_10.DAT', 'A0000010.DAT')
-
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
         self.assert_start_sampling()
 
@@ -436,12 +453,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         log.info("========== END QUAL TEST STOP START ===============")
 
-    def test_parser_exception(self):
-        """
-        Test an exception is raised after the driver is started during
-        record parsing.
-        """
-        pass
+
 
     def verify_queue_empty(self):
         """
@@ -449,4 +461,3 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         self.assert_sample_queue_size(DataParticleType.INSTRUMENT_PARTICLE, 0)
         self.assert_sample_queue_size(DataParticleType.METADATA_PARTICLE, 0)
-

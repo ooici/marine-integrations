@@ -17,9 +17,11 @@ __license__ = 'Apache 2.0'
 # The VEL3D_K_WFP input file is a binary file.
 # The file header is a 4 byte field which is the total size of all the data records.
 # The file header is not used.
-# The data records consist of 2 parts, a data header and a data payload.
+#
+# The data records consist of 2 parts: a data header and a data payload.
 # The data header contains a sync word, IDs, field lengths, and checksums.
-# The data payload contains all the parameters needed to generate instrument particles.
+# The data payload contains the parameters needed to generate instrument particles.
+#
 # The last record in the file is a time record containing the start and end times.
 #
 
@@ -121,8 +123,8 @@ INSTRUMENT_PARTICLE_KEYS = \
 DATE_TIME_ARRAY = 'date_time_array'    # This one needs to be special-cased
 DATE_TIME_SIZE = 6                     # 6 bytes for the output date time field
 
-INDEX_STRING_ID = 0
-INDEX_STRING = 1
+INDEX_STRING_ID = 0   # field number within a string record
+INDEX_STRING = 1      # field number within a string record
 
 TIME_RECORD_SIZE = 8  # bytes
 TIME_FORMAT = '>2I'   # 2 32-bit unsigned integers big endian
@@ -277,14 +279,11 @@ class Vel3dKWfpParser(BufferLoadingParser):
                 state[StateKey.POSITION] = file_position
             if not (StateKey.RECORD_NUMBER in state):
                 state[StateKey.RECORD_NUMBER] = 0
-            #if not (StateKey.TIMESTAMP in state):
-            #    state[StateKey.TIMESTAMP] = self.times[INDEX_TIME_ON]
             self.set_state(state)
 
         else:
             initial_state = {StateKey.POSITION: file_position,
                              StateKey.RECORD_NUMBER: 0}
-            #                 StateKey.TIMESTAMP: self.times[INDEX_TIME_ON]}
             self.set_state(initial_state)
 
         super(Vel3dKWfpParser, self).__init__(config, input_file, state,
@@ -316,10 +315,10 @@ class Vel3dKWfpParser(BufferLoadingParser):
         """
         This function calculates the timestamp based on the current record number.
         """
-        time_stamp = (self._read_state[StateKey.RECORD_NUMBER] * SAMPLE_RATE) + \
-           self.times[INDEX_TIME_ON]
+        time_stamp = self.times[INDEX_TIME_ON] + \
+            (self._read_state[StateKey.RECORD_NUMBER] * SAMPLE_RATE)
+
         ntp_time = ntplib.system_to_ntp_time(time_stamp)
-        #ntp_time = ntplib.system_to_ntp_time(self._read_state[StateKey.TIMESTAMP])
         return ntp_time
 
     def get_file_parameters(self, input_file):
@@ -382,13 +381,6 @@ class Vel3dKWfpParser(BufferLoadingParser):
         Increment the parser record number
         """
         self._read_state[StateKey.RECORD_NUMBER] += 1
-        log.info("@@@@@@@@@@@@@@ REC %d", self._read_state[StateKey.RECORD_NUMBER])
-
-    #def _increment_timestamp(self):
-        """
-        Increment the parser timestamp
-        """
-        #self._read_state[StateKey.TIMESTAMP] += SAMPLE_RATE
 
     def parse_chunks(self):
         """
@@ -404,15 +396,23 @@ class Vel3dKWfpParser(BufferLoadingParser):
         self.handle_non_data(non_data, non_start, non_end, start)
 
         while chunk is not None:
-            (record_type, record_fields) = self.process_record(chunk)
+            #
+            # Process the next record.
+            # Move the file position to include what was just processed.
+            #
+            (particle_type, particle_fields) = self.process_record(chunk)
             self._increment_position(len(chunk))
 
-            if record_type is not None:
+            #
+            # If valid particle type, generate the data particle.
+            #
+            if particle_type is not None:
                 #
-                # Generate particle for this data block.
-                # If particle generated, add it to the list.
+                # Get the internal timestamp.
+                # For the metadata particle, the timestamp is the time_on field.
+                # For other particles, the timestamp is calculated.
                 #
-                if record_type == Vel3dKWfpMetadataParticle:
+                if particle_type == Vel3dKWfpMetadataParticle:
                     record_time = self.times[INDEX_TIME_ON]
                     ntp_time = ntplib.system_to_ntp_time(record_time)
                 else:
@@ -421,24 +421,20 @@ class Vel3dKWfpParser(BufferLoadingParser):
                 #
                 # Create the particle.
                 #
-                sample = self._extract_sample(record_type, None, record_fields,
+                sample = self._extract_sample(particle_type, None, particle_fields,
                     ntp_time)
-                log.info('??????? Rec %d, time %f',
-                    self._read_state[StateKey.RECORD_NUMBER], ntp_time)
+
+                #
+                # Increment the record number for Instrument particles only.
+                #
+                if particle_type == Vel3dKWfpInstrumentParticle:
+                    self._increment_record_number()
 
                 #
                 # If a particle was created, add it to the list of particles.
                 #
                 if sample:
                     result_particles.append((sample, copy.copy(self._read_state)))
-
-                #
-                # Timestamp is incremented for instrument particles only.
-                # String particles use the previous instrument particle timestamp.
-                #
-                if record_type == Vel3dKWfpInstrumentParticle:
-                    #self._increment_timestamp()
-                    self._increment_record_number()
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
@@ -520,11 +516,11 @@ class Vel3dKWfpParser(BufferLoadingParser):
           record - data buffer to parse
         Returns:
           particle type
-          record fields
+          particle fields
         """
 
-        record_fields = []
-        record_type = None
+        particle_fields = []
+        particle_type = None
 
         #
         # See if there is a valid data header.
@@ -560,20 +556,20 @@ class Vel3dKWfpParser(BufferLoadingParser):
 
                 if header_id == DATA_HEADER_ID_BURST_DATA or \
                   header_id == DATA_HEADER_ID_CP_DATA:
-                    record_fields = self.parse_data_record(record)
-                    record_type = Vel3dKWfpInstrumentParticle
+                    particle_fields = self.parse_data_record(record)
+                    particle_type = Vel3dKWfpInstrumentParticle
 
                 else:
-                    record_fields = self.parse_string_record(record)
-                    record_type = Vel3dKWfpStringParticle
+                    particle_fields = self.parse_string_record(record)
+                    particle_type = Vel3dKWfpStringParticle
 
         #
         # It wasn't a data record.  See if this is the time record.
         #
         elif len(record) == TIME_RECORD_SIZE:
-            record_fields = self.parse_time_record(record)
-            if record_fields == self.times:
-                record_type = Vel3dKWfpMetadataParticle
+            particle_fields = self.parse_time_record(record)
+            if particle_fields == self.times:
+                particle_type = Vel3dKWfpMetadataParticle
             else:
                 self.report_error(SampleException, 'Invalid Time Record')
 
@@ -583,7 +579,7 @@ class Vel3dKWfpParser(BufferLoadingParser):
         else:
             self.report_error(SampleException, 'Unknown Record')
 
-        return record_type, record_fields
+        return particle_type, particle_fields
 
     def report_error(self, exception, error_message):
         """
@@ -644,11 +640,12 @@ class Vel3dKWfpParser(BufferLoadingParser):
                 # Calculate at what position in the buffer the header starts.
                 #
                 header_index = header.start() + search_index
+
                 #
                 # Verify that the header checksum matches.
                 #
                 header_checksum_matches = self.validate_header_checksum(header,
-                  input_buffer[header_index : ], False)
+                    input_buffer[header_index : ], False)
 
                 if header_checksum_matches:
                     #
@@ -663,8 +660,8 @@ class Vel3dKWfpParser(BufferLoadingParser):
                     # verify that the data payload checksum matches.
                     #
                     if record_end < len(input_buffer):
-                        payload_checksum_matches = \
-                            self.validate_payload_checksum(header,
+                        payload_checksum_matches = self.validate_payload_checksum(
+                            header,
                             input_buffer[header_index + DATA_HEADER_SIZE : ],
                             False)
 
@@ -679,8 +676,8 @@ class Vel3dKWfpParser(BufferLoadingParser):
                             search_index += 1
 
                     #
-                    # If there aren't enough bytes left in the buffer,
-                    # we're done searching.
+                    # If there aren't enough bytes left in the buffer for the entire
+                    # payload, we're done searching for now.
                     #
                     else:
                         break
