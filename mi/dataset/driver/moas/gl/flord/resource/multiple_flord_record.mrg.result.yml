@@ -12,6 +12,7 @@ data:
     m_present_secs_into_mission: 153.928
     sci_m_present_time: 1329849722.92795
     sci_m_present_secs_into_mission: 153.928
+    sci_flbbcd_timestamp: 1000.1
     sci_flbbcd_bb_ref: 700
     sci_flbbcd_bb_sig: 139
     sci_flbbcd_bb_units: 0.000281336
@@ -26,6 +27,7 @@ data:
     m_present_secs_into_mission: 154.944
     sci_m_present_time: 1329849723.94394
     sci_m_present_secs_into_mission: 154.944
+    sci_flbbcd_timestamp: 1000.1
     sci_flbbcd_bb_ref: 700
     sci_flbbcd_bb_sig: 133
     sci_flbbcd_bb_units: 0.000262988
@@ -40,6 +42,7 @@ data:
     m_present_secs_into_mission: 156.086
     sci_m_present_time: 1329849725.08575
     sci_m_present_secs_into_mission: 156.086
+    sci_flbbcd_timestamp: 1000.1
     sci_flbbcd_bb_ref: 700
     sci_flbbcd_bb_sig: 148
     sci_flbbcd_bb_units: 0.000308858
@@ -54,6 +57,7 @@ data:
     m_present_secs_into_mission: 157.168
     sci_m_present_time: 1329849726.16837
     sci_m_present_secs_into_mission: 157.168
+    sci_flbbcd_timestamp: 1000.1
     sci_flbbcd_bb_ref: 700
     sci_flbbcd_bb_sig: 134
     sci_flbbcd_bb_units: 0.000266046

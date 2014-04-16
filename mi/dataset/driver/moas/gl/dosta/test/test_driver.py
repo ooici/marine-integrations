@@ -91,7 +91,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Verify sort order isn't ascii, but numeric
         self.clear_async_data()
         self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
-        self.assert_data(DostaTelemeteredDataParticle, count=172, timeout=30)
+        self.assert_data(DostaTelemeteredDataParticle, count=240, timeout=30)
 
     def test_stop_resume(self):
         """
@@ -103,7 +103,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Create and store the new driver state
         state = {
             'unit_363_2013_245_6_8.mrg': self.get_file_state(path_1, True, 1160),
-            'unit_363_2013_245_6_9.mrg': self.get_file_state(path_2, False, 2288)
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path_2, False, 1085)
         }
         self.driver = self._get_driver_object(memento=state)
 
@@ -147,7 +147,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Create and store the new driver state
         state = {
-            'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 2250),
+            'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 1085),
         }
         self.driver = self._get_driver_object(memento=state)
 

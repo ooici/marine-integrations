@@ -12,6 +12,7 @@ data:
     m_present_secs_into_mission: 150.718
     sci_m_present_time: 1329849719.71756
     sci_m_present_secs_into_mission: 150.718
+    sci_flbbcd_timestamp: 1000.1
     sci_flbbcd_bb_ref: 700
     sci_flbbcd_bb_sig: 145
     sci_flbbcd_bb_units: 0.000299684

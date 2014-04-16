@@ -38,12 +38,8 @@ from mi.dataset.driver.moas.gl.ctdgv.driver import CTDGVDataSetDriver
 
 from mi.dataset.parser.glider import CtdgvDataParticle
 from pyon.agent.agent import ResourceAgentState
-from pyon.agent.agent import ResourceAgentEvent
 
-from interface.objects import CapabilityType
-from interface.objects import AgentCapability
 from interface.objects import ResourceAgentErrorEvent
-from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 DATADIR='/tmp/dsatest'
 STORAGEDIR='/tmp/stored_dsatest'
@@ -101,9 +97,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
         log.debug("Start second file ingestion")
         # Verify sort order isn't ascii, but numeric
         self.clear_async_data()
-        self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
-        self.assert_data(CtdgvDataParticle, count=171, timeout=30)
-        self.assert_file_ingested("unit_363_2013_245_10_6.mrg")
+        self.create_sample_data('unit_363_2013_245_6_6.mrg', "CopyOf-unit_363_2013_245_6_6.mrg")
+        self.assert_data(CtdgvDataParticle, count=240, timeout=30)
+        self.assert_file_ingested("CopyOf-unit_363_2013_245_6_6.mrg")
 
     def test_stop_resume(self):
         """
@@ -158,7 +154,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         path = self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_6_9.mrg")
 
-        # Create and store the new driver state
+        # Create and store the new driver state - middle of a row
         state = {
             'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 2506),
         }
@@ -166,7 +162,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.start_sampling()
 
-        # verify data is produced
+        # verify data is produced - parser skips past the bad row and parses the next three successfully
         self.assert_data(CtdgvDataParticle, 'bad_sample_ctdgv_record.mrg.result.yml', count=3, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_6_9.mrg")
 
