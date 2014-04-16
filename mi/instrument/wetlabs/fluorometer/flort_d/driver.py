@@ -209,8 +209,10 @@ RUN_REGEX_MATCHER = re.compile(RUN_REGEX, re.DOTALL)
 MET_REGEX = r"(0,.*?IOM=[0-9])"
 MET_REGEX_MATCHER = re.compile(MET_REGEX, re.DOTALL)
 
-SAMPLE_REGEX = r"([0-1][0-9]/[0-3][0-9]/[0-9][0-9]\s[0-1][0-9]:[0-5][0-9]:[0-5][0-9](\s[0-9]{1,10}){7}\r\n)"
-SAMPLE_REGEX_MATCHER = re.compile(SAMPLE_REGEX, re.DOTALL)
+RUN_WIPER_REGEX = r"mvs\s([0-9][0-9]:[0-9][0-9]:[0-9][0-9])"
+
+SAMPLE_REGEX = r"(\d+/\d+/\d+\s+\d+:\d+:\d+(\s+\d+){7}\r\n)"
+SAMPLE_REGEX_MATCHER = re.compile(SAMPLE_REGEX)
 
 
 class FlortDMNU_ParticleKey(BaseEnum):
@@ -945,6 +947,7 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         try:
             #Listen to data stream to determine the current state
+            log.debug('LISTENING FOR RESPONSE')
             response = self._get_response(timeout=1, response_regex=SAMPLE_REGEX_MATCHER)[0]
             log.debug('_handler_unknown_discover: response: [%r]', response)
 
@@ -1099,19 +1102,28 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-        log.debug("Configuring the scheduler to run %i", self._param_dict.get(Parameter.Run_wiper_interval))
-        if self._param_dict.get(Parameter.Run_wiper_interval) is not 0:
+        log.debug("Configuring the scheduler to run %s", self._param_dict.get(Parameter.Run_wiper_interval))
+        if self._param_dict.get(Parameter.Run_wiper_interval) != '00:00:00':
+
+            interval = self._param_dict.get(Parameter.Run_wiper_interval).split(':')
+            hours = interval[0]
+            minutes = interval[1]
+            seconds = interval[2]
+
+            log.debug("Setting interval to: %s %s %s", hours, minutes, seconds)
 
             #start the scheduler for running the wiper
             #job_name = ScheduledJob.RUN_WIPER
-            config = { DriverConfigKey.SCHEDULER: {
+            config = {DriverConfigKey.SCHEDULER: {
                 ScheduledJob.RUN_WIPER: {
                     DriverSchedulerConfigKey.TRIGGER: {
                         DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
-                        DriverSchedulerConfigKey.SECONDS: self._param_dict.get(Parameter.Run_wiper_interval)
-                        }
+                        DriverSchedulerConfigKey.HOURS: int(hours),
+                        DriverSchedulerConfigKey.MINUTES: int(minutes),
+                        DriverSchedulerConfigKey.SECONDS: int(seconds)
                     }
                 }
+            }
             }
             log.debug("Initializing the scheduler")
             self.set_init_params(config)
@@ -1121,8 +1133,8 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.debug("Attempting to remove the scheduler")
             if self._scheduler is not None:
                 try:
-                    log.debug("successfully removed scheduler")
                     self._remove_scheduler(ScheduledJob.RUN_WIPER)
+                    log.debug("successfully removed scheduler")
                 except KeyError:
                     log.debug("_remove_scheduler could not find ScheduleJob.RUN_WIPER")
 
@@ -1138,11 +1150,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         #Stop scheduled run of wiper
         if self._scheduler is not None:
             try:
-                log.debug("Removing scheduled job: RUN WIPER")
                 self._remove_scheduler(ScheduledJob.RUN_WIPER)
+                log.debug("Removing scheduled job: RUN WIPER")
             except KeyError:
                 log.debug("_remove_scheduler could not find ScheduleJob.RUN_WIPER")
-
 
         # Issue the stop command.
         result = self._do_cmd_resp(InstrumentCommand.Interrupt_instrument, *args, timeout=TIMEOUT,
@@ -1656,14 +1667,14 @@ class Protocol(CommandResponseInstrumentProtocol):
                              direct_access=False)
 
         self._param_dict.add(Parameter.Run_wiper_interval,
-                             RUN_REGEX,
-                             lambda match: int(match.group(1)),
-                             int,
+                             RUN_WIPER_REGEX,
+                             lambda match: match.group(1),
+                             str,
                              type=ParameterDictType.INT,
                              expiration=None,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name="run wiper interval",
-                             default_value=60,
+                             default_value='00:01:00',
                              startup_param=True,
                              direct_access=True)
 
