@@ -7,6 +7,7 @@
 @brief Test code for a Nutnrb data parser
 """
 
+import unittest
 import gevent
 from StringIO import StringIO
 from nose.plugins.attrib import attr
