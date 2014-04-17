@@ -140,7 +140,6 @@ class Parameter(SamiParameter):
     FLUSH_PUMP_INTERVAL = 'flush_pump_interval'
     BIT_SWITCHES = 'bit_switches'
     NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
-    AUTO_SAMPLE_INTERVAL = 'auto_sample_interval'
 
 ###############################################################################
 # Data Particles
@@ -574,7 +573,6 @@ class Protocol(SamiProtocol):
         #
         ###
 
-        # TODO: can move most additions to base class.  Will it be understandable?
         self._param_dict.add(Parameter.LAUNCH_TIME, CONFIGURATION_REGEX,
                              lambda match: int(match.group(1), 16),
                              lambda x: self._int_to_hexstring(x, 8),
@@ -813,7 +811,6 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='samples per measurement')
 
-        # TODO: What is default value?
         self._param_dict.add(Parameter.CYCLES_BETWEEN_BLANKS, CONFIGURATION_REGEX,
                              lambda match: int(match.group(24), 16),
                              lambda x: self._int_to_hexstring(x, 2),
@@ -874,11 +871,10 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='number of extra pump cycles')
 
-        ## TODO: Add engineering parameter to set auto sample rate
-        ## TODO: How to set to make an engineering parameter?
-        self._param_dict.add(Parameter.AUTO_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
-                             lambda match: int(match.group(29), 16),
-                             lambda x: self._int_to_hexstring(x, 2),
+        ## Engineering parameter to set pseudo auto sample rate
+        self._param_dict.add(Parameter.AUTO_SAMPLE_INTERVAL, r'Auto sample rate = ([0-9]+)',
+                             lambda match: match.group(1),
+                             lambda x: int(x),
                              type=ParameterDictType.INT,
                              startup_param=False,
                              direct_access=False,

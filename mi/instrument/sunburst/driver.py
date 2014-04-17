@@ -201,7 +201,6 @@ class ProtocolEvent(BaseEnum):
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
-    ACQUIRE_CONFIGURATION = 'DRIVER_EVENT_ACQUIRE_CONFIGURATION'
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     ACQUIRE_BLANK_SAMPLE = 'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
@@ -254,6 +253,10 @@ class SamiParameter(DriverParameter):
     PRESTART_DRIVER_VERSION = 'prestart_driver_version'
     PRESTART_PARAMS_POINTER = 'prestart_params_pointer'
     GLOBAL_CONFIGURATION = 'global_configuration'
+
+    # Engineering parameter
+    AUTO_SAMPLE_INTERVAL = 'auto_sample_interval'
+
     # make sure to extend these in the individual drivers with the
     # the portions of the configuration that is unique to each.
 
@@ -292,7 +295,7 @@ class SamiInstrumentCommand(BaseEnum):
     SET_CONFIG = 'L5A'
     ERASE_ALL = 'E5A'
 
-    # TODO: Will not use if recording on instrument is not done
+    # Currently not used, IOS does not specify recording
     START = 'G5A'
     STOP = 'Q5A'
 
@@ -436,7 +439,6 @@ class SamiRegularStatusDataParticle(DataParticle):
 
         return result
 
-# TODO: Have not encountered any control records, remove?  Probably only sent when recording and instrument autosampling
 class SamiControlRecordDataParticleKey(BaseEnum):
     """
     Data particle key for peridoically produced control records.
@@ -469,7 +471,6 @@ class SamiControlRecordDataParticleKey(BaseEnum):
     NUM_BYTES_STORED = 'num_bytes_stored'
     CHECKSUM = 'checksum'
 
-# TODO: Have not encountered any control records, remove?
 class SamiControlRecordDataParticle(DataParticle):
     """
     Routines for parsing raw data into a control record data particle
@@ -721,11 +722,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE,
             self._handler_command_start_autosample)
 
-        # the ACQUIRE_CONFIGURATION event may not be necessary
-        #self._protocol_fsm.add_handler(
-        #    ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_CONFIGURATION,
-        #    self._handler_command_acquire_configuration)
-
         self._protocol_fsm.add_handler(
             ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER,
             self._handler_direct_access_enter)
@@ -824,8 +820,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(SamiInstrumentCommand.START_STATUS, self._build_simple_command)  # Never want to do this
         self._add_build_handler(SamiInstrumentCommand.STOP_STATUS, self._build_simple_command)
 
-        ## TODO: Not sure if set is needed
-        ## TODO: Will have to build config string in one of these handlers
         self._add_build_handler(SamiInstrumentCommand.GET_CONFIG, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.SET_CONFIG, self._build_simple_command)
 
@@ -849,28 +843,32 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         # commands sent sent to device to be filtered in responses for telnet DA
         self._sent_cmds = []
 
-        # add scheduled tasks
-        self._setup_scheduler_config()
+        # # add scheduled tasks
+        # self._setup_scheduler_config()  ## TODO: Should be moved to be called before entering autosample state in case
+        #                                 ## TODO: rate is changed
+        #
+        # # initialize scheduler
+        # if not self._scheduler:
+        #     self.initialize_scheduler()
 
-        # initialize scheduler
-        if not self._scheduler:
-            self.initialize_scheduler()
-
-        # indicates there is a sample ongoing, will be used to ignore subsequent sample requests if already sampling
-        self._sampling = False
+        self._startup = True
 
         # continue __init__ in the sub-class in the specific driver
 
     def _setup_scheduler_config(self):
 
-        log.debug('herb: ' + 'SamiProtocol._setup_scheduler_config')
+        log.debug('herb: ' + 'SamiProtocol._setup_scheduler_config()')
+
+        auto_sample_interval = self._param_dict.get(SamiParameter.AUTO_SAMPLE_INTERVAL)
+
+        log.debug('herb: ' + 'SamiProtocol._setup_scheduler_config(): auto_sample_interval = ' + str(auto_sample_interval))
 
         config = {
             DriverConfigKey.SCHEDULER: {
                 ScheduledJob.AUTO_SAMPLE: {
                     DriverSchedulerConfigKey.TRIGGER: {
                         DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
-                        DriverSchedulerConfigKey.SECONDS: 160  ## TODO: Get from config data
+                        DriverSchedulerConfigKey.SECONDS: auto_sample_interval
                     }
                 }
             }
@@ -971,8 +969,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-## TODO: Make configurable or longer?  Function of the timeout values?
         # try to discover our state
+        # currently will retry discovery 6 times every 20 seconds in case SAMI is sampling.
         count = 1
         while count <= 6:
             log.debug("_handler_waiting_discover: starting discover")
@@ -984,7 +982,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             else:
                 log.debug("_handler_waiting_discover: discover failed, attempt %d of 3", count)
                 count += 1
-                ## TODO: Make configurable or longer?  Function of the timeout values?
                 time.sleep(20)
 
         log.debug("_handler_waiting_discover: discover failed")
@@ -998,17 +995,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     def _handler_command_enter(self, *args, **kwargs):
         """
         Enter command state.
-        @throws InstrumentTimeoutException if the device cannot be woken.
-        @throws InstrumentProtocolException if the update commands and not recognized.
         """
 
         log.debug('herb: ' + 'SamiProtocol._handler_command_enter()')
-
-        # Command device to update parameters and send a config change event.
-        #self._update_params()
-## TODO:
-        # Command device to initialize parameters and send a config change event.
-        # self._protocol_fsm.on_event(DriverEvent.INIT_PARAMS)
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1041,13 +1030,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Get parameter
         """
         return self._handler_get(*args, **kwargs)
-
-#        log.debug('herb: ' + 'SamiProtocol._handler_command_get()')
-#
-#        next_state = None
-#        result = None
-#
-#        return (next_state, result)
 
     def _handler_command_set(self, *args, **kwargs):
         """
@@ -1085,7 +1067,37 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
-            self._set_params(params, startup)
+            """
+            Check if pseudo autosample rate is being set, if only autosample rate is set, only set here,
+            no need to update config on instrument.
+            """
+            if SamiParameter.AUTO_SAMPLE_INTERVAL in params:
+                old_auto_sample_interval = self._param_dict.get(SamiParameter.AUTO_SAMPLE_INTERVAL)
+                new_auto_sample_interval = params.pop(SamiParameter.AUTO_SAMPLE_INTERVAL )
+                log.debug('herb: SamiProtocol._handler_command_set(): AUTO_SAMPLE_INTERVAL old/new = %d/%d' %
+                          (old_auto_sample_interval, new_auto_sample_interval))
+
+                if new_auto_sample_interval != old_auto_sample_interval:
+                    self._param_dict.set_value(SamiParameter.AUTO_SAMPLE_INTERVAL,
+                                               new_auto_sample_interval)
+                    log.debug('herb: ' +
+                              'SamiProtocol._handler_command_set(): Updated AUTO_SAMPLE_INTERVAL')
+                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+                else:
+                    log.debug('herb: ' +
+                              'SamiProtocol._handler_command_set(): AUTO_SAMPLE_INTERVAL not updated')
+
+                log.debug('herb: ' + 'SamiProtocol._handler_command_set(): AUTO_SAMPLE_INTERVAL = ' +
+                              str(self._param_dict.get(SamiParameter.AUTO_SAMPLE_INTERVAL)))
+                log.debug('herb: ' +
+                          'SamiProtocol._handler_command_set(): Removed AUTO_SAMPLE_INTERVAL, params = ' +
+                          str(params))
+
+            if len(params) > 0:
+                self._set_params(params, startup)
+            else:
+                log.debug('herb: ' + 'SamiProtocol._handler_command_set(): No parameters to reconfigure instrument.')
+
 
         return (next_state, result)
 
@@ -1101,16 +1113,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         result = None
         log.debug("_handler_command_start_direct: entering DA mode")
         return (next_state, (next_agent_state, result))
-
-    # Not used currently.  Maybe added later
-    #def _handler_command_acquire_configuration(self, *args, **kwargs):
-    #    """
-    #    Acquire the instrument's configuration
-    #    """
-    #    next_state = None
-    #    result = None
-    #
-    #    return (next_state, result)
 
     def _handler_command_acquire_status(self, *args, **kwargs):
         """
@@ -1144,7 +1146,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_command_acquire_blank_sample()')
 
-        next_state = ProtocolState.POLLED_BLANK_SAMPLE  # TODO: Create new state for capturing blank sample
+        next_state = ProtocolState.POLLED_BLANK_SAMPLE
         next_agent_state = ResourceAgentState.BUSY
         result = None
 
@@ -1160,6 +1162,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         ## Note: start ordering seems important for the scheduler, could be a bug in the base code, scheduler blocks
         ##       until last job added to scheduler hits.  Means an autosample could be missed while waiting for
         ##       a sample timeout.  This should be OK.
+
+        # add scheduled tasks
+        self._setup_scheduler_config()
+
+        # initialize scheduler
+        if not self._scheduler:
+            self.initialize_scheduler()
 
         ## Cannot do in exit because we could be transitioning to the scheduled sample state
         self._add_scheduler_event(ScheduledJob.AUTO_SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE)
@@ -1241,6 +1250,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
 
         log.debug('herb: ' + 'SamiProtocol._handler_autosample_enter')
+
+        ## TODO: Capture a sample upon entering autosample mode
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1374,12 +1385,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_timeout')
 
-        ## TODO:  Go to the unknown or waiting state
+        next_state = ProtocolState.UNKNOWN
+        next_agent_state = ResourceAgentState.ACTIVE_UNKNOWN,
 
-        next_state = None
-        result = None
-
-        return (next_state, result)
+        return (next_state, next_agent_state)
 
     ########################################################################
     # Polled Blank Sample handlers.
@@ -1426,12 +1435,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_timeout')
 
-        ## TODO:  Go to the unknown or waiting state
+        next_state = ProtocolState.UNKNOWN
+        next_agent_state = ResourceAgentState.ACTIVE_UNKNOWN,
 
-        next_state = None
-        result = None
-
-        return (next_state, result)
+        return (next_state, next_agent_state)
 
     ########################################################################
     # Scheduled Sample handlers.
@@ -1478,10 +1485,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_scheduled_sample_timeout')
 
-        next_state = None
-        result = None
+        next_state = ProtocolState.UNKNOWN
+        next_agent_state = ResourceAgentState.ACTIVE_UNKNOWN,
 
-        return (next_state, result)
+        return (next_state, next_agent_state)
 
     ####################################################################
     # Build Command & Parameter dictionary
@@ -1495,6 +1502,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('herb: ' + 'SamiProtocol._build_command_dict')
 
         self._cmd_dict.add(Capability.ACQUIRE_SAMPLE, display_name="acquire sample")
+        self._cmd_dict.add(Capability.ACQUIRE_BLANK_SAMPLE, display_name="acquire blank sample")
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
         self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
         self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
@@ -1541,24 +1549,24 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     def _parse_response_get_config(self, response, prompt):
         log.debug('herb: ' + 'SamiProtocol._parse_response_get_config')
 
-        old_config = self._param_dict.get_config()
-
-        log.debug('herb: ' + 'SamiProtocol._parse_response_get_config: response = ' + str(response))
-
-        log.debug('herb: ' + 'SamiProtocol._parse_response_get_config: old_config = ' + str(old_config))
-
-        self._param_dict.update(response + NEWLINE)
-
-        new_config = self._param_dict.get_config()
-
-        log.debug('herb: ' + 'SamiProtocol._parse_response_get_config: new_config = ' + str(new_config))
-
-        ## Compare values here to send config change event
-        if not dict_equal(old_config, new_config, ignore_keys=SamiParameter.LAUNCH_TIME):
-            log.debug("Configuration has changed.")
-            if (self.get_current_state() == ProtocolState.COMMAND):
-                log.debug("Configuration has changed and in command state.  Send driver event.")
-                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        # old_config = self._param_dict.get_config()
+        #
+        # log.debug('herb: ' + 'SamiProtocol._parse_response_get_config: response = ' + str(response))
+        #
+        # log.debug('herb: ' + 'SamiProtocol._parse_response_get_config: old_config = ' + str(old_config))
+        #
+        # self._param_dict.update(response + NEWLINE)
+        #
+        # new_config = self._param_dict.get_config()
+        #
+        # log.debug('herb: ' + 'SamiProtocol._parse_response_get_config: new_config = ' + str(new_config))
+        #
+        # ## Compare values here to send config change event
+        # if not dict_equal(old_config, new_config, ignore_keys=SamiParameter.LAUNCH_TIME):
+        #     log.debug("Configuration has changed.")
+        #     if (self.get_current_state() == ProtocolState.COMMAND):
+        #         log.debug("Configuration has changed and in command state.  Send driver event.")
+        #         self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
         return response
 
@@ -1601,6 +1609,21 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         next_state = None
         next_agent_state = None
 
+        ## Set default and startup config values in param_dict
+        if self._startup:
+
+            old_config_params = self._param_dict.get_config()
+            log.debug('herb: ' + 'SamiProtocol._discover: old_config_params = ' + str(old_config_params))
+
+            for (key, val) in old_config_params.iteritems():
+                self._param_dict.set_value(key, self._param_dict.get_config_value(key))
+                pass
+
+            new_config_params = self._param_dict.get_config()
+            log.debug('herb: ' + 'SamiProtocol._discover: new_config_params = ' + str(new_config_params))
+
+            self._startup = False
+
         try:
 
             log.debug('herb: ' + 'SamiProtocol._discover')
@@ -1641,7 +1664,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._set_params')
 
-        ## TODO: Range check values
+        ## TODO: Range check values?  Ask if this is necessary.  Hopefully the UI will handle
 
         try:
             params = args[0]
@@ -1691,8 +1714,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('herb: ' + 'SamiProtocol._discover: STOP_STATUS_PERIODIC again')
         self._do_cmd_no_resp(SamiInstrumentCommand.STOP_STATUS)
 
-        ## Verify configuration is set correctly
-        self._verify_configuration_string(configuration_string)
+        ## Verify configuration and update parameter dictionary if it is set correctly
+        self._verify_and_update_configuration(configuration_string)
 
     @staticmethod
     def _int_to_hexstring(val, slen):
@@ -1748,8 +1771,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         return sami_seconds_hex_string
 
     def _get_config_value_str(self, param):
-        value = self._param_dict.get_config_value(param)  ## TODO: Use get_config_value if startup
-##        value = self._param_dict.get(param)
+        value = self._param_dict.get(param)
         log.debug('herb: ' + 'SamiProtocol._get_config_value_str(): self._param_dict.get_config_value(param) = ' + param + ' = ' + str(value))
         value_str = self._param_dict.format(param, value)
         log.debug('herb: ' + 'SamiProtocol._get_config_value_str(): self._param_dict.format(param, value) = ' + param + ' = ' + value_str)
@@ -1803,6 +1825,106 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         return configuration_string
 
+
+    ## Verify configuration and update parameter dictionary if the configuration string is set correctly
+    def _verify_and_update_configuration(self, configuration_string):
+
+        log.debug('herb: ' + 'Protocol._verify_and_update_configuration()')
+
+        configuration_string_regex = self._get_configuration_string_regex()
+
+        instrument_configuration_string = self._do_cmd_resp(SamiInstrumentCommand.GET_CONFIG, timeout=10, response_regex=configuration_string_regex)
+
+        log.debug('herb: ' + 'SamiProtocol._verify_and_update_configuration: instrument_configuration_string = ' + instrument_configuration_string)
+
+        # if configuration_string == instrument_configuration_string.strip(NEWLINE):
+        if configuration_string == instrument_configuration_string:
+            log.debug('herb: ' + 'Protocol._verify_and_update_configuration(): CONFIGURATION IS VALID')
+        else:
+            log.error('herb: ' + 'Protocol._verify_and_update_configuration(): CONFIGURATION IS INVALID')
+            raise InstrumentProtocolException("Invalid Configuration String")
+
+        old_config = self._param_dict.get_config()
+
+        log.debug('herb: ' + 'SamiProtocol._verify_and_update_configuration: old_config = ' + str(old_config))
+
+        self._param_dict.update(instrument_configuration_string + NEWLINE)
+
+        new_config = self._param_dict.get_config()
+
+        log.debug('herb: ' + 'SamiProtocol._verify_and_update_configuration: new_config = ' + str(new_config))
+
+        ## Compare values here to send config change event
+        if not dict_equal(old_config, new_config, ignore_keys=SamiParameter.LAUNCH_TIME):
+            log.debug("Configuration has changed.")
+            if (self.get_current_state() == ProtocolState.COMMAND):
+                log.debug("Configuration has changed and in command state.  Send driver event.")
+                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        else:
+            log.debug("Configuration has not changed.")
+
+    def _take_blank_sample(self):
+        log.debug('herb: ' + 'Protocol._take_blank_sample(): _take_blank_sample() START')
+
+        start_time = time.time()
+
+        ## An exception is raised if timeout is hit.
+        self._do_cmd_resp(SamiInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, timeout = self._get_blank_sample_timeout(), response_regex=self._get_sample_regex())
+
+        sample_time = time.time() - start_time
+
+        log.debug('herb: ' + 'Protocol._take_blank_sample(): Blank Sample took ' + str(sample_time) + ' to FINISH')
+
+        pass
+
+    def _take_regular_sample(self):
+
+        log.debug('herb: ' + 'Protocol._take_regular_sample(): _take_regular_sample() START')
+
+        start_time = time.time()
+
+        ## An exception is raised if timeout is hit.
+        self._do_cmd_resp(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, timeout = self._get_sample_timeout(), response_regex=self._get_sample_regex())
+
+        sample_time = time.time() - start_time
+
+        log.debug('herb: ' + 'Protocol._take_regular_sample(): Regular Sample took ' + str(sample_time) + ' to FINISH')
+
+        pass
+
+    @staticmethod
+    def calc_crc(s):
+        """
+        Compute a checksum for a Sami data record or control record string.
+
+        The '*' (character 1) and unique identifying byte (byte 1,
+        characters 2 & 3) at the beginning should be excluded from the
+        checksum calculation as well as the checksum value itself (last
+        byte, last 2 characters). It should include the record length
+        (byte 2, characters 4 & 5).
+
+        Note that this method does NOT calculate the checksum on the
+        configuration string that is returned during instrument
+        configuration.
+
+        @author Chris Center
+        @param s: string for check-sum analysis.
+        """
+
+        log.debug('herb: ' + 'SamiProtocol.calc_crc')
+
+        # num_points: number of bytes (each byte is 2-chars).
+        num_points = len(s)/2
+
+        cs = 0
+        k = 0
+        for i in range(num_points):
+            value = int(s[k:k+2], 16)  # 2-chars per data point
+            cs = cs + value
+            k = k + 2
+        cs = cs & 0xFF
+        return(cs)
+
     def _get_specific_configuration_string_parameters(self):
         """
         Overridden by device specific subclasses.
@@ -1854,81 +1976,3 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         raise NotImplementedException()
 
         pass
-
-    def _verify_configuration_string(self, configuration_string):
-
-        log.debug('herb: ' + 'Protocol._verify_configuration_string()')
-
-        configuration_string_regex = self._get_configuration_string_regex()
-
-        instrument_configuration_string = self._do_cmd_resp(SamiInstrumentCommand.GET_CONFIG, timeout=10, response_regex=configuration_string_regex)
-
-        if configuration_string == instrument_configuration_string.strip(NEWLINE):
-            log.debug('herb: ' + 'Protocol._verify_configuration_string(): CONFIGURATION STRING IS VALID')
-        else:
-            log.error('herb: ' + 'Protocol._verify_configuration_string(): CONFIGURATION STRING IS INVALID')
-            raise InstrumentProtocolException("Invalid Configuration String")
-        pass
-
-    def _take_blank_sample(self):
-        log.debug('herb: ' + 'Protocol._take_blank_sample(): _take_blank_sample() START')
-
-        start_time = time.time()
-
-        ## An exception is raised if timeout is hit.
-        self._do_cmd_resp(SamiInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, timeout = self._get_blank_sample_timeout(), response_regex=self._get_sample_regex())
-
-        sample_time = time.time() - start_time
-
-        log.debug('herb: ' + 'Protocol._take_blank_sample(): Blank Sample took ' + str(sample_time) + ' to FINISH')
-
-        pass
-
-    def _take_regular_sample(self):
-
-        log.debug('herb: ' + 'Protocol._take_regular_sample(): _take_regular_sample() START')
-
-        start_time = time.time()
-
-        ## An exception is raised if timeout is hit.
-        self._do_cmd_resp(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, timeout = self._get_sample_timeout(), response_regex=self._get_sample_regex())
-
-        sample_time = time.time() - start_time
-
-        log.debug('herb: ' + 'Protocol._take_regular_sample(): Regular Sample took ' + str(sample_time) + ' to FINISH')
-
-        pass
-
-## TODO: Use in test app to test first
-    @staticmethod
-    def calc_crc(s):
-        """
-        Compute a checksum for a Sami data record or control record string.
-
-        The '*' (character 1) and unique identifying byte (byte 1,
-        characters 2 & 3) at the beginning should be excluded from the
-        checksum calculation as well as the checksum value itself (last
-        byte, last 2 characters). It should include the record length
-        (byte 2, characters 4 & 5).
-
-        Note that this method does NOT calculate the checksum on the
-        configuration string that is returned during instrument
-        configuration.
-
-        @author Chris Center
-        @param s: string for check-sum analysis.
-        """
-
-        log.debug('herb: ' + 'SamiProtocol.calc_crc')
-
-        # num_points: number of bytes (each byte is 2-chars).
-        num_points = len(s)/2
-
-        cs = 0
-        k = 0
-        for i in range(num_points):
-            value = int(s[k:k+2], 16)  # 2-chars per data point
-            cs = cs + value
-            k = k + 2
-        cs = cs & 0xFF
-        return(cs)

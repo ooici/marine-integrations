@@ -80,12 +80,12 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='sunburst_sami2_pco2_ooicore',
     instrument_agent_packet_config=SamiDataParticleType(),
 
-    driver_startup_config={}
-#    driver_startup_config={
-#            DriverStartupConfigKey.PARAMETERS: {
-#            Parameter.STOP_TIME_FROM_START: 7,
-#        },
-#    }
+#    driver_startup_config={}
+    driver_startup_config={
+            DriverStartupConfigKey.PARAMETERS: {
+            Parameter.STOP_TIME_FROM_START: 7,
+        },
+    }
 )
 
 
@@ -503,36 +503,32 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-##    def test_paramters(self):
-##        self.assert_initialize_driver()
-
-##    def test_acquire_status(self):
-##        self.assert_initialize_driver()
-##        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-
     def test_set(self):
         self.assert_initialize_driver()
-##        self.assert_set(Parameter.CYCLES_BETWEEN_BLANKS, 7, no_get=True)
+        self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 77)
         self.assert_set(Parameter.CYCLES_BETWEEN_BLANKS, 7)
 
-## TODO: On acquire sample, make sure the correct states are returned to, COMMAND or AUTOSAMPLING
     def test_acquire_sample(self):
         self.assert_initialize_driver()
         log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 START')
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)  ## TODO: No delay to test waiting state
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)
         log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 FINISH')
         log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 START')
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=20)  ## TODO: No delay to test waiting state
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=20)
         log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 FINISH')
         log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 3 START')
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, delay=180)  ## TODO: No delay to test waiting state
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, delay=180)
         log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 3 FINISH')
 
 ##  TODO: Test all commands and states
 
     def test_auto_sample(self):
         self.assert_initialize_driver()
-##        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, delay=640)
+        self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 160)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, delay=640)
+        time.sleep(120)  ## Make sure last sample was completed
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+
 ##        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, delay=10)
 ##        time.sleep(160)  ## Make sure last sample was completed
 ##        log.debug('herb: ' + 'class test_auto_sample(): waiting 160')
@@ -540,6 +536,24 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 
 ##    def test_direct_access(self):
 ##        self.assert_initialize_driver()
+
+    def test_acquire_blank_sample(self):
+        pass
+
+    def test_acquire_status(self):
+        pass
+
+    ###
+    #   Test scheduled events
+    ###
+    ## TODO: Not sure if any schedulable commands will be supported as instrument blocks when taking samples
+    def test_scheduled_status_command(self):
+        pass
+
+    def test_scheduled_blank_sample_command(self):
+        pass
+
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
