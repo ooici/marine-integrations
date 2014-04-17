@@ -59,7 +59,7 @@ class ScheduledJob(BaseEnum):
     CLOCK_SYNC = 'clock_sync'
 
 
-#TODO:Re-visit what commands need to be implemented
+#TODO:Re-visit what commands need to be implemented - ResetEC?
 class Command(BaseEnum):
 
         DS = 'ds'
@@ -73,6 +73,7 @@ class Command(BaseEnum):
         STOP = 'Stop'
         TS = 'ts'
 
+        #TODO: sendOptode?
         #TODO: not specified in IOS
         SET = 'set'
 
@@ -84,8 +85,8 @@ class Parameter(DriverParameter):
     Device specific parameters for SBE19.
     """
     DATE_TIME = "DateTime"
-    ECHO = "Echo"
-    OUTPUT_EXEC_TAG = 'OutputExecutedTag'
+    #ECHO = "Echo"
+    #OUTPUT_EXEC_TAG = 'OutputExecutedTag'
     PTYPE = "PType"
     VOLT0 = "Volt0"
     VOLT1 = "Volt1"
@@ -137,6 +138,89 @@ class DataParticleType(BaseEnum):
     DEVICE_CALIBRATION = 'ctdpf_calibration_coefficients'
     DEVICE_HARDWARE = 'ctdpf_hardware'
     DEVICE_CONFIGURATION = 'ctdpf_configuration'
+    EVENT_COUNTER = 'ctdpf_event_counter'
+
+class SBE19EventCounterParticleKey(BaseEnum):
+    SERIAL_NUMBER = "serial_number"
+    NUMBER_OF_EVENTS = "num_events"
+    ALARM_SHORT_COUNT = "alarm_short_count"
+    EEPROM_READ_COUNT = "eeprom_read_count"
+    EEPROM_WRITE_COUNT = "eeprom_write_count"
+
+
+class SBE19EventCounterParticle(SeaBirdParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    _data_particle_type = DataParticleType.EVENT_COUNTER
+
+    @staticmethod
+    def regex():
+        pattern = r'(<EventCounters.*?</EventCounters>)' + NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        return re.compile(SBE19EventCounterParticle.regex(), re.DOTALL)
+
+    @staticmethod
+    def resp_regex():
+        pattern = r'(<EventCounters.*?</EventCounters>)'
+        return pattern
+
+    @staticmethod
+    def resp_regex_compiled():
+        return re.compile(SBE19EventCounterParticle.resp_regex(), re.DOTALL)
+
+    def _build_parsed_values(self):
+        """
+        Parse the output of the getSD command
+        @throws SampleException If there is a problem with sample creation
+        """
+
+        SERIAL_NUMBER = "SerialNumber"
+        EVENT_SUMMARY = "EventSummary"
+        NUMBER_OF_EVENTS = "numEvents"
+        EVENT = "Event"
+        TYPE = "type"
+        COUNT = "count"
+        ALARM_SHORT = "alarm short"
+        EEPROM_READ = "EEPROM read"
+        EEPROM_WRITE = "EEPROM write"
+
+        # check to make sure there is a correct match before continuing
+        match = SBE19EventCounterParticle.regex_compiled().match(self.raw_data)
+        if not match:
+            raise SampleException("No regex match of parsed event counter data: [%s]" %
+                                  self.raw_data)
+
+        dom = parseString(self.raw_data)
+        root = dom.documentElement
+        log.debug("root.tagName = %s" %root.tagName)
+        serial_number = int(root.getAttribute(SERIAL_NUMBER))
+        event_summary = self._extract_xml_elements(root, EVENT_SUMMARY)[0]
+        number_of_events = int(event_summary.getAttribute(NUMBER_OF_EVENTS))
+
+        result = [{DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.SERIAL_NUMBER,
+                   DataParticleKey.VALUE: serial_number},
+                  {DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.NUMBER_OF_EVENTS,
+                   DataParticleKey.VALUE: number_of_events},
+                 ]
+
+        event_elements = self._extract_xml_elements(root, EVENT)
+
+        for event in event_elements:
+            type = event.getAttribute(TYPE)
+            count = int(event.getAttribute(COUNT))
+            if type == ALARM_SHORT:
+                result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.ALARM_SHORT_COUNT, DataParticleKey.VALUE: count})
+            elif type == EEPROM_READ:
+                result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.EEPROM_READ_COUNT, DataParticleKey.VALUE: count})
+            elif type == EEPROM_WRITE:
+                result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.EEPROM_WRITE_COUNT, DataParticleKey.VALUE: count})
+
+        return result
 
 
 class SBE19ConfigurationParticleKey(BaseEnum):
@@ -176,12 +260,21 @@ class SBE19ConfigurationParticle(SeaBirdParticle):
 
     @staticmethod
     def regex():
-        pattern = r'<ConfigurationData.*?</ConfigurationData>' + NEWLINE
+        pattern = r'(<ConfigurationData.*?</ConfigurationData>)' + NEWLINE
         return pattern
 
     @staticmethod
     def regex_compiled():
         return re.compile(SBE19ConfigurationParticle.regex(), re.DOTALL)
+
+    @staticmethod
+    def resp_regex():
+        pattern = r'(<ConfigurationData.*?</ConfigurationData>)'
+        return pattern
+
+    @staticmethod
+    def resp_regex_compiled():
+        return re.compile(SBE19ConfigurationParticle.resp_regex(), re.DOTALL)
 
     def _map_param_to_xml_tag(self, parameter_name):
         map_param_to_tag = {SBE19ConfigurationParticleKey.SCANS_TO_AVERAGE: "ScansToAverage",
@@ -294,12 +387,21 @@ class SBE19StatusParticle(SeaBirdParticle):
 
     @staticmethod
     def regex():
-        pattern = r'<StatusData.*?</StatusData>' + NEWLINE
+        pattern = r'(<StatusData.*?</StatusData>)' + NEWLINE
         return pattern
 
     @staticmethod
     def regex_compiled():
         return re.compile(SBE19StatusParticle.regex(), re.DOTALL)
+
+    @staticmethod
+    def resp_regex():
+        pattern = r'(<StatusData.*?</StatusData>)'
+        return pattern
+
+    @staticmethod
+    def resp_regex_compiled():
+        return re.compile(SBE19StatusParticle.resp_regex(), re.DOTALL)
 
     def _map_param_to_xml_tag(self, parameter_name):
         map_param_to_tag = {SBE19StatusParticleKey.BATTERY_VOLTAGE_MAIN: "vMain",
@@ -409,6 +511,23 @@ class SBE19HardwareParticle(SeaBirdParticle):
         @return: compiled re
         """
         return re.compile(SBE19HardwareParticle.regex(), re.DOTALL)
+
+    @staticmethod
+    def resp_regex():
+        """
+        Regular expression to match a getHD response pattern
+        @return: regex string
+        """
+        pattern = r'<HardwareData.*?</HardwareData>'
+        return pattern
+
+    @staticmethod
+    def resp_regex_compiled():
+        """
+        get the compiled regex pattern
+        @return: compiled re
+        """
+        return re.compile(SBE19HardwareParticle.resp_regex(), re.DOTALL)
 
     def _build_parsed_values(self):
         """
@@ -598,6 +717,15 @@ class SBE19CalibrationParticle(SeaBirdParticle):
     @staticmethod
     def regex_compiled():
         return re.compile(SBE19CalibrationParticle.regex(), re.DOTALL)
+
+    @staticmethod
+    def resp_regex():
+        pattern = r'<CalibrationCoefficients.*?</CalibrationCoefficients>'
+        return pattern
+
+    @staticmethod
+    def resp_regex_compiled():
+        return re.compile(SBE19CalibrationParticle.resp_regex(), re.DOTALL)
 
     def _map_param_to_xml_tag(self, parameter_name):
         map_param_to_tag = {SBE19CalibrationParticleKey.TEMP_SENSOR_SERIAL_NUMBER: "SerialNum",
@@ -962,6 +1090,8 @@ class SBE19Protocol(SBE16Protocol):
         self._add_build_handler(Command.GET_CD, self._build_simple_command)
         self._add_build_handler(Command.GET_SD, self._build_simple_command)
         self._add_build_handler(Command.GET_CC, self._build_simple_command)
+
+        #TODO: implement getEC!
         self._add_build_handler(Command.GET_EC, self._build_simple_command)
         self._add_build_handler(Command.RESET_EC, self._build_simple_command)
         self._add_build_handler(Command.GET_HD, self._build_simple_command)
@@ -970,10 +1100,6 @@ class SBE19Protocol(SBE16Protocol):
         self._add_build_handler(Command.STOP, self._build_simple_command)
         self._add_build_handler(Command.TS, self._build_simple_command)
         self._add_build_handler(Command.SET, self._build_set_command)
-
-
-        #TODO: Maybe we would like to implement DS and DCal, and use the response handlers in the base class to update
-        # the param dict (also see _update_params function). In that case, build_param_dict would need to be updated to not parse XML.
 
         # Add response handlers for device commands.
         # these are here to ensure that correct responses to the commands are received before the next command is sent
@@ -990,14 +1116,10 @@ class SBE19Protocol(SBE16Protocol):
 
         self._chunker = StringChunker(self.sieve_function)
 
-        #TODO: what other commands are schedulable?
-        self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
         self._add_scheduler_event(ScheduledJob.CONFIGURATION_DATA, ProtocolEvent.GET_CONFIGURATION)
+        self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
         self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
-
-    #TODO: Investigate the following methods inherited from base class:
-    # _update_params
 
     @staticmethod
     def sieve_function(raw_data):
@@ -1099,7 +1221,7 @@ class SBE19Protocol(SBE16Protocol):
 
     def _handler_command_get_configuration(self, *args, **kwargs):
         """
-        GetCC from SBE16.
+        Run the GetCC command.
         @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
@@ -1123,18 +1245,21 @@ class SBE19Protocol(SBE16Protocol):
         next_agent_state = None
         result = None
 
-        #TODO: next line is test code - remove!
-        result = '';
-        result = self._do_cmd_resp(Command.GET_SD, timeout=TIMEOUT)
+        result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE19StatusParticle.regex_compiled(),
+                                    timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_HD, timeout=TIMEOUT)
+        result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE19HardwareParticle.regex_compiled(),
+                                    timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
-
-        #TODO: test for getCD fails
-        #result += self._do_cmd_resp(Command.GET_CD, timeout=TIMEOUT)
-        #log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CC, timeout=TIMEOUT)
+        result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE19ConfigurationParticle.regex_compiled(),
+                                    timeout=TIMEOUT)
+        log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
+        result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE19CalibrationParticle.regex_compiled(),
+                                    timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
+        result += self._do_cmd_resp(Command.GET_EC, response_regex=SBE19EventCounterParticle.regex_compiled(),
+                                    timeout=TIMEOUT)
+        log.debug("_handler_command_acquire_status: GetEC Response: %s", result)
 
         return (next_state, (next_agent_state, result))
 
@@ -1150,20 +1275,26 @@ class SBE19Protocol(SBE16Protocol):
         prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
         prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
-        result = self._do_cmd_resp(Command.GET_SD, timeout=TIMEOUT)
+        result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE19StatusParticle.regex_compiled(),
+                                    timeout=TIMEOUT)
         log.debug("_handler_autosample_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_HD, timeout=TIMEOUT)
+        result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE19HardwareParticle.regex_compiled(),
+                                    timeout=TIMEOUT)
         log.debug("_handler_autosample_acquire_status: GetHD Response: %s", result)
-
-        #TODO: the test for getCD fails
-        #result += self._do_cmd_resp(Command.GET_CD, timeout=TIMEOUT)
-        #log.debug("_handler_autosample_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CC, timeout=TIMEOUT)
+        result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE19ConfigurationParticle.regex_compiled(),
+                                    timeout=TIMEOUT)
+        log.debug("_handler_autosample_acquire_status: GetCD Response: %s", result)
+        result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE19CalibrationParticle.regex_compiled(),
+                                    timeout=TIMEOUT)
         log.debug("_handler_autosample_acquire_status: GetCC Response: %s", result)
+        result += self._do_cmd_resp(Command.GET_EC, response_regex=SBE19EventCounterParticle.regex_compiled(),
+                                    timeout=TIMEOUT)
+        log.debug("_handler_autosample_acquire_status: GetEC Response: %s", result)
 
         return (next_state, (next_agent_state, result))
 
 
+    #TODO: should get_config be a protocol event for us? GetCC is covered by acquire status
     def _handler_autosample_get_configuration(self, *args, **kwargs):
         """
         GetCC from SBE16.
@@ -1259,7 +1390,6 @@ class SBE19Protocol(SBE16Protocol):
         self._do_cmd_no_resp(Command.START_NOW, *args, **kwargs)
         time.sleep(2)
 
-        #TODO: uncomment below once is_logging is in shape!!
         if not self._is_logging(20):
             raise InstrumentProtocolException("failed to start logging")
 
@@ -1292,8 +1422,6 @@ class SBE19Protocol(SBE16Protocol):
 
         return True
 
-
-    #TODO: impelement this!
     def _is_logging(self, *args, **kwargs):
         """
         Wake up the instrument and inspect the prompt to determine if we
@@ -1416,11 +1544,7 @@ class SBE19Protocol(SBE16Protocol):
             log.error("_validate_GetSD_response: GetSD command encountered error; type='%s' msg='%s'", error[0], error[1])
             raise InstrumentProtocolException('GetSD command failure: type="%s" msg="%s"' % (error[0], error[1]))
 
-        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
-            log.error('_validate_GetSD_response: correct instrument prompt missing: %s.' % response)
-            raise InstrumentProtocolException('GetSD command - correct instrument prompt missing: %s.' % response)
-
-        if not SBE19StatusParticle.regex_compiled().search(response):
+        if not SBE19StatusParticle.resp_regex_compiled().search(response):
             log.error('_validate_GetSD_response: GetSD command not recognized: %s.' % response)
             raise InstrumentProtocolException('GetSD command not recognized: %s.' % response)
 
@@ -1439,11 +1563,7 @@ class SBE19Protocol(SBE16Protocol):
             log.error("GetHD command encountered error; type='%s' msg='%s'", error[0], error[1])
             raise InstrumentProtocolException('GetHD command failure: type="%s" msg="%s"' % (error[0], error[1]))
 
-        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
-            log.error('_validate_GetHD_response: correct instrument prompt missing: %s.' % response)
-            raise InstrumentProtocolException('GetHD command - correct instrument prompt missing: %s.' % response)
-
-        if not SBE19HardwareParticle.regex_compiled().search(response):
+        if not SBE19HardwareParticle.resp_regex_compiled().search(response):
             log.error('_validate_GetHD_response: GetHD command not recognized: %s.' % response)
             raise InstrumentProtocolException('GetHD command not recognized: %s.' % response)
 
@@ -1458,15 +1578,13 @@ class SBE19Protocol(SBE16Protocol):
         """
         error = self._find_error(response)
 
+        log.warn("_validate_GetCD_response: Response is: %s" % response)
+
         if error:
             log.error("GetCD command encountered error; type='%s' msg='%s'", error[0], error[1])
             raise InstrumentProtocolException('GetCD command failure: type="%s" msg="%s"' % (error[0], error[1]))
 
-        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
-            log.error('_validate_GetCD_response: correct instrument prompt missing: %s.' % response)
-            raise InstrumentProtocolException('GetCD command - correct instrument prompt missing: %s.' % response)
-
-        if not SBE19ConfigurationParticle.regex_compiled().search(response):
+        if not SBE19ConfigurationParticle.resp_regex_compiled().search(response):
             log.error('_validate_GetCD_response: GetCD command not recognized: %s.' % response)
             raise InstrumentProtocolException('GetCD command not recognized: %s.' % response)
 
@@ -1485,11 +1603,7 @@ class SBE19Protocol(SBE16Protocol):
             log.error("GetCC command encountered error; type='%s' msg='%s'", error[0], error[1])
             raise InstrumentProtocolException('GetCC command failure: type="%s" msg="%s"' % (error[0], error[1]))
 
-        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
-            log.error('_validate_GetCC_response: correct instrument prompt missing: %s.' % response)
-            raise InstrumentProtocolException('GetCC command - correct instrument prompt missing: %s.' % response)
-
-        if not SBE19CalibrationParticle.regex_compiled().search(response):
+        if not SBE19CalibrationParticle.resp_regex_compiled().search(response):
             log.error('_validate_GetCC_response: GetCC command not recognized: %s.' % response)
             raise InstrumentProtocolException('GetCC command not recognized: %s.' % response)
 
@@ -1508,11 +1622,7 @@ class SBE19Protocol(SBE16Protocol):
             log.error("GetEC command encountered error; type='%s' msg='%s'", error[0], error[1])
             raise InstrumentProtocolException('GetEC command failure: type="%s" msg="%s"' % (error[0], error[1]))
 
-        if prompt not in [Prompt.COMMAND, Prompt.EXECUTED]:
-            log.error('_validate_GetEC_response: correct instrument prompt missing: %s.' % response)
-            raise InstrumentProtocolException('GetEC command - correct instrument prompt missing: %s.' % response)
-
-        if not SBE19CalibrationParticle.regex_compiled().search(response):
+        if not SBE19EventCounterParticle.resp_regex_compiled().search(response):
             log.error('_validate_GetEC_response: GetEC command not recognized: %s.' % response)
             raise InstrumentProtocolException('GetEC command not recognized: %s.' % response)
 
@@ -1545,6 +1655,7 @@ class SBE19Protocol(SBE16Protocol):
                              display_name="Date/Time",
                              #expiration=0,
                              visibility=ParameterDictVisibility.READ_ONLY)
+        """
         self._param_dict.add(Parameter.ECHO,
                              r'echo characters = (yes|no)',
                              lambda match : True if match.group(1)=='yes' else False,
@@ -1555,6 +1666,7 @@ class SBE19Protocol(SBE16Protocol):
                              direct_access = True,
                              default_value = False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
+        """
         self._param_dict.add(Parameter.LOGGING,
                              r'status = (not )?logging',
                              lambda match : False if (match.group(1)) else True,
@@ -1563,6 +1675,7 @@ class SBE19Protocol(SBE16Protocol):
                              display_name="Is Logging",
                              #expiration=0,
                              visibility=ParameterDictVisibility.READ_ONLY)
+        """
         self._param_dict.add(Parameter.OUTPUT_EXEC_TAG,
                              r'.',
                              lambda match : False,
@@ -1573,6 +1686,7 @@ class SBE19Protocol(SBE16Protocol):
                              direct_access = True,
                              default_value = False,
                              visibility=ParameterDictVisibility.READ_WRITE)
+        """
         self._param_dict.add(Parameter.PTYPE,
                              r'pressure sensor = ([\w\s]+),',
                              self._pressure_sensor_to_int,
