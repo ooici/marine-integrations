@@ -65,11 +65,13 @@ from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ProtocolEvent
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Capability
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Parameter
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Command
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ScheduledJob
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19DataParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19ConfigurationParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19HardwareParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19StatusParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19CalibrationParticleKey
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19EventCounterParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Prompt
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import NEWLINE
 
@@ -336,6 +338,14 @@ class SeaBird19plusMixin(DriverTestMixin):
 "</StatusData>" + NEWLINE
 
 
+    VALID_GETEC_RESPONSE = "" + \
+"<EventCounters DeviceType = 'SBE19plus' SerialNumber = '01906914'>" + NEWLINE + \
+"   <EventSummary numEvents = '260'/>" + NEWLINE + \
+"   <Event type = 'alarm short' count = '18'/>" + NEWLINE + \
+"   <Event type = 'EEPROM read' count = '117'/>" + NEWLINE + \
+"   <Event type = 'EEPROM write' count = '125'/>" + NEWLINE + \
+"</EventCounters>" + NEWLINE
+
     ###
     #  Parameter and Type Definitions
     ###
@@ -459,6 +469,15 @@ class SeaBird19plusMixin(DriverTestMixin):
         SBE19CalibrationParticleKey.EXT_FREQ: {TYPE: float, VALUE: 1.000008e+00, REQUIRED: True},
     }
 
+    _event_counter_parameters = {
+        SBE19EventCounterParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 1906914, REQUIRED: True},
+        SBE19EventCounterParticleKey.NUMBER_OF_EVENTS: {TYPE: int, VALUE: 260, REQUIRED: True},
+        SBE19EventCounterParticleKey.ALARM_SHORT_COUNT: {TYPE: int, VALUE: 18, REQUIRED: True},
+        SBE19EventCounterParticleKey.EEPROM_READ_COUNT: {TYPE: int, VALUE: 117, REQUIRED: True},
+        SBE19EventCounterParticleKey.EEPROM_WRITE_COUNT: {TYPE: int, VALUE: 125, REQUIRED: True},
+
+    }
+
     ###
     #  Parameter and Type Definitions
     ###
@@ -467,8 +486,8 @@ class SeaBird19plusMixin(DriverTestMixin):
         #TODO: VOLT1, OPTODE: default value assumes Anderra Optode
 
         Parameter.DATE_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
-        Parameter.ECHO : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
-        Parameter.OUTPUT_EXEC_TAG : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        #Parameter.ECHO : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        #Parameter.OUTPUT_EXEC_TAG : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.PTYPE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.VOLT0 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
         Parameter.VOLT1 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
@@ -562,6 +581,16 @@ class SeaBird19plusMixin(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CONFIGURATION)
         self.assert_data_particle_parameters(data_particle, self._configuration_parameters, verify_values)
 
+    def assert_particle_event_counter(self, data_particle, verify_values = False):
+        '''
+        Verify event counter particle
+        @param data_particle:  SBE19EventCounterParticle event counter particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(SBE19EventCounterParticleKey, self._event_counter_parameters)
+        self.assert_data_particle_header(data_particle, DataParticleType.EVENT_COUNTER)
+        self.assert_data_particle_parameters(data_particle, self._event_counter_parameters, verify_values)
+
 
 
 ###############################################################################
@@ -637,6 +666,11 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
         self.assert_chunker_fragmented_sample(chunker, self.VALID_GETCD_RESPONSE)
         self.assert_chunker_combined_sample(chunker, self.VALID_GETCD_RESPONSE)
 
+        self.assert_chunker_sample(chunker, self.VALID_GETEC_RESPONSE)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_GETEC_RESPONSE)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_GETEC_RESPONSE)
+        self.assert_chunker_combined_sample(chunker, self.VALID_GETEC_RESPONSE)
+
 
     def test_got_data(self):
         """
@@ -648,12 +682,15 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
 
         self.assert_raw_particle_published(driver, True)
 
+        #TODO: should we care about DS?
+
         # Start validating data particles
         self.assert_particle_published(driver, self.VALID_SAMPLE, self.assert_particle_sample, True)
         self.assert_particle_published(driver, self.VALID_GETHD_RESPONSE, self.assert_particle_hardware, True)
         self.assert_particle_published(driver, self.VALID_GETCC_RESPONSE, self.assert_particle_calibration, True)
         self.assert_particle_published(driver, self.VALID_GETSD_RESPONSE, self.assert_particle_status, True)
         self.assert_particle_published(driver, self.VALID_GETCD_RESPONSE, self.assert_particle_configuration, True)
+        self.assert_particle_published(driver, self.VALID_GETEC_RESPONSE, self.assert_particle_event_counter, True)
 
 
     def test_capabilities(self):
@@ -736,11 +773,11 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         self.assert_initialize_driver()
 
         # test acquire_status particles
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_status)
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_HARDWARE, self.assert_particle_hardware)
+        #self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_status)
+        #self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_HARDWARE, self.assert_particle_hardware)
         #TODO: this one fails
-        #self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CONFIGURATION, self.assert_particle_configuration)
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CONFIGURATION, self.assert_particle_configuration)
+        #self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
 
     def test_configuration(self):
         self.assert_initialize_driver()
@@ -778,6 +815,8 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         """
         Run instrument commands from both command and streaming mode.
         """
+        #TODO: revisit this one once commands are finalized
+
         self.assert_initialize_driver()
 
         ####
@@ -813,7 +852,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         happens in the driver discovery method.
         """
 
-        #TODO: are these the only 2 startup params?
         # Explicitly verify these values after discover.  They should match
         # what the startup values should be
         get_values = {
@@ -831,11 +869,135 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         self.assert_initialize_driver()
         self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
 
-        # Start autosample and try again
         self.assert_set_bulk(new_values)
+
+         # Start autosample and try again
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_startup_parameters(self.assert_driver_parameters)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
+
+    def test_set(self):
+        """
+        Test all set commands. Verify all exception cases.
+        """
+        self.assert_initialize_driver()
+
+        # Verify we can set all parameters in bulk
+        new_values = {
+            Parameter.PUMP_DELAY: 55,
+            Parameter.NUM_AVG_SAMPLES: 2
+        }
+        self.assert_set_bulk(new_values)
+
+        # Pump Delay: Range 0 - 600 seconds
+        self.assert_set(Parameter.PUMP_DELAY, 0)
+        self.assert_set(Parameter.PUMP_DELAY, 600)
+
+        #instrument sets pumpdelay to 600 if you supply garbage values
+        self.assert_set(Parameter.PUMP_DELAY, -1, True)
+        self.assert_get(Parameter.PUMP_DELAY, 600)
+
+        self.assert_set(Parameter.PUMP_DELAY, 601, True)
+        self.assert_get(Parameter.PUMP_DELAY, 600)
+
+        self.assert_set(Parameter.PUMP_DELAY, 'bad', True)
+        self.assert_get(Parameter.PUMP_DELAY, 600)
+
+
+        # Num Avg Samples: Range 1 - 32767
+        self.assert_set(Parameter.NUM_AVG_SAMPLES, 1)
+        self.assert_set(Parameter.NUM_AVG_SAMPLES, 32767)
+
+        #The instrument sets navg to 1 if you supply out of range/garbage values
+        self.assert_set(Parameter.NUM_AVG_SAMPLES, -1, True)
+        self.assert_get(Parameter.NUM_AVG_SAMPLES, 1)
+
+        self.assert_set(Parameter.NUM_AVG_SAMPLES, 32768, True)
+        self.assert_get(Parameter.NUM_AVG_SAMPLES, 1)
+
+        self.assert_set(Parameter.NUM_AVG_SAMPLES, 'bad', True)
+        self.assert_get(Parameter.NUM_AVG_SAMPLES, 1)
+
+
+    def test_parameters(self):
+        """
+        Test driver parameters and verify their type.  Startup parameters also verify the parameter
+        value.  This test confirms that parameters are being read/converted properly and that
+        the startup has been applied.
+        """
+        self.assert_initialize_driver()
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assert_driver_parameters(reply, True)
+
+    def assert_calibration_coefficients(self):
+        """
+        Verify a calibration particle was generated
+        over-ride the base class for different calibration particle
+        """
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration, timeout=60)
+
+    def test_scheduled_config_command(self):
+        """
+        Verify the device configuration command can be triggered and run in command
+        """
+        self.assert_scheduled_event(ScheduledJob.CONFIGURATION_DATA, self.assert_calibration_coefficients, delay=60)
+        self.assert_current_state(ProtocolState.COMMAND)
+
+    def test_scheduled_config_autosample(self):
+        """
+        Verify the device configuration command can be triggered and run in autosample
+        """
+        self.assert_scheduled_event(ScheduledJob.CONFIGURATION_DATA, self.assert_calibration_coefficients,
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=90)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+
+    def assert_acquire_status(self):
+        """
+        Verify a status particle was generated
+        """
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.DEVICE_STATUS, self.assert_particle_status, timeout=60)
+
+    def test_scheduled_status_command(self):
+        """
+        Verify the device status command can be triggered and run in command
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status, delay=60)
+        self.assert_current_state(ProtocolState.COMMAND)
+
+    def test_scheduled_status_autosample(self):
+        """
+        Verify the device status command can be triggered and run in autosample
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, self.assert_acquire_status,
+                                    autosample_command=ProtocolEvent.START_AUTOSAMPLE, delay=90)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
+
+    def test_scheduled_clock_sync_command(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        timeout = 120
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=timeout)
+        self.assert_current_state(ProtocolState.COMMAND)
+
+
+    def test_scheduled_clock_sync_autosample(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        timeout = 240
+        self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, autosample_command=ProtocolEvent.START_AUTOSAMPLE,
+                                    delay=timeout)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+
+        #Stop autosampling and verify we are back in command mode
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+
+
 
     def test_test(self):
         """
