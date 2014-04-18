@@ -59,7 +59,7 @@ from mi.core.time import get_timestamp_delayed
 NEWLINE = '\r\n'
 
 # default timeout.
-TIMEOUT = 15
+TIMEOUT = 10
 
 
 ###
@@ -1313,6 +1313,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             #go into autosample mode
             self._do_cmd_no_resp(InstrumentCommand.Run_settings)
 
+        log.debug("!!!!!! Next_state = %s, Next_agent_state = %s", next_state, next_agent_state)
         return next_state, (next_agent_state, None)
 
     def _handler_start_direct(self):

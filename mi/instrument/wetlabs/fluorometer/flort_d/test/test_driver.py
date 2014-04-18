@@ -675,12 +675,10 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the
-        physical instrument. (telnet mode)
+        Verify while in Direct Access, we can manually set DA parameters.  After stopping DA, the instrument
+        will enter Command State and any parameters set during DA are reset to previous values.  Also verifying
+        timeouts with inactivity, with activity, and without activity.
         """
-        log.debug("FINISHED SETUP")
-        #self.assert_enter_command_mode()
-        #self.assert_set_parameter(Parameter.Measurements_per_packet_value, 10, False)
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
@@ -728,8 +726,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
     def test_direct_access_telnet_mode_autosample(self):
         """
-        @brief This test manually tests that the Instrument Driver properly
-        supports direct access to the physical instrument. (telnet mode)
+        Verify Direct Access can start autosampling for the instrument, and if stopping DA, the
+        driver will resort to Autosample State. Also, testing disconnect
         """
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
@@ -739,36 +737,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         self.tcp_client.expect("mvs 1")
         log.debug("DA autosample started")
 
-        #TODO - THIS DOES NOT WORK!!!!
+        #Assert if stopping DA while autosampling, discover will put driver into Autosample state
         self.assert_direct_access_stop_telnet()
-
-        # verify the setting got restored.
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
-        self.assert_get_parameter(Parameter.Measurements_per_packet_value, 0)
-
-        ###
-        # Test direct access inactivity timeout
-        ###
-        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
-
-        ###
-        # Test session timeout without activity
-        ###
-        self.assert_direct_access_start_telnet(inactivity_timeout=120, session_timeout=30)
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
-
-        ###
-        # Test direct access session timeout with activity
-        ###
-        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=60)
-        # # Send some activity every 30 seconds to keep DA alive.
-        for i in range(1, 2, 3):
-            self.tcp_client.send_data(NEWLINE)
-            log.debug("Sending a little keep alive communication, sleeping for 15 seconds")
-            gevent.sleep(15)
-
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 45)
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, timeout=10)
 
         ###
         # Test direct access disconnect
