@@ -23,15 +23,31 @@ from mi.core.exceptions import SampleException
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.parser.glider import GliderParser, StateKey
-from mi.dataset.parser.glider import GgldrCtdgvDelayedDataParticle, CtdgvParticleKey
-from mi.dataset.parser.glider import GgldrDostaDelayedDataParticle
-from mi.dataset.parser.glider import GgldrFlordDelayedDataParticle
-from mi.dataset.parser.glider import GgldrEngDelayedDataParticle
+from mi.dataset.parser.glider import CtdgvDataParticle
+from mi.dataset.parser.glider import CtdgvParticleKey
+from mi.dataset.parser.glider import DostaTelemeteredDataParticle
+from mi.dataset.parser.glider import DostaRecoveredDataParticle
+from mi.dataset.parser.glider import DostaRecoveredParticleKey
+from mi.dataset.parser.glider import DostaTelemeteredParticleKey
+from mi.dataset.parser.glider import FlordDataParticle
+from mi.dataset.parser.glider import FlordParticleKey
+from mi.dataset.parser.glider import FlortRecoveredDataParticle
+from mi.dataset.parser.glider import FlortTelemeteredDataParticle
+from mi.dataset.parser.glider import FlortRecoveredParticleKey
+from mi.dataset.parser.glider import FlortTelemeteredParticleKey
+from mi.dataset.parser.glider import ParadRecoveredDataParticle
+from mi.dataset.parser.glider import ParadTelemeteredDataParticle
+from mi.dataset.parser.glider import ParadRecoveredParticleKey
+from mi.dataset.parser.glider import ParadTelemeteredParticleKey
+# from mi.dataset.parser.glider import GgldrCtdgvDelayedDataParticle, CtdgvParticleKey
+# from mi.dataset.parser.glider import GgldrDostaDelayedDataParticle
+# from mi.dataset.parser.glider import GgldrFlordDelayedDataParticle
+# from mi.dataset.parser.glider import GgldrEngDelayedDataParticle
 from mi.dataset.parser.glider import DataParticleType
 from mi.dataset.parser.glider import GliderParticle
-from mi.dataset.parser.glider import DostaParticleKey
-from mi.dataset.parser.glider import FlordParticleKey
-from mi.dataset.parser.glider import EngineeringParticleKey
+# from mi.dataset.parser.glider import DostaParticleKey
+# from mi.dataset.parser.glider import FlordParticleKey
+# from mi.dataset.parser.glider import EngineeringParticleKey
 
 from mi.dataset.parser.test.glider_test_results import positions, glider_test_data
 
@@ -281,7 +297,7 @@ class CTDGVGliderTest(GliderParserUnitTestCase):
     """
     config = {
         DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
-        DataSetDriverConfigKeys.PARTICLE_CLASS: 'GgldrCtdgvDelayedDataParticle',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: 'CtdgvDataParticle',
     }
 
     def test_ctdgv_particle(self):
@@ -295,14 +311,14 @@ class CTDGVGliderTest(GliderParserUnitTestCase):
         record_1 = {CtdgvParticleKey.SCI_WATER_TEMP: 15.3683}
         record_2 = {CtdgvParticleKey.SCI_WATER_TEMP: 15.3703}
 
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_1, 1162)
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1321)
+        self.assert_generate_particle(CtdgvDataParticle, record_1, 1162)
+        self.assert_generate_particle(CtdgvDataParticle, record_2, 1321)
         self.assert_no_more_data()
 
         # Reset with the parser, but with a state this time
         self.set_data(HEADER, CTDGR_RECORD)
         self.reset_parser({StateKey.POSITION: 1162})
-        self.assert_generate_particle(GgldrCtdgvDelayedDataParticle, record_2, 1321)
+        self.assert_generate_particle(CtdgvDataParticle, record_2, 1321)
         self.assert_no_more_data()
 
     def test_gps(self):
@@ -317,16 +333,16 @@ class CTDGVGliderTest(GliderParserUnitTestCase):
         self.assertEqual(len(records), 0)
 
 @attr('UNIT', group='mi')
-class DOSTAGliderTest(GliderParserUnitTestCase):
+class DOSTATelemeteredGliderTest(GliderParserUnitTestCase):
     """
     Test cases for dosta glider data
     """
     config = {
         DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
-        DataSetDriverConfigKeys.PARTICLE_CLASS: 'GgldrDostaDelayedDataParticle',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: 'DostaTelemeteredDataParticle',
     }
 
-    def test_dosta_particle(self):
+    def test_dosta_telemetered_particle(self):
         """
         Verify we publish particles as expected.  Ensure particle is published and
         that state is returned.
@@ -334,27 +350,58 @@ class DOSTAGliderTest(GliderParserUnitTestCase):
         self.set_data(HEADER, DOSTA_RECORD)
         self.reset_parser()
 
-        record_1 = {DostaParticleKey.SCI_OXY4_OXYGEN: 242.217, DostaParticleKey.SCI_OXY4_SATURATION: 96.009}
-        record_2 = {DostaParticleKey.SCI_OXY4_OXYGEN: 242.141, DostaParticleKey.SCI_OXY4_SATURATION: 95.988}
+        record_1 = {DostaTelemeteredParticleKey.SCI_OXY4_OXYGEN: 242.217, DostaTelemeteredParticleKey.SCI_OXY4_SATURATION: 96.009}
+        record_2 = {DostaTelemeteredParticleKey.SCI_OXY4_OXYGEN: 242.141, DostaTelemeteredParticleKey.SCI_OXY4_SATURATION: 95.988}
 
-        self.assert_generate_particle(GgldrDostaDelayedDataParticle, record_1, 1159)
-        self.assert_generate_particle(GgldrDostaDelayedDataParticle, record_2, 1315)
+        self.assert_generate_particle(DostaTelemeteredDataParticle, record_1, 1159)
+        self.assert_generate_particle(DostaTelemeteredDataParticle, record_2, 1315)
         self.assert_no_more_data()
 
         # Reset with the parser, but with a state this time
         self.set_data(HEADER, DOSTA_RECORD)
         self.reset_parser({StateKey.POSITION: 1159})
-        self.assert_generate_particle(GgldrDostaDelayedDataParticle, record_2, 1315)
+        self.assert_generate_particle(DostaTelemeteredDataParticle, record_2, 1315)
         self.assert_no_more_data()
+
+# @attr('UNIT', group='mi')
+# class DOSTARecoveredGliderTest(GliderParserUnitTestCase):
+#     """
+#     Test cases for dosta glider data
+#     """
+#     config = {
+#         DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
+#         DataSetDriverConfigKeys.PARTICLE_CLASS: 'DostaRecoveredDataParticle',
+#     }
+#
+#     def test_dosta_recovered_particle(self):
+#         """
+#         Verify we publish particles as expected.  Ensure particle is published and
+#         that state is returned.
+#         """
+#         self.set_data(HEADER, DOSTA_RECORD)
+#         self.reset_parser()
+#
+#         record_1 = {DostaRecoveredParticleKey.SCI_OXY4_OXYGEN: 242.217, DostaRecoveredParticleKey.SCI_OXY4_SATURATION: 96.009}
+#         record_2 = {DostaRecoveredParticleKey.SCI_OXY4_OXYGEN: 242.141, DostaRecoveredParticleKey.SCI_OXY4_SATURATION: 95.988}
+#
+#         self.assert_generate_particle(DostaRecoveredDataParticle, record_1, 1159)
+#         self.assert_generate_particle(DostaRecoveredDataParticle, record_2, 1315)
+#         self.assert_no_more_data()
+#
+#         # Reset with the parser, but with a state this time
+#         self.set_data(HEADER, DOSTA_RECORD)
+#         self.reset_parser({StateKey.POSITION: 1159})
+#         self.assert_generate_particle(DostaRecoveredDataParticle, record_2, 1315)
+#         self.assert_no_more_data()
 
 @attr('UNIT', group='mi')
 class FLORDGliderTest(GliderParserUnitTestCase):
     """
-    Test cases for dosta glider data
+    Test cases for flord glider data
     """
     config = {
         DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
-        DataSetDriverConfigKeys.PARTICLE_CLASS: 'GgldrFlordDelayedDataParticle',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlordDataParticle',
     }
 
     def test_flord_particle(self):
@@ -365,17 +412,17 @@ class FLORDGliderTest(GliderParserUnitTestCase):
         self.set_data(HEADER, FLORD_RECORD)
         self.reset_parser()
 
-        record_1 = {FlordParticleKey.SCI_FLBB_BB_UNITS: 0.000298102, FlordParticleKey.SCI_FLBB_CHLOR_UNITS: 1.519}
-        record_2 = {FlordParticleKey.SCI_FLBB_BB_UNITS: 0.000327355, FlordParticleKey.SCI_FLBB_CHLOR_UNITS: 1.708}
+        record_1 = {FlordParticleKey.SCI_FLBBCD_BB_UNITS: 0.000298102, FlordParticleKey.SCI_FLBBCD_CHLOR_UNITS: 1.519}
+        record_2 = {FlordParticleKey.SCI_FLBBCD_BB_UNITS: 0.000327355, FlordParticleKey.SCI_FLBBCD_CHLOR_UNITS: 1.708}
 
-        self.assert_generate_particle(GgldrDostaDelayedDataParticle, record_1, 1162)
-        self.assert_generate_particle(GgldrDostaDelayedDataParticle, record_2, 1321)
+        self.assert_generate_particle(FlordDataParticle, record_1, 1162)
+        self.assert_generate_particle(FlordDataParticle, record_2, 1321)
         self.assert_no_more_data()
 
         # Reset with the parser, but with a state this time
         self.set_data(HEADER, FLORD_RECORD)
         self.reset_parser({StateKey.POSITION: 1162})
-        self.assert_generate_particle(GgldrDostaDelayedDataParticle, record_2, 1321)
+        self.assert_generate_particle(FlordDataParticle, record_2, 1321)
         self.assert_no_more_data()
 
 @attr('UNIT', group='mi')

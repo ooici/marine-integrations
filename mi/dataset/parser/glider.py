@@ -82,7 +82,7 @@ class GliderParticle(DataParticle):
     common_parameters = GliderParticleKey.list()
 
     def _parsed_values(self, key_list):
-        log.info("GliderParticle._parsed_values(): Build a particle with keys: %s", key_list)
+        log.info(" # GliderParticle._parsed_values(): Build a particle with keys: %s", key_list)
         log.debug("Build a particle with keys: %s", key_list)
         if not isinstance(self.raw_data, dict):
             raise SampleException(
@@ -105,6 +105,7 @@ class GliderParticle(DataParticle):
                 # read the value of the item from the dictionary
                 value = self.raw_data[key]['Data']
 
+                log.info(" # GliderParticle._parsed_values(): Evaluating key= %s, value= %s", key, value)
                 # check if this value is a string, implying it is one of the three
                 # file info data items in the particle (filename,fileopen time & mission name)
                 # - don't need to perform a NaN check on a string
@@ -113,7 +114,7 @@ class GliderParticle(DataParticle):
                     result.append({DataParticleKey.VALUE_ID: key,
                                    DataParticleKey.VALUE: value})
                     log.trace("Key: %s, value: %s", key, value)
-                    log.info("GliderParticle._parsed_values(): Adding Engineering Key: %s, value: %s to particle", key, value)
+                    log.info("# GliderParticle._parsed_values(): Adding Engineering Key: %s, value: %s to particle", key, value)
                 else:
                     # check to see that the value is not a 'NaN'
                     if np.isnan(value):
@@ -124,7 +125,7 @@ class GliderParticle(DataParticle):
                     result.append({DataParticleKey.VALUE_ID: key,
                                    DataParticleKey.VALUE: value})
                     log.trace("Key: %s, value: %s", key, value)
-                    log.info("GliderParticle._parsed_values(): Adding Key: %s, value: %s to particle", key, value)
+                    log.info("# GliderParticle._parsed_values(): Adding Key: %s, value: %s to particle", key, value)
 
             else:
                 log.warn("The particle defined in the" +
@@ -1234,9 +1235,7 @@ class GliderParser(BufferLoadingParser):
 
             if valuePreConversion == "NaN":
                 # data is NaN, convert it to a float
-                #value = float(valuePreConversion)
-                # data is NaN, convert it to NONE
-                value = None
+                value = float(valuePreConversion)
             else:
 
                 # determine what type of data the value is, based on the number of bytes attribute

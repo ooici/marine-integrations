@@ -301,144 +301,144 @@ class QualificationTest(DataSetQualificationTestCase):
     #
     # QUAL TESTS FOR ENGINEERING DATA PARTICLE
     #
-    def test_publish_path_eng(self):
-        """
-        Setup an agent/driver/harvester/parser and verify that data is
-        published out the agent
-        """
-        self.create_sample_data('single_glider_record-engDataOnly.mrg', 'CopyOf-single_glider_record-engDataOnly.mrg')
-        self.assert_initialize()
-
-        # Verify we get one sample
-        try:
-            result = self.data_subscribers.get_samples(ENG_SAMPLE_STREAM)
-            log.debug("RESULT: %s", result)
-
-            # Verify values
-            self.assert_data_values(result, 'single_glider_record-engDataOnly.mrg.ENGresult.yml')
-        except Exception as e:
-            log.error("Exception trapped: %s", e)
-            self.fail("Sample timeout.")
-
-    def test_large_import_eng(self):
-        """
-        There is a bug when activating an instrument go_active times out and
-        there was speculation this was due to blocking behavior in the agent.
-        https://jira.oceanobservatories.org/tasks/browse/OOIION-1284
-        """
-
-        self.create_sample_data('unit_247_2012_051_0_0-engDataOnly.mrg')
-        self.assert_initialize()
-
-        result = self.get_samples(ENG_SAMPLE_STREAM, 100, 120)
-
-    def test_stop_start_eng(self):
-        """
-        Test the agents ability to start data flowing, stop, then restart
-        at the correct spot.
-        """
-        log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('single_glider_record-engDataOnly.mrg', "CopyOf-single_glider_record-engDataOnly.mrg")
-
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        # Slow down processing to 1 per second to give us time to stop
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
-        self.assert_start_sampling()
-
-        # Verify we get one sample
-        try:
-            # Read the first file and verify the data
-            result = self.get_samples(ENG_SAMPLE_STREAM)
-            log.debug("RESULT: %s", result)
-
-            # Verify values
-            self.assert_data_values(result, 'single_glider_record-engDataOnly.mrg.ENGresult.yml')
-            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
-
-            self.create_sample_data('multiple_glider_record-engDataOnly.mrg', "CopyOf-multiple_glider_record-engDataOnly.mrg")
-            # Now read the first three records of the second file then stop
-            result = self.get_samples(ENG_SAMPLE_STREAM, 1)
-            log.debug("got result 1 %s", result)
-            self.assert_stop_sampling()
-            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
-
-            # Restart sampling and ensure we get the last 5 records of the file
-            self.assert_start_sampling()
-            result = self.get_samples(ENG_SAMPLE_STREAM, 3)
-            log.debug("got result 2 %s", result)
-            self.assert_data_values(result, 'merged_glider_record-engDataOnly.mrg.ENGresult.yml')
-
-            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
-        except SampleTimeout as e:
-            log.error("Exception trapped: %s", e, exc_info=True)
-            self.fail("Sample timeout.")
-
-    def test_shutdown_restart_eng(self):
-        """
-        Test the agents ability to completely stop, then restart
-        at the correct spot.
-        """
-        log.info("CONFIG: %s", self._agent_config())
-        self.create_sample_data('single_glider_record-engDataOnly.mrg', "CopyOf-single_glider_record-engDataOnly.mrg")
-
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        # Slow down processing to 1 per second to give us time to stop
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
-        self.assert_start_sampling()
-
-        # Verify we get one sample
-        try:
-            # Read the first file and verify the data
-            result = self.get_samples(ENG_SAMPLE_STREAM)
-            log.debug("RESULT: %s", result)
-
-            # Verify values
-            self.assert_data_values(result, 'single_glider_record-engDataOnly.mrg.ENGresult.yml')
-            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
-
-            self.create_sample_data('multiple_glider_record-engDataOnly.mrg', "CopyOf-multiple_glider_record-engDataOnly.mrg")
-            # Now read the first records of the second file then stop
-            result = self.get_samples(ENG_SAMPLE_STREAM, 1)
-            log.debug("got result 1 %s", result)
-            self.assert_stop_sampling()
-            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
-            # stop the agent
-            self.stop_dataset_agent_client()
-            # re-start the agent
-            self.init_dataset_agent_client()
-            #re-initialize
-            self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-            # Restart sampling and ensure we get the last 5 records of the file
-            self.assert_start_sampling()
-            result = self.get_samples(ENG_SAMPLE_STREAM, 3)
-            log.debug("got result 2 %s", result)
-            self.assert_data_values(result, 'merged_glider_record-engDataOnly.mrg.ENGresult.yml')
-
-            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
-        except SampleTimeout as e:
-            log.error("Exception trapped: %s", e, exc_info=True)
-            self.fail("Sample timeout.")
-
-    @unittest.skip('foo')
-    def test_parser_exception_eng(self):
-        """
-        Test an exception raised after the driver is started during
-        record parsing.
-        """
-        self.clear_sample_data()
-        self.create_sample_data('test_data_2.txt', 'DATA002.txt')
-
-        self.assert_initialize()
-
-        self.event_subscribers.clear_events()
-        result = self.get_samples(ENG_SAMPLE_STREAM, 9)
-        self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
-
-        # Verify an event was raised and we are in our retry state
-        self.assert_event_received(ResourceAgentErrorEvent, 10)
-        self.assert_state_change(ResourceAgentState.STREAMING, 10)
+    # def test_publish_path_eng(self):
+    #     """
+    #     Setup an agent/driver/harvester/parser and verify that data is
+    #     published out the agent
+    #     """
+    #     self.create_sample_data('single_glider_record-engDataOnly.mrg', 'CopyOf-single_glider_record-engDataOnly.mrg')
+    #     self.assert_initialize()
+    #
+    #     # Verify we get one sample
+    #     try:
+    #         result = self.data_subscribers.get_samples(ENG_SAMPLE_STREAM)
+    #         log.debug("RESULT: %s", result)
+    #
+    #         # Verify values
+    #         self.assert_data_values(result, 'single_glider_record-engDataOnly.mrg.ENGresult.yml')
+    #     except Exception as e:
+    #         log.error("Exception trapped: %s", e)
+    #         self.fail("Sample timeout.")
+    #
+    # def test_large_import_eng(self):
+    #     """
+    #     There is a bug when activating an instrument go_active times out and
+    #     there was speculation this was due to blocking behavior in the agent.
+    #     https://jira.oceanobservatories.org/tasks/browse/OOIION-1284
+    #     """
+    #
+    #     self.create_sample_data('unit_247_2012_051_0_0-engDataOnly.mrg')
+    #     self.assert_initialize()
+    #
+    #     result = self.get_samples(ENG_SAMPLE_STREAM, 100, 120)
+    #
+    # def test_stop_start_eng(self):
+    #     """
+    #     Test the agents ability to start data flowing, stop, then restart
+    #     at the correct spot.
+    #     """
+    #     log.info("CONFIG: %s", self._agent_config())
+    #     self.create_sample_data('single_glider_record-engDataOnly.mrg', "CopyOf-single_glider_record-engDataOnly.mrg")
+    #
+    #     self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+    #
+    #     # Slow down processing to 1 per second to give us time to stop
+    #     self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+    #     self.assert_start_sampling()
+    #
+    #     # Verify we get one sample
+    #     try:
+    #         # Read the first file and verify the data
+    #         result = self.get_samples(ENG_SAMPLE_STREAM)
+    #         log.debug("RESULT: %s", result)
+    #
+    #         # Verify values
+    #         self.assert_data_values(result, 'single_glider_record-engDataOnly.mrg.ENGresult.yml')
+    #         self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+    #
+    #         self.create_sample_data('multiple_glider_record-engDataOnly.mrg', "CopyOf-multiple_glider_record-engDataOnly.mrg")
+    #         # Now read the first three records of the second file then stop
+    #         result = self.get_samples(ENG_SAMPLE_STREAM, 1)
+    #         log.debug("got result 1 %s", result)
+    #         self.assert_stop_sampling()
+    #         self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+    #
+    #         # Restart sampling and ensure we get the last 5 records of the file
+    #         self.assert_start_sampling()
+    #         result = self.get_samples(ENG_SAMPLE_STREAM, 3)
+    #         log.debug("got result 2 %s", result)
+    #         self.assert_data_values(result, 'merged_glider_record-engDataOnly.mrg.ENGresult.yml')
+    #
+    #         self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+    #     except SampleTimeout as e:
+    #         log.error("Exception trapped: %s", e, exc_info=True)
+    #         self.fail("Sample timeout.")
+    #
+    # def test_shutdown_restart_eng(self):
+    #     """
+    #     Test the agents ability to completely stop, then restart
+    #     at the correct spot.
+    #     """
+    #     log.info("CONFIG: %s", self._agent_config())
+    #     self.create_sample_data('single_glider_record-engDataOnly.mrg', "CopyOf-single_glider_record-engDataOnly.mrg")
+    #
+    #     self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+    #
+    #     # Slow down processing to 1 per second to give us time to stop
+    #     self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
+    #     self.assert_start_sampling()
+    #
+    #     # Verify we get one sample
+    #     try:
+    #         # Read the first file and verify the data
+    #         result = self.get_samples(ENG_SAMPLE_STREAM)
+    #         log.debug("RESULT: %s", result)
+    #
+    #         # Verify values
+    #         self.assert_data_values(result, 'single_glider_record-engDataOnly.mrg.ENGresult.yml')
+    #         self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+    #
+    #         self.create_sample_data('multiple_glider_record-engDataOnly.mrg', "CopyOf-multiple_glider_record-engDataOnly.mrg")
+    #         # Now read the first records of the second file then stop
+    #         result = self.get_samples(ENG_SAMPLE_STREAM, 1)
+    #         log.debug("got result 1 %s", result)
+    #         self.assert_stop_sampling()
+    #         self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+    #         # stop the agent
+    #         self.stop_dataset_agent_client()
+    #         # re-start the agent
+    #         self.init_dataset_agent_client()
+    #         #re-initialize
+    #         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+    #         # Restart sampling and ensure we get the last 5 records of the file
+    #         self.assert_start_sampling()
+    #         result = self.get_samples(ENG_SAMPLE_STREAM, 3)
+    #         log.debug("got result 2 %s", result)
+    #         self.assert_data_values(result, 'merged_glider_record-engDataOnly.mrg.ENGresult.yml')
+    #
+    #         self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+    #     except SampleTimeout as e:
+    #         log.error("Exception trapped: %s", e, exc_info=True)
+    #         self.fail("Sample timeout.")
+    #
+    # @unittest.skip('foo')
+    # def test_parser_exception_eng(self):
+    #     """
+    #     Test an exception raised after the driver is started during
+    #     record parsing.
+    #     """
+    #     self.clear_sample_data()
+    #     self.create_sample_data('test_data_2.txt', 'DATA002.txt')
+    #
+    #     self.assert_initialize()
+    #
+    #     self.event_subscribers.clear_events()
+    #     result = self.get_samples(ENG_SAMPLE_STREAM, 9)
+    #     self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+    #
+    #     # Verify an event was raised and we are in our retry state
+    #     self.assert_event_received(ResourceAgentErrorEvent, 10)
+    #     self.assert_state_change(ResourceAgentState.STREAMING, 10)
 
     #
     # QUAL TESTS FOR ENGINEERING & SCIENCE DATA PARTICLE
@@ -563,7 +563,7 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    @unittest.skip('foo')
+    #@unittest.skip('foo')
     def test_parser_exception_eng_sci(self):
         """
         Test an exception raised after the driver is started during

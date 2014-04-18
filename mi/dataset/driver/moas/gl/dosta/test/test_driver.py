@@ -295,8 +295,8 @@ class QualificationTest(DataSetQualificationTestCase):
             result = self.get_samples(SAMPLE_STREAM, 3)
             log.debug("got result 2 %s", result)
             self.assert_data_values(result, 'merged_dosta_record.mrg.result.yml')
-
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")

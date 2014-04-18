@@ -406,9 +406,10 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()
-            result = self.get_samples(SAMPLE_STREAM, 3)
+            result = self.get_samples(SAMPLE_STREAM, 4)
             log.debug("got result 2 %s", result)
-            self.assert_data_values(result, 'merged_ctdgv_record.mrg.result.yml')
+            #self.assert_data_values(result, 'merged_ctdgv_record.mrg.result.yml')
+            self.assert_data_values(result, 'multiple_ctdgv_record.mrg.stopstartresult.yml')
 
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
         except SampleTimeout as e:
@@ -453,9 +454,10 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_initialize(final_state=ResourceAgentState.COMMAND)
             # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()
-            result = self.get_samples(SAMPLE_STREAM, 3)
+            result = self.get_samples(SAMPLE_STREAM, 4)
             log.debug("got result 2 %s", result)
-            self.assert_data_values(result, 'merged_ctdgv_record.mrg.result.yml')
+            self.assert_data_values(result, 'multiple_ctdgv_record.mrg.stopstartresult.yml')
+            #self.assert_data_values(result, 'merged_ctdgv_record.mrg.result.yml')
 
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
         except SampleTimeout as e:
