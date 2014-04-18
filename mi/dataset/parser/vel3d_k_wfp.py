@@ -33,10 +33,13 @@ import struct
 from mi.core.log import get_logger; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.core.exceptions import DatasetParserException, RecoverableSampleException, \
-    SampleException, UnexpectedDataException
+from mi.core.exceptions import \
+    DatasetParserException, \
+    RecoverableSampleException, \
+    SampleException, \
+    UnexpectedDataException
 
-from mi.dataset.dataset_parser import BufferLoadingParser
+from mi.dataset.dataset_parser import BufferLoadingFilenameParser
 
 FILE_HEADER_RECORD_SIZE = 4  # bytes
 
@@ -133,16 +136,15 @@ INDEX_TIME_OFF = 1    # field number within Time record and raw_data
 SAMPLE_RATE = .5      # data records sample rate
 
 
-class DataParticleType(BaseEnum):
+class Vel3dKWfpDataParticleType(BaseEnum):
     INSTRUMENT_PARTICLE = 'vel3d_k_wfp_instrument'
     METADATA_PARTICLE = 'vel3d_k_wfp_metadata'
     STRING_PARTICLE = 'vel3d_k_wfp_string'
 
 
-class StateKey(BaseEnum):
+class Vel3dKWfpStateKey(BaseEnum):
     POSITION = 'position'            # number of bytes read
     RECORD_NUMBER = 'record_number'  # record number within the file
-    TIMESTAMP = 'timestamp'          # last timestamp
 
 
 class Vel3dKWfpMetadataParticleKey(BaseEnum):
@@ -160,7 +162,7 @@ class Vel3dKWfpInstrumentParticle(DataParticle):
     Class for generating vel3d_k_wfp instrument particles.
     """
 
-    _data_particle_type = DataParticleType.INSTRUMENT_PARTICLE
+    _data_particle_type = Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE
 
     def _build_parsed_values(self):
         """
@@ -198,7 +200,7 @@ class Vel3dKWfpMetadataParticle(DataParticle):
     Class for generating vel3d_k_wfp metadata particles.
     """
 
-    _data_particle_type = DataParticleType.METADATA_PARTICLE
+    _data_particle_type = Vel3dKWfpDataParticleType.METADATA_PARTICLE
 
     def _build_parsed_values(self):
         """
@@ -226,7 +228,7 @@ class Vel3dKWfpStringParticle(DataParticle):
     Class for generating vel3d_k_wfp string particles.
     """
 
-    _data_particle_type = DataParticleType.STRING_PARTICLE
+    _data_particle_type = Vel3dKWfpDataParticleType.STRING_PARTICLE
 
     def _build_parsed_values(self):
         """
@@ -249,20 +251,21 @@ class Vel3dKWfpStringParticle(DataParticle):
         return particle
 
 
-class Vel3dKWfpParser(BufferLoadingParser):
+class Vel3dKWfpParser(BufferLoadingFilenameParser):
 
     _timestamp = None
     _state = None
     _read_state = None
 
-    def __init__(self, config, input_file, state,
+    def __init__(self, config, state, file_handle, file_name,
                  state_callback, publish_callback, exception_callback):
         """
         Constructor for the Vel3dKWfpParser class.
         Arguments:
           config - The parser configuration.
-          input_file - A reference (handle) to the input file.
           state - The latest parser state.
+          file_handle - A reference (handle) to the input file.
+          file_name - The name of the file referenced by the handle.
           state_callback - Callback for state changes.
           publish_callback - Callback to publish a particle.
           exception_callback - Callback for exceptions.
@@ -271,23 +274,23 @@ class Vel3dKWfpParser(BufferLoadingParser):
         #
         # From the input file, get the time values which are used for the timestamp.
         #
-        self.input_file = input_file
-        (self.times, file_position) = self.get_file_parameters(input_file)
+        self.input_file = file_handle
+        (self.times, file_position) = self.get_file_parameters(file_handle)
 
         if state is not None:
-            if not (StateKey.POSITION in state):
-                state[StateKey.POSITION] = file_position
-            if not (StateKey.RECORD_NUMBER in state):
-                state[StateKey.RECORD_NUMBER] = 0
+            if not (Vel3dKWfpStateKey.POSITION in state):
+                state[Vel3dKWfpStateKey.POSITION] = file_position
+            if not (Vel3dKWfpStateKey.RECORD_NUMBER in state):
+                state[Vel3dKWfpStateKey.RECORD_NUMBER] = 0
             self.set_state(state)
 
         else:
-            initial_state = {StateKey.POSITION: file_position,
-                             StateKey.RECORD_NUMBER: 0}
+            initial_state = {Vel3dKWfpStateKey.POSITION: file_position,
+                             Vel3dKWfpStateKey.RECORD_NUMBER: 0}
             self.set_state(initial_state)
 
-        super(Vel3dKWfpParser, self).__init__(config, input_file, state,
-            self.sieve_function, state_callback, publish_callback,
+        super(Vel3dKWfpParser, self).__init__(config, file_handle, file_name,
+            state, self.sieve_function, state_callback, publish_callback,
             exception_callback)
 
     def calculate_checksum(self, input_buffer, values):
@@ -316,7 +319,7 @@ class Vel3dKWfpParser(BufferLoadingParser):
         This function calculates the timestamp based on the current record number.
         """
         time_stamp = self.times[INDEX_TIME_ON] + \
-            (self._read_state[StateKey.RECORD_NUMBER] * SAMPLE_RATE)
+            (self._read_state[Vel3dKWfpStateKey.RECORD_NUMBER] * SAMPLE_RATE)
 
         ntp_time = ntplib.system_to_ntp_time(time_stamp)
         return ntp_time
@@ -374,13 +377,13 @@ class Vel3dKWfpParser(BufferLoadingParser):
         Increment the parser position
         @param bytes_read The number of bytes just read
         """
-        self._read_state[StateKey.POSITION] += bytes_read
+        self._read_state[Vel3dKWfpStateKey.POSITION] += bytes_read
 
     def _increment_record_number(self):
         """
         Increment the parser record number
         """
-        self._read_state[StateKey.RECORD_NUMBER] += 1
+        self._read_state[Vel3dKWfpStateKey.RECORD_NUMBER] += 1
 
     def parse_chunks(self):
         """
@@ -555,7 +558,7 @@ class Vel3dKWfpParser(BufferLoadingParser):
                 header_id = struct.unpack('B', header.group(GROUP_HEADER_ID))[0]
 
                 if header_id == DATA_HEADER_ID_BURST_DATA or \
-                  header_id == DATA_HEADER_ID_CP_DATA:
+                   header_id == DATA_HEADER_ID_CP_DATA:
                     particle_fields = self.parse_data_record(record)
                     particle_type = Vel3dKWfpInstrumentParticle
 
@@ -601,16 +604,15 @@ class Vel3dKWfpParser(BufferLoadingParser):
         if not isinstance(state_obj, dict):
             raise DatasetParserException("Invalid state structure")
 
-        if not (StateKey.POSITION in state_obj) or \
-            not (StateKey.RECORD_NUMBER in state_obj):
+        if not (Vel3dKWfpStateKey.POSITION in state_obj) or \
+            not (Vel3dKWfpStateKey.RECORD_NUMBER in state_obj):
 
             raise DatasetParserException("Invalid state keys")
 
         self._record_buffer = []
         self._state = state_obj
         self._read_state = state_obj
-        #self._timestamp = state_obj[StateKey.TIMESTAMP]
-        self.input_file.seek(state_obj[StateKey.POSITION])
+        self.input_file.seek(state_obj[Vel3dKWfpStateKey.POSITION])
 
     def sieve_function(self, input_buffer):
         """
