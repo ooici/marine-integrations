@@ -277,6 +277,8 @@ class Prompt(BaseEnum):
     # be in an unconfigured state.
     BOOT_PROMPT = '7.7Boot>'
 
+    # No true prompts
+    # COMMAND = 'None'
 
 class SamiInstrumentCommand(BaseEnum):
     """
@@ -303,6 +305,8 @@ class SamiInstrumentCommand(BaseEnum):
     ACQUIRE_BLANK_SAMPLE_SAMI = 'C'
     ACQUIRE_SAMPLE_SAMI = 'R'
     ESCAPE_BOOT = 'u'
+
+    CHECK_FOR_BOOT_PROMPT = ''
 
 ###############################################################################
 # Data Particles
@@ -843,9 +847,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(SamiInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.ESCAPE_BOOT, self._build_simple_command)
+        self._add_build_handler(SamiInstrumentCommand.CHECK_FOR_BOOT_PROMPT, self._build_simple_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(SamiInstrumentCommand.GET_STATUS, self._parse_response_get_status)
+        self._add_response_handler(SamiInstrumentCommand.STOP_STATUS, self._parse_response_stop_status)
         self._add_response_handler(SamiInstrumentCommand.GET_CONFIG, self._parse_response_get_config)
         self._add_response_handler(SamiInstrumentCommand.SET_CONFIG, self._parse_response_set_config)
         self._add_response_handler(SamiInstrumentCommand.ERASE_ALL, self._parse_response_erase_all)
@@ -858,9 +864,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._sent_cmds = []
 
         self._startup = True
-
-        ## TODO: Use discrete structure instead.
-        ## self._command_queue = Queue.Queue()
 
         self._queued_commands = QueuedCommands()
 
@@ -1195,11 +1198,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._add_scheduler_event(ScheduledJob.AUTO_SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE)
 
         ## Make sure a sample is taken as soon as autosample mode is entered.
-        ## TODO: Use discrete structure instead.
-##        self._command_queue.put(ProtocolEvent.ACQUIRE_SAMPLE)
-
         self._queued_commands.sample = ProtocolEvent.ACQUIRE_SAMPLE
-        self._queued_commands.status = ProtocolEvent.ACQUIRE_STATUS  ## TODO: Remove, just for testing
 
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -1281,10 +1280,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         ## Capture a sample upon entering autosample mode.  An ACQUIRE_SAMPLE event should have been queued in the start
         ## autosample command handler.
-        ## TODO: Use discrete structure instead.
-        # while self._command_queue.empty() == False:
-        #     command = self._command_queue.get()
-        #     log.debug('herb: ' + 'SamiProtocol._handler_autosample_enter: Raising queued command event: ' + command)
 
         ## Execute acquire status first if queued
         if self._queued_commands.status is not None:
@@ -1618,6 +1613,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('herb: ' + 'SamiProtocol._parse_response_get_status: response = ' + repr(response))
         return response
 
+    def _parse_response_stop_status(self, response, prompt):
+        log.debug('herb: ' + 'SamiProtocol._parse_response_stop_status: response = ' + repr(response))
+        log.debug('herb: ' + 'SamiProtocol._parse_response_stop_status: prompt   = ' + repr(prompt))
+        return response
+
     def _parse_response_get_config(self, response, prompt):
         log.debug('herb: ' + 'SamiProtocol._parse_response_get_config')
 
@@ -1661,7 +1661,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Private helpers.
     ########################################################################
-    def _wakeup(self, timeout, delay=1):
+    def _wakeup(self, timeout=0, delay=1):
 
         # Send 2 newlines to wake up SAMI.
         log.debug('herb: ' + 'SamiProtocol._wakeup: Send first newline to wake up')
@@ -1682,11 +1682,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
 
         ## Clear command queue
-        ## TODO: Use discrete structure instead.
-        # while self._command_queue.empty() == False:
-        #     command = self._command_queue.get()
-        #     log.debug('herb: ' + 'SamiProtocol._discover: Clearing queued command event: ' + command)
-
         self._queued_commands.reset()
 
         ## Set default and startup config values in param_dict
@@ -1704,14 +1699,19 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
             self._startup = False
 
+        # TODO: Check for boot prompt
+        try:
+            response = self._do_cmd_resp(SamiInstrumentCommand.STOP_STATUS, timeout=2, expected_prompt=Prompt.BOOT_PROMPT)
+
+            log.debug('herb: ' + 'SamiProtocol._discover: boot prompt present = ' + str(response))
+            self._do_cmd_direct(SamiInstrumentCommand.ESCAPE_BOOT + NEWLINE)
+
+        except InstrumentTimeoutException:
+            log.debug('herb: ' + 'SamiProtocol._discover: boot prompt did not occur.')
+
         try:
 
             log.debug('herb: ' + 'SamiProtocol._discover')
-
-            # Exit states can be either COMMAND, DISCOVER or back to UNKNOWN.
-            next_state = None
-            next_agent_state = None
-
 
             log.debug('herb: ' + 'SamiProtocol._discover: _set_configuration BEGIN')
             self._set_configuration()

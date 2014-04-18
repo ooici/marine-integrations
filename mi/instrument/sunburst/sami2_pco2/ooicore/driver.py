@@ -489,8 +489,6 @@ class Protocol(SamiProtocol):
 
         return_list = []
 
-## TODO: Missing regular expressions?  Add boot prompt?
-
         sieve_matchers = [REGULAR_STATUS_REGEX_MATCHER,
                           CONTROL_RECORD_REGEX_MATCHER,
                           SAMI_SAMPLE_REGEX_MATCHER,
@@ -511,8 +509,6 @@ class Protocol(SamiProtocol):
         extract_sample with the appropriate particle objects and REGEXes.
         """
         log.debug('herb: ' + 'Protocol._got_chunk(): chunk = ' + chunk)
-
-        ## TODO: Add error and prompt?
 
         self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
@@ -927,7 +923,6 @@ class Protocol(SamiProtocol):
 
     def _get_configuration_string_regex(self):
         return CONFIGURATION_REGEX_MATCHER
-
     def _get_blank_sample_timeout(self):
         log.debug('herb: ' + 'Protocol._get_blank_sample_timeout()')
         return SAMPLE_DELAY
