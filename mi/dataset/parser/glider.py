@@ -53,7 +53,7 @@ class GliderParticleKey(BaseEnum):
     """
 
     @classmethod
-    def science_parameter_list(cls):
+    def particle_parameter_list(cls):
         """
         Get a list of all science parameters
         """
@@ -100,12 +100,14 @@ class GliderParticle(DataParticle):
         # find if any of the variables from the particle key list are in
         # the data_dict and keep it
         for key in key_list:
+            # if the item from the particle is in the raw_data (row) we just sampled...
             if key in self.raw_data:
-                # read the value from the gpd dictionary
+                # read the value of the item from the dictionary
                 value = self.raw_data[key]['Data']
 
-                # this check is made for the three file info data items in the particle
-                # (filename,fileopen time & mission name)
+                # check if this value is a string, implying it is one of the three
+                # file info data items in the particle (filename,fileopen time & mission name)
+                # - don't need to perform a NaN check on a string
                 if isinstance(value, str):
                     # add the value to the record
                     result.append({DataParticleKey.VALUE_ID: key,
@@ -125,12 +127,10 @@ class GliderParticle(DataParticle):
                     log.info("GliderParticle._parsed_values(): Adding Key: %s, value: %s to particle", key, value)
 
             else:
-                #log.warn("The particle defined in the" +
-                    # "ParticleKey, %s, is not present in the current" % key +
-                    # "data set. Confirm by checking the m, s, or tbdlist of " +
-                    # "the glider to insure this is expected, or check the " +
-                    # "standard lists and/or Particle Keys")
-                SampleException("%s column missing from datafile, row ignored", key)
+                log.warn("The particle defined in the" +
+                    "ParticleKey, %s, is not present in the current" % key +
+                    "data set.")
+                value = None
 
         return result
 
@@ -149,7 +149,7 @@ class CtdgvParticleKey(GliderParticleKey):
 
 class CtdgvDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.CTDGV_M_GLIDER_INSTRUMENT
-    science_parameters = CtdgvParticleKey.science_parameter_list()
+    particle_parameters = CtdgvParticleKey.particle_parameter_list()
 
     def get_particle_list(self):
         for k,v in self.raw_data.items():
@@ -203,7 +203,7 @@ class DostaRecoveredParticleKey(GliderParticleKey):
 
 class DostaTelemeteredDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.DOSTA_ABCDJM_GLIDER_INSTRUMENT
-    science_parameters = DostaTelemeteredParticleKey.science_parameter_list()
+    particle_parameters = DostaTelemeteredParticleKey.particle_parameter_list()
 
     def get_particle_list(self):
         for k,v in self.raw_data.items():
@@ -226,7 +226,7 @@ class DostaTelemeteredDataParticle(GliderParticle):
 
 class DostaRecoveredDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.DOSTA_ABCDJM_GLIDER_RECOVERED
-    science_parameters = DostaRecoveredParticleKey.science_parameter_list()
+    particle_parameters = DostaRecoveredParticleKey.particle_parameter_list()
 
     def get_particle_list(self):
         for k,v in self.raw_data.items():
@@ -265,7 +265,7 @@ class FlordParticleKey(GliderParticleKey):
 
 class FlordDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.FLORD_M_GLIDER_INSTRUMENT
-    science_parameters = FlordParticleKey.science_parameter_list()
+    particle_parameters = FlordParticleKey.particle_parameter_list()
 
     def get_particle_list(self):
         for k,v in self.raw_data.items():
@@ -316,7 +316,7 @@ class FlortRecoveredParticleKey(GliderParticleKey):
 
 class FlortTelemeteredDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.FLORT_M_GLIDER_INSTRUMENT
-    science_parameters = FlortTelemeteredParticleKey.science_parameter_list()
+    particle_parameters = FlortTelemeteredParticleKey.particle_parameter_list()
 
     def get_particle_list(self):
         for k,v in self.raw_data.items():
@@ -340,7 +340,7 @@ class FlortTelemeteredDataParticle(GliderParticle):
 
 class FlortRecoveredDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.FLORT_M_GLIDER_RECOVERED
-    science_parameters = FlortRecoveredParticleKey.science_parameter_list()
+    particle_parameters = FlortRecoveredParticleKey.particle_parameter_list()
 
     def get_particle_list(self):
         for k,v in self.raw_data.items():
@@ -385,7 +385,7 @@ class ParadRecoveredParticleKey(GliderParticleKey):
 
 class ParadTelemeteredDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.PARAD_M_GLIDER_INSTRUMENT
-    science_parameters = ParadTelemeteredParticleKey.science_parameter_list()
+    particle_parameters = ParadTelemeteredParticleKey.particle_parameter_list()
 
     def get_particle_list(self):
         for k,v in self.raw_data.items():
@@ -409,7 +409,7 @@ class ParadTelemeteredDataParticle(GliderParticle):
 
 class ParadRecoveredDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.PARAD_M_GLIDER_RECOVERED
-    science_parameters = ParadRecoveredParticleKey.science_parameter_list()
+    particle_parameters = ParadRecoveredParticleKey.particle_parameter_list()
 
     def get_particle_list(self):
         for k,v in self.raw_data.items():
@@ -434,9 +434,9 @@ class ParadRecoveredDataParticle(GliderParticle):
 class EngineeringRecoveredParticleKey(GliderParticleKey):
     # engineering data made available via glider recovery
 
-    FILENAME = 'filename'
-    MISSION_NAME = 'mission_name'
-    FILEOPEN_TIME = 'fileopen_time'
+    GLIDER_ENG_FILENAME = 'glider_eng_filename'
+    GLIDER_MISSION_NAME = 'glider_mission_name'
+    GLIDER_ENG_FILEOPEN_TIME = 'glider_eng_fileopen_time'
     M_PRESENT_SECS_INTO_MISSION = 'm_present_secs_into_mission'
     M_PRESENT_TIME = 'm_present_time' # you need the m_ timestamps for lats & lons
     M_ALTITUDE = 'm_altitude'
@@ -771,7 +771,7 @@ class EngineeringScienceTelemeteredParticleKey(GliderParticleKey):
 
 class EngineeringTelemeteredDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GLIDER_ENG_TELEMETERED
-    science_parameters = EngineeringTelemeteredParticleKey.science_parameter_list()
+    particle_parameters = EngineeringTelemeteredParticleKey.particle_parameter_list()
 
     def get_particle_list(self):
         for k,v in self.raw_data.items():
@@ -795,7 +795,7 @@ class EngineeringTelemeteredDataParticle(GliderParticle):
 
 class EngineeringScienceTelemeteredDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GLIDER_ENG_SCI_TELEMETERED
-    science_parameters = EngineeringScienceTelemeteredParticleKey.science_parameter_list()
+    particle_parameters = EngineeringScienceTelemeteredParticleKey.particle_parameter_list()
 
     def get_particle_list(self):
         for k,v in self.raw_data.items():
@@ -819,7 +819,7 @@ class EngineeringScienceTelemeteredDataParticle(GliderParticle):
 
 class EngineeringRecoveredDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GLIDER_ENG_RECOVERED
-    science_parameters = EngineeringRecoveredParticleKey.science_parameter_list()
+    particle_parameters = EngineeringRecoveredParticleKey.particle_parameter_list()
 
     def get_particle_list(self):
         for k,v in self.raw_data.items():
@@ -843,7 +843,7 @@ class EngineeringRecoveredDataParticle(GliderParticle):
 
 class EngineeringScienceRecoveredDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GLIDER_ENG_SCI_RECOVERED
-    science_parameters = EngineeringScienceRecoveredParticleKey.science_parameter_list()
+    particle_parameters = EngineeringScienceRecoveredParticleKey.particle_parameter_list()
 
     def get_particle_list(self):
         for k,v in self.raw_data.items():
@@ -917,7 +917,6 @@ class GliderParser(BufferLoadingParser):
 
         super(GliderParser, self)._load_particle_buffer()
 
-        self._chunker.add_chunk("\n")
         result = self.parse_chunks()
         self._record_buffer.extend(result)
 
@@ -1091,20 +1090,20 @@ class GliderParser(BufferLoadingParser):
 
         return len
 
-    def _sload_particle_buffer(self):
-        """
-        Need to overload the base class behavior so we can get the last
-        record if it doesn't end with a newline it would be ignored.
-        """
-        bytes_read = self.get_block(1024)
-
-        while bytes_read > 0:
-            # Add a newline if we have read the last byte of the file
-            # This ensures the last record will be \n terminated.
-            if bytes_read < 1024:
-                self._chunker.add_chunk("\n", self._timestamp)
-            result = self.parse_chunks()
-            self._record_buffer.extend(result)
+    # def _sload_particle_buffer(self):
+    #     """
+    #     Need to overload the base class behavior so we can get the last
+    #     record if it doesn't end with a newline it would be ignored.
+    #     """
+    #     bytes_read = self.get_block(1024)
+    #
+    #     while bytes_read > 0:
+    #         # Add a newline if we have read the last byte of the file
+    #         # This ensures the last record will be \n terminated.
+    #         if bytes_read < 1024:
+    #             self._chunker.add_chunk("\n", self._timestamp)
+    #         result = self.parse_chunks()
+    #         self._record_buffer.extend(result)
 
     def parse_chunks(self):
         """
@@ -1165,19 +1164,20 @@ class GliderParser(BufferLoadingParser):
                         # We are done processing this record if we have detected an exception
                         pass
 
-                    elif self._has_science_data(data_dict):
+                    #elif self._has_science_data(data_dict):
+                    elif self._contains_particle_data(data_dict):
                         log.info(" ### GliderParser.parse_chunks(): back to parse_chunks, got some science data so "
                                  "lets create a particle")
 
-                        # check if this is an engineering particle
+                        # check if we're working on an engineering particle
                         if (self._particle_class.get_name() is "EngineeringTelemeteredDataParticle") or \
                                 (self._particle_class.get_name() is "EngineeringRecoveredDataParticle"):
                             # since we're working on an engineering data particle, add the file info to the data dict
+                            log.info(" ### ### GliderParser.parse_chunks(): Parsing for an Engineering Particle, "
+                                     "adding the three file attribs to data_dict...")
                             log.info(" ### ### GliderParser.parse_chunks(): size of data_dict BEFORE= %s", len(data_dict))
                             data_dict = self.add_file_info_to_data_dict(data_dict)
                             log.info(" ### ### GliderParser.parse_chunks(): size of data_dict AFTER= %s", len(data_dict))
-                            log.info(" ### ### GliderParser.parse_chunks(): Parsing for an Engineering Particle, "
-                                     "adding the three file attribs to data_dict...")
                             log.info(" ### ### GliderParser.parse_chunks(): filename = %s, "
                                      "mission name = %s, file open time = %s", data_dict['glider_eng_filename'],
                                      data_dict['glider_mission_name'], data_dict['glider_eng_fileopen_time'])
@@ -1185,10 +1185,6 @@ class GliderParser(BufferLoadingParser):
                         # create the particle
                         particle = self._extract_sample(self._particle_class, None, data_dict, timestamp)
 
-                        ##
-                        ## use the log statement below to help setup expected test results yml files
-                        ## log.info("XX XX XX X XXXXXX timestamp is: %f", timestamp)
-                        ##
                         self._increment_state(end)
                         result_particles.append((particle, copy.copy(self._read_state)))
                     else:
@@ -1238,7 +1234,9 @@ class GliderParser(BufferLoadingParser):
 
             if valuePreConversion == "NaN":
                 # data is NaN, convert it to a float
-                value = float(valuePreConversion)
+                #value = float(valuePreConversion)
+                # data is NaN, convert it to NONE
+                value = None
             else:
 
                 # determine what type of data the value is, based on the number of bytes attribute
@@ -1260,8 +1258,6 @@ class GliderParser(BufferLoadingParser):
 
             data_dict[data_labels[ii]] = {
                 'Name': data_labels[ii],
-                #'Units': data_units[ii],
-                #'Number_of_Bytes': int(num_bytes[ii]),
                 'Data': value
             }
 
@@ -1312,27 +1308,51 @@ class GliderParser(BufferLoadingParser):
 
         return data_dict
 
-    def _has_science_data(self, data_dict):
-        """
-        Examine the data_dict to see if it contains science data.
-        """
-        log.info(" ### ### ### GliderParser._has_science_data(): Entering ")
-        log.info(" ### ### ### GliderParser._has_science_data(): PARTICLE CLASS: %s", self._particle_class)
-        log.info(" ### ### ### GliderParser._has_science_data(): Looking for data in science parameters: %s", self._particle_class.science_parameters)
+    # def _has_science_data(self, data_dict):
+    #     """
+    #     Examine the data_dict to see if it contains science data.
+    #     """
+    #     log.info(" ### ### ### GliderParser._has_science_data(): Entering ")
+    #     log.info(" ### ### ### GliderParser._has_science_data(): PARTICLE CLASS: %s", self._particle_class)
+    #     log.info(" ### ### ### GliderParser._has_science_data(): Looking for data in science parameters: %s",
+    #              self._particle_class.science_parameters)
+    #
+    #     log.debug("Looking for data in science parameters: %s", self._particle_class.science_parameters)
+    #     for key in data_dict.keys():
+    #         if key in self._particle_class.science_parameters:
+    #             value = data_dict[key]['Data']
+    #             if not np.isnan(value):
+    #                 log.debug("Found science value for key: %s, value: %s", key, value)
+    #                 log.info(" ### ### ### GliderParser._has_science_data(): Found science value for key: "
+    #                          "%s, value: %s", key, value)
+    #                 return True
+    #             else:
+    #                 log.debug("Science data value is nan: %s %s", key, value)
+    #                 log.info(" ### ### ### GliderParser._has_science_data(): Science data value is nan: "
+    #                          "%s %s", key, value)
+    #
+    #     log.debug("No science data found!")
+    #     return False
 
-        log.debug("Looking for data in science parameters: %s", self._particle_class.science_parameters)
+    def _contains_particle_data(self, data_dict):
+        """
+        Examine the data_dict to see if it contains data from the particle being worked on
+        """
+        log.info(" ### ### ### GliderParser._contains_particle_data(): Entering ")
+        log.info(" ### ### ### GliderParser._contains_particle_data(): PARTICLE CLASS: %s", self._particle_class)
+        log.info(" ### ### ### GliderParser._contains_particle_data(): Looking for data in science parameters: %s",
+                 self._particle_class.particle_parameters)
+
+        log.debug("Looking for the following attributes from the particle in the working data_dict: %s", self._particle_class.particle_parameters)
         for key in data_dict.keys():
-            if key in self._particle_class.science_parameters:
-                value = data_dict[key]['Data']
-                if not np.isnan(value):
-                    log.debug("Found science value for key: %s, value: %s", key, value)
-                    log.info(" ### ### ### GliderParser._has_science_data(): Found science value for key: %s, value: %s", key, value)
-                    return True
-                else:
-                    log.debug("Science data value is nan: %s %s", key, value)
-                    log.info(" ### ### ### GliderParser._has_science_data(): Science data value is nan: %s %s", key, value)
+            if key in self._particle_class.particle_parameters:
+                # return true as soon as the first particle attribute from the
+                # particle s found in the working data_dict
+                log.info(" ### ### ### GliderParser._contains_particle_data(): Found science value for key: "
+                         "%s", key)
+                return True
 
-        log.debug("No science data found!")
+        log.debug("No attributes in the particle found!")
         return False
 
     def _string_to_ddegrees(self, pos_str):
@@ -1370,10 +1390,11 @@ class GliderParser(BufferLoadingParser):
 
         if latlon_match is None:
             raise SampleException("Failed to parse lat/lon value: '%s'" % pos_str)
-
-        degrees = float(latlon_match.group(1))
-        minutes = float(latlon_match.group(2))
-        ddegrees = copysign((abs(degrees) + minutes / 60.), degrees)
+            ddegrees = None
+        else:
+            degrees = float(latlon_match.group(1))
+            minutes = float(latlon_match.group(2))
+            ddegrees = copysign((abs(degrees) + minutes / 60.), degrees)
 
         return ddegrees
 
