@@ -91,7 +91,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # Verify sort order isn't ascii, but numeric
         self.clear_async_data()
         self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
-        self.assert_data(DostaTelemeteredDataParticle, count=240, timeout=30)
+        self.assert_data(DostaTelemeteredDataParticle, count=60, timeout=30)
 
     def test_stop_resume(self):
         """
@@ -210,7 +210,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data('unit_363_2013_245_6_6.mrg')
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,172,120)
+        result = self.get_samples(SAMPLE_STREAM,60,120)
 
     def test_stop_start(self):
         """
@@ -278,7 +278,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_data_values(result, 'single_dosta_record.mrg.result.yml')
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
-            self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_7_6.mrg")
+            self.create_sample_data('multiple_dosta_record-shutdownrestart.mrg', "unit_363_2013_245_7_6.mrg")
             # Now read the first records of the second file then stop
             result = self.get_samples(SAMPLE_STREAM, 1)
             log.debug("got result 1 %s", result)
@@ -301,21 +301,20 @@ class QualificationTest(DataSetQualificationTestCase):
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    @unittest.skip('foo')
     def test_parser_exception(self):
         """
         Test an exception raised after the driver is started during
         record parsing.
         """
         self.clear_sample_data()
-        self.create_sample_data('test_data_2.txt', 'DATA002.txt')
+        self.create_sample_data('unit_363_2013_245_7_7.mrg')
 
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 9)
+
         self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
         # Verify an event was raised and we are in our retry state
-        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_event_received(ResourceAgentErrorEvent, 40)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)

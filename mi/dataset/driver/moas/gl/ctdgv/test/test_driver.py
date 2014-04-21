@@ -440,7 +440,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_data_values(result, 'single_ctdgv_record.mrg.result.yml')
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
-            self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_7_6.mrg")
+            self.create_sample_data('multiple_ctdgv_record-shutdownrestart.mrg', "unit_363_2013_245_7_6.mrg")
             # Now read the first records of the second file then stop
             result = self.get_samples(SAMPLE_STREAM, 1)
             log.debug("got result 1 %s", result)
@@ -456,8 +456,8 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_start_sampling()
             result = self.get_samples(SAMPLE_STREAM, 4)
             log.debug("got result 2 %s", result)
+            #self.assert_data_values(result, 'multiple_ctdgv_record.mrg.shutdownrestartresult.yml')
             self.assert_data_values(result, 'multiple_ctdgv_record.mrg.stopstartresult.yml')
-            #self.assert_data_values(result, 'merged_ctdgv_record.mrg.result.yml')
 
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
         except SampleTimeout as e:
@@ -465,21 +465,19 @@ class QualificationTest(DataSetQualificationTestCase):
             self.fail("Sample timeout.")
 
 
-    @unittest.skip('foo')
     def test_parser_exception(self):
         """
         Test an exception raised after the driver is started during
         record parsing.
         """
         self.clear_sample_data()
-        self.create_sample_data('test_data_2.txt', 'DATA002.txt')
+        self.create_sample_data('unit_363_2013_245_7_7.mrg')
 
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 9)
         self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
         # Verify an event was raised and we are in our retry state
-        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_event_received(ResourceAgentErrorEvent, 40)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
