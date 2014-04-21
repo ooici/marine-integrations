@@ -190,10 +190,16 @@ class WorkhorseProtocol(TeledyneProtocol):
     def _has_parameter(self, param):
         return WorkhorseParameter.has(param)
 
+    # This will over-write _send_break_cmd in teledyne/driver.py
     def _send_break_cmd(self, delay):
         """
         Send a BREAK to attempt to wake the device.
         """
+        # NOTE!!!
+        # Once the port agent can handle BREAK, please enable the following line
+        #self._connection.send_break(delay)
+        # Then remove below lines
+
         log.trace("IN _send_break_cmd")
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
