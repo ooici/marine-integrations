@@ -10,7 +10,7 @@ Release notes:
     and PHSEN instrument classes.
 """
 
-__author__ = 'Christopher Wingard'
+__author__ = 'Christopher Wingard & Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
 import re
@@ -619,7 +619,7 @@ class Protocol(SamiProtocol):
                              default_value=0x000E10,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='sami sample interval')
-
+        # PCO2 0x04, PHSEN 0x0A
         self._param_dict.add(Parameter.SAMI_DRIVER_VERSION, CONFIGURATION_REGEX,
                              lambda match: int(match.group(6), 16),
                              lambda x: self._int_to_hexstring(x, 2),
@@ -814,7 +814,7 @@ class Protocol(SamiProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0xA8,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='cycles between blanks')
 
         self._param_dict.add(Parameter.NUMBER_REAGENT_CYCLES, CONFIGURATION_REGEX,

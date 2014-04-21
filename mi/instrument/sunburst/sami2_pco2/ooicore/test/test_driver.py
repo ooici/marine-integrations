@@ -50,6 +50,7 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import InstrumentDriver
 from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiInstrumentCommand
+from mi.instrument.sunburst.driver import ScheduledJob
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import ProtocolState
 from mi.instrument.sunburst.sami2_pco2.ooicore.driver import ProtocolEvent
 # from mi.instrument.sunburst.driver import ProtocolEvent
@@ -65,6 +66,8 @@ from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wConfigurationD
 # Added Imports (Note, these pick up some of the base classes not directly imported above)
 from mi.instrument.sunburst.test.test_driver import SamiMixin
 from mi.instrument.sunburst.test.test_driver import SamiUnitTest
+from mi.instrument.sunburst.test.test_driver import SamiIntegrationTest
+from mi.instrument.sunburst.test.test_driver import SamiQualificationTest
 
 log.debug('herb: ' + 'import sami2_pco2/ooicore/test_driver.py')
 
@@ -165,7 +168,7 @@ class DriverTestMixinSub(SamiMixin):
     VALID_R0_BLANK_SAMPLE = '*542705CEE91CC800400019096206800730074C2CE042' + \
                             '74003B0018096106800732074E0D82066124' + NEWLINE
     VALID_R0_DATA_SAMPLE = '*542704CEE91CC8003B001909620155073003E908A1232' + \
-                           'D0043001A09620154072F03EA0D92065F46' + NEWLINE
+                           'D0043001A09620154072F03EA0D92065F3B' + NEWLINE
 
     ## Control records
     #VALID_CONTROL_RECORD = '*541280CEE90B170041000001000000000200AF' + NEWLINE
@@ -215,24 +218,26 @@ class DriverTestMixinSub(SamiMixin):
                                              DEFAULT: 0x0D, VALUE: 0x0D},
         Parameter.GLOBAL_CONFIGURATION:     {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x07, VALUE: 0x07},
-        Parameter.PUMP_PULSE:               {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+        Parameter.PUMP_PULSE:               {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x10, VALUE: 0x10},
-        Parameter.PUMP_DURATION:            {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+        Parameter.PUMP_DURATION:            {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x20, VALUE: 0x20},
-        Parameter.SAMPLES_PER_MEASUREMENT:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+        Parameter.SAMPLES_PER_MEASUREMENT:  {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0xFF, VALUE: 0xFF},
-        Parameter.CYCLES_BETWEEN_BLANKS:    {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+        Parameter.CYCLES_BETWEEN_BLANKS:    {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x54, VALUE: 0x54},
-        Parameter.NUMBER_REAGENT_CYCLES:    {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+        Parameter.NUMBER_REAGENT_CYCLES:    {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x18, VALUE: 0x18},
-        Parameter.NUMBER_BLANK_CYCLES:      {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+        Parameter.NUMBER_BLANK_CYCLES:      {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x1C, VALUE: 0x1C},
-        Parameter.FLUSH_PUMP_INTERVAL:      {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+        Parameter.FLUSH_PUMP_INTERVAL:      {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x01, VALUE: 0x01},
-        Parameter.BIT_SWITCHES:             {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+        Parameter.BIT_SWITCHES:             {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00},
-        Parameter.NUMBER_EXTRA_PUMP_CYCLES: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
+        Parameter.NUMBER_EXTRA_PUMP_CYCLES: {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x38, VALUE: 0x38},
+        Parameter.AUTO_SAMPLE_INTERVAL:     {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                             DEFAULT: 0x38, VALUE: 3600},
     }
 
     _sami_data_sample_parameters = {
@@ -247,7 +252,7 @@ class DriverTestMixinSub(SamiMixin):
                                                                                  0x072F, 0x03EA], REQUIRED: True},
         Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTERY:     {TYPE: int, VALUE: 0x0D92, REQUIRED: True},
         Pco2wSamiSampleDataParticleKey.THERMISTER_RAW:      {TYPE: int, VALUE: 0x065F, REQUIRED: True},
-        Pco2wSamiSampleDataParticleKey.CHECKSUM:            {TYPE: int, VALUE: 0x46, REQUIRED: True}
+        Pco2wSamiSampleDataParticleKey.CHECKSUM:            {TYPE: int, VALUE: 0x3B, REQUIRED: True}
     }
 
     _sami_blank_sample_parameters = {
@@ -365,6 +370,17 @@ class DriverTestMixinSub(SamiMixin):
                                              self._configuration_parameters,
                                              verify_values)
 
+    def assert_particle_sample_data(self, data_particle, verify_values = False):
+        '''
+        Verify prest_configuration_data particle
+        @param data_particle:  SBE54tpsSampleDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        ## self.assert_data_particle_keys(SBE54tpsConfigurationDataParticleKey, self._prest_configuration_data_parameters)
+        ## self.assert_data_particle_header(data_particle, DataParticleType.PREST_CONFIGURATION_DATA)
+        ## self.assert_data_particle_parameters(data_particle, self._prest_configuration_data_parameters, verify_values)
+
+        log.debug('herb: ' + 'SAMI Sample Particle Published: ' + str(data_particle))
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -498,10 +514,51 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
 #     - Common Integration tests test the driver through the instrument agent #
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
+
+
+
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
+class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
+
+    """
+    Integration Tests:
+
+    test_set:  In command state, test configuration particle generation.
+        Parameter.PUMP_PULSE
+        Parameter.PUMP_DURATION
+        Parameter.SAMPLES_PER_MEASUREMENT
+        Parameter.CYCLES_BETWEEN_BLANKS
+        Parameter.NUMBER_REAGENT_CYCLES
+        Parameter.NUMBER_BLANK_CYCLES
+        Parameter.FLUSH_PUMP_INTERVAL
+        Parameter.BIT_SWITCHES
+        Parameter.NUMBER_EXTRA_PUMP_CYCLES
+        Parameter.AUTO_SAMPLE_INTERVAL
+        Negative Set Tests:
+            START_TIME_FROM_LAUNCH
+            STOP_TIME_FROM_START
+            MODE_BITS
+            SAMI_SAMPLE_INTERVAL
+
+    test_commands:  In autosample and command states, test particle generation.
+        ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
+        ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
+        ACQUIRE_BLANK_SAMPLE = ProtocolEvent.ACQUIRE_BLANK_SAMPLE
+
+    test_autosample:  Test autosample particle generation.
+        START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
+        STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
+
+    test_polled:  Test particle generation not covered in other tests.
+
+    test_startup_params:  Set startup parameters and verify they are set.
+
+    test_scheduled_data:  In command and autosample states, will test queued events also.
+        ACQUIRE_STATUS
+        ACQUIRE_BLANK_SAMPLE
+    """
 
     def test_set(self):
         self.assert_initialize_driver()
@@ -510,22 +567,27 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 
     def test_acquire_sample(self):
         self.assert_initialize_driver()
-        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 START')
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)
-        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 FINISH')
-        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 START')
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=20)
-        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 FINISH')
-        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 3 START')
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, delay=180)
-        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 3 FINISH')
+        # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 START')
+        # self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)
+        # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 FINISH')
+        # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 START')
+        # self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=20)
+        # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 FINISH')
+        # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 3 START')
+        # self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, delay=180)
+        # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 3 FINISH')
 
-##  TODO: Test all commands and states
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sample_data, delay=180)
+
+##  TODO: Test all commands and states.
 
     def test_auto_sample(self):
         self.assert_initialize_driver()
         self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 160)
-        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, delay=640)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, delay=5)
+        ## TODO: Send commands to be queued while a sample is being taken.
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        time.sleep(640)
         time.sleep(120)  ## Make sure last sample was completed
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE)
 
@@ -541,16 +603,34 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         pass
 
     def test_acquire_status(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=10)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=10)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=10)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=10)
+
+        ## Test acquire status in the autosample mode and schedulable
+
         pass
+
+## TODO: Test queued commands.
 
     ###
     #   Test scheduled events
     ###
-    ## TODO: Not sure if any schedulable commands will be supported as instrument blocks when taking samples
-    def test_scheduled_status_command(self):
-        pass
+
+    def test_scheduled_device_status_command(self):
+        """
+        Verify the device status command can be triggered and run in command
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, delay=120)
+        time.sleep(180)
+        self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_blank_sample_command(self):
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, delay=60)
+        time.sleep(240)
+        self.assert_current_state(ProtocolState.COMMAND)
         pass
 
 
@@ -562,9 +642,11 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class DriverQualificationTest(InstrumentDriverQualificationTestCase):
+class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
+
+# TODO: Test boot prompt recovery coming out of direct access
 
     def test_direct_access_telnet_mode(self):
         """
