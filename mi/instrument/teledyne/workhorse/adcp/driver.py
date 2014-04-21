@@ -115,7 +115,8 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.STRING,
             display_name="serial data out",
             startup_param=True,
-            #visibility=ParameterDictVisibility.READ_ONLY,
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
             default_value='000 000 000')
 
         self._param_dict.add(Parameter.SERIAL_FLOW_CONTROL,
@@ -126,7 +127,7 @@ class Protocol(WorkhorseProtocol):
             display_name="serial flow control",
             startup_param=True,
             direct_access=True,
-            #visibility=ParameterDictVisibility.READ_ONLY,
+            visibility=ParameterDictVisibility.IMMUTABLE,
             default_value='11110')
 
         self._param_dict.add(Parameter.BANNER,
@@ -136,7 +137,8 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.BOOL,
             display_name="banner",
             startup_param=True,
-            #visibility=ParameterDictVisibility.IMMUTABLE,
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
             default_value=0)
 
         self._param_dict.add(Parameter.INSTRUMENT_ID,
@@ -145,7 +147,9 @@ class Protocol(WorkhorseProtocol):
             self._int_to_string,
             type=ParameterDictType.INT,
             display_name="instrument id",
+            direct_access=True,
             startup_param=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
             default_value=0)
 
         self._param_dict.add(Parameter.SLEEP_ENABLE,
@@ -155,6 +159,8 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="sleep enable",
             startup_param=True,
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
             default_value=False)
 
         self._param_dict.add(Parameter.SAVE_NVRAM_TO_RECORDER,
@@ -165,6 +171,7 @@ class Protocol(WorkhorseProtocol):
             display_name="save nvram to recorder",
             startup_param=True,
             default_value=True,
+            direct_access=True,
             visibility=ParameterDictVisibility.IMMUTABLE)
 
         self._param_dict.add(Parameter.POLLED_MODE,
@@ -174,6 +181,8 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.BOOL,
             display_name="polled mode",
             startup_param=True,
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
             default_value=False)
 
         self._param_dict.add(Parameter.XMIT_POWER,
@@ -183,67 +192,40 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="xmit power",
             startup_param=True,
+            direct_access=True,
             default_value=255)
 
-        #CX
         self._param_dict.add(Parameter.LATENCY_TRIGGER,
             r'CX = (\d) \-+ Trigger Enable ',
             lambda match: int(match.group(1), base=10),
             self._bool_to_int,
             type=ParameterDictType.INT,
             display_name="latency trigger",
+            visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
+            direct_access=True,
             default_value=False)
 
-        #PD
-        self._param_dict.add(Parameter.DATA_STREAM_SELECTION,
-            r'PD = (\d+) \-+ Data Stream Select',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Data Stream Selection",
-            startup_param=True,
-            default_value=0)
-
-        #TC
-        self._param_dict.add(Parameter.ENSEMBLE_PER_BURST,
-            r'TC (\d+) \-+ Ensembles Per Burst',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Ensemble per burst",
-            startup_param=True,
-            default_value=0)
-
-        #TX
-        self._param_dict.add(Parameter.BUFFERED_OUTPUT_PERIOD,
-            r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period:',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="Buffered output period",
-            startup_param=True,
-            default_value='00:00:00')
-
-        #WQ
-        self._param_dict.add(Parameter.SAMPLE_AMBIENT_SOUND,
-            r'WQ (\d) \-+ Sample Ambient Sound',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="Sample ambient sound",
-            startup_param=True,
-            default_value=0)
-
-        #EA
         self._param_dict.add(Parameter.HEADING_ALIGNMENT,
             r'EA = ([\+\-\d]+) \-+ Heading Alignment',
             lambda match: str(match.group(1)),
             str,
-            #self._int_to_string,
             type=ParameterDictType.STRING,
             display_name="Heading alignment",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            direct_access=True,
             startup_param=True,
+            default_value='+00000')
+
+        self._param_dict.add(Parameter.HEADING_BIAS,
+            r'EB = ([\+\-\d]+) \-+ Heading Bias',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="Heading Bias",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
             default_value='+00000')
 
         self._param_dict.add(Parameter.SPEED_OF_SOUND,
@@ -253,9 +235,9 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="speed of sound",
             startup_param=True,
+            direct_access=True,
             default_value=1485)
 
-        #ED
         self._param_dict.add(Parameter.TRANSDUCER_DEPTH,
             r'ED = (\d+) \-+ Transducer Depth ',
             lambda match: int(match.group(1), base=10),
@@ -263,6 +245,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="Transducer Depth",
             startup_param=True,
+            direct_access=True,
             default_value=8000)
 
         self._param_dict.add(Parameter.PITCH,
@@ -272,6 +255,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="pitch",
             startup_param=True,
+            direct_access=True,
             default_value=0)
 
         self._param_dict.add(Parameter.ROLL,
@@ -281,6 +265,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="roll",
             startup_param=True,
+            direct_access=True,
             default_value=0)
 
         self._param_dict.add(Parameter.SALINITY,
@@ -290,6 +275,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="salinity",
             startup_param=True,
+            direct_access=True,
             default_value=35)
 
         self._param_dict.add(Parameter.COORDINATE_TRANSFORMATION,
@@ -299,6 +285,8 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.STRING,
             display_name="coordinate transformation",
             startup_param=True,
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
             default_value='00111')
 
         self._param_dict.add(Parameter.SENSOR_SOURCE,
@@ -308,7 +296,30 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.STRING,
             display_name="sensor source",
             startup_param=True,
+            direct_access=True,
             default_value='1111101')
+
+        self._param_dict.add(Parameter.DATA_STREAM_SELECTION,
+            r'PD = (\d+) \-+ Data Stream Select',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Data Stream Selection",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value=0)
+
+        self._param_dict.add(Parameter.ENSEMBLE_PER_BURST,
+            r'TC (\d+) \-+ Ensembles Per Burst',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Ensemble per burst",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value=0)
 
         self._param_dict.add(Parameter.TIME_PER_ENSEMBLE,
             r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble ',
@@ -317,6 +328,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.STRING,
             display_name="time per ensemble",
             startup_param=True,
+            direct_access=True,
             default_value='00:00:00.00')
 
         self._param_dict.add(Parameter.TIME_OF_FIRST_PING,
@@ -326,6 +338,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.STRING,
             display_name="time of first ping",
             startup_param=False,
+            direct_access=False,
             visibility=ParameterDictVisibility.READ_ONLY)
 
         self._param_dict.add(Parameter.TIME_PER_PING,
@@ -335,6 +348,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.STRING,
             display_name="time per ping",
             startup_param=True,
+            direct_access=True,
             default_value='00:01.00')
 
         self._param_dict.add(Parameter.TIME,
@@ -343,8 +357,22 @@ class Protocol(WorkhorseProtocol):
             str,
             type=ParameterDictType.STRING,
             display_name="time",
+            startup_param=True,
             expiration=86400, # expire once per day 60 * 60 * 24
-            visibility=ParameterDictVisibility.READ_ONLY)
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value='2014/04/21,20:03:01')
+
+        self._param_dict.add(Parameter.BUFFERED_OUTPUT_PERIOD,
+            r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period:',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="Buffered output period",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value='00:00:00')
 
         self._param_dict.add(Parameter.FALSE_TARGET_THRESHOLD,
             r'WA (\d+,\d+) \-+ False Target Threshold ',
@@ -353,6 +381,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.STRING,
             display_name="false target threshold",
             startup_param=True,
+            direct_access=True,
             default_value='050,001')
 
         self._param_dict.add(Parameter.BANDWIDTH_CONTROL,
@@ -362,6 +391,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="bandwidth control",
             startup_param=True,
+            direct_access=True,
             default_value=0)
 
         self._param_dict.add(Parameter.CORRELATION_THRESHOLD,
@@ -371,6 +401,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="correlation threshold",
             startup_param=True,
+            direct_access=True,
             default_value=64)
 
         self._param_dict.add(Parameter.SERIAL_OUT_FW_SWITCHES,
@@ -379,8 +410,9 @@ class Protocol(WorkhorseProtocol):
             str,
             type=ParameterDictType.STRING,
             display_name="serial out fw switches",
-            #visibility=ParameterDictVisibility.IMMUTABLE,
+            visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
+            direct_access=True,
             default_value='111100000')
 
         self._param_dict.add(Parameter.ERROR_VELOCITY_THRESHOLD,
@@ -390,6 +422,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="error velocity threshold",
             startup_param=True,
+            direct_access=True,
             default_value=2000)
 
         self._param_dict.add(Parameter.BLANK_AFTER_TRANSMIT,
@@ -399,6 +432,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="blank after transmit",
             startup_param=True,
+            direct_access=True,
             default_value=704)
 
         self._param_dict.add(Parameter.CLIP_DATA_PAST_BOTTOM,
@@ -408,6 +442,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.BOOL,
             display_name="clip data past bottom",
             startup_param=True,
+            direct_access=True,
             default_value=False)
 
         self._param_dict.add(Parameter.RECEIVER_GAIN_SELECT,
@@ -417,6 +452,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="receiver gain select",
             startup_param=True,
+            direct_access=True,
             default_value=1)
 
         self._param_dict.add(Parameter.WATER_REFERENCE_LAYER,
@@ -426,6 +462,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.STRING,
             display_name="water reference layer",
             startup_param=True,
+            direct_access=True,
             default_value='001,005')
 
         self._param_dict.add(Parameter.WATER_PROFILING_MODE,
@@ -434,8 +471,9 @@ class Protocol(WorkhorseProtocol):
             self._int_to_string,
             type=ParameterDictType.INT,
             display_name="water profiling mode",
-            #visibility=ParameterDictVisibility.IMMUTABLE,
+            visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
+            direct_access=True,
             default_value=1)
 
         self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
@@ -445,6 +483,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="number of depth cells",
             startup_param=True,
+            direct_access=True,
             default_value=100)
 
         self._param_dict.add(Parameter.PINGS_PER_ENSEMBLE,
@@ -454,7 +493,19 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="pings per ensemble",
             startup_param=True,
+            direct_access=True,
             default_value=1)
+
+        self._param_dict.add(Parameter.SAMPLE_AMBIENT_SOUND,
+            r'WQ (\d) \-+ Sample Ambient Sound',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Sample ambient sound",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value=0)
 
         self._param_dict.add(Parameter.DEPTH_CELL_SIZE,
             r'WS (\d+) \-+ Depth Cell Size \(cm\)',
@@ -463,6 +514,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="depth cell size",
             startup_param=True,
+            direct_access=True,
             default_value=800)
 
         self._param_dict.add(Parameter.TRANSMIT_LENGTH,
@@ -472,6 +524,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="transmit length",
             startup_param=True,
+            direct_access=True,
             default_value=0)
 
         self._param_dict.add(Parameter.PING_WEIGHT,
@@ -481,6 +534,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="ping weight",
             startup_param=True,
+            direct_access=True,
             default_value=0)
 
         self._param_dict.add(Parameter.AMBIGUITY_VELOCITY,
@@ -490,6 +544,7 @@ class Protocol(WorkhorseProtocol):
             type=ParameterDictType.INT,
             display_name="ambiguity velocity",
             startup_param=True,
+            direct_access=True,
             default_value=175)
 
 
