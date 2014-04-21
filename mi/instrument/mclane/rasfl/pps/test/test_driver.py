@@ -386,6 +386,16 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         log.debug('Startup parameters: %s', reply)
         self.assert_driver_parameters(reply)
 
+        self.assert_set(Parameter.FLUSH_VOLUME, 10)
+        self.assert_set(Parameter.FLUSH_FLOWRATE, 100)
+        self.assert_set(Parameter.FLUSH_MINFLOW, 75)
+        self.assert_set(Parameter.FILL_VOLUME, 10)
+        self.assert_set(Parameter.FILL_FLOWRATE, 100)
+        self.assert_set(Parameter.FILL_MINFLOW, 75)
+        self.assert_set(Parameter.CLEAR_VOLUME, 10)
+        self.assert_set(Parameter.CLEAR_FLOWRATE, 100)
+        self.assert_set(Parameter.CLEAR_MINFLOW, 75)
+
     def test_execute_clock_sync_command_mode(self):
         """
         Verify we can synchronize the instrument internal clock in command mode
@@ -422,6 +432,7 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         Test user clear command
         """
         self.assert_initialize_driver()
+        self.assert_set('clear_volume', 10)
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLEAR)
         self.assert_state_change(ProtocolState.CLEAR, CLEAR_TIMEOUT)
         self.assert_state_change(ProtocolState.COMMAND, CLEAR_TIMEOUT)
