@@ -513,7 +513,7 @@ class SimpleDataSetDriver(DataSetDriver):
     ####
     ##    Helpers
     ####
-    def _build_parser(self, memento, infile):
+    def _build_parser(self, memento, infile, file_name=None, data_key=None):
         raise NotImplementedException('virtual method needs to be specialized')
 
     def _build_harvester(self, memento):
