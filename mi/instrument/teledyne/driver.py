@@ -97,21 +97,22 @@ class TeledyneParameter(DriverParameter):
     #
     # Workhorse parameters
     #
-    SERIAL_FLOW_CONTROL = 'CF'
-    BANNER = 'CH'
-    SLEEP_ENABLE = 'CL'
-    SAVE_NVRAM_TO_RECORDER = 'CN'
-    POLLED_MODE = 'CP'
-    PITCH = 'EP'
-    ROLL = 'ER'
+    SERIAL_FLOW_CONTROL = 'CF'          # Flow Control
+    BANNER = 'CH'                       # Banner
+    SLEEP_ENABLE = 'CL'                 # SLEEP Enable
+    SAVE_NVRAM_TO_RECORDER = 'CN'       # Save NVRAM to RECORD
+    POLLED_MODE = 'CP'                  # Polled Mode
+    PITCH = 'EP'                        # Pitch
+    ROLL = 'ER'                         # Roll
 
-    LATENCY_TRIGGER = 'CX'
-    HEADING_ALIGNMENT = 'EA'
-    DATA_STREAM_SELECTION ='PD'
-    ENSEMBLE_PER_BURST ='TC'
-    BUFFERED_OUTPUT_PERIOD ='TX'
-    SAMPLE_AMBIENT_SOUND ='WQ'
-    TRANSDUCER_DEPTH ='ED'
+    LATENCY_TRIGGER = 'CX'              #Latency Trigger
+    HEADING_ALIGNMENT = 'EA'            # Heading Alignment
+    HEADING_BIAS = 'EB'                 # Heading Bias
+    DATA_STREAM_SELECTION ='PD'         # Data Stream selection
+    ENSEMBLE_PER_BURST ='TC'            # Ensemble per Burst
+    BUFFERED_OUTPUT_PERIOD ='TX'        # Buffered Output Period
+    SAMPLE_AMBIENT_SOUND ='WQ'          # Sample Ambient sound
+    TRANSDUCER_DEPTH ='ED'              # Transducer Depth
 
 
 
@@ -587,7 +588,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
             # Get old param dict config.
             old_config = self._param_dict.get_config()
-
             kwargs['expected_prompt'] = TeledynePrompt.COMMAND
 
             cmds = self._get_params()
@@ -600,6 +600,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
                         results += result + NEWLINE
 
             new_config = self._param_dict.get_config()
+
+            del old_config['TT']
+            del new_config['TT']
 
             if not dict_equal(new_config, old_config):
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
