@@ -115,7 +115,7 @@ class IRISDataParticleKey(BaseEnum):
     TIME = "date_time_string"
     X_TILT = "iris_x_tilt"
     Y_TILT = "iris_y_tilt"
-    TEMP = "temperature"
+    TEMP = "iris_temp"
     SN = "serial_number"
 
 

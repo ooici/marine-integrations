@@ -112,7 +112,7 @@ class HEATDataParticleKey(BaseEnum):
     TIME = "date_time_string"
     X_TILT = "heat_x_tilt"
     Y_TILT = "heat_y_tilt"
-    TEMP = "temperature"
+    TEMP = "heat_temp"
 
 
 ###############################################################################

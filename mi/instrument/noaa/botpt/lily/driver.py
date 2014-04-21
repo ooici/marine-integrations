@@ -141,10 +141,10 @@ class InstrumentCommand(BaseEnum):
 ###############################################################################
 
 class DataParticleType(BotptDataParticleType):
-    LILY_PARSED = 'lily_sample'
-    LILY_LEVELING = 'lily_leveling'
-    LILY_STATUS_01 = 'lily_status_01'
-    LILY_STATUS_02 = 'lily_status_02'
+    LILY_PARSED = 'botpt_lily_sample'
+    LILY_LEVELING = 'botpt_lily_leveling'
+    LILY_STATUS_01 = 'botpt_lily_status_01'
+    LILY_STATUS_02 = 'botpt_lily_status_02'
 
 
 class LILYDataParticleKey(BaseEnum):
@@ -152,8 +152,8 @@ class LILYDataParticleKey(BaseEnum):
     TIME = "date_time_string"
     X_TILT = "lily_x_tilt"
     Y_TILT = "lily_y_tilt"
-    MAG_COMPASS = "lily_mag_compass"
-    TEMP = "temperature"
+    MAG_COMPASS = "compass_direction"
+    TEMP = "lily_temp"
     SUPPLY_VOLTS = "supply_voltage"
     SN = "serial_number"
     OUT_OF_RANGE = 'lily_out_of_range'
@@ -307,7 +307,7 @@ class LILYStatus02ParticleKey(BotptStatus02ParticleKey):
     PID_DGAIN = 'lily_pid_coeff_dgain'
     MOTOR_ILIMIT = 'lily_motor_current_limit'
     MOTOR_ILIMIT_UNITS = 'lily_motor_current_limit_units'
-    SUPPLY_VOLTAGE = 'lily_supply_voltage'
+    SUPPLY_VOLTAGE = 'supply_voltage'
     MEM_SAVE_MODE = 'lily_memory_save_mode'
     OUTPUTTING_DATA = 'lily_outputting_data'
     RECOVERY_MODE = 'lily_auto_power_off_recovery_mode'
@@ -412,13 +412,14 @@ class LILYStatus02Particle(BotptStatus02Particle):
 
 
 class LILYLevelingParticleKey(BaseEnum):
-    TIME = "lily_leveling_time"
-    X_TILT = "lily_leveling_x_tilt"
-    Y_TILT = "lily_leveling_y_tilt"
-    MAG_COMPASS = "lily_leveling_mag_compass"
-    TEMP = "leveling_temperature"
-    SUPPLY_VOLTS = "leveling_supply_voltage"
-    SN = "leveling_serial_number"
+    SENSOR_ID = "sensor_id"
+    TIME = "date_time_string"
+    X_TILT = "lily_x_tilt"
+    Y_TILT = "lily_y_tilt"
+    MAG_COMPASS = "compass_direction"
+    TEMP = "lily_temp"
+    SUPPLY_VOLTS = "supply_voltage"
+    SN = "serial_number"
     STATUS = "lily_leveling_status"
 
 

@@ -146,9 +146,9 @@ class DataParticleType(BaseEnum):
 class NANODataParticleKey(BaseEnum):
     SENSOR_ID = 'sensor_id'
     TIME = "date_time_string"
-    PPS_SYNC = "nano_pps_sync"
-    PRESSURE = "pressure"
-    TEMP = "temperature"
+    PPS_SYNC = "time_sync_flag"
+    PRESSURE = "bottom_pressure"
+    TEMP = "press_trans_temp"
 
 
 class NANODataParticle(DataParticle):

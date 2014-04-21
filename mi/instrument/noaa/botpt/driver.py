@@ -108,6 +108,7 @@ class BotptStatus01ParticleKey(BotptStatusParticleKey):
     N_SAMP = "n_samp"
     XZERO = "xzero"
     YZERO = "yzero"
+    FLAGS = "flags"
     BAUD = "baud"
 
 
@@ -297,6 +298,7 @@ class BotptStatus01Particle(BotptStatusParticle):
             BotptStatus01ParticleKey.N_SAMP: r'N_SAMP=\s*%(int)s' % sub_dict,
             BotptStatus01ParticleKey.XZERO: r'Xzero=\s*%(float)s' % sub_dict,
             BotptStatus01ParticleKey.YZERO: r'Yzero=\s*%(float)s' % sub_dict,
+            BotptStatus01ParticleKey.FLAGS: r'(TR-PASH-.*)',
             BotptStatus01ParticleKey.BAUD: r'%(int)s baud' % sub_dict,
         }
 
@@ -318,7 +320,7 @@ class BotptStatus02ParticleKey(BotptStatusParticleKey):
     CAL_METHOD = 'calibration_method'
     POS_LIMIT = 'positive_limit'
     NEG_LIMIT = 'negative_limit'
-    NUM_CAL_POINTS = 'calibration_points'
+    NUM_CAL_POINTS = 'num_calibration_points'
     CAL_POINTS_X = 'cal_points_x'
     CAL_POINTS_Y = 'cal_points_y'
     ADC_TYPE = 'adc_type'
