@@ -414,14 +414,14 @@ class FLORTTelemeteredGliderTest(GliderParserUnitTestCase):
                     FlortTelemeteredParticleKey.SCI_FLBBCD_CDOM_UNITS: 2.12,
                     FlortTelemeteredParticleKey.SCI_FLBBCD_CHLOR_UNITS: 0.847}
 
-        self.assert_generate_particle(FlortTelemeteredDataParticle, record_1, 1159)
-        self.assert_generate_particle(FlortTelemeteredDataParticle, record_2, 1315)
+        self.assert_generate_particle(FlortTelemeteredDataParticle, record_1, 10534)
+        self.assert_generate_particle(FlortTelemeteredDataParticle, record_2, 11977)
         self.assert_no_more_data()
 
         # Reset with the parser, but with a state this time
         self.set_data(HEADER3, FLORT_RECORD)
-        self.reset_parser({StateKey.POSITION: 1159})
-        self.assert_generate_particle(FlortTelemeteredDataParticle, record_2, 1315)
+        self.reset_parser({StateKey.POSITION: 10534})
+        self.assert_generate_particle(FlortTelemeteredDataParticle, record_2, 11977)
         self.assert_no_more_data()
 
 @attr('UNIT', group='mi')
@@ -439,20 +439,21 @@ class PARADTelemeteredGliderTest(GliderParserUnitTestCase):
         Verify we publish particles as expected.  Ensure particle is published and
         that state is returned.
         """
+        # reused the FLORT record for this Parad test
         self.set_data(HEADER3, FLORT_RECORD)
         self.reset_parser()
 
         record_1 = {ParadTelemeteredParticleKey.SCI_BSIPAR_PAR: 664.424}
         record_2 = {ParadTelemeteredParticleKey.SCI_BSIPAR_PAR: 645.569}
 
-        self.assert_generate_particle(ParadTelemeteredDataParticle, record_1, 1159)
-        self.assert_generate_particle(ParadTelemeteredDataParticle, record_2, 1315)
+        self.assert_generate_particle(ParadTelemeteredDataParticle, record_1, 10534)
+        self.assert_generate_particle(ParadTelemeteredDataParticle, record_2, 11977)
         self.assert_no_more_data()
 
         # Reset with the parser, but with a state this time
         self.set_data(HEADER3, FLORT_RECORD)
-        self.reset_parser({StateKey.POSITION: 1159})
-        self.assert_generate_particle(ParadTelemeteredDataParticle, record_2, 1315)
+        self.reset_parser({StateKey.POSITION: 10534})
+        self.assert_generate_particle(ParadTelemeteredDataParticle, record_2, 11977)
         self.assert_no_more_data()
 
 @attr('UNIT', group='mi')
