@@ -185,6 +185,12 @@ class Command(BaseEnum):
     READ_1 = '#1RD'  # temperature probe 1
     READ_2 = '#2RD'  # temperature probe 2
     READ_3 = '#3RD'  # temperature probe 3
+    ENABLE_WRITE_1 = '#1WE'
+    ENABLE_WRITE_2 = '#2WE'
+    ENABLE_WRITE_3 = '#3WE'
+    DEFAULT_SETUP_1 = '#1SU310214C2'
+    DEFAULT_SETUP_2 = '#1SU320214C2'
+    DEFAULT_SETUP_3 = '#1SU330214C2'
 
 
 class Prompt(BaseEnum):
@@ -204,7 +210,12 @@ class Response(BaseEnum):
     """
     # *1RD+00019.16AB
     TEMP = re.compile(r'\*[123]RD')
-    WRITE_ENABLE = re.compile(r'\*')
+    ENABLE_WRITE_1 = re.compile(r'\*1WEF7')
+    ENABLE_WRITE_2 = re.compile(r'\*2WEF8')
+    ENABLE_WRITE_3 = re.compile(r'\*2WEF9')
+    DEFAULT_SETUP_1 = re.compile(r'\*1SU310214C2A3')
+    DEFAULT_SETUP_2 = re.compile(r'\*1SU320214C2A4')
+    DEFAULT_SETUP_3 = re.compile(r'\*1SU330214C2A5')
 
 
 class DataParticleType(BaseEnum):
@@ -493,11 +504,11 @@ class Protocol(CommandResponseInstrumentProtocol):
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
-                             default_value=1,
+                             default_value=DEFAULT_SAMPLE_RATE,
                              startup_param=True,
                              display_name='D1000 sample periodicity (sec)',
                              visibility=ParameterDictVisibility.IMMUTABLE)
-        self._param_dict.set_value(Parameter.SAMPLE_INTERVAL, 10)
+        self._param_dict.set_value(Parameter.SAMPLE_INTERVAL, DEFAULT_SAMPLE_RATE)
 
     def _update_params(self):
         """
@@ -676,7 +687,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Exit direct access state.
         """
-        pass
+        # restore D1000 to default state
+        self._do_cmd_resp(Command.ENABLE_WRITE_1, response_regex=Response.ENABLE_WRITE_1)
+        self._do_cmd_resp(Command.DEFAULT_SETUP_1, response_regex=Response.DEFAULT_SETUP_1)
+        self._do_cmd_resp(Command.ENABLE_WRITE_2, response_regex=Response.ENABLE_WRITE_2)
+        self._do_cmd_resp(Command.DEFAULT_SETUP_2, response_regex=Response.DEFAULT_SETUP_2)
+        self._do_cmd_resp(Command.ENABLE_WRITE_3, response_regex=Response.ENABLE_WRITE_3)
+        self._do_cmd_resp(Command.DEFAULT_SETUP_3, response_regex=Response.DEFAULT_SETUP_3)
 
     def _handler_direct_access_execute_direct(self, data):
         self._do_cmd_direct(data)
