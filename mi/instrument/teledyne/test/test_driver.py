@@ -159,7 +159,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:13].upper() in dt.upper())
 
-    def test_scheduled_clock_sync_command(self):
+    def _test_scheduled_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
@@ -255,7 +255,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         log.debug("====== Testing ranges for SALINITY ======")
 
         # SALINITY:  -- Int (0 - 40)
-        self.assert_set(TeledyneParameter.SALINITY, 0)
+        self.assert_set(TeledyneParameter.SALINITY, 1)
         self.assert_set(TeledyneParameter.SALINITY, 10)
         self.assert_set(TeledyneParameter.SALINITY, 20)
         self.assert_set(TeledyneParameter.SALINITY, 30)
