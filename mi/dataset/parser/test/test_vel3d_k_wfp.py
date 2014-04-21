@@ -21,11 +21,12 @@ from mi.core.instrument.data_particle import DataParticleKey
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 
-from mi.dataset.parser.vel3d_k_wfp import Vel3dKWfpParser, StateKey
 from mi.dataset.parser.vel3d_k_wfp import \
+    Vel3dKWfpParser, \
     Vel3dKWfpInstrumentParticle, \
     Vel3dKWfpMetadataParticle, \
-    Vel3dKWfpStringParticle
+    Vel3dKWfpStringParticle, \
+    Vel3dKWfpStateKey
 
 FILE_HEADER_SIZE = 4
 DATA_RECORD_SIZE = 90
@@ -251,13 +252,13 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         self.expected_particle4 = Vel3dKWfpInstrumentParticle(
             RECORD_4_FIELDS, internal_timestamp=ntp_time)
 
-    def create_parser(self, input_file, new_state):
+    def create_parser(self, file_handle, file_name, new_state):
         """
         This function creates a Vel3d_k_Wfp parser.
         """
         if new_state is None:
             new_state = self.state
-        parser = Vel3dKWfpParser(self.config, input_file, new_state,
+        parser = Vel3dKWfpParser(self.config, new_state, file_handle, file_name,
             self.state_callback, self.pub_callback, self.exception_callback)
         return parser
 
@@ -266,7 +267,7 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         self.exception_callback_value = exception
         log.info("EXCEPTION RECEIVED %s", exception)
 
-    def state_callback(self, state, file_ingested):
+    def state_callback(self, state, file_ingested, file_name):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
         self.file_ingested_value = file_ingested
@@ -305,7 +306,7 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         log.info("=================== START MANY ======================")
         log.info("Many length %d", len(RECORD_4_DATA))
         input_file = StringIO(RECORD_4_DATA)
-        self.parser = self.create_parser(input_file, None)
+        self.parser = self.create_parser(input_file, None, self.state)
 
         log.info("MANY VERIFY RECORD 1")
         result = self.parser.get_records(1)
@@ -347,7 +348,7 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         log.info("================= START INVALID FAMILY ======================")
         log.info("Invalid Family length %d", len(RECORD_INVALID_FAMILY))
         input_file = StringIO(RECORD_INVALID_FAMILY)
-        self.parser = self.create_parser(input_file, None)
+        self.parser = self.create_parser(input_file, None, self.state)
 
         log.info("INVALID FAMILY GET 1 RECORD")
         with self.assertRaises(SampleException):
@@ -364,7 +365,7 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         log.info("Invalid Header Checksum length %d",
             len(RECORD_INVALID_HEADER_CHECKSUM))
         input_file = StringIO(RECORD_INVALID_HEADER_CHECKSUM)
-        self.parser = self.create_parser(input_file, None)
+        self.parser = self.create_parser(input_file, None, self.state)
 
         log.info("INVALID HEADER CHECKSUM GET 1 RECORD")
         result = self.parser.get_records(1)
@@ -390,7 +391,7 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         log.info("Invalid Payload Checksum length %d",
             len(RECORD_INVALID_PAYLOAD_CHECKSUM))
         input_file = StringIO(RECORD_INVALID_PAYLOAD_CHECKSUM)
-        self.parser = self.create_parser(input_file, None)
+        self.parser = self.create_parser(input_file, None, self.state)
 
         log.info("INVALID PAYLOAD CHECKSUM GET 1 RECORD")
         result = self.parser.get_records(1)
@@ -414,7 +415,7 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         log.info("================= START INVALID ID ======================")
         log.info("Invalid ID length %d", len(RECORD_INVALID_ID))
         input_file = StringIO(RECORD_INVALID_ID)
-        self.parser = self.create_parser(input_file, None)
+        self.parser = self.create_parser(input_file, None, self.state)
 
         log.info("INVALID ID GET 1 RECORD")
         with self.assertRaises(SampleException):
@@ -432,15 +433,15 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
 
         ## Skip past the file header record and the first 2 data records.
         position = FILE_HEADER_SIZE + (2 * DATA_RECORD_SIZE)
-        new_state = {StateKey.POSITION: position,
-                     StateKey.RECORD_NUMBER: 2}
-        #             StateKey.TIMESTAMP: TIME_ON + (2 * SAMPLE_RATE)}
+        new_state = {Vel3dKWfpStateKey.POSITION: position,
+                     Vel3dKWfpStateKey.RECORD_NUMBER: 2}
+        #             Vel3dKWfpStateKey.TIMESTAMP: TIME_ON + (2 * SAMPLE_RATE)}
 
-        self.parser = self.create_parser(input_file, new_state)
+        self.parser = self.create_parser(input_file, None, new_state)
 
         ## This should get record 3.
         log.info("MID-STATE AFTER RECORD 2, POSITION %d",
-            self.parser._read_state[StateKey.POSITION])
+            self.parser._read_state[Vel3dKWfpStateKey.POSITION])
         result = self.parser.get_records(1)
         self.verify_contents(result, self.expected_particle3)
 
@@ -456,7 +457,7 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         log.info("=================== START MISSING SYNC ======================")
         log.info("Missing Sync length %d", len(RECORD_4_MISSING_SYNC))
         input_file = StringIO(RECORD_4_MISSING_SYNC)
-        self.parser = self.create_parser(input_file, None)
+        self.parser = self.create_parser(input_file, None, self.state)
 
         log.info("MISSING GET 3 RECORDS")
         result = self.parser.get_records(3)
@@ -482,7 +483,7 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         log.info("=================== START SET STATE ======================")
         log.info("Set State length %d", len(RECORD_4_DATA))
         input_file = StringIO(RECORD_4_DATA)
-        self.parser = self.create_parser(input_file, None)
+        self.parser = self.create_parser(input_file, None, self.state)
 
         log.info("SET STATE VERIFY VELOCITY RECORD 1")
         result = self.parser.get_records(1)
@@ -494,9 +495,9 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         # Skip to data record 4.
         position = FILE_HEADER_SIZE + (3 * DATA_RECORD_SIZE)
         log.info("SET STATE SKIPPING TO POSITION %d", position)
-        new_state = {StateKey.POSITION: position,
-                     StateKey.RECORD_NUMBER: 3}
-        #            StateKey.TIMESTAMP: TIME_ON + (3 * SAMPLE_RATE)}
+        new_state = {Vel3dKWfpStateKey.POSITION: position,
+                     Vel3dKWfpStateKey.RECORD_NUMBER: 3}
+        #            Vel3dKWfpStateKey.TIMESTAMP: TIME_ON + (3 * SAMPLE_RATE)}
         self.parser.set_state(new_state)
 
         log.info("SET STATE VERIFY DATA RECORD 4")
@@ -517,7 +518,7 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         log.info("=================== START SIMPLE ======================")
         log.info("Simple length %d", len(RECORD_1_DATA))
         input_file = StringIO(RECORD_1_DATA)
-        self.parser = self.create_parser(input_file, None)
+        self.parser = self.create_parser(input_file, None, self.state)
 
         log.info("SIMPLE VERIFY RECORD 1")
         result = self.parser.get_records(1)
@@ -540,7 +541,7 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         log.info("=================== START STRING ======================")
         log.info("String record length %d", len(STRING_RECORD))
         input_file = StringIO(STRING_RECORD)
-        self.parser = self.create_parser(input_file, None)
+        self.parser = self.create_parser(input_file, None, self.state)
 
         log.info("STRING VERIFY RECORD 1")
         result = self.parser.get_records(1)
@@ -558,5 +559,5 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
 
     def verify_file_info(self, expected_end_of_file, expected_file_position):
         self.assertEqual(self.file_ingested_value, expected_end_of_file)
-        self.assertEqual(self.parser._state[StateKey.POSITION],
+        self.assertEqual(self.parser._state[Vel3dKWfpStateKey.POSITION],
             expected_file_position)
