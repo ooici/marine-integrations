@@ -873,7 +873,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_factory_sets(self, *args, **kwargs):
         """
-        run test PT200
+        run Factory set
         """
         next_state = None
         kwargs['timeout'] = 30
@@ -884,7 +884,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_user_sets(self, *args, **kwargs):
         """
-        run test PT200
+        run user set
         """
         next_state = None
         kwargs['timeout'] = 30
@@ -895,7 +895,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_get_instrument_transform_matrix(self, *args, **kwargs):
         """
-        save setup to ram.
+        get instrument transform matrix.
         """
         next_state = None
         kwargs['timeout'] = 30
