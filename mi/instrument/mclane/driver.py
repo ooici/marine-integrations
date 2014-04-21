@@ -28,9 +28,7 @@ from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProt
 from mi.core.instrument.instrument_protocol import DEFAULT_CMD_TIMEOUT
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverConnectionState
 
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -57,39 +55,12 @@ INTER_CHARACTER_DELAY = .2  # works
 # INTER_CHARACTER_DELAY = .02 - too fast
 # INTER_CHARACTER_DELAY = .04
 
+PUMP_RATE_ERROR = 1.15  # PPS is off in it's flow rate measurement by 14.5% - TODO - check RAS data
+
+
 ####
 #    Driver Constant Definitions
 ####
-
-
-class McLanePumpConfig(BaseEnum):
-    rate_error_factor = 1.15  # PPS is off in it's flow rate measurement by 14.5%
-
-    default_flush_volume = flush_volume = 150
-    default_flush_rate = flush_rate = 100
-    default_flush_min_rate = flush_min_rate = 75
-    default_fill_volume = fill_volume = 4000
-    default_fill_rate = fill_rate = 100
-    default_fill_min_rate = fill_min_rate = 75
-    default_clear_volume = clear_volume = 100
-    default_clear_rate = clear_rate = 100
-    default_clear_min_rate = clear_min_rate = 75
-
-    @staticmethod
-    def get_flush_time():
-        return McLanePumpConfig.flush_volume / McLanePumpConfig.flush_rate * McLanePumpConfig.rate_error_factor
-
-    @staticmethod
-    def get_fill_time():
-        return McLanePumpConfig.fill_volume / McLanePumpConfig.fill_rate * McLanePumpConfig.rate_error_factor
-
-    @staticmethod
-    def get_clear_time():
-        return McLanePumpConfig.clear_volume / McLanePumpConfig.clear_rate * McLanePumpConfig.rate_error_factor
-
-    @staticmethod
-    def get_sample_time():
-        return McLanePumpConfig.get_flush_time() + McLanePumpConfig.get_fill_time() + McLanePumpConfig.get_sample_time()
 
 
 class ScheduledJob(BaseEnum):
@@ -142,19 +113,19 @@ class Capability(BaseEnum):
     CLEAR = ProtocolEvent.CLEAR
 
 
-class McLaneParameter(DriverParameter):
+class Parameter(DriverParameter):
     """
     Device specific parameters.
     """
-    FLUSH_VOLUME = "PPSFlush_volume"
-    FLUSH_FLOWRATE = "PPSFlush_flowrate"
-    FLUSH_MINFLOW = "PPSFlush_minflow"
-    FILL_VOLUME = "PPSFill_volume"
-    FILL_FLOWRATE = "PPSFill_flowrate"
-    FILL_MINFLOW = "PPSFill_minflow"
-    REVERSE_VOLUME = "PPSReverse_volume"
-    REVERSE_FLOWRATE = "PPSReverse_flowrate"
-    REVERSE_MINFLOW = "PPSReverse_minflow"
+    FLUSH_VOLUME = "flush_volume"
+    FLUSH_FLOWRATE = "flush_flowrate"
+    FLUSH_MINFLOW = "flush_minflow"
+    FILL_VOLUME = "fill_volume"
+    FILL_FLOWRATE = "fill_flowrate"
+    FILL_MINFLOW = "fill_minflow"
+    CLEAR_VOLUME = "clear_volume"
+    CLEAR_FLOWRATE = "clear_flowrate"
+    CLEAR_MINFLOW = "clear_minflow"
 
 
 class McLaneCommand(BaseEnum):
@@ -192,7 +163,7 @@ class McLaneResponse(BaseEnum):
     HOME = re.compile(r'Port: 00')
     PORT = re.compile(r'Port: (\d+)')  # e.g. Port: 01
     # e.g. 03/25/14 20:24:02 PPS ML13003-01>
-    READY = re.compile(r'(\d+/\d+/\d+\s+\d+:\d+:\d+\s+)PPS (.*)>')
+    READY = re.compile(r'(\d+/\d+/\d+\s+\d+:\d+:\d+\s+)(RAS|PPS)\s+(.*)>')
     # Result 00 |  75 100  25   4 |  77.2  98.5  99.1  47 031514 001813 | 29.8 1
     # Result 00 |  10 100  75  60 |  10.0  85.5 100.0   7 032814 193855 | 30.0 1
     PUMP = re.compile(r'(Status|Result).*(\d+)' + NEWLINE)
@@ -221,23 +192,8 @@ class Timeout(BaseEnum):
     FLUSH = 103 + 5
     FILL = 2728 + 30
     CLEAR = 68 + 5
-    ACQUIRE_SAMPLE = HOME + FLUSH + PORT + FILL + HOME + CLEAR
+    CLOCK = INTER_CHARACTER_DELAY * 30 + 1
 
-    @staticmethod
-    def get_flush_timeout():
-        return Timeout.HOME + McLanePumpConfig.get_flush_time()
-
-    @staticmethod
-    def get_fill_timeout():
-        return Timeout.PORT + McLanePumpConfig.get_fill_time()
-
-    @staticmethod
-    def get_clear_timeout():
-        return Timeout.HOME + McLanePumpConfig.get_clear_time()
-
-    @staticmethod
-    def get_sample_timeout():
-        return Timeout.get_flush_timeout() + Timeout.get_fill_timeout() + Timeout.get_clear_timeout()
 
 #####
 # Codes for pump termination
@@ -308,7 +264,6 @@ class McLaneSampleDataParticleKey(BaseEnum):
 #     Result port  |  vol flow minf tlim  |  vol flow minf secs date-time  |  batt code
 #        Status 00 |  75 100  25   4 |   1.5  90.7  90.7*  1 031514 001727 | 29.9 0
 class McLaneSampleDataParticle(DataParticle):
-    _data_particle_type = McLaneDataParticleType.MCLANE_PARSED
 
     @staticmethod
     def regex():
@@ -381,58 +336,6 @@ class McLaneSampleDataParticle(DataParticle):
         return result
 
 
-###############################################################################
-# Driver
-###############################################################################
-
-class McLaneInstrumentDriver(SingleConnectionInstrumentDriver):
-    """
-    InstrumentDriver subclass
-    Subclasses SingleConnectionInstrumentDriver with connection state
-    machine.
-    """
-
-    def __init__(self, evt_callback):
-        """
-        Driver constructor.
-        @param evt_callback Driver process event callback.
-        """
-        #Construct superclass.
-        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-        # replace the driver's discover handler with one that applies the startup values after discovery
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,
-                                         DriverEvent.DISCOVER,
-                                         self._handler_connected_discover)
-
-    def _handler_connected_discover(self, event, *args, **kwargs):
-        # Redefine discover handler so that we can apply startup params after we discover.
-        # For this instrument the driver puts the instrument into command mode during discover.
-        result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
-        self.apply_startup_params()
-        return result
-
-    ########################################################################
-    # Superclass overrides for resource query.
-    ########################################################################
-
-    @staticmethod
-    def get_resource_params():
-        """
-        Return list of device parameters available.
-        """
-        return McLaneParameter.list()
-
-    ########################################################################
-    # Protocol builder.
-    ########################################################################
-
-    def _build_protocol(self):
-        """
-        Construct the driver protocol state machine.
-        """
-        self._protocol = McLaneProtocol(Prompt, NEWLINE, self._driver_event)
-
-
 ###########################################################################
 # Protocol
 ###########################################################################
@@ -470,7 +373,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_status),
                 (ProtocolEvent.CLEAR, self._handler_command_clear),
-                (ProtocolEvent.GET, self._handler_get),
+                (ProtocolEvent.GET, self._handle_get),
                 (ProtocolEvent.SET, self._handler_command_set),
             ],
             ProtocolState.FLUSH: [
@@ -510,9 +413,9 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
             self._add_build_handler(cmd, self._build_command)
 
         # Add response handlers for device commands.
-        self._add_response_handler(McLaneCommand.BATTERY, self._parse_battery_response)
-        self._add_response_handler(McLaneCommand.CLOCK, self._parse_clock_response)
-        self._add_response_handler(McLaneCommand.PORT, self._parse_port_response)
+        # self._add_response_handler(McLaneCommand.BATTERY, self._parse_battery_response)
+        # self._add_response_handler(McLaneCommand.CLOCK, self._parse_clock_response)
+        # self._add_response_handler(McLaneCommand.PORT, self._parse_port_response)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -550,21 +453,6 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
 
         return return_list
 
-    def _got_chunk(self, chunk, timestamp):
-        """
-        The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
-        with the appropriate particle objects and REGEXes.
-        """
-        log.debug("_got_chunk:\n%s", chunk)
-        sample_dict = self._extract_sample(McLaneSampleDataParticle,
-                                           McLaneSampleDataParticle.regex_compiled(), chunk, timestamp)
-
-        if sample_dict:
-            self._linebuf = ''
-            self._promptbuf = ''
-            self._protocol_fsm.on_event(ProtocolEvent.PUMP_STATUS,
-                                        McLaneSampleDataParticle.regex_compiled().search(chunk))
-
     def _filter_capabilities(self, events):
         """
         Return a list of currently available capabilities.
@@ -584,7 +472,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         config = self.get_startup_config()
         log.debug("%s: startup config = %s", fn, config)
 
-        for param in McLaneParameter.list():
+        for param in Parameter.list():
             if param in config:
                 self._param_dict.set_value(param, config[param])
 
@@ -592,15 +480,19 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         for x in config:
             log.debug("  parameter %s: %s", x, config[x])
 
-        McLanePumpConfig.flush_volume = self._param_dict.get_config_value(McLaneParameter.FLUSH_VOLUME)
-        McLanePumpConfig.flush_rate = self._param_dict.get_config_value(McLaneParameter.FLUSH_FLOWRATE)
-        McLanePumpConfig.flush_min_rate = self._param_dict.get_config_value(McLaneParameter.FLUSH_MINFLOW)
-        McLanePumpConfig.fill_volume = self._param_dict.get_config_value(McLaneParameter.FILL_VOLUME)
-        McLanePumpConfig.fill_rate = self._param_dict.get_config_value(McLaneParameter.FILL_FLOWRATE)
-        McLanePumpConfig.fill_min_rate = self._param_dict.get_config_value(McLaneParameter.FILL_MINFLOW)
-        McLanePumpConfig.clear_volume = self._param_dict.get_config_value(McLaneParameter.REVERSE_VOLUME)
-        McLanePumpConfig.clear_rate = self._param_dict.get_config_value(McLaneParameter.REVERSE_FLOWRATE)
-        McLanePumpConfig.clear_min_rate = self._param_dict.get_config_value(McLaneParameter.REVERSE_MINFLOW)
+    # def get_acquire_time(self):
+    #     flush_volume = self._param_dict.get_config_value(Parameter.FLUSH_VOLUME)
+    #     flush_rate = self._param_dict.get_config_value(Parameter.FLUSH_FLOWRATE)
+    #     fill_volume = self._param_dict.get_config_value(Parameter.FILL_VOLUME)
+    #     fill_rate = self._param_dict.get_config_value(Parameter.FILL_FLOWRATE)
+    #     clear_volume = self._param_dict.get_config_value(Parameter.REVERSE_VOLUME)
+    #     clear_rate = self._param_dict.get_config_value(Parameter.REVERSE_FLOWRATE)
+    #
+    #     flush_time = flush_volume / flush_rate * 60
+    #     fill_time = fill_volume / fill_rate * 60 + Timeout.PORT
+    #     clear_time = clear_volume / clear_rate * 60 + Timeout.HOME
+    #
+    #     return (flush_time + fill_time + clear_time) * PUMP_RATE_ERROR
 
     ########################################################################
     # Instrument commands.
@@ -685,9 +577,9 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         the sample taken will be new.
         This only starts the flush. The remainder of the flush is monitored by got_chunk.
         """
-        flush_volume = self._param_dict.get_config_value(McLaneParameter.FLUSH_VOLUME)
-        flush_flowrate = self._param_dict.get_config_value(McLaneParameter.FLUSH_FLOWRATE)
-        flush_minflow = self._param_dict.get_config_value(McLaneParameter.FLUSH_MINFLOW)
+        flush_volume = self._param_dict.get(Parameter.FLUSH_VOLUME)
+        flush_flowrate = self._param_dict.get(Parameter.FLUSH_FLOWRATE)
+        flush_minflow = self._param_dict.get(Parameter.FLUSH_MINFLOW)
 
         if not self._do_cmd_home():
             self._async_raise_fsm_event(ProtocolEvent.INSTRUMENT_FAILURE)
@@ -700,9 +592,9 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         Fill the sample at the next available port
         """
         log.debug('--- djm --- collecting sample in port %d', self.next_port)
-        fill_volume = self._param_dict.get_config_value(McLaneParameter.FILL_VOLUME)
-        fill_flowrate = self._param_dict.get_config_value(McLaneParameter.FILL_FLOWRATE)
-        fill_minflow = self._param_dict.get_config_value(McLaneParameter.FILL_MINFLOW)
+        fill_volume = self._param_dict.get(Parameter.FILL_VOLUME)
+        fill_flowrate = self._param_dict.get(Parameter.FILL_FLOWRATE)
+        fill_minflow = self._param_dict.get(Parameter.FILL_MINFLOW)
 
         log.debug('--- djm --- collecting sample in port %d', self.next_port)
         reply = self._do_cmd_resp(McLaneCommand.PORT, self.next_port, response_regex=McLaneResponse.PORT)
@@ -718,9 +610,9 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         """
         self._do_cmd_home()
 
-        clear_volume = self._param_dict.get_config_value(McLaneParameter.REVERSE_VOLUME)
-        clear_flowrate = self._param_dict.get_config_value(McLaneParameter.REVERSE_FLOWRATE)
-        clear_minflow = self._param_dict.get_config_value(McLaneParameter.REVERSE_MINFLOW)
+        clear_volume = self._param_dict.get(Parameter.CLEAR_VOLUME)
+        clear_flowrate = self._param_dict.get(Parameter.CLEAR_FLOWRATE)
+        clear_minflow = self._param_dict.get(Parameter.CLEAR_MINFLOW)
 
         log.debug('--- djm --- clearing home port, %d %d %d',
                   clear_volume, clear_flowrate, clear_minflow)
@@ -958,7 +850,21 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         """
         Process command  # TODO - what commands get sent?
         """
-        log.debug('--- djm --- entered _handler_command_set with args: %s', args)
+        params = args[0]
+
+        changed = False
+        for key, value in params.items():
+            log.info('Command:set - setting parameter %s to %s', key, value)
+            if not Parameter.has(key):
+                raise InstrumentProtocolException('Attempt to set undefined parameter: %s', key)
+            old_value = self._param_dict.get(key)
+            if old_value != value:
+                changed = True
+                self._param_dict.set_value(key, value)
+
+        if changed:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
         next_state = None
         result = None
         return next_state, result
@@ -1164,7 +1070,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         self._param_dict = ProtocolParameterDict()
 
         # Add parameter handlers to parameter dictionary for instrument configuration parameters.
-        self._param_dict.add(McLaneParameter.FLUSH_VOLUME,
+        self._param_dict.add(Parameter.FLUSH_VOLUME,
                              r'Flush Volume: (.*)V',
                              None,
                              self._int_to_string,
@@ -1175,7 +1081,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              display_name="flush_volume",
                              visibility=ParameterDictVisibility.IMMUTABLE)
-        self._param_dict.add(McLaneParameter.FLUSH_FLOWRATE,
+        self._param_dict.add(Parameter.FLUSH_FLOWRATE,
                              r'Flush Flow Rate: (.*)V',
                              None,
                              self._int_to_string,
@@ -1185,7 +1091,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              display_name="flush_flow_rate",
                              visibility=ParameterDictVisibility.IMMUTABLE)
-        self._param_dict.add(McLaneParameter.FLUSH_MINFLOW,
+        self._param_dict.add(Parameter.FLUSH_MINFLOW,
                              r'Flush Min Flow: (.*)V',
                              None,
                              self._int_to_string,
@@ -1195,7 +1101,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              display_name="flush_min_flow",
                              visibility=ParameterDictVisibility.IMMUTABLE)
-        self._param_dict.add(McLaneParameter.FILL_VOLUME,
+        self._param_dict.add(Parameter.FILL_VOLUME,
                              r'Fill Volume: (.*)V',
                              None,
                              self._int_to_string,
@@ -1206,7 +1112,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              display_name="fill_volume",
                              visibility=ParameterDictVisibility.IMMUTABLE)
-        self._param_dict.add(McLaneParameter.FILL_FLOWRATE,
+        self._param_dict.add(Parameter.FILL_FLOWRATE,
                              r'Fill Flow Rate: (.*)V',
                              None,
                              self._int_to_string,
@@ -1216,7 +1122,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              display_name="fill_flow_rate",
                              visibility=ParameterDictVisibility.IMMUTABLE)
-        self._param_dict.add(McLaneParameter.FILL_MINFLOW,
+        self._param_dict.add(Parameter.FILL_MINFLOW,
                              r'Fill Min Flow: (.*)V',
                              None,
                              self._int_to_string,
@@ -1226,7 +1132,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              display_name="fill_min_flow",
                              visibility=ParameterDictVisibility.IMMUTABLE)
-        self._param_dict.add(McLaneParameter.REVERSE_VOLUME,
+        self._param_dict.add(Parameter.CLEAR_VOLUME,
                              r'Reverse Volume: (.*)V',
                              None,
                              self._int_to_string,
@@ -1235,9 +1141,9 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                              default_value=10,  # djm - fast test value
                              units='mL',
                              startup_param=True,
-                             display_name="reverse_volume",
+                             display_name="clear_volume",
                              visibility=ParameterDictVisibility.IMMUTABLE)
-        self._param_dict.add(McLaneParameter.REVERSE_FLOWRATE,
+        self._param_dict.add(Parameter.CLEAR_FLOWRATE,
                              r'Reverse Flow Rate: (.*)V',
                              None,
                              self._int_to_string,
@@ -1245,9 +1151,9 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                              default_value=100,
                              units='mL/sec',
                              startup_param=True,
-                             display_name="reverse_flow_rate",
+                             display_name="clear_flow_rate",
                              visibility=ParameterDictVisibility.IMMUTABLE)
-        self._param_dict.add(McLaneParameter.REVERSE_MINFLOW,
+        self._param_dict.add(Parameter.CLEAR_MINFLOW,
                              r'Reverse Min Flow: (.*)V',
                              None,
                              self._int_to_string,
@@ -1255,7 +1161,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                              default_value=75,
                              units='mL/sec',
                              startup_param=True,
-                             display_name="reverse_min_flow",
+                             display_name="clear_min_flow",
                              visibility=ParameterDictVisibility.IMMUTABLE)
 
     def _update_params(self):
@@ -1265,50 +1171,50 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
 
         log.debug("_update_params:")
 
-    def _parse_battery_response(self, response, prompt):
-        """
-        Parse handler for battery command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if battery command misunderstood.
-        """
-        log.debug("_parse_battery_response: response=%s, prompt=%s", response, prompt)
-        if prompt == Prompt.UNRECOGNIZED_COMMAND:
-            raise InstrumentProtocolException('battery command not recognized: %s.' % response)
-
-        if not self._param_dict.update(response):
-            raise InstrumentProtocolException('battery command not parsed: %s.' % response)
-
-        return
-
-    def _parse_clock_response(self, response, prompt):
-        """
-        Parse handler for clock command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if clock command misunderstood.
-        @retval the joined string from the regular expression match
-        """
-        # extract current time from response
-        log.debug('--- djm --- parse_clock_response: response: %r', response)
-        ras_time_string = ' '.join(response.split()[:2])
-        time_format = "%m/%d/%y %H:%M:%S"
-        ras_time = time.strptime(ras_time_string, time_format)
-        ras_time = list(ras_time)
-        ras_time[-1] = 0  # tm_isdst field set to 0 - using GMT, no DST
-
-        return tuple(ras_time)
-
-    def _parse_port_response(self, response, prompt):
-        """
-        Parse handler for port command.
-        @param response command response string.
-        @param prompt prompt following command response.
-        @throws InstrumentProtocolException if port command misunderstood.
-        @retval the joined string from the regular expression match
-        """
-        # extract current port from response
-        log.debug('--- djm --- parse_port_response: response: %r', response)
-        port = int(response)
-
-        return port
+        # def _parse_battery_response(self, response, prompt):
+        #     """
+        #     Parse handler for battery command.
+        #     @param response command response string.
+        #     @param prompt prompt following command response.
+        #     @throws InstrumentProtocolException if battery command misunderstood.
+        #     """
+        #     log.debug("_parse_battery_response: response=%s, prompt=%s", response, prompt)
+        #     if prompt == Prompt.UNRECOGNIZED_COMMAND:
+        #         raise InstrumentProtocolException('battery command not recognized: %s.' % response)
+        #
+        #     if not self._param_dict.update(response):
+        #         raise InstrumentProtocolException('battery command not parsed: %s.' % response)
+        #
+        #     return
+        #
+        # def _parse_clock_response(self, response, prompt):
+        #     """
+        #     Parse handler for clock command.
+        #     @param response command response string.
+        #     @param prompt prompt following command response.
+        #     @throws InstrumentProtocolException if clock command misunderstood.
+        #     @retval the joined string from the regular expression match
+        #     """
+        #     # extract current time from response
+        #     log.debug('--- djm --- parse_clock_response: response: %r', response)
+        #     ras_time_string = ' '.join(response.split()[:2])
+        #     time_format = "%m/%d/%y %H:%M:%S"
+        #     ras_time = time.strptime(ras_time_string, time_format)
+        #     ras_time = list(ras_time)
+        #     ras_time[-1] = 0  # tm_isdst field set to 0 - using GMT, no DST
+        #
+        #     return tuple(ras_time)
+        #
+        # def _parse_port_response(self, response, prompt):
+        #     """
+        #     Parse handler for port command.
+        #     @param response command response string.
+        #     @param prompt prompt following command response.
+        #     @throws InstrumentProtocolException if port command misunderstood.
+        #     @retval the joined string from the regular expression match
+        #     """
+        #     # extract current port from response
+        #     log.debug('--- djm --- parse_port_response: response: %r', response)
+        #     port = int(response)
+        #
+        #     return port
