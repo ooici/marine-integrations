@@ -501,7 +501,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     def test_discover(self):
         """
         verify we can discover our instrument state from streaming and autosample.
-        Overloaded to account for this instrument not having an autosample mode.
+        Overloaded to account for this instrument returning to command mode instead of streaming.
         """
         # Verify the agent is in command mode
         self.assert_enter_command_mode()
@@ -537,7 +537,8 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test automatically tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test automatically tests that the Instrument Driver properly supports direct access to the physical
+        instrument. (telnet mode)
         """
         self.assert_enter_command_mode()
 
@@ -552,7 +553,8 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     @unittest.skip('Only enabled and used for manual testing of vendor SW')
     def test_direct_access_telnet_mode_manual(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (virtual serial port mode)
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical
+        instrument. (virtual serial port mode)
         """
         self.assert_enter_command_mode()
 
@@ -650,12 +652,25 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         # log.debug('%s: assert_capabilities', fn)
         self.assert_capabilities(capabilities)
 
-    @unittest.skip("doesn't pass because IA doesn't apply the startup parameters yet")
-    def test_get_parameters(self):
+    def test_parameters(self):
         """
-        verify that parameters can be gotten properly
+        Verify that we can set the parameters
+
+        1. Cannot set read only parameters
+        2. Can set read/write parameters
+        3. Can set read/write parameters w/direct access only
         """
+
         self.assert_enter_command_mode()
 
-        reply = self.instrument_agent_client.get_resource(Parameter.ALL)
-        self.assert_driver_parameters(reply, verify_sample_interval=True)
+        # test read only parameter - should not be set, value should not change
+        # note, the serial number is the one from the instrument being used in testing, may change if run with
+        # different instrument
+        self.assert_set_parameter(Parameter.SAMPLE_INTERVAL, 10, verify=False)
+        self.assert_get_parameter(Parameter.SAMPLE_INTERVAL, 6)
+
+        # test read/write parameter - should set the value
+        # self.assert_set(Parameter.SAMPLE_INTERVAL, 10)
+
+        # test read/write parameter w/direct access only - should set the value
+        # self.assert_set(Parameter.SAMPLE_INTERVAL, 10)
