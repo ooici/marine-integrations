@@ -117,7 +117,7 @@ class Capability(BaseEnum):
     """
     RUN_WIPER = ProtocolEvent.RUN_WIPER
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    SET_WIPER_INTERVAL = ProtocolEvent.SET_RUN_WIPER_INTERVAL
+    SET_RUN_WIPER_INTERVAL = ProtocolEvent.SET_RUN_WIPER_INTERVAL
     SET_CLOCK_SYNC_INTERVAL = ProtocolEvent.SET_CLOCK_SYNC_INTERVAL
 
 

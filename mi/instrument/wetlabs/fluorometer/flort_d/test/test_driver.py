@@ -43,6 +43,8 @@ from mi.core.time import get_timestamp_delayed
 
 from mi.core.instrument.chunker import StringChunker
 
+import unittest
+
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import InstrumentDriver
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import DataParticleType
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import InstrumentCommand
@@ -153,7 +155,8 @@ class DriverTestMixinSub(DriverTestMixin):
         Parameter.Manual_mode_value: {TYPE: int, READONLY: False, DA: False, STARTUP: False, DEFAULT: 0, VALUE: 0},
         Parameter.Manual_start_time_value: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: None},
         Parameter.Internal_memory_value: {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: None},
-        Parameter.Run_wiper_interval: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 60, VALUE: 60}
+        Parameter.Run_wiper_interval: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: '00:01:00', VALUE: '00:01:00'},
+        Parameter.Run_clock_sync_interval: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: '12:00:00', VALUE: '12:00:00'}
     }
 
     _driver_capabilities = {
@@ -250,6 +253,16 @@ class DriverTestMixinSub(DriverTestMixin):
         self.assert_data_particle_keys(FlortDSample_ParticleKey, self._flortD_sample_parameters)
         self.assert_data_particle_header(data_particle, DataParticleType.FlortD_SAMPLE)
         self.assert_data_particle_parameters(data_particle, self._flortD_sample_parameters, verify_values)
+
+    def assert_param_not_equal(self, param, value):
+        """
+        Verify the parameter is not equal to the value passed.  Used to determine if a READ ONLY param value
+        has changed (it should not).
+        """
+        getParams = [ param ]
+        result = self.instrument_agent_client.get_resource(getParams, timeout=10)
+        log.debug("Asserting param: %s does not equal %s", param, value)
+        self.assertNotEqual(result[param], value)
 
 
 ###############################################################################
@@ -358,26 +371,26 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         also be defined in the protocol FSM.
         """
         capabilities = {
-            ProtocolState.UNKNOWN:      ['DRIVER_EVENT_DISCOVER',
-                                         'DRIVER_EVENT_START_DIRECT'],
+            ProtocolState.UNKNOWN:      [ProtocolEvent.DISCOVER,
+                                         ProtocolEvent.START_DIRECT],
 
-            ProtocolState.COMMAND:      ['DRIVER_EVENT_GET',
-                                         'DRIVER_EVENT_SET',
-                                         'DRIVER_EVENT_START_DIRECT',
-                                         'DRIVER_EVENT_START_AUTOSAMPLE',
-                                         'PROTOCOL_EVENT_GET_MENU',
-                                         'PROTOCOL_EVENT_GET_METADATA',
-                                         'PROTOCOL_EVENT_RUN_WIPER',
-                                         'DRIVER_EVENT_CLOCK_SYNC',
-                                         'PROTOCOL_EVENT_SET_CLOCK_SYNC_INTERVAL',
-                                         'PROTOCOL_EVENT_SET_RUN_WIPER_INTERVAL'],
+            ProtocolState.COMMAND:      [ProtocolEvent.GET,
+                                         ProtocolEvent.SET,
+                                         ProtocolEvent.START_DIRECT,
+                                         ProtocolEvent.START_AUTOSAMPLE,
+                                         ProtocolEvent.GET_MENU,
+                                         ProtocolEvent.GET_METADATA,
+                                         ProtocolEvent.RUN_WIPER,
+                                         ProtocolEvent.CLOCK_SYNC,
+                                         ProtocolEvent.SET_CLOCK_SYNC_INTERVAL,
+                                         ProtocolEvent.SET_RUN_WIPER_INTERVAL],
 
-            ProtocolState.AUTOSAMPLE:   ['DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                         'PROTOCOL_EVENT_RUN_WIPER_SCHEDULED',
-                                         'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC'],
+            ProtocolState.AUTOSAMPLE:   [ProtocolEvent.STOP_AUTOSAMPLE,
+                                         ProtocolEvent.RUN_WIPER_SCHEDULED,
+                                         ProtocolEvent.SCHEDULED_CLOCK_SYNC],
 
-            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
-                                          'EXECUTE_DIRECT']
+            ProtocolState.DIRECT_ACCESS: [ProtocolEvent.STOP_DIRECT,
+                                          ProtocolEvent.EXECUTE_DIRECT]
         }
 
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -471,14 +484,14 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         #COMMAND state
         protocol._linebuf = SAMPLE_MNU_RESPONSE
         protocol._promptbuf = SAMPLE_MNU_RESPONSE
-        next_state, (next_agent_state, result) = protocol._handler_unknown_discover()
+        next_state, next_agent_state = protocol._handler_unknown_discover()
         self.assertEqual(next_state, DriverProtocolState.COMMAND)
-        self.assertEqual(next_agent_state, ResourceAgentState.COMMAND)
+        self.assertEqual(next_agent_state, ResourceAgentState.IDLE)
 
         #AUTOSAMPLE state
         protocol._linebuf = SAMPLE_SAMPLE_RESPONSE
         protocol._promptbuf = SAMPLE_SAMPLE_RESPONSE
-        next_state, (next_agent_state, result) = protocol._handler_unknown_discover()
+        next_state, next_agent_state = protocol._handler_unknown_discover()
         self.assertEqual(next_state, DriverProtocolState.AUTOSAMPLE)
         self.assertEqual(next_agent_state, ResourceAgentState.STREAMING)
 
@@ -488,7 +501,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         1. command with no end of line
         2. simple command with no parameters
         3. command with parameter
-        4. command with parameter and special formatting
         """
         #create the operator commands
         mock_callback = Mock()
@@ -518,15 +530,13 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assertEqual(cmd, '$int 3' + NEWLINE)
         cmd = protocol._build_single_parameter_command('$ser', Parameter.Serial_number_value, '1.232.1231F')
         self.assertEqual(cmd, '$ser 1.232.1231F' + NEWLINE)
-
-        #test parameter settings that have special formatting
-        cmd = protocol._build_single_parameter_command('$dat', Parameter.Date_value, '04/10/14')
+        cmd = protocol._build_single_parameter_command('$dat', Parameter.Date_value, '041014')
         self.assertEqual(cmd, '$dat 041014' + NEWLINE)
-        cmd = protocol._build_single_parameter_command('$clk', Parameter.Time_value, '01:00:34')
+        cmd = protocol._build_single_parameter_command('$clk', Parameter.Time_value, '010034')
         self.assertEqual(cmd, '$clk 010034' + NEWLINE)
-        cmd = protocol._build_single_parameter_command('$int', Parameter.Sampling_interval_value, '11:00:34')
+        cmd = protocol._build_single_parameter_command('$int', Parameter.Sampling_interval_value, '110034')
         self.assertEqual(cmd, '$int 110034' + NEWLINE)
-        cmd = protocol._build_single_parameter_command('$mst', Parameter.Manual_start_time_value, '01:21:34')
+        cmd = protocol._build_single_parameter_command('$mst', Parameter.Manual_start_time_value, '012134')
         self.assertEqual(cmd, '$mst 012134' + NEWLINE)
 
 
@@ -598,16 +608,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
-        #test read only parameter - should not be set, value should not change
-        #note, the serial number is the one from the instrument being used in testing, may change if run with
-        #different instrument
-        self.assert_set(Parameter.Serial_number_value, '123.45.678', no_get=True)
-        self.assert_get(Parameter.Serial_number_value, 'BBFL2W-993')
-
-        #test read/write parameter - should set the valscheduleableue
+        #test read/write parameter
         self.assert_set(Parameter.Measurements_per_reported_value, 14)
 
-        #test read/write parameter w/direct access only - should set the value
+        #test read/write parameter w/direct access only
         self.assert_set(Parameter.Measurements_per_packet_value, 5)
 
         #test setting intervals for scheduled events
@@ -616,6 +620,13 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
         #test setting date/time
         self.assert_set(Parameter.Date_value, get_timestamp_delayed("%m/%d/%y"))
+
+        #test read only parameter - should not be set, value should not change
+        self.assert_set(Parameter.Serial_number_value, '123.45.678', no_get=True)
+        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.Serial_number_value])
+        return_value = reply.get(Parameter.Serial_number_value)
+        self.assertNotEqual(return_value, '123.45.678')
+
 
     def test_direct_access(self):
         """
@@ -636,7 +647,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
         #set the wiper interval to 10 seconds
-        #put the instrument back into autosample to start autosampling, log will contain scheduled run wiper commands
+        #put the instrument back into autosample, log will contain scheduled run wiper commands
         self.assert_set(Parameter.Run_wiper_interval, '00:00:10')
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=30)
 
@@ -669,7 +680,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class DriverQualificationTest(InstrumentDriverQualificationTestCase):
+class DriverQualificationTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
@@ -749,7 +760,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
 
     def test_autosample(self):
-        #start and stop autosample and verify data particle
+        """
+        start and stop autosample
+        """
 
         self.assert_enter_command_mode()
 
@@ -824,110 +837,63 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
         self.assert_set_parameter(Parameter.Run_clock_sync_interval, "23:00:02")
 
-    def assert_param_not_equal(self, param, value):
-        """
-        Verify the parameter is not equal to the value passed.  Used to determine if a READ ONLY param value
-        has changed (it should not).
-        """
-        getParams = [ param ]
-        result = self.instrument_agent_client.get_resource(getParams, timeout=10)
-        log.debug("Asserting param: %s does not equal %s", param, value)
-        self.assertNotEqual(result[param], value)
-
     def test_get_capabilities(self):
         """
         @brief Walk through all driver protocol states and verify capabilities
         returned by get_current_capabilities
         """
-        self.assert_enter_command_mode()
 
-        log.debug("Finished entering command mode")
-
-        ##################
-        #  Command Mode
-        ##################
-
-        #TODO - THIS DOES NOT WORK
+        # ##################
+        # #  Command Mode
+        # ##################
         capabilities = {
             AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
-            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_commands(),
-            AgentCapabilityType.RESOURCE_COMMAND: [
-                ProtocolEvent.START_AUTOSAMPLE,
-                ProtocolEvent.GET_MENU,
-                ProtocolEvent.GET_METADATA,
-                ProtocolEvent.RUN_WIPER,
-                ProtocolEvent.CLOCK_SYNC,
-                ProtocolEvent.SET_CLOCK_SYNC_INTERVAL,
-                ProtocolEvent.SET_RUN_WIPER_INTERVAL
-            ],
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.CLOCK_SYNC,
+                                                   ProtocolEvent.RUN_WIPER,
+                                                   ProtocolEvent.SET_CLOCK_SYNC_INTERVAL,
+                                                   ProtocolEvent.SET_RUN_WIPER_INTERVAL],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
         }
-        log.debug("TRYING TO ASSERT CAPS")
+
+        self.assert_enter_command_mode()
         self.assert_capabilities(capabilities)
-        log.debug("Asserted capabilities")
+
+        ##################
+        #  Streaming Mode
+        ##################
+        capabilities = {}
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = ['ave', 'clk', 'clk_interval', 'dat', 'int', 'm1d',
+                                                                'm1s', 'm2d', 'm2s', 'm3d', 'm3s', 'man', 'mem', 'mst',
+                                                                'mvs_interval', 'pkt', 'rat', 'rec', 'seq', 'ser',
+                                                                'set', 'ver']
+
+        self.assert_start_autosample()
+        self.assert_capabilities(capabilities)
+        self.assert_stop_autosample()
 
         ##################
         #  DA Mode
         ##################
 
-        # da_capabilities = copy.deepcopy(capabilities)
-        # da_capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.GO_COMMAND]
-        # da_capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
-        #
-        # # Test direct access disconnect
-        # self.assert_direct_access_start_telnet(timeout=10)
-        # log.debug("Started DA")
-        # self.assertTrue(self.tcp_client)
-        #
-        # self.assert_capabilities(da_capabilities)
-        # log.debug("Trying to disconnect")
-        # self.tcp_client.disconnect()
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
 
+        self.assert_direct_access_start_telnet()
+        self.assert_capabilities(capabilities)
+        self.assert_direct_access_stop_telnet()
 
-        # # Now do it again, but use the event to stop DA
-        # self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
-        # self.assert_direct_access_start_telnet(timeout=10)
-        # self.assert_capabilities(da_capabilities)
-        # self.assert_direct_access_stop_telnet()
-        #
-        # ##################
-        # #  Command Mode
-        # ##################
-        #
-        # # We should be back in command mode from DA.
-        # self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
-        # self.assert_capabilities(capabilities)
-        #
-        # ##################
-        # #  Streaming Mode
-        # ##################
-        #
-        # st_capabilities = copy.deepcopy(capabilities)
-        # st_capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
-        # st_capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-        #     ProtocolEvent.STOP_AUTOSAMPLE,
-        # ]
-        #
-        # self.assert_start_autosample()
-        # self.assert_capabilities(st_capabilities)
-        # self.assert_stop_autosample()
-        #
-        # ##################
-        # #  Command Mode
-        # ##################
-        #
-        # # We should be back in command mode from DA.
-        # self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
-        # self.assert_capabilities(capabilities)
-        #
-        # #######################
-        # #  Uninitialized Mode
-        # #######################
-        # capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
-        # capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
-        # capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
-        # capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
-        #
-        # self.assert_reset()
-        # self.assert_capabilities(capabilities)
+        #######################
+        #  Uninitialized Mode
+        #######################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_capabilities(capabilities)
