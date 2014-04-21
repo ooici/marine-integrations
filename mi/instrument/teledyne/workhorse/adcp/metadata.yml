@@ -2,7 +2,7 @@ driver_metadata:
   author: Sung Ahn
   driver_make: teledyne
   driver_model: workhorse
-  driver_name: ADCP
+  driver_name: adcp
   email: locateSung@gmail.com
   release_notes: Generic Driver for ADCPS-K, ADCPS-I, ADCPT-B and ADCPT-DE
   version: 0.0.1
