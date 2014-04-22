@@ -13,6 +13,7 @@ import numpy as np
 import ntplib
 import copy
 
+from time import time, gmtime, strftime
 from math import copysign
 from functools import partial
 
@@ -685,6 +686,10 @@ class EngineeringTelemeteredDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GLIDER_ENG_TELEMETERED
     particle_parameters = EngineeringTelemeteredParticleKey.list()
 
+    particle_params_without_times = EngineeringTelemeteredParticleKey.list()
+    particle_params_without_times.remove("m_present_time")
+    particle_params_without_times.remove("m_present_secs_into_mission")
+
     def _build_parsed_values(self):
         """
         Takes a GliderParser object and extracts engineering data from the
@@ -1317,32 +1322,16 @@ class GliderEngineeringParser(GliderParser):
         """
         Examine the data_dict to see if it contains data from the engineering telemetered particle being worked on
         """
-        #log.debug(" ### ### ### GliderParser._contains_eng_data(): Looking for the following attributes from the "
-        #          "particle in the working data_dict: %s",
-        #          EngineeringTelemeteredDataParticle.particle_parameters)
-
-        #eng_tele_params = []
-
-        eng_tele_params = EngineeringTelemeteredDataParticle.particle_parameters
-
-        eng_tele_params.remove("m_present_time")
-        eng_tele_params.remove("m_present_secs_into_mission")
-
-        #log.debug(" ### ### ### GliderParser._contains_eng_data(): eng_tele_params= %s", eng_tele_params)
-        log.debug(" ### ### ### GliderParser._contains_eng_data(): Looking for the following attributes from the "
-                  "particle in the working data_dict: %s", eng_tele_params)
 
         for key in data_dict.keys():
 
-            # if key == 'm_present_time' or key == 'm_present_secs_into_mission':
-            #     pass
-
-            #elif key in EngineeringTelemeteredDataParticle.particle_parameters:
-            if key in eng_tele_params:
+            # only check for particle params that do not include the two m_ time oriented attributes
+            if key in EngineeringTelemeteredDataParticle.particle_params_without_times:
                 # return true as soon as the first particle non-NaN attribute from the data dict
                 value = data_dict[key]['Data']
                 if not np.isnan(value):
-                    log.debug(" ### ### ### GliderParser._contains_eng_data(): GOT A EngineeringTelemeteredDataParticle, key was %s", key)
+                    log.debug(" ### ### ### GliderParser._contains_eng_data(): GOT A EngineeringTelemeteredDataParticle, "
+                              "key was %s", key)
                     return True
 
         log.debug(" ### ### ### GliderParser._contains_eng_data(): No attributes in the particle found!")

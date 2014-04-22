@@ -238,8 +238,8 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data('unit_247_2012_051_0_0-engDataOnly.mrg')
         self.assert_initialize()
 
-        result1 = self.data_subscribers.get_samples(ENG_SAMPLE_STREAM, 100, 120) #works when alone
-        result2 = self.data_subscribers.get_samples(ENG_SCI_SAMPLE_STREAM, 3, 120)
+        result1 = self.data_subscribers.get_samples(ENG_SAMPLE_STREAM, 100, 240)
+        result2 = self.data_subscribers.get_samples(ENG_SCI_SAMPLE_STREAM, 3, 240)
 
     def test_stop_start(self):
         """
