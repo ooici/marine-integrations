@@ -6,7 +6,6 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: False
     internal_timestamp: '2013-07-23T23:15:01Z'
     product_number: 4831
     serial_number: 128
@@ -21,7 +20,6 @@ data:
     red_amplitude: 1175.7
     raw_temperature: 299.6
   - _index: 2
-    _new_sequence: False
     internal_timestamp: '2013-07-24T00:00:01Z'
     product_number: 4831
     serial_number: 128

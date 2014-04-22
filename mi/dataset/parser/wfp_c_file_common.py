@@ -90,8 +90,9 @@ class WfpCFileCommonParser(BufferLoadingParser):
 
         while data_index < raw_data_len:
             # check if this is a status or data sample message
-            if EOP_MATCHER.match(raw_data[data_index:data_index+DATA_RECORD_BYTES+TIME_RECORD_BYTES]):
-                # do not return this record as chunk it marks the end of all chunks
+            if EOP_MATCHER.match(raw_data[data_index:data_index + DATA_RECORD_BYTES+TIME_RECORD_BYTES]):
+                # this record as chunk it marks the end of all chunks
+                return_list.append((data_index, data_index + DATA_RECORD_BYTES + TIME_RECORD_BYTES))
                 break
             else:
                 return_list.append((data_index, data_index + DATA_RECORD_BYTES))
@@ -225,12 +226,16 @@ class WfpCFileCommonParser(BufferLoadingParser):
 
         while (chunk != None):
             # particle-ize the data block received, return the record
-            timestamp = self.calc_timestamp(self._read_state[StateKey.RECORDS_READ])
-            sample = self.extract_data_particle(chunk, timestamp)
-            if sample:
-                # create particle
-                self._increment_state(DATA_RECORD_BYTES, timestamp, 1)
-                result_particles.append((sample, copy.copy(self._read_state)))
+            if EOP_MATCHER.match(chunk):
+                # this is the end of profile matcher, just increment the state
+                self._increment_state(DATA_RECORD_BYTES + TIME_RECORD_BYTES, self._timestamp, 0)
+            else:
+                timestamp = self.calc_timestamp(self._read_state[StateKey.RECORDS_READ])
+                sample = self.extract_data_particle(chunk, timestamp)
+                if sample:
+                    # create particle
+                    self._increment_state(DATA_RECORD_BYTES, timestamp, 1)
+                    result_particles.append((sample, copy.copy(self._read_state)))
 
             (timestamp, chunk) = self._chunker.get_next_data()
 
