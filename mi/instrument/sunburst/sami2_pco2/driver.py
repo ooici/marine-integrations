@@ -119,9 +119,11 @@ CONFIGURATION_REGEX = (
     NEWLINE)
 CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 
+
 ###
 #    Begin Classes
 ###
+
 
 class Parameter(SamiParameter):
     """

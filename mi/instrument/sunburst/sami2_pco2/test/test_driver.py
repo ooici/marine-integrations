@@ -567,12 +567,12 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 
     def test_acquire_sample(self):
         self.assert_initialize_driver()
-        # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 START')
-        # self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)
-        # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 FINISH')
-        # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 START')
-        # self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=20)
-        # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 FINISH')
+        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 START')
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)
+        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 FINISH')
+        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 START')
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=20)
+        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 FINISH')
         # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 3 START')
         # self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, delay=180)
         # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 3 FINISH')
