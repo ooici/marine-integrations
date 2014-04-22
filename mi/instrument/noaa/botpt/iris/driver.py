@@ -16,10 +16,6 @@ import re
 import time
 
 from mi.core.log import get_logger
-
-
-log = get_logger()
-
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -35,10 +31,12 @@ from mi.instrument.noaa.botpt.driver import BotptStatus01Particle
 from mi.instrument.noaa.botpt.driver import BotptStatus02ParticleKey
 from mi.instrument.noaa.botpt.driver import BotptStatus02Particle
 from mi.instrument.noaa.botpt.driver import NEWLINE
-
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import SampleException
+
+
+log = get_logger()
 
 ###
 #    Driver Constant Definitions
@@ -77,6 +75,7 @@ class ProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
+    INIT_PARAMS = DriverEvent.INIT_PARAMS
 
 
 class Capability(BaseEnum):
@@ -382,7 +381,8 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.EXIT, self._handler_autosample_exit),
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
-                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
+                (ProtocolEvent.INIT_PARAMS, self._handler_autosample_init_params),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -391,7 +391,8 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.SET, self._handler_command_set),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
-                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
+                (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
+                (ProtocolEvent.INIT_PARAMS, self._handler_command_init_params),
             ],
             ProtocolState.DIRECT_ACCESS: [
                 (ProtocolEvent.ENTER, self._handler_direct_access_enter),

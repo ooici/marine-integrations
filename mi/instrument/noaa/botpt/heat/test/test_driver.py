@@ -29,7 +29,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
-from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import DriverParameter, DriverConfigKey
 from mi.instrument.noaa.botpt.heat.driver import InstrumentDriver
 from mi.instrument.noaa.botpt.heat.driver import HEATDataParticle
 from mi.instrument.noaa.botpt.heat.driver import DataParticleType
@@ -51,12 +51,10 @@ from pyon.agent.agent import ResourceAgentState
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.noaa.botpt.heat.driver',
     driver_class="InstrumentDriver",
-
     instrument_agent_resource_id='1D644T',
     instrument_agent_name='noaa_botpt_heat',
     instrument_agent_packet_config=DataParticleType(),
-
-    driver_startup_config={}
+    driver_startup_config={DriverConfigKey.PARAMETERS: {Parameter.HEAT_DURATION: 2}}
 )
 
 GO_ACTIVE_TIMEOUT = 180
@@ -141,6 +139,7 @@ class HEATTestMixinSub(DriverTestMixin):
         ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
         ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
                                 'DRIVER_EVENT_SET',
+                                'DRIVER_EVENT_INIT_PARAMS',
                                 'EXPORTED_INSTRUMENT_CMD_HEAT_OFF',
                                 'EXPORTED_INSTRUMENT_CMD_HEAT_ON',
                                 'DRIVER_EVENT_START_DIRECT'],
@@ -239,7 +238,8 @@ class DriverUnitTest(BotptDriverUnitTest, HEATTestMixinSub):
         def inner(data):
             my_response = None
             for key in responses:
-                if data.startswith(key): my_response = responses[key]
+                if data.startswith(key):
+                    my_response = responses[key]
             if my_response is not None:
                 log.debug("my_send: data: %s, my_response: %s", data, my_response)
                 driver._protocol._promptbuf += my_response
@@ -277,14 +277,14 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, HEATTestMixinSu
 
     def test_get(self):
         self.assert_initialize_driver()
-        self.assert_get(Parameter.HEAT_DURATION)
+        self.assert_get(Parameter.HEAT_DURATION,
+                        self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS][Parameter.HEAT_DURATION])
 
     def test_set(self):
         """
         Test all set commands. Verify all exception cases.
         """
         self.assert_initialize_driver()
-
         self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_2)
         self.assert_set(Parameter.HEAT_DURATION, TEST_HEAT_ON_DURATION_3)
 
@@ -355,6 +355,9 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, HEATTestMix
         ensuring that read only parameters fail on set.
         """
         self.assert_enter_command_mode()
+        self.assert_get_parameter(Parameter.HEAT_DURATION,
+                                  self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS]
+                                  [Parameter.HEAT_DURATION])
         self.assert_set_parameter(Parameter.HEAT_DURATION, 1)
 
     def test_sample_particles(self):

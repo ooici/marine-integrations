@@ -27,7 +27,7 @@ from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.exceptions import NotImplementedException
+from mi.core.exceptions import NotImplementedException, InstrumentParameterException
 from mi.core.exceptions import SampleException
 
 ###
@@ -68,6 +68,7 @@ class BotptProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
+    INIT_PARAMS = DriverEvent.INIT_PARAMS
 
 
 class BotptCapability(BaseEnum):
@@ -253,6 +254,7 @@ class BotptStatus01Particle(BotptStatusParticle):
         BotptStatus01ParticleKey.TCOEF1_KZ: int,
         BotptStatus01ParticleKey.TCOEF1_TCAL: int,
         BotptStatus01ParticleKey.N_SAMP: int,
+        BotptStatus01ParticleKey.FLAGS: str,
         BotptStatus01ParticleKey.BAUD: int,
     }
 
@@ -520,6 +522,34 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         log.debug('result _handler_command_generic -- command: %s result: %s', command, result)
         return next_state, (next_agent_state, result)
 
+    def _verify_set_values(self, params):
+        """
+        Verify supplied values are in range, if applicable
+        """
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        self._verify_set_values(params)
+        self._verify_not_readonly(*args, **kwargs)
+
+        old_config = self._param_dict.get_config()
+        for key, value in params.items():
+            self._param_dict.set_value(key, value)
+        new_config = self._param_dict.get_config()
+
+        if not old_config == new_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+    def _update_params(self, *args, **kwargs):
+        pass
+
     def got_raw(self, port_agent_packet):
         """
         Overridden, BOTPT drivers shall not generate raw particles, unless further overridden
@@ -615,6 +645,7 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         Enter autosample state.
         """
         log.debug("_handler_autosample_enter")
+        self._protocol_fsm.on_event(DriverEvent.INIT_PARAMS)
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -625,6 +656,17 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         Exit command state.
         """
         log.debug("_handler_autosample_exit")
+
+    def _handler_autosample_init_params(self, *args, **kwargs):
+        """
+        initialize parameters
+        """
+        log.debug('_handler_autosample_init_params')
+        next_state = None
+        result = None
+
+        self._init_params()
+        return next_state, result
 
     ########################################################################
     # Command handlers.
@@ -637,30 +679,41 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         log.debug("_handler_command_enter")
+        self._protocol_fsm.on_event(DriverEvent.INIT_PARAMS)
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_command_get(self, *args, **kwargs):
-        """
-        Get parameter
-        """
-
-        next_state = None
-        result = {}
-
-        return next_state, result
+        return self._handler_get(*args, **kwargs)
 
     def _handler_command_set(self, *args, **kwargs):
         """
-        Set parameter
+        Perform a set command.
+        @param args[0] parameter : value dict.
+        @retval (next_state, result) tuple, (None, None).
+        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
+        not a dict, or if parameter can't be properly formatted.
+        @throws InstrumentTimeoutException if device cannot be woken for set command.
+        @throws InstrumentProtocolException if set command could not be built or misunderstood.
         """
         next_state = None
         result = None
+        startup = False
 
+        if len(args) < 1:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
         params = args[0]
+        if len(args) > 1:
+            startup = args[1]
 
+        if not isinstance(params, dict):
+            raise InstrumentParameterException('Set parameters not a dict.')
+        if not isinstance(startup, bool):
+            raise InstrumentParameterException('Startup not a bool.')
+
+        self._set_params(params, startup)
         return next_state, result
 
     def _handler_command_exit(self, *args, **kwargs):
@@ -678,6 +731,17 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         result = None
         log.debug("_handler_command_start_direct: entering DA mode")
         return next_state, (next_agent_state, result)
+
+    def _handler_command_init_params(self, *args, **kwargs):
+        """
+        initialize parameters
+        """
+        log.debug('_handler_command_init_params')
+        next_state = None
+        result = None
+
+        self._init_params()
+        return next_state, result
 
     ########################################################################
     # Direct access handlers.

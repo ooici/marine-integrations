@@ -32,7 +32,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
-from mi.instrument.noaa.botpt.nano.driver import InstrumentDriver
+from mi.instrument.noaa.botpt.nano.driver import InstrumentDriver, NANO_RATE_RESPONSE
 from mi.instrument.noaa.botpt.nano.driver import NANOStatusParticleKey
 from mi.instrument.noaa.botpt.nano.driver import NANO_STRING
 from mi.instrument.noaa.botpt.nano.driver import DataParticleType
@@ -46,6 +46,7 @@ from mi.instrument.noaa.botpt.nano.driver import Parameter
 from mi.instrument.noaa.botpt.nano.driver import Protocol
 from mi.instrument.noaa.botpt.nano.driver import NEWLINE
 from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.idk.exceptions import SampleTimeout
 from mi.instrument.noaa.botpt.test.test_driver import BotptDriverUnitTest
 from pyon.agent.agent import ResourceAgentState
@@ -56,12 +57,16 @@ from pyon.agent.agent import ResourceAgentState
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.noaa.botpt.nano.driver',
     driver_class="InstrumentDriver",
-
     instrument_agent_resource_id='1D644T',
     instrument_agent_name='noaa_botpt_nano',
     instrument_agent_packet_config=DataParticleType(),
-
-    driver_startup_config={}
+    driver_startup_config={
+        DriverConfigKey.PARAMETERS:
+            {
+                Parameter.OUTPUT_RATE: 40,
+                Parameter.SYNC_INTERVAL: 24 * 60 * 60,
+            }
+    }
 )
 
 GO_ACTIVE_TIMEOUT = 180
@@ -90,8 +95,6 @@ VALID_SAMPLE_02 = "NANO,P,2013/08/22 23:13:36.000,13.884067,26.172926006" + NEWL
 BOTPT_FIREHOSE_01 = "NANO,V,2013/08/22 22:48:36.013,13.888533,26.147947328" + NEWLINE
 BOTPT_FIREHOSE_01 += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
 BOTPT_FIREHOSE_01 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
-#BOTPT_FIREHOSE_01  += "NANO,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642" + NEWLINE
-#BOTPT_FIREHOSE_01  += "NANO,P,2013/05/16 17:03:22.000,14.858126,25.243003840" + NEWLINE
 BOTPT_FIREHOSE_01 += "LILY,2013/05/16 17:03:22,-202.490,-330.000,149.88, 25.72,11.88,N9656" + NEWLINE
 BOTPT_FIREHOSE_01 += "HEAT,2013/04/19 22:54:11,-001,0001,0025" + NEWLINE
 
@@ -189,10 +192,14 @@ class NANOTestMixinSub(DriverTestMixin):
         ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_STATUS',
                                 'DRIVER_EVENT_GET',
                                 'DRIVER_EVENT_SET',
+                                'DRIVER_EVENT_INIT_PARAMS',
                                 'DRIVER_EVENT_START_AUTOSAMPLE',
                                 'EXPORTED_INSTRUMENT_SET_TIME',
                                 'DRIVER_EVENT_START_DIRECT'],
         ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                   'DRIVER_EVENT_GET',
+                                   'DRIVER_EVENT_SET',
+                                   'DRIVER_EVENT_INIT_PARAMS',
                                    'EXPORTED_INSTRUMENT_SET_TIME',
                                    'DRIVER_EVENT_ACQUIRE_STATUS'],
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
@@ -412,10 +419,15 @@ class DriverUnitTest(BotptDriverUnitTest, NANOTestMixinSub):
     @staticmethod
     def my_send(driver):
         def inner(data):
+            log.debug('my_send')
             if data.startswith(InstrumentCommand.DATA_ON):
                 my_response = NANO_STRING + NEWLINE
             elif data.startswith(InstrumentCommand.DUMP_SETTINGS):
                 my_response = DUMP_STATUS + NEWLINE
+            elif data.startswith(InstrumentCommand.SET_RATE):
+                my_response = NANO_RATE_RESPONSE + NEWLINE
+            elif data.startswith(InstrumentCommand.SET_TIME):
+                my_response = SET_TIME_RESPONSE + NEWLINE
             else:
                 my_response = None
             if my_response is not None:
@@ -426,6 +438,18 @@ class DriverUnitTest(BotptDriverUnitTest, NANOTestMixinSub):
 
         return inner
 
+    # def test_connect(self, initial_protocol_state=DriverProtocolState.COMMAND):
+    #     """
+    #     Verify driver transitions correctly and connects
+    #     """
+    #     driver = self._Driver(self._got_data_event_callback)
+    #     self.assert_initialize_driver(driver, initial_protocol_state)
+    #     if self.my_send is not None:
+    #         driver._connection.send.side_effect = self.my_send(driver)
+    #     driver._protocol.set_init_params(self.test_config.driver_startup_config)
+    #     driver._protocol._init_params()
+    #     return driver
+
     # not valid for NANO
     def test_command_responses(self):
         pass
@@ -435,7 +459,6 @@ class DriverUnitTest(BotptDriverUnitTest, NANOTestMixinSub):
         Verify sample data passed through the got data method produces the correct data particles
         """
         driver = self.test_connect()
-        driver._connection.send.side_effect = self.my_send(driver)
         driver._protocol._protocol_fsm.on_event = Mock()
         self.assert_particle_published(driver, VALID_SAMPLE_01, self.assert_particle_sample_01, True)
         self.assert_particle_published(driver, VALID_SAMPLE_02, self.assert_particle_sample_02, True)
@@ -449,7 +472,6 @@ class DriverUnitTest(BotptDriverUnitTest, NANOTestMixinSub):
         Verify that the driver correctly parses the DUMP-SETTINGS response
         """
         driver = self.test_connect()
-        driver._connection.send.side_effect = self.my_send(driver)
         self._send_port_agent_packet(driver, DUMP_STATUS)
 
     def test_start_stop_autosample(self):
@@ -463,15 +485,15 @@ class DriverUnitTest(BotptDriverUnitTest, NANOTestMixinSub):
                                                   call(InstrumentCommand.DATA_OFF + NEWLINE)])
 
     def test_status_01_handler(self):
+        rate = self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS][Parameter.OUTPUT_RATE]
         driver = self.test_connect()
-        driver._connection.send.side_effect = self.my_send(driver)
         driver._protocol._protocol_fsm.on_event(ProtocolEvent.ACQUIRE_STATUS)
-        driver._connection.send.assert_called_once_with(InstrumentCommand.DUMP_SETTINGS + NEWLINE)
+        driver._connection.send.assert_has_calls([call(InstrumentCommand.SET_RATE + str(rate) + NEWLINE),
+                                                  call(InstrumentCommand.DUMP_SETTINGS + NEWLINE)])
 
     def test_time_sync(self):
         # stand up the driver in test mode
         driver = self.test_connect()
-        driver._connection.send.side_effect = self.my_send(driver)
         driver._protocol._protocol_fsm.on_event = Mock()
         # set the sync interval to 1 to speed up the timeout
         driver._protocol._handler_command_set({Parameter.SYNC_INTERVAL: 1})
@@ -700,6 +722,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase, NANOTestMix
 
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
+            ProtocolEvent.GET,
+            ProtocolEvent.SET,
             ProtocolEvent.STOP_AUTOSAMPLE,
             ProtocolEvent.ACQUIRE_STATUS,
             ProtocolEvent.SET_TIME,

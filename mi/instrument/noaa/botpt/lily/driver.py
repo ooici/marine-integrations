@@ -16,10 +16,6 @@ import json
 import ntplib
 
 from mi.core.log import get_logger
-
-
-log = get_logger()
-
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -49,6 +45,9 @@ from mi.core.exceptions import InstrumentDataException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import SampleException
 
+
+log = get_logger()
+
 ###
 #    Driver Constant Definitions
 ###
@@ -65,11 +64,6 @@ LILY_LEVEL_OFF = '-LEVEL,0'
 LILY_TIME_REGEX = r'(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d)'
 FLOAT_REGEX = r'(-?\d*\.\d*)'
 WORD_REGEX = r'(\S+)'
-
-DEFAULT_LEVELING_TIMEOUT = 600
-DEFAULT_MAX_XTILT = 300
-DEFAULT_MAX_YTILT = 300
-DEFAULT_AUTO_RELEVEL = True  # default to be true
 
 DISCOVER_REGEX = re.compile(r'(LILY,.*%s)' % NEWLINE)
 
@@ -600,7 +594,7 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
                 (ProtocolEvent.START_LEVELING, self._handler_autosample_start_leveling),
-                # (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
+                (ProtocolEvent.INIT_PARAMS, self._handler_autosample_init_params),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -611,6 +605,7 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
                 (ProtocolEvent.START_LEVELING, self._handler_command_start_leveling),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
+                (ProtocolEvent.INIT_PARAMS, self._handler_command_init_params),
             ],
             ProtocolState.DIRECT_ACCESS: [
                 (ProtocolEvent.ENTER, self._handler_direct_access_enter),
@@ -722,16 +717,17 @@ class Protocol(BotptProtocol):
         ro, rw = ParameterDictVisibility.READ_ONLY, ParameterDictVisibility.READ_WRITE
         _bool, _float, _int = ParameterDictType.BOOL, ParameterDictType.FLOAT, ParameterDictType.INT
         parameters = [
-            (Parameter.AUTO_RELEVEL, _bool, 'Automatic releveling enabled', True, rw),
-            (Parameter.XTILT_TRIGGER, _float, 'X-tilt releveling trigger', DEFAULT_MAX_XTILT, rw),
-            (Parameter.YTILT_TRIGGER, _float, 'Y-tilt releveling trigger', DEFAULT_MAX_YTILT, rw),
-            (Parameter.LEVELING_TIMEOUT, _int, 'LILY leveling timeout', DEFAULT_LEVELING_TIMEOUT, rw),
-            (Parameter.LEVELING_FAILED, _bool, 'LILY leveling failed', False, ro),
+            (Parameter.AUTO_RELEVEL, _bool, 'Automatic releveling enabled', rw),
+            (Parameter.XTILT_TRIGGER, _float, 'X-tilt releveling trigger', rw),
+            (Parameter.YTILT_TRIGGER, _float, 'Y-tilt releveling trigger', rw),
+            (Parameter.LEVELING_TIMEOUT, _int, 'LILY leveling timeout', rw),
+            (Parameter.LEVELING_FAILED, _bool, 'LILY leveling failed', ro),
         ]
-        for param, param_type, param_name, param_val, param_vis in parameters:
-            self._param_dict.add(param, my_regex, None, None, type=param_type, visibility=param_vis,
-                                 display_name=param_name, default_value=param_val)
-            self._param_dict.set_value(param, param_val)
+        for param, param_type, param_name, param_vis in parameters:
+            self._param_dict.add(param, my_regex, None, None, type=param_type,
+                                 visibility=param_vis, display_name=param_name)
+
+        self._param_dict.set_value(Parameter.LEVELING_FAILED, False)
 
     def _got_chunk(self, chunk, timestamp):
         log.debug('_got_chunk: %r', chunk)
@@ -887,43 +883,6 @@ class Protocol(BotptProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
-
-    def _handler_command_get(self, *args, **kwargs):
-        """
-        Get parameter
-        """
-        log.debug("_handler_command_get [%r] [%r]", args, kwargs)
-        param_list = self._get_param_list(*args, **kwargs)
-        result = self._get_param_result(param_list, None)
-        next_state = None
-        return next_state, result
-
-    def _handler_command_set(self, *args, **kwargs):
-        """
-        Set parameter
-        """
-        log.debug("_handler_command_set args: %r kwargs: %r", args, kwargs)
-
-        next_state = None
-        result = None
-
-        input_params = args[0]
-        found = False
-
-        for param, value in input_params.items():
-            if not param in self._param_dict.get_keys():
-                raise InstrumentProtocolException('Unknown parameter: %r' % param)
-            if value == self._param_dict.get(param):
-                log.info('Parameter %s already %s, not changing', param, value)
-            else:
-                log.info('Setting parameter %s to %s', param, value)
-                self._param_dict.set_value(param, value)
-                found = True
-
-        if found:
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-
-        return next_state, result
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """

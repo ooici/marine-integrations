@@ -118,6 +118,10 @@ class BotptDriverUnitTest(InstrumentDriverUnitTestCase):
         """
         driver = self._Driver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, initial_protocol_state)
+        if hasattr(self, 'my_send'):
+            driver._connection.send.side_effect = self.my_send(driver)
+        driver._protocol.set_init_params(self.test_config.driver_startup_config)
+        driver._protocol._init_params()
         return driver
 
     def test_data_build_parsed_values(self):

@@ -8,6 +8,7 @@ Release notes:
 Driver for NANO TILT on the RSN-BOTPT instrument (v.6)
 
 """
+from mi.core.instrument.instrument_protocol import InitializationType
 
 __author__ = 'David Everett'
 __license__ = 'Apache 2.0'
@@ -38,7 +39,7 @@ from mi.core.instrument.chunker import StringChunker
 from mi.instrument.noaa.botpt.driver import BotptProtocol
 from mi.instrument.noaa.botpt.driver import BotptStatusParticle
 from mi.instrument.noaa.botpt.driver import NEWLINE
-from mi.core.exceptions import InstrumentTimeoutException, InstrumentDataException
+from mi.core.exceptions import InstrumentTimeoutException, InstrumentDataException, InstrumentParameterException
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import SampleException
 
@@ -58,6 +59,7 @@ NANO_RATE_RESPONSE = '*0001TH'
 MIN_SAMPLE_RATE = 1
 MAX_SAMPLE_RATE = 40
 DEFAULT_SYNC_INTERVAL = 24 * 60 * 60
+DEFAULT_DATA_RATE = 40
 
 
 class ProtocolState(BaseEnum):
@@ -92,6 +94,7 @@ class ProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
+    INIT_PARAMS = DriverEvent.INIT_PARAMS
 
 
 class Capability(BaseEnum):
@@ -682,15 +685,19 @@ class Protocol(BotptProtocol):
             ProtocolState.AUTOSAMPLE: [
                 (ProtocolEvent.ENTER, self._handler_autosample_enter),
                 (ProtocolEvent.EXIT, self._handler_autosample_exit),
+                (ProtocolEvent.GET, self._handler_command_get),
+                (ProtocolEvent.SET, self._handler_command_set),
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.SET_TIME, self._handler_command_autosample_set_time),
+                (ProtocolEvent.INIT_PARAMS, self._handler_autosample_init_params),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
                 (ProtocolEvent.EXIT, self._handler_command_exit),
                 (ProtocolEvent.GET, self._handler_command_get),
                 (ProtocolEvent.SET, self._handler_command_set),
+                (ProtocolEvent.INIT_PARAMS, self._handler_command_init_params),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.SET_TIME, self._handler_command_autosample_set_time),
                 (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
@@ -811,7 +818,7 @@ class Protocol(BotptProtocol):
                              int,
                              type=ParameterDictType.INT,
                              display_name='NANO pressure sensor output rate (Hz)',
-                             default_value=40)
+                             default_value=DEFAULT_DATA_RATE)
         self._param_dict.add(Parameter.SYNC_INTERVAL,
                              'None - Not Applicable',
                              None,
@@ -819,8 +826,6 @@ class Protocol(BotptProtocol):
                              type=ParameterDictType.INT,
                              display_name='NANO time sync interval, in seconds',
                              default_value=DEFAULT_SYNC_INTERVAL)
-        self._param_dict.set_value(Parameter.OUTPUT_RATE, 40)
-        self._param_dict.set_value(Parameter.SYNC_INTERVAL, DEFAULT_SYNC_INTERVAL)
 
     def _build_rate_command(self, cmd, *args, **kwargs):
         return '%s%d%s' % (cmd, self._param_dict.get(Parameter.OUTPUT_RATE), NEWLINE)
@@ -864,6 +869,37 @@ class Protocol(BotptProtocol):
             if old_config != self._param_dict.get_config():
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
+    def _verify_set_values(self, params):
+        if Parameter.OUTPUT_RATE in params:
+            rate = int(params[Parameter.OUTPUT_RATE])
+            if rate < 1 or rate > 40:
+                raise InstrumentParameterException('Data rate out of range (1-40)')
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        self._verify_set_values(params)
+        self._verify_not_readonly(*args, **kwargs)
+
+        old_config = self._param_dict.get_config()
+        for key, value in params.items():
+            self._param_dict.set_value(key, value)
+        new_config = self._param_dict.get_config()
+
+        if old_config != new_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+            if old_config[Parameter.OUTPUT_RATE] != new_config[Parameter.OUTPUT_RATE]:
+                self._handler_command_generic(InstrumentCommand.SET_RATE,
+                                              None, None, expected_prompt=NANO_RATE_RESPONSE)
+            if old_config[Parameter.SYNC_INTERVAL] != new_config[Parameter.SYNC_INTERVAL]:
+                self._config_scheduler()
+
     ########################################################################
     # Unknown handlers.
     ########################################################################
@@ -894,16 +930,12 @@ class Protocol(BotptProtocol):
         except InstrumentTimeoutException:
             pass
 
-        # Verify scheduled job exists for daily time sync
-        # If not, request an immediate sync, then schedule the next one
-        scheduler_config = self._get_scheduler_config()
-        log.debug('scheduler_config: %r', scheduler_config)
-        if scheduler_config is None:
+        if self._init_type == InitializationType.STARTUP:
             self._handler_command_autosample_set_time()
             # setting the time starts autosampling.  If next_state is COMMAND, stop it.
             if next_state == ProtocolState.COMMAND:
                 self._handler_autosample_stop_autosample()
-            self._config_scheduler()
+
         # Acquire the configuration to populate the config dict
         self._handler_command_autosample_acquire_status()
         # Acquiring status stops autosample.  If we were in autosample, restart it.
@@ -930,65 +962,6 @@ class Protocol(BotptProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
-
-    def _handler_command_get(self, *args, **kwargs):
-        """
-        Get parameter
-        """
-        log.debug("_handler_command_get [%r] [%r]", args, kwargs)
-        param_list = self._get_param_list(*args, **kwargs)
-        result = self._get_param_result(param_list, None)
-        next_state = None
-        return next_state, result
-
-    def _handler_command_set(self, *args, **kwargs):
-        """
-        Set parameter.  NANO only has one parameter, Parameter.OUTPUT_RATE
-        """
-        log.debug("_handler_command_set")
-
-        next_state = None
-        result = None
-        found = False
-        rate_change = False
-        sync_change = False
-
-        input_params = args[0]
-        log.debug('input_params: %r', input_params)
-
-        for key, value in input_params.items():
-            if not Parameter.has(key):
-                raise InstrumentProtocolException('Invalid parameter supplied to set: %s' % key)
-
-            try:
-                value = int(value)
-            except TypeError:
-                raise InstrumentProtocolException('Invalid value [%s] for parameter %s' % (value, key))
-
-            if key == Parameter.OUTPUT_RATE:
-                if value < MIN_SAMPLE_RATE or value > MAX_SAMPLE_RATE:
-                    raise InstrumentProtocolException('Invalid sample rate: %s' % value)
-                rate_change = True
-            if key == Parameter.SYNC_INTERVAL:
-                sync_change = True
-            # Did the value change?
-            old_value = self._param_dict.get(key)
-            if value == old_value:
-                log.info('Parameter %s already %s, not changing', key, value)
-            else:
-                log.info('Setting parameter %s to %s', key, value)
-                self._param_dict.set_value(key, value)
-                found = True
-        if found:
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-            if rate_change:
-                self._handler_command_generic(InstrumentCommand.SET_RATE,
-                                              None, None,
-                                              expected_prompt=NANO_RATE_RESPONSE)
-            if sync_change:
-                self._config_scheduler()
-
-        return next_state, result
 
     def _handler_command_start_autosample(self, *args, **kwargs):
         """

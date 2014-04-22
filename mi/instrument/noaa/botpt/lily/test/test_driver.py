@@ -21,10 +21,6 @@ import time
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger
-
-log = get_logger()
-
-# MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
@@ -33,7 +29,7 @@ from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverParameter
+from mi.core.instrument.instrument_driver import DriverParameter, DriverConfigKey
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.instrument.noaa.botpt.driver import BotptStatus01ParticleKey
 from mi.instrument.noaa.botpt.driver import BotptStatus01Particle
@@ -58,10 +54,9 @@ from mi.instrument.noaa.botpt.lily.driver import LILY_DUMP_01
 from mi.instrument.noaa.botpt.lily.driver import LILY_DUMP_02
 from mi.instrument.noaa.botpt.lily.driver import LILY_LEVEL_ON
 from mi.instrument.noaa.botpt.lily.driver import LILY_LEVEL_OFF
-from mi.instrument.noaa.botpt.lily.driver import DEFAULT_MAX_XTILT
-from mi.instrument.noaa.botpt.lily.driver import DEFAULT_MAX_YTILT
-from mi.instrument.noaa.botpt.lily.driver import DEFAULT_LEVELING_TIMEOUT
 from mi.core.exceptions import InstrumentDataException
+
+log = get_logger()
 
 ###
 #   Driver parameters for the tests
@@ -69,12 +64,17 @@ from mi.core.exceptions import InstrumentDataException
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.noaa.botpt.lily.driver',
     driver_class="InstrumentDriver",
-
     instrument_agent_resource_id='1D644T',
     instrument_agent_name='noaa_botpt_lily',
     instrument_agent_packet_config=DataParticleType(),
-
-    driver_startup_config={}
+    driver_startup_config={
+        DriverConfigKey.PARAMETERS: {
+            Parameter.AUTO_RELEVEL: True,
+            Parameter.LEVELING_TIMEOUT: 600,
+            Parameter.XTILT_TRIGGER: 300,
+            Parameter.YTILT_TRIGGER: 300,
+        }
+    }
 )
 
 GO_ACTIVE_TIMEOUT = 180
@@ -196,6 +196,8 @@ Y_OUT_OF_RANGE = \
 # This class defines a configuration structure for testing and common assert  #
 # methods for validating data particles.                                      #
 ###############################################################################
+
+
 class LILYTestMixinSub(DriverTestMixin):
     _Driver = InstrumentDriver
     _DataParticleType = DataParticleType
@@ -238,6 +240,7 @@ class LILYTestMixinSub(DriverTestMixin):
         ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_STATUS',
                                 'DRIVER_EVENT_GET',
                                 'DRIVER_EVENT_SET',
+                                'DRIVER_EVENT_INIT_PARAMS',
                                 'DRIVER_EVENT_START_AUTOSAMPLE',
                                 'DRIVER_EVENT_START_DIRECT',
                                 'EXPORTED_INSTRUMENT_START_LEVELING'],
@@ -245,6 +248,7 @@ class LILYTestMixinSub(DriverTestMixin):
                                    'DRIVER_EVENT_ACQUIRE_STATUS',
                                    'DRIVER_EVENT_GET',
                                    'DRIVER_EVENT_SET',
+                                   'DRIVER_EVENT_INIT_PARAMS',
                                    'EXPORTED_INSTRUMENT_START_LEVELING'],
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
                                       'EXECUTE_DIRECT'],
@@ -339,6 +343,8 @@ class LILYTestMixinSub(DriverTestMixin):
         BotptStatus01ParticleKey.N_SAMP: {TYPE: int, VALUE: 360, REQUIRED: True},
         BotptStatus01ParticleKey.XZERO: {TYPE: float, VALUE: 0.0, REQUIRED: True},
         BotptStatus01ParticleKey.YZERO: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        BotptStatus01ParticleKey.FLAGS: {TYPE: unicode, VALUE: u'TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP 19200 baud FV-',
+                                         REQUIRED: True},
         BotptStatus01ParticleKey.BAUD: {TYPE: int, VALUE: 19200, REQUIRED: True},
     }
 
@@ -671,8 +677,10 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, LILYTestMixinSu
     def test_get(self):
         self.assert_initialize_driver()
         self.assert_get(Parameter.AUTO_RELEVEL, True)
-        self.assert_get(Parameter.XTILT_TRIGGER, DEFAULT_MAX_XTILT)
-        self.assert_get(Parameter.YTILT_TRIGGER, DEFAULT_MAX_YTILT)
+        self.assert_get(Parameter.XTILT_TRIGGER,
+                        self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS][Parameter.XTILT_TRIGGER])
+        self.assert_get(Parameter.YTILT_TRIGGER,
+                        self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS][Parameter.YTILT_TRIGGER])
 
     def test_set(self):
         """
@@ -794,7 +802,8 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, LILYTestMixinSu
         log.debug("START_LEVELING returned: %r", response)
 
         # Leveling should complete or abort after DEFAULT_LEVELING_TIMEOUT seconds
-        self.assert_state_change(ProtocolState.COMMAND, DEFAULT_LEVELING_TIMEOUT + 10)
+        timeout = self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS][Parameter.LEVELING_TIMEOUT]
+        self.assert_state_change(ProtocolState.COMMAND, timeout)
 
 
 ###############################################################################

@@ -16,15 +16,10 @@ import re
 import time
 
 from mi.core.log import get_logger
-
-
-log = get_logger()
-
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
@@ -37,14 +32,17 @@ from mi.core.instrument.chunker import StringChunker
 from mi.instrument.noaa.botpt.driver import BotptProtocol
 from mi.instrument.noaa.botpt.driver import NEWLINE
 from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
+
+
+log = get_logger()
 
 ###
 #    Driver Constant Definitions
 ###=
 
 OFF_HEAT_DURATION = 0
-DEFAULT_HEAT_DURATION = 2
 
 
 class ProtocolState(BaseEnum):
@@ -75,6 +73,7 @@ class ProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
+    INIT_PARAMS = DriverEvent.INIT_PARAMS
 
 
 class Capability(BaseEnum):
@@ -284,6 +283,7 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.HEAT_ON, self._handler_command_heat_on),
                 (ProtocolEvent.HEAT_OFF, self._handler_command_heat_off),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
+                (ProtocolEvent.INIT_PARAMS, self._handler_command_init_params),
             ],
             ProtocolState.DIRECT_ACCESS: [
                 (ProtocolEvent.ENTER, self._handler_direct_access_enter),
@@ -318,7 +318,6 @@ class Protocol(BotptProtocol):
 
         self._chunker = StringChunker(Protocol.sieve_function)
 
-        self._heat_duration = DEFAULT_HEAT_DURATION
         self._last_data_timestamp = 0
         self._filter_string = 'HEAT'
 
@@ -357,7 +356,7 @@ class Protocol(BotptProtocol):
         self._param_dict.add(Parameter.HEAT_DURATION,
                              r'Not used. This is just to satisfy the param_dict',
                              None,
-                             None,
+                             int,
                              type=ParameterDictType.INT,
                              display_name="Heat Duration",
                              multi_match=False,
@@ -384,7 +383,7 @@ class Protocol(BotptProtocol):
         return [x for x in events if Capability.has(x)]
 
     def _build_heat_on_command(self, cmd, *args, **kwargs):
-        return cmd + str(self._heat_duration) + NEWLINE
+        return cmd + str(self._param_dict.get(Parameter.HEAT_DURATION)) + NEWLINE
 
     def _build_heat_off_command(self, cmd, *args, **kwargs):
         return cmd + NEWLINE
@@ -392,6 +391,12 @@ class Protocol(BotptProtocol):
     def _parse_heat_on_off_resp(self, response, prompt):
         log.debug("_parse_heat_on_off_resp: response: %r; prompt: %r", response, prompt)
         return response
+
+    def _verify_set_values(self, params):
+        if Parameter.HEAT_DURATION in params:
+            duration = int(params[Parameter.HEAT_DURATION])
+            if duration < 1 or duration > 8:
+                raise InstrumentParameterException('Heat duration out of range 1-8')
 
     ########################################################################
     # Unknown handlers.
@@ -408,34 +413,6 @@ class Protocol(BotptProtocol):
     # Command handlers.
     ########################################################################
 
-    def _handler_command_get(self, *args, **kwargs):
-        """
-        Get parameter
-        """
-
-        next_state = None
-        result = {Parameter.HEAT_DURATION: self._heat_duration}
-
-        return next_state, result
-
-    def _handler_command_set(self, *args, **kwargs):
-        """
-        Set parameter
-        """
-        next_state = None
-        result = None
-
-        params = args[0]
-        new_heat_duration = params[Parameter.HEAT_DURATION]
-        if new_heat_duration != self._heat_duration:
-            log.info("BOTPT HEAT Driver: setting heat duration from %d to %d", self._heat_duration, new_heat_duration)
-            self._heat_duration = new_heat_duration
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-        else:
-            log.info("BOTPT HEAT Driver: heat duration already %d; not changing.", new_heat_duration)
-
-        return next_state, result
-
     def _handler_command_heat_on(self, *args, **kwargs):
         """
         Turn the heater on
@@ -449,7 +426,7 @@ class Protocol(BotptProtocol):
         self._handler_command_heat_off()
         # call _do_cmd_resp, passing our heat_duration parameter as the expected_prompt
         return self._handler_command_generic(InstrumentCommand.HEAT_ON, None, None,
-                                             expected_prompt=',*%d' % self._heat_duration)
+                                             expected_prompt=',*%d' % self._param_dict.get(Parameter.HEAT_DURATION))
 
     def _handler_command_heat_off(self, *args, **kwargs):
         """

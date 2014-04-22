@@ -273,6 +273,9 @@ class IRISTestMixinSub(DriverTestMixin):
         BotptStatus01ParticleKey.N_SAMP: {TYPE: int, VALUE: 460, REQUIRED: True},
         BotptStatus01ParticleKey.XZERO: {TYPE: float, VALUE: 0.0, REQUIRED: True},
         BotptStatus01ParticleKey.YZERO: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        BotptStatus01ParticleKey.FLAGS: {TYPE: unicode,
+                                         VALUE: u'TR-PASH-OFF E99-ON  SO-NMEA-SIM XY-EP  9600 baud FV-',
+                                         REQUIRED: True},
         BotptStatus01ParticleKey.BAUD: {TYPE: int, VALUE: 9600, REQUIRED: True},
     }
 
