@@ -645,7 +645,7 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         Enter autosample state.
         """
         log.debug("_handler_autosample_enter")
-        self._protocol_fsm.on_event(DriverEvent.INIT_PARAMS)
+        self._init_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -656,17 +656,6 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         Exit command state.
         """
         log.debug("_handler_autosample_exit")
-
-    def _handler_autosample_init_params(self, *args, **kwargs):
-        """
-        initialize parameters
-        """
-        log.debug('_handler_autosample_init_params')
-        next_state = None
-        result = None
-
-        self._init_params()
-        return next_state, result
 
     ########################################################################
     # Command handlers.
@@ -679,7 +668,7 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         log.debug("_handler_command_enter")
-        self._protocol_fsm.on_event(DriverEvent.INIT_PARAMS)
+        self._init_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -731,17 +720,6 @@ class BotptProtocol(CommandResponseInstrumentProtocol):
         result = None
         log.debug("_handler_command_start_direct: entering DA mode")
         return next_state, (next_agent_state, result)
-
-    def _handler_command_init_params(self, *args, **kwargs):
-        """
-        initialize parameters
-        """
-        log.debug('_handler_command_init_params')
-        next_state = None
-        result = None
-
-        self._init_params()
-        return next_state, result
 
     ########################################################################
     # Direct access handlers.

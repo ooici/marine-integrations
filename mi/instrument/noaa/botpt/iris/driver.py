@@ -382,7 +382,6 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
-                (ProtocolEvent.INIT_PARAMS, self._handler_autosample_init_params),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -392,7 +391,6 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
-                (ProtocolEvent.INIT_PARAMS, self._handler_command_init_params),
             ],
             ProtocolState.DIRECT_ACCESS: [
                 (ProtocolEvent.ENTER, self._handler_direct_access_enter),

@@ -139,7 +139,6 @@ class HEATTestMixinSub(DriverTestMixin):
         ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
         ProtocolState.COMMAND: ['DRIVER_EVENT_GET',
                                 'DRIVER_EVENT_SET',
-                                'DRIVER_EVENT_INIT_PARAMS',
                                 'EXPORTED_INSTRUMENT_CMD_HEAT_OFF',
                                 'EXPORTED_INSTRUMENT_CMD_HEAT_ON',
                                 'DRIVER_EVENT_START_DIRECT'],

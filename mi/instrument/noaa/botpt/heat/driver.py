@@ -73,7 +73,6 @@ class ProtocolEvent(BaseEnum):
     START_DIRECT = DriverEvent.START_DIRECT
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
-    INIT_PARAMS = DriverEvent.INIT_PARAMS
 
 
 class Capability(BaseEnum):
@@ -283,7 +282,6 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.HEAT_ON, self._handler_command_heat_on),
                 (ProtocolEvent.HEAT_OFF, self._handler_command_heat_off),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
-                (ProtocolEvent.INIT_PARAMS, self._handler_command_init_params),
             ],
             ProtocolState.DIRECT_ACCESS: [
                 (ProtocolEvent.ENTER, self._handler_direct_access_enter),

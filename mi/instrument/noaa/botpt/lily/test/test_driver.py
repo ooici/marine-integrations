@@ -54,6 +54,7 @@ from mi.instrument.noaa.botpt.lily.driver import LILY_DUMP_01
 from mi.instrument.noaa.botpt.lily.driver import LILY_DUMP_02
 from mi.instrument.noaa.botpt.lily.driver import LILY_LEVEL_ON
 from mi.instrument.noaa.botpt.lily.driver import LILY_LEVEL_OFF
+from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import InstrumentDataException
 
 log = get_logger()
@@ -240,7 +241,6 @@ class LILYTestMixinSub(DriverTestMixin):
         ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_STATUS',
                                 'DRIVER_EVENT_GET',
                                 'DRIVER_EVENT_SET',
-                                'DRIVER_EVENT_INIT_PARAMS',
                                 'DRIVER_EVENT_START_AUTOSAMPLE',
                                 'DRIVER_EVENT_START_DIRECT',
                                 'EXPORTED_INSTRUMENT_START_LEVELING'],
@@ -248,7 +248,6 @@ class LILYTestMixinSub(DriverTestMixin):
                                    'DRIVER_EVENT_ACQUIRE_STATUS',
                                    'DRIVER_EVENT_GET',
                                    'DRIVER_EVENT_SET',
-                                   'DRIVER_EVENT_INIT_PARAMS',
                                    'EXPORTED_INSTRUMENT_START_LEVELING'],
         ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT',
                                       'EXECUTE_DIRECT'],
@@ -496,8 +495,12 @@ class DriverUnitTest(BotptDriverUnitTest, LILYTestMixinSub):
         driver._protocol._handler_command_set({Parameter.XTILT_TRIGGER: 10})
         driver._protocol._handler_command_set({Parameter.YTILT_TRIGGER: 10})
         driver._protocol._handler_command_set({Parameter.LEVELING_TIMEOUT: 10})
-        driver._protocol._handler_command_set({Parameter.LEVELING_FAILED: True})
         driver._protocol._handler_command_set({Parameter.AUTO_RELEVEL: False})
+        try:
+            driver._protocol._handler_command_set({Parameter.LEVELING_FAILED: True})
+            self.assertTrue(False, msg='Uh oh, I was able to set a read only parameter!')
+        except InstrumentParameterException:
+            pass
 
     def test_combined_samples(self):
         chunker = StringChunker(Protocol.sieve_function)

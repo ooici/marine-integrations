@@ -594,7 +594,6 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_autosample_acquire_status),
                 (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
                 (ProtocolEvent.START_LEVELING, self._handler_autosample_start_leveling),
-                (ProtocolEvent.INIT_PARAMS, self._handler_autosample_init_params),
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
@@ -605,7 +604,6 @@ class Protocol(BotptProtocol):
                 (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample),
                 (ProtocolEvent.START_LEVELING, self._handler_command_start_leveling),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
-                (ProtocolEvent.INIT_PARAMS, self._handler_command_init_params),
             ],
             ProtocolState.DIRECT_ACCESS: [
                 (ProtocolEvent.ENTER, self._handler_direct_access_enter),
@@ -795,7 +793,10 @@ class Protocol(BotptProtocol):
 
     def _failed_leveling(self, axis):
         log.error('Detected leveling error in %s axis!', axis)
-        self._handler_command_set({Parameter.LEVELING_FAILED: True, Parameter.AUTO_RELEVEL: False})
+        # Read only parameter, must be set outside of handler
+        self._param_dict.set_value(Parameter.LEVELING_FAILED, True)
+        # Use the handler to disable auto relevel to raise a config change event if needed.
+        self._handler_command_set({Parameter.AUTO_RELEVEL: False})
         raise InstrumentDataException('LILY Leveling (%s) Failed.  Disabling auto relevel' % axis)
 
     def _check_completed_leveling(self, sample):
@@ -956,7 +957,9 @@ class Protocol(BotptProtocol):
         Set the leveling failed flag, disable autolevel and raise an exception
         """
         log.debug('_handler_leveling_timeout')
-        self._handler_command_set({Parameter.LEVELING_FAILED: True})
+        # set this directly, as it is a read only value
+        self._param_dict.set_value(Parameter.LEVELING_FAILED, True)
+        # set this through the handler to allow for change event to be raised.
         self._handler_command_set({Parameter.AUTO_RELEVEL: False})
         self._async_raise_fsm_event(ProtocolEvent.STOP_LEVELING)
         raise InstrumentDataException('LILY Leveling timed out, Disabling auto relevel.')
