@@ -12,6 +12,7 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
+from mi.core.instrument.instrument_driver import DriverConfigKey, DriverProtocolState
 
 __author__ = 'Bill Bollenbacher & Dan Mergens'
 __license__ = 'Apache 2.0'
@@ -38,14 +39,14 @@ from mi.idk.unit_test import \
     AgentCapabilityType
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.instrument.mclane.driver import \
     ProtocolState, \
     ProtocolEvent, \
     Capability, \
     Prompt, \
-    NEWLINE
+    NEWLINE, \
+    McLaneSampleDataParticleKey
 
 from mi.instrument.mclane.rasfl.ras.driver import \
     InstrumentDriver, \
@@ -53,15 +54,17 @@ from mi.instrument.mclane.rasfl.ras.driver import \
     Command, \
     Parameter, \
     Protocol, \
-    RASFLSampleDataParticleKey, \
     RASFLSampleDataParticle
 
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, \
+    InstrumentParameterException
+
 from interface.objects import AgentCommand
 
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-from pyon.agent.agent import ResourceAgentEvent
-from pyon.agent.agent import ResourceAgentState
+from pyon.agent.agent import \
+    ResourceAgentEvent, \
+    ResourceAgentState
 
 # Globals
 raw_stream_received = False
@@ -79,7 +82,11 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id='DQPJJX',
     instrument_agent_name='mclane_ras_ooicore',
     instrument_agent_packet_config=DataParticleType(),
-    driver_startup_config={},
+    driver_startup_config={DriverConfigKey.PARAMETERS: {
+        Parameter.CLEAR_VOLUME: 10,
+        Parameter.FILL_VOLUME: 10,
+        Parameter.FLUSH_VOLUME: 10,
+    }},
 )
 
 
@@ -168,19 +175,18 @@ class UtilMixin(DriverTestMixin):
     # Data Particle Parameters
     ### 
     _sample_parameters = {
-        RASFLSampleDataParticleKey.PORT: {'type': int, 'value': 0},
-        RASFLSampleDataParticleKey.VOLUME_COMMANDED: {'type': int, 'value': 75},
-        RASFLSampleDataParticleKey.FLOW_RATE_COMMANDED: {'type': int, 'value': 100},
-        RASFLSampleDataParticleKey.MIN_FLOW_COMMANDED: {'type': int, 'value': 25},
-        RASFLSampleDataParticleKey.TIME_LIMIT: {'type': int, 'value': 4},
-        RASFLSampleDataParticleKey.VOLUME_ACTUAL: {'type': float, 'value': 1.5},
-        RASFLSampleDataParticleKey.FLOW_RATE_ACTUAL: {'type': float, 'value': 90.7},
-        RASFLSampleDataParticleKey.MIN_FLOW_ACTUAL: {'type': float, 'value': 0.907},
-        RASFLSampleDataParticleKey.TIMER: {'type': int, 'value': 1},
-        RASFLSampleDataParticleKey.DATE: {'type': unicode, 'value': '031514'},
-        RASFLSampleDataParticleKey.TIME: {'type': unicode, 'value': '001727'},
-        RASFLSampleDataParticleKey.BATTERY: {'type': float, 'value': 29.9},
-        RASFLSampleDataParticleKey.CODE: {'type': int, 'value': 0},
+        McLaneSampleDataParticleKey.PORT: {'type': int, 'value': 0},
+        McLaneSampleDataParticleKey.VOLUME_COMMANDED: {'type': int, 'value': 75},
+        McLaneSampleDataParticleKey.FLOW_RATE_COMMANDED: {'type': int, 'value': 100},
+        McLaneSampleDataParticleKey.MIN_FLOW_COMMANDED: {'type': int, 'value': 25},
+        McLaneSampleDataParticleKey.TIME_LIMIT: {'type': int, 'value': 4},
+        McLaneSampleDataParticleKey.VOLUME_ACTUAL: {'type': float, 'value': 1.5},
+        McLaneSampleDataParticleKey.FLOW_RATE_ACTUAL: {'type': float, 'value': 90.7},
+        McLaneSampleDataParticleKey.MIN_FLOW_ACTUAL: {'type': float, 'value': 0.907},
+        McLaneSampleDataParticleKey.TIMER: {'type': int, 'value': 1},
+        McLaneSampleDataParticleKey.TIME: {'type': unicode, 'value': '031514 001727'},
+        McLaneSampleDataParticleKey.BATTERY: {'type': float, 'value': 29.9},
+        McLaneSampleDataParticleKey.CODE: {'type': int, 'value': 0},
     }
 
     ###
@@ -215,6 +221,18 @@ class UtilMixin(DriverTestMixin):
         # self.assert_data_particle_header(data_particle, DataParticleType.RASFL_STATUS)
         # self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
 
+    def assert_time_synched(self, ras_time, tolerance=5):
+        """
+        Verify the retrieved time is within acceptable tolerance
+        """
+        ras_time = time.strptime(ras_time + 'UTC', '%m/%d/%y %H:%M:%S %Z')
+        current_time = time.gmtime()
+        diff = time.mktime(current_time) - time.mktime(ras_time)
+        log.info('clock synched within %d seconds', diff)
+
+        # Verify that the time matches to within tolerance (seconds)
+        self.assertLessEqual(diff, tolerance)
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -236,7 +254,6 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 
     print '----- unit test -----'
 
-    #@unittest.skip('not completed yet')
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -386,15 +403,29 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         log.debug('Startup parameters: %s', reply)
         self.assert_driver_parameters(reply)
 
-        self.assert_set(Parameter.FLUSH_VOLUME, 10)
-        self.assert_set(Parameter.FLUSH_FLOWRATE, 100)
-        self.assert_set(Parameter.FLUSH_MINFLOW, 25)
-        self.assert_set(Parameter.FILL_VOLUME, 10)
-        self.assert_set(Parameter.FILL_FLOWRATE, 100)
-        self.assert_set(Parameter.FILL_MINFLOW, 25)
-        self.assert_set(Parameter.CLEAR_VOLUME, 10)
-        self.assert_set(Parameter.CLEAR_FLOWRATE, 100)
-        self.assert_set(Parameter.CLEAR_MINFLOW, 25)
+        # self.assert_get(Parameter.FLUSH_VOLUME, value=150)
+        self.assert_get(Parameter.FLUSH_VOLUME, value=10)
+        self.assert_get(Parameter.FLUSH_FLOWRATE, value=100)
+        self.assert_get(Parameter.FLUSH_MINFLOW, value=25)
+        # self.assert_get(Parameter.FILL_VOLUME, value=425)
+        self.assert_get(Parameter.FILL_VOLUME, value=10)
+        self.assert_get(Parameter.FILL_FLOWRATE, value=75)
+        self.assert_get(Parameter.FILL_MINFLOW, value=25)
+        # self.assert_get(Parameter.CLEAR_VOLUME, value=75)
+        self.assert_get(Parameter.CLEAR_VOLUME, value=10)
+        self.assert_get(Parameter.CLEAR_FLOWRATE, value=100)
+        self.assert_get(Parameter.CLEAR_MINFLOW, value=25)
+
+        # Verify that readonly/immutable parameters cannot be set (throw exception)
+        self.assert_set_exception(Parameter.FLUSH_VOLUME, exception_class=InstrumentParameterException)
+        self.assert_set_exception(Parameter.FLUSH_FLOWRATE)
+        self.assert_set_exception(Parameter.FLUSH_MINFLOW)
+        self.assert_set_exception(Parameter.FILL_VOLUME)
+        self.assert_set_exception(Parameter.FILL_FLOWRATE)
+        self.assert_set_exception(Parameter.FILL_MINFLOW)
+        self.assert_set_exception(Parameter.CLEAR_VOLUME)
+        self.assert_set_exception(Parameter.CLEAR_FLOWRATE)
+        self.assert_set_exception(Parameter.CLEAR_MINFLOW)
 
     def test_execute_clock_sync_command_mode(self):
         """
@@ -404,22 +435,14 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
 
         # compare instrument prompt time (after processing clock sync) with current system time
         reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
-        gmt_time = time.gmtime()  # the most recent instrument time (from command prompt)
-        ras_time = reply[1]
-        diff = abs(time.mktime(ras_time) - time.mktime(gmt_time))
-        log.info('clock synchronized within %f seconds', diff)
-
-        # Verify that the time matches to within 5 seconds
-        self.assertLessEqual(diff, 5)
+        ras_time = reply[1]['time']
+        self.assert_time_synched(ras_time)
 
     def test_acquire_sample(self):
         """
         Test that we can generate sample particle with command
         """
         self.assert_initialize_driver()
-        self.assert_set('flush_volume', 10)
-        self.assert_set('fill_volume', 10)
-        self.assert_set('clear_volume', 10)
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE, driver_timeout=ACQUIRE_TIMEOUT)
         self.assert_state_change(ProtocolState.FLUSH, ACQUIRE_TIMEOUT)
         self.assert_state_change(ProtocolState.FILL, ACQUIRE_TIMEOUT)
@@ -432,7 +455,6 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         Test user clear command
         """
         self.assert_initialize_driver()
-        self.assert_set('clear_volume', 10)
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLEAR)
         self.assert_state_change(ProtocolState.CLEAR, CLEAR_TIMEOUT)
         self.assert_state_change(ProtocolState.COMMAND, CLEAR_TIMEOUT)
@@ -463,43 +485,18 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    def assert_sample_polled(self, sample_data_assert, sample_queue, timeout=10):
+    def test_discover(self):
         """
-        Test observatory polling function.
-
-        Verifies the acquire_status command.
+        over-ridden because instrument doesn't actually have an autosample mode and therefore
+        driver will always go to command mode during the discover process after a reset.
         """
-        # Set up all data subscriptions.  Stream names are defined
-        # in the driver PACKET_CONFIG dictionary
-        self.data_subscribers.start_data_subscribers()
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
-
+        # Verify the agent is in command mode
         self.assert_enter_command_mode()
 
-        ###
-        # Poll for a sample
-        ###
-
-        # make sure there aren't any junk samples in the parsed
-        # data queue.
-        log.debug("Acquire Sample")
-        self.data_subscribers.clear_sample_queue(sample_queue)
-
-        cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
-
-        # Watch the parsed data queue and return once a sample
-        # has been read or the default timeout has been reached.
-        samples = self.data_subscribers.get_samples(sample_queue, 1, timeout=timeout)
-        self.assertGreaterEqual(len(samples), 1)
-        log.error("SAMPLE: %s" % samples)
-
-        # Verify
-        for sample in samples:
-            sample_data_assert(sample)
-
+        # Now reset and try to discover.  This will stop the driver and cause it to re-discover which
+        # will always go back to command for this instrument
         self.assert_reset()
-        self.doCleanups()
+        self.assert_discover(ResourceAgentState.COMMAND)
 
     # RASFL does not poll or autosample
     # def test_poll(self):
@@ -518,7 +515,18 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
     #     #                              sample_count=1,
     #     #                              timeout=60)
 
-    # TODO - not sure how this will work - wake up command, Ctrl-C, cannot be sent over a manual telnet session
+    def test_reset(self):
+        """
+        Verify the agent can be reset
+        """
+        self.assert_enter_command_mode()
+        self.assert_reset()
+
+        self.assert_enter_command_mode()
+        self.assert_direct_access_start_telnet(inactivity_timeout=60, session_timeout=60)
+        self.assert_state_change(ResourceAgentState.DIRECT_ACCESS, DriverProtocolState.DIRECT_ACCESS, 30)
+        self.assert_reset()
+
     def test_direct_access_telnet_mode(self):
         """
         @brief This test automatically tests that the Instrument Driver properly supports direct access to the physical
@@ -528,8 +536,8 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         # go into direct access
         self.assert_direct_access_start_telnet(timeout=600)
-        self.tcp_client.send_data("#D\r\n")
-        if not self.tcp_client.expect("\r\n"):
+        self.tcp_client.send_data("port\r\n")
+        if not self.tcp_client.expect("Port: 00\r\n"):
             self.fail("test_direct_access_telnet_mode: did not get expected response")
 
         self.assert_direct_access_stop_telnet()
@@ -562,21 +570,6 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
-    def test_discover(self):
-        """
-        over-ridden because instrument doesn't actually have an autosample mode and therefore
-        driver will always go to command mode during the discover process after a reset.
-        """
-        # Verify the agent is in command mode
-        self.assert_enter_command_mode()
-
-        self.assert_start_autosample()
-
-        # Now reset and try to discover.  This will stop the driver and cause it to re-discover which
-        # will always go back to command for this instrument
-        self.assert_reset()
-        self.assert_discover(ResourceAgentState.COMMAND)
-
     def test_get_capabilities(self):
         """
         @brief Walk through all driver protocol states and verify capabilities
@@ -592,9 +585,11 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
             AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [
-                ProtocolEvent.GET,
-                ProtocolEvent.CLOCK_SYNC,
                 ProtocolEvent.ACQUIRE_SAMPLE,
+                ProtocolEvent.ACQUIRE_STATUS,
+                ProtocolEvent.CLEAR,
+                ProtocolEvent.CLOCK_SYNC,
+                ProtocolEvent.GET,
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -603,19 +598,8 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         self.assert_capabilities(capabilities)
 
         ##################
-        #  Streaming Mode
+        #  Streaming Mode - no autosample for RAS
         ##################
-
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-            ProtocolEvent.GET,
-            ProtocolEvent.CLOCK_SYNC,
-            ProtocolEvent.ACQUIRE_SAMPLE,
-        ]
-
-        self.assert_start_autosample()
-        self.assert_capabilities(capabilities)
-        self.assert_stop_autosample()
 
         ##################
         #  DA Mode
@@ -646,31 +630,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         """
         self.assert_enter_command_mode()
 
-        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
+        reply = self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
 
-        # TODO
-        # # get the time from the driver
-        # check_new_params = self.instrument_agent_client.get_resource([Parameter.CLOCK])
-        # # convert driver's time from formatted date/time string to seconds integer
-        # instrument_time = time.mktime(
-        #     time.strptime(check_new_params.get(Parameter.CLOCK).lower(), "%Y/%m/%d  %H:%M:%S"))
-        #
-        # # need to convert local machine's time to date/time string and back to seconds to 'drop' the DST attribute so
-        # # test passes
-        # # get time from local machine
-        # lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
-        # # convert local time from formatted date/time string to seconds integer to drop DST
-        # local_time = time.mktime(time.strptime(lt, "%d %b %Y %H:%M:%S"))
-        #
-        # # Now verify that the time matches to within 5 seconds
-        # self.assertLessEqual(abs(instrument_time - local_time), 5)
-
-    @unittest.skip("doesn't pass because IA doesn't apply the startup parameters yet")
-    def test_get_parameters(self):
-        """
-        verify that parameters can be gotten properly
-        """
-        self.assert_enter_command_mode()
-
-        reply = self.instrument_agent_client.get_resource(Parameter.ALL)
-        self.assert_driver_parameters(reply)
+        ras_time = reply.result['time']
+        self.assert_time_synched(ras_time)
