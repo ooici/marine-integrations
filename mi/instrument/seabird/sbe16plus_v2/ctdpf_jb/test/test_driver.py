@@ -528,7 +528,6 @@ class SeaBird19plusMixin(DriverTestMixin):
         Capability.CLOCK_SYNC : {STATES: [ProtocolState.COMMAND]},
         Capability.ACQUIRE_STATUS : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
         Capability.GET_CONFIGURATION : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
-        Capability.TEST : {STATES: [ProtocolState.COMMAND]},
         Capability.RESET_EC : {STATES: [ProtocolState.COMMAND]},
 
     }
@@ -872,8 +871,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'<EXTFREQSF>')
         self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION, regex=r'<EXTFREQSF>')
-
-        #TODO: reset?
         self.assert_driver_command(ProtocolEvent.RESET_EC)
 
         ####
@@ -1051,35 +1048,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
 
         #Stop autosampling and verify we are back in command mode
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
-
-
-    #TODO: is this required?
-    def test_test(self):
-        """
-        Test the hardware testing mode.
-        """
-        self.assert_initialize_driver()
-
-        start_time = time.time()
-        timeout = time.time() + 300
-        reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.TEST)
-
-        self.assert_current_state(ProtocolState.TEST)
-
-        # Test the driver is in test state.
-        state = self.driver_client.cmd_dvr('get_resource_state')
-
-        while state != ProtocolState.COMMAND:
-            time.sleep(5)
-            elapsed = time.time() - start_time
-            log.info('Device testing %f seconds elapsed.' % elapsed)
-            state = self.driver_client.cmd_dvr('get_resource_state')
-            self.assertLess(time.time(), timeout, msg="Timeout waiting for instrument to come out of test")
-
-        # Verify we received the test result and it passed.
-        test_results = [evt for evt in self.events if evt['type']==DriverAsyncEvent.RESULT]
-        self.assertTrue(len(test_results) == 1)
-        self.assertEqual(test_results[0]['value']['success'], 'Passed')
 
 
 
