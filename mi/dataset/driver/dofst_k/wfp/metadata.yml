@@ -1,8 +1,8 @@
 driver_metadata:
+  version: 0.0.2
   author: Emily Hahn
   constructor: DofstKWfpDataSetDriver
   driver_name: dofst_k_wfp
   driver_path: dofst_k/wfp
-  email: ehahn@bbn.com
   release_notes: initial release
-  version: 0.0.1
+  email: ehahn@bbn.com
