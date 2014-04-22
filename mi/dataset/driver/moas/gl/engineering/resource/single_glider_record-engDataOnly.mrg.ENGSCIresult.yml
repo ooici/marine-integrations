@@ -1,12 +1,13 @@
 # Expected Results
 
 header:
-  particle_object: EngineeringScienceTelemeteredDataParticle
-  particle_type: glider_eng_sci_telemetered
+  particle_object: "MULTIPLE"
+  particle_type: "MULTIPLE"
 
 data:
   - _index: 1
-    _new_sequence: False
+    particle_object: EngineeringScienceTelemeteredDataParticle
+    particle_type: glider_eng_sci_telemetered
     internal_timestamp: 3538838369.262939930
     sci_m_present_time: 1329849569.26294
     sci_m_present_secs_into_mission: 0
