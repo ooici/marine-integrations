@@ -515,8 +515,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
     def _has_parameter(self, param):
         return TeledyneParameter.has(param)
 
-    # TODO: does this below over-ride work?
-
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
         Perform a command-response on the device.
@@ -696,8 +694,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         timeout = 30
         count = 0
         while (not found):
-            log.error("WAIT FOR BREAK TRY #" + str(count))
-            log.error("ROGER self._linebuf = " + str(self._linebuf))
             count += 1
             for break_message in break_confirmation:
                 if break_message in self._linebuf:
