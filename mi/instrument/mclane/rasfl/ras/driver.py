@@ -32,7 +32,6 @@ from mi.instrument.mclane.driver import \
     McLaneResponse, \
     McLaneDataParticleType, \
     McLaneSampleDataParticle, \
-    McLaneSampleDataParticleKey, \
     McLaneProtocol, \
     ProtocolState
 
@@ -90,32 +89,11 @@ class DataParticleType(McLaneDataParticleType):
     """
     # TODO - define which commands will be published to user
     RASFL_PARSED = 'rasfl_parsed'
-    PUMP_STATUS = 'rasfl_pump_status'
-    VOLTAGE_STATUS = 'rasfl_battery'
-    VERSION_INFO = 'rasfl_version'
 
 
 ###############################################################################
 # Data Particles
 ###############################################################################
-
-class RASFLSampleDataParticleKey(McLaneSampleDataParticleKey):
-    # TODO - just use base class
-    PUMP_STATUS = 'pump_status'
-    PORT = 'port'
-    VOLUME_COMMANDED = 'volume_commanded'
-    FLOW_RATE_COMMANDED = 'flow_rate_commanded'
-    MIN_FLOW_COMMANDED = 'min_flow_commanded'
-    TIME_LIMIT = 'time_limit'
-    VOLUME_ACTUAL = 'volume'
-    FLOW_RATE_ACTUAL = 'flow_rate'
-    MIN_FLOW_ACTUAL = 'min_flow'
-    TIMER = 'elapsed_time'
-    DATE = 'date'
-    TIME = 'time_of_day'
-    BATTERY = 'battery_voltage'
-    CODE = 'code'
-
 
 # data particle for forward, reverse, and result commands
 #  e.g.:
@@ -186,7 +164,7 @@ class Protocol(McLaneProtocol):
         # TODO - need to persist state for next_port to save driver restart
         self.next_port = 1  # next available port
 
-        # on init, perform the following commands:
+        # TODO - on init, perform the following commands:
         # - VERSION
         # - CAPACITY (pump flow)
         # - BATTERY
@@ -219,7 +197,7 @@ class Protocol(McLaneProtocol):
 
         # Add parameter handlers to parameter dictionary for instrument configuration parameters.
         self._param_dict.add(Parameter.FLUSH_VOLUME,
-                             r'Flush Volume: (.*)V',
+                             r'Flush Volume: (.*)mL',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
@@ -229,7 +207,7 @@ class Protocol(McLaneProtocol):
                              display_name="flush_volume",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.FLUSH_FLOWRATE,
-                             r'Flush Flow Rate: (.*)V',
+                             r'Flush Flow Rate: (.*)mL/min',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
@@ -239,7 +217,7 @@ class Protocol(McLaneProtocol):
                              display_name="flush_flow_rate",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.FLUSH_MINFLOW,
-                             r'Flush Min Flow: (.*)V',
+                             r'Flush Min Flow: (.*)mL/min',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
@@ -249,7 +227,7 @@ class Protocol(McLaneProtocol):
                              display_name="flush_min_flow",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.FILL_VOLUME,
-                             r'Fill Volume: (.*)V',
+                             r'Fill Volume: (.*)mL',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
@@ -259,7 +237,7 @@ class Protocol(McLaneProtocol):
                              display_name="fill_volume",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.FILL_FLOWRATE,
-                             r'Fill Flow Rate: (.*)V',
+                             r'Fill Flow Rate: (.*)mL/min',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
@@ -269,7 +247,7 @@ class Protocol(McLaneProtocol):
                              display_name="fill_flow_rate",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.FILL_MINFLOW,
-                             r'Fill Min Flow: (.*)V',
+                             r'Fill Min Flow: (.*)mL/min',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
@@ -279,34 +257,34 @@ class Protocol(McLaneProtocol):
                              display_name="fill_min_flow",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.CLEAR_VOLUME,
-                             r'Reverse Volume: (.*)V',
+                             r'Reverse Volume: (.*)mL',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              default_value=CLEAR_VOLUME,
                              units='mL',
                              startup_param=True,
-                             display_name="reverse_volume",
+                             display_name="clear_volume",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.CLEAR_FLOWRATE,
-                             r'Reverse Flow Rate: (.*)V',
+                             r'Reverse Flow Rate: (.*)mL/min',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              default_value=CLEAR_RATE,
                              units='mL/min',
                              startup_param=True,
-                             display_name="reverse_flow_rate",
+                             display_name="clear_flow_rate",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.CLEAR_MINFLOW,
-                             r'Reverse Min Flow: (.*)V',
+                             r'Reverse Min Flow: (.*)mL/min',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              default_value=CLEAR_MIN_RATE,
                              units='mL/min',
                              startup_param=True,
-                             display_name="reverse_min_flow",
+                             display_name="clear_min_flow",
                              visibility=ParameterDictVisibility.IMMUTABLE)
 
         self._param_dict.set_value(Parameter.FLUSH_VOLUME, FLUSH_VOLUME)
