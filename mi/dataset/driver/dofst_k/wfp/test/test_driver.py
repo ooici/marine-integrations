@@ -98,10 +98,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
             'C0000002.DAT': self.get_file_state(path_2, False, 33)
         }
         # only the position field in the parser state is initialized in get_file_state, need to add the other state fields
-        state['C0000001.DAT']['parser_state'][StateKey.TIMESTAMP] = 3589862588.666667
         state['C0000001.DAT']['parser_state'][StateKey.RECORDS_READ] = 3
         state['C0000001.DAT']['parser_state'][StateKey.METADATA_SENT] = True
-        state['C0000002.DAT']['parser_state'][StateKey.TIMESTAMP] = 3589862495.333333
         state['C0000002.DAT']['parser_state'][StateKey.RECORDS_READ] = 3
         state['C0000002.DAT']['parser_state'][StateKey.METADATA_SENT] = True
 
@@ -202,12 +200,7 @@ class QualificationTest(DataSetQualificationTestCase):
         published out the agent
         """
         self.create_sample_data('first.DAT', 'C0000001.DAT')
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        # NOTE: If the processing is not slowed down here, the engineering samples are
-        # returned in the wrong order
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
-        self.assert_start_sampling()
+        self.assert_initialize()
 
         # Verify we get one sample
         try:

@@ -156,7 +156,7 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result[-2], self.particle_e)
         self.assertEqual(result[-1], self.particle_f)
         self.assert_state([],
-            [[0, 69], [944, 2370], [2560, 2947], [3137, 4173], [4363, 5437], [5683, 6072], [8273, 9400]],
+            [[0, 69], [944, 2370], [2560, 2947], [3137, 4173], [4363, 4943], [5049, 5437], [5683, 6072], [8273, 9400]],
             self.timestamp6)
         self.assertEqual(self.publish_callback_value[-2], self.particle_e)
         self.assertEqual(self.publish_callback_value[-1], self.particle_f)
@@ -204,7 +204,7 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result[0], self.particle_c)
         self.assertEqual(result[1], self.particle_d)
         self.assert_state([],
-            [[0,69],[944, 2370], [2560, 2947], [3137, 4173], [4363, 5437], [5683, 6072]],
+            [[0,69],[944, 2370], [2560, 2947], [3137, 4173], [4363, 4943], [5049,5437], [5683, 6072]],
             self.timestamp4)
         self.assertEqual(self.publish_callback_value[-1], self.particle_d)
 
@@ -234,7 +234,7 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         result = self.parser.get_records(1)
         self.stream_handle.close()
         self.assert_result(result, [],
-                           [[0,69],[944, 2370], [2560, 2947], [3137, 4173], [4363, 5437], [5683, 6072]],
+                           [[0,69],[944, 2370], [2560, 2947], [3137, 4173], [4363,4943], [5049,5437], [5683,6072]],
                            self.timestamp4, self.particle_d)
 
     def test_update(self):
@@ -252,11 +252,11 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
 
         result = self.parser.get_records(1)
         self.assert_result(result, [[561,637,1,0], [6072,6150,1,0]],
-                           [[0,69],[314,390],[561,637],[944, 2370], [2560, 2947], [3137, 4173], [4363, 5437], [5683, 6150]],
+                           [[0,69],[314,390],[561,637],[944, 2370],[2560,2947],[3137,4173],[4363,4943],[5049,5437],[5683,6150]],
                            self.timestamp4, self.particle_a)
         result = self.parser.get_records(1)
         self.assert_result(result, [[6072,6150,1,0]],
-                           [[0,69], [314,390], [944, 2370], [2560, 2947], [3137, 4173], [4363, 5437], [5683, 6150]],
+                           [[0,69],[314,390],[944, 2370],[2560,2947],[3137,4173],[4363,4943],[5049,5437],[5683,6150]],
                            self.timestamp4, self.particle_c)
         self.stream_handle.close()
 
@@ -271,12 +271,12 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         # Once those are done, the un processed data will be checked
         result = self.parser.get_records(1)
         self.assert_result(result, [],
-                           [[0,69], [314,390], [944, 2370], [2560, 2947], [3137, 4173], [4363, 5437], [5683, 6072]],
+                           [[0,69], [314,390], [944, 2370], [2560, 2947], [3137, 4173],[4363, 4943],[5049,5437],[5683,6072]],
                            self.timestamp4, self.particle_d)
 
         # this should be the first of the newly filled in particles from
         result = self.parser.get_records(1)
         self.assert_result(result, [],
-                           [[0,69], [944, 2370], [2560, 2947], [3137, 4173], [4363, 5437], [5683, 6072]],
+                           [[0,69], [944, 2370], [2560, 2947], [3137, 4173],[4363, 4943],[5049,5437],[5683,6072]],
                            self.timestamp2, self.particle_b)
         self.stream_handle.close()

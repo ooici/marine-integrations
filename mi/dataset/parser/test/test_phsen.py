@@ -128,12 +128,12 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         result = self.parser.get_records(1)
         self.assert_result(result, [[1804, 2308, 1, 0]],
 			   [[0, 172], [1804, 2308], [2373, 3532], [3722, 4371],
-			    [5333, 6558], [6748, 7327], [7714, 7781], [8547, 9000]], 
+			    [5333, 6558], [6748, 7327], [7714, 7781], [8653, 9000]], 
 			   self.timestamp2, self.particle_a)
 	result = self.parser.get_records(1)
 	self.assert_result(result, [],
 			   [[0, 172], [2373, 3532], [3722, 4371],
-			    [5333, 6558], [6748, 7327], [7714, 7781], [8547, 9000]],
+			    [5333, 6558], [6748, 7327], [7714, 7781], [8653, 9000]],
 			   self.timestamp2, self.particle_b)
 	self.stream_handle.close()
 
@@ -156,8 +156,8 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
                           self.particle_d])
         # the remaining in process data is actually a particle with a bad sample
         self.assert_state([[16329, 16833, 1, 0]], [[0, 172], [2373, 3532], [3722, 4371],
-                        [5333, 6558], [6748, 7327], [7714, 7781], [8547, 8653],
-                        [9039, 9230], [9286, 9933], [10509, 10896],
+                        [5333, 6558], [6748, 7327], [7714, 7781],
+                        [9039, 9230], [9286, 9933], [10509, 10896], 
                         [11086, 12700], [16329,16833], [17530, 17600]],
                         self.timestamp5)
         self.assertEqual(self.publish_callback_value[0], self.particle_a)
@@ -181,7 +181,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         self.assert_result(result, [[14867, 15371, 1, 0]],
                            [[0, 172], [2373, 3532], [3722, 4371],
                             [5333, 6558], [6748, 7327], [7714, 7781], 
-                            [8547, 8653], [9039, 9230], [9286, 9933], 
+                            [9039, 9230], [9286, 9933], 
                             [10509, 10896], [11086, 12700], [14867, 15371],
                             [15564, 16000]],
                            self.timestamp4, self.particle_c)
@@ -189,7 +189,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         self.assert_result(result, [],
                            [[0, 172], [2373, 3532], [3722, 4371],
                             [5333, 6558], [6748, 7327], [7714, 7781], 
-                            [8547, 8653], [9039, 9230], [9286, 9933], 
+                            [9039, 9230], [9286, 9933], 
                             [10509, 10896], [11086, 12700], [15564, 16000]],
                            self.timestamp4, self.particle_d)
         self.stream_handle.close()
@@ -220,7 +220,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         self.assert_state([],
                         [[0, 172], [2373, 3532], [3722, 4371],
                         [5333, 6558], [6748, 7327], [7714, 7781],
-                        [8547, 8653], [9039, 9230], [9286, 9933], 
+                        [9039, 9230], [9286, 9933], 
                         [10509, 10896], [11086, 12700], [14674,14700]],
                         self.timestamp3)
 
@@ -233,7 +233,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 9000]], StateKey.IN_PROCESS_DATA:[],
             StateKey.TIMESTAMP:0.0}
         new_state = {StateKey.UNPROCESSED_DATA:[[0, 172], [2373, 3532], [3722, 4371],
-                            [5333, 6558], [6748, 7327], [7714, 7781], [8547, 14700]],
+                            [5333, 6558], [6748, 7327], [7714, 7781], [8653, 14700]],
             StateKey.IN_PROCESS_DATA:[],
             StateKey.TIMESTAMP:self.timestamp2}
 
@@ -244,7 +244,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         # there should only be 2 records, make sure we stop there
         result = self.parser.get_records(2)
         self.assert_state([], [[0, 172], [2373, 3532], [3722, 4371],
-            [5333, 6558], [6748, 7327], [7714, 7781], [8547, 9000]],
+            [5333, 6558], [6748, 7327], [7714, 7781], [8653, 9000]],
             self.timestamp2)
         result = self.parser.get_records(1)
         self.assertEqual(result, [])
@@ -255,7 +255,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         self.assert_result(result, [],
                            [[0, 172], [2373, 3532], [3722, 4371],
                             [5333, 6558], [6748, 7327], [7714, 7781],
-                            [8547, 8653], [9039, 9230], [9286, 9933], 
+                            [9039, 9230], [9286, 9933], 
                             [10509, 10896], [11086, 12700], [14674,14700]],
                            self.timestamp3, self.particle_c)
 
@@ -277,14 +277,14 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         self.assert_result(result, [[14170,14674,1,0]],
                            [[0, 172], [367,911], [2373, 3532], [3722, 4371],
                             [5333, 6558], [6748, 7327], [7714, 7781],
-                            [8547, 8653], [9039, 9230], [9286, 9933], 
+                            [9039, 9230], [9286, 9933], 
                             [10509, 10896], [11086, 12700], [14170,14700]],
                            self.timestamp3, self.particle_b)
         result = self.parser.get_records(1)
         self.assert_result(result, [],
                            [[0, 172], [367,911], [2373, 3532], [3722, 4371],
                             [5333, 6558], [6748, 7327], [7714, 7781],
-                            [8547, 8653], [9039, 9230], [9286, 9933], 
+                            [9039, 9230], [9286, 9933], 
                             [10509, 10896], [11086, 12700], [14674,14700]],
                            self.timestamp3, self.particle_c)
         self.stream_handle.close()
@@ -301,7 +301,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         self.assert_result(result, [],
                            [[0, 172], [2373, 3532], [3722, 4371],
                             [5333, 6558], [6748, 7327], [7714, 7781],
-                            [8547, 8653], [9039, 9230], [9286, 9933], 
+                            [9039, 9230], [9286, 9933], 
                             [10509, 10896], [11086, 12700], [14674,14700]],
                            self.timestamp1, self.particle_a)
         self.stream_handle.close()
