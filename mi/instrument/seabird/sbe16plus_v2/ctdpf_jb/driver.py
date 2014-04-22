@@ -65,8 +65,6 @@ class Command(BaseEnum):
         GET_SD = 'GetSD'
         GET_CC = 'GetCC'
         GET_EC = 'GetEC'
-
-        #TODO: RESET_EC needed?
         RESET_EC = 'ResetEC'
         GET_HD = 'GetHD'
         START_NOW = 'StartNow'
@@ -74,7 +72,7 @@ class Command(BaseEnum):
         TS = 'ts'
         SET = 'set'
 
-        #TODO: sendOptode??
+        #TODO: MP, sendOptode??
 
 class Capability(BaseEnum):
     """
@@ -87,9 +85,6 @@ class Capability(BaseEnum):
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
     GET_CONFIGURATION = ProtocolEvent.GET_CONFIGURATION
-
-    #TODO:these 2 are doubtful
-    TEST = DriverEvent.TEST
     RESET_EC = ProtocolEvent.RESET_EC
 
 class Parameter(DriverParameter):
@@ -220,17 +215,25 @@ class SBE19EventCounterParticle(SeaBirdParticle):
                    DataParticleKey.VALUE: number_of_events},
                  ]
 
-        event_elements = self._extract_xml_elements(root, EVENT)
+        if(number_of_events > 0):
+            event_elements = self._extract_xml_elements(root, EVENT)
 
-        for event in event_elements:
-            type = event.getAttribute(TYPE)
-            count = int(event.getAttribute(COUNT))
-            if type == ALARM_SHORT:
-                result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.ALARM_SHORT_COUNT, DataParticleKey.VALUE: count})
-            elif type == EEPROM_READ:
-                result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.EEPROM_READ_COUNT, DataParticleKey.VALUE: count})
-            elif type == EEPROM_WRITE:
-                result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.EEPROM_WRITE_COUNT, DataParticleKey.VALUE: count})
+            for event in event_elements:
+                type = event.getAttribute(TYPE)
+                count = int(event.getAttribute(COUNT))
+                if type == ALARM_SHORT:
+                    result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.ALARM_SHORT_COUNT, DataParticleKey.VALUE: count})
+                elif type == EEPROM_READ:
+                    result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.EEPROM_READ_COUNT, DataParticleKey.VALUE: count})
+                elif type == EEPROM_WRITE:
+                    result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.EEPROM_WRITE_COUNT, DataParticleKey.VALUE: count})
+        else:
+            result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.ALARM_SHORT_COUNT, DataParticleKey.VALUE: 0})
+            result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.EEPROM_READ_COUNT, DataParticleKey.VALUE: 0})
+            result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.EEPROM_WRITE_COUNT, DataParticleKey.VALUE: 0})
+
+
+
 
         return result
 
@@ -513,7 +516,7 @@ class SBE19HardwareParticle(SeaBirdParticle):
         Regular expression to match a getHD response pattern
         @return: regex string
         """
-        pattern = r'<HardwareData.*?</HardwareData>' + NEWLINE
+        pattern = r'(<HardwareData.*?</HardwareData>)' + NEWLINE
         return pattern
 
     @staticmethod
@@ -530,7 +533,7 @@ class SBE19HardwareParticle(SeaBirdParticle):
         Regular expression to match a getHD response pattern
         @return: regex string
         """
-        pattern = r'<HardwareData.*?</HardwareData>'
+        pattern = r'(<HardwareData.*?</HardwareData>)'
         return pattern
 
     @staticmethod
@@ -616,16 +619,6 @@ class SBE19HardwareParticle(SeaBirdParticle):
             elif sensor_id == PRESSURE_SENSOR_ID:
                 pressure_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
                 pressure_sensor_type = self._extract_xml_element_value(sensor, TYPE)
-
-        #TODO: do we care about external sensors?
-        #external_sensors_element = self._extract_xml_elements(root, EXTERNAL_SENSORS)[0]
-        #sensors = self._extract_xml_elements(external_sensors_element, SENSOR)
-        #for sensor in sensors:
-        #    sensor_id = sensor.getAttribute(ID)
-        #    if sensor_id == VOLT0:
-        #        volt0_serial_number = self._extract_xml_element_value(sensor, SERIAL_NUMBER)
-        #        volt0_sensor_type = self._extract_xml_element_value(sensor, TYPE)
-
 
         result = [{DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.SERIAL_NUMBER,
                    DataParticleKey.VALUE: serial_number},
@@ -723,7 +716,7 @@ class SBE19CalibrationParticle(SeaBirdParticle):
 
     @staticmethod
     def regex():
-        pattern = r'<CalibrationCoefficients.*?</CalibrationCoefficients>' + NEWLINE
+        pattern = r'(<CalibrationCoefficients.*?</CalibrationCoefficients>)' + NEWLINE
         return pattern
 
     @staticmethod
@@ -732,7 +725,7 @@ class SBE19CalibrationParticle(SeaBirdParticle):
 
     @staticmethod
     def resp_regex():
-        pattern = r'<CalibrationCoefficients.*?</CalibrationCoefficients>'
+        pattern = r'(<CalibrationCoefficients.*?</CalibrationCoefficients>)'
         return pattern
 
     @staticmethod
@@ -1063,12 +1056,9 @@ class SBE19Protocol(SBE16Protocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_CONFIGURATION, self._handler_command_get_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
-
-        #TODO: does reset need to be implemented?
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.RESET_EC, self._handler_command_reset_ec)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.TEST, self._handler_command_test)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync_clock)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync_clock)
@@ -1103,8 +1093,6 @@ class SBE19Protocol(SBE16Protocol):
         self._add_build_handler(Command.GET_SD, self._build_simple_command)
         self._add_build_handler(Command.GET_CC, self._build_simple_command)
         self._add_build_handler(Command.GET_EC, self._build_simple_command)
-
-        #TODO: RESET_EC required?
         self._add_build_handler(Command.RESET_EC, self._build_simple_command)
         self._add_build_handler(Command.GET_HD, self._build_simple_command)
 
@@ -1239,11 +1227,6 @@ class SBE19Protocol(SBE16Protocol):
         next_state = None
         next_agent_state = None
         result = None
-
-        #TODO: commented out for now, but does a similar check need to be performed?
-        # Assure the device is transmitting.
-        #if not self._param_dict.get(Parameter.TXREALTIME):
-        #    self._do_cmd_resp(Command.SET, Parameter.TXREALTIME, True, **kwargs)
 
         self._start_logging(*args, **kwargs)
 
@@ -1386,28 +1369,8 @@ class SBE19Protocol(SBE16Protocol):
         result = None
         error = None
 
-        self._autosample_clock_sync(args, kwargs)
+        self._autosample_clock_sync(*args, **kwargs)
 
-        """
-        try:
-            # Switch to command mode,
-            self._stop_logging(*args, **kwargs)
-
-            # Sync the clock
-            self._sync_clock(Command.SET, Parameter.DATE_TIME, TIMEOUT, time_format="%Y-%m-%dT%H:%M:%S")
-
-        # Catch all error so we can put ourself back into
-        # streaming.  Then rethrow the error
-        except Exception as e:
-            error = e
-
-        finally:
-            # Switch back to streaming
-            self._start_logging(*args, **kwargs)
-
-        if(error):
-            raise error
-        """
         return (next_state, (next_agent_state, result))
 
     #need to override this method as our Command set is different
@@ -1445,7 +1408,9 @@ class SBE19Protocol(SBE16Protocol):
         prompt = self._wakeup(timeout=WAKEUP_TIMEOUT, delay=0.3)
 
         # Issue the stop command.
-        if(self.get_current_state() == ProtocolState.AUTOSAMPLE):
+        # We can get here from handle_unknown_discover, hence it's possible that the current state is unknown
+        # handle_unknown_discover checks if we are currently streaming before we get here.
+        if(self.get_current_state() == ProtocolState.AUTOSAMPLE or self.get_current_state() == ProtocolState.UNKNOWN):
             log.debug("sending stop logging command")
             kwargs['timeout'] = TIMEOUT
             self._do_cmd_resp(Command.STOP, *args, **kwargs)
@@ -1501,19 +1466,8 @@ class SBE19Protocol(SBE16Protocol):
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
 
-        ###
-        # The 16plus V2 responds only to GetCD, GetSD, GetCC, GetEC,
-        # ResetEC, GetHD, DS, DCal, TS, SL, SLT, GetLastSamples:x, QS, and
-        # Stop while sampling autonomously. If you wake the 16plus V2 while it is
-        # sampling autonomously (for example, to send DS to check on progress), it
-        # temporarily stops sampling. Autonomous sampling resumes when it
-        ###
-        #if(self._param_dict.get(Parameter.LOGGING, baseline)):
-        #    log.debug("Sending QS to resume logging")
-        #    self._do_cmd_no_resp(Command.QS, timeout=TIMEOUT)
-
-        log.debug("Old Config: %s", old_config)
-        log.debug("New Config: %s", new_config)
+        log.warn("Old Config: %s", old_config)
+        log.warn("New Config: %s", new_config)
         if not dict_equal(new_config, old_config) and self._protocol_fsm.get_current_state() != ProtocolState.UNKNOWN:
             log.debug("parameters updated, sending event")
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
@@ -1613,8 +1567,6 @@ class SBE19Protocol(SBE16Protocol):
         """
         error = self._find_error(response)
 
-        log.warn("_validate_GetCD_response: Response is: %s" % response)
-
         if error:
             log.error("GetCD command encountered error; type='%s' msg='%s'", error[0], error[1])
             raise InstrumentProtocolException('GetCD command failure: type="%s" msg="%s"' % (error[0], error[1]))
@@ -1673,10 +1625,7 @@ class SBE19Protocol(SBE16Protocol):
         self._cmd_dict.add(Capability.CLOCK_SYNC, display_name="synchronize clock")
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
         self._cmd_dict.add(Capability.GET_CONFIGURATION, display_name="get calibrations")
-
-        #TODO: these 2 are doubtful
-        self._cmd_dict.add(Capability.TEST, display_name="test eeprom")
-        self._cmd_dict.add(Capability.RESET_EC, display_name="test eeprom")
+        self._cmd_dict.add(Capability.RESET_EC, display_name="reset ec")
 
     def _build_param_dict(self):
         """
@@ -1931,14 +1880,16 @@ class SBE19Protocol(SBE16Protocol):
         """
         Sync the clock in autosample mode. Stop logging before sync, restart logging after.
         """
+        error = None
+
         try:
-            # Switch to command mode,
+            # Switch to command mode
             self._stop_logging(*args, **kwargs)
 
             # Sync the clock
             self._sync_clock(Command.SET, Parameter.DATE_TIME, TIMEOUT, time_format="%Y-%m-%dT%H:%M:%S")
 
-        # Catch all error so we can put ourself back into
+        # Catch all errors so we can put ourself back into
         # streaming.  Then rethrow the error
         except Exception as e:
             error = e
