@@ -50,6 +50,8 @@ from mi.core.common import BaseEnum
 
 from mi.core.util import dict_equal
 
+from mi.core.instrument.chunker import StringChunker
+
 # newline.
 NEWLINE = '\n\r'
 
@@ -190,23 +192,23 @@ class Capability(BaseEnum):
     """
     Capabilities that are exposed to the user (subset of above)
     """
-    #NOTE: AS OF NOW, NOTHING IS EXPOSED, MAY NEED POSSIBLE CLEANUP
+    #TODO - EVERYTHING IS EXPOSED, NEED TO FIND OUT WHAT SHOULD THE OPERATOR HAVE ACCESS TO
 
-    # GET = ProtocolEvent.GET
-    # SET = ProtocolEvent.SET
-    # ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
-    # START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
-    # STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    # CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    # SET_CONFIGURATION = ProtocolEvent.SET_CONFIGURATION
-    # READ_CLOCK = ProtocolEvent.READ_CLOCK
-    # READ_MODE = ProtocolEvent.READ_MODE
-    # POWER_DOWN = ProtocolEvent.POWER_DOWN
-    # READ_BATTERY_VOLTAGE = ProtocolEvent.READ_BATTERY_VOLTAGE
-    # READ_ID = ProtocolEvent.READ_ID
-    # GET_HW_CONFIGURATION = ProtocolEvent.GET_HW_CONFIGURATION
-    # GET_HEAD_CONFIGURATION = ProtocolEvent.GET_HEAD_CONFIGURATION
-    # READ_USER_CONFIGURATION = ProtocolEvent.READ_USER_CONFIGURATION
+    GET = ProtocolEvent.GET
+    SET = ProtocolEvent.SET
+    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
+    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
+    CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
+    SET_CONFIGURATION = ProtocolEvent.SET_CONFIGURATION
+    READ_CLOCK = ProtocolEvent.READ_CLOCK
+    READ_MODE = ProtocolEvent.READ_MODE
+    POWER_DOWN = ProtocolEvent.POWER_DOWN
+    READ_BATTERY_VOLTAGE = ProtocolEvent.READ_BATTERY_VOLTAGE
+    READ_ID = ProtocolEvent.READ_ID
+    GET_HW_CONFIGURATION = ProtocolEvent.GET_HW_CONFIGURATION
+    GET_HEAD_CONFIGURATION = ProtocolEvent.GET_HEAD_CONFIGURATION
+    READ_USER_CONFIGURATION = ProtocolEvent.READ_USER_CONFIGURATION
 
 
 # Device specific parameters.
@@ -1290,6 +1292,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._build_cmd_dict()
         self._build_driver_dict()
 
+        self._chunker = StringChunker(NortekInstrumentProtocol.chunker_sieve_function)
+
     @staticmethod
     def chunker_sieve_function(raw_data, add_structs=[]):
         """ The method that detects data sample structures from instrument
@@ -1297,16 +1301,31 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         return_list = []
         structs = add_structs + NORTEK_COMMON_SAMPLE_STRUCTS
+
         for structure_sync, structure_len in structs:
-            start = raw_data.find(structure_sync)
-            if start != -1:    # found a sync pattern
-                if start+structure_len <= len(raw_data):    # only check the CRC if all of the structure has arrived
-                    calculated_checksum = NortekProtocolParameterDict.calculate_checksum(raw_data[start:start+structure_len], structure_len)
-                    log.debug('chunker_sieve_function: calculated checksum = %s' % calculated_checksum)
-                    sent_checksum = NortekProtocolParameterDict.convert_word_to_int(raw_data[start+structure_len-2:start+structure_len])
-                    if sent_checksum == calculated_checksum:
-                        return_list.append((start, start+structure_len))
-                        log.debug("chunker_sieve_function: found %s", raw_data[start:start+structure_len].encode('hex'))
+
+            index = 0
+            start = 0
+
+            #while there are still matches....
+            while(start != -1):
+                start = raw_data.find(structure_sync, index)
+                # found a sync pattern
+                if start != -1:
+
+                    # only check the CRC if all of the structure has arrived
+                    if start+structure_len <= len(raw_data):
+
+                        calculated_checksum = NortekProtocolParameterDict.calculate_checksum(raw_data[start:start+structure_len], structure_len)
+                        sent_checksum = NortekProtocolParameterDict.convert_word_to_int(raw_data[start+structure_len-2:start+structure_len])
+                        log.debug('chunker_sieve_function: calculated checksum = %s vs sent_checksum = %s', calculated_checksum, sent_checksum)
+
+                        if sent_checksum == calculated_checksum:
+                            return_list.append((start, start+structure_len))
+                            #slice raw data off
+                            log.debug("chunker_sieve_function: found %r", raw_data[start:start+structure_len])
+
+                    index = start+structure_len
 
         return return_list
 
@@ -1493,9 +1512,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                        timeout=TIMEOUT)
 
         #enter measuring mode
-        self._connection.send(InstrumentCmds.SOFT_BREAK_FIRST_HALF)
-        time.sleep(.1)
-        self._do_cmd_resp(InstrumentCmds.SOFT_BREAK_SECOND_HALF, *args, **kwargs)
+        self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, expected_prompt=InstrumentPrompts.Z_ACK,
+                          timeout=TIMEOUT)
 
         #I
         self._do_cmd_resp(InstrumentCmds.SAMPLE_WHAT_MODE, expected_prompt=InstrumentPrompts.Z_ACK,
@@ -1590,12 +1608,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         log.debug('%% IN _handler_command_start_autosample')
         self._protocol_fsm.on_event(ProtocolEvent.CLOCK_SYNC)
 
-        # Issue start command and switch to autosample if successful.
-
-        # send soft break
-        self._connection.send(InstrumentCmds.SOFT_BREAK_FIRST_HALF)
-        time.sleep(.1)
-        result = self._do_cmd_resp(InstrumentCmds.SOFT_BREAK_SECOND_HALF, *args, **kwargs)
+        result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, expected_prompt=InstrumentPrompts.Z_ACK,
+                          timeout=TIMEOUT)
 
         return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, result)
 
@@ -2181,14 +2195,14 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.MODE,
                                    r'^.{%s}(.{2}).*' % str(58),
-                                   lambda match : NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   lambda match : NortekProtocolParameterDict.convert_double_word_to_int(match.group(1)),
                                    NortekProtocolParameterDict.word_to_string,
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.INT,
                                    expiration=None,
                                    visibility=ParameterDictVisibility.READ_ONLY,
                                    display_name="mode",
-                                   default_value=None,
+                                   default_value=96,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(

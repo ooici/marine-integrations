@@ -412,7 +412,7 @@ class Protocol(NortekInstrumentProtocol):
                                    expiration=None,
                                    visibility=ParameterDictVisibility.READ_ONLY,
                                    display_name="clock sync interval",
-                                   default_value='12:00:00',
+                                   default_value='00:00:00',
                                    startup_param=False,
                                    direct_access=False))
 

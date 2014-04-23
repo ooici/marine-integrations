@@ -30,7 +30,6 @@ import datetime
 import base64
 
 from nose.plugins.attrib import attr
-from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -56,15 +55,14 @@ from mi.instrument.nortek.aquadopp.ooicore.driver import Protocol
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticle
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticleKey
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticle
-from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticleKey, InstrumentPrompts
-from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticDataParticle, InstrumentDriver, NEWLINE
+from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticleKey
+from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticDataParticle
 
 from interface.objects import AgentCommand
 from interface.objects import CapabilityType
 
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest
-from mi.instrument.nortek.driver import InstrumentPrompts, Parameter, ProtocolState, ProtocolEvent, InstrumentCmds, \
-    Capability
+from mi.instrument.nortek.driver import Parameter, ProtocolState, ProtocolEvent
 
 ###
 #   Driver parameters for the tests
@@ -73,54 +71,52 @@ InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.nortek.aquadopp.ooicore.driver',
     driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = 'nortek_aquadopp_dw_ooicore',
-    instrument_agent_name = 'nortek_aquadopp_dw_ooicore_agent',
-    instrument_agent_packet_config = DataParticleType(),
-    driver_startup_config = {
-        Parameter.TRANSMIT_PULSE_LENGTH: 0x7d
-        }
-)
+    instrument_agent_resource_id='nortek_aquadopp_dw_ooicore',
+    instrument_agent_name='nortek_aquadopp_dw_ooicore_agent',
+    instrument_agent_packet_config=DataParticleType(),
+    driver_startup_config={Parameter.TRANSMIT_PULSE_LENGTH: 0x7d})
 
 params_dict = {
-    Parameter.TRANSMIT_PULSE_LENGTH : int,
-    Parameter.BLANKING_DISTANCE : int,
-    Parameter.RECEIVE_LENGTH : int,
-    Parameter.TIME_BETWEEN_PINGS : int,
-    Parameter.TIME_BETWEEN_BURST_SEQUENCES : int,
-    Parameter.NUMBER_PINGS : int,
-    Parameter.AVG_INTERVAL : int,
-    Parameter.USER_NUMBER_BEAMS : int,
-    Parameter.TIMING_CONTROL_REGISTER : int,
-    Parameter.POWER_CONTROL_REGISTER : int,
-    Parameter.COMPASS_UPDATE_RATE : int,
-    Parameter.COORDINATE_SYSTEM : int,
-    Parameter.NUMBER_BINS : int,
-    Parameter.BIN_LENGTH : int,
-    Parameter.MEASUREMENT_INTERVAL : int,
-    Parameter.DEPLOYMENT_NAME : str,
-    Parameter.WRAP_MODE : int,
-    Parameter.CLOCK_DEPLOY : str,
-    Parameter.DIAGNOSTIC_INTERVAL : int,
-    Parameter.MODE : int,
-    Parameter.ADJUSTMENT_SOUND_SPEED : int,
-    Parameter.NUMBER_SAMPLES_DIAGNOSTIC : int,
-    Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC : int,
-    Parameter.NUMBER_PINGS_DIAGNOSTIC : int,
-    Parameter.MODE_TEST : int,
-    Parameter.ANALOG_INPUT_ADDR : int,
-    Parameter.SW_VERSION : int,
-    Parameter.VELOCITY_ADJ_TABLE : str,
-    Parameter.COMMENTS : str,
-    Parameter.WAVE_MEASUREMENT_MODE : int,
-    Parameter.DYN_PERCENTAGE_POSITION : int,
-    Parameter.WAVE_TRANSMIT_PULSE : int,
-    Parameter.WAVE_BLANKING_DISTANCE : int,
-    Parameter.WAVE_CELL_SIZE : int,
-    Parameter.NUMBER_DIAG_SAMPLES : int,
-    Parameter.ANALOG_OUTPUT_SCALE : int,
-    Parameter.CORRELATION_THRESHOLD : int,
-    Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG : int,
-    Parameter.QUAL_CONSTANTS : str}
+    Parameter.TRANSMIT_PULSE_LENGTH: int,
+    Parameter.BLANKING_DISTANCE: int,
+    Parameter.RECEIVE_LENGTH: int,
+    Parameter.TIME_BETWEEN_PINGS: int,
+    Parameter.TIME_BETWEEN_BURST_SEQUENCES: int,
+    Parameter.NUMBER_PINGS: int,
+    Parameter.AVG_INTERVAL: int,
+    Parameter.USER_NUMBER_BEAMS: int,
+    Parameter.TIMING_CONTROL_REGISTER: int,
+    Parameter.POWER_CONTROL_REGISTER: int,
+    Parameter.COMPASS_UPDATE_RATE: int,
+    Parameter.COORDINATE_SYSTEM: int,
+    Parameter.NUMBER_BINS: int,
+    Parameter.BIN_LENGTH: int,
+    Parameter.MEASUREMENT_INTERVAL: int,
+    Parameter.DEPLOYMENT_NAME: str,
+    Parameter.WRAP_MODE: int,
+    Parameter.CLOCK_DEPLOY: str,
+    Parameter.DIAGNOSTIC_INTERVAL: int,
+    Parameter.MODE: int,
+    Parameter.ADJUSTMENT_SOUND_SPEED: int,
+    Parameter.NUMBER_SAMPLES_DIAGNOSTIC: int,
+    Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC: int,
+    Parameter.NUMBER_PINGS_DIAGNOSTIC: int,
+    Parameter.MODE_TEST: int,
+    Parameter.ANALOG_INPUT_ADDR: int,
+    Parameter.SW_VERSION: int,
+    Parameter.VELOCITY_ADJ_TABLE: str,
+    Parameter.COMMENTS: str,
+    Parameter.WAVE_MEASUREMENT_MODE: int,
+    Parameter.DYN_PERCENTAGE_POSITION: int,
+    Parameter.WAVE_TRANSMIT_PULSE: int,
+    Parameter.WAVE_BLANKING_DISTANCE: int,
+    Parameter.WAVE_CELL_SIZE: int,
+    Parameter.NUMBER_DIAG_SAMPLES: int,
+    Parameter.ANALOG_OUTPUT_SCALE: int,
+    Parameter.CORRELATION_THRESHOLD: int,
+    Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG: int,
+    Parameter.QUAL_CONSTANTS: str}
+
 
 def user_config1():
     # CompassUpdateRate = 600, MeasurementInterval = 600
@@ -161,6 +157,7 @@ def user_config1():
         user_config += chr(int(value, 16))
     return user_config
 
+
 def user_config2():
     # CompassUpdateRate = 2, MeasurementInterval = 3600
     user_config_values = [0xa5, 0x00, 0x00, 0x01, 0x7d, 0x00, 0x37, 0x00, 0x20, 0x00, 0xb5, 0x01, 0x00, 0x02, 0x01, 0x00, 
@@ -199,7 +196,8 @@ def user_config2():
     for value in user_config_values:
         user_config += chr(value)
     return user_config
-        
+
+
 # velocity data particle & sample 
 def velocity_sample():
     sample_as_hex = "a5011500101926221211000000009300f83b810628017f01002d0000e3094c0122ff9afe1e1416006093"
@@ -223,6 +221,7 @@ velocity_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:10:19'},
                      {'value_id': 'amplitude_beam2', 'value': 20}, 
                      {'value_id': 'amplitude_beam3', 'value': 22}]
 
+
 # diagnostic header data particle & sample 
 def diagnostic_header_sample():
     sample_as_hex = "a5061200140001000000000011192622121100000000000000000000000000000000a108"
@@ -242,6 +241,7 @@ diagnostic_header_particle = [{'value_id': 'records', 'value': 20},
                               {'value_id': 'distance2', 'value': 0}, 
                               {'value_id': 'distance3', 'value': 0}, 
                               {'value_id': 'distance4', 'value': 0}]
+
 
 # diagnostic data particle & sample 
 def diagnostic_sample():
@@ -300,7 +300,6 @@ class DriverUnitTest(NortekUnitTest):
         Test to make sure we can get diagnostic_header sample data out in a reasonable format.
         Parsed is all we care about...raw is tested in the base DataParticle tests
         """
-        
         port_timestamp = 3555423720.711772
         driver_timestamp = 3555423722.711772
 
@@ -379,21 +378,14 @@ class DriverUnitTest(NortekUnitTest):
         self.assert_chunker_sample(chunker, diagnostic_header_sample())
 
         # test fragmented data structures
-        sample = velocity_sample()
-        fragments = [sample[0:4], sample[4:10], sample[10:14], sample[14:]]
-        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
-
-        sample = diagnostic_sample()
-        fragments = [sample[0:5], sample[5:11], sample[11:15], sample[15:]]
-        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
-
-        sample = diagnostic_header_sample()
-        fragments = [sample[0:3], sample[3:11], sample[11:12], sample[12:]]
-        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
+        self.assert_chunker_fragmented_sample(chunker, velocity_sample())
+        self.assert_chunker_fragmented_sample(chunker, diagnostic_sample())
+        self.assert_chunker_fragmented_sample(chunker, diagnostic_header_sample())
 
         # test combined data structures
-        self.assert_chunker_combined_sample(chunker, velocity_sample(), diagnostic_sample(), diagnostic_header_sample())
-        self.assert_chunker_combined_sample(chunker, diagnostic_header_sample(), velocity_sample(), diagnostic_sample())
+        self.assert_chunker_combined_sample(chunker, velocity_sample())
+        self.assert_chunker_combined_sample(chunker, diagnostic_sample())
+        self.assert_chunker_combined_sample(chunker, diagnostic_header_sample())
 
         # test data structures with noise
         self.assert_chunker_sample_with_noise(chunker, velocity_sample())
@@ -403,17 +395,17 @@ class DriverUnitTest(NortekUnitTest):
     def test_corrupt_data_structures(self):
         # garbage is not okay
         particle = AquadoppDwDiagnosticHeaderDataParticle(diagnostic_header_sample().replace(chr(0), chr(1), 1),
-                                                          port_timestamp=3558720820.531179)
+                        port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
          
         particle = AquadoppDwDiagnosticDataParticle(diagnostic_sample().replace(chr(0), chr(1), 1),
-                                                          port_timestamp=3558720820.531179)
+                        port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
          
         particle = AquadoppDwVelocityDataParticle(velocity_sample().replace(chr(0), chr(1), 1),
-                                                          port_timestamp=3558720820.531179)
+                        port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
 
@@ -432,86 +424,12 @@ class IntFromIDK(NortekIntTest):
     
     def setUp(self):
         NortekIntTest.setUp(self)
-
-    def assertParamDictionariesEqual(self, pd1, pd2, all_params=False):
-        """
-        Verify all device parameters exist and are correct type.
-        """
-        if all_params:
-            self.assertEqual(set(pd1.keys()), set(pd2.keys()))
-            #print str(pd1)
-            #print str(pd2)
-            for (key, type_val) in pd2.iteritems():
-                #print key
-                #print type_val
-                self.assertTrue(isinstance(pd1[key], type_val))
-        else:
-            for (key, val) in pd1.iteritems():
-                self.assertTrue(pd2.has_key(key))
-                self.assertTrue(isinstance(val, pd2[key]))
-    
-    def check_state(self, expected_state):
-        self.protocol_state = self.driver_client.cmd_dvr('get_resource_state')
-        self.assertEqual(self.protocol_state, expected_state)
-        return 
-        
-    def put_driver_in_unconfigured_mode(self):
-        """Wrap the steps and asserts for going into unconfigured state.
-           May be used in multiple test cases.
-        """
-        # Test that the driver protocol is in state connected.
-        self.check_state(ProtocolState.COMMAND)
-        
-        # put driver in disconnected state.
-        self.driver_client.cmd_dvr('disconnect')
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Setup the protocol state machine and the connection to port agent.
-        self.driver_client.cmd_dvr('initialize')
-
-        # Test that the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-    
-    def put_driver_in_command_mode(self):
-        """Wrap the steps and asserts for going into command mode.
-           May be used in multiple test cases.
-        """
-        # Test that the driver is in state unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver and transition to disconnected.
-        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Setup the protocol state machine and the connection to port agent.
-        self.driver_client.cmd_dvr('connect')
-
-        # Test that the driver protocol is in state unknown.
-        self.check_state(ProtocolState.UNKNOWN)
-
-        # Discover what state the instrument is in and set the protocol state accordingly.
-        self.driver_client.cmd_dvr('discover_state')
-
-        try:
-            # Test that the driver protocol is in state command.
-            self.check_state(ProtocolState.COMMAND)
-        except:
-            self.assertEqual(self.protocol_state, ProtocolState.AUTOSAMPLE)
-            # Put the driver in command mode
-            self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-            # Test that the driver protocol is in state command.
-            self.check_state(ProtocolState.COMMAND)
-
  
     def test_set_init_params(self):
         """
         @brief Test for set_init_params()
         """
-        self.put_driver_in_command_mode()
+        self.assert_initialize_driver()
 
         values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)        
         #print("vb=%s" %values_before)
@@ -529,13 +447,11 @@ class IntFromIDK(NortekIntTest):
         self.driver_client.cmd_dvr('set_resource', values_before)
         values_reset = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         self.assertEquals(values_reset, values_before)
-        
-        
 
     def test_startup_configuration(self):
-        '''
+        """
         Test that the startup configuration is applied correctly
-        '''
+        """
         self.put_driver_in_command_mode()
 
         value_before = self.driver_client.cmd_dvr('get_resource', [Parameter.TRANSMIT_PULSE_LENGTH])
@@ -551,50 +467,6 @@ class IntFromIDK(NortekIntTest):
         reply = self.driver_client.cmd_dvr('get_resource', [Parameter.TRANSMIT_PULSE_LENGTH])
 
         self.assertEquals(reply, value_before)
-
-
-    def test_instrument_wakeup(self):
-        """
-        @brief Test for instrument wakeup, puts instrument in 'command' state
-        """
-        self.put_driver_in_command_mode()
-
-
-    def test_instrument_clock_sync(self):
-        """
-        @brief Test for syncing clock
-        """
-        
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to read the clock.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
-        
-        log.debug("read clock returned: %s", response)
-        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
-
-        # command the instrument to sync the clck.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
-
-        # command the instrument to read the clock.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
-        
-        log.debug("read clock returned: %s", response)
-        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
-        
-        # verify that the dates match 
-        local_time = time.gmtime(time.mktime(time.localtime()))
-        local_time_str = time.strftime("%d/%m/%Y %H:%M:%S", local_time)
-        self.assertTrue(local_time_str[:12].upper() in response[1].upper())
-        
-        # verify that the times match closely
-        instrument_time = time.strptime(response[1], '%d/%m/%Y %H:%M:%S')
-        #log.debug("it=%s, lt=%s" %(instrument_time, local_time))
-        it = datetime.datetime(*instrument_time[:6])
-        lt = datetime.datetime(*local_time[:6])
-        #log.debug("it=%s, lt=%s, lt-it=%s" %(it, lt, lt-it))
-        if lt - it > datetime.timedelta(seconds = 5):
-            self.fail("time delta too large after clock sync")      
 
     def test_instrument_set_configuration(self):
         """
@@ -612,173 +484,6 @@ class IntFromIDK(NortekIntTest):
         # check to see if config got set in instrument
         self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 3600)
         self.assertEquals(values_after[Parameter.COMPASS_UPDATE_RATE], 2)
-         
-
-    def test_instrument_read_clock(self):
-        """
-        @brief Test for reading instrument clock
-        """
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to read the clock.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
-        
-        log.debug("read clock returned: %s", response)
-        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
- 
-
-    def test_instrument_read_mode(self):
-        """
-        @brief Test for reading what mode
-        """
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to read the mode.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_MODE)
-        
-        log.debug("what mode returned: %s", response)
-        self.assertTrue(2, response[1])
-
-
-    def test_instrument_power_down(self):
-        """
-        @brief Test for power_down
-        """
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to power down.
-        try:
-            self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.POWER_DOWN)
-        except:
-            self.fail("Exception raised while trying to power down the instrument")
-        
-        # nothing to check except that no exceptions were raised
-        
-
-    def test_instrument_read_battery_voltage(self):
-        """
-        @brief Test for reading battery voltage
-        """
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to read the battery voltage.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_BATTERY_VOLTAGE)
-        
-        log.debug("read battery voltage returned: %s", response)
-        self.assertTrue(isinstance(response[1], int))
-
-
-    def test_instrument_read_id(self):
-        """
-        @brief Test for reading ID
-        """
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to read the ID.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
-        
-        log.debug("read ID returned: %s", response)
-        self.assertTrue(re.search(r'AQD 9984.*', response[1]))
-
-
-    def test_instrument_read_fat(self):
-        """
-        @brief Test for reading FAT
-        """
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to read the FAT.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_FAT)
-        
-        log.debug("read ID returned:")
-        for item in response[1]:
-            log.debug("%s", item)
-
-
-    def test_instrument_read_hw_config(self):
-        """
-        @brief Test for reading HW config
-        """
-        
-        hw_config = {'Status': 4, 
-                     'RecSize': 144, 
-                     'SerialNo': 'AQD 9984      ', 
-                     'FWversion': '3.37', 
-                     'Frequency': 65535, 
-                     'PICversion': 0, 
-                     'HWrevision': 4, 
-                     'Config': 4}
-        
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to read the hw config.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.GET_HW_CONFIGURATION)
-        
-        log.debug("read HW config returned: %s", response)
-        self.assertEqual(hw_config, response[1])
-
-
-    def test_instrument_read_head_config(self):
-        """
-        @brief Test for reading HEAD config
-        """
-        
-        head_config = {'Config': 16447, 
-                       'SerialNo': 'A3L 5258\x00\x00\x00\x00', 
-                       'System': 'QQBBAEEAAADFCx76HvoAAM/1MQqfDJ8MnwzTs1v8AC64/8aweQHgLsP/uAsAAAAA//8AAAEAAAABAAAAAAAAAAAA//8AAP//AAD//wAAAAAAAP//AQAAAAAA/////wAAAAAJALLvww7JBQMB2BtnKsnLL/yuJ9oAIs20AcQmAP//f2sDov9rA7R97f31/oD+5XsiAC4A9f8AAAAAAAAAAAAAAAAAAAAAVRUQDhAOECc=', 
-                       'Frequency': 2000, 
-                       'NBeams': 3, 
-                       'Type': 0}
-
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to read the head config.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.GET_HEAD_CONFIGURATION)
-        
-        log.debug("read HEAD config returned: %s", response)
-        self.assertEqual(head_config, response[1])
-
-
-    def test_instrument_start_measurement_immediate(self):
-        """
-        @brief Test for starting measurement immediate
-        """
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to start measurement immediate.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_MEASUREMENT_IMMEDIATE)
-        gevent.sleep(100)  # wait for measurement to complete  
-                      
-        # Verify we received at least 4 samples.
-        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
-        #log.debug('samples=%s' %sample_events)
-        self.assertTrue(len(sample_events) >= 4)
-        
-        # take instrument out of sample mode so we don't fill up the recorder
-        self.put_driver_in_unconfigured_mode()
-        self.put_driver_in_command_mode()
-
-
-    def test_instrument_start_measurement_at_specific_time(self):
-        """
-        @brief Test for starting measurement immediate
-        """
-        self.put_driver_in_command_mode()
-        
-        # command the instrument to start measurement immediate.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME)
-        gevent.sleep(100)  # wait for measurement to complete 
-                      
-        # Verify we received at least 4 samples.
-        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
-        #log.debug('samples=%s' %sample_events)
-        self.assertTrue(len(sample_events) >= 4)
-        
-        # take instrument out of sample mode so we don't fill up the recorder
-        self.put_driver_in_unconfigured_mode()
-        self.put_driver_in_command_mode()
 
 
     def test_instrument_set(self):
@@ -852,147 +557,6 @@ class IntFromIDK(NortekIntTest):
         log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
         #log.debug('samples=%s' %sample_events)
         self.assertTrue(len(sample_events) >= 4)
-
-    def test_instrument_start_stop_autosample(self):
-        """
-        @brief Test for putting instrument in 'auto-sample' state
-        """
-        self.put_driver_in_command_mode()
-
-        # command the instrument to auto-sample mode.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
-
-        self.check_state(ProtocolState.AUTOSAMPLE)
-           
-        # re-initialize the driver and re-discover instrument state (should be in autosample)
-        # Transition driver to disconnected.
-        self.driver_client.cmd_dvr('disconnect')
-
-        # Test the driver is disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Transition driver to unconfigured.
-        self.driver_client.cmd_dvr('initialize')
-    
-        # Test the driver is unconfigured.
-        self.check_state(DriverConnectionState.UNCONFIGURED)
-
-        # Configure driver and transition to disconnected.
-        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-
-        # Test that the driver is in state disconnected.
-        self.check_state(DriverConnectionState.DISCONNECTED)
-
-        # Setup the protocol state machine and the connection to port agent.
-        self.driver_client.cmd_dvr('connect')
-
-        # Test that the driver protocol is in state unknown.
-        self.check_state(ProtocolState.UNKNOWN)
-
-        # Discover what state the instrument is in and set the protocol state accordingly.
-        self.driver_client.cmd_dvr('discover_state')
-
-        self.check_state(ProtocolState.AUTOSAMPLE)
-
-        # wait for some samples to be generated
-        gevent.sleep(100)
-
-        # Verify we received at least 4 samples.
-        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
-        #log.debug('samples=%s' %sample_events)
-        self.assertTrue(len(sample_events) >= 4)
-
-        # stop autosample and return to command mode
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-                
-        self.check_state(ProtocolState.COMMAND)
-                        
-    def test_capabilities(self):
-        """
-        Test get_resource_capaibilties in command state and autosample state;
-        should be different in each.
-        """
-        
-        command_capabilities = ['EXPORTED_INSTRUMENT_CMD_READ_ID', 
-                                'EXPORTED_INSTRUMENT_CMD_GET_HW_CONFIGURATION', 
-                                'DRIVER_EVENT_SET', 
-                                'DRIVER_EVENT_GET', 
-                                'EXPORTED_INSTRUMENT_CMD_READ_CLOCK', 
-                                'EXPORTED_INSTRUMENT_CMD_GET_HEAD_CONFIGURATION', 
-                                'EXPORTED_INSTRUMENT_CMD_POWER_DOWN', 
-                                'EXPORTED_INSTRUMENT_CMD_READ_MODE', 
-                                'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_AT_SPECIFIC_TIME', 
-                                'EXPORTED_INSTRUMENT_CMD_READ_BATTERY_VOLTAGE', 
-                                'EXPORTED_INSTRUMENT_CMD_START_MEASUREMENT_IMMEDIATE',
-                                'EXPORTED_INSTRUMENT_CMD_SET_CONFIGURATION', 
-                                'DRIVER_EVENT_START_AUTOSAMPLE',
-                                'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                'DRIVER_EVENT_CLOCK_SYNC']
-        
-        autosample_capabilities = ['DRIVER_EVENT_STOP_AUTOSAMPLE']
-        
-        params_list = [
-            Parameter.TRANSMIT_PULSE_LENGTH,
-            Parameter.BLANKING_DISTANCE,
-            Parameter.RECEIVE_LENGTH,
-            Parameter.TIME_BETWEEN_PINGS,
-            Parameter.TIME_BETWEEN_BURST_SEQUENCES, 
-            Parameter.NUMBER_PINGS,
-            Parameter.AVG_INTERVAL,
-            Parameter.USER_NUMBER_BEAMS, 
-            Parameter.TIMING_CONTROL_REGISTER,
-            Parameter.POWER_CONTROL_REGISTER,
-            Parameter.COMPASS_UPDATE_RATE,  
-            Parameter.COORDINATE_SYSTEM,
-            Parameter.NUMBER_BINS,
-            Parameter.BIN_LENGTH,
-            Parameter.MEASUREMENT_INTERVAL,
-            Parameter.DEPLOYMENT_NAME,
-            Parameter.WRAP_MODE,
-            Parameter.CLOCK_DEPLOY,
-            Parameter.DIAGNOSTIC_INTERVAL,
-            Parameter.MODE,
-            Parameter.ADJUSTMENT_SOUND_SPEED,
-            Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
-            Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
-            Parameter.NUMBER_PINGS_DIAGNOSTIC,
-            Parameter.MODE_TEST,
-            Parameter.ANALOG_INPUT_ADDR,
-            Parameter.SW_VERSION,
-            Parameter.VELOCITY_ADJ_TABLE,
-            Parameter.COMMENTS,
-            Parameter.WAVE_MEASUREMENT_MODE,
-            Parameter.DYN_PERCENTAGE_POSITION,
-            Parameter.WAVE_TRANSMIT_PULSE,
-            Parameter.WAVE_BLANKING_DISTANCE,
-            Parameter.WAVE_CELL_SIZE,
-            Parameter.NUMBER_DIAG_SAMPLES,
-            Parameter.ANALOG_OUTPUT_SCALE,
-            Parameter.CORRELATION_THRESHOLD,
-            Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
-            Parameter.QUAL_CONSTANTS,
-            ]
-        
-        self.put_driver_in_command_mode()
-
-        # Get the capabilities of the driver.
-        driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
-        log.debug("\nec=%s\ndc=%s" %(sorted(command_capabilities), sorted(driver_capabilities[0])))
-        self.assertTrue(sorted(command_capabilities) == sorted(driver_capabilities[0]))
-        #log.debug('dc=%s' %sorted(driver_capabilities[1]))
-        #log.debug('pl=%s' %sorted(params_list))
-        self.assertTrue(sorted(params_list) == sorted(driver_capabilities[1]))
-
-        # Put the driver in autosample
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
-
-        self.check_state(ProtocolState.AUTOSAMPLE)
-
-        # Get the capabilities of the driver.
-        driver_capabilities = self.driver_client.cmd_dvr('get_resource_capabilities')
-        log.debug('test_capabilities: autosample mode capabilities=%s' %driver_capabilities)
-        self.assertTrue(autosample_capabilities == driver_capabilities[0])
                
     def test_errors(self):
         """
