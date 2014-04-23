@@ -220,13 +220,35 @@ class QualificationTest(DataSetQualificationTestCase):
             result2 = self.data_subscribers.get_samples(ENG_SCI_SAMPLE_STREAM)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
             result1.extend(result2)
-            log.debug("## QualificationTest.test_publish_path(): RESULT: %s", result2)
+            log.debug("## QualificationTest.test_publish_path(): RESULT: %s", result1)
 
             # Verify values in the combined result
             self.assert_data_values(result1, 'single_glider_record-engDataOnly.mrg.result.yml')
         except Exception as e:
             log.error("## QualificationTest.test_publish_path(): Exception trapped: %s", e)
             self.fail("Sample timeout.")
+
+    def test_separate_particles(self):
+        """
+        Setup an agent/driver/harvester/parser and verify that data is
+        published out the agent
+        """
+        self.create_sample_data('eng_data_separate.mrg', 'CopyOf-eng_data_separate.mrg')
+        self.assert_initialize()
+
+        # Verify we get one sample
+        try:
+            result1 = self.data_subscribers.get_samples(ENG_SAMPLE_STREAM, 2)
+            result2 = self.data_subscribers.get_samples(ENG_SCI_SAMPLE_STREAM, 2)
+            # append result2 (the eng sci particle) to result 1 (the eng particle)
+            result1.extend(result2)
+            log.debug("## QualificationTest.test_separate_particles(): RESULT: %s", result1)
+
+            # Verify values in the combined result
+            self.assert_data_values(result1, 'eng_data_separate.mrg.result.yml')
+        except Exception as e:
+            log.error("## QualificationTest.test_separate_particles(): Exception trapped: %s", e)
+            self.fail("## QualificationTest.test_separate_particles(): Sample timeout.")
 
     def test_large_import(self):
         """
@@ -284,15 +306,15 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and ensure we get the last 3 records of the file
             self.assert_start_sampling()
-            result3 = self.get_samples(ENG_SAMPLE_STREAM, 1)
-            result4 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 1)
+            result3 = self.get_samples(ENG_SAMPLE_STREAM, 3)
+            result4 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 3)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
             result3.extend(result4)
 
             result1.extend(result3)
 
             log.debug("## QualificationTest.test_stop_start(): got combined result %s", result1)
-            self.assert_data_values(result1, 'multiple_glider_record-engDataOnly.mrg.result.yml')
+            self.assert_data_values(result1, 'shutdownrestart_glider_record-engDataOnly.mrg.result.yml')
 
             self.assert_sample_queue_size(ENG_SCI_SAMPLE_STREAM, 0)
             self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
@@ -330,33 +352,39 @@ class QualificationTest(DataSetQualificationTestCase):
 
             self.create_sample_data('multiple_glider_record-engDataOnly.mrg',
                                     "CopyOf-multiple_glider_record-engDataOnly.mrg")
-            # Now read the first records of the second file then stop
-            result = self.get_samples((ENG_SAMPLE_STREAM, ENG_SCI_SAMPLE_STREAM), 1)
-            log.debug("## QualificationTest.test_shutdown_restart(): got result 1 %s", result)
-            self.assert_stop_sampling()
-            #self.assert_sample_queue_size((ENG_SAMPLE_STREAM, ENG_SCI_SAMPLE_STREAM), 0)
-            result1 = self.get_samples(ENG_SAMPLE_STREAM, 0)
-            result2 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 0)
+            # Now read the first three records of the second file then stop
+            #result = self.get_samples((ENG_SAMPLE_STREAM, ENG_SCI_SAMPLE_STREAM), 1)
+            result1 = self.get_samples(ENG_SAMPLE_STREAM, 1)
+            result2 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 1)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
             result1.extend(result2)
+            log.debug("## QualificationTest.test_shutdown_restart(): got result 1 %s", result1)
+            self.assert_stop_sampling()
+            self.assert_sample_queue_size(ENG_SCI_SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+
             # stop the agent
             self.stop_dataset_agent_client()
             # re-start the agent
             self.init_dataset_agent_client()
             #re-initialize
             self.assert_initialize(final_state=ResourceAgentState.COMMAND)
+
             # Restart sampling and ensure we get the last 3 records of the file
             self.assert_start_sampling()
-            #result = self.get_samples((ENG_SAMPLE_STREAM, ENG_SCI_SAMPLE_STREAM), 3)
-            result3 = self.get_samples(ENG_SAMPLE_STREAM, 1)
-            result4 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 1)
+            result3 = self.get_samples(ENG_SAMPLE_STREAM, 3)
+            result4 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 3)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
             result3.extend(result4)
 
-            log.debug("## QualificationTest.test_shutdown_restart(): got result 2 %s", result1)
-            self.assert_data_values(result1, 'merged_glider_record-engDataOnly.mrg.result.yml')
+            result1.extend(result3)
 
-            self.assert_sample_queue_size((ENG_SAMPLE_STREAM, ENG_SCI_SAMPLE_STREAM), 0)
+            log.debug("## QualificationTest.test_shutdown_restart(): got combined result %s", result1)
+            self.assert_data_values(result1, 'shutdownrestart_glider_record-engDataOnly.mrg.result.yml')
+
+            self.assert_sample_queue_size(ENG_SCI_SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+
         except SampleTimeout as e:
             log.error("## QualificationTest.test_shutdown_restart(): Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")

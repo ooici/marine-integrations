@@ -963,71 +963,67 @@ class GliderParser(BufferLoadingParser):
 
         log.debug("BUFFER: %s", self._chunker.buffer)
         # collect the non-data from the file
-        (nd_timestamp, non_data, none_start, none_end) = self._chunker.get_next_none_data_with_index(clean=False)
+        (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         # collect the data from the file
         (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
-        self.handle_non_data(non_data, none_start, none_end, start)
+        self.handle_non_data(non_data, non_start, non_end, start)
 
-        if data_record is None:
-            log.debug(" ### GliderParser.parse_chunks(): DATA RECORD IS NONE - timestamp= %s, record= None, "
-                     "start= %s, end= %s", timestamp, start, end)
-        else:
-            log.debug(" ### GliderParser.parse_chunks(): timestamp= %s, start= %s, end= %s", timestamp, start, end)
+        log.debug(" ### GliderParser.parse_chunks(): timestamp= %s, start= %s, end= %s", timestamp, start, end)
 
-            while data_record is not None:
-                log.debug("data record: %s", data_record)
+        while data_record is not None:
+            log.debug("data record: %s", data_record)
 
-                if self._whitespace_regex.match(data_record):
+            if self._whitespace_regex.match(data_record):
 
-                    log.debug("Only whitespace detected in record. Ignoring.")
+                log.debug("Only whitespace detected in record. Ignoring.")
+                self._increment_state(end)
+
+                # parse the data record into a data dictionary to pass to the particle class
+            else:
+
+                exception_detected = False
+
+                try:
+                    # create the dictionary of key/value pairs composed of the labels and the values from the
+                    # record being parsed
+                    data_dict = self._read_data(data_record)
+
+                except SampleException as e:
+                    exception_detected = True
+                    self._exception_callback(e)
+
+                # from the parsed data, m_present_time is the unix timestamp
+                try:
+                    if not exception_detected:
+                        record_time = data_dict['m_present_time']['Data']
+                        timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
+                        log.debug("Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
+                except KeyError:
+                    exception_detected = True
+                    self._exception_callback(SampleException("unable to find timestamp in data"))
+
+                if exception_detected:
+                    # We are done processing this record if we have detected an exception
+                    pass
+
+                elif self._contains_particle_data(data_dict):
+
+                    # create the particle
+                    particle = self._extract_sample(self._particle_class, None, data_dict, timestamp)
+
+                    self._increment_state(end)
+                    result_particles.append((particle, copy.copy(self._read_state)))
+                else:
+                    log.debug("No particle data found in particle. %s", data_dict)
                     self._increment_state(end)
 
-                    # parse the data record into a data dictionary to pass to the particle class
-                else:
+            # collect the non-data from the file
+            (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
+            # collect the data from the file
+            (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
-                    exception_detected = False
-
-                    try:
-                        # create the dictionary of key/value pairs composed of the labels and the values from the
-                        # record being parsed
-                        data_dict = self._read_data(data_record)
-
-                    except SampleException as e:
-                        exception_detected = True
-                        self._exception_callback(e)
-
-                    # from the parsed data, m_present_time is the unix timestamp
-                    try:
-                        if not exception_detected:
-                            record_time = data_dict['m_present_time']['Data']
-                            timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
-                            log.debug("Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
-                    except KeyError:
-                        exception_detected = True
-                        self._exception_callback(SampleException("unable to find timestamp in data"))
-
-                    if exception_detected:
-                        # We are done processing this record if we have detected an exception
-                        pass
-
-                    elif self._contains_particle_data(data_dict):
-
-                        # create the particle
-                        particle = self._extract_sample(self._particle_class, None, data_dict, timestamp)
-
-                        self._increment_state(end)
-                        result_particles.append((particle, copy.copy(self._read_state)))
-                    else:
-                        log.debug("No particle data found in particle. %s", data_dict)
-                        self._increment_state(end)
-
-                # collect the non-data from the file
-                (nd_timestamp, non_data, none_start, none_end) = self._chunker.get_next_none_data_with_index(clean=False)
-                # collect the data from the file
-                (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
-
-                self.handle_non_data(non_data, none_start, none_end, start)
+            self.handle_non_data(non_data, non_start, non_end, start)
 
         # publish the results
         return result_particles
@@ -1038,16 +1034,15 @@ class GliderParser(BufferLoadingParser):
         """
         # if non-data is expected, handle it here, otherwise it is an error
         if non_data is not None and non_end <= start:
-            self._increment_position(len(non_data))
 
-            log.warn("Found %d bytes (from %d to %d) of un-expected non-data" %
-                (len(non_data), non_start, non_end))
+            self._increment_state(len(non_data))
+
+            log.warn("### ### GliderParser.handle_non_data(): Found data in un-expected non-data from the chunker: %s",
+                     non_data)
 
             # if non-data is a fatal error, directly call the exception,
             # if it is not use the _exception_callback
-            self._exception_callback(UnexpectedDataException(
-                "Found %d bytes of un-expected non-data %s" %
-                 (len(non_data), non_data)))
+            self._exception_callback(UnexpectedDataException("Found un-expected non-data: %s", non_data))
 
     def _read_data(self, data_record):
         """
@@ -1197,90 +1192,97 @@ class GliderEngineeringParser(GliderParser):
         result_particles = []
 
         log.debug("BUFFER: %s", self._chunker.buffer)
+        # collect the non-data from the file
+        (nd_timestamp, non_data, none_start, none_end) = self._chunker.get_next_non_data_with_index(clean=False)
         # collect the data from the file
         (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
-        if data_record is None:
-            log.debug(" ### GliderEngineeringParser.parse_chunks(): DATA RECORD IS NONE - timestamp= %s, record= None, "
-                      "start= %s, end= %s", timestamp, start, end)
-        else:
-            log.debug(" ### GliderEngineeringParser.parse_chunks(): timestamp= %s, start= %s, end= %s",
-                      timestamp, start, end)
+        self.handle_non_data(non_data, none_start, none_end, start)
 
-            while data_record is not None:
-                log.debug("data record: %s", data_record)
+        log.debug(" ### GliderEngineeringParser.parse_chunks(): timestamp= %s, start= %s, end= %s",
+                  timestamp, start, end)
 
-                if self._whitespace_regex.match(data_record):
+        while data_record is not None:
+            log.debug("data record: %s", data_record)
 
-                    log.debug("Only whitespace detected in record. Ignoring.")
+            if self._whitespace_regex.match(data_record):
+
+                log.debug("Only whitespace detected in record. Ignoring.")
+                self._increment_state(end)
+
+                # parse the data record into a data dictionary to pass to the particle class
+            else:
+
+                exception_detected = False
+
+                try:
+                    # create the dictionary of key/value pairs composed of the labels and the values from the
+                    # record being parsed
+                    data_dict = self._read_data(data_record)
+
+                except SampleException as e:
+                    exception_detected = True
+                    self._exception_callback(e)
+                    log.warn(" ### GliderEngineeringParser.parse_chunks(): Sample Exception %s", e)
+                    data_dict = {}
+
+                # from the parsed data, m_present_time is the unix timestamp
+                try:
+                    if not exception_detected:
+                        record_time = data_dict['m_present_time']['Data']
+                        timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
+                        log.debug("Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
+                except KeyError:
+                    exception_detected = True
+                    self._exception_callback(SampleException("unable to find timestamp in data"))
+
+                if exception_detected:
+                    # We are done processing this record if we have detected an exception
+                    pass
+
+                incremented = False
+
+                if self._contains_eng_data(data_dict):
+
+                    # check if we're working on an engineering particle
+                        # since we're working on an engineering data particle, add the file info to the data dict
+                    data_dict = self.add_file_info_to_data_dict(data_dict)
+
+                    log.debug(" ### ### GliderEngineeringParser.parse_chunks(): filename = %s, "
+                             "mission name = %s, file open time = %s", data_dict['glider_eng_filename'],
+                             data_dict['glider_mission_name'], data_dict['glider_eng_fileopen_time'])
+
+                    # create the particle
+                    particle = self._extract_sample(EngineeringTelemeteredDataParticle, None,
+                                                    data_dict, timestamp)
+
+                    self._increment_state(end)
+                    incremented = True
+                    result_particles.append((particle, copy.copy(self._read_state)))
+
+                if self._contains_eng_sci_data(data_dict):
+
+                    # create the particle
+                    particle = self._extract_sample(EngineeringScienceTelemeteredDataParticle, None,
+                                                    data_dict, timestamp)
+
+                    if not incremented:
+                        self._increment_state(end)
+
+                    result_particles.append((particle, copy.copy(self._read_state)))
+
+
+
+                else:
+                    log.debug("No particle data found in particle. %s", data_dict)
                     self._increment_state(end)
 
-                    # parse the data record into a data dictionary to pass to the particle class
-                else:
+            # collect the non-data from the file
+            (nd_timestamp, non_data, none_start, none_end) = self._chunker.get_next_non_data_with_index(clean=False)
+            # collect the data from the file
+            (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
-                    exception_detected = False
-
-                    try:
-                        # create the dictionary of key/value pairs composed of the labels and the values from the
-                        # record being parsed
-                        data_dict = self._read_data(data_record)
-
-                    except SampleException as e:
-                        exception_detected = True
-                        self._exception_callback(e)
-                        log.warn(" ### GliderEngineeringParser.parse_chunks(): Sample Exception %s", e)
-                        data_dict = {}
-
-                    # from the parsed data, m_present_time is the unix timestamp
-                    try:
-                        if not exception_detected:
-                            record_time = data_dict['m_present_time']['Data']
-                            timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
-                            log.debug("Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
-                    except KeyError:
-                        exception_detected = True
-                        self._exception_callback(SampleException("unable to find timestamp in data"))
-
-                    if exception_detected:
-                        # We are done processing this record if we have detected an exception
-                        pass
-
-                    if self._contains_eng_data(data_dict):
-
-                        # check if we're working on an engineering particle
-                            # since we're working on an engineering data particle, add the file info to the data dict
-                        data_dict = self.add_file_info_to_data_dict(data_dict)
-
-                        log.debug(" ### ### GliderEngineeringParser.parse_chunks(): filename = %s, "
-                                 "mission name = %s, file open time = %s", data_dict['glider_eng_filename'],
-                                 data_dict['glider_mission_name'], data_dict['glider_eng_fileopen_time'])
-
-                        # create the particle
-                        particle = self._extract_sample(EngineeringTelemeteredDataParticle, None, data_dict, timestamp)
-
-                        self._increment_state(end)
-                        result_particles.append((particle, copy.copy(self._read_state)))
-
-                    if self._contains_eng_sci_data(data_dict):
-
-                        log.debug(" ### ### GliderEngineeringParser.parse_chunks(): filename = %s, "
-                                 "mission name = %s, file open time = %s", data_dict['glider_eng_filename'],
-                                 data_dict['glider_mission_name'], data_dict['glider_eng_fileopen_time'])
-
-                        # create the particle
-                        particle = self._extract_sample(EngineeringScienceTelemeteredDataParticle, None,
-                                                        data_dict, timestamp)
-
-                        self._increment_state(end)
-                        result_particles.append((particle, copy.copy(self._read_state)))
-
-
-
-                    else:
-                        log.debug("No particle data found in particle. %s", data_dict)
-                        self._increment_state(end)
-
-                (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
+            self.handle_non_data(non_data, none_start, none_end, start)
 
         # publish the results
         return result_particles
