@@ -17,6 +17,7 @@ import re
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
 from mi.instrument.nortek.driver import NortekParameterDictVal
@@ -512,8 +513,7 @@ class Protocol(NortekInstrumentProtocol):
                                     display_name="number samples per burst",
                                     default_value=9600,
                                     startup_param=True,
-                                    direct_access=True))
-
+                                    direct_access=False))
         self._param_dict.load_strings(RESOURCE_FILE)
 
     def _build_cmd_dict(self):
