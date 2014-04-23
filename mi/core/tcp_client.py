@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger;
+
+log = get_logger()
 
 import gevent
 import socket
@@ -9,8 +11,9 @@ import socket
 # see RFCs 854 & 857
 WILL_ECHO_CMD = '\xff\xfd\x03\xff\xfb\x03\xff\xfb\x01'
 # 'do echo' command sequence to be sent back from telnet client
-DO_ECHO_CMD   = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
+DO_ECHO_CMD = '\xff\xfb\x03\xff\xfd\x03\xff\xfd\x01'
 BUFFER_SIZE = 4096
+
 
 class TcpClient():
     '''
@@ -18,7 +21,7 @@ class TcpClient():
     '''
     buf = ""
 
-    def __init__(self, host = None, port = None):
+    def __init__(self, host=None, port=None):
         '''
         Constructor - open/connect to the socket
         @param host: host address
@@ -26,7 +29,7 @@ class TcpClient():
         '''
         self.buf = ""
 
-        if(host and port):
+        if (host and port):
             self.connect(host, port)
 
     def connect(self, host, port):
@@ -37,11 +40,11 @@ class TcpClient():
 
     def disconnect(self):
         log.debug("CLOSE SOCKET")
-        if(self.s):
+        if (self.s):
             self.s.close()
 
     def telnet_handshake(self):
-        if(self.expect(WILL_ECHO_CMD)):
+        if (self.expect(WILL_ECHO_CMD)):
             self.send_data(DO_ECHO_CMD)
             return True
         return False
@@ -58,17 +61,6 @@ class TcpClient():
             c = None
         return c
 
-    def peek_at_buffer(self):
-        if len(self.buf) == 0:
-            try:
-                self.buf = self.s.recv(BUFFER_SIZE)
-                log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
-            except:
-                """
-                Ignore this exception, its harmless
-                """
-        return self.buf
-
     def remove_from_buffer(self, remove):
         '''
         Remove the first instance of the string specified in remove from the buffer.  Also removes all bytes before
@@ -76,16 +68,16 @@ class TcpClient():
         @param remove: target string to remove from the buffer
         @return true if target was found and removed.
         '''
-        if(self.buf == None): return False
+        if (self.buf == None): return False
 
-        if(remove == None or len(remove) == 0):
+        if (remove == None or len(remove) == 0):
             log.warn("remove can not be empty.  ignored.")
             return False
 
         index = self.buf.find(remove)
 
         # -1 means not found.
-        if(index < 0):
+        if (index < 0):
             return False
 
         # Remove all bytes to the left of the target (including the target)
@@ -95,7 +87,7 @@ class TcpClient():
 
         return True
 
-    def expect(self, target, max_retries = 10, sleep_time = 1):
+    def expect(self, target, max_retries=10, sleep_time=1):
         '''
         Watch the input buffer for a string to show up.  If it does
         then consume that string from the buffer and return success.
@@ -107,19 +99,26 @@ class TcpClient():
         @return: True if the string was seen, False otherwise
         '''
         try_count = 0
-
-        while self.peek_at_buffer().find(target) == -1:
-            log.debug("WANT '%s:' READ (%d): '%s' HEX: %s" %
-                     (target, len(self.peek_at_buffer()), str(self.peek_at_buffer()), self.to_hex(self.peek_at_buffer())))
+        while True:
+            # Grab a chunk of data from the socket, if available
+            try:
+                self.buf += self.s.recv(BUFFER_SIZE)
+            except:
+                # Ignore this exception
+                pass
+            if self.buf.find(target) != -1:
+                # found it, exit the loop
+                break
+            log.debug("WANT '%s:' BUF (%d): '%s' HEX: %s" %
+                      (target, len(self.buf), str(self.buf), self.to_hex(self.buf)))
             gevent.sleep(sleep_time)
             try_count += 1
             if try_count > max_retries:
                 log.error("EXPECT Timeout. target not found '%s'" % target)
                 return False
-
+        log.debug('EXPECT found target: %s', target)
         self.remove_from_buffer(target)
         return True
-
 
     def get_data(self):
         data = ""
@@ -148,7 +147,7 @@ class TcpClient():
             log.debug("IN  [" + repr(data) + "]")
         return data
 
-    def send_data(self, data, debug = 1):
+    def send_data(self, data, debug=1):
         try:
             log.debug("OUT [" + repr(data) + "]")
             self.s.sendall(data)
@@ -161,15 +160,14 @@ class TcpClient():
         @param s: input bytes
         @return: hex representation of the input
         """
-        if(not len(s)): return None
+        if (not len(s)): return None
 
         lst = []
         for ch in s:
             hv = hex(ord(ch)).replace('0x', '')
             if len(hv) == 1:
-                hv = '0'+hv
+                hv = '0' + hv
 
             lst.append(hv.upper() + ' ')
 
-
-        return reduce(lambda x,y:x+y, lst)
+        return reduce(lambda x, y: x + y, lst)
