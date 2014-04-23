@@ -20,24 +20,30 @@ from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.common import BaseEnum
+from mi.core.util import dict_equal
 from mi.core.exceptions import SampleException, \
+    InstrumentParameterException, \
     InstrumentProtocolException, \
     InstrumentTimeoutException
 
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol, RE_PATTERN
-from mi.core.instrument.instrument_protocol import DEFAULT_CMD_TIMEOUT
+from mi.core.instrument.instrument_protocol import \
+    CommandResponseInstrumentProtocol, \
+    RE_PATTERN, \
+    DEFAULT_CMD_TIMEOUT
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.chunker import StringChunker
 
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.instrument.instrument_driver import DriverParameter
-from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.instrument_driver import \
+    DriverEvent, \
+    DriverAsyncEvent, \
+    DriverProtocolState, \
+    DriverParameter, \
+    ResourceAgentState
 
-from mi.core.instrument.data_particle import DataParticle
-from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.data_particle import CommonDataParticleType
+from mi.core.instrument.data_particle import \
+    DataParticle, \
+    DataParticleKey, \
+    CommonDataParticleType
 
 from mi.core.instrument.driver_dict import DriverDictKey
 
@@ -87,6 +93,7 @@ class ProtocolEvent(BaseEnum):
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
     DISCOVER = DriverEvent.DISCOVER
+    INIT_PARAMS = DriverEvent.INIT_PARAMS
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
@@ -231,10 +238,10 @@ class McLaneDataParticleType(BaseEnum):
     """
     # TODO - define which commands will be published to user
     RAW = CommonDataParticleType.RAW
-    MCLANE_PARSED = 'rasfl_parsed'
-    PUMP_STATUS = 'rasfl_pump_status'
-    VOLTAGE_STATUS = 'rasfl_battery'
-    VERSION_INFO = 'rasfl_version'
+    MCLANE_PARSED = 'mclane_parsed'
+    PUMP_STATUS = 'pump_status'
+    VOLTAGE_STATUS = 'battery'
+    VERSION_INFO = 'version'
 
 
 ###############################################################################
@@ -242,20 +249,19 @@ class McLaneDataParticleType(BaseEnum):
 ###############################################################################
 
 class McLaneSampleDataParticleKey(BaseEnum):
-    PUMP_STATUS = 'pump_status'
-    PORT = 'port'
-    VOLUME_COMMANDED = 'volume_commanded'
-    FLOW_RATE_COMMANDED = 'flow_rate_commanded'
-    MIN_FLOW_COMMANDED = 'min_flow_commanded'
-    TIME_LIMIT = 'time_limit'
-    VOLUME_ACTUAL = 'volume'
-    FLOW_RATE_ACTUAL = 'flow_rate'
-    MIN_FLOW_ACTUAL = 'min_flow'
+    PUMP_STATUS = 'sampling_status_code'
+    PORT = 'port_number'
+    VOLUME_COMMANDED = 'commanded_volume'
+    FLOW_RATE_COMMANDED = 'commanded_flowrate'
+    MIN_FLOW_COMMANDED = 'commanded_min_flowrate'
+    TIME_LIMIT = 'commanded_timelimit'
+    VOLUME_ACTUAL = 'cumulative_volume'
+    FLOW_RATE_ACTUAL = 'flowrate'
+    MIN_FLOW_ACTUAL = 'min_flowrate'
     TIMER = 'elapsed_time'
-    DATE = 'date'
-    TIME = 'time_of_day'
+    TIME = 'date_time_string'
     BATTERY = 'battery_voltage'
-    CODE = 'code'
+    CODE = 'sampling_status_code'
 
 
 # data particle for forward, reverse, and result commands
@@ -271,21 +277,20 @@ class McLaneSampleDataParticle(DataParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        exp = str(r'(Status|Result)' +  # status is incremental, result is the last return from the command
-                  '\s*(\d+)\s*\|' +  # PORT
-                  '\s*(\d+)' +  # VOLUME_COMMANDED
-                  '\s*(\d+)' +  # FLOW RATE COMMANDED
-                  '\s*(\d+)' +  # MIN RATE COMMANDED
-                  '\s*(\d+)\s*\|' +  # TLIM - TODO
-                  '\s*(\d*\.?\d+)' +  # VOLUME (actual)
-                  '\s*(\d*\.?\d+)' +  # FLOW RATE (actual)
-                  '\s*(\d*\.?\d+)' +  # MIN RATE (actual)
+        exp = str(r'(?P<status>Status|Result)' +  # status is incremental, result is the last return from the command
+                  '\s*(?P<port>\d+)\s*\|' +  # PORT
+                  '\s*(?P<commanded_volume>\d+)' +  # VOLUME_COMMANDED
+                  '\s*(?P<commanded_flow_rate>\d+)' +  # FLOW RATE COMMANDED
+                  '\s*(?P<commanded_min_flowrate>\d+)' +  # MIN RATE COMMANDED
+                  '\s*(?P<time_limit>\d+)\s*\|' +  # TLIM - TODO
+                  '\s*(?P<volume>\d*\.?\d+)' +  # VOLUME (actual)
+                  '\s*(?P<flow_rate>\d*\.?\d+)' +  # FLOW RATE (actual)
+                  '\s*(?P<min_flow>\d*\.?\d+)' +  # MIN RATE (actual)
                   '\*?' +
-                  '\s*(\d+)' +  # elapsed time (seconds)
-                  '\s*(\d+)' +  # MMDDYY (current date)
-                  '\s*(\d+)\s*\|' +  # HHMMSS (current time)
-                  '\s*(\d*\.?\d+)' +  # voltage (battery)
-                  '\s*(\d+)' +  # code enumeration
+                  '\s*(?P<timer>\d+)' +  # elapsed time (seconds)
+                  '\s*(?P<time>\d+\s*\d+)\s*\|' +  # MMDDYY HHMMSS (current date and time)
+                  '\s*(?P<voltage>\d*\.?\d+)' +  # voltage (battery)
+                  '\s*(?P<code>\d+)' +  # code enumeration
                   '\s*' + NEWLINE)
         return exp
 
@@ -295,7 +300,7 @@ class McLaneSampleDataParticle(DataParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        return re.compile(McLaneSampleDataParticle.regex(), re.DOTALL)
+        return re.compile(McLaneSampleDataParticle.regex())
 
     def _build_parsed_values(self):
         match = McLaneSampleDataParticle.regex_compiled().match(self.raw_data)
@@ -305,33 +310,31 @@ class McLaneSampleDataParticle(DataParticle):
 
         result = [
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.PUMP_STATUS,
-             DataParticleKey.VALUE: match.group(1)},
+             DataParticleKey.VALUE: match.group('status')},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.PORT,
-             DataParticleKey.VALUE: int(match.group(2))},
+             DataParticleKey.VALUE: int(match.group('port'))},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.VOLUME_COMMANDED,
-             DataParticleKey.VALUE: int(match.group(3))},
+             DataParticleKey.VALUE: int(match.group('commanded_volume'))},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.FLOW_RATE_COMMANDED,
-             DataParticleKey.VALUE: int(match.group(4))},
+             DataParticleKey.VALUE: int(match.group('commanded_flow_rate'))},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.MIN_FLOW_COMMANDED,
-             DataParticleKey.VALUE: int(match.group(5))},
+             DataParticleKey.VALUE: int(match.group('commanded_min_flowrate'))},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.TIME_LIMIT,
-             DataParticleKey.VALUE: int(match.group(6))},
+             DataParticleKey.VALUE: int(match.group('time_limit'))},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.VOLUME_ACTUAL,
-             DataParticleKey.VALUE: float(match.group(7))},
+             DataParticleKey.VALUE: float(match.group('volume'))},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.FLOW_RATE_ACTUAL,
-             DataParticleKey.VALUE: float(match.group(8))},
+             DataParticleKey.VALUE: float(match.group('flow_rate'))},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.MIN_FLOW_ACTUAL,
-             DataParticleKey.VALUE: float(match.group(9))},
+             DataParticleKey.VALUE: float(match.group('min_flow'))},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.TIMER,
-             DataParticleKey.VALUE: int(match.group(10))},
-            {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.DATE,
-             DataParticleKey.VALUE: str(match.group(11))},
+             DataParticleKey.VALUE: int(match.group('timer'))},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.TIME,
-             DataParticleKey.VALUE: str(match.group(12))},
+             DataParticleKey.VALUE: str(match.group('time'))},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.BATTERY,
-             DataParticleKey.VALUE: float(match.group(13))},
+             DataParticleKey.VALUE: float(match.group('voltage'))},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.CODE,
-             DataParticleKey.VALUE: int(match.group(14))}]
+             DataParticleKey.VALUE: int(match.group('code'))}]
 
         return result
 
@@ -368,6 +371,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
             ],
             ProtocolState.COMMAND: [
                 (ProtocolEvent.ENTER, self._handler_command_enter),
+                (ProtocolEvent.INIT_PARAMS, self._handler_command_init_params),
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.CLOCK_SYNC, self._handler_sync_clock),
                 (ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire),
@@ -463,36 +467,55 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
     # implement virtual methods from base class.
     ########################################################################
 
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters.  If
+        startup is set to true that means we are setting startup values
+        and immutable parameters can be set.  Otherwise only READ_WRITE
+        parameters can be set.
+
+        must be overloaded in derived classes
+
+        @param params dictionary containing parameter name and value pairs
+        @param startup flag - true indicates initializing, false otherwise
+        """
+
+        params = args[0]
+
+        # check for attempt to set readonly parameters (read-only or immutable set outside startup)
+        self._verify_not_readonly(*args, **kwargs)
+        old_config = self._param_dict.get_config()
+
+        for (key, val) in params.iteritems():
+            log.debug("KEY = " + str(key) + " VALUE = " + str(val))
+            self._param_dict.set_value(key, val)
+
+        new_config = self._param_dict.get_config()
+        log.debug('new config: %s\nold config: %s', new_config, old_config)
+        # check for parameter change
+        if not dict_equal(old_config, new_config):
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
     def apply_startup_params(self):
         """
         Apply startup parameters
         """
 
-        fn = "apply_startup_params"
-        config = self.get_startup_config()
-        log.debug("%s: startup config = %s", fn, config)
+        # fn = "apply_startup_params"
+        # config = self.get_startup_config()
+        # log.debug("%s: startup config = %s", fn, config)
+        #
+        # for param in Parameter.list():
+        #     if param in config:
+        #         self._param_dict.set_value(param, config[param])
+        #
+        # log.debug("%s: new parameters", fn)
+        # for x in config:
+        #     log.debug("  parameter %s: %s", x, config[x])
+        if self.get_current_state() != DriverProtocolState.COMMAND:
+            raise InstrumentProtocolException('cannot set parameters outside command state')
 
-        for param in Parameter.list():
-            if param in config:
-                self._param_dict.set_value(param, config[param])
-
-        log.debug("%s: new parameters", fn)
-        for x in config:
-            log.debug("  parameter %s: %s", x, config[x])
-
-    # def get_acquire_time(self):
-    #     flush_volume = self._param_dict.get_config_value(Parameter.FLUSH_VOLUME)
-    #     flush_rate = self._param_dict.get_config_value(Parameter.FLUSH_FLOWRATE)
-    #     fill_volume = self._param_dict.get_config_value(Parameter.FILL_VOLUME)
-    #     fill_rate = self._param_dict.get_config_value(Parameter.FILL_FLOWRATE)
-    #     clear_volume = self._param_dict.get_config_value(Parameter.REVERSE_VOLUME)
-    #     clear_rate = self._param_dict.get_config_value(Parameter.REVERSE_FLOWRATE)
-    #
-    #     flush_time = flush_volume / flush_rate * 60
-    #     fill_time = fill_volume / fill_rate * 60 + Timeout.PORT
-    #     clear_time = clear_volume / clear_rate * 60 + Timeout.HOME
-    #
-    #     return (flush_time + fill_time + clear_time) * PUMP_RATE_ERROR
+        self._set_params(self.get_startup_config(), True)
 
     ########################################################################
     # Instrument commands.
@@ -648,11 +671,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         """
 
         # force to command mode, this instrument has no autosample mode
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        log.debug("_handler_unknown_discover: state = %s", next_state)
-        return next_state, next_agent_state
+        return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
     ########################################################################
     # Flush
@@ -690,8 +709,8 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         @args match object containing the regular expression match of the status line.
         """
         match = args[0]
-        pump_status = match.group(1)
-        code = int(match.group(14))
+        pump_status = match.group('status')
+        code = int(match.group('code'))
 
         next_state = None
         next_agent_state = None
@@ -762,8 +781,8 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
 
         match = args[0]
-        pump_status = match.group(1)
-        code = int(match.group(14))
+        pump_status = match.group('status')
+        code = int(match.group('code'))
 
         if pump_status == 'Result':
             if code != TerminationCodeEnum.VOLUME_REACHED:
@@ -804,8 +823,8 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
 
         match = args[0]
-        pump_status = match.group(1)
-        code = int(match.group(14))
+        pump_status = match.group('status')
+        code = int(match.group('code'))
 
         if pump_status == 'Result':
             if code != TerminationCodeEnum.VOLUME_REACHED:
@@ -841,33 +860,60 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         """
         # Command device to update parameters and send a config change event if needed.
         self._update_params()
+        self._protocol_fsm.on_event(ProtocolEvent.INIT_PARAMS)
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+    def _handler_command_init_params(self, *args, **kwargs):
+        """
+        Setup initial parameters.
+        """
+        self._init_params()
+
+        return None, None
+
     def _handler_command_set(self, *args, **kwargs):
         """
-        Process command  # TODO - what commands get sent?
+        Set instrument parameters
         """
-        params = args[0]
+        log.debug('handler command set called')
+        startup = False
 
-        changed = False
-        for key, value in params.items():
-            log.info('Command:set - setting parameter %s to %s', key, value)
-            if not Parameter.has(key):
-                raise InstrumentProtocolException('Attempt to set undefined parameter: %s', key)
-            old_value = self._param_dict.get(key)
-            if old_value != value:
-                changed = True
-                self._param_dict.set_value(key, value)
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('set command requires a parameter dictionary.')
 
-        if changed:
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
 
-        next_state = None
-        result = None
-        return next_state, result
+        if not isinstance(params, dict):
+            raise InstrumentParameterException('set parameters is not a dictionary')
+
+        self._set_params(params, startup)
+
+        return None, None
+
+        # changed = False
+        # for key, value in params.items():
+        #     log.info('Command:set - setting parameter %s to %s', key, value)
+        #     if not Parameter.has(key):
+        #         raise InstrumentProtocolException('Attempt to set undefined parameter: %s', key)
+        #     old_value = self._param_dict.get(key)
+        #     if old_value != value:
+        #         changed = True
+        #         self._param_dict.set_value(key, value)
+        #
+        # if changed:
+        #     self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+        #
+        # next_state = None
+        # result = None
+        # return next_state, result
 
     def _handler_command_start_direct(self, *args, **kwargs):
         """
@@ -908,19 +954,12 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         self._sent_cmds = []
 
     def _handler_direct_access_execute_direct(self, data):
-        next_state = None
-        result = None
-
         self._do_cmd_direct(data)
 
-        return next_state, result
+        return None, None
 
     def _handler_direct_access_stop_direct(self, *args, **kwargs):
-        result = None
-        next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.COMMAND
-
-        return next_state, (next_agent_state, result)
+        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     ########################################################################
     # general handlers.
@@ -963,20 +1002,9 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         # str_val = time.strftime(time_format, time.gmtime(time.time() + self._clock_set_offset))
         log.debug("Setting instrument clock to '%s'", str_val)
 
-        try:
-            ras_time = self._do_cmd_resp(McLaneCommand.CLOCK, str_val, response_regex=McLaneResponse.READY)[0]
-            log.debug('--- djm --- ras_time: %r', ras_time)
-            ras_time = time.strptime(ras_time + 'UTC', '%m/%d/%y %H:%M:%S %Z')
-            log.debug('--- djm --- ras_time: %r', ras_time)
-            current_time = time.gmtime()
-            log.debug('--- djm --- current_time: %s', current_time)
-            diff = time.mktime(current_time) - time.mktime(ras_time)
-            log.info('clock synched within %d seconds', diff)
-            #latency = diff / 2
-        finally:
-            pass
+        ras_time = self._do_cmd_resp(McLaneCommand.CLOCK, str_val, response_regex=McLaneResponse.READY)[0]
 
-        return None, (None, ras_time)
+        return None, (None, {'time': ras_time})
 
     def _handler_command_acquire(self, *args, **kwargs):
         return ProtocolState.FLUSH, ResourceAgentState.BUSY
@@ -1071,7 +1099,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
 
         # Add parameter handlers to parameter dictionary for instrument configuration parameters.
         self._param_dict.add(Parameter.FLUSH_VOLUME,
-                             r'Flush Volume: (.*)V',
+                             r'Flush Volume: (.*)mL',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
@@ -1082,27 +1110,27 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                              display_name="flush_volume",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.FLUSH_FLOWRATE,
-                             r'Flush Flow Rate: (.*)V',
+                             r'Flush Flow Rate: (.*)mL/min',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              default_value=100,
-                             units='mL/sec',
+                             units='mL/min',
                              startup_param=True,
                              display_name="flush_flow_rate",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.FLUSH_MINFLOW,
-                             r'Flush Min Flow: (.*)V',
+                             r'Flush Min Flow: (.*)mL/min',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              default_value=75,
-                             units='mL/sec',
+                             units='mL/min',
                              startup_param=True,
                              display_name="flush_min_flow",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.FILL_VOLUME,
-                             r'Fill Volume: (.*)V',
+                             r'Fill Volume: (.*)mL',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
@@ -1113,27 +1141,27 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                              display_name="fill_volume",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.FILL_FLOWRATE,
-                             r'Fill Flow Rate: (.*)V',
+                             r'Fill Flow Rate: (.*)mL/min',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              default_value=100,
-                             units='mL/sec',
+                             units='mL/min',
                              startup_param=True,
                              display_name="fill_flow_rate",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.FILL_MINFLOW,
-                             r'Fill Min Flow: (.*)V',
+                             r'Fill Min Flow: (.*)mL/min',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              default_value=75,
-                             units='mL/sec',
+                             units='mL/min',
                              startup_param=True,
                              display_name="fill_min_flow",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.CLEAR_VOLUME,
-                             r'Reverse Volume: (.*)V',
+                             r'Reverse Volume: (.*)mL',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
@@ -1144,22 +1172,22 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                              display_name="clear_volume",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.CLEAR_FLOWRATE,
-                             r'Reverse Flow Rate: (.*)V',
+                             r'Reverse Flow Rate: (.*)mL/min',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              default_value=100,
-                             units='mL/sec',
+                             units='mL/min',
                              startup_param=True,
                              display_name="clear_flow_rate",
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.CLEAR_MINFLOW,
-                             r'Reverse Min Flow: (.*)V',
+                             r'Reverse Min Flow: (.*)mL/min',
                              None,
                              self._int_to_string,
                              type=ParameterDictType.INT,
                              default_value=75,
-                             units='mL/sec',
+                             units='mL/min',
                              startup_param=True,
                              display_name="clear_min_flow",
                              visibility=ParameterDictVisibility.IMMUTABLE)
