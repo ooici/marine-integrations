@@ -153,8 +153,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-    def setUp(self):
-        super(QualificationTest, self).setUp()
 
     def test_publish_path(self):
         """
@@ -186,10 +184,39 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         self.create_sample_data('E0000303.DAT')
         self.create_sample_data('E0000427.DAT')
+        
         self.assert_initialize()
 
         # get results for each of the data particle streams
-        result2 = self.get_samples(SAMPLE_STREAM,64,40)
+        result = self.get_samples(SAMPLE_STREAM,64,40)
+
+    def test_for_nan(self):
+        """
+        Test which confirms we are not getting NaNs by checking for
+        ResourceAgentErrorEvents (caused by sample exception)
+        """
+        self.create_sample_data('E0000000.DAT')
+        self.create_sample_data('E0000001.DAT')
+        self.create_sample_data('E0000002.DAT')
+        self.create_sample_data('E0000003.DAT')
+        self.create_sample_data('E0000004.DAT')
+        self.create_sample_data('E0000005.DAT')
+        self.create_sample_data('E0000006.DAT')
+        self.create_sample_data('E0000007.DAT')
+        self.create_sample_data('E0000008.DAT')
+        self.create_sample_data('E0000009.DAT')
+
+        self.assert_initialize()
+
+        result = self.get_samples(SAMPLE_STREAM,2300,240)
+        found_sample_exception = False
+        for event in self.event_subscribers.events_received:
+            if isinstance(event, ResourceAgentErrorEvent):
+                found_sample_exception = True
+                break
+        if found_sample_exception:
+            log.error("Received a resource agent error event when one was not expected")
+            self.fail("Received a resource agent error event when one was not expected")
 
     def test_status_in_middle(self):
         """
@@ -246,7 +273,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
     def test_shutdown_restart(self):
         """
-        Test the agents ability to start data flowing, stop, then restart
+        Test the agents ability to start, completely shutdown, then restart
         at the correct spot.
         """
         log.info("CONFIG: %s", self._agent_config())

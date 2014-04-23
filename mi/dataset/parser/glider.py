@@ -19,7 +19,7 @@ from functools import partial
 
 from mi.core.log import get_logger
 from mi.core.common import BaseEnum
-from mi.core.exceptions import SampleException, DatasetParserException
+from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.dataset.dataset_parser import BufferLoadingParser
@@ -835,9 +835,10 @@ class GliderParser(BufferLoadingParser):
 
             # check if this line is empty
             if len(line) == 0:
-                raise SampleException("Header line empty")
+                raise SampleException("GliderParser._read_file_definition(): Header line is empty")
 
-            log.debug(" ### ### GliderParser._read_file_definition(): File position: %s line: %s", self._stream_handle.tell(), line)
+            log.debug(" ### ### GliderParser._read_file_definition(): File position: %s line: %s",
+                      self._stream_handle.tell(), line)
 
             match = header_re.match(line)
 
@@ -856,7 +857,6 @@ class GliderParser(BufferLoadingParser):
                     self._header_dict[key] = value
 
                 elif key in ['filename_label', 'mission_name', 'fileopen_time']:
-                    #value = int(value)
 
                     # create a dictionary of these 3 key/value pairs strings from
                     # the header rows that need to be saved for future use
@@ -900,7 +900,8 @@ class GliderParser(BufferLoadingParser):
         log.debug(" ### ### GliderParser._read_column_labels(): Data units: %s", self._header_dict['data_units'])
         log.debug(" ### ### GliderParser._read_column_labels(): Bytes: %s", self._header_dict['num_of_bytes'])
 
-        log.debug(" ### ### GliderParser._read_column_labels(): End of header, position: %d", self._stream_handle.tell())
+        log.debug(" ### ### GliderParser._read_column_labels(): End of header, position: %d",
+                  self._stream_handle.tell())
 
 
     def set_state(self, state_obj):
@@ -961,8 +962,12 @@ class GliderParser(BufferLoadingParser):
         result_particles = []
 
         log.debug("BUFFER: %s", self._chunker.buffer)
+        # collect the non-data from the file
+        (nd_timestamp, non_data, none_start, none_end) = self._chunker.get_next_none_data_with_index(clean=False)
         # collect the data from the file
         (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
+
+        self.handle_non_data(non_data, none_start, none_end, start)
 
         if data_record is None:
             log.debug(" ### GliderParser.parse_chunks(): DATA RECORD IS NONE - timestamp= %s, record= None, "
@@ -1017,10 +1022,32 @@ class GliderParser(BufferLoadingParser):
                         log.debug("No particle data found in particle. %s", data_dict)
                         self._increment_state(end)
 
+                # collect the non-data from the file
+                (nd_timestamp, non_data, none_start, none_end) = self._chunker.get_next_none_data_with_index(clean=False)
+                # collect the data from the file
                 (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
+
+                self.handle_non_data(non_data, none_start, none_end, start)
 
         # publish the results
         return result_particles
+
+    def handle_non_data(self, non_data, non_start, non_end, start):
+        """
+        Handle any non-data that is found in the file
+        """
+        # if non-data is expected, handle it here, otherwise it is an error
+        if non_data is not None and non_end <= start:
+            self._increment_position(len(non_data))
+
+            log.warn("Found %d bytes (from %d to %d) of un-expected non-data" %
+                (len(non_data), non_start, non_end))
+
+            # if non-data is a fatal error, directly call the exception,
+            # if it is not use the _exception_callback
+            self._exception_callback(UnexpectedDataException(
+                "Found %d bytes of un-expected non-data %s" %
+                 (len(non_data), non_data)))
 
     def _read_data(self, data_record):
         """
@@ -1071,7 +1098,8 @@ class GliderParser(BufferLoadingParser):
                     # convert latitude/longitude strings to decimal degrees
                     value = self._string_to_ddegrees(data[ii])
 
-                    log.debug("### ### GliderParser._read_data(): Converted lat/lon %s = %10.5f", data_labels[ii], value)
+                    log.debug("### ### GliderParser._read_data(): Converted lat/lon %s = %10.5f",
+                              data_labels[ii], value)
 
                 else:
                     # convert the string to and int or float
@@ -1148,7 +1176,6 @@ class GliderParser(BufferLoadingParser):
 
         if latlon_match is None:
             raise SampleException("Failed to parse lat/lon value: '%s'" % pos_str)
-            ddegrees = None
         else:
             degrees = float(latlon_match.group(1))
             minutes = float(latlon_match.group(2))
@@ -1175,9 +1202,10 @@ class GliderEngineeringParser(GliderParser):
 
         if data_record is None:
             log.debug(" ### GliderEngineeringParser.parse_chunks(): DATA RECORD IS NONE - timestamp= %s, record= None, "
-                     "start= %s, end= %s", timestamp, start, end)
+                      "start= %s, end= %s", timestamp, start, end)
         else:
-            log.debug(" ### GliderEngineeringParser.parse_chunks(): timestamp= %s, start= %s, end= %s", timestamp, start, end)
+            log.debug(" ### GliderEngineeringParser.parse_chunks(): timestamp= %s, start= %s, end= %s",
+                      timestamp, start, end)
 
             while data_record is not None:
                 log.debug("data record: %s", data_record)
@@ -1240,7 +1268,8 @@ class GliderEngineeringParser(GliderParser):
                                  data_dict['glider_mission_name'], data_dict['glider_eng_fileopen_time'])
 
                         # create the particle
-                        particle = self._extract_sample(EngineeringScienceTelemeteredDataParticle, None, data_dict, timestamp)
+                        particle = self._extract_sample(EngineeringScienceTelemeteredDataParticle, None,
+                                                        data_dict, timestamp)
 
                         self._increment_state(end)
                         result_particles.append((particle, copy.copy(self._read_state)))
@@ -1299,7 +1328,8 @@ class GliderEngineeringParser(GliderParser):
 
     def _contains_eng_sci_data(self, data_dict):
         """
-        Examine the data_dict to see if it contains data from the engineering science telemetered particle being worked on
+        Examine the data_dict to see if it contains data from the engineering science telemetered particle
+        being worked on
         """
         log.debug(" ### ### ### GliderParser._contains_eng_sci_data(): Looking for the following attributes from the "
                   "particle in the working data_dict: %s",
@@ -1312,7 +1342,8 @@ class GliderEngineeringParser(GliderParser):
                 # return true as soon as the first particle non-NaN attribute from the data dict
                 value = data_dict[key]['Data']
                 if not np.isnan(value):
-                    log.debug(" ### ### ### GliderParser._contains_eng_sci_data(): GOT A EngineeringScienceTelemeteredDataParticle!")
+                    log.debug(" ### ### ### GliderParser._contains_eng_sci_data(): GOT A "
+                              "EngineeringScienceTelemeteredDataParticle!")
                     return True
 
         log.debug(" ### ### ### GliderParser._contains_eng_sci_data(): No attributes in the particle found!")

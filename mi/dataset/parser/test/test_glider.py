@@ -39,16 +39,12 @@ from mi.dataset.parser.glider import ParadRecoveredDataParticle
 from mi.dataset.parser.glider import ParadTelemeteredDataParticle
 from mi.dataset.parser.glider import ParadRecoveredParticleKey
 from mi.dataset.parser.glider import ParadTelemeteredParticleKey
-# from mi.dataset.parser.glider import GgldrCtdgvDelayedDataParticle, CtdgvParticleKey
-# from mi.dataset.parser.glider import GgldrDostaDelayedDataParticle
-# from mi.dataset.parser.glider import GgldrFlordDelayedDataParticle
-# from mi.dataset.parser.glider import GgldrEngDelayedDataParticle
+from mi.dataset.parser.glider import EngineeringTelemeteredParticleKey
+from mi.dataset.parser.glider import EngineeringScienceTelemeteredParticleKey
+from mi.dataset.parser.glider import EngineeringScienceTelemeteredDataParticle
+from mi.dataset.parser.glider import EngineeringTelemeteredDataParticle
 from mi.dataset.parser.glider import DataParticleType
 from mi.dataset.parser.glider import GliderParticle
-# from mi.dataset.parser.glider import DostaParticleKey
-# from mi.dataset.parser.glider import FlordParticleKey
-# from mi.dataset.parser.glider import EngineeringParticleKey
-
 from mi.dataset.parser.test.glider_test_results import positions, glider_test_data
 
 
@@ -439,14 +435,16 @@ class PARADTelemeteredGliderTest(GliderParserUnitTestCase):
         Verify we publish particles as expected.  Ensure particle is published and
         that state is returned.
         """
-        # reused the FLORT record for this Parad test
+        # reused the FLORT record data for this Parad test
         self.set_data(HEADER3, FLORT_RECORD)
         self.reset_parser()
 
         record_1 = {ParadTelemeteredParticleKey.SCI_BSIPAR_PAR: 664.424}
         record_2 = {ParadTelemeteredParticleKey.SCI_BSIPAR_PAR: 645.569}
 
+        # (10553 = file size up to start of last row) 10553 - 19 bytes (for 19 lines of Carriage returns above) = 10534
         self.assert_generate_particle(ParadTelemeteredDataParticle, record_1, 10534)
+        # (11997 = file size in bytes) 11997 - 20 bytes (for 20 lines of Carriage returns above) = 11977
         self.assert_generate_particle(ParadTelemeteredDataParticle, record_2, 11977)
         self.assert_no_more_data()
 
@@ -471,20 +469,23 @@ class FLORDGliderTest(GliderParserUnitTestCase):
         Verify we publish particles as expected.  Ensure particle is published and
         that state is returned.
         """
-        self.set_data(HEADER, FLORD_RECORD)
+        # reused the FLORT record data for this Flord test
+        self.set_data(HEADER3, FLORT_RECORD)
         self.reset_parser()
 
-        record_1 = {FlordParticleKey.SCI_FLBBCD_BB_UNITS: 0.000298102, FlordParticleKey.SCI_FLBBCD_CHLOR_UNITS: 1.519}
-        record_2 = {FlordParticleKey.SCI_FLBBCD_BB_UNITS: 0.000327355, FlordParticleKey.SCI_FLBBCD_CHLOR_UNITS: 1.708}
+        record_1 = {FlordParticleKey.SCI_FLBBCD_BB_UNITS: 0.000281336, FlordParticleKey.SCI_FLBBCD_CHLOR_UNITS: 0.8349}
+        record_2 = {FlordParticleKey.SCI_FLBBCD_BB_UNITS: 0.000262988, FlordParticleKey.SCI_FLBBCD_CHLOR_UNITS: 0.847}
 
-        self.assert_generate_particle(FlordDataParticle, record_1, 1162)
-        self.assert_generate_particle(FlordDataParticle, record_2, 1321)
+        # (10553 = file size up to start of last row) 10553 - 19 bytes (for 19 lines of Carriage returns above) = 10534
+        self.assert_generate_particle(ParadTelemeteredDataParticle, record_1, 10534)
+        # (11997 = file size in bytes) 11997 - 20 bytes (for 20 lines of Carriage returns above) = 11977
+        self.assert_generate_particle(ParadTelemeteredDataParticle, record_2, 11977)
         self.assert_no_more_data()
 
         # Reset with the parser, but with a state this time
-        self.set_data(HEADER, FLORD_RECORD)
-        self.reset_parser({StateKey.POSITION: 1162})
-        self.assert_generate_particle(FlordDataParticle, record_2, 1321)
+        self.set_data(HEADER3, FLORT_RECORD)
+        self.reset_parser({StateKey.POSITION: 10534})
+        self.assert_generate_particle(FlordDataParticle, record_2, 11977)
         self.assert_no_more_data()
 
 @attr('UNIT', group='mi')
@@ -505,15 +506,15 @@ class ENGGliderTest(GliderParserUnitTestCase):
         self.set_data(HEADER, ENG_RECORD)
         self.reset_parser()
 
-        record_1 = {EngineeringParticleKey.M_BATTPOS: 0.335}
-        record_2 = {EngineeringParticleKey.M_HEADING: 1.23569}
+        record_1 = {EngineeringTelemeteredParticleKey.M_BATTPOS: 0.335}
+        record_2 = {EngineeringTelemeteredParticleKey.M_HEADING: 1.23569}
 
-        self.assert_generate_particle(GgldrEngDelayedDataParticle, record_1, 1186)
-        self.assert_generate_particle(GgldrEngDelayedDataParticle, record_2, 1335)
+        self.assert_generate_particle(EngineeringTelemeteredDataParticle, record_1, 1186)
+        self.assert_generate_particle(EngineeringTelemeteredDataParticle, record_2, 1335)
         self.assert_no_more_data()
 
         # Reset with the parser, but with a state this time
         self.set_data(HEADER, ENG_RECORD)
         self.reset_parser({StateKey.POSITION: 1186})
-        self.assert_generate_particle(GgldrEngDelayedDataParticle, record_2, 1335)
+        self.assert_generate_particle(EngineeringTelemeteredDataParticle, record_2, 1335)
         self.assert_no_more_data()

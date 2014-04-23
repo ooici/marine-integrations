@@ -1,0 +1,44 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    internal_timestamp: 3589435097.000000
+    particle_object: AdcpsJlnStcMetadataParserDataParticle
+    particle_type: adcps_jln_stc_metadata
+    adcps_jln_timestamp: 20130929 091817
+    adcps_jln_id: 10
+    adcps_jln_serial_number: 70001672
+    adcps_jln_volts: 6.40000000000000035527
+    adcps_jln_records: 5
+    adcps_jln_length: 1780
+    adcps_jln_events: 84
+    adcps_jln_samples_written: 2
+  - _index: 2
+    internal_timestamp: 3589432200.000000
+    particle_object: AdcpsJlnStcInstrumentParserDataParticle
+    particle_type: adcps_jln_stc_instrument
+    adcps_jln_record: 1765
+    adcps_jln_number: 1604
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2013
+    adcps_jln_month: 9
+    adcps_jln_day: 29
+    adcps_jln_hour: 8
+    adcps_jln_minute: 30
+    adcps_jln_second: 0
+    adcps_jln_hsec: 0
+    adcps_jln_heading: 17314
+    adcps_jln_pitch: -3351
+    adcps_jln_roll: -3551
+    adcps_jln_temp: 1937
+    adcps_jln_pressure: 1497
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 40
+    adcps_jln_vel_error: [19, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    adcps_jln_vel_up: [-27, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    adcps_jln_vel_north: [-7, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]
+    adcps_jln_vel_east: [-32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768, -32768]

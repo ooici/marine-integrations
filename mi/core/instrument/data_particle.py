@@ -97,11 +97,31 @@ class DataParticle(object):
             DataParticleKey.PREFERRED_TIMESTAMP: preferred_timestamp,
             DataParticleKey.QUALITY_FLAG: quality_flag,
         }
-
+        self._encoding_errors = []
         if new_sequence is not None:
             self.contents[DataParticleKey.NEW_SEQUENCE] = new_sequence
 
         self.raw_data = raw_data
+
+    def __eq__(self, arg):
+        """
+        Quick equality check for testing purposes. If they have the same raw
+        data, timestamp, they are the same enough for this particle
+        """
+        allowed_diff = .000001
+        if ((self.raw_data == arg.raw_data) and \
+            (abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
+                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) <= allowed_diff)):
+            return True
+        else:
+            if self.raw_data != arg.raw_data:
+                log.debug('Raw data does not match')
+            elif abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
+                     arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) > allowed_diff:
+                log.debug('Timestamp %s does not match %s',
+                          self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
+                          arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])
+            return False
 
     @classmethod
     def type(cls):
@@ -187,6 +207,7 @@ class DataParticle(object):
             raise SampleException("Preferred timestamp not in particle!")
         
         # build response structure
+        self._encoding_errors = []
         values = self._build_parsed_values()
         result = self._build_base_structure()
         result[DataParticleKey.STREAM_NAME] = self.data_particle_type()
@@ -277,6 +298,26 @@ class DataParticle(object):
         #                          self.contents[DataParticleKey.PREFERRED_TIMESTAMP])
         
         return True
+
+    def _encode_value(self, name, value, encoding_function):
+        """
+        Encode a value using the encoding function, if it fails store the error in a queue 
+        """
+        encoded_val = None
+
+        try:
+            encoded_val = encoding_function(value)
+        except Exception as e:
+            log.error("Data particle error encoding. Name:%s Value:%s", name, value)
+            self._encoding_errors.append({name: value})
+        return {DataParticleKey.VALUE_ID: name,
+                DataParticleKey.VALUE: encoded_val}
+
+    def get_encoding_errors(self):
+        """
+        Return the encoding errors list
+        """
+        return self._encoding_errors
 
 class RawDataParticleKey(BaseEnum):
     PAYLOAD = "raw"

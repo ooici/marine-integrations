@@ -1,0 +1,11 @@
+header:
+    particle_object: 'MULTIPLE'
+    particle_type: 'MULTIPLE'
+data:
+  - _index: 1
+    internal_timestamp: 3589862402.000000
+    particle_object: DofstKWfpMetadataParserDataParticle
+    particle_type: dofst_k_wfp_metadata
+    wfp_time_on: 1380873602
+    wfp_time_off: 1380873882
+    wfp_number_samples: 0

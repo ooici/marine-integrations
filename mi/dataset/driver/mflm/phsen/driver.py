@@ -15,7 +15,6 @@ import string
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.driver.mflm.driver import MflmDataSetDriver
-from mi.dataset.dataset_driver import SimpleDataSetDriver
 from mi.dataset.parser.phsen import PhsenParser, PhsenParserDataParticle
 
 class MflmPHSENDataSetDriver(MflmDataSetDriver):
@@ -39,7 +38,8 @@ class MflmPHSENDataSetDriver(MflmDataSetDriver):
             parser_state,
             infile,
             self._save_parser_state,
-            self._data_callback
+            self._data_callback,
+            self._sample_exception_callback
         )
         return self._parser
 

@@ -1,0 +1,8 @@
+driver_metadata:
+  author: cgoodrich
+  constructor: CtdpfCklWfpDataSetDriver
+  driver_name: ctdpf_ckl_wfp
+  driver_path: ctdpf_ckl/wfp
+  email: Christopher_A_Goodrich@raytheon.com
+  release_notes: Initial Release
+  version: 0.0.1

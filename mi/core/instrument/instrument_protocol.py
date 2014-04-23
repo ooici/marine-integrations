@@ -44,6 +44,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import NotImplementedException
 from mi.core.exceptions import InstrumentParameterExpirationException
 
+MAX_BUFFER_SIZE=32768
 DEFAULT_CMD_TIMEOUT=20
 DEFAULT_WRITE_DELAY=0
 RE_PATTERN = type(re.compile(""))
@@ -1117,6 +1118,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
     def add_to_buffer(self, data):
         '''
         Add a chunk of data to the internal data buffers
+        buffers implemented as lifo ring buffer
         @param data: bytes to add to the buffer
         '''
         # Update the line and prompt buffers.
@@ -1124,8 +1126,22 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         self._promptbuf += data
         self._last_data_timestamp = time.time()
 
+        # If our buffer exceeds the max allowable size then drop the leading
+        # characters on the floor.
+        if(len(self._linebuf) > self._max_buffer_size()):
+            self._linebuf = self._linebuf[self._max_buffer_size()*-1:]
+
+        # If our buffer exceeds the max allowable size then drop the leading
+        # characters on the floor.
+        if(len(self._promptbuf) > self._max_buffer_size()):
+            self._promptbuf = self._linebuf[self._max_buffer_size()*-1:]
+
         log.debug("LINE BUF: %s", self._linebuf)
         log.debug("PROMPT BUF: %s", self._promptbuf)
+
+    def _max_buffer_size(self):
+        return MAX_BUFFER_SIZE
+
 
     ########################################################################
     # Wakeup helpers.

@@ -5,4 +5,4 @@ driver_metadata:
   driver_path: PARAD_K/STC_IMODEM
   email: mnicolet@bbn.com
   release_notes: New driver started for PARAD_K_STC_IMODEM
-  version: 0.0.1
+  version: 0.0.3

@@ -149,13 +149,12 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
         """
         return re.sub('.*?marine-integrations', 'marine-integrations', self.parser_test_path())
 
-    def driver_name_first_cap(self):
+    def driver_name_camelcase(self):
         """
         @brief full instrument name with first letter capitalized
         @retval full instrument name with first letter capitalized
         """
-        return self.metadata.driver_name[0].upper() + \
-        self.metadata.driver_name[1:].lower()
+        return string.capwords(self.metadata.driver_name, '_').replace('_','')
 
     ###
     #   Private Methods
@@ -184,7 +183,7 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
             'release_notes': self.metadata.notes,
             'constructor': self.metadata.constructor,
             'full_instrument_lower': self.metadata.driver_name.lower(),
-            'full_instrument_first': self.driver_name_first_cap(),
+            'full_instrument_camelcase': self.driver_name_camelcase(),
         }
 
     def _parser_template_data(self):
@@ -201,7 +200,7 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
             'release_notes': self.metadata.notes,
             'constructor': self.metadata.constructor,
             'full_instrument_lower': self.metadata.driver_name.lower(),
-            'full_instrument_first': self.driver_name_first_cap(),
+            'full_instrument_camelcase': self.driver_name_camelcase(),
         }
 
     def _test_template_data(self):
@@ -221,7 +220,7 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
             'driver_name': self.metadata.driver_name,
             'constructor': self.metadata.constructor,
             'full_instrument_lower': self.metadata.driver_name.lower(),
-            'full_instrument_first': self.driver_name_first_cap(),
+            'full_instrument_camelcase': self.driver_name_camelcase(),
         }
 
     def _parser_test_template_data(self):
@@ -240,7 +239,7 @@ class DriverGenerator(mi.idk.driver_generator.DriverGenerator):
             'author': self.metadata.author,
             'driver_name': self.metadata.driver_name,
             'full_instrument_lower': self.metadata.driver_name.lower(),
-            'full_instrument_first': self.driver_name_first_cap()
+            'full_instrument_camelcase': self.driver_name_camelcase()
         }
 
 

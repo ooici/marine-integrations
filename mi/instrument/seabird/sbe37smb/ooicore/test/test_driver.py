@@ -1612,6 +1612,7 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
             SBE37ProtocolEvent.START_AUTOSAMPLE,
             SBE37ProtocolEvent.STOP_AUTOSAMPLE,
             SBE37ProtocolEvent.ACQUIRE_CONFIGURATION,
+            SBE37ProtocolEvent.GAP_RECOVERY
         ]
 
         res_pars_all = PARAMS.keys()
@@ -1776,7 +1777,8 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
             SBE37ProtocolEvent.TEST,
             SBE37ProtocolEvent.ACQUIRE_SAMPLE,
             SBE37ProtocolEvent.START_AUTOSAMPLE,
-            SBE37ProtocolEvent.ACQUIRE_CONFIGURATION
+            SBE37ProtocolEvent.ACQUIRE_CONFIGURATION,
+            SBE37ProtocolEvent.GAP_RECOVERY
         ]
 
         self.assertItemsEqual(agt_cmds, agt_cmds_command)
@@ -1818,7 +1820,8 @@ class SBEQualificationTestCase(SeaBirdQualificationTest, SBEMixin):
         ]
 
         res_cmds_streaming = [
-            SBE37ProtocolEvent.STOP_AUTOSAMPLE
+            SBE37ProtocolEvent.STOP_AUTOSAMPLE,
+            SBE37ProtocolEvent.GAP_RECOVERY
         ]
 
         self.assertItemsEqual(agt_cmds, agt_cmds_streaming)

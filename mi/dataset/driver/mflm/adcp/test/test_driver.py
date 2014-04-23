@@ -104,7 +104,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(AdcpsParserDataParticle, count=2, timeout=10)
 
         self.driver.stop_sampling()
-        
+
     def test_harvester_new_file_exception(self):
         """
         Test an exception raised after the driver is started during
@@ -211,8 +211,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-    def setUp(self):
-        super(QualificationTest, self).setUp()
         
     def clean_file(self):
         # remove just the file we are using
@@ -335,7 +333,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 11)
+        result = self.get_samples(SAMPLE_STREAM, 11, 30)
         self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
         # Verify an event was raised and we are in our retry state

@@ -17,6 +17,7 @@ __license__ = 'Apache 2.0'
 
 import unittest
 import os
+import shutil
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -53,6 +54,7 @@ DataSetTestCase.initialize(
             DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
             DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
             DataSetDriverConfigKeys.FREQUENCY: 1,
+            DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 2,
         },
         DataSourceConfigKey.PARSER: {}
     }
@@ -76,6 +78,50 @@ class IntegrationTest(DataSetIntegrationTestCase):
                             driver_config['harvester']['pattern'])
         if os.path.exists(fullfile):
             os.remove(fullfile)
+
+    def create_sample_data(self, filename, dest_filename=None, mode=0644, create=True):
+        """
+        Search for a data file in the driver resource directory and if the file
+        is not found there then search using the filename directly.  Then copy
+        the file to the test data directory.
+
+        If a dest_filename is supplied it will be renamed in the destination
+        directory.
+        @param: filename - filename or path to a data file to copy
+        @param: dest_filename - name of the file when copied. default to filename
+        @param: file mode
+        @param: create an empty file in the destination if the source is not found
+        @return: path to file created
+        """
+        data_dir = self.create_data_dir()
+        source_path = None
+
+        try:
+            source_path = self._get_source_data_file(filename)
+        except IDKException:
+            if not create:
+                raise
+
+        log.debug("DIR: %s", data_dir)
+        if dest_filename is None and source_path is not None:
+            dest_path = os.path.join(data_dir, os.path.basename(source_path))
+        elif dest_filename is None and source_path is None:
+            dest_path = os.path.join(data_dir, filename)
+        else:
+            dest_path = os.path.join(data_dir, dest_filename)
+
+        log.debug("Creating data file src: %s, dest: %s", source_path, dest_path)
+
+        if source_path == None:
+            file = open(dest_path, 'w')
+            file.close()
+        else:
+            # need to override this copy to make the time the file is modified change
+            shutil.copy(source_path, dest_path)
+
+        os.chmod(dest_path, mode)
+
+        return dest_path
 
     def test_get(self):
         """
@@ -235,9 +281,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-    def setUp(self):
-        super(QualificationTest, self).setUp()
-        
+
     def clean_file(self):
         # remove just the file we are using
         driver_config = self._driver_config()['startup_config']
@@ -246,6 +290,50 @@ class QualificationTest(DataSetQualificationTestCase):
                             driver_config['harvester']['pattern'])
         if os.path.exists(fullfile):
             os.remove(fullfile)
+
+    def create_sample_data(self, filename, dest_filename=None, mode=0644, create=True):
+        """
+        Search for a data file in the driver resource directory and if the file
+        is not found there then search using the filename directly.  Then copy
+        the file to the test data directory.
+
+        If a dest_filename is supplied it will be renamed in the destination
+        directory.
+        @param: filename - filename or path to a data file to copy
+        @param: dest_filename - name of the file when copied. default to filename
+        @param: file mode
+        @param: create an empty file in the destination if the source is not found
+        @return: path to file created
+        """
+        data_dir = self.create_data_dir()
+        source_path = None
+
+        try:
+            source_path = self._get_source_data_file(filename)
+        except IDKException:
+            if not create:
+                raise
+
+        log.debug("DIR: %s", data_dir)
+        if dest_filename is None and source_path is not None:
+            dest_path = os.path.join(data_dir, os.path.basename(source_path))
+        elif dest_filename is None and source_path is None:
+            dest_path = os.path.join(data_dir, filename)
+        else:
+            dest_path = os.path.join(data_dir, dest_filename)
+
+        log.debug("Creating data file src: %s, dest: %s", source_path, dest_path)
+
+        if source_path == None:
+            file = open(dest_path, 'w')
+            file.close()
+        else:
+            # need to override this copy to make the time the file is modified change
+            shutil.copy(source_path, dest_path)
+
+        os.chmod(dest_path, mode)
+
+        return dest_path
 
     def test_harvester_new_file_exception(self):
         """
@@ -297,10 +385,10 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         Test importing a large number of samples from the file at once
         """
-        self.create_sample_data('node59p1_orig.dat', "node59p1.dat")
+        self.create_sample_data('node59p1.dat', "node59p1.dat")
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,24,60)
+        result = self.get_samples(SAMPLE_STREAM,200,360)
 
     def test_stop_start(self):
         """

@@ -3,7 +3,7 @@
 """
 @package mi.dataset.parser.ctdmo 
 @file mi/dataset/parser/ctdmo.py
-@author Emily Hzhn
+@author Emily Hahn
 @brief A CTDMO-specific data set agent parser
 """
 
@@ -19,9 +19,9 @@ import ntplib
 from dateutil import parser
 from mi.core.log import get_logger ; log = get_logger()
 
-from mi.dataset.parser.mflm import MflmParser, SIO_HEADER_MATCHER
+from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
 from mi.core.common import BaseEnum
-from mi.core.exceptions import SampleException, DatasetParserException
+from mi.core.exceptions import SampleException, RecoverableSampleException, DatasetParserException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
 class DataParticleType(BaseEnum):
@@ -54,7 +54,7 @@ class CtdmoParserDataParticle(DataParticle):
         particle with the appropriate tag.
         @throws SampleException If there is a problem with sample creation
         """
-        
+
         match = DATA_MATCHER.match(self.raw_data)
         if not match:
             raise SampleException("CtdmoParserDataParticle: No regex match of \
@@ -63,60 +63,40 @@ class CtdmoParserDataParticle(DataParticle):
         try:
             # convert binary to hex ascii string
             asciihex = binascii.b2a_hex(match.group(0))
-            log.debug('Converting data %s', asciihex)
-            induct_id = int(asciihex[0:2], 16)
-            # just convert directly from hex-ascii to int
-            temp_num = int(asciihex[2:7], 16)
-            cond_num = int(asciihex[7:12], 16)
             # need to swap pressure bytes
             press_byte_swap = asciihex[14:16] + asciihex[12:14]
-            press_num = int(press_byte_swap, 16)
 
             asciihextime = binascii.b2a_hex(match.group(1))
             # reverse byte order in time hex string
             timehex_reverse = asciihextime[6:8] + asciihextime[4:6] + \
             asciihextime[2:4] + asciihextime[0:2]
-            # time is in seconds since Jan 1 2000, convert to timestamp
-            internal_time = int(timehex_reverse, 16)
 
         except (ValueError, TypeError, IndexError) as ex:
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
+            log.warn("Error (%s) while decoding parameters in data: [%s]", ex, self.raw_data)
+            raise RecoverableSampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, self.raw_data))
 
-        result = [{DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.INDUCTIVE_ID,
-                   DataParticleKey.VALUE: induct_id},
-                  {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.TEMPERATURE,
-                   DataParticleKey.VALUE: temp_num},
-                  {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.CONDUCTIVITY,
-                   DataParticleKey.VALUE: cond_num},
-                  {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.PRESSURE,
-                   DataParticleKey.VALUE: press_num},
-                  {DataParticleKey.VALUE_ID: CtdmoParserDataParticleKey.CTD_TIME,
-                   DataParticleKey.VALUE: internal_time}]
+        result = [self._encode_value(CtdmoParserDataParticleKey.INDUCTIVE_ID, asciihex[0:2],
+                                     CtdmoParserDataParticle.encode_int_16),
+                  self._encode_value(CtdmoParserDataParticleKey.TEMPERATURE, asciihex[2:7],
+                                     CtdmoParserDataParticle.encode_int_16),
+                  self._encode_value(CtdmoParserDataParticleKey.CONDUCTIVITY, asciihex[7:12],
+                                     CtdmoParserDataParticle.encode_int_16),
+                  self._encode_value(CtdmoParserDataParticleKey.PRESSURE, press_byte_swap,
+                                     CtdmoParserDataParticle.encode_int_16),
+                  self._encode_value(CtdmoParserDataParticleKey.CTD_TIME, timehex_reverse,
+                                     CtdmoParserDataParticle.encode_int_16)]
         log.trace('CtdmoParserDataParticle: particle=%s', result)
         return result
 
-    def __eq__(self, arg):
+    @staticmethod
+    def encode_int_16(int_val):
         """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this particle
+        Use to convert from hex-ascii to int when encoding data particle values
         """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-            arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp %s and %s do not match',
-                          self.contents[DataParticleKey.INTERNAL_TIMESTAMP],
-                          arg.contents[DataParticleKey.INTERNAL_TIMESTAMP] )
-            return False
+        return int(int_val, 16)
 
-
-class CtdmoParser(MflmParser):
+class CtdmoParser(SioMuleParser):
 
     def __init__(self,
                  config,
@@ -124,6 +104,7 @@ class CtdmoParser(MflmParser):
                  stream_handle,
                  state_callback,
                  publish_callback,
+                 exception_callback,
                  *args, **kwargs):
         super(CtdmoParser, self).__init__(config,
                                           stream_handle,
@@ -131,7 +112,7 @@ class CtdmoParser(MflmParser):
                                           self.sieve_function,
                                           state_callback,
                                           publish_callback,
-                                          'CT',
+                                          exception_callback,
                                           *args,
                                           **kwargs)
         if not 'inductive_id' in config:
@@ -168,39 +149,15 @@ class CtdmoParser(MflmParser):
         result_particles = []
         (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-        # all non-data packets will be read along with all the data, so we can't just use the fact that
-        # there is or is not non-data to determine when a new sequence should occur.  The non-data will
-        # keep getting shifted lower as actual data get cleaned out, so as long as the end of non-data
-        # is before the start of the data it counts
-        non_data_flag = False
-        if non_data is not None and non_end <= start:
-            non_data_flag = True
 
         sample_count = 0
         prev_sample = None
-        new_seq = 0
 
         while (chunk != None):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
             prev_sample = None
-            new_seq = 0
-            if header_match.group(1) == self._instrument_id:
-                # Check for missing data between records
-                if non_data_flag or self._new_seq_flag:
-                    log.trace("Non matching data packet detected")
-                    # reset non data flag and new sequence flags now
-                    # that we have made a new sequence
-                    non_data_flag = False
-                    self._new_seq_flag = False
-                    # No longer starting new sequences on gaps. for now.
-                    #self.start_new_sequence()
-                    new_seq = 1
-
-                # need to do special processing on data to handle escape sequences
-                # replace 0x182b with 0x2b and 0x1858 into 0x18
-                chunk = chunk.replace(b'\x182b', b'\x2b')
-                chunk = chunk.replace(b'\x1858', b'\x18')
+            if header_match.group(1) == 'CT':
                 log.debug("matched chunk header %s", chunk[1:32])
 
                 for data_match in DATA_MATCHER.finditer(chunk):
@@ -232,14 +189,12 @@ class CtdmoParser(MflmParser):
                             # create particle
                             result_particles.append(sample)
                             sample_count += 1
+            elif header_match.group(1) == 'CO':
+                log.debug("matched CO chunk header %s", chunk[1:32])
             # keep track of how many samples were found in this chunk
             self._chunk_sample_count.append(sample_count)
-            self._chunk_new_seq.append(new_seq)
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-            # need to set a flag in case we read a chunk not matching the instrument ID and overwrite the non_data
-            if non_data is not None and non_end <= start:
-                non_data_flag = True
 
         return result_particles
 

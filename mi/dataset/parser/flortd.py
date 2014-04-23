@@ -19,7 +19,7 @@ from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
 from dateutil import parser
-from mi.dataset.parser.mflm import MflmParser, SIO_HEADER_MATCHER
+from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
 from mi.core.exceptions import SampleException, DatasetParserException
 
 
@@ -60,63 +60,25 @@ class FlortdParserDataParticle(DataParticle):
         if not match:
             raise SampleException("FlortdParserDataParticle: No regex match of \
                                   parsed sample data [%s]", self.raw_data)
-        try:
-            date_match = DATE_MATCHER.match(match.group(1))
-            if not date_match:
-                raise ValueError('Date does not match MM/DD/YY\\tHH:MM:SS format')
-            date_str = date_match.group(1)
-            time_str = date_match.group(2)
-            wav_beta = int(match.group(2))
-            beta = int(match.group(3))
-            wav_chl = int(match.group(4))
-            chl = int(match.group(5))
-            wav_cdom = int(match.group(6))
-            cdom = int(match.group(7))
-            therm = int(match.group(8))
-        except (ValueError, TypeError, IndexError) as ex:
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
-                                  % (ex, match.group(0)))
 
-        result = [{DataParticleKey.VALUE_ID: FlortdParserDataParticleKey.DATE_STRING,
-                   DataParticleKey.VALUE: date_str},
-                  {DataParticleKey.VALUE_ID: FlortdParserDataParticleKey.TIME_STRING,
-                   DataParticleKey.VALUE: time_str},
-                  {DataParticleKey.VALUE_ID: FlortdParserDataParticleKey.MEASUREMENT_WAVELENGTH_BETA,
-                   DataParticleKey.VALUE: wav_beta},
-                  {DataParticleKey.VALUE_ID: FlortdParserDataParticleKey.RAW_SIGNAL_BETA,
-                   DataParticleKey.VALUE: beta},
-                  {DataParticleKey.VALUE_ID: FlortdParserDataParticleKey.MEASUREMENT_WAVELENTH_CHL,
-                   DataParticleKey.VALUE: wav_chl},
-                  {DataParticleKey.VALUE_ID: FlortdParserDataParticleKey.RAW_SIGNAL_CHL,
-                   DataParticleKey.VALUE: chl},
-                  {DataParticleKey.VALUE_ID: FlortdParserDataParticleKey.MEASUREMENT_WAVELENGTH_CDOM,
-                   DataParticleKey.VALUE: wav_cdom},
-                  {DataParticleKey.VALUE_ID: FlortdParserDataParticleKey.RAW_SIGNAL_CDOM,
-                   DataParticleKey.VALUE: cdom},
-                  {DataParticleKey.VALUE_ID: FlortdParserDataParticleKey.RAW_INTERNAL_TEMP,
-                   DataParticleKey.VALUE: therm}]
+        date_match = DATE_MATCHER.match(match.group(1))
+        if not date_match:
+            log.warn('Date does not match MM/DD/YY\\tHH:MM:SS format')
+            raise RecoverableSampleException('Date does not match MM/DD/YY\\tHH:MM:SS format')
 
-        log.debug('FlortdParserDataParticle: particle=%s', result)
+        result = [self._encode_value(FlortdParserDataParticleKey.DATE_STRING, date_match.group(1), str),
+                  self._encode_value(FlortdParserDataParticleKey.TIME_STRING, date_match.group(2), str),
+                  self._encode_value(FlortdParserDataParticleKey.MEASUREMENT_WAVELENGTH_BETA, match.group(2), int),
+                  self._encode_value(FlortdParserDataParticleKey.RAW_SIGNAL_BETA, match.group(3), int),
+                  self._encode_value(FlortdParserDataParticleKey.MEASUREMENT_WAVELENTH_CHL, match.group(4), int),
+                  self._encode_value(FlortdParserDataParticleKey.RAW_SIGNAL_CHL, match.group(5), int),
+                  self._encode_value(FlortdParserDataParticleKey.MEASUREMENT_WAVELENGTH_CDOM, match.group(6), int),
+                  self._encode_value(FlortdParserDataParticleKey.RAW_SIGNAL_CDOM, match.group(7), int),
+                  self._encode_value(FlortdParserDataParticleKey.RAW_INTERNAL_TEMP, match.group(8), int)]
+
         return result
 
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this particle
-        """
-        if ((self.raw_data == arg.raw_data) and \
-            (self.contents[DataParticleKey.INTERNAL_TIMESTAMP] == \
-             arg.contents[DataParticleKey.INTERNAL_TIMESTAMP])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif self.contents[DataParticleKey.INTERNAL_TIMESTAMP] != \
-            arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]:
-                log.debug('Timestamp does not match')
-            return False
-
-class FlortdParser(MflmParser):
+class FlortdParser(SioMuleParser):
 
     def __init__(self,
                  config,
@@ -124,6 +86,7 @@ class FlortdParser(MflmParser):
                  stream_handle,
                  state_callback,
                  publish_callback,
+                 exception_callback,
                  *args, **kwargs):
         super(FlortdParser, self).__init__(config,
                                           stream_handle,
@@ -131,7 +94,7 @@ class FlortdParser(MflmParser):
                                           self.sieve_function,
                                           state_callback,
                                           publish_callback,
-                                          'FL',
+                                          exception_callback,
                                           *args,
                                           **kwargs)
 
@@ -144,49 +107,19 @@ class FlortdParser(MflmParser):
             parsing, plus the state. An empty list of nothing was parsed.
         """
         result_particles = []
-        # all non-data packets will be read along with all the data, so we can't just use the fact that
-        # there is or is not non-data to determine when a new sequence should occur.  The non-data will
-        # keep getting shifted lower as things get cleaned out, and when it reaches the 0 index the non-data
-        # is actually next
         (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-        non_data_flag = False
-        if non_data is not None and non_end <= start:
-            log.debug('start setting non_data_flag')
-            non_data_flag = True
-            
+
         sample_count = 0
-        new_seq = 0
 
         while (chunk != None):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
-            new_seq = 0
             log.debug('parsing header %s', header_match.group(0)[1:32])
-            if header_match.group(1) == self._instrument_id:
-                # Check for missing data between records
-                if non_data_flag or self._new_seq_flag:
-                    log.debug("Non matching data packet detected")
-                    # reset non data flag and new sequence flags now
-                    # that we have made a new sequence
-                    non_data = None
-                    non_data_flag = False
-                    self._new_seq_flag = False
-                    # No need to do this anymore
-                    #self.start_new_sequence()
-                    # need to figure out if there is a new sequence the first time through,
-                    # since if we are using in process data we don't read unprocessed again
-                    new_seq = 1
-
-                # need to do special processing on data to handle escape sequences
-                # replace 0x182b with 0x2b and 0x1858 into 0x18
-                processed_match = chunk.replace(b'\x182b', b'\x2b')
-                processed_match = processed_match.replace(b'\x1858', b'\x18')
-                log.debug("matched chunk header %s", processed_match[1:32])
-
-                data_match = DATA_MATCHER.search(processed_match)
+            if header_match.group(1) == 'FL':
+                data_match = DATA_MATCHER.search(chunk)
                 if data_match:
-                    log.debug('Found data match in chunk %s', processed_match[1:32])
+                    log.debug('Found data match in chunk %s', chunk[1:32])
                     # pull out the date string from the data
                     date_zulu = self.date_str_to_zulu(data_match.group(1))
                     if date_zulu is not None:
@@ -208,16 +141,14 @@ class FlortdParser(MflmParser):
                             # create particle
                             result_particles.append(sample)
                             sample_count += 1
+                    else:
+                        log.warn("Unable to unpack timestamp from data %s", data_match.group(1))
+                        self._exception_callback(RecoverableSampleException("Unable to unpack timestamp from data %s" % data_match.group(1)))
 
             self._chunk_sample_count.append(sample_count)
-            self._chunk_new_seq.append(new_seq)
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-            # need to set a flag in case we read a chunk not matching the instrument ID and overwrite the non_data                    
-            if non_data is not None and non_end <= start:
-                log.debug('setting non_data_flag')
-                non_data_flag = True
 
         return result_particles
 

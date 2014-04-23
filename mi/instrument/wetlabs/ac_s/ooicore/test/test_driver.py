@@ -16,15 +16,14 @@ USAGE:
 __author__ = 'Lytle Johnson'
 __license__ = 'Apache 2.0'
 
-import unittest
 import gevent
 
 from nose.plugins.attrib import attr
 from mock import Mock
-from mi.core.common import BaseEnum
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger ; log = get_logger()
+import unittest
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -33,21 +32,14 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import InstrumentDriverPublicationTestCase
 from mi.idk.unit_test import DriverTestMixin
-from mi.idk.unit_test import ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
 
-from interface.objects import AgentCommand
-
-from mi.core.instrument.logger_client import LoggerClient
-
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
-from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.data_particle import DataParticleValue
+
+from mi.core.instrument.port_agent_client import PortAgentClient
 
 from mi.instrument.wetlabs.ac_s.ooicore.driver import InstrumentDriver
 from mi.instrument.wetlabs.ac_s.ooicore.driver import DataParticleType
@@ -62,10 +54,8 @@ from mi.instrument.wetlabs.ac_s.ooicore.driver import NEWLINE
 from mi.instrument.wetlabs.ac_s.ooicore.driver import OPTAA_SampleDataParticleKey
 from mi.instrument.wetlabs.ac_s.ooicore.driver import OPTAA_SampleDataParticle
 from mi.instrument.wetlabs.ac_s.ooicore.driver import OPTAA_StatusDataParticleKey
-from mi.instrument.wetlabs.ac_s.ooicore.driver import OPTAA_StatusDataParticle
 
-from mi.core.exceptions import SampleException, InstrumentParameterException, InstrumentStateException
-from mi.core.exceptions import InstrumentProtocolException, InstrumentCommandException, Conflict
+from mi.core.exceptions import SampleException
 from interface.objects import AgentCommand
 
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
@@ -236,63 +226,10 @@ class UtilMixin(DriverTestMixin):
     ### 
     _sample_parameters = {
         # particle data defined in the OPTAA Driver doc
-        OPTAA_SampleDataParticleKey.RECORD_LENGTH : {'type': int, 'value': 680 },
-        OPTAA_SampleDataParticleKey.PACKET_TYPE : {'type': int, 'value': 5 },
-        OPTAA_SampleDataParticleKey.METER_TYPE : {'type': int, 'value': 83 },
-        OPTAA_SampleDataParticleKey.SERIAL_NUMBER : {'type': int, 'value': 130},
-        OPTAA_SampleDataParticleKey.A_REFERENCE_DARK_COUNTS : {'type': int, 'value': 0x1ce },
-        OPTAA_SampleDataParticleKey.PRESSURE_COUNTS : {'type': int, 'value': 0xffff },
-        OPTAA_SampleDataParticleKey.A_SIGNAL_DARK_COUNTS : {'type': int, 'value': 0x2b0 },
-        OPTAA_SampleDataParticleKey.EXTERNAL_TEMP_RAW : {'type': int, 'value': 0x6e47 },
-        OPTAA_SampleDataParticleKey.INTERNAL_TEMP_RAW : {'type': int, 'value': 0xa84f },
-        OPTAA_SampleDataParticleKey.C_REFERENCE_DARK_COUNTS : {'type': int, 'value': 0x1d5 },
-        OPTAA_SampleDataParticleKey.C_SIGNAL_DARK_COUNTS : {'type': int, 'value': 0x2bd },
-        OPTAA_SampleDataParticleKey.ELAPSED_RUN_TIME : {'type': int, 'value': 0x0000284d },
-        OPTAA_SampleDataParticleKey.NUM_WAVELENGTHS : {'type': int, 'value': 81 },
-        OPTAA_SampleDataParticleKey.C_REFERENCE_COUNTS : {'type': list, 'value': [1391, 1632, 1889, 2168, 2473, 2817, 3196, 3611, 4060, 4532, 
-                                                                                  5020, 5530, 6058, 6645, 7292, 7964, 8657, 9387, 10139, 10907, 
-                                                                                  11687, 12495, 13313, 14139, 14990, 15888, 16843, 17865, 18964, 20119, 
-                                                                                  21298, 22437, 23526, 24538, 25494, 26419, 27271, 28060, 28759, 29311, 
-                                                                                  29941, 30478, 30928, 31284, 31536, 31673, 31706, 31630, 31449, 31170, 
-                                                                                  30786, 30326, 29767, 29146, 28508, 27801, 27011, 26145, 25186, 23961, 
-                                                                                  22897, 22027, 21024, 19988, 18945, 17919, 16928, 15976, 15070, 14210, 
-                                                                                  13386, 12602, 11856, 11145, 10493, 9884, 9317, 8785, 8292, 7835, 
-                                                                                  7418]},
-        OPTAA_SampleDataParticleKey.A_REFERENCE_COUNTS : {'type': list, 'value': [1273, 1499, 1744, 2012, 2304, 2632, 2995, 3395, 3825, 4283, 
-                                                                                  4759, 5262, 5780, 6358, 7001, 7668, 8360, 9089, 9848, 10630, 
-                                                                                  11421, 12252, 13103, 13961, 14849, 15792, 16786, 17853, 19000, 20216, 
-                                                                                  21461, 22682, 23850, 24975, 26048, 27059, 28020, 28925, 29739, 30363, 
-                                                                                  31158, 31855, 32457, 32970, 33385, 33680, 33849, 33911, 33858, 33705, 
-                                                                                  33440, 33074, 32609, 32047, 31455, 30828, 30101, 29283, 28383, 27271, 
-                                                                                  26039, 25148, 24144, 23069, 21974, 20877, 19811, 18773, 17771, 16822, 
-                                                                                  15905, 15025, 14190, 13383, 12622, 11927, 11270, 10655, 10081, 9547,
-                                                                                   9054]},
-        OPTAA_SampleDataParticleKey.C_SIGNAL_COUNTS : {'type': list, 'value':    [1225, 1471, 1743, 2040, 2369, 2739, 3159, 3616, 4118, 4652, 
-                                                                                  5210, 5797, 6409, 7074, 7834, 8620, 9436, 10292, 11191, 12109, 
-                                                                                  13049, 14020, 15015, 16023, 17058, 18145, 19307, 20544, 21881, 23294, 
-                                                                                  24745, 26163, 27517, 28808, 29991, 31187, 32273, 33304, 34225, 35010, 
-                                                                                  35858, 36596, 37226, 37743, 38136, 38389, 38509, 38499, 38352, 38088, 
-                                                                                  37686, 37197, 36591, 35870, 35148, 34353, 33438, 32425, 31315, 29877, 
-                                                                                  28439, 27497, 26268, 24992, 23712, 22441, 21210, 20025, 18889, 17816, 
-                                                                                  16790, 15808, 14876, 13982, 13165, 12405, 11693, 11025, 10408, 9838, 
-                                                                                  9313]},
-        OPTAA_SampleDataParticleKey.A_SIGNAL_COUNTS : {'type': list, 'value':    [918, 1159, 1419, 1696, 1994, 2325, 2693, 3100, 3544, 4020, 
-                                                                                  4524, 5059, 5620, 6249, 6953, 7691, 8466, 9294, 10160, 11062, 
-                                                                                  11989, 12968, 13982, 15017, 16095, 17242, 18459, 19770, 21185, 22692, 
-                                                                                  24244, 25782, 27277, 28734, 30144, 31494, 32790, 34031, 35172, 36101, 
-                                                                                  37239, 38270, 39191, 40009, 40707, 41269, 41678, 41953, 42084, 42087, 
-                                                                                  41950, 41680, 41279, 40748, 40160, 39515, 38734, 37824, 36791, 35473, 
-                                                                                  33988, 32910, 31676, 30340, 28963, 27574, 26213, 24882, 23594, 22367, 
-                                                                                  21182, 20041, 18950, 17898, 16905, 15993, 15133, 14323, 13567, 12864, 
-                                                                                  12217]}
-        }   
-            
-    _short_sample_parameters = {
-        # particle data defined in the OPTAA Driver doc
-        OPTAA_SampleDataParticleKey.RECORD_LENGTH : {'type': int, 'value': 696 },
-        OPTAA_SampleDataParticleKey.PACKET_TYPE : {'type': int, 'value': 5 },
-        OPTAA_SampleDataParticleKey.METER_TYPE : {'type': int, 'value': 83 },
-        OPTAA_SampleDataParticleKey.SERIAL_NUMBER : {'type': int, 'value': 123},
+        OPTAA_SampleDataParticleKey.RECORD_LENGTH : {'type': int, 'value': 0x2b8 },
+        OPTAA_SampleDataParticleKey.PACKET_TYPE : {'type': int, 'value': 0x05 },
+        OPTAA_SampleDataParticleKey.METER_TYPE : {'type': int, 'value': 0x53 },
+        OPTAA_SampleDataParticleKey.SERIAL_NUMBER : {'type': int, 'value': 0x7b},
         OPTAA_SampleDataParticleKey.A_REFERENCE_DARK_COUNTS : {'type': int, 'value': 0x1c4 },
         OPTAA_SampleDataParticleKey.PRESSURE_COUNTS : {'type': int, 'value': 0xffff },
         OPTAA_SampleDataParticleKey.A_SIGNAL_DARK_COUNTS : {'type': int, 'value': 0x2b6 },
@@ -301,43 +238,96 @@ class UtilMixin(DriverTestMixin):
         OPTAA_SampleDataParticleKey.C_REFERENCE_DARK_COUNTS : {'type': int, 'value': 0x1c4 },
         OPTAA_SampleDataParticleKey.C_SIGNAL_DARK_COUNTS : {'type': int, 'value': 0x2b1 },
         OPTAA_SampleDataParticleKey.ELAPSED_RUN_TIME : {'type': int, 'value': 0xca67514f },
-        OPTAA_SampleDataParticleKey.NUM_WAVELENGTHS : {'type': int, 'value': 83 },
-        OPTAA_SampleDataParticleKey.C_REFERENCE_COUNTS : {'type': list, 'value': [1105, 1293, 1497, 1718, 1954, 2215, 2501, 2814, 3145, 33035, 
-                                                                                  7181, 3758, 9237, 52757, 6034, 6556, 7104, 7691, 8320, 8982, 
-                                                                                  9672, 10392, 11124, 11856, 12600, 13357, 14148, 14990, 15930, 55357, 
-                                                                                  46913, 29508, 8008, 54091, 18510, 35408, 38227, 28758, 7000, 37210, 
-                                                                                  54108, 6238, 5471, 52832, 18017, 32866, 26210, 60770, 6754, 63073, 
-                                                                                  32608, 46431, 39774, 18780, 50779, 1625, 5206, 58964, 30033, 44623, 
-                                                                                  52556, 63049, 17957, 17158, 16364, 15586, 14825, 14085, 13374, 12687, 
-                                                                                  12031, 11400, 10802, 10226, 9645, 9161, 8730, 8296, 7885, 7497, 
+        OPTAA_SampleDataParticleKey.NUM_WAVELENGTHS : {'type': int, 'value': 0x53 },
+        OPTAA_SampleDataParticleKey.C_REFERENCE_COUNTS : {'type': list, 'value': [1105, 1293, 1497, 1718, 1954, 2215, 2501, 2814, 3145, 33035,
+                                                                                  7181, 3758, 9237, 52757, 6034, 6556, 7104, 7691, 8320, 8982,
+                                                                                  9672, 10392, 11124, 11856, 12600, 13357, 14148, 14990, 15930, 55357,
+                                                                                  46913, 29508, 8008, 54091, 18510, 35408, 38227, 28758, 7000, 37210,
+                                                                                  54108, 6238, 5471, 52832, 18017, 32866, 26210, 60770, 6754, 63073,
+                                                                                  32608, 46431, 39774, 18780, 50779, 1625, 5206, 58964, 30033, 44623,
+                                                                                  52556, 63049, 17957, 17158, 16364, 15586, 14825, 14085, 13374, 12687,
+                                                                                  12031, 11400, 10802, 10226, 9645, 9161, 8730, 8296, 7885, 7497,
                                                                                   7133, 6467, 254]},
-        OPTAA_SampleDataParticleKey.A_REFERENCE_COUNTS : {'type': list, 'value': [867, 1030, 1212, 1408, 1623, 1860, 2123, 2411, 2684, 51471, 
-                                                                                  18061, 40976, 41949, 43624, 5434, 5929, 6461, 7030, 7636, 8271, 
-                                                                                  8934, 9608, 10292, 10977, 11675, 12401, 13176, 14001, 8783, 46421, 
-                                                                                  17242, 42079, 1380, 12649, 11886, 63603, 40311, 1659, 15743, 17795, 
-                                                                                  7558, 7817, 39564, 53902, 50577, 27539, 49044, 49813, 29846, 56726, 
-                                                                                  64150, 53141, 29588, 58770, 9360, 9614, 64908, 41353, 64390, 14211, 
-                                                                                  19839, 15483, 30719, 29362, 28137, 26947, 25749, 24590, 23459, 22347, 
-                                                                                  21273, 20236, 19239, 18287, 17378, 16495, 15603, 14931, 14233, 13554, 
+        OPTAA_SampleDataParticleKey.A_REFERENCE_COUNTS : {'type': list, 'value': [867, 1030, 1212, 1408, 1623, 1860, 2123, 2411, 2684, 51471,
+                                                                                  18061, 40976, 41949, 43624, 5434, 5929, 6461, 7030, 7636, 8271,
+                                                                                  8934, 9608, 10292, 10977, 11675, 12401, 13176, 14001, 8783, 46421,
+                                                                                  17242, 42079, 1380, 12649, 11886, 63603, 40311, 1659, 15743, 17795,
+                                                                                  7558, 7817, 39564, 53902, 50577, 27539, 49044, 49813, 29846, 56726,
+                                                                                  64150, 53141, 29588, 58770, 9360, 9614, 64908, 41353, 64390, 14211,
+                                                                                  19839, 15483, 30719, 29362, 28137, 26947, 25749, 24590, 23459, 22347,
+                                                                                  21273, 20236, 19239, 18287, 17378, 16495, 15603, 14931, 14233, 13554,
                                                                                   12913, 12326, 2]},
-        OPTAA_SampleDataParticleKey.C_SIGNAL_COUNTS : {'type': list, 'value':    [1108, 1321, 1561, 1822, 2110, 2428, 2780, 3171, 3593, 36876, 
-                                                                                  3675, 4114, 58808, 6667, 7303, 7982, 8702, 9470, 10298, 11175, 
-                                                                                  12094, 13053, 14038, 15029, 16034, 17058, 18125, 19260, 64073, 5454, 
-                                                                                  27475, 41048, 40029, 52322, 43622, 15979, 36207, 41586, 29558, 1145, 
-                                                                                  20092, 16000, 13698, 56196, 10118, 8840, 45705, 50569, 22410, 33161, 
-                                                                                  13705, 29832, 18054, 50052, 64898, 57216, 31101, 49530, 46455, 6515, 
-                                                                                  21103, 29291, 26439, 25319, 24195, 23080, 21984, 20914, 19884, 18890, 
-                                                                                  17935, 17020, 16144, 15303, 14452, 13738, 13100, 12465, 11857, 11285, 
+        OPTAA_SampleDataParticleKey.C_SIGNAL_COUNTS : {'type': list, 'value':    [1108, 1321, 1561, 1822, 2110, 2428, 2780, 3171, 3593, 36876,
+                                                                                  3675, 4114, 58808, 6667, 7303, 7982, 8702, 9470, 10298, 11175,
+                                                                                  12094, 13053, 14038, 15029, 16034, 17058, 18125, 19260, 64073, 5454,
+                                                                                  27475, 41048, 40029, 52322, 43622, 15979, 36207, 41586, 29558, 1145,
+                                                                                  20092, 16000, 13698, 56196, 10118, 8840, 45705, 50569, 22410, 33161,
+                                                                                  13705, 29832, 18054, 50052, 64898, 57216, 31101, 49530, 46455, 6515,
+                                                                                  21103, 29291, 26439, 25319, 24195, 23080, 21984, 20914, 19884, 18890,
+                                                                                  17935, 17020, 16144, 15303, 14452, 13738, 13100, 12465, 11857, 11285,
                                                                                   10747, 3187, 47109]},
-        OPTAA_SampleDataParticleKey.A_SIGNAL_COUNTS : {'type': list, 'value':    [767, 950, 1152, 1371, 1614, 1882, 2181, 2515, 2829, 39951, 
-                                                                                  4271, 16656, 6083, 5609, 6196, 6821, 7499, 8230, 9010, 9838, 
-                                                                                  10706, 11606, 12527, 13464, 14425, 15433, 16510, 17657, 51009, 53317, 
-                                                                                  56393, 47949, 42832, 22612, 53847, 2650, 6493, 55648, 23906, 42596, 
-                                                                                  43111, 4713, 44394, 62572, 56685, 23406, 26990, 65391, 9582, 57454, 
-                                                                                  11117, 3436, 43371, 62057, 61032, 34406, 55651, 55905, 26206, 47963, 
-                                                                                  51032, 37974, 21054, 20155, 19276, 18404, 17561, 16736, 15934, 15160, 
-                                                                                  14415, 13697, 13014, 12361, 11712, 11112, 10618, 10115, 9633, 9176, 
+        OPTAA_SampleDataParticleKey.A_SIGNAL_COUNTS : {'type': list, 'value':    [767, 950, 1152, 1371, 1614, 1882, 2181, 2515, 2829, 39951,
+                                                                                  4271, 16656, 6083, 5609, 6196, 6821, 7499, 8230, 9010, 9838,
+                                                                                  10706, 11606, 12527, 13464, 14425, 15433, 16510, 17657, 51009, 53317,
+                                                                                  56393, 47949, 42832, 22612, 53847, 2650, 6493, 55648, 23906, 42596,
+                                                                                  43111, 4713, 44394, 62572, 56685, 23406, 26990, 65391, 9582, 57454,
+                                                                                  11117, 3436, 43371, 62057, 61032, 34406, 55651, 55905, 26206, 47963,
+                                                                                  51032, 37974, 21054, 20155, 19276, 18404, 17561, 16736, 15934, 15160,
+                                                                                  14415, 13697, 13014, 12361, 11712, 11112, 10618, 10115, 9633, 9176,
                                                                                   8741, 254, 339]}
+        }   
+            
+    _short_sample_parameters = {
+        # particle data defined in the OPTAA Driver doc
+        OPTAA_SampleDataParticleKey.RECORD_LENGTH : {'type': int, 'value': 0x2a8 },
+        OPTAA_SampleDataParticleKey.PACKET_TYPE : {'type': int, 'value': 0x05 },
+        OPTAA_SampleDataParticleKey.METER_TYPE : {'type': int, 'value': 0x53 },
+        OPTAA_SampleDataParticleKey.SERIAL_NUMBER : {'type': int, 'value': 0x82},
+        OPTAA_SampleDataParticleKey.A_REFERENCE_DARK_COUNTS : {'type': int, 'value': 0x1ce },
+        OPTAA_SampleDataParticleKey.PRESSURE_COUNTS : {'type': int, 'value': 0xffff },
+        OPTAA_SampleDataParticleKey.A_SIGNAL_DARK_COUNTS : {'type': int, 'value': 0x2b0 },
+        OPTAA_SampleDataParticleKey.EXTERNAL_TEMP_RAW : {'type': int, 'value': 0x6e47 },
+        OPTAA_SampleDataParticleKey.INTERNAL_TEMP_RAW : {'type': int, 'value': 0xa84f },
+        OPTAA_SampleDataParticleKey.C_REFERENCE_DARK_COUNTS : {'type': int, 'value': 0x1d5 },
+        OPTAA_SampleDataParticleKey.C_SIGNAL_DARK_COUNTS : {'type': int, 'value': 0x2bd },
+        OPTAA_SampleDataParticleKey.ELAPSED_RUN_TIME : {'type': int, 'value': 0x284d },
+        OPTAA_SampleDataParticleKey.NUM_WAVELENGTHS : {'type': int, 'value': 0x51 },
+        OPTAA_SampleDataParticleKey.C_REFERENCE_COUNTS : {'type': list, 'value': [1391, 1632, 1889, 2168, 2473, 2817, 3196, 3611, 4060, 4532,
+                                                                                  5020, 5530, 6058, 6645, 7292, 7964, 8657, 9387, 10139, 10907,
+                                                                                  11687, 12495, 13313, 14139, 14990, 15888, 16843, 17865, 18964, 20119,
+                                                                                  21298, 22437, 23526, 24538, 25494, 26419, 27271, 28060, 28759, 29311,
+                                                                                  29941, 30478, 30928, 31284, 31536, 31673, 31706, 31630, 31449, 31170,
+                                                                                  30786, 30326, 29767, 29146, 28508, 27801, 27011, 26145, 25186, 23961,
+                                                                                  22897, 22027, 21024, 19988, 18945, 17919, 16928, 15976, 15070, 14210,
+                                                                                  13386, 12602, 11856, 11145, 10493, 9884, 9317, 8785, 8292, 7835,
+                                                                                  7418]},
+        OPTAA_SampleDataParticleKey.A_REFERENCE_COUNTS : {'type': list, 'value': [1273, 1499, 1744, 2012, 2304, 2632, 2995, 3395, 3825, 4283,
+                                                                                  4759, 5262, 5780, 6358, 7001, 7668, 8360, 9089, 9848, 10630,
+                                                                                  11421, 12252, 13103, 13961, 14849, 15792, 16786, 17853, 19000, 20216,
+                                                                                  21461, 22682, 23850, 24975, 26048, 27059, 28020, 28925, 29739, 30363,
+                                                                                  31158, 31855, 32457, 32970, 33385, 33680, 33849, 33911, 33858, 33705,
+                                                                                  33440, 33074, 32609, 32047, 31455, 30828, 30101, 29283, 28383, 27271,
+                                                                                  26039, 25148, 24144, 23069, 21974, 20877, 19811, 18773, 17771, 16822,
+                                                                                  15905, 15025, 14190, 13383, 12622, 11927, 11270, 10655, 10081, 9547,
+                                                                                   9054]},
+        OPTAA_SampleDataParticleKey.C_SIGNAL_COUNTS : {'type': list, 'value':    [1225, 1471, 1743, 2040, 2369, 2739, 3159, 3616, 4118, 4652,
+                                                                                  5210, 5797, 6409, 7074, 7834, 8620, 9436, 10292, 11191, 12109,
+                                                                                  13049, 14020, 15015, 16023, 17058, 18145, 19307, 20544, 21881, 23294,
+                                                                                  24745, 26163, 27517, 28808, 29991, 31187, 32273, 33304, 34225, 35010,
+                                                                                  35858, 36596, 37226, 37743, 38136, 38389, 38509, 38499, 38352, 38088,
+                                                                                  37686, 37197, 36591, 35870, 35148, 34353, 33438, 32425, 31315, 29877,
+                                                                                  28439, 27497, 26268, 24992, 23712, 22441, 21210, 20025, 18889, 17816,
+                                                                                  16790, 15808, 14876, 13982, 13165, 12405, 11693, 11025, 10408, 9838,
+                                                                                  9313]},
+        OPTAA_SampleDataParticleKey.A_SIGNAL_COUNTS : {'type': list, 'value':    [918, 1159, 1419, 1696, 1994, 2325, 2693, 3100, 3544, 4020,
+                                                                                  4524, 5059, 5620, 6249, 6953, 7691, 8466, 9294, 10160, 11062,
+                                                                                  11989, 12968, 13982, 15017, 16095, 17242, 18459, 19770, 21185, 22692,
+                                                                                  24244, 25782, 27277, 28734, 30144, 31494, 32790, 34031, 35172, 36101,
+                                                                                  37239, 38270, 39191, 40009, 40707, 41269, 41678, 41953, 42084, 42087,
+                                                                                  41950, 41680, 41279, 40748, 40160, 39515, 38734, 37824, 36791, 35473,
+                                                                                  33988, 32910, 31676, 30340, 28963, 27574, 26213, 24882, 23594, 22367,
+                                                                                  21182, 20041, 18950, 17898, 16905, 15993, 15133, 14323, 13567, 12864,
+                                                                                  12217]}
         }   
             
     _status_parameters = {
@@ -426,7 +416,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
-        do a little extra validation for the Capabilites
+        do a little extra validation for the capabilities
         """
 
         self.assert_enum_has_no_duplicates(DataParticleType())
@@ -437,7 +427,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
 
         # Test capabilities for duplicates, them verify that capabilities is a subset of protocol events
         self.assert_enum_has_no_duplicates(Capability())
-        #self.assert_enum_complete(Capability(), ProtocolEvent())  Capability is empty, so this test fails
+        self.assert_enum_complete(Capability(), ProtocolEvent())
 
 
     def test_chunker(self):
@@ -480,11 +470,9 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         self.assert_raw_particle_published(driver, True)
 
         # validating data particles
-        """
         self.assert_particle_published(driver, OPTAA_STATUS_DATA, self.assert_data_particle_status, True)
         self.assert_particle_published(driver, OPTAA_SAMPLE, self.assert_data_particle_sample, True)
-        """
-        self.assert_particle_published(driver, ShortSample(), self.assert_data_particle_sample, True)
+        self.assert_particle_published(driver, ShortSample(), self.assert_data_particle_short_sample, True)
 
 
     def test_protocol_filter_capabilities(self):
@@ -493,7 +481,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         Iterate through available capabilities, and verify that they can pass successfully through the filter.
         Test silly made up capabilities to verify they are blocked by filter.
         """
-        mock_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        mock_callback = Mock(spec=PortAgentClient)
         protocol = Protocol(Prompt, NEWLINE, mock_callback)
         driver_capabilities = Capability().list()
         test_capabilities = Capability().list()
@@ -537,15 +525,32 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
-    def test_autosample_particle_generation(self):
+    @unittest.skip('Only enable and use when not running a batch')
+    def test_status_particle_generation(self):
         """
-        Test that we can generate particles when in autosample.
-        To test status particle instrument must be off and powered on will test is waiting
+        To test status particle instrument must be off and powered on while test is waiting
+        The status particle is sent only once when the instrument is powered on
+        cannot start the driver and instrument simultaneously, therefore need to start
+        test with instrument off, start the driver, then start the instrument to capture the
+        status particle
+
         """
+
+        #Test that we can generate particles when in autosample.
         self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
 
-        print("waiting 30 seconds for instrument data")
-        self.assert_async_particle_generation(DataParticleType.OPTAA_SAMPLE, self.assert_sample_data_particle, timeout=30)
+        #NOTE: cannot timeout BEFORE reaching particle count or an error is thrown
+        log.debug("turn off, then on the instrument")
+        log.debug("waiting 30 seconds for 1 particle status")
+        self.assert_async_particle_generation(DataParticleType.OPTAA_STATUS, self.assert_sample_data_particle, particle_count = 1, timeout = 30)
+
+    def test_autosample_particle_generation(self):
+
+        #Test that we can generate particles when in autosample.
+        self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
+
+        log.debug("waiting 100 seconds for 50 particle samples")
+        self.assert_async_particle_generation(DataParticleType.OPTAA_SAMPLE, self.assert_sample_data_particle, particle_count = 50, timeout = 100)
 
 
 ###############################################################################
@@ -577,9 +582,8 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         state = self.instrument_agent_client.get_agent_state()
         self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
         
-        print("test_direct_access_telnet_mode: waiting 120 seconds for manual testing")
+        log.debug("test_direct_access_telnet_mode: waiting 120 seconds for manual testing")
         gevent.sleep(120)
-
         cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
         retval = self.instrument_agent_client.execute_agent(cmd) 
 
@@ -664,7 +668,7 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
 ###############################################################################
 #                             PUBLICATION TESTS                               #
-# Device specific pulication tests are for                                    #
+# Device specific publication tests are for                                   #
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('PUB', group='mi')

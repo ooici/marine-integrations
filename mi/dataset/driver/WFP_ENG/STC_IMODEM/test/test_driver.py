@@ -75,16 +75,16 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('first.DAT', "E0000001.DAT")
-        self.assert_data_multiple_class('first.result.yml', count=2, timeout=10)
+        self.assert_data(None, 'first.result.yml', count=2, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('second.DAT', "E0000002.DAT")
-        self.assert_data_multiple_class('second.result.yml', count=5, timeout=10)
+        self.assert_data(None, 'second.result.yml', count=5, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('E0000303.DAT', "E0000303.DAT")
         # start is the same particle here, just use the same results
-        self.assert_data_multiple_class(count=34, timeout=10)
+        self.assert_data(None, count=34, timeout=10)
 
     def test_stop_resume(self):
         """
@@ -106,7 +106,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data_multiple_class('partial_second.result.yml', count=2, timeout=10)
+        self.assert_data(None, 'partial_second.result.yml', count=2, timeout=10)
 
     def test_stop_start_ingest(self):
         """
@@ -119,14 +119,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.create_sample_data('first.DAT', "E0000001.DAT")
         self.create_sample_data('second.DAT', "E0000002.DAT")
-        self.assert_data_multiple_class('first.result.yml', count=2, timeout=10)
+        self.assert_data(None, 'first.result.yml', count=2, timeout=10)
         self.assert_file_ingested("E0000001.DAT")
         self.assert_file_not_ingested("E0000002.DAT")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data_multiple_class('second.result.yml', count=5, timeout=10)
+        self.assert_data(None, 'second.result.yml', count=5, timeout=10)
         self.assert_file_ingested("E0000002.DAT")
 
     def test_sample_exception(self):

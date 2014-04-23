@@ -35,7 +35,8 @@ class MflmCTDMODataSetDriver(MflmDataSetDriver):
             parser_state,
             infile,
             self._save_parser_state,
-            self._data_callback
+            self._data_callback,
+            self._sample_exception_callback
         )
 
         return self._parser

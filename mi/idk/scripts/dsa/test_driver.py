@@ -7,6 +7,7 @@ from mi.idk.dataset.metadata import Metadata
 from mi.core.log import get_logger ; log = get_logger()
 
 import yaml
+import time
 import os
 import re
 from glob import glob
@@ -22,9 +23,15 @@ def run():
     """
 
     opts = parseArgs()
-    failure = False
+    failed = False
+    count = 0
+    success = 0
+    failure = 0
+    error = 0
+    start_time = time.time()
 
     for metadata in get_metadata(opts):
+        count += 1
         app = NoseTest(metadata,
                        testname=opts.testname,
                        suppress_stdout=opts.suppress_stdout,
@@ -33,17 +40,24 @@ def run():
         app.report_header()
 
         if( opts.unit ):
-            success = app.run_unit()
+            result = app.run_unit()
         elif( opts.integration ):
-            success = app.run_integration()
+            result = app.run_integration()
         elif( opts.qualification ):
-            success = app.run_qualification()
+            result = app.run_qualification()
         elif( opts.ingest ):
-            success = app.run_ingestion(opts.directory, opts.exit_time)
+            result = app.run_ingestion(opts.directory, opts.exit_time)
         else:
-            success = app.run()
+            result = app.run()
 
-        if(not success): failure = True
+        if(not result): failed = True
+
+        success += app.success_count
+        error += app.error_count
+        failure += app.failure_count
+
+    if(count > 1):
+        driver_report(count, time.time() - start_time, success, error, failure)
 
     return failure
 
@@ -61,8 +75,8 @@ def get_metadata(opts):
     if(opts.buildall):
         paths = get_driver_paths()
         for path in paths:
+            log.debug("Adding driver path: %s", path)
             result.append(Metadata(path))
-        pass
     else:
         result.append(Metadata())
 
@@ -119,3 +133,22 @@ def get_driver_paths():
 
 if __name__ == '__main__':
     run()
+
+def driver_report(count, duration, success, error, failure):
+    msg ="\n------------------------ Cumulative Nosetest Result ------------------------\n"
+    msg += "Drivers tested: %d\n" % count
+    msg += "Ran %d tests in %.3fs\n\n" % (success + error + failure, duration)
+    if(failure or error):
+        msg += "FAILED ("
+        if(error):
+            msg += "errors=%d" % error
+            if(failure): msg += ", "
+        if(failure):
+            msg += "failure=%d" % failure
+        msg += ")"
+    else:
+        msg += "OK"
+    msg += "\n"
+
+    log.warn(msg)
+
