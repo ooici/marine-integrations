@@ -972,9 +972,9 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
         
     def update(self, input, target_params=None, **kwargs):
         """
-        Update the dictionaray with a line input. Iterate through all objects
+        Update the dictionary with a line input. Iterate through all objects
         and attempt to match and update a parameter. Only updates the first
-        match encountered. If we pass in a target params list then will will
+        match encountered. If we pass in a target params list then we will
         only iterate through those allowing us to limit upstate to only specific
         parameters.
         @param input A string to match to a dictionary object.
@@ -2041,7 +2041,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     startup_param=True,
                                     direct_access=False))
         self._param_dict.add_parameter(
-	    NortekParameterDictVal(Parameter.RECEIVE_LENGTH,
+            NortekParameterDictVal(Parameter.RECEIVE_LENGTH,
                                     r'^.{%s}(.{2}).*' % str(8),
                                     lambda match : NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
                                     NortekProtocolParameterDict.word_to_string,
@@ -2300,7 +2300,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.double_word_to_string,
                                     init_value=43200,
                                     regex_flags=re.DOTALL,
-                                    type=ParameterDictType.STRING,
+                                    type=ParameterDictType.INT,
                                     expiration=None,
                                     visibility=ParameterDictVisibility.READ_ONLY,
                                     display_name="diagnostic interval",
@@ -2326,7 +2326,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     lambda match : NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
-                                    type=ParameterDictType.STRING,
+                                    type=ParameterDictType.INT,
                                     expiration=None,
                                     visibility=ParameterDictVisibility.READ_WRITE,
                                     display_name="adjustment sound speed",
@@ -2568,7 +2568,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     expiration=None,
                                     visibility=ParameterDictVisibility.READ_ONLY,
                                     display_name="number samples per burst",
-                                    default_value=9600,
+                                    default_value=0,
                                     startup_param=True,
                                     direct_access=True))
         self._param_dict.add_parameter(
@@ -2610,6 +2610,20 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     default_value=0,
                                     startup_param=True,
                                     direct_access=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.USER_3_SPARE,
+                                    r'^.{%s}(.{2}).*' % str(460),
+                                    lambda match : match.group(1),
+                                    lambda string : string,
+                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    regex_flags=re.DOTALL,
+                                    type=ParameterDictType.STRING,
+                                    expiration=None,
+                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    display_name="user 3 spare",
+                                    default_value=0,
+                                    startup_param=False,
+                                    direct_access=False))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
                                     r'^.{%s}(.{2}).*' % str(462),
