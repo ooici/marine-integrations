@@ -340,11 +340,13 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         self.assert_enum_has_no_duplicates(InstrumentPrompts())
 
         # Test capabilities for duplicates, them verify that capabilities is a subset of protocol events
-        #self.assert_enum_has_no_duplicates(Capability())
-        #NOTE:  THERE ARE NO CAPABILITIES, SO THIS WILL FAIL
-        #self.assert_enum_complete(Capability(), ProtocolEvent())
+        self.assert_enum_has_no_duplicates(Capability())
+        self.assert_enum_complete(Capability(), ProtocolEvent())
 
     def test_driver_enums(self):
+        raise NotImplementedException('Implement in child class!')
+
+    def test_chunker(self):
         raise NotImplementedException('Implement in child class!')
 
     def test_base_driver_protocol_filter_capabilities(self):
