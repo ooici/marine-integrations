@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 """
-@package mi.dataset.parser.mflm MFLM common data set parser
-@file mi/dataset/parser/mflm.py
+@package mi.dataset.parser.sio_mule_common data set parser
+@file mi/dataset/parser/sio_mule_common.py
 @author Emily Hahn
-This module contains classes that handle parsing MFLM instruments
-from the common MFLM control file.
+This module contains classes that handle parsing instruments which pass through
+sio which contain the common sio header.
 """
 
 __author__ = 'Emily Hahn'
@@ -14,6 +14,7 @@ __license__ = 'Apache 2.0'
 import re
 import struct
 import binascii
+import gevent
 
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger; log = get_logger()
@@ -26,7 +27,7 @@ from mi.dataset.dataset_parser import Parser
 # groups: ID, Number of Data Bytes, POSIX timestamp, block number, data
 # some instruments have \x03 within the data, need to check if header is
 # followed by another header or not or zeros for blank data
-SIO_HEADER_REGEX = b'\x01(CT|AD|FL|DO|PH|PS|CS)[0-9]{7}_([0-9A-Fa-f]{4})[a-z]' \
+SIO_HEADER_REGEX = b'\x01(CT|AD|FL|DO|PH|PS|CS|WA|WC|WE|CO|PS|CS)[0-9]{7}_([0-9A-Fa-f]{4})[a-zA-Z]' \
                '([0-9A-Fa-f]{8})_([0-9A-Fa-f]{2})_([0-9A-Fa-f]{4})\x02'
 SIO_HEADER_MATCHER = re.compile(SIO_HEADER_REGEX)
 
@@ -38,12 +39,12 @@ class StateKey(BaseEnum):
     UNPROCESSED_DATA = "unprocessed_data" # holds an array of start and end of unprocessed blocks of data
     IN_PROCESS_DATA = "in_process_data" # holds an array of start and end of packets of data,
         # the number of samples in that packet, how many packets have been pulled out currently
-        # being processed, and if this packet is a new sequence or not
+        # being processed
 
-class MflmParser(Parser):
+class SioMuleParser(Parser):
 
     def __init__(self, config, stream_handle, state, sieve_fn,
-                 state_callback, publish_callback, instrument_id):
+                 state_callback, publish_callback, exception_callback):
         """
         @param config The configuration parameters to feed into the parser
         @param stream_handle An already open file-like filehandle
@@ -57,19 +58,18 @@ class MflmParser(Parser):
         @param publish_callback The callback from the agent driver (and
            ultimately from the agent) where we send our sample particle to
            be published into ION
+        @param exception_callback The callback from the agent driver to
+           send an exception to
         @param instrument_id the text string indicating the instrument to
-           monitor, can be 'CT', 'AD', 'FL', 'DO', or 'PH'
+           monitor, can be 'CT', 'AD', 'FL', 'DO', 'PH', 'WA', 'WC', or 'WE'
         """
-        super(MflmParser, self).__init__(config,
+        super(SioMuleParser, self).__init__(config,
                                          stream_handle,
                                          state,
                                          self.sieve_function,
                                          state_callback,
-                                         publish_callback)
-
-        if instrument_id not in ['CT', 'AD', 'FL', 'DO', 'PH']:
-            raise DatasetParserException('instrument id %s is not recognized', instrument_id)
-        self._instrument_id = instrument_id
+                                         publish_callback,
+                                         exception_callback)
 
         self._timestamp = 0.0
         self._position = [0,0] # store both the start and end point for this read of data within the file
@@ -79,15 +79,12 @@ class MflmParser(Parser):
         all_data = self._stream_handle.read()
         EOF = len(all_data)
         self._stream_handle.seek(0)
-        self._new_seq_flag = True # always start a new sequence on init
         self._chunk_sample_count = []
-        self._chunk_new_seq = []
         self._samples_to_throw_out = None
         self._mid_sample_packets = 0
         self._read_state = {StateKey.TIMESTAMP:0.0,
                             StateKey.UNPROCESSED_DATA:[[0,EOF]],
                             StateKey.IN_PROCESS_DATA:[]}
-        log.debug('Starting parser')
 
         if state:
             self.set_state(self._state)
@@ -120,7 +117,7 @@ class MflmParser(Parser):
                         if not self.packet_exists(match.start(0), end_packet_idx+1):
                             self._read_state[StateKey.IN_PROCESS_DATA].append([match.start(0),
                                                                                end_packet_idx+1,
-                                                                               None, 0, 0])
+                                                                               None, 0])
                         return_list.append((match.start(0), end_packet_idx+1))
                     else:
                         log.debug("Calculated checksum %s != received checksum %s for header %s and packet %d to %d",
@@ -169,7 +166,7 @@ class MflmParser(Parser):
         """
         for packet in self._read_state[StateKey.IN_PROCESS_DATA]:
             if packet[0] == start + self._position[0] and packet[1] == end + self._position[0]:
-                log.debug('Already added packet %s', packet)
+                log.trace('Already added packet %s', packet)
                 return True
         return False
 
@@ -208,9 +205,7 @@ class MflmParser(Parser):
             self._samples_to_throw_out = state_obj[StateKey.IN_PROCESS_DATA][0][3]
 
         # make sure we have cleaned the chunker out of old data so there are no wrap arounds
-        self._clean_all_chunker()
-
-        self._new_seq_flag = True # state has changed, start a new sequence
+        self._chunker.clean_all_chunks()
 
         # seek to the first unprocessed position
         self._stream_handle.seek(state_obj[StateKey.UNPROCESSED_DATA][0][0])
@@ -230,7 +225,6 @@ class MflmParser(Parser):
             # if we were in the middle of processing, we need to drop the parsed
             # packets sample count because that in process packet already exists
             self._chunk_sample_count.pop(0)
-            self._chunk_new_seq.pop(0)
             # decrease the mid sample number remaining
             self._mid_sample_packets -= 1
 
@@ -238,7 +232,6 @@ class MflmParser(Parser):
             if self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][2] is None and \
             len(self._chunk_sample_count) > 0:
                 self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][2] = self._chunk_sample_count.pop(0)
-                self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][4] = self._chunk_new_seq.pop(0)
                 # adjust for current file position, only do this once when filling in sample count
                 self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][0] += self._position[0]
                 self._read_state[StateKey.IN_PROCESS_DATA][packet_idx][1] += self._position[0]
@@ -263,7 +256,6 @@ class MflmParser(Parser):
                         # this packet has had all the samples pulled out from it, remove it from in process
                         adj_packets.append([this_packet[0], this_packet[1]])
                         ret = self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
-                        log.trace('Packet %s has been processed, removing', ret)
                         n_removed += 1
                     elif self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][3] < 0:
                         self._read_state[StateKey.IN_PROCESS_DATA][adj_packet_idx][3] = 0
@@ -274,7 +266,6 @@ class MflmParser(Parser):
                     # this packet has no samples, no need to process further
                     adj_packets.append([this_packet[0], this_packet[1]])
                     ret = self._read_state[StateKey.IN_PROCESS_DATA].pop(adj_packet_idx)
-                    log.trace('Packet %s has been processed, removing', ret)
                     n_removed += 1
 
             if len(adj_packets) > 0 and self._read_state[StateKey.IN_PROCESS_DATA] == []:
@@ -283,11 +274,10 @@ class MflmParser(Parser):
                 log.debug('Resetting file to the start')
                 self._stream_handle.seek(0)
                 self._position = [0,0]
-                self._new_seq_flag = True # start a new sequence since we are back at the beginning
                 # clear out the chunker so we don't wrap around data
-                self._clean_all_chunker()
+                self._chunker.clean_all_chunks()
 
-            log.debug('In process %s', self._read_state[StateKey.IN_PROCESS_DATA])
+            log.trace('In process %s', self._read_state[StateKey.IN_PROCESS_DATA])
 
             # first combine the in process data packet indicies
             combined_packets = self._combine_adjacent_packets(adj_packets)
@@ -311,23 +301,6 @@ class MflmParser(Parser):
                     self._read_state[StateKey.UNPROCESSED_DATA])
 
         self._read_state[StateKey.TIMESTAMP] = timestamp
-
-    def _clean_all_chunker(self):
-        """
-        Clean out the chunker of all possible data types
-        """
-        # clear out any non matching data.
-        (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
-        while non_data is not None:
-            (nd_timestamp, non_data) = self._chunker.get_next_non_data(clean=True)
-        # clean out raw data
-        (nd_timestamp, raw_data) = self._chunker.get_next_raw(clean=True)
-        while raw_data is not None:
-            (nd_timestamp, raw_data) = self._chunker.get_next_raw(clean=True)
-        # clean out data
-        (nd_timestamp, data) = self._chunker.get_next_data(clean=True)
-        while data is not None:
-            (nd_timestamp, data) = self._chunker.get_next_data(clean=True)
 
     def _combine_adjacent_packets(self, packets):
         """
@@ -368,6 +341,9 @@ class MflmParser(Parser):
                 data = self._get_next_unprocessed_data(self._read_state[StateKey.UNPROCESSED_DATA])
 
             if data and len(self._record_buffer) < num_records:
+                # there is more data, add it to the chunker after escaping acoustic modem characters
+                data = data.replace(b'\x186b', b'\x2b')
+                data = data.replace(b'\x1858', b'\x18')
                 # there is more data, add it to the chunker
                 self._chunker.add_chunk(data, self._timestamp)
 
@@ -389,6 +365,8 @@ class MflmParser(Parser):
             else:
                  # if there is no more data, it is the end of the file, stop looping
                 break
+            # sleep in case this is a long loop
+            gevent.sleep(0)
 
     def get_records(self, num_records):
         """
@@ -428,7 +406,7 @@ class MflmParser(Parser):
 
         # this is a special case if we are switching from in process data to unprocessed data in
         # order to get all the records required
-        if num_to_fetch < num_records and self._position == [0,0] and self._new_seq_flag is True:
+        if num_to_fetch < num_records and self._position == [0,0]:
             remain_records = num_records - num_to_fetch
             self.get_num_records(remain_records)
             if len(self._record_buffer) < remain_records:
@@ -467,12 +445,6 @@ class MflmParser(Parser):
             data = self._stream_handle.read(data_len)
             self._position[1] = self._position[0] + data_len
             log.debug('read %d bytes starting at %d', data_len, self._position[0])
-            if len(unproc[next_idx]) >= 4:
-                # this is in process data, update the new sequence flag if there
-                # is a new sequence for the first sample(unprocessed data is not
-                # read again so the chunker doesn't trigger on it)
-                if unproc[next_idx][4] == 1 and unproc[next_idx][3] == 0:
-                    self._new_seq_flag = True
         else:
             log.debug('Found no data, %s, next_idx=%d', unproc, next_idx)
             data = []

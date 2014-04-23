@@ -121,7 +121,8 @@ class TcpClient():
         return True
 
     def get_data(self):
-        data = ""        try:
+        data = ""
+        try:
             ret = ""
 
             while True:
@@ -169,4 +170,4 @@ class TcpClient():
 
             lst.append(hv.upper() + ' ')
 
-        return reduce(lambda x, y: x + y, lst)
+        return reduce(lambda x,y:x+y, lst)

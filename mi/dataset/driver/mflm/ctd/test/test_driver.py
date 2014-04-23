@@ -18,34 +18,26 @@ __license__ = 'Apache 2.0'
 import unittest
 import os
 import binascii
-
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from pyon.agent.agent import ResourceAgentState
+from interface.objects import ResourceAgentErrorEvent
+from interface.objects import ResourceAgentConnectionLostErrorEvent
 
+from mi.core.log import get_logger ; log = get_logger()
+from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.exceptions import ConfigurationException
 from mi.core.exceptions import InstrumentParameterException
 from mi.idk.exceptions import SampleTimeout
 
-from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
-from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
-from mi.core.instrument.instrument_driver import DriverEvent
-
 from mi.idk.dataset.unit_test import DataSetTestCase
-from mi.idk.dataset.unit_test import DataSetUnitTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
-
+from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
+from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 from mi.dataset.driver.mflm.ctd.driver import MflmCTDMODataSetDriver
 from mi.dataset.parser.ctdmo import CtdmoParserDataParticle
-
-from pyon.agent.agent import ResourceAgentState
-
-from interface.objects import CapabilityType
-from interface.objects import AgentCapability
-from interface.objects import ResourceAgentErrorEvent
-from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 
 DataSetTestCase.initialize(
@@ -207,8 +199,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-    def setUp(self):
-        super(QualificationTest, self).setUp()
 
     def clean_file(self):
         # remove just the file we are using
@@ -228,15 +218,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         self.create_sample_data('node59p1_step1.dat', "node59p1.dat")
 
-        self.assert_initialize(final_state=ResourceAgentState.COMMAND)
-
-        # Right now, there is an issue with keeping records in order,
-        # which has to do with the sleep time in get_samples in
-        # instrument_agent_client.  By setting this delay more than the
-        # delay in get_samples, the records are returned in the expected
-        # otherwise they are returned out of order
-        self.dataset_agent_client.set_resource({DriverParameter.RECORDS_PER_SECOND: 1})
-        self.assert_start_sampling()
+        self.assert_initialize()
 
         try:
             # Verify we get one sample
