@@ -284,12 +284,15 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and ensure we get the last 3 records of the file
             self.assert_start_sampling()
-            result1 = self.get_samples(ENG_SAMPLE_STREAM, 3)
-            result2 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 3)
+            result3 = self.get_samples(ENG_SAMPLE_STREAM, 1)
+            result4 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 1)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
-            result1.extend(result2)
+            result3.extend(result4)
+
+            result1.extend(result3)
+
             log.debug("## QualificationTest.test_stop_start(): got combined result %s", result1)
-            self.assert_data_values(result1, 'merged_glider_record-engDataOnly.mrg.result.yml')
+            self.assert_data_values(result1, 'multiple_glider_record-engDataOnly.mrg.result.yml')
 
             self.assert_sample_queue_size(ENG_SCI_SAMPLE_STREAM, 0)
             self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
@@ -345,10 +348,11 @@ class QualificationTest(DataSetQualificationTestCase):
             # Restart sampling and ensure we get the last 3 records of the file
             self.assert_start_sampling()
             #result = self.get_samples((ENG_SAMPLE_STREAM, ENG_SCI_SAMPLE_STREAM), 3)
-            result1 = self.get_samples(ENG_SAMPLE_STREAM, 3)
-            result2 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 3)
+            result3 = self.get_samples(ENG_SAMPLE_STREAM, 1)
+            result4 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 1)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
-            result1.extend(result2)
+            result3.extend(result4)
+
             log.debug("## QualificationTest.test_shutdown_restart(): got result 2 %s", result1)
             self.assert_data_values(result1, 'merged_glider_record-engDataOnly.mrg.result.yml')
 
