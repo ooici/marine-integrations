@@ -1,7 +1,6 @@
 """
 @package mi.instrument.nortek.aquadopp.ooicore.test.test_driver
-@file /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/aquadopp/ooicore/driver.py
-@author Bill Bollenbacher
+@author Rachel Manoni
 @brief Test cases for ooicore driver
 
 USAGE:
@@ -19,7 +18,7 @@ USAGE:
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/aquadopp/ooicore -a QUAL
 """
 
-__author__ = 'Bill Bollenbacher'
+__author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
 
 from gevent import monkey; monkey.patch_all()
@@ -31,14 +30,12 @@ import datetime
 import base64
 
 from nose.plugins.attrib import attr
+from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
-from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
-from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import AgentCapabilityType
 
 from mi.core.instrument.instrument_driver import DriverConnectionState
@@ -55,26 +52,19 @@ from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
 from mi.instrument.nortek.aquadopp.ooicore.driver import DataParticleType
-from mi.instrument.nortek.aquadopp.ooicore.driver import InstrumentPrompts
-from mi.instrument.nortek.aquadopp.ooicore.driver import InstrumentCmds
-from mi.instrument.nortek.aquadopp.ooicore.driver import Capability
 from mi.instrument.nortek.aquadopp.ooicore.driver import Protocol
-from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolState
-from mi.instrument.nortek.aquadopp.ooicore.driver import ProtocolEvent
-from mi.instrument.nortek.aquadopp.ooicore.driver import Parameter
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticle
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticleKey
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticle
-from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticleKey
-from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticDataParticle
+from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticleKey, InstrumentPrompts
+from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticDataParticle, InstrumentDriver, NEWLINE
 
 from interface.objects import AgentCommand
 from interface.objects import CapabilityType
 
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-
-from pyon.agent.agent import ResourceAgentEvent
+from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest
+from mi.instrument.nortek.driver import InstrumentPrompts, Parameter, ProtocolState, ProtocolEvent, InstrumentCmds, \
+    Capability
 
 ###
 #   Driver parameters for the tests
@@ -289,97 +279,21 @@ diagnostic_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:11:20'}
 # Qualification tests are driven through the instrument_agent                 #
 #                                                                             #
 ###############################################################################
-
-
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
 ###############################################################################
 @attr('UNIT', group='mi')
-class UnitFromIDK(InstrumentDriverUnitTestCase):
+class DriverUnitTest(NortekUnitTest):
     def setUp(self):
-        InstrumentDriverUnitTestCase.setUp(self)
+        NortekUnitTest.setUp(self)
 
-    def assert_chunker_fragmented_sample(self, chunker, fragments, sample):
-        '''
-        Verify the chunker can parse a sample that comes in fragmented
-        @param chunker: Chunker to use to do the parsing
-        @param sample: raw sample
-        '''
-        timestamps = []
-        for f in fragments:
-            ts = self.get_ntp_timestamp()
-            timestamps.append(ts)
-            chunker.add_chunk(f, ts)
-            (timestamp, result) = chunker.get_next_data()
-            if (result): break
-
-        self.assertEqual(result, sample)
-        self.assertEqual(timestamps[0], timestamp)
-
-        (timestamp, result) = chunker.get_next_data()
-        self.assertEqual(result, None)
-
-    def assert_chunker_combined_sample(self, chunker, sample1, sample2, sample3):
-        '''
-        Verify the chunker can parse samples that comes in combined
-        @param chunker: Chunker to use to do the parsing
-        @param sample: raw sample
-        '''
-        ts = self.get_ntp_timestamp()
-        chunker.add_chunk(sample1 + sample2 + sample3, ts)
-
-        (timestamp, result) = chunker.get_next_data()
-        self.assertEqual(result, sample1)
-        self.assertEqual(ts, timestamp)
-
-        (timestamp, result) = chunker.get_next_data()
-        self.assertEqual(result, sample2)
-        self.assertEqual(ts, timestamp)
-
-        (timestamp, result) = chunker.get_next_data()
-        self.assertEqual(result, sample3)
-        self.assertEqual(ts, timestamp)
-
-        (timestamp,result) = chunker.get_next_data()
-        self.assertEqual(result, None)
-        
-    def test_instrumment_prompts_for_duplicates(self):
+    def test_driver_enums(self):
         """
-        Verify that the InstrumentPrompts enumeration has no duplicate values that might cause confusion
+        Verify driver specific enums have no duplicates
+        Base unit test driver will test enums specific for the base class.
         """
-        self.assert_enum_has_no_duplicates(InstrumentPrompts())
-
-
-    def test_instrument_commands_for_duplicates(self):
-        """
-        Verify that the InstrumentCmds enumeration has no duplicate values that might cause confusion
-        """
-        self.assert_enum_has_no_duplicates(InstrumentCmds())
-
-    def test_protocol_state_for_duplicates(self):
-        """
-        Verify that the ProtocolState enumeration has no duplicate values that might cause confusion
-        """
-        self.assert_enum_has_no_duplicates(ProtocolState())
-
-    def test_protocol_event_for_duplicates(self):
-        """
-        Verify that the ProtocolEvent enumeration has no duplicate values that might cause confusion
-        """
-        self.assert_enum_has_no_duplicates(ProtocolEvent())
-
-    def test_capability_for_duplicates(self):
-        """
-        Verify that the Capability enumeration has no duplicate values that might cause confusion
-        """
-        self.assert_enum_has_no_duplicates(Capability())
-
-    def test_parameter_for_duplicates(self):
-        """
-        Verify that the Parameter enumeration has no duplicate values that might cause confusion
-        """
-        self.assert_enum_has_no_duplicates(Parameter())
+        self.assert_enum_has_no_duplicates(DataParticleType())
 
     def test_diagnostic_header_sample_format(self):
         """
@@ -394,14 +308,12 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            #DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.STREAM_NAME: DataParticleType.DIAGNOSTIC_HEADER,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: diagnostic_header_particle
-            }
+            DataParticleKey.VALUES: diagnostic_header_particle}
         
         self.compare_parsed_data_particle(AquadoppDwDiagnosticHeaderDataParticle,
                                           diagnostic_header_sample(),
@@ -420,14 +332,12 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            #DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.STREAM_NAME: DataParticleType.DIAGNOSTIC,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: diagnostic_particle
-            }
+            DataParticleKey.VALUES: diagnostic_particle}
         
         self.compare_parsed_data_particle(AquadoppDwDiagnosticDataParticle,
                                           diagnostic_sample(),
@@ -446,14 +356,12 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         expected_particle = {
             DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
             DataParticleKey.PKT_VERSION: 1,
-            #DataParticleKey.NEW_SEQUENCE: None,
             DataParticleKey.STREAM_NAME: DataParticleType.VELOCITY,
             DataParticleKey.PORT_TIMESTAMP: port_timestamp,
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: velocity_particle
-            }
+            DataParticleKey.VALUES: velocity_particle}
         
         self.compare_parsed_data_particle(AquadoppDwVelocityDataParticle,
                                           velocity_sample(),
@@ -495,20 +403,20 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
     def test_corrupt_data_structures(self):
         # garbage is not okay
         particle = AquadoppDwDiagnosticHeaderDataParticle(diagnostic_header_sample().replace(chr(0), chr(1), 1),
-                                                          port_timestamp = 3558720820.531179)
+                                                          port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
          
         particle = AquadoppDwDiagnosticDataParticle(diagnostic_sample().replace(chr(0), chr(1), 1),
-                                                          port_timestamp = 3558720820.531179)
+                                                          port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
          
         particle = AquadoppDwVelocityDataParticle(velocity_sample().replace(chr(0), chr(1), 1),
-                                                          port_timestamp = 3558720820.531179)
+                                                          port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
             particle.generate()
-         
+
  
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -518,12 +426,12 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class IntFromIDK(InstrumentDriverIntegrationTestCase):
+class IntFromIDK(NortekIntTest):
     
     protocol_state = ''
     
     def setUp(self):
-        InstrumentDriverIntegrationTestCase.setUp(self)
+        NortekIntTest.setUp(self)
 
     def assertParamDictionariesEqual(self, pd1, pd2, all_params=False):
         """
@@ -1200,7 +1108,9 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class QualFromIDK(InstrumentDriverQualificationTestCase):
+class QualFromIDK(NortekQualTest):
+    def setUp(self):
+        NortekQualTest.setUp(self)
     
     def assert_execute_resource(self, command):
         """

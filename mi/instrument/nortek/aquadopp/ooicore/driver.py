@@ -23,8 +23,9 @@ from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentProm
     USER_CONFIG_DATA_REGEX, HARDWARE_CONFIG_DATA_REGEX, HEAD_CONFIG_DATA_REGEX, NEWLINE
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
-from mi.instrument.nortek.driver import NortekUserConfigDataParticle
-
+from mi.instrument.nortek.driver import NortekUserConfigDataParticle, NortekParameterDictVal, Parameter, RUN_CLOCK_SYNC_REGEX, NortekInstrumentDriver
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.log import get_logger; log = get_logger()
 
 VELOCITY_DATA_LEN = 42
@@ -332,7 +333,7 @@ class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
 ###############################################################################
 # Driver
 ###############################################################################
-class InstrumentDriver(SingleConnectionInstrumentDriver):
+class InstrumentDriver(NortekInstrumentDriver):
     """
     InstrumentDriver subclass
     Subclasses SingleConnectionInstrumentDriver with connection state
@@ -344,7 +345,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         @param evt_callback Driver process event callback.
         """
         #Construct superclass.
-        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+        NortekInstrumentDriver.__init__(self, evt_callback)
 
     ########################################################################
     # Protocol builder.
@@ -398,3 +399,22 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(NortekUserConfigDataParticle, USER_CONFIG_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekHardwareConfigDataParticle, HARDWARE_CONFIG_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekHeadConfigDataParticle, HEAD_CONFIG_DATA_REGEX, structure, timestamp)
+
+    def _build_param_dict(self):
+        NortekInstrumentProtocol._build_param_dict(self)
+
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.CLOCK_SYNC_INTERVAL,
+                                   RUN_CLOCK_SYNC_REGEX,
+                                   lambda match: match.group(1),
+                                   str,
+                                   type=ParameterDictType.STRING,
+                                   expiration=None,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="clock sync interval",
+                                   default_value='12:00:00',
+                                   startup_param=False,
+                                   direct_access=False))
+
+        self._param_dict.set_value(Parameter.CLOCK_SYNC_INTERVAL,
+                                   self._param_dict.get_default_value(Parameter.CLOCK_SYNC_INTERVAL))

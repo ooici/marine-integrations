@@ -17,7 +17,12 @@ import re
 import unittest
 import json
 
+from mock import Mock
+
 from nose.plugins.attrib import attr
+
+from pyon.agent.agent import ResourceAgentEvent
+from pyon.agent.agent import ResourceAgentState
 
 from mi.core.log import get_logger ; log = get_logger()
 
@@ -50,20 +55,20 @@ from mi.instrument.nortek.driver import NortekUserConfigDataParticle
 from mi.instrument.nortek.driver import NortekEngClockDataParticle
 from mi.instrument.nortek.driver import NortekEngBatteryDataParticle
 from mi.instrument.nortek.driver import NortekEngIdDataParticle
-from mi.instrument.nortek.driver import InstrumentPrompts
-from mi.instrument.nortek.driver import InstrumentCmds
-from mi.instrument.nortek.driver import Capability
-from mi.instrument.nortek.driver import ProtocolState
-from mi.instrument.nortek.driver import ProtocolEvent
-from mi.instrument.nortek.driver import Parameter
 from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import ScheduledJob
+from mi.instrument.nortek.driver import NortekInstrumentDriver
+from mi.core.exceptions import NotImplementedException
+
 
 from interface.objects import AgentCommand
 from interface.objects import CapabilityType
-from pyon.agent.agent import ResourceAgentEvent
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+
+from mi.instrument.nortek.driver import NEWLINE, InstrumentPrompts, Parameter, ProtocolState, ProtocolEvent, InstrumentCmds, \
+    Capability
+
+from mi.idk.unit_test import ParameterTestConfigKey
 
 
 def hw_config_sample():
@@ -131,7 +136,7 @@ head_config_particle = [{DataParticleKey.VALUE_ID:
                          DataParticleKey.VALUE: "VEC 4943"}, 
                         {DataParticleKey.VALUE_ID:
                           NortekHeadConfigDataParticleKey.SYSTEM_DATA,
-                         DataParticleKey.VALUE: base64.b64encode(\
+                         DataParticleKey.VALUE: base64.b64encode(
 "\x00\x00\x00\x00\x00\x00\x00\x00\x99\x2a\xc3\xea\xab\xea\x0e\x00\x19\x25\xdb\
 \xda\x78\x05\x83\x05\x89\x05\x1c\xbd\x0d\x00\x82\x2b\xec\xff\x1d\xbf\x05\xfc\
 \x22\x2b\x42\x00\xa0\x0f\x00\x00\x00\x00\xff\xff\x00\x00\xff\xff\x00\x00\xff\
@@ -416,7 +421,7 @@ def user_config1():
 def user_config2():
     # NumberSamplesPerBurst = 10, MeasurementInterval = 600
     # instrument user configuration from the OSU instrument itself
-    user_config_values = [\
+    user_config_values = [
     0xa5, 0x00, 0x00, 0x01, 0x02, 0x00, 0x10, 0x00, 0x07, 0x00, 0x2c, 0x00, 0x00, 0x02, 0x01, 0x00, 
     0x3c, 0x00, 0x03, 0x00, 0x82, 0x00, 0x00, 0x00, 0xcc, 0x4e, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 
     0x01, 0x00, 0x01, 0x00, 0x07, 0x00, 0x58, 0x02, 0x34, 0x39, 0x34, 0x33, 0x00, 0x00, 0x01, 0x00, 
@@ -467,58 +472,51 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
 
-    def assert_chunker_fragmented_sample(self, chunker, fragments, sample):
-        '''
-        Verify the chunker can parse a sample that comes in fragmented
-        @param chunker: Chunker to use to do the parsing
-        @param sample: raw sample
-        '''
-        timestamps = []
-        for f in fragments:
-            ts = self.get_ntp_timestamp()
-            timestamps.append(ts)
-            chunker.add_chunk(f, ts)
-            (timestamp, result) = chunker.get_next_data()
-            if (result): break
+    def test_base_driver_enums(self):
+        """
+        Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
+        do a little extra validation for the capabilities
+        """
+        self.assert_enum_has_no_duplicates(NortekDataParticleType())
+        self.assert_enum_has_no_duplicates(ProtocolState())
+        self.assert_enum_has_no_duplicates(ProtocolEvent())
+        self.assert_enum_has_no_duplicates(Parameter())
+        self.assert_enum_has_no_duplicates(InstrumentCmds())
+        self.assert_enum_has_no_duplicates(InstrumentPrompts())
 
-        self.assertEqual(result, sample)
-        self.assertEqual(timestamps[0], timestamp)
+        # Test capabilities for duplicates, them verify that capabilities is a subset of protocol events
+        self.assert_enum_has_no_duplicates(Capability())
+        self.assert_enum_complete(Capability(), ProtocolEvent())
 
-        (timestamp, result) = chunker.get_next_data()
-        self.assertEqual(result, None)
+    def test_driver_enums(self):
+        raise NotImplementedException('Implement in child class!')
 
-    def assert_chunker_combined_sample(self, chunker, sample1, sample2, sample3):
-        '''
-        Verify the chunker can parse samples that comes in combined
-        @param chunker: Chunker to use to do the parsing
-        @param sample: raw sample
-        '''
-        ts = self.get_ntp_timestamp()
-        chunker.add_chunk(sample1 + sample2 + sample3, ts)
+    def test_base_driver_protocol_filter_capabilities(self):
+        """
+        This tests driver filter_capabilities.
+        Iterate through available capabilities, and verify that they can pass successfully through the filter.
+        Test silly made up capabilities to verify they are blocked by filter.
+        """
+        mock_callback = Mock(spec="PortAgentClient")
+        protocol = NortekInstrumentProtocol(InstrumentPrompts, NEWLINE, mock_callback)
+        driver_capabilities = Capability().list()
+        test_capabilities = Capability().list()
 
-        (timestamp, result) = chunker.get_next_data()
-        self.assertEqual(result, sample1)
-        self.assertEqual(ts, timestamp)
+        # Add a bogus capability that will be filtered out.
+        test_capabilities.append("BOGUS_CAPABILITY")
 
-        (timestamp, result) = chunker.get_next_data()
-        self.assertEqual(result, sample2)
-        self.assertEqual(ts, timestamp)
-
-        (timestamp, result) = chunker.get_next_data()
-        self.assertEqual(result, sample3)
-        self.assertEqual(ts, timestamp)
-
-        (timestamp,result) = chunker.get_next_data()
-        self.assertEqual(result, None)
+        # Verify "BOGUS_CAPABILITY was filtered out
+        self.assertEquals(sorted(driver_capabilities),
+                          sorted(protocol._filter_capabilities(test_capabilities)))
 
     def test_date_conversion(self):
-	date = "\x09\x07\x02\x11\x10\x12"
-	datetime_from_words = NortekProtocolParameterDict.convert_words_to_datetime(date)
-	log.debug("Date time conversion from words: %s", datetime_from_words)
-	words_from_datetime = NortekProtocolParameterDict.convert_datetime_to_words(datetime_from_words)
-	log.debug("Date time conversion back to words: %s", words_from_datetime)
-	self.assertEqual(words_from_datetime, date)
-	
+        date = "\x09\x07\x02\x11\x10\x12"
+        datetime_from_words = NortekProtocolParameterDict.convert_words_to_datetime(date)
+        log.debug("Date time conversion from words: %s", datetime_from_words)
+        words_from_datetime = NortekProtocolParameterDict.convert_datetime_to_words(datetime_from_words)
+        log.debug("Date time conversion back to words: %s", words_from_datetime)
+        self.assertEqual(words_from_datetime, date)
+
     def test_core_chunker(self):
         """
         Tests the chunker
@@ -558,21 +556,21 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         # garbage should yield a checksum failure
         particle = NortekHardwareConfigDataParticle(hw_config_sample().replace(chr(0), chr(1), 1),
                                                 port_timestamp = PORT_TIMESTAMP)         
-	json_str = particle.generate()
-	obj = json.loads(json_str)
-	self.assertNotEqual(obj[DataParticleKey.QUALITY_FLAG], DataParticleValue.OK)
+        json_str = particle.generate()
+        obj = json.loads(json_str)
+        self.assertNotEqual(obj[DataParticleKey.QUALITY_FLAG], DataParticleValue.OK)
 
         particle = NortekHeadConfigDataParticle(head_config_sample().replace(chr(0), chr(1), 1),
-                                            port_timestamp = PORT_TIMESTAMP)         
-	json_str = particle.generate()
-	obj = json.loads(json_str)
-	self.assertNotEqual(obj[DataParticleKey.QUALITY_FLAG], DataParticleValue.OK)
+                                            port_timestamp = PORT_TIMESTAMP)
+        json_str = particle.generate()
+        obj = json.loads(json_str)
+        self.assertNotEqual(obj[DataParticleKey.QUALITY_FLAG], DataParticleValue.OK)
 
         particle = NortekUserConfigDataParticle(user_config_sample().replace(chr(0), chr(1), 1),
                                             port_timestamp = PORT_TIMESTAMP)         
-	json_str = particle.generate()
-	obj = json.loads(json_str)
-	self.assertNotEqual(obj[DataParticleKey.QUALITY_FLAG], DataParticleValue.OK)
+        json_str = particle.generate()
+        obj = json.loads(json_str)
+        self.assertNotEqual(obj[DataParticleKey.QUALITY_FLAG], DataParticleValue.OK)
 
     def test_hw_config_sample_format(self):
         """
@@ -724,48 +722,78 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
                                           eng_id_sample(),
                                           expected_particle)
 
-    def test_instrumment_prompts_for_duplicates(self):
+    def test_capabilities(self):
         """
-        Verify that the InstrumentPrompts enumeration has no duplicate values
-	that might cause confusion
+        Verify the FSM reports capabilities as expected.  All states defined in this dict must
+        also be defined in the protocol FSM.
         """
-        self.assert_enum_has_no_duplicates(InstrumentPrompts())
+        capabilities = {
+            ProtocolState.UNKNOWN:      [ProtocolEvent.DISCOVER],
 
+            ProtocolState.COMMAND:      [ProtocolEvent.GET,
+                                         ProtocolEvent.SET,
+                                         ProtocolEvent.START_DIRECT,
+                                         ProtocolEvent.START_AUTOSAMPLE,
+                                         ProtocolEvent.CLOCK_SYNC,
+                                         ProtocolEvent.ACQUIRE_SAMPLE,
+                                         ProtocolEvent.ACQUIRE_STATUS,
+                                         ProtocolEvent.SET_CONFIGURATION,
+                                         ProtocolEvent.SCHEDULED_CLOCK_SYNC,
+                                         ProtocolEvent.RESET],
 
-    def test_instrument_commands_for_duplicates(self):
-        """
-        Verify that the InstrumentCmds enumeration has no duplicate values
-	that might cause confusion
-        """
-        self.assert_enum_has_no_duplicates(InstrumentCmds())
+            ProtocolState.AUTOSAMPLE:   [ProtocolEvent.STOP_AUTOSAMPLE,
+                                         ProtocolEvent.SCHEDULED_CLOCK_SYNC],
 
-    def test_protocol_state_for_duplicates(self):
-        """
-        Verify that the ProtocolState enumeration has no duplicate values
-	that might cause confusion
-        """
-        self.assert_enum_has_no_duplicates(ProtocolState())
+            ProtocolState.DIRECT_ACCESS: [ProtocolEvent.STOP_DIRECT,
+                                          ProtocolEvent.EXECUTE_DIRECT]
+        }
 
-    def test_protocol_event_for_duplicates(self):
-        """
-        Verify that the ProtocolEvent enumeration has no duplicate values
-	that might cause confusion
-        """
-        self.assert_enum_has_no_duplicates(ProtocolEvent())
+        driver = NortekInstrumentDriver(self._got_data_event_callback)
+        self.assert_capabilities(driver, capabilities)
 
-    def test_capability_for_duplicates(self):
-        """
-        Verify that the Capability enumeration has no duplicate values
-	that might cause confusion
-        """
-        self.assert_enum_has_no_duplicates(Capability())
+    def assert_chunker_fragmented_sample(self, chunker, fragments, sample):
+        '''
+        Verify the chunker can parse a sample that comes in fragmented
+        @param chunker: Chunker to use to do the parsing
+        @param sample: raw sample
+        '''
+        timestamps = []
+        for f in fragments:
+            ts = self.get_ntp_timestamp()
+            timestamps.append(ts)
+            chunker.add_chunk(f, ts)
+            (timestamp, result) = chunker.get_next_data()
+            if result: break
 
-    def test_parameter_for_duplicates(self):
-        """
-        Verify that the Parameter enumeration has no duplicate values that
-	might cause confusion
-        """
-        self.assert_enum_has_no_duplicates(Parameter())
+        self.assertEqual(result, sample)
+        self.assertEqual(timestamps[0], timestamp)
+
+        timestamp, result = chunker.get_next_data()
+        self.assertEqual(result, None)
+
+    def assert_chunker_combined_sample(self, chunker, sample1, sample2, sample3):
+        '''
+        Verify the chunker can parse samples that comes in combined
+        @param chunker: Chunker to use to do the parsing
+        @param sample: raw sample
+        '''
+        ts = self.get_ntp_timestamp()
+        chunker.add_chunk(sample1 + sample2 + sample3, ts)
+
+        (timestamp, result) = chunker.get_next_data()
+        self.assertEqual(result, sample1)
+        self.assertEqual(ts, timestamp)
+
+        (timestamp, result) = chunker.get_next_data()
+        self.assertEqual(result, sample2)
+        self.assertEqual(ts, timestamp)
+
+        (timestamp, result) = chunker.get_next_data()
+        self.assertEqual(result, sample3)
+        self.assertEqual(ts, timestamp)
+
+        (timestamp,result) = chunker.get_next_data()
+        self.assertEqual(result, None)
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
