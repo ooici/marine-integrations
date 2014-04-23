@@ -490,7 +490,7 @@ class Protocol(NortekInstrumentProtocol):
         # the vector doesn't respond with ACKs for this command, so look for start of velocity data header structure
         result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, 
                                    expected_prompt = VELOCITY_HEADER_DATA_SYNC_BYTES, *args, **kwargs)
-        
+
         return (next_state, (next_agent_state, result))
 
 
@@ -505,14 +505,14 @@ class Protocol(NortekInstrumentProtocol):
                                     r'^.{%s}(.{2}).*' % str(452),
                                     lambda match : NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
                                     NortekProtocolParameterDict.word_to_string,
-                                    regex_flags=re.DOTALL))
-        self._param_dict.add_parameter(
-            NortekParameterDictVal(Parameter.USER_3_SPARE,
-                                    r'^.{%s}(.{2}).*' % str(460),
-                                    lambda match : match.group(1),
-                                    lambda string : string,
+                                    regex_flags=re.DOTALL,
+                                    type=ParameterDictType.INT,
+                                    expiration=None,
                                     visibility=ParameterDictVisibility.READ_ONLY,
-                                    regex_flags=re.DOTALL))
+                                    display_name="number samples per burst",
+                                    default_value=9600,
+                                    startup_param=True,
+                                    direct_access=True))
 
         self._param_dict.load_strings(RESOURCE_FILE)
 
