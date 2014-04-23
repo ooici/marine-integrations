@@ -699,14 +699,13 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='stop time after start time')
 
-        # Changed from 0x0A to 0x02 to indicate there is no external device, update IOS to indicate this is 0x02
         self._param_dict.add(Parameter.MODE_BITS, CONFIGURATION_REGEX,
                              lambda match: int(match.group(4), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=True,
-                             default_value=0x02,
+                             default_value=0x0A,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='mode bits (set to 00001010)')
 
@@ -746,7 +745,7 @@ class Protocol(SamiProtocol):
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=True,
-                             default_value=0x000000,
+                             default_value=0x000E10,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='device 1 sample interval')
 
@@ -757,7 +756,7 @@ class Protocol(SamiProtocol):
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
+                             default_value=0x01,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='device 1 driver version')
 
@@ -768,7 +767,7 @@ class Protocol(SamiProtocol):
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=True,
-                             default_value=0x00,
+                             default_value=0x0B,
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name='device 1 parameter pointer')
 
@@ -1027,7 +1026,8 @@ class Protocol(SamiProtocol):
                           Parameter.NUMBER_BLANK_CYCLES,
                           Parameter.FLUSH_PUMP_INTERVAL,
                           Parameter.BIT_SWITCHES,
-                          Parameter.NUMBER_EXTRA_PUMP_CYCLES]
+                          Parameter.NUMBER_EXTRA_PUMP_CYCLES,
+                          Parameter.EXTERNAL_PUMP_SETTINGS]
 
         return parameter_list
 

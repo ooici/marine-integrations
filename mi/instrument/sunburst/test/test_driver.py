@@ -17,6 +17,7 @@ __author__ = 'Stuart Pearce & Chris Wingard'
 __license__ = 'Apache 2.0'
 
 import unittest
+import time
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -200,7 +201,7 @@ class SamiMixin(DriverTestMixin):
         '''
         Verify a particle is a known particle to this driver and verify the particle is
         correct
-        @param data_particle: Data particle of unkown type produced by the driver
+        @param data_particle: Data particle of unknown type produced by the driver
         '''
 
         log.debug('herb: ' + 'SamiMixin.assertSampleDataParticle()')
@@ -258,7 +259,6 @@ class SamiMixin(DriverTestMixin):
         self.assert_data_particle_parameters(data_particle,
                                              self._control_record_parameters,
                                              verify_values)
-
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -354,6 +354,21 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
+    def assert_particle_count(self, particle_type, particle_count, timeout):
+        start_time = time.time()
+        end_time = start_time + timeout
+        while True:
+            num_samples = len(self.get_sample_events(particle_type))
+            elapsed = time.time() - start_time
+            if num_samples >= particle_count:
+                rate = elapsed / num_samples
+                log.debug('Found %d samples, elapsed time: %d, approx data rate: %d seconds/sample',
+                          num_samples, elapsed, rate)
+                break
+            else:
+                log.debug('Found %d samples of %d expected, elapsed time: %d', num_samples, particle_count, elapsed)
+            self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
+            time.sleep(1)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
