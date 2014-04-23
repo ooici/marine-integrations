@@ -867,6 +867,8 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
 
         super(MultipleHarvesterDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
                                                              exception_callback)
+        self._publisher_thread = {}
+        self._publisher_shutdown = {}
         self._init_queues()
 
     def _init_queues(self):
@@ -878,18 +880,22 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
         """
         Start however many publisher threads are needed, one for each data key
         """
-        self._publisher_thread = {}
-        self._publisher_shutdown = {}
         for key in self._data_keys:
             self._publisher_thread[key] = gevent.spawn(self._publisher_loop, key)
             self._publisher_shutdown[key] = False
 
     def _stop_publisher_thread(self):
+        """
+        Shutdown all the publisher threads
+        """
         log.debug("Signal shutdown")
-        for key in self._data_keys:
-            self._publisher_shutdown[key] = True
-            if self._publisher_thread[key]:
-                self._publisher_thread[key].kill(block=False)
+        if self._publisher_thread != {}:
+            for key in self._data_keys:
+                self._publisher_shutdown[key] = True
+                if self._publisher_thread[key]:
+                    self._publisher_thread[key].kill(block=False)
+        else:
+            log.debug("publisher not running, no need to shutdown")
         log.debug("shutdown complete")
 
     def _publisher_loop(self, data_key):
@@ -921,8 +927,9 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
             self._got_file(self._new_file_queue[data_key].pop(0), data_key)
 
     def _start_sampling(self):
-        # just a little nap before we start working.  Giving the agent time
-        # to respond.
+        """
+        Start sampling by building all the harvester and starting them
+        """
         try:
             self._harvester = self._build_harvester(self._driver_state)
             for harvester in self._harvester:
@@ -932,6 +939,9 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
             self._exception_callback(e)
 
     def _stop_sampling(self):
+        """
+        Stop sampling by shutting down the harvesters
+        """
         log.debug("Shutting down harvester")
         if self._harvester:
             for harvester in self._harvester:

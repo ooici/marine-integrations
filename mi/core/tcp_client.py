@@ -121,8 +121,7 @@ class TcpClient():
         return True
 
     def get_data(self):
-        data = ""
-        try:
+        data = ""        try:
             ret = ""
 
             while True:

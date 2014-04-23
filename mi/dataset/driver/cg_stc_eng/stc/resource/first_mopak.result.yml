@@ -1,0 +1,75 @@
+header:
+  particle_object: 'MULTIPLE'
+  particle_type: 'MULTIPLE'
+
+data:
+  - _index: 1
+    internal_timestamp: 3599215204.535295
+    particle_object: MopakODclAccelParserDataParticle
+    particle_type: mopak_o_dcl_accel
+    mopak_accelx: -0.11263319849967957
+    mopak_accely: -0.10597658902406693
+    mopak_accelz: -1.02844750881195068
+    mopak_ang_ratex: 0.005362034309655428
+    mopak_ang_ratey: -0.11837735772132874
+    mopak_ang_ratez: -0.12432318180799484
+    mopak_magx: 0.20409387350082397
+    mopak_magy: 0.23909670114517212
+    mopak_magz: 0.46301800012588501
+    mopak_timer: 33456
+  - _index: 2
+    internal_timestamp: 3599215204.635295
+    particle_object: MopakODclAccelParserDataParticle
+    particle_type: mopak_o_dcl_accel
+    mopak_accelx: -0.14777204394340515
+    mopak_accely: -0.09735019505023956
+    mopak_accelz: -1.04502546787261963
+    mopak_ang_ratex: -0.028723761439323425    
+    mopak_ang_ratey: -0.07545149326324463
+    mopak_ang_ratez: -0.11957708001136780
+    mopak_magx: 0.20722663402557373
+    mopak_magy: 0.23807038366794586
+    mopak_magz: 0.45860910415649414
+    mopak_timer: 39706
+  - _index: 3
+    internal_timestamp: 3599215204.735296
+    particle_object: MopakODclAccelParserDataParticle
+    particle_type: mopak_o_dcl_accel
+    mopak_accelx: -0.17374579608440399
+    mopak_accely: -0.08508212864398956
+    mopak_accelz: -1.04762387275695801
+    mopak_ang_ratex: -0.06222432851791382
+    mopak_ang_ratey: -0.02174278348684311
+    mopak_ang_ratez: -0.10541537404060364
+    mopak_magx: 0.20872627198696136
+    mopak_magy: 0.23530323803424835
+    mopak_magz: 0.45763707160949707
+    mopak_timer: 45956
+  - _index: 4
+    internal_timestamp: 3599215204.835296
+    particle_object: MopakODclAccelParserDataParticle
+    particle_type: mopak_o_dcl_accel
+    mopak_accelx: -0.18059515953063965
+    mopak_accely: -0.08183317631483078
+    mopak_accelz: -1.06295132637023926
+    mopak_ang_ratex: -0.11640806496143341
+    mopak_ang_ratey: 0.03005402535200119
+    mopak_ang_ratez: -0.11249265819787979
+    mopak_magx: 0.20863850414752960
+    mopak_magy: 0.23067641258239746
+    mopak_magz: 0.45700493454933167
+    mopak_timer: 52206
+  - _index: 5
+    internal_timestamp: 3599215204.935296
+    particle_object: MopakODclAccelParserDataParticle
+    particle_type: mopak_o_dcl_accel
+    mopak_accelx: -0.18110926449298859
+    mopak_accely: -0.06729333102703094
+    mopak_accelz: -1.05508661270141602
+    mopak_ang_ratex: -0.13846822082996368
+    mopak_ang_ratey: 0.08277352899312973
+    mopak_ang_ratez: -0.11870726197957993
+    mopak_magx: 0.20529596507549286
+    mopak_magy: 0.22539684176445007
+    mopak_magz: 0.45779955387115479
+    mopak_timer: 58456
