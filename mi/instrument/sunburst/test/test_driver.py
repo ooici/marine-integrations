@@ -129,8 +129,10 @@ class SamiMixin(DriverTestMixin):
 
     _driver_capabilities = {
         # capabilities defined in the IOS
-        Capability.ACQUIRE_STATUS:      {STATES: [ProtocolState.COMMAND]},
+        Capability.ACQUIRE_STATUS:      {STATES: [ProtocolState.COMMAND,
+                                                  ProtocolState.AUTOSAMPLE]},
         Capability.ACQUIRE_SAMPLE:      {STATES: [ProtocolState.COMMAND]},
+        Capability.ACQUIRE_BLANK_SAMPLE:{STATES: [ProtocolState.COMMAND]},
         Capability.START_AUTOSAMPLE:    {STATES: [ProtocolState.COMMAND,
                                                   ProtocolState.AUTOSAMPLE]},
         Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
@@ -308,15 +310,35 @@ class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
                                          'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE',
                                          'DRIVER_EVENT_START_AUTOSAMPLE'],
         ProtocolState.AUTOSAMPLE:       ['DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                         'DRIVER_EVENT_STOP_AUTOSAMPLE'],
+                                         'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE',
+                                         'DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                         'DRIVER_EVENT_ACQUIRE_STATUS'],
         ProtocolState.DIRECT_ACCESS:    ['EXECUTE_DIRECT',
                                          'DRIVER_EVENT_STOP_DIRECT'],
         ProtocolState.POLLED_SAMPLE:     ['PROTOCOL_EVENT_TAKE_SAMPLE',
                                           'PROTOCOL_EVENT_SUCCESS',
-                                          'PROTOCOL_EVENT_TIMEOUT'],
+                                          'PROTOCOL_EVENT_TIMEOUT',
+                                          'DRIVER_EVENT_ACQUIRE_STATUS',
+                                          'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                          'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'],
+        ProtocolState.POLLED_BLANK_SAMPLE: ['PROTOCOL_EVENT_TAKE_SAMPLE',
+                                            'PROTOCOL_EVENT_SUCCESS',
+                                            'PROTOCOL_EVENT_TIMEOUT',
+                                            'DRIVER_EVENT_ACQUIRE_STATUS',
+                                            'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                            'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'],
         ProtocolState.SCHEDULED_SAMPLE:   ['PROTOCOL_EVENT_TAKE_SAMPLE',
                                            'PROTOCOL_EVENT_SUCCESS',
-                                           'PROTOCOL_EVENT_TIMEOUT']
+                                           'PROTOCOL_EVENT_TIMEOUT',
+                                           'DRIVER_EVENT_ACQUIRE_STATUS',
+                                           'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                           'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'],
+        ProtocolState.SCHEDULED_BLANK_SAMPLE: ['PROTOCOL_EVENT_TAKE_SAMPLE',
+                                               'PROTOCOL_EVENT_SUCCESS',
+                                               'PROTOCOL_EVENT_TIMEOUT',
+                                               'DRIVER_EVENT_ACQUIRE_STATUS',
+                                               'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                               'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE']
     }
 
 

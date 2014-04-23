@@ -1202,6 +1202,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         except IndexError:
             pass
 
+        self._verify_not_readonly(*args, **kwargs)
+
         if not isinstance(params, dict):
             raise InstrumentParameterException('Set parameters not a dict.')
 

@@ -1,6 +1,6 @@
 """
-@package mi.instrument.sunburst.sami2_pco2.ooicore.driver
-@file marine-integrations/mi/instrument/sunburst/sami2_pco2/ooicore/driver.py
+@package mi.instrument.sunburst.sami2_pco2.pco2a.driver
+@file marine-integrations/mi/instrument/sunburst/sami2_pco2/pco2a/driver.py
 @author Christopher Wingard
 @brief Driver for the Sunburst Sensors, SAMI2-PCO2 (PCO2W)
 Release notes:
@@ -46,14 +46,8 @@ from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX_MATCHER
 from mi.instrument.sunburst.driver import CONTROL_RECORD_REGEX_MATCHER
 from mi.instrument.sunburst.driver import ERROR_REGEX_MATCHER
 from mi.instrument.sunburst.driver import NEWLINE
-from mi.instrument.sunburst.driver import CONFIG_WITH_0_PADDING
-from mi.instrument.sunburst.driver import CONFIG_WITH_0_AND_F_PADDING
-from mi.instrument.sunburst.driver import CONFIG_TERMINATOR
-from mi.instrument.sunburst.driver import TIMEOUT
-from mi.instrument.sunburst.driver import SAMI_TO_UNIX
-from mi.instrument.sunburst.driver import SAMI_TO_NTP
 
-log.debug('herb: ' + 'import sunburst/sami2_pco2/ooicore/driver.py')
+log.debug('herb: ' + 'import sunburst/sami2_pco2/pco2a/driver.py')
 
 ###
 #    Driver Constant Definitions
@@ -610,7 +604,7 @@ class Protocol(SamiProtocol):
                              direct_access=True,
                              default_value=0x02,
                              visibility=ParameterDictVisibility.IMMUTABLE,
-                             display_name='mode bits (set to 00001010)')
+                             display_name='mode bits (set to 00000010)')
 
         self._param_dict.add(Parameter.SAMI_SAMPLE_INTERVAL, CONFIGURATION_REGEX,
                              lambda match: int(match.group(5), 16),

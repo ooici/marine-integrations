@@ -545,7 +545,7 @@ class Protocol(SamiProtocol):
                              type=ParameterDictType.INT,
                              startup_param=False,
                              direct_access=True,
-                             default_value=0x02C7EA00,
+                             default_value=0x09660180,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='start time after launch time')
 

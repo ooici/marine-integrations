@@ -1,8 +1,8 @@
 """
-@package mi.instrument.sunburst.sami2_pco2.ooicore.test.test_driver
-@file marine-integrations/mi/instrument/sunburst/sami2_pco2/ooicore/driver.py
+@package mi.instrument.sunburst.sami2_pco2.pco2b.test.test_driver
+@file marine-integrations/mi/instrument/sunburst/sami2_pco2/pco2b/driver.py
 @author Christopher Wingard
-@brief Test cases for ooicore driver
+@brief Test cases for pco2b driver
 
 USAGE:
  Make tests verbose and provide stdout
@@ -47,21 +47,21 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import InstrumentDriver
+from mi.instrument.sunburst.sami2_pco2.pco2b.driver import InstrumentDriver
 from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiInstrumentCommand
 from mi.instrument.sunburst.driver import ScheduledJob
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import ProtocolState
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import ProtocolEvent
+from mi.instrument.sunburst.sami2_pco2.pco2b.driver import ProtocolState
+from mi.instrument.sunburst.sami2_pco2.pco2b.driver import ProtocolEvent
 # from mi.instrument.sunburst.driver import ProtocolEvent
 from mi.instrument.sunburst.driver import Capability
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Parameter
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Protocol
+from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Parameter
+from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Protocol
 from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import NEWLINE
 from mi.instrument.sunburst.driver import SAMI_TO_UNIX
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wSamiSampleDataParticleKey
-from mi.instrument.sunburst.sami2_pco2.ooicore.driver import Pco2wConfigurationDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Pco2wSamiSampleDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Pco2wConfigurationDataParticleKey
 
 # Added Imports (Note, these pick up some of the base classes not directly imported above)
 from mi.instrument.sunburst.test.test_driver import SamiMixin
@@ -69,18 +69,18 @@ from mi.instrument.sunburst.test.test_driver import SamiUnitTest
 from mi.instrument.sunburst.test.test_driver import SamiIntegrationTest
 from mi.instrument.sunburst.test.test_driver import SamiQualificationTest
 
-log.debug('herb: ' + 'import sami2_pco2/ooicore/test_driver.py')
+log.debug('herb: ' + 'import sami2_pco2/pco2b/test_driver.py')
 
 ###
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
 
-    driver_module='mi.instrument.sunburst.sami2_pco2.ooicore.driver',
+    driver_module='mi.instrument.sunburst.sami2_pco2.pco2b.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id='V7HE4T',
-    instrument_agent_name='sunburst_sami2_pco2_ooicore',
+    instrument_agent_name='sunburst_sami2_pco2_pco2b',
     instrument_agent_packet_config=SamiDataParticleType(),
 
 #    driver_startup_config={}

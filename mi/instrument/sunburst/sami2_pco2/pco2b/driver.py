@@ -1,6 +1,6 @@
 """
-@package mi.instrument.sunburst.sami2_pco2.ooicore.driver
-@file marine-integrations/mi/instrument/sunburst/sami2_pco2/ooicore/driver.py
+@package mi.instrument.sunburst.sami2_pco2.pco2b.driver
+@file marine-integrations/mi/instrument/sunburst/sami2_pco2/pco2b/driver.py
 @author Christopher Wingard
 @brief Driver for the Sunburst Sensors, SAMI2-PCO2 (PCO2W)
 Release notes:
@@ -53,7 +53,7 @@ from mi.instrument.sunburst.driver import TIMEOUT
 from mi.instrument.sunburst.driver import SAMI_TO_UNIX
 from mi.instrument.sunburst.driver import SAMI_TO_NTP
 
-log.debug('herb: ' + 'import sunburst/sami2_pco2/ooicore/driver.py')
+log.debug('herb: ' + 'import sunburst/sami2_pco2/pco2b/driver.py')
 
 ###
 #    Driver Constant Definitions
@@ -83,6 +83,17 @@ SAMI_SAMPLE_REGEX = (
     '([0-9A-Fa-f]{2})' +  # checksum
     NEWLINE)
 SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
+
+# Device 1 Sample Records (Type 0x11)
+DEV1_SAMPLE_REGEX = (
+    r'[\*]' +  #
+    '([0-9A-Fa-f]{2})' +  # unique instrument identifier
+    '([0-9A-Fa-f]{2})' +  # length of data record (bytes)
+    '(11)' +  # type of data record (11 for external Device 1, aka the external pump)
+    '([0-9A-Fa-f]{8})' +  # timestamp (seconds since 1904)
+    '([0-9A-Fa-f]{2})' +  # checksum
+    NEWLINE)
+DEV1_SAMPLE_REGEX_MATCHER = re.compile(DEV1_SAMPLE_REGEX)
 
 # PCO2W Configuration Record
 CONFIGURATION_REGEX = (
@@ -115,7 +126,8 @@ CONFIGURATION_REGEX = (
     '([0-9A-Fa-f]{2})' +  # pCO2-7: flush pump interval
     '([0-9A-Fa-f]{2})' +  # pCO2-8: bit switches
     '([0-9A-Fa-f]{2})' +  # pCO2-9: extra pumps + cycle interval
-    '([0-9A-Fa-f]{416})' +  # padding of 0's and then F's
+    '([0-9A-Fa-f]{2})' +  # Device 1 (external pump) setting
+    '([0-9A-Fa-f]{414})' +  # padding of 0's and then F's
     NEWLINE)
 CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 
@@ -123,6 +135,12 @@ CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 ###
 #    Begin Classes
 ###
+class DataParticleType(SamiDataParticleType):
+    """
+    Data particle types produced by this driver
+    """
+    # PCO2W driver extends the base class (SamiDataParticleType) with:
+    DEV1_SAMPLE = 'dev1_sample'
 
 
 class Parameter(SamiParameter):
@@ -142,6 +160,17 @@ class Parameter(SamiParameter):
     FLUSH_PUMP_INTERVAL = 'flush_pump_interval'
     BIT_SWITCHES = 'bit_switches'
     NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
+    EXTERNAL_PUMP_SETTINGS = 'external_pump_setting'
+
+## TODO: Add to base class
+class InstrumentCommand(SamiInstrumentCommand):
+    """
+    Device specfic Instrument command strings. Extends superclass
+    SamiInstrumentCommand
+    """
+    # PCO2W driver extends the base class (SamiInstrumentCommand) with:
+    ACQUIRE_SAMPLE_DEV1 = 'R1'
+
 
 ###############################################################################
 # Data Particles
@@ -226,6 +255,66 @@ class Pco2wSamiSampleDataParticle(DataParticle):
 
         return result
 
+
+class Pco2wDev1SampleDataParticleKey(BaseEnum):
+    """
+    Data particle key for the device 1 (external pump) records. These particles
+    capture when a sample was collected.
+    """
+    UNIQUE_ID = 'unique_id'
+    RECORD_LENGTH = 'record_length'
+    RECORD_TYPE = 'record_type'
+    RECORD_TIME = 'record_time'
+    CHECKSUM = 'checksum'
+
+
+class Pco2wDev1SampleDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into a device 1 sample data particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+    _data_particle_type = DataParticleType.DEV1_SAMPLE
+
+    def _build_parsed_values(self):
+        """
+        Parse device 1 values from raw data into a dictionary
+        """
+
+        ### Device 1 Sample Record (External Pump)
+        # Device 1 data records produced by the instrument on either command or
+        # via an internal schedule whenever the external pump is run (via the
+        # R1 command). Like the control records and SAMI data, these messages
+        # are preceded by a '*' character and terminated with a '\r'. Sample
+        # string:
+        #
+        #   *540711CEE91DE2CE
+        #
+        # A full description of the device 1 data record strings can be found
+        # in the vendor supplied SAMI Record Format document.
+        ###
+
+        matched = DEV1_SAMPLE_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        particle_keys = [Pco2wDev1SampleDataParticleKey.UNIQUE_ID,
+                         Pco2wDev1SampleDataParticleKey.RECORD_LENGTH,
+                         Pco2wDev1SampleDataParticleKey.RECORD_TYPE,
+                         Pco2wDev1SampleDataParticleKey.RECORD_TIME,
+                         Pco2wDev1SampleDataParticleKey.CHECKSUM]
+
+        result = []
+        grp_index = 1
+
+        for key in particle_keys:
+            result.append({DataParticleKey.VALUE_ID: key,
+                           DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
+            grp_index += 1
+        return result
+
+
 class Pco2wConfigurationDataParticleKey(SamiConfigDataParticleKey):
     """
     Data particle key for the configuration record.
@@ -243,6 +332,7 @@ class Pco2wConfigurationDataParticleKey(SamiConfigDataParticleKey):
     DISABLE_START_BLANK_FLUSH = 'disable_start_blank_flush'
     MEASURE_AFTER_PUMP_PULSE = 'measure_after_pump_pulse'
     NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
+    EXTERNAL_PUMP_SETTINGS = 'external_pump_setting'
 
 class Pco2wConfigurationDataParticle(DataParticle):
     """
@@ -269,7 +359,7 @@ class Pco2wConfigurationDataParticle(DataParticle):
         # would not be received this way):
         #
         #   CEE90B0002C7EA0001E133800A000E100402000E10010B000000000D000000000D
-        #   000000000D071020FF54181C010038000000000000000000000000000000000000
+        #   000000000D071020FF54181C010038140000000000000000000000000000000000
         #   000000000000000000000000000000000000000000000000000000000000000000
         #   000000000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
         #   FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
@@ -470,8 +560,14 @@ class Protocol(SamiProtocol):
         # self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
         #                                self._handler_sample_timeout)
 
+        ## TODO: Add to base class
         # Add build handlers for device commands.
         ### primarily defined in base class
+        ## self._add_build_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_sample_dev1)
+        # Add response handlers for device commands.
+        ### primarily defined in base class
+        ## self._add_response_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_response_sample_dev1)
+
 
         # Add sample handlers
 
@@ -494,6 +590,7 @@ class Protocol(SamiProtocol):
         sieve_matchers = [REGULAR_STATUS_REGEX_MATCHER,
                           CONTROL_RECORD_REGEX_MATCHER,
                           SAMI_SAMPLE_REGEX_MATCHER,
+                          DEV1_SAMPLE_REGEX_MATCHER,
                           CONFIGURATION_REGEX_MATCHER,
                           ERROR_REGEX_MATCHER]
 
@@ -515,6 +612,7 @@ class Protocol(SamiProtocol):
         self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(Pco2wConfigurationDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
+        self._extract_sample(Pco2wDev1SampleDataParticle, DEV1_SAMPLE_REGEX_MATCHER, chunk, timestamp)
         sample = self._extract_sample(Pco2wSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
 
         log.debug('herb: ' + 'Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
@@ -558,10 +656,10 @@ class Protocol(SamiProtocol):
         ### example configuration string
         # VALID_CONFIG_STRING = 'CEE90B0002C7EA0001E133800A000E100402000E10010B' + \
         #                       '000000000D000000000D000000000D07' + \
-        #                       '1020FF54181C010038' + \
+        #                       '1020FF54181C01003814' + \
         #                       '000000000000000000000000000000000000000000000000000' + \
         #                       '000000000000000000000000000000000000000000000000000' + \
-        #                       '000000000000000000000000000000' + \
+        #                       '0000000000000000000000000000' + \
         #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
         #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
         #                       'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
@@ -868,6 +966,16 @@ class Protocol(SamiProtocol):
                              default_value=0x38,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='number of extra pump cycles')
+
+        self._param_dict.add(Parameter.EXTERNAL_PUMP_SETTINGS, CONFIGURATION_REGEX,
+                             lambda match: int(match.group(30), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x14,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='external pump settings')
 
         ## Engineering parameter to set pseudo auto sample rate
         self._param_dict.add(Parameter.AUTO_SAMPLE_INTERVAL, r'Auto sample rate = ([0-9]+)',
