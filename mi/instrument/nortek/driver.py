@@ -2615,7 +2615,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     r'^.{%s}(.{2}).*' % str(460),
                                     lambda match : match.group(1),
                                     lambda string : string,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.STRING,
                                     expiration=None,
