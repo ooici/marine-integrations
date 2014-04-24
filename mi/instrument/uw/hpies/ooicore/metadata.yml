@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Dan Mergens
+  driver_make: uw
+  driver_model: hpies
+  driver_name: ooicore
+  email: danmergens@gmail.com
+  release_notes: initial_rev
+  version: '1.0'
