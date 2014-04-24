@@ -18,9 +18,9 @@ import datetime
 from dateutil import parser
 
 from mi.core.log import get_logger; log = get_logger()
-from mi.dataset.parser.mflm import MflmParser, SIO_HEADER_MATCHER
+from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
 from mi.core.common import BaseEnum
-from mi.core.exceptions import SampleException, DatasetParserException
+from mi.core.exceptions import SampleException, RecoverableSampleException, DatasetParserException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.time import string_to_ntp_date_time
 
@@ -80,27 +80,18 @@ class AdcpsParserDataParticle(DataParticle):
                                   parsed sample data [%s]", self.raw_data)
         try:
             fields = struct.unpack('<HHIBBBdHhhhIbBB', match.group(0)[0:34])
-            packet_id = fields[0]
             num_bytes = fields[1]
             if len(match.group(0)) - 2 != num_bytes:
                 raise ValueError('num bytes %d does not match data length %d'
                           % (num_bytes, len(match.group(0))))
-            log.debug('unpacked fields %s', fields)
             nbins = fields[14]
             if len(match.group(0)) < (36+(nbins*8)):
                 raise ValueError('Number of bins %d does not fit in data length %d'%(nbins,
                                                                                      len(match.group(0))))
             date_fields = struct.unpack('HBBBBBB', match.group(0)[11:19])
             date_str = self.unpack_date(match.group(0)[11:19])
-
             log.debug('unpacked date string %s', date_str)
             sec_since_1900 = string_to_ntp_date_time(date_str)
-
-            # get seconds from 1990 to 1970
-            #elapse_1900 = float(parser.parse("1900-01-01T00:00:00.00Z").strftime("%s.%f"))
-            #elapse_date = float(parser.parse(date_str).strftime("%s.%f"))
-            # subtract seconds from 1900 to 1970 to convert to seconds since 1900
-            #sec_since_1900 = round((elapse_date - elapse_1900)*100)/100
 
             # create a string with the right number of shorts to unpack
             struct_format = '>'
@@ -114,97 +105,40 @@ class AdcpsParserDataParticle(DataParticle):
             vel_err = struct.unpack(struct_format, match.group(0)[(34+(bin_len*3)):(34+(bin_len*4))])
 
             checksum = struct.unpack('<h', match.group(0)[(34+(bin_len*4)):(36+(bin_len*4))])
-
-            # heading/pitch/roll/temp units of cdegrees (= .01 deg)
-            heading = fields[7]
-            pitch = fields[8]
-            roll = fields[9]
-            temp = fields[10]
-            # pressure in units of daPa (= .01 kPa)
-            pressure = fields[11]
-
         except (ValueError, TypeError, IndexError) as ex:
-            raise SampleException("Error (%s) while decoding parameters in data: [%s]"
+            # we can recover and read additional samples after this, just this one is missed
+            log.warn("Error %s while decoding parameters in data [%s]", ex, match.group(0))
+            raise RecoverableSampleException("Error (%s) while decoding parameters in data: [%s]"
                                   % (ex, match.group(0)))
 
-        result = [{DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.PD12_PACKET_ID,
-                   DataParticleKey.VALUE: packet_id},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.NUM_BYTES,
-                   DataParticleKey.VALUE: num_bytes},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.ENSEMBLE_NUMBER,
-                   DataParticleKey.VALUE: fields[2]},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.UNIT_ID,
-                   DataParticleKey.VALUE: fields[3]},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.FIRMWARE_VERSION,
-                   DataParticleKey.VALUE: fields[4]},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.FIRMWARE_REVISION,
-                   DataParticleKey.VALUE: fields[5]},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.REAL_TIME_CLOCK,
-                   DataParticleKey.VALUE: list(date_fields)},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.ENSEMBLE_START_TIME,
-                   DataParticleKey.VALUE: sec_since_1900},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.HEADING,
-                   DataParticleKey.VALUE: heading},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.PITCH,
-                   DataParticleKey.VALUE: pitch},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.ROLL,
-                   DataParticleKey.VALUE: roll},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.TEMPERATURE,
-                   DataParticleKey.VALUE: temp},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.PRESSURE,
-                   DataParticleKey.VALUE: pressure},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.VELOCITY_PO_ERROR_FLAG,
-                   DataParticleKey.VALUE: fields[12]&1},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.VELOCITY_PO_UP_FLAG,
-                   DataParticleKey.VALUE: (fields[12]&2) >> 1},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.VELOCITY_PO_NORTH_FLAG,
-                   DataParticleKey.VALUE: (fields[12]&4) >> 2},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.VELOCITY_PO_EAST_FLAG,
-                   DataParticleKey.VALUE: (fields[12]&8) >> 3},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.SUBSAMPLING_PARAMETER,
-                   DataParticleKey.VALUE: (fields[12]&240) >> 4},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.START_BIN,
-                   DataParticleKey.VALUE: fields[13]},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.NUM_BINS,
-                   DataParticleKey.VALUE: nbins},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.WATER_VELOCITY_EAST,
-                   DataParticleKey.VALUE: list(vel_east)},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.WATER_VELOCITY_NORTH,
-                   DataParticleKey.VALUE: list(vel_north)},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.WATER_VELOCITY_UP,
-                   DataParticleKey.VALUE: list(vel_up)},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.ERROR_VELOCITY,
-                   DataParticleKey.VALUE: list(vel_err)},
-                  {DataParticleKey.VALUE_ID: AdcpsParserDataParticleKey.CHECKSUM,
-                   DataParticleKey.VALUE: checksum[0]},]
+        result = [self._encode_value(AdcpsParserDataParticleKey.PD12_PACKET_ID, fields[0], int),
+                  self._encode_value(AdcpsParserDataParticleKey.NUM_BYTES, fields[1], int),
+                  self._encode_value(AdcpsParserDataParticleKey.ENSEMBLE_NUMBER, fields[2], int),
+                  self._encode_value(AdcpsParserDataParticleKey.UNIT_ID, fields[3], int),
+                  self._encode_value(AdcpsParserDataParticleKey.FIRMWARE_VERSION, fields[4], int),
+                  self._encode_value(AdcpsParserDataParticleKey.FIRMWARE_REVISION, fields[5], int),
+                  self._encode_value(AdcpsParserDataParticleKey.REAL_TIME_CLOCK, date_fields, list),
+                  self._encode_value(AdcpsParserDataParticleKey.ENSEMBLE_START_TIME, sec_since_1900, float),
+                  self._encode_value(AdcpsParserDataParticleKey.HEADING, fields[7], int),
+                  self._encode_value(AdcpsParserDataParticleKey.PITCH, fields[8], int),
+                  self._encode_value(AdcpsParserDataParticleKey.ROLL, fields[9], int),
+                  self._encode_value(AdcpsParserDataParticleKey.TEMPERATURE, fields[10], int),
+                  self._encode_value(AdcpsParserDataParticleKey.PRESSURE, fields[11], int),
+                  self._encode_value(AdcpsParserDataParticleKey.VELOCITY_PO_ERROR_FLAG, fields[12]&1, int),
+                  self._encode_value(AdcpsParserDataParticleKey.VELOCITY_PO_UP_FLAG, (fields[12]&2) >> 1, int),
+                  self._encode_value(AdcpsParserDataParticleKey.VELOCITY_PO_NORTH_FLAG, (fields[12]&4) >> 2, int),
+                  self._encode_value(AdcpsParserDataParticleKey.VELOCITY_PO_EAST_FLAG, (fields[12]&8) >> 3, int),
+                  self._encode_value(AdcpsParserDataParticleKey.SUBSAMPLING_PARAMETER, (fields[12]&240) >> 4, int),
+                  self._encode_value(AdcpsParserDataParticleKey.START_BIN, fields[13], int),
+                  self._encode_value(AdcpsParserDataParticleKey.NUM_BINS, fields[14], int),
+                  self._encode_value(AdcpsParserDataParticleKey.WATER_VELOCITY_EAST, vel_east, list),
+                  self._encode_value(AdcpsParserDataParticleKey.WATER_VELOCITY_NORTH, vel_north, list),
+                  self._encode_value(AdcpsParserDataParticleKey.WATER_VELOCITY_UP, vel_up, list),
+                  self._encode_value(AdcpsParserDataParticleKey.ERROR_VELOCITY, vel_err, list),
+                  self._encode_value(AdcpsParserDataParticleKey.CHECKSUM, checksum[0], int)]
 
-        log.debug('AdcpsParserDataParticle: particle=%s', result)
+        log.trace('AdcpsParserDataParticle: particle=%s', result)
         return result
-
-
-
-    def __eq__(self, arg):
-        """
-        Quick equality check for testing purposes. If they have the same raw
-        data, timestamp, and new sequence, they are the same enough for this particle
-        """
-        allowed_diff = .000001
-        if ((self.raw_data == arg.raw_data) and \
-            (abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
-                 arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) < allowed_diff) and \
-            (self.contents[DataParticleKey.NEW_SEQUENCE] == \
-             arg.contents[DataParticleKey.NEW_SEQUENCE])):
-            return True
-        else:
-            if self.raw_data != arg.raw_data:
-                log.debug('Raw data does not match')
-            elif abs(self.contents[DataParticleKey.INTERNAL_TIMESTAMP] - \
-                     arg.contents[DataParticleKey.INTERNAL_TIMESTAMP]) > allowed_diff:
-                log.debug('Timestamp does not match')
-            elif self.contents[DataParticleKey.NEW_SEQUENCE] != \
-            arg.contents[DataParticleKey.NEW_SEQUENCE]:
-                log.debug('Sequence does not match')
-            return False
 
     @staticmethod
     def unpack_date(data):
@@ -216,7 +150,7 @@ class AdcpsParserDataParticle(DataParticle):
         return zulu_ts
 
 
-class AdcpsParser(MflmParser):
+class AdcpsParser(SioMuleParser):
 
     def __init__(self,
                  config,
@@ -224,6 +158,7 @@ class AdcpsParser(MflmParser):
                  stream_handle,
                  state_callback,
                  publish_callback,
+                 exception_callback,
                  *args, **kwargs):
         super(AdcpsParser, self).__init__(config,
                                           stream_handle,
@@ -231,7 +166,7 @@ class AdcpsParser(MflmParser):
                                           self.sieve_function,
                                           state_callback,
                                           publish_callback,
-                                          'AD',
+                                          exception_callback,
                                           *args,
                                           **kwargs)
 
@@ -244,50 +179,23 @@ class AdcpsParser(MflmParser):
             parsing, plus the state. An empty list of nothing was parsed.
         """            
         result_particles = []
-        # all non-data packets will be read along with all the data, so we can't just use the fact that
-        # there is or is not non-data to determine when a new sequence should occur.  The non-data will
-        # keep getting shifted lower as things get cleaned out, and when it reaches the 0 index the non-data
-        # is actually next
         (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-        non_data_flag = False
-        if non_data is not None and non_end <= start:
-            log.debug('start setting non_data_flag')
-            non_data_flag = True
-            
+
         sample_count = 0
-        new_seq = 0
 
         while (chunk != None):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
-            new_seq = 0
             log.debug('parsing header %s', header_match.group(0)[1:32])
-            if header_match.group(1) == self._instrument_id:
-                # Check for missing data between records
-                if non_data_flag or self._new_seq_flag:
-                    log.debug("Non matching data packet detected")
-                    # reset non data flag and new sequence flags now
-                    # that we have made a new sequence
-                    non_data = None
-                    non_data_flag = False
-                    self._new_seq_flag = False
-                    self.start_new_sequence()
-                    # need to figure out if there is a new sequence the first time through,
-                    # since if we are using in process data we don't read unprocessed again
-                    new_seq = 1
+            if header_match.group(1) == 'AD':
+                log.debug("matched chunk header %s", chunk[1:32])
 
-                # need to do special processing on data to handle escape sequences
-                # replace 0x182b with 0x2b and 0x1858 into 0x18
-                processed_match = chunk.replace(b'\x182b', b'\x2b')
-                processed_match = processed_match.replace(b'\x1858', b'\x18')
-                log.debug("matched chunk header %s", processed_match[1:32])
-
-                data_wrapper_match = DATA_WRAPPER_MATCHER.search(processed_match)
+                data_wrapper_match = DATA_WRAPPER_MATCHER.search(chunk)
                 if data_wrapper_match:
                     data_match = DATA_MATCHER.search(data_wrapper_match.group(1))
                     if data_match:
-                        log.debug('Found data match in chunk %s', processed_match[1:32])
+                        log.debug('Found data match in chunk %s', chunk[1:32])
                         # pull out the date string from the data
                         date_str = AdcpsParserDataParticle.unpack_date(data_match.group(0)[11:19])
                         # convert to ntp
@@ -308,13 +216,8 @@ class AdcpsParser(MflmParser):
                             sample_count += 1
 
             self._chunk_sample_count.append(sample_count)
-            self._chunk_new_seq.append(new_seq)
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index()
-            # need to set a flag in case we read a chunk not matching the instrument ID and overwrite the non_data                    
-            if non_data is not None and non_end <= start:
-                log.debug('setting non_data_flag')
-                non_data_flag = True
 
         return result_particles

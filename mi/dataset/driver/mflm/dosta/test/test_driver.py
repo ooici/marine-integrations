@@ -17,9 +17,12 @@ __license__ = 'Apache 2.0'
 
 import unittest
 import os
-
+import shutil
 from nose.plugins.attrib import attr
 from mock import Mock
+
+from pyon.agent.agent import ResourceAgentState
+from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -28,16 +31,10 @@ from mi.idk.exceptions import SampleTimeout
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
-
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
-
 from mi.dataset.driver.mflm.dosta.driver import MflmDOSTADDataSetDriver
 from mi.dataset.parser.dostad import DostadParserDataParticle
-
-from pyon.agent.agent import ResourceAgentState
-from interface.objects import ResourceAgentErrorEvent
-from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 
 DataSetTestCase.initialize(
@@ -50,9 +47,10 @@ DataSetTestCase.initialize(
         DataSourceConfigKey.HARVESTER:
         {
             DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
             DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
             DataSetDriverConfigKeys.FREQUENCY: 1,
+            DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 2,
+            
         },
         DataSourceConfigKey.PARSER: {}
     }
@@ -76,6 +74,50 @@ class IntegrationTest(DataSetIntegrationTestCase):
                             driver_config['harvester']['pattern'])
         if os.path.exists(fullfile):
             os.remove(fullfile)
+
+    def create_sample_data(self, filename, dest_filename=None, mode=0644, create=True):
+        """
+        Search for a data file in the driver resource directory and if the file
+        is not found there then search using the filename directly.  Then copy
+        the file to the test data directory.
+
+        If a dest_filename is supplied it will be renamed in the destination
+        directory.
+        @param: filename - filename or path to a data file to copy
+        @param: dest_filename - name of the file when copied. default to filename
+        @param: file mode
+        @param: create an empty file in the destination if the source is not found
+        @return: path to file created
+        """
+        data_dir = self.create_data_dir()
+        source_path = None
+
+        try:
+            source_path = self._get_source_data_file(filename)
+        except IDKException:
+            if not create:
+                raise
+
+        log.debug("DIR: %s", data_dir)
+        if dest_filename is None and source_path is not None:
+            dest_path = os.path.join(data_dir, os.path.basename(source_path))
+        elif dest_filename is None and source_path is None:
+            dest_path = os.path.join(data_dir, filename)
+        else:
+            dest_path = os.path.join(data_dir, dest_filename)
+
+        log.debug("Creating data file src: %s, dest: %s", source_path, dest_path)
+
+        if source_path == None:
+            file = open(dest_path, 'w')
+            file.close()
+        else:
+            # need to override this copy to make the time the file is modified change
+            shutil.copy(source_path, dest_path)
+
+        os.chmod(dest_path, mode)
+
+        return dest_path
 
     def test_get(self):
         """
@@ -195,21 +237,21 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
         self.assert_data(DostadParserDataParticle, 'test_data_1-2.txt.result.yml',
-                         count=2, timeout=10)
+                         count=2, timeout=40)
 
         # This file has had a section of FL data replaced with 0s, this should start a new
         # sequence for the data following the missing AD data
         self.clear_async_data()
         self.create_sample_data('node59p1_step3.dat', "node59p1.dat")
         self.assert_data(DostadParserDataParticle, 'test_data_3.txt.result.yml',
-                         count=3, timeout=10)
+                         count=3, timeout=40)
 
         # Now fill in the zeroed section from step3, this should just return the new
         # data with a new sequence flag
         self.clear_async_data()
         self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
         self.assert_data(DostadParserDataParticle, 'test_data_4.txt.result.yml',
-                         count=1, timeout=10)
+                         count=1, timeout=40)
 
         # start over now, using step 4, make sure sequence flags just account for
         # missing data in file (there are some sections of bad data that don't
@@ -230,7 +272,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
         self.assert_data(DostadParserDataParticle, 'test_data_1-4.txt.result.yml',
-                         count=6, timeout=10)
+                         count=6, timeout=40)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -239,8 +281,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-    def setUp(self):
-        super(QualificationTest, self).setUp()
 
     def clean_file(self):
         # remove just the file we are using
@@ -250,6 +290,50 @@ class QualificationTest(DataSetQualificationTestCase):
                             driver_config['harvester']['pattern'])
         if os.path.exists(fullfile):
             os.remove(fullfile)
+
+    def create_sample_data(self, filename, dest_filename=None, mode=0644, create=True):
+        """
+        Search for a data file in the driver resource directory and if the file
+        is not found there then search using the filename directly.  Then copy
+        the file to the test data directory.
+
+        If a dest_filename is supplied it will be renamed in the destination
+        directory.
+        @param: filename - filename or path to a data file to copy
+        @param: dest_filename - name of the file when copied. default to filename
+        @param: file mode
+        @param: create an empty file in the destination if the source is not found
+        @return: path to file created
+        """
+        data_dir = self.create_data_dir()
+        source_path = None
+
+        try:
+            source_path = self._get_source_data_file(filename)
+        except IDKException:
+            if not create:
+                raise
+
+        log.debug("DIR: %s", data_dir)
+        if dest_filename is None and source_path is not None:
+            dest_path = os.path.join(data_dir, os.path.basename(source_path))
+        elif dest_filename is None and source_path is None:
+            dest_path = os.path.join(data_dir, filename)
+        else:
+            dest_path = os.path.join(data_dir, dest_filename)
+
+        log.debug("Creating data file src: %s, dest: %s", source_path, dest_path)
+
+        if source_path == None:
+            file = open(dest_path, 'w')
+            file.close()
+        else:
+            # need to override this copy to make the time the file is modified change
+            shutil.copy(source_path, dest_path)
+
+        os.chmod(dest_path, mode)
+
+        return dest_path
 
     def test_harvester_new_file_exception(self):
         """

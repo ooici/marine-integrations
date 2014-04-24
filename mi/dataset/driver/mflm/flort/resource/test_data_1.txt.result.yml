@@ -6,7 +6,6 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: False
     internal_timestamp: '2013-07-23T23:15:06'
     date_string: '07/23/13'
     time_string: '23:15:06'
