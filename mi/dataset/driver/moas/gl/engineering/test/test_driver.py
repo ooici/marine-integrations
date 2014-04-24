@@ -230,8 +230,9 @@ class QualificationTest(DataSetQualificationTestCase):
 
     def test_separate_particles(self):
         """
-        Setup an agent/driver/harvester/parser and verify that data is
-        published out the agent
+        Input file has eng particle data in the first two data rows but no eng_sci data, and the next (and last)
+         two rows haev eng_sci data but no eng data.  This test ensures the parser can deliver a single particle
+         of each type.
         """
         self.create_sample_data('eng_data_separate.mrg', 'CopyOf-eng_data_separate.mrg')
         self.assert_initialize()

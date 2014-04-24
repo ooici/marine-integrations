@@ -103,8 +103,7 @@ c_air_pump c_ballast_pumped c_battpos c_battroll c_bsipar_on c_de_oil_vol c_dvl_
 enum cc in rad sec cc sec sec rad sec rad sec lat lon bool m bool bool enum volts m m/s bool bool bool bool timestamp m bool bool m/s m/s m/s sec m/s sec sec sec cc joules cc/sec volts volts in in/sec rad rad/sec bool bool nodim nodim nodim s bool bool bool amp-hrs nodim amp-hrs amp nodim nodim m m/s m/s m/s enum m/s bool enum m nodim nodim nodim nodim cc volts nodim nodim nodim nodim nodim nodim nodim Mbytes Mbytes m m s sec sec m m sec m m m m m m m m sec rad m/s m/s rad/sec cc volts volts cc/sec bytes m m m enum rad lat lon lat lon lat lon rad nodim bool m m m/s enum lat lat nodim byte byte byte byte nodim byte m m rad/sec rad rad-sec rad/sec rad m/s m/s nodim nodim bool enum nodim bool nodim nodim enum bool bool bool bool bool bool bool bool bool bool sec lat bool volts volts bool % nodim mins mins lon bytes bytes m/s m/s timestamp nodim rad joules rad sec timestamp bar volts volts volts m bool rad s bool bool nodim timestamp enum bytes m/s bool bool nodim nodim nodim nodim nodim nodim sec bool uT ms ms ms uT % % % bar volts cc bool enum enum enum s kjoules km nodim days inHg degC bool c m/s m/s m/s S/m m/s m/s m bar degC m/s m/s enum m m lat lon sec bool ue/m^2sec volts volts degc timestamp bool timestamp m sec m m m mm/s mm/s bool mm/s mm/s bool mm/s mm/s mm/s mm/s mm/s mm/s bool nodim nodim bool deg deg deg nodim m ppt m/s degc timestamp m sec m m m mm/s mm/s bool mm/s mm/s bool mm/s mm/s mm/s mm/s mm/s mm/s bool nodim nodim nodim nodim nodim ppb nodim nodim ug/l bool nodim timestamp mbytes mbytes bytes bytes bytes sec timestamp bool bytes bool nodim nodim nodim timestamp secs nodim bool enum s/m bar degc nodim nodim
 1 4 4 4 4 4 4 4 4 4 4 4 8 8 1 4 1 1 1 4 4 4 1 1 1 1 8 4 1 1 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 1 1 4 4 4 4 1 1 1 4 4 4 4 4 4 4 4 4 4 1 4 1 1 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 1 4 8 8 8 8 8 8 4 4 1 4 4 4 1 8 8 4 1 1 1 1 4 1 4 4 4 4 4 4 4 4 4 4 4 1 1 4 1 4 4 1 1 1 1 1 1 1 1 1 1 1 4 8 1 4 4 1 4 4 4 4 8 4 4 4 4 8 4 4 4 4 4 8 4 4 4 4 4 1 4 4 1 1 4 8 1 4 4 1 1 4 4 4 4 4 4 4 1 4 4 4 4 4 4 4 4 4 4 4 1 1 1 1 4 4 4 4 4 4 4 1 4 4 4 4 4 4 4 4 4 4 4 4 1 4 4 8 8 4 1 4 4 4 4 8 1 8 4 4 4 4 4 4 4 1 4 4 1 4 4 4 4 4 4 1 4 4 1 4 4 4 4 4 4 4 4 8 4 4 4 4 4 4 4 1 4 4 1 4 4 4 4 4 4 1 4 4 4 4 4 4 4 4 4 1 4 8 4 4 4 4 4 4 8 1 4 1 4 4 4 8 4 4 1 1 4 4 4 4 4 """
 
-HEADER4 = """
-dbd_label: DBD_ASC(dinkum_binary_data_ascii)file
+HEADER4 = """dbd_label: DBD_ASC(dinkum_binary_data_ascii)file
 encoding_ver: 2
 num_ascii_tags: 14
 all_sensors: 0
@@ -511,14 +510,13 @@ class FLORDGliderTest(GliderParserUnitTestCase):
         self.assert_no_more_data()
 
 @attr('UNIT', group='mi')
-class ENGSCIGliderTest(GliderParserUnitTestCase):
+class ENGGliderTest(GliderParserUnitTestCase):
     """
     Test cases for eng glider data
     """
     config = {
         DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
-        DataSetDriverConfigKeys.PARTICLE_CLASS: (EngineeringScienceTelemeteredDataParticle,
-                                                 EngineeringTelemeteredDataParticle)
+        DataSetDriverConfigKeys.PARTICLE_CLASS: 'EngineeringTelemeteredDataParticle',
     }
 
     def test_eng_particle(self):
@@ -529,15 +527,54 @@ class ENGSCIGliderTest(GliderParserUnitTestCase):
         self.set_data(HEADER4, ENGSCI_RECORD)
         self.reset_parser()
 
-        record_1 = {EngineeringTelemeteredParticleKey.M_BATTPOS: 0.335}
-        record_2 = {EngineeringTelemeteredParticleKey.M_HEADING: 1.23569}
+        record_1 = {EngineeringTelemeteredParticleKey.M_BATTPOS: 0.703717,
+                    EngineeringTelemeteredParticleKey.M_HEADING: 5.05447}
+        record_2 = {EngineeringTelemeteredParticleKey.M_BATTPOS: 0.695632,
+                    EngineeringTelemeteredParticleKey.M_HEADING: 5.05447}
 
-        self.assert_generate_particle(EngineeringTelemeteredDataParticle, record_1, 1186)
-        self.assert_generate_particle(EngineeringTelemeteredDataParticle, record_2, 1335)
+        # file size up to start of last row
+        self.assert_generate_particle(EngineeringTelemeteredDataParticle, record_1, 10795)
+        # total file size in bytes
+        self.assert_generate_particle(EngineeringTelemeteredDataParticle, record_2, 12479)
         self.assert_no_more_data()
 
         # Reset with the parser, but with a state this time
         self.set_data(HEADER4, ENGSCI_RECORD)
-        self.reset_parser({StateKey.POSITION: 1186})
-        self.assert_generate_particle(EngineeringTelemeteredDataParticle, record_2, 1335)
+        self.reset_parser({StateKey.POSITION: 10795})
+        self.assert_generate_particle(EngineeringTelemeteredDataParticle, record_2, 12479)
+        self.assert_no_more_data()
+
+@attr('UNIT', group='mi')
+class ENGSCIGliderTest(GliderParserUnitTestCase):
+    """
+    Test cases for eng sci glider data
+    """
+    config = {
+        DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: 'EngineeringScienceTelemeteredDataParticle',
+    }
+
+    def test_eng_sci_particle(self):
+        """
+        Verify we publish particles as expected.  Ensure particle is published and
+        that state is returned.
+        """
+        self.set_data(HEADER4, ENGSCI_RECORD)
+        self.reset_parser()
+
+        record_1 = {EngineeringScienceTelemeteredParticleKey.SCI_M_DISK_FREE: 1000.1,
+                    EngineeringScienceTelemeteredParticleKey.SCI_M_DISK_USAGE: 1000.1}
+        record_2 = {EngineeringScienceTelemeteredParticleKey.SCI_M_DISK_FREE: 1000.2,
+                    EngineeringScienceTelemeteredParticleKey.SCI_M_DISK_USAGE: 1000.2}
+
+        # file size up to start of last row
+        self.assert_generate_particle(EngineeringScienceTelemeteredDataParticle, record_1, 10795)
+        # total file size in bytes
+        self.assert_generate_particle(EngineeringScienceTelemeteredDataParticle, record_2, 12479)
+        self.assert_no_more_data()
+
+        # Reset with the parser, but with a state this time
+        self.set_data(HEADER4, ENGSCI_RECORD)
+        self.reset_parser({StateKey.POSITION: 10795})
+        self.assert_generate_particle(EngineeringScienceTelemeteredDataParticle, record_2, 12479)
         self.assert_no_more_data()

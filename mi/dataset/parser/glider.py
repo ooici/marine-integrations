@@ -13,7 +13,6 @@ import numpy as np
 import ntplib
 import copy
 
-from time import time, gmtime, strftime
 from math import copysign
 from functools import partial
 
@@ -1249,8 +1248,8 @@ class GliderEngineeringParser(GliderParser):
                     data_dict = self.add_file_info_to_data_dict(data_dict)
 
                     log.debug(" ### ### GliderEngineeringParser.parse_chunks(): filename = %s, "
-                             "mission name = %s, file open time = %s", data_dict['glider_eng_filename'],
-                             data_dict['glider_mission_name'], data_dict['glider_eng_fileopen_time'])
+                              "mission name = %s, file open time = %s", data_dict['glider_eng_filename'],
+                              data_dict['glider_mission_name'], data_dict['glider_eng_fileopen_time'])
 
                     # create the particle
                     particle = self._extract_sample(EngineeringTelemeteredDataParticle, None,
@@ -1308,8 +1307,8 @@ class GliderEngineeringParser(GliderParser):
         fileopen_time_value = self._header_dict.get('fileopen_time')
 
         log.debug("  ### ### ### GliderEngineeringParser.add_file_info_to_data_dict(): "
-                 "filename= %s, missionname= %s, fileopentime= %s",
-                 filename_label_value, filename_label_value, filename_label_value)
+                  "filename= %s, missionname= %s, fileopentime= %s",
+                  filename_label_value, filename_label_value, filename_label_value)
 
         # Populate the VALUE DICTs for the three items
         filename_label_dict['Data'] = filename_label_value
@@ -1363,8 +1362,8 @@ class GliderEngineeringParser(GliderParser):
                 # return true as soon as the first particle non-NaN attribute from the data dict
                 value = data_dict[key]['Data']
                 if not np.isnan(value):
-                    log.debug(" ### ### ### GliderParser._contains_eng_data(): GOT A EngineeringTelemeteredDataParticle, "
-                              "key was %s", key)
+                    log.debug(" ### ### ### GliderParser._contains_eng_data(): GOT A "
+                              "EngineeringTelemeteredDataParticle, key was %s", key)
                     return True
 
         log.debug(" ### ### ### GliderParser._contains_eng_data(): No attributes in the particle found!")
