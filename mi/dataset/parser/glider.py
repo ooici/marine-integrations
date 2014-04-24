@@ -935,7 +935,6 @@ class GliderParser(BufferLoadingParser):
         log.debug("Incrementing current state: %s with inc: %s",
                   self._read_state, increment)
         self._read_state[StateKey.POSITION] += increment
-        # Thomas, my monkey of a son, wanted this comment inserted in the code. -CW
 
     def get_block(self, size=1024):
         """
@@ -975,7 +974,7 @@ class GliderParser(BufferLoadingParser):
 
             if self._whitespace_regex.match(data_record):
 
-                log.debug("Only whitespace detected in record. Ignoring.")
+                log.debug(" ### GliderParser.parse_chunks(): Only whitespace detected in record. Ignoring.")
                 self._increment_state(end)
 
                 # parse the data record into a data dictionary to pass to the particle class
@@ -997,7 +996,8 @@ class GliderParser(BufferLoadingParser):
                     if not exception_detected:
                         record_time = data_dict['m_present_time']['Data']
                         timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
-                        log.debug("Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
+                        log.debug(" ### GliderParser.parse_chunks(): Converting record timestamp %f to ntp timestamp %f",
+                                  record_time, timestamp)
                 except KeyError:
                     exception_detected = True
                     self._exception_callback(SampleException("unable to find timestamp in data"))
@@ -1012,9 +1012,11 @@ class GliderParser(BufferLoadingParser):
                     particle = self._extract_sample(self._particle_class, None, data_dict, timestamp)
 
                     self._increment_state(end)
+
                     result_particles.append((particle, copy.copy(self._read_state)))
                 else:
-                    log.debug("No particle data found in particle. %s", data_dict)
+                    log.debug(" ### GliderParser.parse_chunks(): No particle data found in particle. %s", data_dict)
+
                     self._increment_state(end)
 
             # collect the non-data from the file
@@ -1048,7 +1050,7 @@ class GliderParser(BufferLoadingParser):
         Read in the column labels, data type, number of bytes of each
         data type, and the data from an ASCII glider data file.
         """
-        log.debug("_read_data: Data Record: %s", data_record)
+        log.debug(" ### ### GliderParser._read_data: Data Record: %s", data_record)
 
         data_dict = {}
         num_columns = self._header_dict['sensors_per_cycle']
@@ -1057,7 +1059,7 @@ class GliderParser(BufferLoadingParser):
 
         data = data_record.strip().split()
 
-        log.debug("### ### GliderParser._read_data(): Split data: %s", data)
+        log.debug(" ### ### GliderParser._read_data(): Split data: %s", data)
 
         if num_columns != len(data):
 
@@ -1072,7 +1074,7 @@ class GliderParser(BufferLoadingParser):
 
         # extract record to dictionary
         for ii in range(num_columns):
-            log.trace("GliderParser._read_data: index: %d label: %s, value: %s", ii, data_labels[ii], data[ii])
+            log.trace(" ### ### GliderParser._read_data: index: %d label: %s, value: %s", ii, data_labels[ii], data[ii])
 
             valuePreConversion = data[ii]
 
@@ -1230,7 +1232,7 @@ class GliderEngineeringParser(GliderParser):
                     if not exception_detected:
                         record_time = data_dict['m_present_time']['Data']
                         timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
-                        log.debug("Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
+                        log.debug(" ###Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
                 except KeyError:
                     exception_detected = True
                     self._exception_callback(SampleException("unable to find timestamp in data"))
@@ -1256,6 +1258,7 @@ class GliderEngineeringParser(GliderParser):
                                                     data_dict, timestamp)
 
                     self._increment_state(end)
+
                     incremented = True
                     result_particles.append((particle, copy.copy(self._read_state)))
 
@@ -1270,9 +1273,7 @@ class GliderEngineeringParser(GliderParser):
 
                     result_particles.append((particle, copy.copy(self._read_state)))
 
-
-
-                else:
+                elif not incremented:
                     log.debug("No particle data found in particle. %s", data_dict)
                     self._increment_state(end)
 
