@@ -40,9 +40,6 @@ from xml.dom.minidom import parseString
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 
-from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolState
-from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolEvent
-from mi.instrument.seabird.sbe16plus_v2.driver import Capability
 from mi.instrument.seabird.sbe16plus_v2.driver import SBE16Protocol
 from mi.instrument.seabird.sbe16plus_v2.driver import Prompt
 
@@ -73,6 +70,37 @@ class Command(BaseEnum):
         SET = 'set'
 
         #TODO: MP, sendOptode??
+
+class ProtocolState(BaseEnum):
+    """
+    Protocol states for SBE19. Cherry picked from DriverProtocolState
+    enum.
+    """
+    UNKNOWN = DriverProtocolState.UNKNOWN
+    COMMAND = DriverProtocolState.COMMAND
+    AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
+    DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
+
+class ProtocolEvent(BaseEnum):
+    """
+    Protocol events for SBE19. Cherry picked from DriverEvent enum.
+    """
+    ENTER = DriverEvent.ENTER
+    EXIT = DriverEvent.EXIT
+    GET = DriverEvent.GET
+    SET = DriverEvent.SET
+    DISCOVER = DriverEvent.DISCOVER
+    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
+    GET_CONFIGURATION = 'PROTOCOL_EVENT_GET_CONFIGURATION'
+    START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
+    EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
+    START_DIRECT = DriverEvent.START_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
+    CLOCK_SYNC = DriverEvent.CLOCK_SYNC
+    SCHEDULED_CLOCK_SYNC = DriverEvent.SCHEDULED_CLOCK_SYNC
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    RESET_EC = 'PROTOCOL_EVENT_RESET_EC'
 
 class Capability(BaseEnum):
     """
@@ -113,7 +141,6 @@ class Parameter(DriverParameter):
     AUTO_RUN = "AutoRun"
     IGNORE_SWITCH = "IgnoreSwitch"
     LOGGING = "logging"
-
 
 class ConfirmedParameter(BaseEnum):
     """
@@ -1070,10 +1097,6 @@ class SBE19Protocol(SBE16Protocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS, self._handler_autosample_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.GET_CONFIGURATION, self._handler_autosample_get_configuration)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_autosample_clock_sync)
-        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.ENTER, self._handler_test_enter)
-        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.EXIT, self._handler_test_exit)
-        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.RUN_TEST, self._handler_test_run_tests)
-        self._protocol_fsm.add_handler(ProtocolState.TEST, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
@@ -1466,8 +1489,8 @@ class SBE19Protocol(SBE16Protocol):
         # tell driver superclass to publish a config change event.
         new_config = self._param_dict.get_config()
 
-        log.warn("Old Config: %s", old_config)
-        log.warn("New Config: %s", new_config)
+        log.debug("Old Config: %s", old_config)
+        log.debug("New Config: %s", new_config)
         if not dict_equal(new_config, old_config) and self._protocol_fsm.get_current_state() != ProtocolState.UNKNOWN:
             log.debug("parameters updated, sending event")
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
