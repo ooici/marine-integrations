@@ -3,10 +3,11 @@
 @file mi/instrument/nortek/driver.py
 @author Bill Bollenbacher
 @author Steve Foley
+@author Ronald Ronquillo
 @brief Base class for Nortek instruments
 """
 
-__author__ = 'Bill Bollenbacher'
+__author__ = 'Ronald Ronquillo'
 __license__ = 'Apache 2.0'
 
 import re
