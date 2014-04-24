@@ -223,8 +223,8 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result[-1], self.particle_l)
         self.assert_state([],
             [[0, 32], [222, 871], [1833, 3058], [3248, 3827], [4214, 4281],
-                [5047, 5153], [5539, 5730], [5786, 6433], [7009, 7396], [7586, 9200],
-                [14220, 14608], [15374, 15830], [16596, 17280], [17722, 17791], [19133, 22000]],
+                [5539, 5730], [5786, 6433], [7009, 7396], [7586, 9200],
+                [14220, 14608], [15374, 15830], [16702, 17280], [17722, 17791], [19133, 22000]],
             self.timestamp_l)
         self.assertEqual(self.publish_callback_value[-2], self.particle_k)
         self.assertEqual(self.publish_callback_value[-1], self.particle_l)

@@ -166,7 +166,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result[-1], self.particle_z)
         self.assert_state([],
             [[0, 12], [336, 394], [467, 2010], [5544, 6970], [7160, 7547],
-                [7737, 8773], [8963, 10037], [10283, 10672], [12873, 14000]],
+             [7737, 8773], [8963, 9543], [9649,10037], [10283, 10672], [12873, 14000]],
             self.timestamp_last)
         self.assertEqual(self.publish_callback_value[-1], self.particle_z)
         self.stream_handle.close()
