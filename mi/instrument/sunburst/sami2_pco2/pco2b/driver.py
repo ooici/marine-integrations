@@ -14,12 +14,14 @@ __author__ = 'Christopher Wingard & Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
 import re
+import time
 
 from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentTimeoutException
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
@@ -161,6 +163,7 @@ class Parameter(SamiParameter):
     BIT_SWITCHES = 'bit_switches'
     NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
     EXTERNAL_PUMP_SETTINGS = 'external_pump_setting'
+    EXTERNAL_PUMP_DELAY = 'external_pump_delay'
 
 ## TODO: Add to base class
 class InstrumentCommand(SamiInstrumentCommand):
@@ -170,7 +173,6 @@ class InstrumentCommand(SamiInstrumentCommand):
     """
     # PCO2W driver extends the base class (SamiInstrumentCommand) with:
     ACQUIRE_SAMPLE_DEV1 = 'R1'
-
 
 ###############################################################################
 # Data Particles
@@ -415,7 +417,8 @@ class Pco2wConfigurationDataParticle(DataParticle):
                          Pco2wConfigurationDataParticleKey.FLUSH_PUMP_INTERVAL,
                          Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH,
                          Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE,
-                         Pco2wConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES]
+                         Pco2wConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES,
+                         Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTINGS]
 
         result = []
         grp_index = 1   # used to index through match groups, starting at 1
@@ -560,14 +563,14 @@ class Protocol(SamiProtocol):
         # self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
         #                                self._handler_sample_timeout)
 
-        ## TODO: Add to base class
+
+
         # Add build handlers for device commands.
         ### primarily defined in base class
-        ## self._add_build_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_sample_dev1)
+        self._add_build_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_simple_command)
         # Add response handlers for device commands.
         ### primarily defined in base class
-        ## self._add_response_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._build_response_sample_dev1)
-
+        self._add_response_handler(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, self._parse_response_sample_dev1)
 
         # Add sample handlers
 
@@ -576,6 +579,33 @@ class Protocol(SamiProtocol):
 
         # build the chunker
         self._chunker = StringChunker(Protocol.sieve_function)
+
+        self._engineering_parameters.append(Parameter.EXTERNAL_PUMP_DELAY)
+
+    def _parse_response_sample_dev1(self, response, prompt):
+        log.debug('herb: ' + 'SamiProtocol._parse_response_sample_dev1')
+        pass
+
+    def _pre_sample_processing(self):
+        """
+        Override in sub class if needed
+        """
+        log.debug('herb: ' + 'Protocol._pre_sample_processing(): Take Dev1 Sample START')
+
+        start_time = time.time()
+
+        ## An exception is raised if timeout is hit.
+        self._do_cmd_resp(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, timeout = self._get_sample_timeout(), response_regex=DEV1_SAMPLE_REGEX_MATCHER)
+
+        sample_time = time.time() - start_time
+
+        log.debug('herb: ' + 'Protocol._pre_sample_processing(): Dev1 Sample took ' + str(sample_time) + ' to FINISH')
+
+        external_pump_delay = self._param_dict.get(Parameter.EXTERNAL_PUMP_DELAY)
+
+        log.debug('herb: ' + 'Protocol._take_blank_sample(): Delaying for %d seconds', external_pump_delay)
+
+        time.sleep(external_pump_delay)
 
     @staticmethod
     def sieve_function(raw_data):
@@ -600,8 +630,6 @@ class Protocol(SamiProtocol):
 
         return return_list
 
-## TODO: Move to base class
-
     def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker. Pass it to
@@ -612,31 +640,15 @@ class Protocol(SamiProtocol):
         self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(Pco2wConfigurationDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
-        self._extract_sample(Pco2wDev1SampleDataParticle, DEV1_SAMPLE_REGEX_MATCHER, chunk, timestamp)
-        sample = self._extract_sample(Pco2wSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
+        dev1_sample = self._extract_sample(Pco2wDev1SampleDataParticle, DEV1_SAMPLE_REGEX_MATCHER, chunk, timestamp)
+        sami_sample = self._extract_sample(Pco2wSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
 
         log.debug('herb: ' + 'Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
 
-        if sample:
-
-            matched = SAMI_SAMPLE_REGEX_MATCHER.match(chunk)
-            record_type = matched.group(3)
-            log.debug('herb: ' + 'Protocol._got_chunk(): sample record_type = ' + record_type)
-            log.debug('herb: ' + 'Protocol._got_chunk(): sample chunk = ' + chunk)
-
-            ## Remove any whitespace
-            sample_string = chunk.rstrip()
-            checksum = sample_string[-2:]
-            checksum_int = int(checksum, 16)
-            log.debug('Checksum = %s hex, %d dec' % (checksum, checksum_int))
-            calculated_checksum_string = sample_string[3:-2]
-            log.debug('Checksum String = %s' % calculated_checksum_string)
-            calculated_checksum = self.calc_crc(calculated_checksum_string)
-            log.debug('Checksum/Calculated Checksum = %d/%d' % (checksum_int,calculated_checksum))
-
-            if (checksum_int != calculated_checksum):
-                log.error("Sample Check Sum Invalid %d/%d, throwing exception." % (checksum_int,calculated_checksum))
-                raise SampleException("Sample Check Sum Invalid %d/%d" % (checksum_int,calculated_checksum))
+        if sami_sample:
+            self._verify_checksum(chunk, SAMI_SAMPLE_REGEX_MATCHER)
+        elif dev1_sample:
+            self._verify_checksum(chunk, DEV1_SAMPLE_REGEX_MATCHER)
 
     ########################################################################
     # Build Command, Driver and Parameter dictionaries
@@ -987,6 +999,16 @@ class Protocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='auto sample interval')
 
+        ## Engineering parameter to set delay after running external pump to take a sample
+        self._param_dict.add(Parameter.EXTERNAL_PUMP_DELAY, r'External pump delay = ([0-9]+)',
+                             lambda match: match.group(1),
+                             lambda x: int(x),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=False,
+                             default_value=600,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='external pump delay')
 
     ########################################################################
     # Overridden base class methods

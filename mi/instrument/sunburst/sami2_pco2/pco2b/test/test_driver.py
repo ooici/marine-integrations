@@ -16,8 +16,6 @@ USAGE:
 __author__ = 'Christopher Wingard & Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
-# TODO: Add negative test cases
-
 import unittest
 import time
 
@@ -61,7 +59,9 @@ from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import NEWLINE
 from mi.instrument.sunburst.driver import SAMI_TO_UNIX
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Pco2wSamiSampleDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Pco2wDev1SampleDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Pco2wConfigurationDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.pco2b.driver import DataParticleType
 
 # Added Imports (Note, these pick up some of the base classes not directly imported above)
 from mi.instrument.sunburst.test.test_driver import SamiMixin
@@ -83,12 +83,12 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='sunburst_sami2_pco2_pco2b',
     instrument_agent_packet_config=SamiDataParticleType(),
 
-#    driver_startup_config={}
-    driver_startup_config={
-            DriverStartupConfigKey.PARAMETERS: {
-            Parameter.STOP_TIME_FROM_START: 7,
-        },
-    }
+    driver_startup_config={}
+#    driver_startup_config={
+#            DriverStartupConfigKey.PARAMETERS: {
+#            Parameter.STOP_TIME_FROM_START: 7,
+#        },
+#    }
 )
 
 
@@ -152,10 +152,10 @@ class DriverTestMixinSub(SamiMixin):
     # string.
     VALID_CONFIG_STRING = 'CEE90B0002C7EA0001E133800A000E100402000E10010B' + \
                           '000000000D000000000D000000000D07' + \
-                          '1020FF54181C010038' + \
+                          '1020FF54181C01003814' + \
                           '000000000000000000000000000000000000000000000000000' + \
                           '000000000000000000000000000000000000000000000000000' + \
-                          '000000000000000000000000000000' + \
+                          '0000000000000000000000000000' + \
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
                           'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
@@ -169,6 +169,7 @@ class DriverTestMixinSub(SamiMixin):
                             '74003B0018096106800732074E0D82066124' + NEWLINE
     VALID_R0_DATA_SAMPLE = '*542704CEE91CC8003B001909620155073003E908A1232' + \
                            'D0043001A09620154072F03EA0D92065F3B' + NEWLINE
+    VALID_R1_SAMPLE = '*540711CEE91DE2CE' + NEWLINE
 
     ## Control records
     #VALID_CONTROL_RECORD = '*541280CEE90B170041000001000000000200AF' + NEWLINE
@@ -236,8 +237,12 @@ class DriverTestMixinSub(SamiMixin):
                                              DEFAULT: 0x00, VALUE: 0x00},
         Parameter.NUMBER_EXTRA_PUMP_CYCLES: {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x38, VALUE: 0x38},
+        Parameter.EXTERNAL_PUMP_SETTINGS:   {TYPE: int, READONLY: False, DA: True, STARTUP: False,
+                                             DEFAULT: 0x14, VALUE: 0x14},
         Parameter.AUTO_SAMPLE_INTERVAL:     {TYPE: int, READONLY: False, DA: False, STARTUP: False,
-                                             DEFAULT: 0x38, VALUE: 3600},
+                                             DEFAULT: 3600, VALUE: 3600},
+        Parameter.EXTERNAL_PUMP_DELAY:      {TYPE: int, READONLY: False, DA: True, STARTUP: False,
+                                             DEFAULT: 600, VALUE: 600}
     }
 
     _sami_data_sample_parameters = {
@@ -268,6 +273,15 @@ class DriverTestMixinSub(SamiMixin):
         Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTERY:     {TYPE: int, VALUE: 0x0D82, REQUIRED: True},
         Pco2wSamiSampleDataParticleKey.THERMISTER_RAW:      {TYPE: int, VALUE: 0x0661, REQUIRED: True},
         Pco2wSamiSampleDataParticleKey.CHECKSUM:            {TYPE: int, VALUE: 0x24, REQUIRED: True}
+    }
+
+    _dev1_sample_parameters = {
+        # Device 1 (external pump) Type 17 sample
+        Pco2wDev1SampleDataParticleKey.UNIQUE_ID:        {TYPE: int, VALUE: 0x54, REQUIRED: True},
+        Pco2wDev1SampleDataParticleKey.RECORD_LENGTH:    {TYPE: int, VALUE: 0x07, REQUIRED: True},
+        Pco2wDev1SampleDataParticleKey.RECORD_TYPE:      {TYPE: int, VALUE: 0x11,  REQUIRED: True},
+        Pco2wDev1SampleDataParticleKey.RECORD_TIME:      {TYPE: int, VALUE: 0xCEE91DE2, REQUIRED: True},
+        Pco2wDev1SampleDataParticleKey.CHECKSUM:         {TYPE: int, VALUE: 0xCE, REQUIRED: True}
     }
 
     _configuration_parameters = {
@@ -312,6 +326,7 @@ class DriverTestMixinSub(SamiMixin):
         Pco2wConfigurationDataParticleKey.DISABLE_START_BLANK_FLUSH:    {TYPE: bool, VALUE: False, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.MEASURE_AFTER_PUMP_PULSE:     {TYPE: bool, VALUE: False, REQUIRED: True},
         Pco2wConfigurationDataParticleKey.NUMBER_EXTRA_PUMP_CYCLES:     {TYPE: int,  VALUE: 0x38, REQUIRED: True},
+        Pco2wConfigurationDataParticleKey.EXTERNAL_PUMP_SETTINGS:       {TYPE: int,  VALUE: 0x14, REQUIRED: True}
     }
 
     ###
@@ -354,6 +369,20 @@ class DriverTestMixinSub(SamiMixin):
                                          SamiDataParticleType.SAMI_SAMPLE)
         self.assert_data_particle_parameters(data_particle,
                                              self._sami_blank_sample_parameters,
+                                             verify_values)
+
+    def assert_particle_dev1_sample(self, data_particle, verify_values=False):
+        '''
+        Verify dev1_sample particle
+        @param data_particle: Pco2wDev1SampleDataParticle data particle
+        @param verify_values: bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(Pco2wDev1SampleDataParticleKey,
+                                       self._dev1_sample_parameters)
+        self.assert_data_particle_header(data_particle,
+                                         DataParticleType.DEV1_SAMPLE)
+        self.assert_data_particle_parameters(data_particle,
+                                             self._dev1_sample_parameters,
                                              verify_values)
 
     def assert_particle_configuration(self, data_particle, verify_values=False):
@@ -445,6 +474,11 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         self.assert_chunker_fragmented_sample(chunker, self.VALID_R0_DATA_SAMPLE)
         self.assert_chunker_combined_sample(chunker, self.VALID_R0_DATA_SAMPLE)
 
+        self.assert_chunker_sample(chunker, self.VALID_R1_SAMPLE)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_R1_SAMPLE)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_R1_SAMPLE)
+        self.assert_chunker_combined_sample(chunker, self.VALID_R1_SAMPLE)
+
         self.assert_chunker_sample(chunker, self.VALID_CONFIG_STRING)
         self.assert_chunker_sample_with_noise(chunker, self.VALID_CONFIG_STRING)
         self.assert_chunker_fragmented_sample(chunker, self.VALID_CONFIG_STRING)
@@ -471,6 +505,8 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
                                        self.assert_particle_sami_blank_sample, True)
         self.assert_particle_published(driver, self.VALID_R0_DATA_SAMPLE,
                                        self.assert_particle_sami_data_sample, True)
+        self.assert_particle_published(driver, self.VALID_R1_SAMPLE,
+                                       self.assert_particle_dev1_sample, True)
         self.assert_particle_published(driver, self.VALID_CONFIG_STRING,
                                        self.assert_particle_configuration, True)
 
@@ -536,6 +572,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         Parameter.BIT_SWITCHES
         Parameter.NUMBER_EXTRA_PUMP_CYCLES
         Parameter.AUTO_SAMPLE_INTERVAL
+        Parameter.EXTERNAL_PUMP_DELAY
         Negative Set Tests:
             START_TIME_FROM_LAUNCH
             STOP_TIME_FROM_START
@@ -562,24 +599,16 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 
     def test_set(self):
         self.assert_initialize_driver()
-        self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 77)
-        self.assert_set(Parameter.CYCLES_BETWEEN_BLANKS, 7)
+        self.assert_set(Parameter.EXTERNAL_PUMP_DELAY, 60)
+        # self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 77)
+        # self.assert_set(Parameter.CYCLES_BETWEEN_BLANKS, 7)
 
     def test_acquire_sample(self):
         self.assert_initialize_driver()
+        self.assert_set(Parameter.EXTERNAL_PUMP_DELAY, 60)
         log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 START')
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=180)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=240)
         log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 1 FINISH')
-        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 START')
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=20)
-        log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 2 FINISH')
-        # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 3 START')
-        # self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, delay=180)
-        # log.debug('herb: ' + 'class DriverIntegrationTest(): ACQUIRE_SAMPLE 3 FINISH')
-
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sample_data, delay=180)
-
-##  TODO: Test all commands and states.
 
     def test_auto_sample(self):
         self.assert_initialize_driver()
@@ -600,7 +629,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 ##        self.assert_initialize_driver()
 
     def test_acquire_blank_sample(self):
-        pass
+        self.assert_initialize_driver()
 
     def test_acquire_status(self):
         self.assert_initialize_driver()

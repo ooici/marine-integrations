@@ -16,8 +16,6 @@ USAGE:
 __author__ = 'Christopher Wingard & Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
-# TODO: Add negative test cases
-
 import unittest
 import time
 

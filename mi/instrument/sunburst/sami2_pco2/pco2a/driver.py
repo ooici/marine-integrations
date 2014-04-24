@@ -497,8 +497,6 @@ class Protocol(SamiProtocol):
 
         return return_list
 
-## TODO: Move to base class
-
     def _got_chunk(self, chunk, timestamp):
         """
         The base class got_data has gotten a chunk from the chunker. Pass it to
@@ -514,25 +512,7 @@ class Protocol(SamiProtocol):
         log.debug('herb: ' + 'Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
 
         if sample:
-
-            matched = SAMI_SAMPLE_REGEX_MATCHER.match(chunk)
-            record_type = matched.group(3)
-            log.debug('herb: ' + 'Protocol._got_chunk(): sample record_type = ' + record_type)
-            log.debug('herb: ' + 'Protocol._got_chunk(): sample chunk = ' + chunk)
-
-            ## Remove any whitespace
-            sample_string = chunk.rstrip()
-            checksum = sample_string[-2:]
-            checksum_int = int(checksum, 16)
-            log.debug('Checksum = %s hex, %d dec' % (checksum, checksum_int))
-            calculated_checksum_string = sample_string[3:-2]
-            log.debug('Checksum String = %s' % calculated_checksum_string)
-            calculated_checksum = self.calc_crc(calculated_checksum_string)
-            log.debug('Checksum/Calculated Checksum = %d/%d' % (checksum_int,calculated_checksum))
-
-            if (checksum_int != calculated_checksum):
-                log.error("Sample Check Sum Invalid %d/%d, throwing exception." % (checksum_int,calculated_checksum))
-                raise SampleException("Sample Check Sum Invalid %d/%d" % (checksum_int,calculated_checksum))
+            self._verify_checksum(chunk, SAMI_SAMPLE_REGEX_MATCHER)
 
     ########################################################################
     # Build Command, Driver and Parameter dictionaries
