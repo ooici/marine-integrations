@@ -63,8 +63,6 @@ from mi.core.exceptions import SampleException
 from mi.core.time import get_timestamp
 from mi.core.time import get_timestamp_delayed
 
-log.debug('herb: ' + 'import sunburst/driver.py')
-
 ###
 #    Driver Constant Definitions
 ###
@@ -162,8 +160,6 @@ class SamiDataParticleType(BaseEnum):
     sub-classed in the specific instrument driver
     """
 
-    log.debug('herb: ' + 'class SamiDataParticleType(BaseEnum)')
-
     RAW = CommonDataParticleType.RAW
     REGULAR_STATUS = 'regular_status'
     CONTROL_RECORD = 'control_record'
@@ -175,8 +171,6 @@ class ProtocolState(BaseEnum):
     """
     Instrument protocol states
     """
-
-    log.debug('herb: ' + 'class ProtocolState(BaseEnum)')
 
     UNKNOWN = DriverProtocolState.UNKNOWN
     WAITING = 'PROTOCOL_STATE_WAITING'
@@ -192,8 +186,6 @@ class ProtocolEvent(BaseEnum):
     """
     Protocol events
     """
-
-    log.debug('herb: ' + 'class ProtocolEvent(BaseEnum)')
 
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
@@ -218,8 +210,6 @@ class Capability(BaseEnum):
     Protocol events that should be exposed to users (subset of above).
     """
 
-    log.debug('herb: ' + 'class Capability(BaseEnum)')
-
     ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
     ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     ACQUIRE_BLANK_SAMPLE = ProtocolEvent.ACQUIRE_BLANK_SAMPLE
@@ -234,8 +224,6 @@ class SamiParameter(DriverParameter):
     Base SAMI instrument parameters. Subclass and extend this Enum with device
     specific parameters in subclass 'Parameter'.
     """
-
-    log.debug('herb: ' + 'class SamiParameter(DriverParameter)')
 
     LAUNCH_TIME = 'launch_time'
     START_TIME_FROM_LAUNCH = 'start_time_from_launch'
@@ -269,8 +257,6 @@ class Prompt(BaseEnum):
     Device i/o prompts..
     """
 
-    log.debug('herb: ' + 'class Prompt(BaseEnum)')
-
     # The boot prompt is the prompt of the SAMI2's Lower Level operating
     # system. If this prompt is reached, it means the SAMI2 instrument
     # software has crashed and needs to be restarted with the command
@@ -289,8 +275,6 @@ class SamiInstrumentCommand(BaseEnum):
     This applies to the PCO2 where an additional ACQUIRE_SAMPLE
     command is required for device 1, the external pump.
     """
-
-    log.debug('herb: ' + 'class SamiInstrumentCommand(BaseEnum)')
 
     GET_STATUS = 'S0'
     START_STATUS = 'F0'
@@ -318,8 +302,6 @@ class SamiRegularStatusDataParticleKey(BaseEnum):
     """
     Data particle key for the regular (1 Hz or regular) status messages.
     """
-
-    log.debug('herb: ' + 'class SamiRegularStatusDataParticleKey(BaseEnum)')
 
     ELAPSED_TIME_CONFIG = "elapsed_time_config"
     CLOCK_ACTIVE = 'clock_active'
@@ -351,16 +333,12 @@ class SamiRegularStatusDataParticle(DataParticle):
     @throw SampleException If there is a problem with sample creation
     """
 
-    log.debug('herb: ' + 'class SamiRegularStatusDataParticle(DataParticle)')
-
     _data_particle_type = SamiDataParticleType.REGULAR_STATUS
 
     def _build_parsed_values(self):
         """
         Parse regular status values from raw data into a dictionary
         """
-
-        log.debug('herb: ' + 'SamiRegularStatusDataParticle._build_parsed_values(): BEGIN')
 
         ### Regular Status Messages
         # Produced in response to S0 command, or automatically at 1 Hz. All
@@ -375,14 +353,10 @@ class SamiRegularStatusDataParticle(DataParticle):
         # and the instrument's unique id.
         ###
 
-        log.debug('herb: ' + 'SamiRegularStatusDataParticle._build_parsed_values(): MATCH BEGIN')
-
         matched = REGULAR_STATUS_REGEX_MATCHER.match(self.raw_data)
         if not matched:
             raise SampleException("No regex match of parsed sample data: [%s]" %
                                   self.decoded_raw)
-
-        log.debug('herb: ' + 'SamiRegularStatusDataParticle._build_parsed_values(): MATCH END')
 
         particle_keys = [SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG,
                          SamiRegularStatusDataParticleKey.CLOCK_ACTIVE,
@@ -441,16 +415,12 @@ class SamiRegularStatusDataParticle(DataParticle):
                                DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
                 grp_index += 1
 
-        log.debug('herb: ' + 'SamiRegularStatusDataParticle._build_parsed_values(): END')
-
         return result
 
 class SamiControlRecordDataParticleKey(BaseEnum):
     """
     Data particle key for peridoically produced control records.
     """
-
-    log.debug('herb: ' + 'class SamiControlRecordDataParticleKey(BaseEnum)')
 
     UNIQUE_ID = 'unique_id'
     RECORD_LENGTH = 'record_length'
@@ -484,16 +454,12 @@ class SamiControlRecordDataParticle(DataParticle):
     @throw SampleException If there is a problem with sample creation
     """
 
-    log.debug('herb: ' + 'class SamiControlRecordDataParticle(DataParticle)')
-
     _data_particle_type = SamiDataParticleType.CONTROL_RECORD
 
     def _build_parsed_values(self):
         """
         Parse control record values from raw data into a dictionary
         """
-
-        log.debug('herb: ' + 'SamiControlRecordDataParticle._build_parsed_values()')
 
         ### Control Records
         # Produced by the instrument periodically in reponse to certain events
@@ -582,8 +548,6 @@ class SamiConfigDataParticleKey(BaseEnum):
     with specific instrument parameters.
     """
 
-    log.debug('herb: ' + 'class SamiConfigDataParticleKey(BaseEnum)')
-
     LAUNCH_TIME = 'launch_time'
     START_TIME_OFFSET = 'start_time_offset'
     RECORDING_TIME = 'recording_time'
@@ -640,15 +604,11 @@ class SamiInstrumentDriver(SingleConnectionInstrumentDriver):
     Needs to be subclassed in the specific driver module.
     """
 
-    log.debug('herb: ' + 'class SamiInstrumentDriver(SingleConnectionInstrumentDriver)')
-
     def __init__(self, evt_callback):
         """
         Driver constructor.
         @param evt_callback Driver process event callback.
         """
-
-        log.debug('herb: ' + 'SamiInstrumentDriver.__init__()')
 
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
@@ -666,8 +626,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     Should be sub-classed in specific driver.
     """
 
-    log.debug('herb: ' + 'class SamiProtocol(CommandResponseInstrumentProtocol)')
-
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -675,8 +633,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
-
-        log.debug('herb: ' + 'SamiProtocol.__init__()')
 
         # Construct protocol superclass.
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
@@ -943,8 +899,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
     def _setup_scheduler_config(self):
 
-        log.debug('herb: ' + 'SamiProtocol._setup_scheduler_config()')
-
         auto_sample_interval = self._param_dict.get(SamiParameter.AUTO_SAMPLE_INTERVAL)
 
         log.debug('herb: ' + 'SamiProtocol._setup_scheduler_config(): auto_sample_interval = ' + str(auto_sample_interval))
@@ -966,8 +920,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Return a list of currently available capabilities.
         """
-
-        log.debug('herb: ' + 'SamiProtocol._filter_capabilities()')
 
         return [x for x in events if Capability.has(x)]
 
@@ -1026,9 +978,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
 
         log.debug('herb: ' + 'SamiProtocol._handler_unknown_enter()')
-
-        # Turn on debugging
-        log.debug("_handler_unknown_enter")
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1187,8 +1136,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if set command could not be built or misunderstood.
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_command_set()')
-
         next_state = None
         result = None
         startup = False
@@ -1213,31 +1160,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
-            """
-            Check if pseudo autosample rate is being set, if only autosample rate is set, only set here,
-            no need to update config on instrument.
-            """
-            # if SamiParameter.AUTO_SAMPLE_INTERVAL in params:
-            #     old_auto_sample_interval = self._param_dict.get(SamiParameter.AUTO_SAMPLE_INTERVAL)
-            #     new_auto_sample_interval = params.pop(SamiParameter.AUTO_SAMPLE_INTERVAL )
-            #     log.debug('herb: SamiProtocol._handler_command_set(): AUTO_SAMPLE_INTERVAL old/new = %d/%d' %
-            #               (old_auto_sample_interval, new_auto_sample_interval))
-            #
-            #     if new_auto_sample_interval != old_auto_sample_interval:
-            #         self._param_dict.set_value(SamiParameter.AUTO_SAMPLE_INTERVAL,
-            #                                    new_auto_sample_interval)
-            #         log.debug('herb: ' +
-            #                   'SamiProtocol._handler_command_set(): Updated AUTO_SAMPLE_INTERVAL')
-            #         self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-            #     else:
-            #         log.debug('herb: ' +
-            #                   'SamiProtocol._handler_command_set(): AUTO_SAMPLE_INTERVAL not updated')
-            #
-            #     log.debug('herb: ' + 'SamiProtocol._handler_command_set(): AUTO_SAMPLE_INTERVAL = ' +
-            #                   str(self._param_dict.get(SamiParameter.AUTO_SAMPLE_INTERVAL)))
-            #     log.debug('herb: ' +
-            #               'SamiProtocol._handler_command_set(): Removed AUTO_SAMPLE_INTERVAL, params = ' +
-            #               str(params))
+
             self._check_for_engineering_parameters(params)
 
             if len(params) > 0:
@@ -1247,36 +1170,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
 
         return next_state, result
-
-    ## TODO: Move to end of file.
-    def _check_for_engineering_parameters(self, params):
-        """
-        Remove engineering parameters from param dict and check if they have changed.  If there is a change,
-        raise a CONFIG_CHANGE event.
-        """
-        for engineering_parameter in self._engineering_parameters:
-            if engineering_parameter in params:
-                old_value = self._param_dict.get(engineering_parameter)
-                new_value = params.pop(engineering_parameter)
-                log.debug('herb: SamiProtocol.check_for_engineering_parameters(): %s old/new = %d/%d' %
-                          (engineering_parameter , old_value, new_value))
-                if new_value != old_value:
-                    self._param_dict.set_value(engineering_parameter,
-                                               new_value)
-                    log.debug('herb: ' +
-                              'SamiProtocol.check_for_engineering_parameters(): Updated %s' % engineering_parameter)
-                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-                else:
-                    log.debug('herb: ' +
-                              'SamiProtocol.check_for_engineering_parameters(): %s not updated' % engineering_parameter)
-
-                log.debug('herb: ' + 'SamiProtocol.check_for_engineering_parameters(): %s = %s' %
-                          (engineering_parameter, str(self._param_dict.get(engineering_parameter))))
-
-                log.debug('herb: ' +
-                          'SamiProtocol.check_for_engineering_parameters(): Removed %s, params = %s' %
-                          (engineering_parameter, str(params)))
-
 
     def _handler_command_start_direct(self):
         """
@@ -1862,26 +1755,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
     def _parse_response_get_config(self, response, prompt):
         log.debug('herb: ' + 'SamiProtocol._parse_response_get_config')
-
-        # old_config = self._param_dict.get_config()
-        #
-        # log.debug('herb: ' + 'SamiProtocol._parse_response_get_config: response = ' + str(response))
-        #
-        # log.debug('herb: ' + 'SamiProtocol._parse_response_get_config: old_config = ' + str(old_config))
-        #
-        # self._param_dict.update(response + NEWLINE)
-        #
-        # new_config = self._param_dict.get_config()
-        #
-        # log.debug('herb: ' + 'SamiProtocol._parse_response_get_config: new_config = ' + str(new_config))
-        #
-        # ## Compare values here to send config change event
-        # if not dict_equal(old_config, new_config, ignore_keys=SamiParameter.LAUNCH_TIME):
-        #     log.debug("Configuration has changed.")
-        #     if (self.get_current_state() == ProtocolState.COMMAND):
-        #         log.debug("Configuration has changed and in command state.  Send driver event.")
-        #         self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-
         return response
 
     def _parse_response_set_config(self, response, prompt):
@@ -2216,6 +2089,34 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('herb: ' + 'Protocol._take_regular_sample(): Regular Sample took ' + str(sample_time) + ' to FINISH')
 
         pass
+
+    def _check_for_engineering_parameters(self, params):
+        """
+        Remove engineering parameters from param dict and check if they have changed.  If there is a change,
+        raise a CONFIG_CHANGE event.
+        """
+        for engineering_parameter in self._engineering_parameters:
+            if engineering_parameter in params:
+                old_value = self._param_dict.get(engineering_parameter)
+                new_value = params.pop(engineering_parameter)
+                log.debug('herb: SamiProtocol.check_for_engineering_parameters(): %s old/new = %d/%d' %
+                          (engineering_parameter , old_value, new_value))
+                if new_value != old_value:
+                    self._param_dict.set_value(engineering_parameter,
+                                               new_value)
+                    log.debug('herb: ' +
+                              'SamiProtocol.check_for_engineering_parameters(): Updated %s' % engineering_parameter)
+                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+                else:
+                    log.debug('herb: ' +
+                              'SamiProtocol.check_for_engineering_parameters(): %s not updated' % engineering_parameter)
+
+                log.debug('herb: ' + 'SamiProtocol.check_for_engineering_parameters(): %s = %s' %
+                          (engineering_parameter, str(self._param_dict.get(engineering_parameter))))
+
+                log.debug('herb: ' +
+                          'SamiProtocol.check_for_engineering_parameters(): Removed %s, params = %s' %
+                          (engineering_parameter, str(params)))
 
     def _verify_checksum(self, chunk, matcher):
 

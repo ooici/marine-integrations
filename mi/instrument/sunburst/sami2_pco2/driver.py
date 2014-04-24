@@ -1,6 +1,6 @@
 """
-@package mi.instrument.sunburst.sami2_pco2.ooicore.driver
-@file marine-integrations/mi/instrument/sunburst/sami2_pco2/ooicore/driver.py
+@package mi.instrument.sunburst.sami2_pco2.driver
+@file marine-integrations/mi/instrument/sunburst/sami2_pco2/driver.py
 @author Christopher Wingard
 @brief Driver for the Sunburst Sensors, SAMI2-PCO2 (PCO2W)
 Release notes:
@@ -53,13 +53,11 @@ from mi.instrument.sunburst.driver import TIMEOUT
 from mi.instrument.sunburst.driver import SAMI_TO_UNIX
 from mi.instrument.sunburst.driver import SAMI_TO_NTP
 
-log.debug('herb: ' + 'import sunburst/sami2_pco2/ooicore/driver.py')
-
 ###
 #    Driver Constant Definitions
 ###
 
-SAMPLE_DELAY = 180 ## TODO: Make configurable
+SAMPLE_DELAY = 180
 
 # Imported from base class
 
@@ -130,8 +128,6 @@ class Parameter(SamiParameter):
     Device specific parameters.
     """
 
-    log.debug('herb: ' + 'class Parameter(SamiParameter)')
-
     # PCO2W driver extends the base class (SamiParameter) with:
     PUMP_PULSE = 'pump_pulse'
     PUMP_DURATION = 'pump_duration'
@@ -152,8 +148,6 @@ class Pco2wSamiSampleDataParticleKey(BaseEnum):
     capture when a sample was processed.
     """
 
-    log.debug('herb: ' + 'class Pco2wSamiSampleDataParticleKey(BaseEnum)')
-
     UNIQUE_ID = 'unique_id'
     RECORD_LENGTH = 'record_length'
     RECORD_TYPE = 'record_type'
@@ -171,16 +165,12 @@ class Pco2wSamiSampleDataParticle(DataParticle):
     @throw SampleException If there is a problem with sample creation
     """
 
-    log.debug('herb: ' + 'class Pco2wSamiSampleDataParticle(DataParticle)')
-
     _data_particle_type = SamiDataParticleType.SAMI_SAMPLE
 
     def _build_parsed_values(self):
         """
         Parse SAMI2-PCO2 measurement records from raw data into a dictionary
         """
-
-        log.debug('herb: ' + 'Pco2wSamiSampleDataParticle._build_parsed_values()')
 
         ### SAMI Sample Record
         # Regular SAMI (PCO2) data records produced by the instrument on either
@@ -231,8 +221,6 @@ class Pco2wConfigurationDataParticleKey(SamiConfigDataParticleKey):
     Data particle key for the configuration record.
     """
 
-    log.debug('herb: ' + 'class Pco2wConfigurationDataParticleKey(SamiConfigDataParticleKey)')
-
     PUMP_PULSE = 'pump_pulse'
     PUMP_DURATION = 'pump_duration'
     SAMPLES_PER_MEASUREMENT = 'samples_per_measurement'
@@ -251,16 +239,12 @@ class Pco2wConfigurationDataParticle(DataParticle):
     @throw SampleException If there is a problem with sample creation
     """
 
-    log.debug('herb: ' + 'class Pco2wConfigurationDataParticle(DataParticle)')
-
     _data_particle_type = SamiDataParticleType.CONFIGURATION
 
     def _build_parsed_values(self):
         """
         Parse configuration record values from raw data into a dictionary
         """
-
-        log.debug('herb: ' + 'Pco2wConfigurationDataParticle._build_parsed_values()')
 
         ### SAMI-PCO2 Configuration String
         # Configuration string either sent to the instrument to configure it
@@ -390,8 +374,6 @@ class InstrumentDriver(SamiInstrumentDriver):
     connection state machine.
     """
 
-    log.debug('herb: ' + 'class InstrumentDriver(SamiInstrumentDriver)')
-
     ########################################################################
     # Superclass overrides for resource query.
     ########################################################################
@@ -400,8 +382,6 @@ class InstrumentDriver(SamiInstrumentDriver):
         """
         Return list of device parameters available.
         """
-
-        log.debug('herb: ' + 'InstrumentDriver.get_resource_params()')
 
         return Parameter.list()
 
@@ -414,8 +394,6 @@ class InstrumentDriver(SamiInstrumentDriver):
         Construct the driver protocol state machine.
         """
 
-        log.debug('herb: ' + 'InstrumentDriver._build_protocol()')
-
         self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
 
 
@@ -427,8 +405,6 @@ class Protocol(SamiProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
-
-    log.debug('herb: ' + 'class Protocol(SamiProtocol)')
 
     def __init__(self, prompts, newline, driver_event):
         """
@@ -510,8 +486,6 @@ class Protocol(SamiProtocol):
         The base class got_data has gotten a chunk from the chunker. Pass it to
         extract_sample with the appropriate particle objects and REGEXes.
         """
-        log.debug('herb: ' + 'Protocol._got_chunk(): chunk = ' + chunk)
-
         self._extract_sample(SamiRegularStatusDataParticle, REGULAR_STATUS_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(SamiControlRecordDataParticle, CONTROL_RECORD_REGEX_MATCHER, chunk, timestamp)
         self._extract_sample(Pco2wConfigurationDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
