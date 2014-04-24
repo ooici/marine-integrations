@@ -235,6 +235,109 @@ class Pco2wProtocol(SamiProtocol):
 
         SamiProtocol._build_param_dict(self)
 
+        configuration_string_regex = self._get_configuration_string_regex()
+
+        # PCO2 0x04, PHSEN 0x0A
+        self._param_dict.add(Pco2SamiParameter.SAMI_DRIVER_VERSION, configuration_string_regex,
+                             lambda match: int(match.group(6), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x04,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='sami driver version')
+
+        self._param_dict.add(Pco2SamiParameter.PUMP_PULSE, configuration_string_regex,
+                             lambda match: int(match.group(21), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x10,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='pump pulse duration')
+
+        self._param_dict.add(Pco2SamiParameter.PUMP_DURATION, configuration_string_regex,
+                             lambda match: int(match.group(22), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x20,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='pump measurement duration')
+
+        self._param_dict.add(Pco2SamiParameter.SAMPLES_PER_MEASUREMENT, configuration_string_regex,
+                             lambda match: int(match.group(23), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0xFF,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='samples per measurement')
+
+        self._param_dict.add(Pco2SamiParameter.CYCLES_BETWEEN_BLANKS, configuration_string_regex,
+                             lambda match: int(match.group(24), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0xA8,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='cycles between blanks')
+
+        self._param_dict.add(Pco2SamiParameter.NUMBER_REAGENT_CYCLES, configuration_string_regex,
+                             lambda match: int(match.group(25), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x18,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='number of reagent cycles')
+
+        self._param_dict.add(Pco2SamiParameter.NUMBER_BLANK_CYCLES, configuration_string_regex,
+                             lambda match: int(match.group(26), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x1C,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='number of blank cycles')
+
+        self._param_dict.add(Pco2SamiParameter.FLUSH_PUMP_INTERVAL, configuration_string_regex,
+                             lambda match: int(match.group(27), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x01,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='flush pump interval')
+
+        self._param_dict.add(Pco2SamiParameter.BIT_SWITCHES, configuration_string_regex,
+                             lambda match: int(match.group(28), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='bit switches')
+
+        self._param_dict.add(Pco2SamiParameter.NUMBER_EXTRA_PUMP_CYCLES, configuration_string_regex,
+                             lambda match: int(match.group(29), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x38,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='number of extra pump cycles')
+
     ########################################################################
     # Overridden base class methods
     ########################################################################

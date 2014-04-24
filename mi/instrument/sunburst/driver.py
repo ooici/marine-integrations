@@ -1184,7 +1184,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug("_handler_command_start_direct: entering DA mode")
         return (next_state, (next_agent_state, result))
 
-    ## TODO: Make generic for use in command and autosample states
     def _handler_command_acquire_status(self, *args, **kwargs):
         """
         Acquire the instrument's status
@@ -1198,7 +1197,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         try:
             self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS, timeout=10, response_regex=REGULAR_STATUS_REGEX_MATCHER)
             ## TODO: Are B(attery) and T(hermistor) commands required?
-            configuration_string_regex = self._get_configuration_string_regex()
+            configuration_string_regex = self._get_configuration_string_regex_matcher()
             self._do_cmd_resp(SamiInstrumentCommand.GET_CONFIG, timeout=10, response_regex=configuration_string_regex)
 
         except InstrumentTimeoutException:
@@ -1409,7 +1408,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
-## TODO: Make generic for use in command and autosample states
     def _handler_autosample_acquire_status(self, *args, **kwargs):
         """
         Acquire the instrument's status
@@ -1424,7 +1422,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
             self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS, timeout=10, response_regex=REGULAR_STATUS_REGEX_MATCHER)
             ## TODO: Are B(attery) and T(hermistor) commands required?
-            configuration_string_regex = self._get_configuration_string_regex()
+            configuration_string_regex = self._get_configuration_string_regex_matcher()
             self._do_cmd_resp(SamiInstrumentCommand.GET_CONFIG, timeout=10, response_regex=configuration_string_regex)
 
         except InstrumentTimeoutException:
@@ -1479,7 +1477,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         return None, None
 
-## TODO: Think about making these generic for use in sample and blank sample states
     ########################################################################
     # Polled Sample handlers.
     ########################################################################
@@ -1534,7 +1531,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         return (next_state, next_agent_state)
 
 
-## TODO: Think about making these generic for use in sample and blank sample states
     ########################################################################
     # Polled Blank Sample handlers.
     ########################################################################
@@ -1588,7 +1584,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, next_agent_state)
 
-## TODO: Think about making these generic for use in sample and blank sample states
     ########################################################################
     # Scheduled Sample handlers.
     ########################################################################
@@ -1643,7 +1638,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, next_agent_state)
 
-## TODO: Think about making these generic for use in sample and blank sample states
     ########################################################################
     # Scheduled Blank Sample handlers.
     ########################################################################
@@ -2024,7 +2018,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'Protocol._verify_and_update_configuration()')
 
-        configuration_string_regex = self._get_configuration_string_regex()
+        configuration_string_regex = self._get_configuration_string_regex_matcher()
 
         instrument_configuration_string = self._do_cmd_resp(SamiInstrumentCommand.GET_CONFIG, timeout=10, response_regex=configuration_string_regex)
 
@@ -2181,7 +2175,173 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         self._param_dict = ProtocolParameterDict()
 
+        configuration_string_regex = self._get_configuration_string_regex()
+
         # Add parameter handlers to parameter dict.
+
+        self._param_dict.add(SamiParameter.LAUNCH_TIME, configuration_string_regex,
+                             lambda match: int(match.group(1), 16),
+                             lambda x: self._int_to_hexstring(x, 8),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x00000000,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='launch time')
+
+        self._param_dict.add(SamiParameter.START_TIME_FROM_LAUNCH, configuration_string_regex,
+                             lambda match: int(match.group(2), 16),
+                             lambda x: self._int_to_hexstring(x, 8),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x02C7EA00,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='start time after launch time')
+
+        self._param_dict.add(SamiParameter.STOP_TIME_FROM_START, configuration_string_regex,
+                             lambda match: int(match.group(3), 16),
+                             lambda x: self._int_to_hexstring(x, 8),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x01E13380,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='stop time after start time')
+
+        self._param_dict.add(SamiParameter.SAMI_SAMPLE_INTERVAL, configuration_string_regex,
+                             lambda match: int(match.group(5), 16),
+                             lambda x: self._int_to_hexstring(x, 6),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x000E10,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='sami sample interval')
+
+        self._param_dict.add(SamiParameter.SAMI_PARAMS_POINTER, configuration_string_regex,
+                             lambda match: int(match.group(7), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x02,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='sami parameter pointer')
+
+        self._param_dict.add(SamiParameter.DEVICE2_SAMPLE_INTERVAL, configuration_string_regex,
+                             lambda match: int(match.group(11), 16),
+                             lambda x: self._int_to_hexstring(x, 6),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x000000,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='device 2 sample interval')
+
+        self._param_dict.add(SamiParameter.DEVICE2_DRIVER_VERSION, configuration_string_regex,
+                             lambda match: int(match.group(12), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='device 2 driver version')
+
+        self._param_dict.add(SamiParameter.DEVICE2_PARAMS_POINTER, configuration_string_regex,
+                             lambda match: int(match.group(13), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='device 2 parameter pointer')
+
+        self._param_dict.add(SamiParameter.DEVICE3_SAMPLE_INTERVAL, configuration_string_regex,
+                             lambda match: int(match.group(14), 16),
+                             lambda x: self._int_to_hexstring(x, 6),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x000000,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='device 3 sample interval')
+
+        self._param_dict.add(SamiParameter.DEVICE3_DRIVER_VERSION, configuration_string_regex,
+                             lambda match: int(match.group(15), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='device 3 driver version')
+
+        self._param_dict.add(SamiParameter.DEVICE3_PARAMS_POINTER, configuration_string_regex,
+                             lambda match: int(match.group(16), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='device 3 parameter pointer')
+
+        self._param_dict.add(SamiParameter.PRESTART_SAMPLE_INTERVAL, configuration_string_regex,
+                             lambda match: int(match.group(17), 16),
+                             lambda x: self._int_to_hexstring(x, 6),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x000000,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='prestart sample interval')
+
+        self._param_dict.add(SamiParameter.PRESTART_DRIVER_VERSION, configuration_string_regex,
+                             lambda match: int(match.group(18), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='prestart driver version')
+
+        ## Changed from 0x0D to 0x00 since there is not external device
+        self._param_dict.add(SamiParameter.PRESTART_PARAMS_POINTER, configuration_string_regex,
+                             lambda match: int(match.group(19), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x00,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='prestart parameter pointer')
+
+        # Changed from invalid value 0x00 to 0x07 setting bits, (2) Send live records, (1) Send ^(record type),
+        #   (0) 57600 serial port
+        self._param_dict.add(SamiParameter.GLOBAL_CONFIGURATION, configuration_string_regex,
+                             lambda match: int(match.group(20), 16),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=True,
+                             default_value=0x07,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name='global bits (set to 00000111)')
+
+        ## Engineering parameter to set pseudo auto sample rate
+        self._param_dict.add(SamiParameter.AUTO_SAMPLE_INTERVAL, r'Auto sample rate = ([0-9]+)',
+                             lambda match: match.group(1),
+                             lambda x: int(x),
+                             type=ParameterDictType.INT,
+                             startup_param=False,
+                             direct_access=False,
+                             default_value=3600,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='auto sample interval')
 
     def _pre_sample_processing(self):
         """
@@ -2214,6 +2374,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         raise NotImplementedException()
 
     def _get_configuration_string_regex(self):
+        """
+        Overridden by device specific subclasses.
+        """
+
+        raise NotImplementedException()
+
+    def _get_configuration_string_regex_matcher(self):
         """
         Overridden by device specific subclasses.
         """

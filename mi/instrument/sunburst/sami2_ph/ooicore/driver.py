@@ -943,7 +943,7 @@ class Protocol(SamiProtocol):
 
         return configuration_string
 
-    def _get_configuration_string_regex(self):
+    def _get_configuration_string_regex_matcher(self):
         return CONFIGURATION_REGEX_MATCHER
 
 # End of File driver.py
