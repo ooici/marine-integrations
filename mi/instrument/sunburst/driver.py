@@ -69,7 +69,7 @@ from mi.core.time import get_timestamp_delayed
 # newline.
 NEWLINE = '\r'
 
-# default timeout.
+# default command timeout.
 TIMEOUT = 10
 
 # Conversion from SAMI time (seconds since 1904-01-01) to POSIX or Unix
@@ -633,6 +633,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
+        log.debug('herb: ' + 'SamiProtocol.__init__()')
 
         # Construct protocol superclass.
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
@@ -745,13 +746,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         ## Events to queue - intended for schedulable events occurring when a sample is being taken
         self._protocol_fsm.add_handler(
             ProtocolState.POLLED_SAMPLE, ProtocolEvent.ACQUIRE_STATUS,
-            self._handler_queue_acquire_status)  ## TODO
+            self._handler_queue_acquire_status)
         self._protocol_fsm.add_handler(
             ProtocolState.POLLED_SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE,
-            self._handler_queue_acquire_sample)  ## TODO
+            self._handler_queue_acquire_sample)
         self._protocol_fsm.add_handler(
             ProtocolState.POLLED_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
-            self._handler_queue_acquire_blank_sample)  ## TODO
+            self._handler_queue_acquire_blank_sample)
 
         # this state would be entered whenever an ACQUIRE_BLANK_SAMPLE event
         # occurred while in either the COMMAND state
@@ -775,13 +776,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         ## Events to queue - intended for schedulable events occurring when a sample is being taken
         self._protocol_fsm.add_handler(
             ProtocolState.POLLED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_STATUS,
-            self._handler_queue_acquire_status)  ## TODO
+            self._handler_queue_acquire_status)
         self._protocol_fsm.add_handler(
             ProtocolState.POLLED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE,
-            self._handler_queue_acquire_sample)  ## TODO
+            self._handler_queue_acquire_sample)
         self._protocol_fsm.add_handler(
             ProtocolState.POLLED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
-            self._handler_queue_acquire_blank_sample)  ## TODO
+            self._handler_queue_acquire_blank_sample)
 
         # this state would be entered whenever an ACQUIRE_SAMPLE event
         # occurred while in the AUTOSAMPLE state and will last anywhere
@@ -805,13 +806,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         ## Events to queue - intended for schedulable events occurring when a sample is being taken
         self._protocol_fsm.add_handler(
             ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.ACQUIRE_STATUS,
-            self._handler_queue_acquire_status)  ## TODO
+            self._handler_queue_acquire_status)
         self._protocol_fsm.add_handler(
             ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE,
-            self._handler_queue_acquire_sample)  ## TODO
+            self._handler_queue_acquire_sample)
         self._protocol_fsm.add_handler(
             ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
-            self._handler_queue_acquire_blank_sample)  ## TODO
+            self._handler_queue_acquire_blank_sample)
 
         # this state would be entered whenever an ACQUIRE_BLANK_SAMPLE event
         # occurred while in either the COMMAND state
@@ -835,13 +836,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         ## Events to queue - intended for schedulable events occurring when a sample is being taken
         self._protocol_fsm.add_handler(
             ProtocolState.SCHEDULED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_STATUS,
-            self._handler_queue_acquire_status)  ## TODO
+            self._handler_queue_acquire_status)
         self._protocol_fsm.add_handler(
             ProtocolState.SCHEDULED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE,
-            self._handler_queue_acquire_sample)  ## TODO
+            self._handler_queue_acquire_sample)
         self._protocol_fsm.add_handler(
             ProtocolState.SCHEDULED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
-            self._handler_queue_acquire_blank_sample)  ## TODO
+            self._handler_queue_acquire_blank_sample)
 
         # Construct the parameter dictionary containing device
         # parameters, current parameter values, and set formatting
@@ -887,7 +888,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         self._queued_commands = QueuedCommands()
 
-        ## TODO: handle schedulable events: make sure it plays nice with autosample mode
         # initialize scheduler
         if not self._scheduler:
             self.initialize_scheduler()
@@ -2172,6 +2172,17 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         cs = cs & 0xFF
         return(cs)
 
+    def _build_param_dict(self):
+        """
+        Overridden by device specific subclasses.
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._build_param_dict()')
+
+        self._param_dict = ProtocolParameterDict()
+
+        # Add parameter handlers to parameter dict.
+
     def _pre_sample_processing(self):
         """
         Override in sub class if needed
@@ -2181,14 +2192,19 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         pass
 
-    def _get_specific_configuration_string_parameters(self):
+    def _got_chunk(self, chunk, timestamp):
         """
         Overridden by device specific subclasses.
         """
 
         raise NotImplementedException()
 
-        pass
+    def _get_specific_configuration_string_parameters(self):
+        """
+        Overridden by device specific subclasses.
+        """
+
+        raise NotImplementedException()
 
     def _build_configuration_string_specific(self):
         """
@@ -2204,16 +2220,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         raise NotImplementedException()
 
-        pass
-
     def _get_sample_regex(self):
         """
         Overridden by device specific subclasses.
         """
 
         raise NotImplementedException()
-
-        pass
 
     def _get_blank_sample_timeout(self):
         """
@@ -2222,13 +2234,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         raise NotImplementedException()
 
-        pass
-
     def _get_sample_timeout(self):
         """
         Overridden by device specific subclasses.
         """
 
         raise NotImplementedException()
-
-        pass

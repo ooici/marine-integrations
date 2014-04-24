@@ -1,7 +1,7 @@
 """
 @package mi.instrument.sunburst.sami2_pco2.pco2b.driver
 @file marine-integrations/mi/instrument/sunburst/sami2_pco2/pco2b/driver.py
-@author Christopher Wingard
+@author Christopher Wingard & Kevin Stiemke
 @brief Driver for the Sunburst Sensors, SAMI2-PCO2 (PCO2W)
 Release notes:
     Sunburst Sensors SAMI2-PCO2 pCO2 underwater sensor.
@@ -30,31 +30,28 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-from mi.instrument.sunburst.driver import SamiDataParticleType
-from mi.instrument.sunburst.driver import ProtocolState
-from mi.instrument.sunburst.driver import ProtocolEvent
-from mi.instrument.sunburst.driver import Capability
-from mi.instrument.sunburst.driver import SamiParameter
-from mi.instrument.sunburst.driver import Prompt
-from mi.instrument.sunburst.driver import SamiInstrumentCommand
-from mi.instrument.sunburst.driver import SamiRegularStatusDataParticle
-from mi.instrument.sunburst.driver import SamiRegularStatusDataParticleKey
-from mi.instrument.sunburst.driver import SamiControlRecordDataParticle
-from mi.instrument.sunburst.driver import SamiControlRecordDataParticleKey
-from mi.instrument.sunburst.driver import SamiConfigDataParticleKey
-from mi.instrument.sunburst.driver import SamiInstrumentDriver
-from mi.instrument.sunburst.driver import SamiProtocol
-from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX_MATCHER
-from mi.instrument.sunburst.driver import CONTROL_RECORD_REGEX_MATCHER
-from mi.instrument.sunburst.driver import ERROR_REGEX_MATCHER
-from mi.instrument.sunburst.driver import NEWLINE
-from mi.instrument.sunburst.driver import CONFIG_WITH_0_PADDING
-from mi.instrument.sunburst.driver import CONFIG_WITH_0_AND_F_PADDING
-from mi.instrument.sunburst.driver import CONFIG_TERMINATOR
-from mi.instrument.sunburst.driver import TIMEOUT
-from mi.instrument.sunburst.driver import SAMI_TO_UNIX
-from mi.instrument.sunburst.driver import SAMI_TO_NTP
 
+from mi.instrument.sunburst.sami2_pco2.driver import SamiDataParticleType
+from mi.instrument.sunburst.sami2_pco2.driver import ProtocolState
+from mi.instrument.sunburst.sami2_pco2.driver import ProtocolEvent
+from mi.instrument.sunburst.sami2_pco2.driver import Capability
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2SamiParameter
+from mi.instrument.sunburst.sami2_pco2.driver import Prompt
+from mi.instrument.sunburst.sami2_pco2.driver import SamiInstrumentCommand
+from mi.instrument.sunburst.sami2_pco2.driver import SamiRegularStatusDataParticle
+from mi.instrument.sunburst.sami2_pco2.driver import SamiRegularStatusDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.driver import SamiControlRecordDataParticle
+from mi.instrument.sunburst.sami2_pco2.driver import SamiControlRecordDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiConfigurationDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentDriver
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocol
+from mi.instrument.sunburst.sami2_pco2.driver import REGULAR_STATUS_REGEX_MATCHER
+from mi.instrument.sunburst.sami2_pco2.driver import CONTROL_RECORD_REGEX_MATCHER
+from mi.instrument.sunburst.sami2_pco2.driver import ERROR_REGEX_MATCHER
+from mi.instrument.sunburst.sami2_pco2.driver import NEWLINE
+from mi.instrument.sunburst.sami2_pco2.driver import SAMI_SAMPLE_REGEX_MATCHER
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticle
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticleKey
 ###
 #    Driver Constant Definitions
 ###
@@ -69,20 +66,6 @@ SAMPLE_DELAY = 180
 
 # Mostly defined in base class with these additional, instrument specfic
 # additions
-
-# SAMI Sample Records (Types 0x04 or 0x05)
-SAMI_SAMPLE_REGEX = (
-    r'[\*]' +  # record identifier
-    '([0-9A-Fa-f]{2})' +  # unique instrument identifier
-    '([0-9A-Fa-f]{2})' +  # length of data record (bytes)
-    '(04|05)' +  # type of data record (04 for measurement, 05 for blank)
-    '([0-9A-Fa-f]{8})' +  # timestamp (seconds since 1904)
-    '([0-9A-Fa-f]{56})' +  # 14 sets of light measurements (counts)
-    '([0-9A-Fa-f]{4})' +  # battery voltage (counts)
-    '([0-9A-Fa-f]{4})' +  # thermistor (counts)
-    '([0-9A-Fa-f]{2})' +  # checksum
-    NEWLINE)
-SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
 
 # Device 1 Sample Records (Type 0x11)
 DEV1_SAMPLE_REGEX = (
@@ -143,25 +126,15 @@ class DataParticleType(SamiDataParticleType):
     DEV1_SAMPLE = 'dev1_sample'
 
 
-class Parameter(SamiParameter):
+class Parameter(Pco2SamiParameter):
     """
     Device specific parameters.
     """
 
-    # PCO2W driver extends the base class (SamiParameter) with:
-    PUMP_PULSE = 'pump_pulse'
-    PUMP_DURATION = 'pump_duration'
-    SAMPLES_PER_MEASUREMENT = 'samples_per_measurement'
-    CYCLES_BETWEEN_BLANKS = 'cycles_between_blanks'
-    NUMBER_REAGENT_CYCLES = 'number_reagent_cycles'
-    NUMBER_BLANK_CYCLES = 'number_blank_cycles'
-    FLUSH_PUMP_INTERVAL = 'flush_pump_interval'
-    BIT_SWITCHES = 'bit_switches'
-    NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
+    # PCO2W driver extends the base class (Pco2SamiParameter) with:
     EXTERNAL_PUMP_SETTINGS = 'external_pump_setting'
     EXTERNAL_PUMP_DELAY = 'external_pump_delay'
 
-## TODO: Add to base class
 class InstrumentCommand(SamiInstrumentCommand):
     """
     Device specfic Instrument command strings. Extends superclass
@@ -173,80 +146,6 @@ class InstrumentCommand(SamiInstrumentCommand):
 ###############################################################################
 # Data Particles
 ###############################################################################
-class Pco2wSamiSampleDataParticleKey(BaseEnum):
-    """
-    Data particle key for the SAMI2-PCO2 records. These particles
-    capture when a sample was processed.
-    """
-
-    UNIQUE_ID = 'unique_id'
-    RECORD_LENGTH = 'record_length'
-    RECORD_TYPE = 'record_type'
-    RECORD_TIME = 'record_time'
-    LIGHT_MEASUREMENTS = 'light_measurements'
-    VOLTAGE_BATTERY = 'voltage_battery'
-    THERMISTER_RAW = 'thermistor_raw'
-    CHECKSUM = 'checksum'
-
-
-class Pco2wSamiSampleDataParticle(DataParticle):
-    """
-    Routines for parsing raw data into a SAMI2-PCO2 sample data particle
-    structure.
-    @throw SampleException If there is a problem with sample creation
-    """
-
-    _data_particle_type = SamiDataParticleType.SAMI_SAMPLE
-
-    def _build_parsed_values(self):
-        """
-        Parse SAMI2-PCO2 measurement records from raw data into a dictionary
-        """
-
-        ### SAMI Sample Record
-        # Regular SAMI (PCO2) data records produced by the instrument on either
-        # command or via an internal schedule. Like the control records, the
-        # messages are preceded by a '*' character and terminated with a '\r'.
-        # Sample string:
-        #
-        #   *542705CEE91CC800400019096206800730074C2CE04274003B0018096106800732074E0D82066124
-        #
-        # A full description of the data record strings can be found in the
-        # vendor supplied SAMI Record Format document.
-        ###
-
-        matched = SAMI_SAMPLE_REGEX_MATCHER.match(self.raw_data)
-        if not matched:
-            raise SampleException("No regex match of parsed sample data: [%s]" %
-                                  self.decoded_raw)
-
-        particle_keys = [Pco2wSamiSampleDataParticleKey.UNIQUE_ID,
-                         Pco2wSamiSampleDataParticleKey.RECORD_LENGTH,
-                         Pco2wSamiSampleDataParticleKey.RECORD_TYPE,
-                         Pco2wSamiSampleDataParticleKey.RECORD_TIME,
-                         Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS,
-                         Pco2wSamiSampleDataParticleKey.VOLTAGE_BATTERY,
-                         Pco2wSamiSampleDataParticleKey.THERMISTER_RAW,
-                         Pco2wSamiSampleDataParticleKey.CHECKSUM]
-
-        result = []
-        grp_index = 1
-
-        for key in particle_keys:
-            if key in [Pco2wSamiSampleDataParticleKey.LIGHT_MEASUREMENTS]:
-                # parse group 5 into 14, 2 byte (4 character) values stored in
-                # an array.
-                light = matched.group(grp_index)
-                light = [int(light[i:i+4], 16) for i in range(0, len(light), 4)]
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: light})
-            else:
-                result.append({DataParticleKey.VALUE_ID: key,
-                               DataParticleKey.VALUE: int(matched.group(grp_index), 16)})
-            grp_index += 1
-
-        return result
-
 
 class Pco2wDev1SampleDataParticleKey(BaseEnum):
     """
@@ -307,21 +206,11 @@ class Pco2wDev1SampleDataParticle(DataParticle):
         return result
 
 
-class Pco2wConfigurationDataParticleKey(SamiConfigDataParticleKey):
+class Pco2wConfigurationDataParticleKey(Pco2wSamiConfigurationDataParticleKey):
     """
     Data particle key for the configuration record.
     """
 
-    PUMP_PULSE = 'pump_pulse'
-    PUMP_DURATION = 'pump_duration'
-    SAMPLES_PER_MEASUREMENT = 'samples_per_measurement'
-    CYCLES_BETWEEN_BLANKS = 'cycles_between_blanks'
-    NUMBER_REAGENT_CYCLES = 'number_reagent_cycles'
-    NUMBER_BLANK_CYCLES = 'number_blank_cycles'
-    FLUSH_PUMP_INTERVAL = 'flush_pump_interval'
-    DISABLE_START_BLANK_FLUSH = 'disable_start_blank_flush'
-    MEASURE_AFTER_PUMP_PULSE = 'measure_after_pump_pulse'
-    NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
     EXTERNAL_PUMP_SETTINGS = 'external_pump_setting'
 
 class Pco2wConfigurationDataParticle(DataParticle):
@@ -460,7 +349,7 @@ class Pco2wConfigurationDataParticle(DataParticle):
 ###############################################################################
 # Driver
 ###############################################################################
-class InstrumentDriver(SamiInstrumentDriver):
+class InstrumentDriver(Pco2wInstrumentDriver):
     """
     InstrumentDriver subclass.
     Subclasses SamiInstrumentDriver and SingleConnectionInstrumentDriver with
@@ -493,7 +382,7 @@ class InstrumentDriver(SamiInstrumentDriver):
 ###########################################################################
 # Protocol
 ###########################################################################
-class Protocol(SamiProtocol):
+class Protocol(Pco2wProtocol):
     """
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
@@ -508,36 +397,9 @@ class Protocol(SamiProtocol):
         """
 
         # Construct protocol superclass.
-        SamiProtocol.__init__(self, prompts, newline, driver_event)
+        Pco2wProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
-
-        ###
-        # most of these are defined in the base class with exception of handlers
-        # defined below that differ for the two instruments (what defines
-        # success and the timeout duration)
-        ###
-
-        # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
-        # while in the AUTOSAMPLE state and will last anywhere from a few
-        # seconds to ~12 minutes depending on instrument and the type of
-        # sampling.
-        # self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.SUCCESS,
-        #                                self._handler_sample_success)
-        # self._protocol_fsm.add_handler(ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.TIMEOUT,
-        #                                self._handler_sample_timeout)
-
-        # this state would be entered whenever an ACQUIRE_SAMPLE event occurred
-        # while in either the COMMAND state (or via the discover transition
-        # from the UNKNOWN state with the instrument unresponsive) and will
-        # last anywhere from a few seconds to 3 minutes depending on instrument
-        # and sample type.
-        # self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.SUCCESS,
-        #                                self._handler_sample_success)
-        # self._protocol_fsm.add_handler(ProtocolState.POLLED_SAMPLE, ProtocolEvent.TIMEOUT,
-        #                                self._handler_sample_timeout)
-
-
 
         # Add build handlers for device commands.
         ### primarily defined in base class
@@ -630,8 +492,9 @@ class Protocol(SamiProtocol):
         and value formatting function for set commands.
         """
 
-        # Add parameter handlers to parameter dict.
-        self._param_dict = ProtocolParameterDict()
+        log.debug('herb: ' + 'Protocol._build_param_dict()')
+
+        Pco2wProtocol._build_param_dict(self)
 
         ### example configuration string
         # VALID_CONFIG_STRING = 'CEE90B0002C7EA0001E133800A000E100402000E10010B' + \
