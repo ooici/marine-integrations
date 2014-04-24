@@ -154,35 +154,9 @@ class _Direct(object):
         """
         print "### Automatic temperature polling mode"
         print "### To exit: input any key followed by enter"
-        """
-        The following two while loops do the same thing, however the exit strategy of the the second one, 
-        utilizing a timer, is cleaner than the first, which utilizes a  hard break (thanks to Eric McRae)
-        """
+        # The following two while loops do the same thing, however the exit strategy of the the second one,
+        # utilizing a timer, is cleaner than the first, which utilizes a  hard break (thanks to Eric McRae)
 
-        """
-        # This loop utilizes a hardbreak, and doesn't exit immediately when a keystroke is entered 
-        print "### loop will terminate after next measurement series"  
-        while True:
-                print "Timestamp:", time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
-                #print "### polling tempProbe 1"
-                self.send('$1RD')
-                self.send('\r\n')
-                time.sleep(.25)
-                #print "### polling tempProbe 2"
-                self.send('$2RD')
-                self.send('\r\n')
-                time.sleep(.25)
-                #print "### polling tempProbe 3"
-                self.send('$3RD')
-                self.send('\r\n')
-                time.sleep(.25)
-                if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
-                    stopcmd = sys.stdin.readline()
-                    print "### exiting polling mode"
-                    break
-                else: 
-                    time.sleep(5)
-"""
         second = 0
         while True:
             if sys.stdin in select.select([sys.stdin], [], [], 0)[0]:

@@ -63,7 +63,7 @@ INTER_CHARACTER_DELAY = .2
 #    Driver Constant Definitions
 ####
 
-DEFAULT_SAMPLE_RATE = 6  # once every 6 seconds
+DEFAULT_SAMPLE_RATE = 15  # once every 6 seconds
 MIN_SAMPLE_RATE = 1  # 1 second
 MAX_SAMPLE_RATE = 3600  # 1 hour
 
@@ -189,8 +189,8 @@ class Command(BaseEnum):
     ENABLE_WRITE_2 = '#2WE'
     ENABLE_WRITE_3 = '#3WE'
     DEFAULT_SETUP_1 = '#1SU310214C2'
-    DEFAULT_SETUP_2 = '#1SU320214C2'
-    DEFAULT_SETUP_3 = '#1SU330214C2'
+    DEFAULT_SETUP_2 = '#2SU320214C2'
+    DEFAULT_SETUP_3 = '#3SU330214C2'
 
 
 class Prompt(BaseEnum):
@@ -212,10 +212,10 @@ class Response(BaseEnum):
     TEMP = re.compile(r'\*[123]RD')
     ENABLE_WRITE_1 = re.compile(r'\*1WEF7')
     ENABLE_WRITE_2 = re.compile(r'\*2WEF8')
-    ENABLE_WRITE_3 = re.compile(r'\*2WEF9')
+    ENABLE_WRITE_3 = re.compile(r'\*3WEF9')
     DEFAULT_SETUP_1 = re.compile(r'\*1SU310214C2A3')
-    DEFAULT_SETUP_2 = re.compile(r'\*1SU320214C2A4')
-    DEFAULT_SETUP_3 = re.compile(r'\*1SU330214C2A5')
+    DEFAULT_SETUP_2 = re.compile(r'\*2SU320214C2A5')
+    DEFAULT_SETUP_3 = re.compile(r'\*3SU330214C2A7')
 
 
 class DataParticleType(BaseEnum):
@@ -507,7 +507,7 @@ class Protocol(CommandResponseInstrumentProtocol):
                              default_value=DEFAULT_SAMPLE_RATE,
                              startup_param=True,
                              display_name='D1000 sample periodicity (sec)',
-                             visibility=ParameterDictVisibility.IMMUTABLE)
+                             visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.set_value(Parameter.SAMPLE_INTERVAL, DEFAULT_SAMPLE_RATE)
 
     def _update_params(self):

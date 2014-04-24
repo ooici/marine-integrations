@@ -544,10 +544,19 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
         # go into direct access
         self.assert_direct_access_start_telnet(timeout=600)
-        self.tcp_client.send_data("#D\r\n")
-        if not self.tcp_client.expect("\r\n"):
-            self.fail("test_direct_access_telnet_mode: did not get expected response")
+        self.tcp_client.send_data("#1WE\r\n")
+        if not self.tcp_client.expect("*1WEF7\r\n"):
+            self.fail("test_direct_access_telnet_mode: unable to enable write mode")
+        self.tcp_client.send_data("#1SU31021482")
+        if not self.tcp_client.expect("*1SU3102148298\r\n"):
+            self.fail("test_direct_access_telnet_mode: unable to perform setup command or bad checksum returned")
+        self.assert_direct_access_stop_telnet()
 
+        # ensure that setup has been restored after exiting direct access
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.tcp_client.send_data("$1RS")
+        if not self.tcp_client.expect("*1SU310214C2\r\n"):
+            self.fail("test_direct_access_telnet_mode: setup was not restored")
         self.assert_direct_access_stop_telnet()
 
     @unittest.skip('Only enabled and used for manual testing of vendor SW')
@@ -666,11 +675,11 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         # test read only parameter - should not be set, value should not change
         # note, the serial number is the one from the instrument being used in testing, may change if run with
         # different instrument
-        self.assert_set_parameter(Parameter.SAMPLE_INTERVAL, 10, verify=False)
-        self.assert_get_parameter(Parameter.SAMPLE_INTERVAL, 6)
+        # self.assert_set_parameter(Parameter.SAMPLE_INTERVAL, 10, verify=False)
+        # self.assert_get_parameter(Parameter.SAMPLE_INTERVAL, 6)
 
         # test read/write parameter - should set the value
-        # self.assert_set(Parameter.SAMPLE_INTERVAL, 10)
+        self.assert_set_parameter(Parameter.SAMPLE_INTERVAL, 2)
 
         # test read/write parameter w/direct access only - should set the value
         # self.assert_set(Parameter.SAMPLE_INTERVAL, 10)
