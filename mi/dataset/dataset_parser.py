@@ -11,6 +11,9 @@ out of files and feed them into the system.
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
 
+import time
+import ntplib
+
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey
@@ -256,7 +259,7 @@ class BufferLoadingParser(Parser):
         # read in some more data
         data = self._stream_handle.read(size)
         if data:
-            self._chunker.add_chunk(data, self._timestamp)
+            self._chunker.add_chunk(data, ntplib.system_to_ntp_time(time.time()))
             return len(data)
         else: # EOF
             self.file_complete = True

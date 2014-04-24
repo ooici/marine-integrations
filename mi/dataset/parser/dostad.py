@@ -92,7 +92,6 @@ class DostadParser(SioMuleParser):
                                           state_callback,
                                           publish_callback,
                                           exception_callback,
-                                          'DO',
                                           *args,
                                           **kwargs)
 
@@ -114,7 +113,7 @@ class DostadParser(SioMuleParser):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
             log.debug('parsing header %s', header_match.group(0)[1:32])
-            if header_match.group(1) == self._instrument_id:
+            if header_match.group(1) == 'DO':
 
                 data_match = DATA_MATCHER.search(chunk)
                 if data_match:

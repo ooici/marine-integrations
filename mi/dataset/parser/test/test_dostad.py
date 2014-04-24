@@ -82,8 +82,6 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.exception_callback_value = None
 
     def assert_result(self, result, in_process_data, unprocessed_data, timestamp, particle):
-        log.debug('result raw data "%s"', result[0].raw_data)
-        log.debug('particle raw data "%s"', particle.raw_data)
         self.assertEqual(result, [particle])
         self.assert_state(in_process_data, unprocessed_data, timestamp)
         self.assert_(isinstance(self.publish_callback_value, list))
@@ -115,22 +113,22 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 	self.assert_result(result,
 			   [[390, 507, 1, 0], [637, 754, 1, 0], [6150, 6267, 1, 0]],
 			   [[0,69], [390,507], [637,754], [944, 2370], [2560, 2947],
-			    [3137, 4173], [4363, 5437], [5683, 6072], [6150, 6300]], 
+			    [3137, 4173], [4363, 4943], [5049, 5437], [5683, 6072], [6150, 6300]], 
 			   self.timestamp4, self.particle_a)
 	result = self.parser.get_records(1)
 	self.assert_result(result, [[637, 754, 1, 0], [6150, 6267, 1, 0]],
 			   [[0,69], [637,754], [944, 2370], [2560, 2947],
-			    [3137, 4173], [4363, 5437], [5683, 6072], [6150, 6300]],
+			    [3137, 4173], [4363, 4943], [5049, 5437], [5683, 6072], [6150, 6300]],
 			   self.timestamp4, self.particle_b)
 	result = self.parser.get_records(1)
 	self.assert_result(result, [[6150, 6267, 1, 0]],
 			   [[0,69], [944, 2370], [2560, 2947], [3137, 4173], 
-			    [4363, 5437], [5683, 6072], [6150, 6300]], 
+			    [4363, 4943], [5049, 5437], [5683, 6072], [6150, 6300]], 
 			   self.timestamp4, self.particle_c)
 	result = self.parser.get_records(1)
 	self.assert_result(result, [],
 			   [[0,69], [944, 2370], [2560, 2947], [3137, 4173], 
-			    [4363, 5437], [5683, 6072], [6267, 6300]],
+			    [4363, 4943], [5049, 5437], [5683, 6072], [6267, 6300]],
 			   self.timestamp4, self.particle_d)
 	self.stream_handle.close()
 	self.assertEqual(self.exception_callback_value, None)
@@ -179,7 +177,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result[-2], self.particle_e)
         self.assertEqual(result[-1], self.particle_f)
         self.assert_state([],
-            [[0, 69], [944, 2370], [2560, 2947], [3137, 4173], [4363, 5437], [5683, 6072], [8273, 9400]],
+            [[0, 69], [944, 2370], [2560, 2947], [3137, 4173], [4363, 4943], [5049, 5437], [5683, 6072], [8273, 9400]],
             self.timestamp6)
         self.assertEqual(self.publish_callback_value[-2], self.particle_e)
         self.assertEqual(self.publish_callback_value[-1], self.particle_f)
@@ -231,7 +229,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result[1], self.particle_d)
         self.assert_state([],
             [[0,69],[944, 2370], [2560, 2947], [3137, 4173],
-                [4363, 5437], [5683, 6072], [6267, 6300]],
+                [4363, 4943], [5049, 5437], [5683, 6072], [6267, 6300]],
             self.timestamp4)
         self.assertEqual(self.publish_callback_value[-1], self.particle_d)
         self.assertEqual(self.exception_callback_value, None)
@@ -263,7 +261,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle.close()
         self.assert_result(result, [],
                            [[0,69],[944, 2370], [2560, 2947], [3137, 4173],
-                            [4363, 5437], [5683, 6072], [6267, 6300]],
+                            [4363, 4943], [5049, 5437], [5683, 6072], [6267, 6300]],
                            self.timestamp4, self.particle_d)
         self.assertEqual(self.exception_callback_value, None)
 
@@ -283,12 +281,12 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         result = self.parser.get_records(1)
         self.assert_result(result, [[637,754,1,0], [6150,6267,1,0]],
                            [[0,69], [390,507], [637,754], [944, 2370], [2560, 2947],
-                            [3137, 4173], [4363, 5437], [5683, 6072], [6150, 6300]],
+                            [3137, 4173], [4363, 4943], [5049, 5437], [5683, 6072], [6150, 6300]],
                            self.timestamp4, self.particle_a)
         result = self.parser.get_records(1)
         self.assert_result(result, [[6150,6267,1,0]],
                            [[0,69], [390,507], [944, 2370], [2560, 2947],
-                            [3137, 4173], [4363, 5437], [5683, 6072], [6150, 6300]],
+                            [3137, 4173], [4363, 4943], [5049, 5437], [5683, 6072], [6150, 6300]],
                            self.timestamp4, self.particle_c)
         self.stream_handle.close()
 
@@ -304,13 +302,13 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         result = self.parser.get_records(1)
         self.assert_result(result, [],
                            [[0,69], [390,507], [944, 2370], [2560, 2947], [3137, 4173],
-                            [4363, 5437], [5683, 6072], [6267, 6300]],
+                            [4363, 4943], [5049, 5437], [5683, 6072], [6267, 6300]],
                            self.timestamp4, self.particle_d)
 
         # this should be the first of the newly filled in particles from
         result = self.parser.get_records(1)
         self.assert_result(result, [],
-                           [[0,69], [944, 2370], [2560, 2947], [3137, 4173], [4363, 5437],
+                           [[0,69], [944, 2370], [2560, 2947], [3137, 4173], [4363, 4943], [5049, 5437],
                             [5683, 6072], [6267, 6300]],
                            self.timestamp2, self.particle_b)
         self.stream_handle.close()
