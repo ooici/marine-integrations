@@ -33,6 +33,8 @@ from mi.core.log import get_logger ; log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import DriverTestMixin
+from mi.idk.unit_test import ParameterTestConfigKey
 
 from mi.instrument.nortek.test.test_driver import head_config_sample
 from mi.instrument.nortek.test.test_driver import user_config1, user_config2
@@ -241,6 +243,61 @@ system_particle = [{DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TIMEST
 
 
 ###############################################################################
+#                           DRIVER TEST MIXIN        		                  #
+#     Defines a set of constants and assert methods used for data particle    #
+#     verification 														      #
+#                                                                             #
+#  In python, mixin classes are classes designed such that they wouldn't be   #
+#  able to stand on their own, but are inherited by other classes generally   #
+#  using multiple inheritance.                                                #
+#                                                                             #
+# This class defines a configuration structure for testing and common assert  #
+# methods for validating data particles.									  #
+###############################################################################
+
+class DriverTestMixinSub(DriverTestMixin):
+    """
+    Mixin class used for storing data particle constance and common data assertion methods.
+    """
+
+    #Create some short names for the parameter test config
+    TYPE        = ParameterTestConfigKey.TYPE
+    READONLY    = ParameterTestConfigKey.READONLY
+    STARTUP     = ParameterTestConfigKey.STARTUP
+    DA          = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE       = ParameterTestConfigKey.VALUE
+    REQUIRED    = ParameterTestConfigKey.REQUIRED
+    DEFAULT     = ParameterTestConfigKey.DEFAULT
+    STATES      = ParameterTestConfigKey.STATES
+
+    _sample_parameters_01 = {
+        VectorVelocityDataParticleKey.ANALOG_INPUT2: {TYPE: int, VALUE: 0, REQUIRED: True},
+        VectorVelocityDataParticleKey.COUNT: {TYPE: int, VALUE: 0, REQUIRED: True},
+        VectorVelocityDataParticleKey.PRESSURE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        VectorVelocityDataParticleKey.ANALOG_INPUT1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        VectorVelocityDataParticleKey.VELOCITY_BEAM1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        VectorVelocityDataParticleKey.VELOCITY_BEAM2: {TYPE: int, VALUE: 0, REQUIRED: True},
+        VectorVelocityDataParticleKey.VELOCITY_BEAM3: {TYPE: int, VALUE: 0, REQUIRED: True},
+        VectorVelocityDataParticleKey.AMPLITUDE_BEAM1: {TYPE: int, VALUE: 1, REQUIRED: True},
+        VectorVelocityDataParticleKey.AMPLITUDE_BEAM2: {TYPE: int, VALUE: 1, REQUIRED: True},
+        VectorVelocityDataParticleKey.AMPLITUDE_BEAM3: {TYPE: int, VALUE: 1, REQUIRED: True},
+        VectorVelocityDataParticleKey.CORRELATION_BEAM1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        VectorVelocityDataParticleKey.CORRELATION_BEAM2: {TYPE: int, VALUE: 0, REQUIRED: True},
+        VectorVelocityDataParticleKey.CORRELATION_BEAM3: {TYPE: int, VALUE: 0, REQUIRED: True}
+    }
+
+    def assert_particle_sample(self, data_particle, verify_values=False):
+        """
+        Verify flortd_sample particle
+        @param data_particle:  FlortDSample_ParticleKey data particle
+        @param verify_values:  bool, should we verify parameter values
+        """
+
+        self.assert_data_particle_keys(VectorVelocityDataParticleKey, self._sample_parameters_01)
+        self.assert_data_particle_header(data_particle, DataParticleType.VELOCITY)
+        self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
+
+###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
 ###############################################################################
@@ -375,7 +432,6 @@ class UnitFromIDK(NortekUnitTest):
         self.assert_chunker_sample_with_noise(chunker, velocity_sample())
         self.assert_chunker_sample_with_noise(chunker, system_sample())
         self.assert_chunker_sample_with_noise(chunker, velocity_header_sample())
-        
 
     def test_corrupt_data_structures(self):
         # garbage is not okay
@@ -394,7 +450,7 @@ class UnitFromIDK(NortekUnitTest):
         with self.assertRaises(SampleException):
             particle.generate()
 
- 
+
 ###############################################################################
 #                            INTEGRATION TESTS                                #
 #     Integration test test the direct driver / instrument interaction        #
@@ -403,13 +459,46 @@ class UnitFromIDK(NortekUnitTest):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class IntFromIDK(NortekIntTest):
+class IntFromIDK(NortekIntTest, DriverTestMixinSub):
     
     protocol_state = ''
     
     def setUp(self):
         NortekIntTest.setUp(self)
- 
+
+
+    def test_command_acquire_sample(self):
+        """
+        Test acquire sample command and events.
+        """
+
+        """
+        1. initialize the instrument to COMMAND state
+        2. command the instrument to ACQUIRESAMPLE
+        3. verify the particle coming in
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+        # test acquire sample
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
+        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=10)
+
+
+    def test_command_acquire_status(self):
+        """
+        Test acquire status command and events.
+        """
+
+        """
+        1. initialize the instrument to COMMAND state
+        2. command the instrument to ACQUIRESTATUS
+        3. verify the particle coming in
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+        # test acquire sample
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
+        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=10)
+
+
     def test_set_init_params(self):
         """
         @brief Test for set_init_params()
@@ -695,7 +784,7 @@ class IntFromIDK(NortekIntTest):
         }
         self.assert_ion_exception(InstrumentParameterException,
             self.driver_client.cmd_dvr, 'set_resource', bogus_params)
-        
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
