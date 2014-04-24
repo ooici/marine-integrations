@@ -1,0 +1,50 @@
+2013/11/15 00:09:58.047 Coulombs = 1.1091C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
+2013/11/15 00:19:58.590 Coulombs = 1.1036C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
+2013/11/15 00:29:59.759 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 00:40:02.069 Coulombs = 1.1073C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 00:50:02.291 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 01:00:03.402 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 01:10:05.586 Coulombs = 1.1073C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
+2013/11/15 01:20:07.804 Coulombs = 1.1073C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.11V, RTE Hits 0, RTE State = 1
+2013/11/15 01:30:08.906 Coulombs = 1.1073C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 01:40:10.280 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 01:50:11.269 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 02:00:13.692 Coulombs = 1.1073C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 02:10:15.981 Coulombs = 1.1091C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 02:20:16.745 Coulombs = 1.1036C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 02:30:19.003 Coulombs = 1.1073C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 02:40:19.564 Coulombs = 1.1036C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 02:50:21.828 Coulombs = 1.1073C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 03:00:24.116 Coulombs = 1.1073C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 03:10:25.158 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 03:20:26.379 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 03:30:27.531 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 03:40:28.612 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 03:50:29.984 Coulombs = 1.1073C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 04:00:31.085 Coulombs = 1.1055C, AVG Q_RTE Current = 0.002A, AVG RTE Voltage = 12.03V, AVG Supply Voltage = 12.12V, RTE Hits 0, RTE State = 1
+2013/11/15 20:14:39.825 [rte:DLOGP3]:Instrument Started [Power On]
+2013/11/15 21:22:41.469 [rte:DLOGP3]:Instrument Started [Power On]
+2013/11/15 21:32:44.372 [rte:DLOGP3]:3712-50060, RTE Control Board Firmware REV 1.0, 11/07/2013
+2013/11/15 21:32:44.406 [rte:DLOGP3]:>Standard Power Mode activated!
+2013/11/15 21:42:43.047 [rte:DLOGP3]:Started!
+2013/11/15 21:42:56.106 [rte:DLOGP3]:3712-50060, RTE Control Board Firmware REV 1.0, 11/07/2013
+2013/11/15 21:42:56.140 [rte:DLOGP3]:>Standard Power Mode activated!
+2013/11/15 21:52:44.206 [rte:DLOGP3]:Started!
+2013/11/15 22:02:48.712 [rte:DLOGP3]:3712-50060, RTE Control Board Firmware REV 1.0, 11/07/2013
+2013/11/15 22:02:48.746 [rte:DLOGP3]:>Standard Power Mode activated!
+2013/11/15 22:12:47.268 [rte:DLOGP3]:Started!
+2013/11/15 22:22:52.127 [rte:DLOGP3]:3712-50060, RTE Control Board Firmware REV 1.0, 11/07/2013
+2013/11/15 22:22:52.148 [rte:DLOGP3]:>Standard Power Mode activated!
+2013/11/15 22:32:50.789 [rte:DLOGP3]:Started!
+2013/11/15 22:42:53.382 [rte:DLOGP3]:3712-50060, RTE Control Board Firmware REV 1.0, 11/07/2013
+2013/11/15 22:42:53.416 [rte:DLOGP3]:>Standard Power Mode activated!
+2013/11/15 22:52:52.150 [rte:DLOGP3]:Started!
+2013/11/15 23:02:57.085 [rte:DLOGP3]:3712-50060, RTE Control Board Firmware REV 1.0, 11/07/2013
+2013/11/15 23:02:57.120 [rte:DLOGP3]:>Standard Power Mode activated!
+2013/11/15 23:12:55.532 [rte:DLOGP3]:Started!
+2013/11/15 23:22:58.408 [rte:DLOGP3]:3712-50060, RTE Control Board Firmware REV 1.0, 11/07/2013
+2013/11/15 23:22:58.442 [rte:DLOGP3]:>Standard Power Mode activated!
+2013/11/15 23:32:58.992 [rte:DLOGP3]:Started!
+2013/11/15 23:43:01.633 [rte:DLOGP3]:3712-50060, RTE Control Board Firmware REV 1.0, 11/07/2013
+2013/11/15 23:43:01.667 [rte:DLOGP3]:>Standard Power Mode activated!
+2013/11/15 23:53:00.233 [rte:DLOGP3]:Started!
