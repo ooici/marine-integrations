@@ -369,8 +369,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, self._parse_instrument_transform_matrix_response)
         self._add_response_handler(TeledyneInstrumentCmds.RUN_TEST_200, self._parse_test_response)
 
-        self._add_response_handler(TeledyneInstrumentCmds.FACTORY_SETS, self._parse_test_response)
-        self._add_response_handler(TeledyneInstrumentCmds.USER_SETS, self._parse_test_response)
+        self._add_response_handler(TeledyneInstrumentCmds.FACTORY_SETS, self._parse_factory_set_response)
+        self._add_response_handler(TeledyneInstrumentCmds.USER_SETS, self._parse_user_set_response)
 
         self._add_response_handler(TeledyneInstrumentCmds.SET, self._parse_set_response)
         self._add_response_handler(TeledyneInstrumentCmds.GET, self._parse_get_response)
@@ -1655,7 +1655,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _parse_clear_fault_log_response(self, response, prompt):
         """
-        clear the fault log.
+        clear the clear fault log.
         """
         response = re.sub("FC\r\n", "", response)
         response = re.sub("\r\n>", "", response)
@@ -1671,7 +1671,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _parse_instrument_transform_matrix_response(self, response, prompt):
         """
-        display the fault log.
+        display the transform matrix.
         """
         response = re.sub("PS3\r\n", "", response)
         response = re.sub("\r\n>", "", response)
@@ -1679,9 +1679,25 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _parse_test_response(self, response, prompt):
         """
-        display the fault log.
+        display the test log.
         """
         response = re.sub("PT200\r\n\r\n", "", response)
+        response = re.sub("\r\n>", "", response)
+        return (True, response)
+
+    def _parse_factory_set_response(self, response, prompt):
+        """
+        Display factory set.
+        """
+        response = re.sub("CR1\r\n\r\n", "", response)
+        response = re.sub("\r\n>", "", response)
+        return (True, response)
+
+    def _parse_user_set_response(self, response, prompt):
+        """
+        display user set.
+        """
+        response = re.sub("CR0\r\n\r\n", "", response)
         response = re.sub("\r\n>", "", response)
         return (True, response)
         
