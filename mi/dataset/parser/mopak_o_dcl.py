@@ -37,6 +37,7 @@ RATE_BYTES = 31
 
 MAX_TIMER = 4294967296
 TIMER_TO_SECONDS = 62500.0
+TIMER_DIFF_FACTOR = 2.1
 
 class StateKey(BaseEnum):
     POSITION='position'
@@ -319,7 +320,7 @@ class MopakODclParser(BufferLoadingFilenameParser):
                     # this is unlikely to happen in the first place, but there is still a risk of
                     # rolling over on the second sample and not having timer_diff calculated yet,
                     # or rolling in the last sample of the file within the fudge factor
-                    if self.timer_diff and (last_timer - timer) < (MAX_TIMER - self.timer_diff*2.1):
+                    if self.timer_diff and (last_timer - timer) < (MAX_TIMER - self.timer_diff*TIMER_DIFF_FACTOR):
                         # timer was reset before it got to the end
                         log.warn('Timer was reset, time of particles unknown')
                         raise SampleException('Timer was reset, time of particle now unknown')
