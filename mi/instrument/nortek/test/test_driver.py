@@ -18,6 +18,7 @@ import unittest
 import json
 
 from nose.plugins.attrib import attr
+from mock import Mock
 
 from pyon.agent.agent import ResourceAgentEvent
 from pyon.agent.agent import ResourceAgentState
@@ -61,7 +62,7 @@ from mi.core.exceptions import NotImplementedException
 from interface.objects import AgentCommand
 
 from mi.instrument.nortek.driver import InstrumentPrompts, Parameter, ProtocolState, ProtocolEvent, InstrumentCmds, \
-    Capability
+    Capability, NEWLINE
 
 
 hw_config_particle = [{DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.SERIAL_NUM, DataParticleKey.VALUE: "VEC 8181      "},
@@ -187,7 +188,7 @@ user_config_particle = [{DataParticleKey.VALUE_ID: NortekUserConfigDataParticleK
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.USE_DSP_FILTER, DataParticleKey.VALUE: False},
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FILTER_DATA_OUTPUT, DataParticleKey.VALUE: 0},
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR, DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SW_VER,DataParticleKey.VALUE: 13600},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SW_VER, DataParticleKey.VALUE: 13600},
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR, DataParticleKey.VALUE:
                           "Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8XPyw/QT9VP2k/fT+RP6Q/uD/KP90/"
                           "8D8CQBRAJkA3QElAWkBrQHxAjECcQKxAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20"
@@ -351,24 +352,25 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 
     def test_base_driver_protocol_filter_capabilities(self):
         """
-        This tests driver filter_capabilities.
         Iterate through available capabilities, and verify that they can pass successfully through the filter.
         Test silly made up capabilities to verify they are blocked by filter.
         """
-        #NOTE:  THERE ARE NO CAPABILITIES, SO THIS WILL FAIL
-        # mock_callback = Mock(spec="PortAgentClient")
-        # protocol = NortekInstrumentProtocol(InstrumentPrompts, NEWLINE, mock_callback)
-        # driver_capabilities = Capability().list()
-        # test_capabilities = Capability().list()
-        #
-        # # Add a bogus capability that will be filtered out.
-        # test_capabilities.append("BOGUS_CAPABILITY")
-        #
-        # # Verify "BOGUS_CAPABILITY was filtered out
-        # self.assertEquals(sorted(driver_capabilities),
-        #                   sorted(protocol._filter_capabilities(test_capabilities)))
+        mock_callback = Mock(spec="PortAgentClient")
+        protocol = NortekInstrumentProtocol(InstrumentPrompts, NEWLINE, mock_callback)
+        driver_capabilities = Capability().list()
+        test_capabilities = Capability().list()
+
+        # Add a bogus capability that will be filtered out.
+        test_capabilities.append("BOGUS_CAPABILITY")
+
+        # Verify "BOGUS_CAPABILITY was filtered out
+        self.assertEquals(sorted(driver_capabilities),
+                          sorted(protocol._filter_capabilities(test_capabilities)))
 
     def test_date_conversion(self):
+        """
+        Verify the date is converted correctly from hex to ASCII then back to hex
+        """
         date = "\x09\x07\x02\x11\x10\x12"
         datetime_from_words = NortekProtocolParameterDict.convert_words_to_datetime(date)
         log.debug("Date time conversion from words: %s", datetime_from_words)
@@ -378,7 +380,11 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 
     def test_core_chunker(self):
         """
-        Tests the chunker
+        Verify the chunker can parse each sample type
+        1. complete data structure
+        2. fragmented data structure
+        3. combined data structure
+        4. data structure with noise
         """
         chunker = StringChunker(NortekInstrumentProtocol.chunker_sieve_function)
 
@@ -403,7 +409,9 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         self.assert_chunker_sample_with_noise(chunker, user_config_sample())
 
     def test_core_corrupt_data_structures(self):
-        # garbage should yield a checksum failure
+        """
+        Verify when generating the particle, if the particle is corrupt, it will not generate
+        """
         particle = NortekHardwareConfigDataParticle(hw_config_sample().replace(chr(0), chr(1), 1), port_timestamp=PORT_TIMESTAMP)
         json_str = particle.generate()
         obj = json.loads(json_str)
@@ -421,7 +429,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 
     def test_hw_config_sample_format(self):
         """
-        Test to make sure we can get hardware config sample data out in a
+        Verify driver can get hardware config sample data out in a
         reasonable format. Parsed is all we care about...raw is tested in the
         base DataParticle tests.
         """
@@ -443,7 +451,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 
     def test_head_config_sample_format(self):
         """
-        Test to make sure we can get hardware config sample data out in a
+        Verify driver can get hardware config sample data out in a
         reasonable format. Parsed is all we care about...raw is tested in the
         base DataParticle tests.
         """
@@ -465,7 +473,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         
     def test_user_config_sample_format(self):
         """
-        Test to make sure we can get user config sample data out in a
+        Verify driver can get user config sample data out in a
         reasonable format. Parsed is all we care about...raw is tested in the
         base DataParticle tests.
         """
@@ -489,7 +497,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         
     def test_eng_clock_sample_format(self):
         """
-        Test to make sure we can get clock sample engineering data out in a
+        Verify driver can get clock sample engineering data out in a
         reasonable format. Parsed is all we care about...raw is tested in the
         base DataParticle tests.
         """
@@ -513,7 +521,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 
     def test_eng_battery_sample_format(self):
         """
-        Test to make sure we can get battery sample engineering data out in a
+        Verify driver can get battery sample engineering data out in a
         reasonable format. Parsed is all we care about...raw is tested in the
         base DataParticle tests.
         """
@@ -537,7 +545,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 
     def test_eng_id_sample_format(self):
         """
-        Test to make sure we can get id sample engineering data out in a
+        Verify driver can get id sample engineering data out in a
         reasonable format. Parsed is all we care about...raw is tested in the
         base DataParticle tests.
         """
@@ -917,6 +925,8 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 ###############################################################################
 @attr('QUAL', group='mi')
 class NortekQualTest(InstrumentDriverQualificationTestCase):
+    def setUp(self):
+        InstrumentDriverQualificationTestCase.setUp(self)
 
     def get_parameter(self, name):
         '''
