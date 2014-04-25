@@ -1,7 +1,6 @@
 """
 @package mi.instrument.nortek.aquadopp.ooicore.driver
-@file /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/aquadopp/ooicore/driver.py
-@author Bill Bollenbacher
+@author Rachel Manoni
 @brief Driver for the ooicore
 Release notes:
 
@@ -14,19 +13,19 @@ __license__ = 'Apache 2.0'
 import re
 
 from mi.core.common import BaseEnum
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 
 from mi.core.exceptions import SampleException
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentPrompts, NortekProtocolParameterDict, \
-    USER_CONFIG_DATA_REGEX, HARDWARE_CONFIG_DATA_REGEX, HEAD_CONFIG_DATA_REGEX, NEWLINE
+    USER_CONFIG_DATA_REGEX, HARDWARE_CONFIG_DATA_REGEX, HEAD_CONFIG_DATA_REGEX, NEWLINE, log_method, \
+    ACQUIRE_STATUS_REGEX, EngineeringParameter
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
-from mi.instrument.nortek.driver import NortekUserConfigDataParticle, NortekParameterDictVal, Parameter, RUN_CLOCK_SYNC_REGEX, NortekInstrumentDriver
+from mi.instrument.nortek.driver import NortekUserConfigDataParticle, NortekParameterDictVal, Parameter, \
+    RUN_CLOCK_SYNC_REGEX, NortekInstrumentDriver
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
-from mi.core.log import get_logger; log = get_logger()
 
 VELOCITY_DATA_LEN = 42
 VELOCITY_DATA_SYNC_BYTES = '\xa5\x01\x15\x00'
@@ -82,6 +81,7 @@ class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
     """
     _data_particle_type = DataParticleType.DIAGNOSTIC_HEADER
 
+    @log_method
     def _build_parsed_values(self):
         """
         Take something in the diagnostic data header sample format and parse it into
@@ -166,8 +166,7 @@ class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
                    DataParticleKey.VALUE: distance3},
                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4,
                    DataParticleKey.VALUE: distance4}]
- 
-        log.debug('AquadoppDwDiagnosticHeaderDataParticle: particle=%s' % result)
+
         return result
 
     
@@ -197,6 +196,7 @@ class AquadoppDwVelocityDataParticle(DataParticle):
     """
     _data_particle_type = DataParticleType.VELOCITY
 
+    @log_method
     def _build_parsed_values(self):
         """
         Take something in the velocity data sample format and parse it into
@@ -210,7 +210,6 @@ class AquadoppDwVelocityDataParticle(DataParticle):
                                   self.raw_data)
         
         result = self._build_particle(match)
-        log.debug('AquadoppDwVelocityDataParticle: particle=%s' % result)
         return result
             
     def _build_particle(self, match):
@@ -313,6 +312,7 @@ class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
     """
     _data_particle_type = DataParticleType.DIAGNOSTIC
 
+    @log_method
     def _build_parsed_values(self):
         """
         Take something in the diagnostic data sample format and parse it into
@@ -326,7 +326,6 @@ class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
                                   self.raw_data)
         
         result = self._build_particle(match)
-        log.debug('AquadoppDwDiagnosticDataParticle: particle=%s' % result)
         return result
 
 
@@ -339,6 +338,7 @@ class InstrumentDriver(NortekInstrumentDriver):
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
     """
+    @log_method
     def __init__(self, evt_callback):
         """
         Driver constructor.
@@ -350,6 +350,7 @@ class InstrumentDriver(NortekInstrumentDriver):
     ########################################################################
     # Protocol builder.
     ########################################################################
+    @log_method
     def _build_protocol(self):
         """
         Construct the driver protocol state machine.
@@ -365,7 +366,7 @@ class Protocol(NortekInstrumentProtocol):
     Instrument protocol class
     Subclasses NortekInstrumentProtocol
     """
-
+    @log_method
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -383,16 +384,17 @@ class Protocol(NortekInstrumentProtocol):
     # overridden superclass methods
     ########################################################################
     @staticmethod
+    @log_method
     def chunker_sieve_function(raw_data, add_structs=[]):
         return NortekInstrumentProtocol.chunker_sieve_function(raw_data,
                                                                VECTOR_SAMPLE_STRUCTURES)
 
+    @log_method
     def _got_chunk(self, structure, timestamp):
         """
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
-        log.debug("_got_chunk: detected structure = %s", structure.encode('hex'))
         self._extract_sample(AquadoppDwVelocityDataParticle, VELOCITY_DATA_REGEX, structure, timestamp)
         self._extract_sample(AquadoppDwDiagnosticDataParticle, DIAGNOSTIC_DATA_REGEX, structure, timestamp)
         self._extract_sample(AquadoppDwDiagnosticHeaderDataParticle, DIAGNOSTIC_DATA_HEADER_REGEX, structure, timestamp)
@@ -400,21 +402,58 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(NortekHardwareConfigDataParticle, HARDWARE_CONFIG_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekHeadConfigDataParticle, HEAD_CONFIG_DATA_REGEX, structure, timestamp)
 
+    @log_method
     def _build_param_dict(self):
+        """
+        Overwrite base classes method.
+        Creates base class's param dictionary, then sets parameter values for those specific to this instrument.
+        """
+
         NortekInstrumentProtocol._build_param_dict(self)
 
         self._param_dict.add_parameter(
-            NortekParameterDictVal(Parameter.CLOCK_SYNC_INTERVAL,
-                                   RUN_CLOCK_SYNC_REGEX,
-                                   lambda match: match.group(1),
-                                   str,
-                                   type=ParameterDictType.STRING,
-                                   expiration=None,
-                                   visibility=ParameterDictVisibility.READ_ONLY,
-                                   display_name="clock sync interval",
-                                   default_value='00:00:00',
-                                   startup_param=False,
-                                   direct_access=False))
+                                    NortekParameterDictVal(Parameter.NUMBER_SAMPLES_PER_BURST,
+                                    r'^.{%s}(.{2}).*' % str(452),
+                                    lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                    NortekProtocolParameterDict.word_to_string,
+                                    regex_flags=re.DOTALL,
+                                    type=ParameterDictType.INT,
+                                    expiration=None,
+                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    display_name="not used",
+                                    default_value=0,
+                                    startup_param=False,
+                                    direct_access=False))
 
-        self._param_dict.set_value(Parameter.CLOCK_SYNC_INTERVAL,
-                                   self._param_dict.get_default_value(Parameter.CLOCK_SYNC_INTERVAL))
+        self._param_dict.add_parameter(
+                                    NortekParameterDictVal(EngineeringParameter.CLOCK_SYNC_INTERVAL,
+                                    RUN_CLOCK_SYNC_REGEX,
+                                    lambda match: match.group(1),
+                                    str,
+                                    type=ParameterDictType.STRING,
+                                    expiration=None,
+                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    display_name="clock sync interval",
+                                    default_value='00:00:00',
+                                    startup_param=False,
+                                    direct_access=False))
+
+        self._param_dict.add_parameter(
+                                    NortekParameterDictVal(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
+                                    ACQUIRE_STATUS_REGEX,
+                                    lambda match: match.group(1),
+                                    str,
+                                    type=ParameterDictType.STRING,
+                                    expiration=None,
+                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    display_name="acquire status interval",
+                                    default_value='00:00:00',
+                                    startup_param=False,
+                                    direct_access=False))
+
+        self._param_dict.set_value(Parameter.NUMBER_SAMPLES_PER_BURST,
+                                   self._param_dict.get_default_value(Parameter.NUMBER_SAMPLES_PER_BURST))
+        self._param_dict.set_value(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
+                                   self._param_dict.get_default_value(EngineeringParameter.ACQUIRE_STATUS_INTERVAL))
+        self._param_dict.set_value(EngineeringParameter.CLOCK_SYNC_INTERVAL,
+                                   self._param_dict.get_default_value(EngineeringParameter.CLOCK_SYNC_INTERVAL))

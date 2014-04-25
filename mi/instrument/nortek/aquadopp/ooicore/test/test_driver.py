@@ -37,7 +37,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import AgentCapabilityType
 
-from mi.core.instrument.instrument_driver import DriverConnectionState
+from mi.core.instrument.instrument_driver import DriverConnectionState, ResourceAgentEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverParameter
@@ -297,7 +297,7 @@ class DriverUnitTest(NortekUnitTest):
 
     def test_diagnostic_header_sample_format(self):
         """
-        Test to make sure we can get diagnostic_header sample data out in a reasonable format.
+        Verify driver can get diagnostic_header sample data out in a reasonable format.
         Parsed is all we care about...raw is tested in the base DataParticle tests
         """
         port_timestamp = 3555423720.711772
@@ -320,10 +320,9 @@ class DriverUnitTest(NortekUnitTest):
 
     def test_diagnostic_sample_format(self):
         """
-        Test to make sure we can get diagnostic sample data out in a reasonable format.
+        Verify driver can get diagnostic sample data out in a reasonable format.
         Parsed is all we care about...raw is tested in the base DataParticle tests
         """
-        
         port_timestamp = 3555423720.711772
         driver_timestamp = 3555423722.711772
 
@@ -344,7 +343,7 @@ class DriverUnitTest(NortekUnitTest):
 
     def test_velocity_sample_format(self):
         """
-        Test to make sure we can get velocity sample data out in a reasonable format.
+        Verify driver can get velocity sample data out in a reasonable format.
         Parsed is all we care about...raw is tested in the base DataParticle tests
         """
         
@@ -368,7 +367,11 @@ class DriverUnitTest(NortekUnitTest):
 
     def test_chunker(self):
         """
-        Tests the chunker
+        Verify the chunker can parse each sample type
+        1. complete data structure
+        2. fragmented data structure
+        3. combined data structure
+        4. data structure with noise
         """
         chunker = StringChunker(Protocol.chunker_sieve_function)
 
@@ -393,7 +396,9 @@ class DriverUnitTest(NortekUnitTest):
         self.assert_chunker_sample_with_noise(chunker, diagnostic_header_sample())
 
     def test_corrupt_data_structures(self):
-        # garbage is not okay
+        """
+        Verify when generating the particle, if the particle is corrupt, an exception is raised
+        """
         particle = AquadoppDwDiagnosticHeaderDataParticle(diagnostic_header_sample().replace(chr(0), chr(1), 1),
                         port_timestamp=3558720820.531179)
         with self.assertRaises(SampleException):
@@ -419,8 +424,6 @@ class DriverUnitTest(NortekUnitTest):
 ###############################################################################
 @attr('INT', group='mi')
 class IntFromIDK(NortekIntTest):
-    
-    protocol_state = ''
     
     def setUp(self):
         NortekIntTest.setUp(self)
@@ -484,7 +487,6 @@ class IntFromIDK(NortekIntTest):
         # check to see if config got set in instrument
         self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 3600)
         self.assertEquals(values_after[Parameter.COMPASS_UPDATE_RATE], 2)
-
 
     def test_instrument_set(self):
         """
@@ -554,7 +556,7 @@ class IntFromIDK(NortekIntTest):
 
         # Verify we received at least 4 samples.
         sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
+        log.debug('test_instrument_start_stop_autosample: # 0f samples = %d', len(sample_events))
         #log.debug('samples=%s' %sample_events)
         self.assertTrue(len(sample_events) >= 4)
                
@@ -647,21 +649,20 @@ class IntFromIDK(NortekIntTest):
         with self.assertRaises(InstrumentParameterException):
             bogus_params = [
                 'a bogus parameter name',
-                Parameter.ADJUSTMENT_SOUND_SPEED
-                ]
+                Parameter.ADJUSTMENT_SOUND_SPEED]
             self.driver_client.cmd_dvr('get_resource', bogus_params)        
         
         # Assert we cannot set a bogus parameter.
         with self.assertRaises(InstrumentParameterException):
             bogus_params = {
-                'a bogus parameter name' : 'bogus value'
+                'a bogus parameter name': 'bogus value'
             }
             self.driver_client.cmd_dvr('set_resource', bogus_params)
             
         # Assert we cannot set a real parameter to a bogus value.
         with self.assertRaises(InstrumentParameterException):
             bogus_params = {
-                Parameter.ADJUSTMENT_SOUND_SPEED : 'bogus value'
+                Parameter.ADJUSTMENT_SOUND_SPEED: 'bogus value'
             }
             self.driver_client.cmd_dvr('set_resource', bogus_params)
         
@@ -720,16 +721,6 @@ class QualFromIDK(NortekQualTest):
 
         self.assertEqual(sorted(capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)), sorted(res_cmds), "commands don't match")
         self.assertEqual(sorted(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)), sorted(res_pars), "parameters don't match")
-
-    def get_parameter(self, name):
-        '''
-        get parameter, assumes we are in command mode.
-        '''
-        getParams = [ name ]
-
-        result = self.instrument_agent_client.get_resource(getParams)
-
-        return result[name]
 
     def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout = 10):
         """
@@ -801,28 +792,13 @@ class QualFromIDK(NortekQualTest):
         else:
             self.fail('Unknown data particle')
 
-    @unittest.skip("skip for automatic tests")
-    def test_direct_access_telnet_mode_manually(self):
-        """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
-        """
-        self.assert_enter_command_mode()
 
-        # go direct access
-        cmd = AgentCommand(command='go_direct_access',
-                           kwargs={#'session_type': DirectAccessTypes.telnet,
-                                   'session_type':DirectAccessTypes.vsp,
-                                   'session_timeout':600,
-                                   'inactivity_timeout':600})
-        retval = self.instrument_agent_client.execute_agent(cmd)
-        log.warn("go_direct_access retval=" + str(retval.result))
-        
-        gevent.sleep(600)  # wait for manual telnet session to be run
 
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
         """
+        #OVERRIDEN THE BASE CLASSES BECAUSE EXCPET IS DIFFERENT!!!!
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
@@ -863,150 +839,4 @@ class QualFromIDK(NortekQualTest):
         self.assert_set_parameter(Parameter.AVG_INTERVAL, value_before_set)
 
         self.assert_reset()
-        
-    def test_get_capabilities(self):
-        """
-        @brief Verify that the correct capabilities are returned from get_capabilities
-        at various driver/agent states.
-        """
-        self.assert_enter_command_mode()
 
-        ##################
-        #  Command Mode
-        ##################
-
-        capabilities = {
-            AgentCapabilityType.RESOURCE_COMMAND: [
-                ProtocolEvent.SET, 
-                ProtocolEvent.ACQUIRE_SAMPLE, 
-                ProtocolEvent.GET, 
-                ProtocolEvent.START_AUTOSAMPLE,
-                ProtocolEvent.CLOCK_SYNC,
-                ProtocolEvent.GET_HEAD_CONFIGURATION,
-                ProtocolEvent.GET_HW_CONFIGURATION,
-                ProtocolEvent.POWER_DOWN,
-                ProtocolEvent.READ_BATTERY_VOLTAGE,
-                ProtocolEvent.READ_CLOCK, 
-                ProtocolEvent.READ_ID,
-                ProtocolEvent.READ_MODE,
-                ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME,
-                ProtocolEvent.START_MEASUREMENT_IMMEDIATE,
-                ProtocolEvent.SET_CONFIGURATION
-            ],
-            AgentCapabilityType.RESOURCE_PARAMETER: [
-                Parameter.TRANSMIT_PULSE_LENGTH,
-                Parameter.BLANKING_DISTANCE,
-                Parameter.RECEIVE_LENGTH,
-                Parameter.TIME_BETWEEN_PINGS,
-                Parameter.TIME_BETWEEN_BURST_SEQUENCES, 
-                Parameter.NUMBER_PINGS,
-                Parameter.AVG_INTERVAL,
-                Parameter.USER_NUMBER_BEAMS, 
-                Parameter.TIMING_CONTROL_REGISTER,
-                Parameter.POWER_CONTROL_REGISTER,
-                Parameter.COMPASS_UPDATE_RATE,  
-                Parameter.COORDINATE_SYSTEM,
-                Parameter.NUMBER_BINS,
-                Parameter.BIN_LENGTH,
-                Parameter.MEASUREMENT_INTERVAL,
-                Parameter.DEPLOYMENT_NAME,
-                Parameter.WRAP_MODE,
-                Parameter.CLOCK_DEPLOY,
-                Parameter.DIAGNOSTIC_INTERVAL,
-                Parameter.MODE,
-                Parameter.ADJUSTMENT_SOUND_SPEED,
-                Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
-                Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
-                Parameter.NUMBER_PINGS_DIAGNOSTIC,
-                Parameter.MODE_TEST,
-                Parameter.ANALOG_INPUT_ADDR,
-                Parameter.SW_VERSION,
-                Parameter.VELOCITY_ADJ_TABLE,
-                Parameter.COMMENTS,
-                Parameter.WAVE_MEASUREMENT_MODE,
-                Parameter.DYN_PERCENTAGE_POSITION,
-                Parameter.WAVE_TRANSMIT_PULSE,
-                Parameter.WAVE_BLANKING_DISTANCE,
-                Parameter.WAVE_CELL_SIZE,
-                Parameter.NUMBER_DIAG_SAMPLES,
-                Parameter.ANALOG_OUTPUT_SCALE,
-                Parameter.CORRELATION_THRESHOLD,
-                Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
-                Parameter.QUAL_CONSTANTS
-            ],
-        }
-
-        self.assert_resource_capabilities(capabilities)
-
-        ##################
-        #  Streaming Mode
-        ##################
-
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [DriverEvent.STOP_AUTOSAMPLE]
-
-        self.assert_start_autosample()
-        self.assert_resource_capabilities(capabilities)
-        self.assert_stop_autosample()
-
-        #######################
-        #  Uninitialized Mode
-        #######################
-
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
-        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
-
-        self.assert_reset()
-        self.assert_resource_capabilities(capabilities)
-
-    def test_instrument_set_configuration(self):
-        """
-        @brief Test for setting instrument configuration
-        """
-        
-        self.assert_enter_command_mode()
-        
-        # command the instrument to set the user configuration.
-        cmd = AgentCommand(command=ResourceAgentEvent.EXECUTE_RESOURCE,
-                           args=[ProtocolEvent.SET_CONFIGURATION],
-                           kwargs={'user_configuration':base64.b64encode(user_config2())})
-        try:
-            self.instrument_agent_client.execute_agent(cmd)
-            pass
-        except:
-            self.fail('test of set_configuration command failed')
-        
-    def test_instrument_clock_sync(self):
-        """
-        @brief Test for syncing clock
-        """
-        
-        self.assert_enter_command_mode()
-        
-        # command the instrument to read the clock.
-        response = self.assert_execute_resource(ProtocolEvent.READ_CLOCK)
-        
-        log.debug("read clock returned: %s", response)
-        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response.result))
-
-        # command the instrument to sync the clck.
-        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
-
-        # command the instrument to read the clock.
-        response = self.assert_execute_resource(ProtocolEvent.READ_CLOCK)
-        
-        log.debug("read clock returned: %s", response)
-        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response.result))
-        
-        # verify that the dates match 
-        local_time = time.gmtime(time.mktime(time.localtime()))
-        local_time_str = time.strftime("%d/%m/%Y %H:%M:%S", local_time)
-        self.assertTrue(local_time_str[:12].upper() in response.result.upper())
-        
-        # verify that the times match closely
-        instrument_time = time.strptime(response.result, '%d/%m/%Y %H:%M:%S')
-        #log.debug("it=%s, lt=%s" %(instrument_time, local_time))
-        it = datetime.datetime(*instrument_time[:6])
-        lt = datetime.datetime(*local_time[:6])
-        #log.debug("it=%s, lt=%s, lt-it=%s" %(it, lt, lt-it))
-        if lt - it > datetime.timedelta(seconds = 5):
-            self.fail("time delta too large after clock sync")      
