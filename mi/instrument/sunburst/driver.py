@@ -1683,10 +1683,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_scheduled_blank_sample_timeout')
 
-##        self._remove_scheduler(ScheduledJob.AUTO_SAMPLE)
-##        next_state = ProtocolState.WAITING
-##        next_agent_state = ResourceAgentState.BUSY
-
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
@@ -1779,8 +1775,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('herb: ' + 'SamiProtocol._wakeup: Send second newline to wake up')
         self._do_cmd_direct(NEWLINE)
 
-##    @staticmethod
-##    def _discover():
     def _discover(self):
         """
         Discover current state; can be UNKNOWN, COMMAND or DISCOVER

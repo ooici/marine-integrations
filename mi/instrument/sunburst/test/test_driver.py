@@ -52,9 +52,6 @@ from mi.instrument.sunburst.driver import SamiControlRecordDataParticleKey
 from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiRegularStatusDataParticleKey
 
-
-log.debug('herb: ' + 'import sunburst/test/test_driver.py')
-
 ###
 #   Driver parameters for the tests
 ###
@@ -108,8 +105,6 @@ class SamiMixin(DriverTestMixin):
 
     Should be subclassed in the specific test driver
     '''
-
-    log.debug('herb: ' + 'class SamiMixin(DriverTestMixin)')
 
     ###
     #  Instrument output (driver input) Definitions
@@ -197,21 +192,6 @@ class SamiMixin(DriverTestMixin):
         SamiControlRecordDataParticleKey.CHECKSUM:                {TYPE: int, VALUE: 0xFC, REQUIRED: True}
     }
 
-    def assertSampleDataParticle(self, data_particle):
-        '''
-        Verify a particle is a known particle to this driver and verify the particle is
-        correct
-        @param data_particle: Data particle of unknown type produced by the driver
-        '''
-
-        log.debug('herb: ' + 'SamiMixin.assertSampleDataParticle()')
-
-        if (isinstance(data_particle, RawDataParticle)):
-            self.assert_particle_raw(data_particle)
-        else:
-            log.error("Unknown Particle Detected: %s" % data_particle)
-            self.assertFalse(True)
-
     def assert_driver_parameters(self, current_parameters, verify_values=False):
         """
         Verify that all driver parameters are correct and potentially verify
@@ -220,8 +200,6 @@ class SamiMixin(DriverTestMixin):
         instance
         @param verify_values: should we verify values against definition?
         """
-
-        log.debug('herb: ' + 'SamiMixin.assert_driver_parameterse()')
 
         self.assert_parameters(current_parameters, self._driver_parameters,
                                verify_values)
@@ -232,8 +210,6 @@ class SamiMixin(DriverTestMixin):
         @param data_particle: SamiRegularStatusDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-
-        log.debug('herb: ' + 'SamiMixin.assert_particle_regular_status()')
 
         self.assert_data_particle_keys(SamiRegularStatusDataParticleKey,
                                        self._regular_status_parameters)
@@ -249,8 +225,6 @@ class SamiMixin(DriverTestMixin):
         @param data_particle: SamiControlRecordDataParticle data particle
         @param verify_values: bool, should we verify parameter values
         '''
-
-        log.debug('herb: ' + 'SamiMixin.assert_particle_control_record()')
 
         self.assert_data_particle_keys(SamiControlRecordDataParticleKey,
                                        self._control_record_parameters)
@@ -276,8 +250,6 @@ class SamiMixin(DriverTestMixin):
 @attr('UNIT', group='mi')
 class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
 
-    log.debug('herb: ' + 'class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin))')
-
     def test_base_driver_enums(self):
         """
         Verify that all the SAMI Instrument driver enumerations have no
@@ -286,8 +258,6 @@ class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
 
         Extra enumeration tests are done in a specific subclass
         """
-
-        log.debug('herb: ' + 'SamiUnitTest.test_base_driver_enums()')
 
         # Test Enums defined in the base SAMI driver
         self.assert_enum_has_no_duplicates(ProtocolState())

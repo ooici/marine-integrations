@@ -27,7 +27,6 @@ log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import ParameterTestConfigKey
@@ -51,23 +50,19 @@ from mi.instrument.sunburst.driver import SamiInstrumentCommand
 from mi.instrument.sunburst.driver import ScheduledJob
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import ProtocolState
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import ProtocolEvent
-# from mi.instrument.sunburst.driver import ProtocolEvent
 from mi.instrument.sunburst.driver import Capability
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import Parameter
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import Protocol
 from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import NEWLINE
-from mi.instrument.sunburst.driver import SAMI_TO_UNIX
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import Pco2wSamiSampleDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import Pco2wConfigurationDataParticleKey
 
 # Added Imports (Note, these pick up some of the base classes not directly imported above)
-from mi.instrument.sunburst.test.test_driver import SamiMixin
-from mi.instrument.sunburst.test.test_driver import SamiUnitTest
-from mi.instrument.sunburst.test.test_driver import SamiIntegrationTest
-from mi.instrument.sunburst.test.test_driver import SamiQualificationTest
-
-log.debug('herb: ' + 'import sami2_pco2/pco2a/test_driver.py')
+from mi.instrument.sunburst.sami2_pco2.test.test_driver import Pco2DriverTestMixinSub
+from mi.instrument.sunburst.sami2_pco2.test.test_driver import Pco2DriverUnitTest
+from mi.instrument.sunburst.sami2_pco2.test.test_driver import Pco2DriverIntegrationTest
+from mi.instrument.sunburst.sami2_pco2.test.test_driver import Pco2DriverQualificationTest
 
 ###
 #   Driver parameters for the tests
@@ -119,9 +114,7 @@ InstrumentDriverTestCase.initialize(
 # This class defines a configuration structure for testing and common assert  #
 # methods for validating data particles.                                      #
 ###############################################################################
-class DriverTestMixinSub(SamiMixin):
-
-    log.debug('herb: ' + 'class pco2.DriverTestMixinSub(SamiMixin)')
+class DriverTestMixinSub(Pco2DriverTestMixinSub):
 
     '''
     Mixin class used for storing data particle constants and common data
@@ -167,9 +160,6 @@ class DriverTestMixinSub(SamiMixin):
                             '74003B0018096106800732074E0D82066124' + NEWLINE
     VALID_R0_DATA_SAMPLE = '*542704CEE91CC8003B001909620155073003E908A1232' + \
                            'D0043001A09620154072F03EA0D92065F3B' + NEWLINE
-
-    ## Control records
-    #VALID_CONTROL_RECORD = '*541280CEE90B170041000001000000000200AF' + NEWLINE
 
     ###
     #  Parameter and Type Definitions
@@ -416,15 +406,12 @@ class DriverTestMixinSub(SamiMixin):
 #   driver process.                                                           #
 ###############################################################################
 @attr('UNIT', group='mi')
-class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
-
-    log.debug('herb: ' + 'class pco2.DriverUnitTest(SamiUnitTest, DriverTestMixinSub)')
+class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
 
     def test_driver_schema(self):
         """
         get the driver schema and verify it is configured properly
         """
-        log.debug('herb: ' + 'class pco2.DriverUnitTest.test_driver_schema()')
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
@@ -433,7 +420,6 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         Verify that all driver enumeration has no duplicate values that might
         cause confusion. Also do a little extra validation for the Capabilites
         """
-        log.debug('herb: ' + 'class DriverUnitTest.test_driver_enums()')
         self.assert_enum_has_no_duplicates(SamiDataParticleType())
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(SamiInstrumentCommand())
@@ -442,7 +428,6 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         """
         Test the chunker and verify the particles created.
         """
-        log.debug('herb: ' + 'class DriverUnitTest.test_chunker()')
         chunker = StringChunker(Protocol.sieve_function)
 
         self.assert_chunker_sample(chunker, self.VALID_STATUS_MESSAGE)
@@ -475,7 +460,6 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         Verify sample data passed through the got data method produces the
         correct data particles
         """
-        log.debug('herb: ' + 'class DriverUnitTest.test_got_data()')
         # Create and initialize the instrument driver with a mock port agent
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
@@ -501,7 +485,6 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         filter. Test silly made up capabilities to verify they are blocked by
         filter.
         """
-        log.debug('herb: ' + 'class DriverUnitTest.test_protocol_filter_capabilities()')
         mock_callback = Mock()
         protocol = Protocol(Prompt, NEWLINE, mock_callback)
         driver_capabilities = Capability().list()
@@ -520,7 +503,6 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
         this dict must also be defined in the protocol FSM. Note, the EXIT and
         ENTER DRIVER_EVENTS don't need to be listed here.
         """
-        log.debug('herb: ' + 'class DriverUnitTest.test_capabilities()')
         # capabilities defined in base class test_driver.
 
         driver = InstrumentDriver(self._got_data_event_callback)
@@ -538,10 +520,7 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
 
 
 @attr('INT', group='mi')
-class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
-    def setUp(self):
-        InstrumentDriverIntegrationTestCase.setUp(self)
-
+class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
     """
     Integration Tests:
 
@@ -579,6 +558,10 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         ACQUIRE_STATUS
         ACQUIRE_BLANK_SAMPLE
     """
+
+    ## TODO: Clear events before getting particles
+    ## TODO: Add callback for schedulable events
+    ## TODO: Fix assertions differentiating a regular versus blank sample
 
     def test_set(self):
         self.assert_initialize_driver()
@@ -631,6 +614,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 
     def test_acquire_status(self):
         self.assert_initialize_driver()
+        self.clear_events()
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, SamiDataParticleType.REGULAR_STATUS, self.assert_particle_regular_status)
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, SamiDataParticleType.CONFIGURATION, self.assert_particle_configuration)
 
@@ -705,9 +689,7 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
-    def setUp(self):
-        InstrumentDriverQualificationTestCase.setUp(self)
+class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
 
 # TODO: Test boot prompt recovery coming out of direct access
 
