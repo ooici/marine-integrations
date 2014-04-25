@@ -349,6 +349,19 @@ class IntegrationTest(DataSetIntegrationTestCase):
                           MopakODclRateParserDataParticle), None,
                          count=2857, timeout=100)
 
+    def test_bad_checksum(self):
+        """
+        Assert we skip samples with bad checksums
+        """
+        self.create_sample_data_set_dir('20140313_191853_bad_chksum.3dmgx3.log', '/tmp/dsatest2',
+                                        "20140313_191853.mopak.log")
+        # Start sampling
+        self.driver.start_sampling()
+        # assert we get 5 samples then the file is ingested
+        self.assert_data((MopakODclAccelParserDataParticle,
+                          MopakODclRateParserDataParticle), None, count=5)
+        self.assert_file_ingested('20140313_191853.mopak.log')
+
     def test_mopak_timer_reset(self):
         """
         test that we get the sample exception for the mopak timer resetting
