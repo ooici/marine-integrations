@@ -447,6 +447,90 @@ class IntegrationTest(DataSetIntegrationTestCase):
                 particle_timer = val.get(DataParticleKey.VALUE)
         return (particle_timer, internal_timestamp)
 
+    def test_partial_config(self):
+        """
+        test with only cg_stc_eng and rte configured
+        """
+        partial_config = {
+            DataSourceConfigKey.RESOURCE_ID: 'cg_stc_eng_stc',
+            DataSourceConfigKey.HARVESTER:
+            {
+                DataTypeKey.CG_STC_ENG:
+                {
+                    DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest1',
+                    DataSetDriverConfigKeys.PATTERN: '*.txt',
+                    DataSetDriverConfigKeys.FREQUENCY: 1,
+                },
+                DataTypeKey.RTE:
+                {
+                    DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest3',
+                    DataSetDriverConfigKeys.PATTERN: '*.rte.log',
+                    DataSetDriverConfigKeys.FREQUENCY: 1,
+                }
+            },
+            DataSourceConfigKey.PARSER: {}
+        }
+        self.driver = self._get_driver_object(config=partial_config)
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.create_sample_data_set_dir('stc_status.txt', '/tmp/dsatest1')
+        self.create_sample_data_set_dir('stc_status_all.txt', '/tmp/dsatest1')
+        self.create_sample_data_set_dir('first_rate.mopak.log', '/tmp/dsatest2',
+                                        "20140313_191853.mopak.log")
+        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3',
+                                        "20140120_140004.rte.log")
+        self.create_sample_data_set_dir('second_rate.mopak.log', '/tmp/dsatest2',
+                                        "20140313_201853.mopak.log")
+        self.create_sample_data_set_dir('second.rte.log', '/tmp/dsatest3',
+                                        "20140120_150004.rte.log")
+
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_first.result.yml',
+                         count=1, timeout=10)
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_all.result.yml',
+                         count=1, timeout=10)
+        self.assert_data(RteODclParserDataParticle, 'first_rte.result.yml',
+                         count=2, timeout=10)
+        self.assert_data(RteODclParserDataParticle, 'second_rte.result.yml',
+                         count=2, timeout=10)
+
+    def test_single_config(self):
+        """
+        test with only cg_stc_eng configured
+        """
+        partial_config = {
+            DataSourceConfigKey.RESOURCE_ID: 'cg_stc_eng_stc',
+            DataSourceConfigKey.HARVESTER:
+            {
+                DataTypeKey.CG_STC_ENG:
+                {
+                    DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest1',
+                    DataSetDriverConfigKeys.PATTERN: '*.txt',
+                    DataSetDriverConfigKeys.FREQUENCY: 1,
+                }
+            },
+            DataSourceConfigKey.PARSER: {}
+        }
+        self.driver = self._get_driver_object(config=partial_config)
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.create_sample_data_set_dir('stc_status.txt', '/tmp/dsatest1')
+        self.create_sample_data_set_dir('stc_status_all.txt', '/tmp/dsatest1')
+        self.create_sample_data_set_dir('first_rate.mopak.log', '/tmp/dsatest2',
+                                        "20140313_191853.mopak.log")
+        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3',
+                                        "20140120_140004.rte.log")
+        self.create_sample_data_set_dir('second_rate.mopak.log', '/tmp/dsatest2',
+                                        "20140313_201853.mopak.log")
+        self.create_sample_data_set_dir('second.rte.log', '/tmp/dsatest3',
+                                        "20140120_150004.rte.log")
+
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_first.result.yml',
+                         count=1, timeout=10)
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_all.result.yml',
+                         count=1, timeout=10)
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #

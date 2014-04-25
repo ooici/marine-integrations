@@ -146,28 +146,42 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
         """
         Build and return the harvester
         """
-        self._cg_stc_eng_harvester = SingleDirectoryHarvester(
-            self._harvester_config.get(DataTypeKey.CG_STC_ENG),
-            driver_state,
-            self._new_cg_stc_eng_file_callback,
-            self._modified_file_callback,
-            self._exception_callback
-        )
-        self._mopak_harvester = SingleDirectoryHarvester(
-            self._harvester_config.get(DataTypeKey.MOPAK),
-            driver_state,
-            self._new_mopak_file_callback,
-            self._modified_file_callback,
-            self._exception_callback
-        )
-        self._rte_harvester = SingleDirectoryHarvester(
-            self._harvester_config.get(DataTypeKey.RTE),
-            driver_state,
-            self._new_rte_file_callback,
-            self._modified_file_callback,
-            self._exception_callback
-        )
-        self._harvester = [self._cg_stc_eng_harvester, self._mopak_harvester, self._rte_harvester]
+        self._harvester = []
+        if DataTypeKey.CG_STC_ENG in self._harvester_config:
+            self._cg_stc_eng_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataTypeKey.CG_STC_ENG),
+                driver_state,
+                self._new_cg_stc_eng_file_callback,
+                self._modified_file_callback,
+                self._exception_callback
+            )
+            self._harvester.append(self._cg_stc_eng_harvester)
+        else:
+            log.warn('No configuration for cg_stc_eng harvester, not building')
+
+        if DataTypeKey.MOPAK in self._harvester_config:
+            self._mopak_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataTypeKey.MOPAK),
+                driver_state,
+                self._new_mopak_file_callback,
+                self._modified_file_callback,
+                self._exception_callback
+            )
+            self._harvester.append(self._mopak_harvester)
+        else:
+            log.warn('No configuration for mopak harvester, not building')
+
+        if DataTypeKey.RTE in self._harvester_config:
+            self._rte_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataTypeKey.RTE),
+                driver_state,
+                self._new_rte_file_callback,
+                self._modified_file_callback,
+                self._exception_callback
+            )
+            self._harvester.append(self._rte_harvester)
+        else:
+            log.warn('No configuration for rte harvester, not building')
         return self._harvester
 
     def _new_cg_stc_eng_file_callback(self, file_name):
