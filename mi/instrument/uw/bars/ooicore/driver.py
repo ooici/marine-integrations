@@ -48,8 +48,8 @@ NEWLINE = '\r'
 TIMEOUT = 10
 
 class DataParticleType(BaseEnum):
-    RAW = CommonDataParticleType.RAW,
-    PARSED = 'parsed',
+    RAW = CommonDataParticleType.RAW
+    PARSED = 'trhph_sample'
 
 
 class Command(BaseEnum):
@@ -232,18 +232,18 @@ MENU = MenuInstrumentProtocol.MenuTree({
 
 
 class BarsDataParticleKey(BaseEnum):
-    RESISTIVITY_5 = "Resistivity5"
-    RESISTIVITY_X1 = "ResistivityX1"
-    RESISTIVITY_X5 = "ResistivityX5"
-    HYDROGEN_5 = "Hydrogen5"
-    HYDROGEN_X1 = "HydrogenX1"
-    HYDROGEN_X5 = "HydrogenX5"
-    EH_SENSOR = "EhSensor"
-    REFERENCE_TEMP_VOLTS = "RefTempVolts"
-    REFERENCE_TEMP_DEG_C = "RefTempDegC"
-    RESISTIVITY_TEMP_VOLTS = "ResistivityTempVolts"
-    RESISTIVITY_TEMP_DEG_C = "ResistivityTempDegC"
-    BATTERY_VOLTAGE = "BatteryVoltage"
+    RESISTIVITY_5 = "resistivity_5"
+    RESISTIVITY_X1 = "resistivity_x1"
+    RESISTIVITY_X5 = "resistivity_x5"
+    HYDROGEN_5 = "hydrogen_5"
+    HYDROGEN_X1 = "hydrogen_x1"
+    HYDROGEN_X5 = "hydrogen_x5"
+    EH_SENSOR = "eh_sensor"
+    REFERENCE_TEMP_VOLTS = "ref_temp_volts"
+    REFERENCE_TEMP_DEG_C = "ref_temp_degc"
+    RESISTIVITY_TEMP_VOLTS = "resistivity_temp_volts"
+    RESISTIVITY_TEMP_DEG_C = "resistivity_temp_degc"
+    BATTERY_VOLTAGE = "battery_voltage"
 
 class BarsDataParticle(DataParticle):
     """
@@ -260,6 +260,8 @@ class BarsDataParticle(DataParticle):
         
         @throw SampleException If there is a problem with sample creation
         """
+        log.debug(">>>_build_parsed_values")
+
         match = SAMPLE_REGEX.match(self.raw_data)
         
         if not match:
@@ -316,7 +318,7 @@ class BarsDataParticle(DataParticle):
 # Driver
 ###############################################################################
 
-class ooicoreInstrumentDriver(SingleConnectionInstrumentDriver):
+class InstrumentDriver(SingleConnectionInstrumentDriver):
     """
     InstrumentDriver subclass
     Subclasses SingleConnectionInstrumentDriver with connection state
@@ -338,7 +340,7 @@ class ooicoreInstrumentDriver(SingleConnectionInstrumentDriver):
         # Redefine discover handler so that we can apply startup params
         # when we discover. Gotta get into command mode first though.
         result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
-        self.apply_startup_params()
+        #self.apply_startup_params()   ?????????????? rhan 4/23
         return result
     
     ########################################################################
@@ -373,12 +375,15 @@ class ooicoreInstrumentDriver(SingleConnectionInstrumentDriver):
         the configuration.
         @raise InstrumentParameterException If the config cannot be applied
         """
+        log.debug('>>>apply_startup_params')
         config = self._protocol.get_startup_config()
         
         if not isinstance(config, dict):
-            raise InstrumentParameterException("Incompatible initialization parameters")
+            log.debug('>>>Config is not an instance of dictionary')
+            log.infog('>>>Config is not an instance of dict')
+            raise InstrumentParameterException(">>>Incompatible initialization parameters")
         
-        log.trace("BARS driver applying config: %s", config)
+        log.debug("BARS driver applying config: %s", config)
         self._protocol.set_readonly_values()
         self.set_resource(config)
 
@@ -488,7 +493,7 @@ class Protocol(MenuInstrumentProtocol):
         Getting to command mode should be done before this method is called.
         A discover will get there.
         """
-        log.debug("Returning to root menu...")
+        log.debug(">>>Returning to root menu...")
         # Issue an enter or two off the bat to get out of any display screens
         # and confirm command mode
         try:
@@ -506,6 +511,7 @@ class Protocol(MenuInstrumentProtocol):
         while not str(response).lstrip().endswith(Prompt.MAIN_MENU):
             response = self._do_cmd_resp(Command.BACK_MENU,
                                          expected_prompt=MENU_PROMPTS)
+        log.debug("_go_to_root_menu exit")
 
             
     def _filter_capabilities(self, events):
@@ -535,6 +541,7 @@ class Protocol(MenuInstrumentProtocol):
         """
         Enter unknown state.
         """
+        log.debug('_handler_unknown')
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -544,6 +551,7 @@ class Protocol(MenuInstrumentProtocol):
         Discover current state by going to the root menu 
         @retval (next_state, result)
         """
+        log.debug('>>>_handler_discover')
         next_state = None
         next_agent_state = None
         
@@ -570,6 +578,8 @@ class Protocol(MenuInstrumentProtocol):
         # Command device to update parameters and send a config change event.
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
+        log.debug("_handler_command_enter")
+        self._init_params()
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_command_get(self, params=None, *args, **kwargs):
@@ -580,10 +590,11 @@ class Protocol(MenuInstrumentProtocol):
             agent state changes happening with Get, so no next_agent_state
         @throw InstrumentParameterException for invalid parameter
         """
+        log.debug('>>>_handler_command_get')
         next_state = None
         result = None
         result_vals = {}
-        
+
         if (params == None):
             raise InstrumentParameterException("GET parameter list empty!")
             
@@ -593,6 +604,7 @@ class Protocol(MenuInstrumentProtocol):
                       Parameter.METADATA_POWERUP, Parameter.METADATA_RESTART,
                       Parameter.REFERENCE_TEMP_POWER, Parameter.RES_SENSOR_POWER,
                       Parameter.VERBOSE]
+            log.debug("_handler_command_get: params == ALL")
             
         if not isinstance(params, list):
             raise InstrumentParameterException("GET parameter list not a list!")
@@ -607,10 +619,275 @@ class Protocol(MenuInstrumentProtocol):
             result_vals[param] = self._param_dict.get(param) 
         result = result_vals
 
-        log.debug("Get finished, next: %s, result: %s", next_state, result) 
+        log.debug(">>>Get finished, next: %s, result: %s", next_state, result)
         return (next_state, result)
 
-    def _handler_command_set(self, params, *args, **kwargs):
+
+    def _set_trhph_params(self, params):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        log.debug('>>>_set_trhph_params')
+
+        self._go_to_root_menu()
+        for (key, val) in params.iteritems():
+            log.debug(">>> KEY = %s VALUE = %s", key, val)
+            if not Parameter.has(key):
+                raise InstrumentParameterException()
+
+            # restrict operations to just the read/write parameters
+            if (key == Parameter.CYCLE_TIME):
+                self._navigate(SubMenu.CYCLE_TIME)
+                (unit, value) = self._from_seconds(val)
+
+                try:
+                    result = self._do_cmd_resp(Command.DIRECT_SET, unit,
+                                      expected_prompt=[Prompt.CYCLE_TIME_SEC_VALUE_PROMPT,
+                                                      Prompt.CYCLE_TIME_MIN_VALUE_PROMPT])
+                    result = self._do_cmd_resp(Command.DIRECT_SET, value,
+                                      expected_prompt=Prompt.CHANGE_PARAM_MENU)
+
+                except InstrumentProtocolException:
+                    self._go_to_root_menu()
+                    raise InstrumentProtocolException("Could not set cycle time")
+                log.debug(">>>finished setting CYCLE_TIME go to root menu")
+                self._go_to_root_menu()
+
+            elif (key == Parameter.METADATA_POWERUP):
+                self._navigate(SubMenu.METADATA_POWERUP)
+                result = self._do_cmd_resp(Command.DIRECT_SET, (1+ int(self._param_dict.get_init_value(key))),
+                                           expected_prompt=Prompt.CHANGE_PARAM_MENU)
+                if not result:
+                    raise InstrumentParameterException("Could not set param %s" % key)
+
+                log.debug(">>>finished setting METADATA_POWERUP")
+                self._go_to_root_menu()
+
+            elif (key == Parameter.METADATA_RESTART):
+
+                self._navigate(SubMenu.METADATA_RESTART)
+                result = self._do_cmd_resp(Command.DIRECT_SET, (1 + int(self._param_dict.get_init_value(key))),
+                                           expected_prompt=Prompt.CHANGE_PARAM_MENU)
+                if not result:
+                    raise InstrumentParameterException("Could not set param %s" % key)
+
+                log.debug(">>>finished setting METADATA_RESTART")
+                self._go_to_root_menu()
+
+            elif (key == Parameter.VERBOSE):
+
+                self._navigate(SubMenu.VERBOSE)
+                result = self._do_cmd_resp(Command.DIRECT_SET, self._param_dict.get_init_value(key),
+                                           expected_prompt=Prompt.CHANGE_PARAM_MENU)
+                if not result:
+                    raise InstrumentParameterException("Could not set param %s" % key)
+
+                log.debug(">>>finished setting VERBOSE")
+                self._go_to_root_menu()
+
+            elif (key == Parameter.EH_ISOLATION_AMP_POWER):
+
+                result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
+                while not result:
+                    result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
+
+                log.debug(">>>finished setting EH_ISOLATION_AMP_POWER")
+            elif (key == Parameter.HYDROGEN_POWER):
+
+                log.debug(">>>Trying to set HYDROGEN_POWER ")
+                result = self._navigate(SubMenu.HYDROGEN_POWER)
+                while not result:
+                    result = self._navigate(SubMenu.HYDROGEN_POWER)
+
+            elif (key == Parameter.INST_AMP_POWER):
+                result = self._navigate(SubMenu.INST_AMP_POWER)
+                while not result:
+                    result = self._navigate(SubMenu.INST_AMP_POWER)
+
+            elif (key == Parameter.REFERENCE_TEMP_POWER):
+                result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
+                while not result:
+                    result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
+
+            elif (key == Parameter.RES_SENSOR_POWER):
+                result = self._navigate(SubMenu.RES_SENSOR_POWER)
+                while not result:
+                    result = self._navigate(SubMenu.RES_SENSOR_POWER)
+
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        log.debug('>>>_set_params')
+
+        next_state = None
+        result = None
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        # set parameters are only allowed in COMMAND state
+        if (self.get_current_state() != ProtocolState.COMMAND):
+            raise InstrumentProtocolException("Not in command state. Unable to set read-only params")
+
+        self._verify_not_readonly(*args, **kwargs)
+
+        #self._go_to_root_menu()
+        self._set_trhph_params(params)
+
+        # re-sync with param dict
+        self._go_to_root_menu()
+        self._update_params()
+
+
+    def _set_params_save(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        log.debug('>>>_set_params')
+
+        next_state = None
+        result = None
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        # set parameters are only allowed in COMMAND state
+        if (self.get_current_state() != ProtocolState.COMMAND):
+            raise InstrumentProtocolException("Not in command state. Unable to set read-only params")
+
+        self._verify_not_readonly(*args, **kwargs)
+
+        self._go_to_root_menu()
+        for (key, val) in params.iteritems():
+            log.debug(">>> KEY = %s VALUE = %s", key, val)
+            if not Parameter.has(key):
+                raise InstrumentParameterException()
+
+            # restrict operations to just the read/write parameters
+            if (key == Parameter.CYCLE_TIME):
+                self._navigate(SubMenu.CYCLE_TIME)
+                (unit, value) = self._from_seconds(val)
+
+                try:
+                    result = self._do_cmd_resp(Command.DIRECT_SET, unit,
+                                      expected_prompt=[Prompt.CYCLE_TIME_SEC_VALUE_PROMPT,
+                                                      Prompt.CYCLE_TIME_MIN_VALUE_PROMPT])
+                    result = self._do_cmd_resp(Command.DIRECT_SET, value,
+                                      expected_prompt=Prompt.CHANGE_PARAM_MENU)
+
+                except InstrumentProtocolException:
+                    self._go_to_root_menu()
+                    raise InstrumentProtocolException("Could not set cycle time")
+                log.debug(">>>finished setting CYCLE_TIME go to root menu")
+                self._go_to_root_menu()
+
+            elif (key == Parameter.METADATA_POWERUP):
+                self._navigate(SubMenu.METADATA_POWERUP)
+                result = self._do_cmd_resp(Command.DIRECT_SET, (1+ int(self._param_dict.get_init_value(key))),
+                                           expected_prompt=Prompt.CHANGE_PARAM_MENU)
+                if not result:
+                    raise InstrumentParameterException("Could not set param %s" % key)
+
+                log.debug(">>>finished setting METADATA_POWERUP")
+                self._go_to_root_menu()
+
+            elif (key == Parameter.METADATA_RESTART):
+
+                self._navigate(SubMenu.METADATA_RESTART)
+                result = self._do_cmd_resp(Command.DIRECT_SET, (1 + int(self._param_dict.get_init_value(key))),
+                                           expected_prompt=Prompt.CHANGE_PARAM_MENU)
+                if not result:
+                    raise InstrumentParameterException("Could not set param %s" % key)
+
+                log.debug(">>>finished setting METADATA_RESTART")
+                self._go_to_root_menu()
+
+            elif (key == Parameter.VERBOSE):
+
+                self._navigate(SubMenu.VERBOSE)
+                result = self._do_cmd_resp(Command.DIRECT_SET, self._param_dict.get_init_value(key),
+                                           expected_prompt=Prompt.CHANGE_PARAM_MENU)
+                if not result:
+                    raise InstrumentParameterException("Could not set param %s" % key)
+
+                log.debug(">>>finished setting VERBOSE")
+                self._go_to_root_menu()
+
+            elif (key == Parameter.EH_ISOLATION_AMP_POWER):
+
+                result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
+                while not result:
+                    result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
+
+                log.debug(">>>finished setting EH_ISOLATION_AMP_POWER")
+            elif (key == Parameter.HYDROGEN_POWER):
+
+                log.debug(">>>Trying to set HYDROGEN_POWER ")
+                result = self._navigate(SubMenu.HYDROGEN_POWER)
+                while not result:
+                    result = self._navigate(SubMenu.HYDROGEN_POWER)
+
+            elif (key == Parameter.INST_AMP_POWER):
+                result = self._navigate(SubMenu.INST_AMP_POWER)
+                while not result:
+                    result = self._navigate(SubMenu.INST_AMP_POWER)
+
+            elif (key == Parameter.REFERENCE_TEMP_POWER):
+                result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
+                while not result:
+                    result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
+
+            elif (key == Parameter.RES_SENSOR_POWER):
+                result = self._navigate(SubMenu.RES_SENSOR_POWER)
+                while not result:
+                    result = self._navigate(SubMenu.RES_SENSOR_POWER)
+
+
+        # re-sync with param dict?
+        self._go_to_root_menu()
+        self._update_params()
+
+
+
+    def _handler_command_set(self, *args, **kwargs):
+        """Handle setting data from command mode
+
+        @param params Dict of the parameters and values to pass to the state
+        @retval return (next state, result)
+        @throw InstrumentProtocolException For invalid parameter
+        """
+        next_state = None
+        result = None
+
+        log.debug('>>>_handler_command_set')
+        # Retrieve required parameter.
+        # Raise if no parameter provided, or not a dict.
+        try:
+            params = args[0]
+
+        except IndexError:
+            raise InstrumentParameterException('_handler_command_set requires a parameter dict.')
+
+        if ((params == None) or (not isinstance(params, dict))):
+            raise InstrumentParameterException()
+
+        # Verify parameters are not read only
+        self._verify_not_readonly(params, False)
+
+        self._set_trhph_params(params)
+
+        # re-sync with param dict
+        self._go_to_root_menu()
+        self._update_params()
+
+        return (next_state, result)
+
+
+    def _handler_command_set_save(self, params, *args, **kwargs):
         """Handle setting data from command mode
          
         @param params Dict of the parameters and values to pass to the state
@@ -621,8 +898,11 @@ class Protocol(MenuInstrumentProtocol):
         result = None
         result_vals = {}    
 
+        log.debug('>>>_handler_command_set')
         if ((params == None) or (not isinstance(params, dict))):
             raise InstrumentParameterException()
+
+        self._verify_not_readonly(params, False)
         name_values = params
         for key in name_values.keys():
             if not Parameter.has(key):
@@ -653,10 +933,12 @@ class Protocol(MenuInstrumentProtocol):
         result = result_vals
             
         log.debug("next: %s, result: %s", next_state, result) 
-        return (next_state, result)
+        return (next_state, None)
 
     def _handler_command_autosample(self, *args, **kwargs):
         """ Start autosample mode """
+
+        log.debug(">>>_handler_command_autosample")
         next_state = None
         next_agent_state = None
         result = None
@@ -798,12 +1080,14 @@ class Protocol(MenuInstrumentProtocol):
         # Always awake for this instrument!
         pass
     
-    def _got_chunk(self, chunk):
+    def _got_chunk(self, chunk, timestamp):
         '''
         extract samples from a chunk of data
         @param chunk: bytes to parse into a sample.
         '''
-        self._extract_sample(BarsDataParticle, SAMPLE_REGEX, chunk)
+        log.debug(">>>_got_chunk")
+        if not (self._extract_sample(BarsDataParticle, SAMPLE_REGEX, chunk, timestamp)):
+             raise InstrumentProtocolException("Unhandled chunk")
         
     def _update_params(self):
         """Fetch the parameters from the device, and update the param dict.
@@ -813,7 +1097,7 @@ class Protocol(MenuInstrumentProtocol):
         @throw InstrumentProtocolException
         @throw InstrumentTimeoutException
         """
-        log.debug("Updating parameter dict")
+        log.debug(">>>Updating parameter dict")
         old_config = self._param_dict.get_config()
         self._get_config()
         new_config = self._param_dict.get_config()            
@@ -874,6 +1158,7 @@ class Protocol(MenuInstrumentProtocol):
         @throw InstrumentProtocolException When in the wrong state or something
         really bad prevents the setting of all values.
         """
+        log.debug('>>>set_readonly_values')
         # Let's give it a try in unknown state
         if (self.get_current_state() != ProtocolState.COMMAND):
             raise InstrumentProtocolException("Not in command state. Unable to set read-only params")
@@ -887,7 +1172,7 @@ class Protocol(MenuInstrumentProtocol):
 
             self._go_to_root_menu()
             # Only try to change them if they arent set right as it is
-            log.trace("Setting read-only parameter: %s, current paramdict value: %s, init val: %s",
+            log.debug("Setting read-only parameter: %s, current paramdict value: %s, init val: %s",
                       param, self._param_dict.get(param),
                       self._param_dict.get_init_value(param))
             if (self._param_dict.get(param) != self._param_dict.get_init_value(param)):
@@ -952,6 +1237,8 @@ class Protocol(MenuInstrumentProtocol):
             if (param == Parameter.VERBOSE):
                 continue
             if (self._param_dict.get(param) != self._param_dict.get_init_value(param)):
+                log.debug(">>>>param = %s, param_dict param = %s, param_dict int val = %s", param,
+                    self._param_dict.get(param), self._param_dict.get_init_value(param))
                 raise InstrumentProtocolException("Could not set default values!")
                 
         
@@ -971,7 +1258,7 @@ class Protocol(MenuInstrumentProtocol):
                              self._int_to_string,
                              visibility=ParameterDictVisibility.READ_WRITE,
                              startup_param=True,
-                             direct_access=False,
+                             direct_access=True,
                              default_value=20,
                              menu_path_read=SubMenu.SHOW_PARAM,
                              submenu_read=[],
@@ -982,7 +1269,7 @@ class Protocol(MenuInstrumentProtocol):
                              r'', # Write-only, so does it really matter?
                              lambda match : None,
                              self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
                              init_value=1,
@@ -993,7 +1280,7 @@ class Protocol(MenuInstrumentProtocol):
                              r'(0|1)\s+= Metadata Print Status on Power up',
                              lambda match : int(match.group(1)),
                              self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
                              init_value=0,
@@ -1004,7 +1291,7 @@ class Protocol(MenuInstrumentProtocol):
                              r'(0|1)\s+= Metadata Print Status on Restart Data Collection',
                              lambda match : int(match.group(1)),
                              self._int_to_string,
-                             visibility=ParameterDictVisibility.READ_ONLY,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
                              init_value=0,
@@ -1016,9 +1303,9 @@ class Protocol(MenuInstrumentProtocol):
                              lambda match : int(match.group(1)),
                              self._int_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             startup_param=True,
+                             startup_param=False,
                              direct_access=False,
-                             init_value=1,
+                             #init_value=1,
                              menu_path_read=SubMenu.SHOW_PARAM,
                              submenu_read=[],
                              menu_path_write=SubMenu.SENSOR_POWER,
@@ -1029,9 +1316,9 @@ class Protocol(MenuInstrumentProtocol):
                              lambda match : int(match.group(1)),
                              self._int_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             startup_param=True,
+                             startup_param=False,
                              direct_access=False,
-                             init_value=1,
+                             #init_value=1,
                              menu_path_read=SubMenu.SHOW_PARAM,
                              submenu_read=[],
                              menu_path_write=SubMenu.SENSOR_POWER,
@@ -1042,9 +1329,9 @@ class Protocol(MenuInstrumentProtocol):
                              lambda match : int(match.group(1)),
                              self._int_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             startup_param=True,
+                             startup_param=False,
                              direct_access=False,
-                             init_value=1,
+                             #init_value=1,
                              menu_path_read=SubMenu.SHOW_PARAM,
                              submenu_read=[],
                              menu_path_write=SubMenu.SENSOR_POWER,
@@ -1055,9 +1342,9 @@ class Protocol(MenuInstrumentProtocol):
                              lambda match : int(match.group(1)),
                              self._int_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             startup_param=True,
+                             startup_param=False,
                              direct_access=False,
-                             init_value=1,
+                             #init_value=1,
                              menu_path_read=SubMenu.SHOW_PARAM,
                              submenu_read=[],
                              menu_path_write=SubMenu.SENSOR_POWER,
@@ -1068,9 +1355,9 @@ class Protocol(MenuInstrumentProtocol):
                              lambda match : int(match.group(1)),
                              self._int_to_string,
                              visibility=ParameterDictVisibility.READ_ONLY,
-                             startup_param=True,
+                             startup_param=False,
                              direct_access=False,
-                             init_value=1,
+                             #init_value=1,
                              menu_path_read=SubMenu.SHOW_PARAM,
                              submenu_read=[],
                              menu_path_write=SubMenu.SENSOR_POWER,
@@ -1107,6 +1394,7 @@ class Protocol(MenuInstrumentProtocol):
             a number of minutes where the seconds are rounded down to the
             nearest minute.
         """
+        log.debug('>>>_from_seconds')
         if (value < 15) or (value > 3600):
             raise InstrumentParameterException("Invalid seconds value: %s" % value)
         
