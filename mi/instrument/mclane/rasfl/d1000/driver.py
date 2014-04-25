@@ -13,6 +13,7 @@ from mi.core.driver_scheduler import \
     DriverSchedulerConfigKey, \
     TriggerType
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
+from mi.core.util import dict_equal
 
 
 __author__ = 'Dan Mergens'
@@ -26,7 +27,7 @@ log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, \
-    InstrumentProtocolException
+    InstrumentParameterException
 
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
@@ -363,7 +364,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.ACQUIRE_SAMPLE, self._handler_sample),
                 (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_autosample),
-                (ProtocolEvent.GET, self._handle_get),
+                # (ProtocolEvent.GET, self._handler_command_get),
+                (ProtocolEvent.GET, self._handler_get),
                 (ProtocolEvent.SET, self._handler_command_set),
             ],
             ProtocolState.AUTOSAMPLE: [
@@ -443,6 +445,37 @@ class Protocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # implement virtual methods from base class.
     ########################################################################
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters.  If
+        startup is set to true that means we are setting startup values
+        and immutable parameters can be set.  Otherwise only READ_WRITE
+        parameters can be set.
+
+        must be overloaded in derived classes
+
+        @param params dictionary containing parameter name and value pairs
+        @param startup flag - true indicates initializing, false otherwise
+        """
+
+        log.debug('_set_params - called with args: %r', args[0])
+        params = args[0]
+
+        # check for attempt to set readonly parameters (read-only or immutable set outside startup)
+        self._verify_not_readonly(*args, **kwargs)
+        log.debug('_set_params - verified parameter is not read only')
+        old_config = self._param_dict.get_config()
+
+        for (key, val) in params.iteritems():
+            log.debug("KEY = " + str(key) + " VALUE = " + str(val))
+            self._param_dict.set_value(key, val)
+
+        new_config = self._param_dict.get_config()
+        log.debug('new config: %s\nold config: %s', new_config, old_config)
+        # check for parameter change
+        if not dict_equal(old_config, new_config):
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
     def apply_startup_params(self):
         """
@@ -576,23 +609,34 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         no writable parameters so does nothing, just implemented to make framework happy
         """
+        log.debug('_handler_command_set - called with args %r', args[0])
 
         input_params = args[0]
 
         for key, value in input_params.items():
+            log.debug('_handler_command_set - key (%r) value (%r)', key, value)
             if not Parameter.has(key):
-                raise InstrumentProtocolException('Invalid parameter supplied to set: %s' % key)
+                raise InstrumentParameterException('Invalid parameter supplied to set: %s' % key)
 
             try:
                 value = int(value)
             except TypeError:
-                raise InstrumentProtocolException('Invalid value [%s] for parameter %s' % (value, key))
+                raise InstrumentParameterException('Invalid value [%s] for parameter %s' % (value, key))
 
             if key == Parameter.SAMPLE_INTERVAL:
                 if value < MIN_SAMPLE_RATE or value > MAX_SAMPLE_RATE:
-                    raise InstrumentProtocolException('Parameter %s value [%d] is out of range [%d %d]' %
-                                                      (key, value, MIN_SAMPLE_RATE, MAX_SAMPLE_RATE))
-        return None, (None, None)
+                    raise InstrumentParameterException('Parameter %s value [%d] is out of range [%d %d]' %
+                                                       (key, value, MIN_SAMPLE_RATE, MAX_SAMPLE_RATE))
+        startup = False
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        self._set_params(input_params, startup)
+
+        return None, None
+        # return None, (None, None)
 
     def _handler_command_autosample(self, *args, **kwargs):
         """
