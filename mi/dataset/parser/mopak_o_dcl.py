@@ -21,7 +21,6 @@ import binascii
 from datetime import datetime
 import time
 from functools import partial
-import gevent
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
@@ -35,6 +34,9 @@ ACCEL_ID = b'\xcb'
 RATE_ID = b'\xcf'
 ACCEL_BYTES = 43
 RATE_BYTES = 31
+
+MAX_TIMER = 4294967296
+TIMER_TO_SECONDS = 62500.0
 
 class StateKey(BaseEnum):
     POSITION='position'
@@ -274,8 +276,10 @@ class MopakODclParser(BufferLoadingFilenameParser):
     def parse_chunks(self):
         """
         Parse out any pending data chunks in the chunker. If
-        it is a valid data piece, build a particle, update the position and
-        timestamp. Go until the chunker has no more valid data.
+        it is a valid data piece, build a particle, update the position.
+        Go until the chunker has no more valid data.
+        If the timer rolls over account for this in the state, and raise an
+        exception if the timer is reset in the middle.
         @retval a list of tuples with sample particles encountered in this
             parsing, plus the state. An empty list of nothing was parsed.
         """
@@ -308,12 +312,16 @@ class MopakODclParser(BufferLoadingFilenameParser):
                 # start of the file
                 if self._read_state[StateKey.TIMER_START] == None:
                     self._read_state[StateKey.TIMER_START] = timer
+                # keep track of the timer rolling over or being reset
                 if timer < last_timer:
                     # check that the timer was not reset instead of rolling over, there should be
-                    # a large difference between the times, give it a little leeway and add 10000
-                    if self.timer_diff and (last_timer - timer) < (4294967296 - (self.timer_diff*2 + 10000)):
+                    # a large difference between the times, give it a little leeway with the 2.1
+                    # this is unlikely to happen in the first place, but there is still a risk of
+                    # rolling over on the second sample and not having timer_diff calculated yet,
+                    # or rolling in the last sample of the file within the fudge factor
+                    if self.timer_diff and (last_timer - timer) < (MAX_TIMER - self.timer_diff*2.1):
                         # timer was reset before it got to the end
-                        log.debug('Timer was reset, time of particles unknown')
+                        log.warn('Timer was reset, time of particles unknown')
                         raise SampleException('Timer was reset, time of particle now unknown')
                     log.info("Timer has rolled")
                     self._read_state[StateKey.TIMER_ROLLOVER] += 1
@@ -366,10 +374,10 @@ class MopakODclParser(BufferLoadingFilenameParser):
         convert a timer value to a ntp formatted timestamp
         """
         # if the timer has rolled over, multiply by the maximum value for timer so the time keeps increasing
-        rollover_offset = self._read_state[StateKey.TIMER_ROLLOVER] * 4294967296
+        rollover_offset = self._read_state[StateKey.TIMER_ROLLOVER] * MAX_TIMER
         # make sure the timer starts at 0 for the file by subtracting the first timer
         # divide timer by 62500 to go from counts to seconds
-        offset_secs = float(timer + rollover_offset - self._read_state[StateKey.TIMER_START])/62500.0
+        offset_secs = float(timer + rollover_offset - self._read_state[StateKey.TIMER_START])/TIMER_TO_SECONDS
         # add in the utc start time
         time_secs = float(self._start_time_utc) + offset_secs
         # convert to ntp64
