@@ -39,12 +39,14 @@ from mi.core.instrument.port_agent_client import PortAgentPacket
 from mi.core.exceptions import InstrumentTimeoutException
 
 # MI imports.
-from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
+from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import AgentCapabilityType
-from mi.idk.util import convert_enum_to_dict 
+from mi.idk.util import convert_enum_to_dict
+
 
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverEvent
@@ -61,7 +63,7 @@ from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
 from mi.instrument.uw.bars.ooicore.driver import Protocol
-from mi.instrument.uw.bars.ooicore.driver import ooicoreInstrumentDriver
+from mi.instrument.uw.bars.ooicore.driver import InstrumentDriver
 from mi.instrument.uw.bars.ooicore.driver import ProtocolState
 from mi.instrument.uw.bars.ooicore.driver import ProtocolEvent
 from mi.instrument.uw.bars.ooicore.driver import Parameter, VisibleParameters
@@ -79,11 +81,19 @@ from mi.instrument.uw.bars.ooicore.driver import DataParticleType
 ###
 InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.uw.bars.ooicore.driver',
-    driver_class="ooicoreInstrumentDriver",
+    driver_class="InstrumentDriver",
 
     instrument_agent_resource_id = 'QN341A',
     instrument_agent_name = 'uw_bars_ooicore',
     instrument_agent_packet_config = DataParticleType(),
+    driver_startup_config = {
+        DriverConfigKey.PARAMETERS : {
+            Parameter.CYCLE_TIME : 20,
+            Parameter.VERBOSE : 1,
+            Parameter.METADATA_POWERUP : 0,
+            Parameter.METADATA_RESTART : 0
+        }
+    }
 )
 
 #################################### RULES ####################################
@@ -107,12 +117,184 @@ SAMPLE_FRAGMENT_2 = "48  1.995  1.041  24.74  0.000   24.7   9.2\r\n"
 STARTUP_TIMEOUT = 120
 EXECUTE_TIMEOUT = 60
 
+
+
+CYCLE_TIME_VALUE = 20
+EH_ISOLATION_AMP_POWER_VALUE = 1
+HYDROGEN_POWER_VALUE = 1
+INST_AMP_POWER_VALUE = 1
+METADATA_POWERUP_VALUE = 0
+METADATA_RESTART_VALUE = 0
+REFERENCE_TEMP_POWER_VALUE = 1
+RES_SENSOR_POWER_VALUE = 1
+VERBOSE_VALUE = None
+
+###############################################################################
+#                           DRIVER TEST MIXIN        		                  #
+#     Defines a set of constants and assert methods used for data particle    #
+#     verification 														      #
+#                                                                             #
+#  In python mixin classes are classes designed such that they wouldn't be    #
+#  able to stand on their own, but are inherited by other classes generally   #
+#  using multiple inheritance.                                                #
+#                                                                             #
+# This class defines a configuration structure for testing and common assert  #
+# methods for validating data particles.									  #
+###############################################################################
+class TRHPHMixinSub(DriverTestMixin):
+
+    global VALUE
+    InstrumentDriver = InstrumentDriver
+
+    '''
+    Mixin class used for storing data particle constants and common data assertion methods.
+    '''
+    # Create some short names for the parameter test config
+    TYPE      = ParameterTestConfigKey.TYPE
+    READONLY  = ParameterTestConfigKey.READONLY
+    STARTUP   = ParameterTestConfigKey.STARTUP
+    DA        = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE     = ParameterTestConfigKey.VALUE
+    REQUIRED  = ParameterTestConfigKey.REQUIRED
+    DEFAULT   = ParameterTestConfigKey.DEFAULT
+    STATES    = ParameterTestConfigKey.STATES
+
+    INVALID_SAMPLE  = "This is an invalid sample; it had better cause an exception."
+    VALID_SAMPLE_01 = "0.000  0.000  0.000  0.001  0.021  0.042  1.999  1.173  20.75  0.016   24.7   9.3"
+    VALID_SAMPLE_02 = "0.000  0.000  0.000  0.002  0.021  0.040  1.999  1.173  20.75  0.015   24.4   9.2"
+
+
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        Capability.START_AUTOSAMPLE : {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_AUTOSAMPLE : {STATES: [ProtocolState.AUTOSAMPLE]},
+        Capability.START_DIRECT : {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_DIRECT : {STATES: [ProtocolState.DIRECT_ACCESS]},
+        Capability.GET : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.SET : {STATES: [ProtocolState.COMMAND]},
+        Capability.EXECUTE_DIRECT : {STATES: [ProtocolState.DIRECT_ACCESS]},
+    }
+
+
+    ###
+    #  Parameter and Type Definitions
+    ###
+    _driver_parameters = {
+        # Parameters defined in the IOS
+
+        Parameter.CYCLE_TIME : {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 20, VALUE: 20},
+        Parameter.VERBOSE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1, REQUIRED: False},
+        Parameter.METADATA_POWERUP : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        Parameter.METADATA_RESTART : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        Parameter.RES_SENSOR_POWER : {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 1, VALUE: 1},
+        Parameter.INST_AMP_POWER : {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 1, VALUE: 1},
+        Parameter.EH_ISOLATION_AMP_POWER : {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 1, VALUE: 1},
+        Parameter.HYDROGEN_POWER : {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 1, VALUE: 1},
+        Parameter.REFERENCE_TEMP_POWER : {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 1, VALUE: 1},
+    }
+
+    _sample_parameters = {
+        BarsDataParticleKey.RESISTIVITY_5: {TYPE: float, VALUE: 1.234, REQUIRED: True },
+        BarsDataParticleKey.RESISTIVITY_X1: {TYPE: float, VALUE: 1.345, REQUIRED: True },
+        BarsDataParticleKey.RESISTIVITY_X5: {TYPE: float, VALUE: 8414, REQUIRED: True },
+        BarsDataParticleKey.HYDROGEN_5: {TYPE: float, VALUE: 8362, REQUIRED: True },
+        BarsDataParticleKey.HYDROGEN_X1: {TYPE: float, VALUE: 1.234, REQUIRED: True },
+        BarsDataParticleKey.HYDROGEN_X5: {TYPE: float, VALUE: 1.234, REQUIRED: True },
+        BarsDataParticleKey.EH_SENSOR: {TYPE: float, VALUE: 1.234, REQUIRED: True },
+        BarsDataParticleKey.REFERENCE_TEMP_VOLTS: {TYPE: float, VALUE: 1.234, REQUIRED: True },
+        BarsDataParticleKey.REFERENCE_TEMP_DEG_C: {TYPE: float, VALUE: 1.234, REQUIRED: True },
+        BarsDataParticleKey.RESISTIVITY_TEMP_VOLTS: {TYPE: float, VALUE: 1.234, REQUIRED: True },
+        BarsDataParticleKey.RESISTIVITY_TEMP_DEG_C: {TYPE: float, VALUE: 1.234, REQUIRED: True },
+        BarsDataParticleKey.BATTERY_VOLTAGE: {TYPE: float, VALUE: 1.234, REQUIRED: True },
+
+    }
+
+    def assert_particle_sample(self, data_particle, verify_values = False):
+        '''
+        Verify sample particle
+        @param data_particle:  THSPHDataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(BarsDataParticleKey, self._sample_parameters)
+        self.assert_data_particle_header(data_particle, DataParticleType.PARSED, require_instrument_timestamp=False)
+        self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
+
+
+
+    def assert_driver_parameters(self, current_parameters, verify_values = False):
+        """
+        Verify that all driver parameters are correct and potentially verify values.
+        @param current_parameters: driver parameters read from the driver instance
+        @param verify_values: should we verify values against definition?
+        """
+        self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
+
+
+
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
 ###############################################################################
 @attr('UNIT', group='mi')
-class UnitFromIDK(InstrumentDriverUnitTestCase):
+class DriverUnitTest(InstrumentDriverUnitTestCase, TRHPHMixinSub):
+    def setUp(self):
+        InstrumentDriverUnitTestCase.setUp(self)
+
+
+    def test_driver_enums(self):
+        """
+        Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
+        do a little extra validation for the Capabilites
+        """
+        self.assert_enum_has_no_duplicates(DataParticleType())
+        self.assert_enum_has_no_duplicates(ProtocolState())
+        self.assert_enum_has_no_duplicates(ProtocolEvent())
+        self.assert_enum_has_no_duplicates(Parameter())
+        self.assert_enum_has_no_duplicates(Command())
+
+        # Test capabilites for duplicates, then verify that capabilities is a subset of proto events
+        self.assert_enum_has_no_duplicates(Capability())
+        self.assert_enum_complete(Capability(), ProtocolEvent())
+
+
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = self.InstrumentDriver(self._got_data_event_callback)
+        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
+
+    def test_chunker(self):
+        """
+        Test the chunker and verify the particles created.
+        """
+        chunker = StringChunker(Protocol.sieve_function)
+        self.assert_chunker_sample(chunker, self.VALID_SAMPLE_01)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_SAMPLE_01)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_SAMPLE_01)
+        self.assert_chunker_combined_sample(chunker, self.VALID_SAMPLE_01)
+
+        self.assert_chunker_sample(chunker, self.VALID_SAMPLE_02)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_SAMPLE_02)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_SAMPLE_02)
+        self.assert_chunker_combined_sample(chunker, self.VALID_SAMPLE_02)
+
+
+    def test_got_data(self):
+        """
+        Verify sample data passed through the got data method produces the correct data particles
+        """
+        # Create and initialize the instrument driver with a mock port agent
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver)
+
+        self.assert_raw_particle_published(driver, True)
+
+        # Start validating data particles
+        self.assert_particle_published(driver, self.VALID_SAMPLE_01, self.assert_particle_sample, True)
+        self.assert_particle_published(driver, self.VALID_SAMPLE_02, self.assert_particle_sample, True)
+
+
 	###
 	# 	Reset test verification variables.  The purpose of this method is
 	#	to reset the test verification variables to initial values.  The
@@ -154,7 +336,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """       
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        test_driver = InstrumentDriver(self.my_event_callback)
         
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
@@ -242,7 +424,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """       
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        test_driver = InstrumentDriver(self.my_event_callback)
         
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
@@ -302,7 +484,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """       
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        test_driver = InstrumentDriver(self.my_event_callback)
         
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
@@ -382,7 +564,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        test_driver = InstrumentDriver(self.my_event_callback)
         
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
@@ -461,7 +643,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
         Instantiate the driver class directly (no driver client, no driver
         client, no zmq driver process, no driver process; just own the driver)
         """                  
-        test_driver = ooicoreInstrumentDriver(self.my_event_callback)
+        test_driver = InstrumentDriver(self.my_event_callback)
         
         current_state = test_driver.get_resource_state()
         self.assertEqual(current_state, DriverConnectionState.UNCONFIGURED)
@@ -574,7 +756,7 @@ class UnitFromIDK(InstrumentDriverUnitTestCase):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class IntFromIDK(InstrumentDriverIntegrationTestCase):
+class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, TRHPHMixinSub):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
@@ -604,12 +786,24 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         # Test the driver returned state unconfigured.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-        
+
     def test_connect(self):
         """
         Test configuring and connecting to the device through the port
         agent. Discover device state.
+
+        rhan
         """
+        self.assert_initialize_driver()
+
+    """
+    def test_connect(self):
+    """
+    """
+        Test configuring and connecting to the device through the port
+        agent. Discover device state.
+    """
+    """
         
         # Test the driver is in state unconfigured.
         state = self.driver_client.cmd_dvr('get_resource_state')
@@ -649,7 +843,96 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
         # Test the driver is in state unconfigured.
         state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(state, DriverConnectionState.UNCONFIGURED)
-    
+    """
+
+    def test_direct_access(self):
+        """
+        Verify we can enter the direct access state
+        rhan
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
+        self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
+
+    def test_state_transition(self):
+        """
+        Tests to see if we can make transition to different states
+        rhan
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.DISCOVER)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
+
+        # Test transition to auto sample
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
+        self.assert_state_change(ProtocolState.AUTOSAMPLE, 5)
+
+        # Test transition back to command state
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
+
+        # Test transition to direct access state
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
+        self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
+
+        # Test transition back to command state
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_DIRECT)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
+
+    def test_parameters(self):
+        """
+        Test driver parameters and verify their type.  Startup parameters also verify the parameter
+        value.  This test confirms that parameters are being read/converted properly and that
+        the startup has been applied.
+        rhan
+        """
+        self.assert_initialize_driver()
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assert_driver_parameters(reply, True)
+
+        # verify we can set read/write parameters
+        self.assert_set(Parameter.CYCLE_TIME, 20)
+
+
+    def test_readonly_set(self):
+        # verify we cannot set read only parameters
+        self.assert_initialize_driver()
+        self.assert_set_exception(Parameter.VERBOSE)
+        self.assert_set_exception(Parameter.METADATA_POWERUP)
+        self.assert_set_exception(Parameter.METADATA_RESTART)
+        self.assert_set_exception(Parameter.RES_SENSOR_POWER)
+        self.assert_set_exception(Parameter.INST_AMP_POWER)
+        self.assert_set_exception(Parameter.EH_ISOLATION_AMP_POWER)
+        self.assert_set_exception(Parameter.HYDROGEN_POWER)
+        self.assert_set_exception(Parameter.REFERENCE_TEMP_POWER)
+
+
+    def test_get_params(self):
+        self.assert_initialize_driver()
+        self.assert_get(Parameter.CYCLE_TIME, CYCLE_TIME_VALUE)
+        self.assert_get(Parameter.EH_ISOLATION_AMP_POWER, EH_ISOLATION_AMP_POWER_VALUE)
+        self.assert_get(Parameter.HYDROGEN_POWER, HYDROGEN_POWER_VALUE)
+        self.assert_get(Parameter.INST_AMP_POWER, INST_AMP_POWER_VALUE)
+        self.assert_get(Parameter.METADATA_POWERUP, METADATA_POWERUP_VALUE)
+        self.assert_get(Parameter.METADATA_RESTART, METADATA_RESTART_VALUE)
+        self.assert_get(Parameter.REFERENCE_TEMP_POWER, REFERENCE_TEMP_POWER_VALUE)
+        self.assert_get(Parameter.RES_SENSOR_POWER, RES_SENSOR_POWER_VALUE)
+
+    def test_autosample_on(self):
+        """
+        @brief Test for turning data on
+        """
+        self.assert_initialize_driver()
+        self.assert_particle_generation(ProtocolEvent.START_AUTOSAMPLE,
+                                        DataParticleType.PARSED,
+                                        self.assert_particle_sample,
+                                        delay=60)
+
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+
+
     def test_discover_state(self):
 	""" Tests to see if we can discover the state of the instrument"""
 	# put yourself in a known state for now
@@ -716,7 +999,7 @@ class IntFromIDK(InstrumentDriverIntegrationTestCase):
                 ]
             self.driver_client.cmd_dvr('get_resource', bogus_params)        
         
-    def test_readonly_set(self):
+    def test_readonly_set_old(self):
 	""" Tests the results of trying to set some read-only values """
         config_key = Parameter.CYCLE_TIME
 	value_C = 16
