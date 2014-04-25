@@ -335,10 +335,19 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
                 log.debug('Found %d samples, elapsed time: %d, approx data rate: %d seconds/sample',
                           num_samples, elapsed, rate)
                 break
-            else:
-                log.debug('Found %d samples of %d expected, elapsed time: %d', num_samples, particle_count, elapsed)
+            # else:
+            #    log.debug('Found %d samples of %d expected, elapsed time: %d', num_samples, particle_count, elapsed)
             self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
             time.sleep(1)
+
+    def assert_acquire_status(self):
+        """
+        Verify a status particle was generated
+        """
+        self.clear_events()
+
+        self.assert_particle_count(particle_type=SamiDataParticleType.REGULAR_STATUS, particle_count=1, timeout=5)
+        self.assert_particle_count(particle_type=SamiDataParticleType.CONFIGURATION, particle_count=1, timeout=5)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
