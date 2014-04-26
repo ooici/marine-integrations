@@ -8,6 +8,7 @@ Release notes:
 initial version
 """
 import functools
+from types import FunctionType
 
 from mi.core.driver_scheduler import \
     DriverSchedulerConfigKey, \
@@ -27,7 +28,7 @@ log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, \
-    InstrumentParameterException
+    InstrumentParameterException, InstrumentProtocolException
 
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
@@ -55,7 +56,6 @@ from mi.core.instrument.protocol_param_dict import ProtocolParameterDict, \
 
 
 NEWLINE = '\r\n'
-# NEWLINE = '\r'
 
 # default timeout.
 INTER_CHARACTER_DELAY = .2
@@ -67,6 +67,53 @@ INTER_CHARACTER_DELAY = .2
 DEFAULT_SAMPLE_RATE = 15  # once every 6 seconds
 MIN_SAMPLE_RATE = 1  # 1 second
 MAX_SAMPLE_RATE = 3600  # 1 hour
+
+
+class LoggingMetaClass(type):
+    def __new__(mcs, class_name, bases, class_dict):
+        new_class_dict = {}
+        for attributeName, attribute in class_dict.items():
+            if type(attribute) == FunctionType:
+                attribute = log_method(attribute)  # replace with a wrapped version of method
+            new_class_dict[attributeName] = attribute
+        return type.__new__(mcs, class_name, bases, new_class_dict)
+
+
+def log_method(func):
+    @functools.wraps(func)
+    def inner(*args, **kwargs):
+        log.debug('entered %s | args: %r | kwargs: %r', func.__name__, args, kwargs)
+        r = func(*args, **kwargs)
+        log.debug('exiting %s | returning %r', func.__name__, r)
+        return r
+
+    return inner
+
+
+def checksum(data):
+    """
+    Calculate checksum on value string.
+    @retval checksum - base 10 integer representing last two hexadecimal digits of the checksum
+    """
+    total = sum([ord(x) for x in data])
+    return total & 0xff
+
+
+def valid_response(line):
+    """
+    Perform a checksum calculation on provided data. The checksum used for comparison is the last two characters of
+    the line.
+    @param line - response line from the instrument, must start with '*'
+    @retval checksum validity - whether or not the checksum provided in the line matches calculated checksum
+    """
+    cksum = int(line[-2:], 16)  # checksum is last two characters in ASCII hex
+    data = line[:-2]  # remove checksum from data
+
+    calc_cksum = checksum(data)
+    if cksum != calc_cksum:
+        log.debug('checksum failed (%r): should be %s', line, hex(calc_cksum))
+        return False
+    return True
 
 
 class ProtocolState(BaseEnum):
@@ -183,15 +230,14 @@ class Command(BaseEnum):
     """
     Instrument command strings - case sensitive
     """
-    READ_1 = '#1RD'  # temperature probe 1
-    READ_2 = '#2RD'  # temperature probe 2
-    READ_3 = '#3RD'  # temperature probe 3
-    ENABLE_WRITE_1 = '#1WE'
-    ENABLE_WRITE_2 = '#2WE'
-    ENABLE_WRITE_3 = '#3WE'
     DEFAULT_SETUP_1 = '#1SU310214C2'
     DEFAULT_SETUP_2 = '#2SU320214C2'
     DEFAULT_SETUP_3 = '#3SU330214C2'
+    READ = "RD"
+    ENABLE_WRITE = "WE"
+    SETUP = "SU"
+    CLEAR_ALARM = "CA"
+    CLEAR_ZERO = "CZ"
 
 
 class Prompt(BaseEnum):
@@ -211,9 +257,6 @@ class Response(BaseEnum):
     """
     # *1RD+00019.16AB
     TEMP = re.compile(r'\*[123]RD')
-    ENABLE_WRITE_1 = re.compile(r'\*1WEF7')
-    ENABLE_WRITE_2 = re.compile(r'\*2WEF8')
-    ENABLE_WRITE_3 = re.compile(r'\*3WEF9')
     DEFAULT_SETUP_1 = re.compile(r'\*1SU310214C2A3')
     DEFAULT_SETUP_2 = re.compile(r'\*2SU320214C2A5')
     DEFAULT_SETUP_3 = re.compile(r'\*3SU330214C2A7')
@@ -253,18 +296,6 @@ class D1000TemperatureDataParticle(DataParticle):
     def regex_compiled():
         return re.compile(D1000TemperatureDataParticle.regex(), re.DOTALL)
 
-    def _checksum(self):
-        for line in self.raw_data.split(NEWLINE):
-            if line.startswith('*'):
-                cksum = int(line[-2:], 16)  # checksum is last two characters in ASCII hex
-                data = line[:-2]  # remove checksum from data
-
-                total = sum([ord(x) for x in data])
-                calc_cksum = total & 0xff
-                log.debug('checksum (%r): %d (calculated: %d)', line, cksum, calc_cksum)
-                if cksum != calc_cksum:
-                    raise SampleException('Checksum failed - temperature sample is corrupt: %s', self.raw_data)
-
     def _build_parsed_values(self):
         match = self.regex_compiled().match(self.raw_data)
 
@@ -272,7 +303,10 @@ class D1000TemperatureDataParticle(DataParticle):
             raise SampleException("D1000TemperatureDataParticle: No regex match of parsed sample data: [%s]",
                                   self.raw_data)
 
-        self._checksum()
+        for line in self.raw_data.split(NEWLINE):
+            if line.startswith('*'):
+                if not valid_response(line):
+                    raise SampleException('Checksum failed - temperature sample is corrupt: %s', self.raw_data)
 
         result = [
             {DataParticleKey.VALUE_ID: D1000TemperatureDataParticleKey.TEMP1,
@@ -337,6 +371,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+    __metaclass__ = LoggingMetaClass
 
     def __init__(self, prompts, newline, driver_event):
         """
@@ -364,7 +399,6 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.ACQUIRE_SAMPLE, self._handler_sample),
                 (ProtocolEvent.START_AUTOSAMPLE, self._handler_command_autosample),
-                # (ProtocolEvent.GET, self._handler_command_get),
                 (ProtocolEvent.GET, self._handler_get),
                 (ProtocolEvent.SET, self._handler_command_set),
             ],
@@ -389,6 +423,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Add build handlers for device commands - we are only using simple commands
         for cmd in Command.list():
             self._add_build_handler(cmd, self._build_command)
+            self._add_response_handler(cmd, self._check_command)
+        self._add_build_handler(Command.SETUP, self._build_setup_command)
 
         # Add response handlers for device commands.
         # self._add_response_handler(Command.xyz, self._parse_xyz_response)
@@ -405,9 +441,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
         self._sent_cmds = None
 
-        self._do_cmd_resp = functools.partial(CommandResponseInstrumentProtocol._do_cmd_resp, self,
-                                              write_delay=INTER_CHARACTER_DELAY)
         self.initialize_scheduler()
+
+        # unit identifiers - must match the setup command (SU31 - '1')
+        self._units = ['1', '2', '3']
 
     @staticmethod
     def sieve_function(raw_data):
@@ -459,12 +496,10 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param startup flag - true indicates initializing, false otherwise
         """
 
-        log.debug('_set_params - called with args: %r', args[0])
         params = args[0]
 
         # check for attempt to set readonly parameters (read-only or immutable set outside startup)
         self._verify_not_readonly(*args, **kwargs)
-        log.debug('_set_params - verified parameter is not read only')
         old_config = self._param_dict.get_config()
 
         for (key, val) in params.iteritems():
@@ -472,7 +507,6 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._param_dict.set_value(key, val)
 
         new_config = self._param_dict.get_config()
-        log.debug('new config: %s\nold config: %s', new_config, old_config)
         # check for parameter change
         if not dict_equal(old_config, new_config):
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
@@ -482,17 +516,11 @@ class Protocol(CommandResponseInstrumentProtocol):
         Apply startup parameters
         """
 
-        fn = "apply_startup_params"
         config = self.get_startup_config()
-        log.debug("%s: startup config = %s", fn, config)
 
         for param in Parameter.list():
             if param in config:
                 self._param_dict.set_value(param, config[param])
-
-        log.debug("%s: new parameters", fn)
-        for x in config:
-            log.debug("  parameter %s: %s", x, config[x])
 
     ########################################################################
     # Private helpers.
@@ -500,16 +528,96 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _wakeup(self, wakeup_timeout=10, response_timeout=3):
         """
-        Over-written because waking this instrument up is a multi-step process with
-        two different requests required
+        Over-ridden because the D1000 does not go to sleep and requires no special wake-up commands.
         @param wakeup_timeout The timeout to wake the device.
         @param response_timeout The time to look for response to a wakeup attempt.
         @throw InstrumentTimeoutException if the device could not be woken.
         """
         pass
 
-    def _build_command(self, cmd, *args):
-        return cmd + ' ' + ' '.join([str(x) for x in args]) + NEWLINE
+    def _do_command(self, cmd, unit):
+        """
+        Send command and ensure it matches appropriate response. Simply enforces sending the unit identifier as a
+        required argument.
+        @param cmd - Command to send to instrument
+        @param unit - unit identifier
+        @retval - response from instrument
+        """
+        self._do_cmd_resp(cmd, unit, write_delay=INTER_CHARACTER_DELAY)
+
+    def _build_command(self, cmd, unit):
+        """
+        @param cmd - Command to process
+        @param unit - unit identifier
+        """
+        return '#' + unit + cmd + NEWLINE
+
+    def _build_setup_command(self, cmd, unit):
+        """
+        @param cmd - command to send - should be 'SU'
+        @param unit - unit identifier - should be '1', '2', or '3', must be a single character
+        """
+        # use defaults - in the future, may consider making some of these parameters
+        # byte 0
+        channel_address = unit
+        # byte 1
+        line_feed = False
+        parity_type = 0
+        parity_enable = False
+        extended_addressing = False
+        baud_rate = BAUD_RATE_9600 = 2
+        # byte 2
+        alarm_enable = False
+        low_alarm_latch = ALARM_MOMENTARY = False
+        high_alarm_latch = ALARM_MOMENTARY = False
+        rtd_wire = RTD_4_WIRE = 1
+        temp_units = TEMP_CELSIUS = 0
+        echo = DAISY_CHAIN = True
+        delay_units = 0
+        #byte 3
+        precision = PRECISION_6 = 2
+        large_signal_filter_constant = FILTER_ZERO = 0
+        small_signal_filter_constant = FILTER_0_5 = 2
+
+        # # Factory default: 0x31070182
+        # # Lab default:     0x310214C2
+
+        byte_0 = int(channel_address.encode("hex"), 16)
+        byte_1 = \
+            (line_feed << 7) + \
+            (parity_type << 6) + \
+            (parity_enable << 5) + \
+            (extended_addressing << 4) + \
+            baud_rate
+        byte_2 = \
+            (alarm_enable << 7) + \
+            (low_alarm_latch << 6) + \
+            (high_alarm_latch << 5) + \
+            (rtd_wire << 4) + \
+            (temp_units << 3) + \
+            (echo << 2) + \
+            delay_units
+        byte_3 = \
+            (precision << 6) + \
+            (large_signal_filter_constant << 3) + \
+            small_signal_filter_constant
+
+        return '#%sSU%02x%02x%02x%02x' % (unit[0], byte_0, byte_1, byte_2, byte_3) + NEWLINE
+
+    def _check_command(self, resp, prompt):
+        """
+        Perform a checksum calculation on provided data. The checksum used for comparison is the last two characters of
+        the line.
+        @param resp - response from the instrument to the command
+        @param prompt - expected prompt (or the joined groups from a regex match)
+        @retval
+        """
+        for line in resp.split(NEWLINE):
+            if line.startswith('?'):
+                raise InstrumentProtocolException('error processing command (%r)', resp[1:])
+            if line.startswith('*'):  # response
+                if not valid_response(line):
+                    raise InstrumentProtocolException('checksum failed (%r)', line)
 
     def _build_driver_dict(self):
         """
@@ -547,8 +655,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Update the parameter dictionary. 
         """
-
-        log.debug("_update_params:")
+        pass
 
     ########################################################################
     # Event handlers for UNKNOWN state.
@@ -558,7 +665,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter unknown state.
         """
-        log.debug('entering driver state: %s from %s', ProtocolState.UNKNOWN, self.get_current_state())
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -579,7 +685,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.COMMAND
         result = ResourceAgentState.COMMAND
 
-        log.debug("_handler_unknown_discover: state = %s", next_state)
         return ProtocolState.COMMAND, ResourceAgentState.IDLE
 
     ########################################################################
@@ -590,8 +695,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter command state.
         """
-        log.debug('entering driver state: %s from %s', ProtocolState.COMMAND, self.get_current_state())
-
         # Command device to update parameters and send a config change event if needed.
         self._update_params()
 
@@ -609,12 +712,9 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         no writable parameters so does nothing, just implemented to make framework happy
         """
-        log.debug('_handler_command_set - called with args %r', args[0])
-
         input_params = args[0]
 
         for key, value in input_params.items():
-            log.debug('_handler_command_set - key (%r) value (%r)', key, value)
             if not Parameter.has(key):
                 raise InstrumentParameterException('Invalid parameter supplied to set: %s' % key)
 
@@ -657,8 +757,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Start auto polling the temperature sensors.
         """
-        log.debug('entering driver state: %s from %s', ProtocolState.AUTOSAMPLE, self.get_current_state())
-
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._protocol_fsm.on_event(ProtocolEvent.ACQUIRE_SAMPLE)
 
@@ -674,34 +772,24 @@ class Protocol(CommandResponseInstrumentProtocol):
             }
         }
         self.set_init_params(config)
-        if self._scheduler is not None:
-            log.debug('--- djm --- there you are')
-        log.debug('--- djm --- adding sample job')
         self._add_scheduler_event(ScheduledJob.SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE)
 
     def _handler_autosample_exit(self, *args, **kwargs):
         """
         Stop autosampling - remove the scheduled autosample
         """
-        log.debug('--- djm --- _handler_autosample_exit')
-
         if self._scheduler is not None:
             try:
-                log.debug('--- djm --- tearing down sample job')
                 self._remove_scheduler(ScheduledJob.SAMPLE)
             except KeyError:
                 log.debug('_remove_scheduler count not find: %s', ScheduledJob.SAMPLE)
-        else:
-            log.error('--- djm --- where for art thou missing scheduler?')
 
     def _handler_sample(self, *args, **kwargs):
         """
         Poll the three temperature probes for current temperature readings.
         """
-        log.debug('--- djm --- _handler_autosample_sample')
-        self._do_cmd_resp(Command.READ_1, response_regex=Response.TEMP)
-        self._do_cmd_resp(Command.READ_2, response_regex=Response.TEMP)
-        self._do_cmd_resp(Command.READ_3, response_regex=Response.TEMP)
+        for i in self._units:
+            self._do_command(Command.READ, i)
 
         return None, (None, None)
 
@@ -709,7 +797,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Terminate autosampling
         """
-        log.debug('--- djm --- _handler_autosample_stop')
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
 
     ########################################################################
@@ -720,7 +807,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Enter direct access state.
         """
-        log.debug('entering driver state: %s from %s', ProtocolState.DIRECT_ACCESS, self.get_current_state())
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -732,12 +818,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         Exit direct access state.
         """
         # restore D1000 to default state
-        self._do_cmd_resp(Command.ENABLE_WRITE_1, response_regex=Response.ENABLE_WRITE_1)
-        self._do_cmd_resp(Command.DEFAULT_SETUP_1, response_regex=Response.DEFAULT_SETUP_1)
-        self._do_cmd_resp(Command.ENABLE_WRITE_2, response_regex=Response.ENABLE_WRITE_2)
-        self._do_cmd_resp(Command.DEFAULT_SETUP_2, response_regex=Response.DEFAULT_SETUP_2)
-        self._do_cmd_resp(Command.ENABLE_WRITE_3, response_regex=Response.ENABLE_WRITE_3)
-        self._do_cmd_resp(Command.DEFAULT_SETUP_3, response_regex=Response.DEFAULT_SETUP_3)
+        for i in self._units:
+            self._do_command(Command.ENABLE_WRITE, i)
+            self._do_command(Command.SETUP, i)
+            self._do_command(Command.ENABLE_WRITE, i)
+            self._do_command(Command.CLEAR_ALARM, i)
+            self._do_command(Command.ENABLE_WRITE, i)
+            self._do_command(Command.CLEAR_ZERO, i)
 
     def _handler_direct_access_execute_direct(self, data):
         self._do_cmd_direct(data)

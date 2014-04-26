@@ -37,7 +37,7 @@ from mi.idk.unit_test import \
     AgentCapabilityType
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverProtocolState, DriverConfigKey
 
 from mi.instrument.mclane.rasfl.d1000.driver import \
     InstrumentDriver, \
@@ -72,7 +72,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id='DQPJJX',
     instrument_agent_name='mclane_ras_ooicore',
     instrument_agent_packet_config=DataParticleType(),
-    driver_startup_config={},
+    driver_startup_config={DriverConfigKey.PARAMETERS: {Parameter.SAMPLE_INTERVAL: 6}},
 )
 
 
@@ -153,7 +153,7 @@ class UtilMixin(DriverTestMixin):
     ###
     _driver_parameters = {
         Parameter.SAMPLE_INTERVAL:
-            {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 20, REQUIRED: False},
+            {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 15, REQUIRED: False},
         # Parameter.CHANNEL_ADDRESS:
         #     {TYPE: chr, READONLY: True, DA: False, STARTUP: True, VALUE: 0x31, REQUIRED: False},
         # Parameter.LINEFEED:
@@ -547,15 +547,15 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         self.tcp_client.send_data("#1WE\r\n")
         if not self.tcp_client.expect("*1WEF7\r\n"):
             self.fail("test_direct_access_telnet_mode: unable to enable write mode")
-        self.tcp_client.send_data("#1SU31021482\r\n")
-        if not self.tcp_client.expect("*1SU3102148298\r\n"):
+        self.tcp_client.send_data("#1SU310214C2\r\n")
+        if not self.tcp_client.expect("*1SU310214C2A3\r\n"):
             self.fail("test_direct_access_telnet_mode: unable to perform setup command or bad checksum returned")
         self.assert_direct_access_stop_telnet()
 
         # ensure that setup has been restored after exiting direct access
         self.assert_direct_access_start_telnet(timeout=600)
         self.tcp_client.send_data("$1RS\r\n")
-        if not self.tcp_client.expect("*310214C2\r\n"):
+        if not self.tcp_client.expect("*31021482\r\n"):
             self.fail("test_direct_access_telnet_mode: setup was not restored")
         self.assert_direct_access_stop_telnet()
 
