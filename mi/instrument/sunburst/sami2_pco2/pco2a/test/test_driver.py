@@ -563,13 +563,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
     test_scheduled_data:  In command and autosample states
         ACQUIRE_STATUS
         ACQUIRE_BLANK_SAMPLE
-
-    test_queued_data:  Test that scheduled commands are queued when samples are being taken
-        ACQUIRE_STATUS
-        ACQUIRE_BLANK_SAMPLE
     """
-
-    ## TODO: add assert_async_part... back
 
     def test_set(self):
         self.assert_initialize_driver()
@@ -606,82 +600,87 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 
     def test_acquire_sample(self):
         self.assert_initialize_driver()
-
         # Will always take a blank sample first after initialization.
-
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
-        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=160)
         self.clear_events()
         # Take a regular sample
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
-        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=160)
 
     def test_acquire_blank_sample(self):
         self.assert_initialize_driver()
         # Will always take a blank sample first after initialization.
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, delay=180)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=160)
         self.clear_events()
         # Take a blank sample
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, delay=180)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=160)
 
     def test_auto_sample(self):
         self.assert_initialize_driver()
         self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 160)
         ## A blank sample is taken immediately upon entering autosample state
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=4, timeout=760)
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=160)
+        self.clear_events()
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=4, timeout=840)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
     def test_polled_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.POLLED_SAMPLE, delay=5)
-        time.sleep(180)  # Time for sample to complete
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=160)
 
     def test_polled_blank_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, state=ProtocolState.POLLED_BLANK_SAMPLE, delay=5)
-        time.sleep(180)  # Time for sample to complete
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=160)
 
     def test_scheduled_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        time.sleep(180)  # Time for sample to complete
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=160)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
     def test_scheduled_blank_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        time.sleep(180)  # Time for sample to complete
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=160)
+        self.clear_events()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, state=ProtocolState.SCHEDULED_BLANK_SAMPLE, delay=5)
-        time.sleep(180)  # Time for sample to complete
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=160)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
     def test_scheduled_blank_sample_command(self):
         """
         Verify the blank sample command can be triggered and run in command
         """
-        ## TODO: Add callback handler
-        self.assert_scheduled_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, delay=60)
-        time.sleep(240)
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, delay=120)
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=280)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_device_status_auto_sample(self):
         """
         Verify the device status command can be triggered and run in autosample
         """
-        ## TODO: Add callback handler and put in autosample state
-        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, delay=120)
-        time.sleep(5)
-        self.assert_current_state(ProtocolState.COMMAND)
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, delay=160)
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
+        self.assert_async_particle_generation(SamiDataParticleType.CONFIGURATION, self.assert_particle_configuration, timeout=280)
+        self.assert_async_particle_generation(SamiDataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
+        self.assert_async_particle_generation(SamiDataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
     def test_scheduled_blank_sample_auto_sample(self):
         """
         Verify the blank sample command can be triggered and run in autosample
         """
-        ## TODO: Add callback handler and put in autosample state
-        self.assert_scheduled_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, delay=60)
-        time.sleep(240)
-        self.assert_current_state(ProtocolState.COMMAND)
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, delay=180)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, particle_count=2, timeout=460)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
