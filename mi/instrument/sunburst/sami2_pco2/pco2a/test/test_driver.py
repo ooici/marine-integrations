@@ -608,10 +608,13 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_initialize_driver()
 
         # Will always take a blank sample first after initialization.
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, delay=180)
+
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
         self.clear_events()
         # Take a regular sample
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, delay=20)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
 
     def test_acquire_blank_sample(self):
         self.assert_initialize_driver()
@@ -621,18 +624,12 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         # Take a blank sample
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, delay=180)
 
-    def test_acquire_status(self):
-        self.assert_initialize_driver()
-        self.clear_events()
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, SamiDataParticleType.REGULAR_STATUS, self.assert_particle_regular_status)
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, SamiDataParticleType.CONFIGURATION, self.assert_particle_configuration)
-
     def test_auto_sample(self):
         self.assert_initialize_driver()
         self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 160)
-        ## A sample is taken immediately upon entering autosample state, most likely a blank
+        ## A blank sample is taken immediately upon entering autosample state
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        self.assert_particle_count(particle_type=SamiDataParticleType.SAMI_SAMPLE, particle_count=4, timeout=760)
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=4, timeout=760)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
     def test_polled_sample_state(self):
@@ -659,16 +656,6 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         time.sleep(180)  # Time for sample to complete
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
-    def test_scheduled_device_status_command(self):
-        """
-        Verify the device status command can be triggered and run in command
-        """
-        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, delay=120)
-        self.clear_events()
-        self.assert_particle_count(particle_type=SamiDataParticleType.REGULAR_STATUS, particle_count=1, timeout=180)
-        self.assert_particle_count(particle_type=SamiDataParticleType.CONFIGURATION, particle_count=1, timeout=5)
-        self.assert_current_state(ProtocolState.COMMAND)
-
     def test_scheduled_blank_sample_command(self):
         """
         Verify the blank sample command can be triggered and run in command
@@ -680,7 +667,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 
     def test_scheduled_device_status_auto_sample(self):
         """
-        Verify the device status command can be triggered and run in command
+        Verify the device status command can be triggered and run in autosample
         """
         ## TODO: Add callback handler and put in autosample state
         self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, delay=120)
@@ -689,7 +676,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 
     def test_scheduled_blank_sample_auto_sample(self):
         """
-        Verify the blank sample command can be triggered and run in command
+        Verify the blank sample command can be triggered and run in autosample
         """
         ## TODO: Add callback handler and put in autosample state
         self.assert_scheduled_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, delay=60)

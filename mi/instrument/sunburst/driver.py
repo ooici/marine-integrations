@@ -128,6 +128,16 @@ CONTROL_RECORD_REGEX = (
     NEWLINE)
 CONTROL_RECORD_REGEX_MATCHER = re.compile(CONTROL_RECORD_REGEX)
 
+BATTERY_VOLTAGE_REGEX = (
+    r'([0-9A-Fa-f]{4})' +
+    NEWLINE)
+BATTERY_VOLTAGE_REGEX_MATCHER = re.compile(BATTERY_VOLTAGE_REGEX)
+
+THERMISTOR_VOLTAGE_REGEX = (
+    r'([0-9A-Fa-f]{4})' +
+    NEWLINE)
+THERMISTOR_VOLTAGE_REGEX_MATCHER = re.compile(BATTERY_VOLTAGE_REGEX)
+
 # Error records
 ERROR_REGEX = r'[\?]([0-9A-Fa-f]{2})' + NEWLINE
 ERROR_REGEX_MATCHER = re.compile(ERROR_REGEX)
@@ -165,7 +175,8 @@ class SamiDataParticleType(BaseEnum):
     CONTROL_RECORD = 'control_record'
     SAMI_SAMPLE = 'sami_sample'
     CONFIGURATION = 'configuration'
-
+    BATTERY_VOLTAGE = 'battery_voltage'
+    THERMISTOR_VOLTAGE = 'thermistor_voltage'
 
 class ProtocolState(BaseEnum):
     """
@@ -282,6 +293,8 @@ class SamiInstrumentCommand(BaseEnum):
     GET_CONFIG = 'L'
     SET_CONFIG = 'L5A'
     ERASE_ALL = 'E5A'
+    GET_BATTERY_VOLTAGE = 'B'
+    GET_THERMISTOR_VOLTAGE = 'T'
 
     # Currently not used, IOS does not specify recording
     START = 'G5A'
@@ -297,6 +310,56 @@ class SamiInstrumentCommand(BaseEnum):
 # Data Particles
 ###############################################################################
 
+class SamiBatteryVoltageDataParticleKey(BaseEnum):
+
+    BATTERY_VOLTAGE = 'battery_voltage'
+
+class SamiBatteryVoltageDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into an regular status data particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+
+    _data_particle_type = SamiDataParticleType.BATTERY_VOLTAGE
+
+    def _build_parsed_values(self):
+
+        matched = BATTERY_VOLTAGE_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        result = [{DataParticleKey.VALUE_ID: SamiBatteryVoltageDataParticleKey.BATTERY_VOLTAGE,
+                   DataParticleKey.VALUE: int(matched.group(1), 16)}]
+
+        return result
+
+class SamiThermistorVoltageDataParticleKey(BaseEnum):
+
+    THERMISTOR_VOLTAGE = 'thermistor_voltage'
+
+class SamiThermistorVoltageDataParticle(DataParticle):
+    """
+    Routines for parsing raw data into an regular status data particle
+    structure.
+    @throw SampleException If there is a problem with sample creation
+    """
+    _data_particle_type = SamiDataParticleType.THERMISTOR_VOLTAGE
+
+    def _build_parsed_values(self):
+
+        matched = THERMISTOR_VOLTAGE_REGEX_MATCHER.match(self.raw_data)
+        if not matched:
+            raise SampleException("No regex match of parsed sample data: [%s]" %
+                                  self.decoded_raw)
+
+        result = [{DataParticleKey.VALUE_ID: SamiThermistorVoltageDataParticleKey.THERMISTOR_VOLTAGE,
+                   DataParticleKey.VALUE: int(matched.group(1), 16)}]
+
+        log.debug('herb: ' + 'SamiProtocol.SamiThermistorVoltageDataParticle(): result = ' + str(result))
+
+        return result
 
 class SamiRegularStatusDataParticleKey(BaseEnum):
     """
@@ -681,7 +744,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             self._handler_command_start_direct)
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS,
-            self._handler_command_acquire_status)
+            self._handler_acquire_status)
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_SAMPLE,
             self._handler_command_acquire_sample)
@@ -716,7 +779,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             self._handler_autosample_stop)
         self._protocol_fsm.add_handler(
             ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_STATUS,
-            self._handler_autosample_acquire_status)
+            self._handler_acquire_status)
         self._protocol_fsm.add_handler(
             ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_SAMPLE,
             self._handler_autosample_acquire_sample)
@@ -862,6 +925,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(SamiInstrumentCommand.GET_CONFIG, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.SET_CONFIG, self._build_simple_command)
 
+        self._add_build_handler(SamiInstrumentCommand.GET_BATTERY_VOLTAGE, self._build_simple_command)
+        self._add_build_handler(SamiInstrumentCommand.GET_THERMISTOR_VOLTAGE, self._build_simple_command)
+
         self._add_build_handler(SamiInstrumentCommand.ERASE_ALL, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.START, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.STOP, self._build_simple_command)
@@ -875,6 +941,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(SamiInstrumentCommand.STOP_STATUS, self._parse_response_stop_status)
         self._add_response_handler(SamiInstrumentCommand.GET_CONFIG, self._parse_response_get_config)
         self._add_response_handler(SamiInstrumentCommand.SET_CONFIG, self._parse_response_set_config)
+        self._add_response_handler(SamiInstrumentCommand.GET_BATTERY_VOLTAGE, self._parse_response_get_battery_voltage)
+        self._add_response_handler(SamiInstrumentCommand.GET_THERMISTOR_VOLTAGE, self._parse_response_get_thermistor_voltage)
         self._add_response_handler(SamiInstrumentCommand.ERASE_ALL, self._parse_response_erase_all)
         self._add_response_handler(SamiInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, self._parse_response_blank_sample_sami)
         self._add_response_handler(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._parse_response_sample_sami)
@@ -899,22 +967,34 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
     def _setup_scheduler_config(self):
 
+        ##log.debug('herb: ' + 'SamiProtocol._setup_scheduler_config(): old self._startup_config = ' + str(self._startup_config))
+        ##log.debug('herb: ' + 'SamiProtocol._setup_scheduler_config(): old scheduler_config = ' + str(self._get_scheduler_config()))
+
         auto_sample_interval = self._param_dict.get(SamiParameter.AUTO_SAMPLE_INTERVAL)
 
         log.debug('herb: ' + 'SamiProtocol._setup_scheduler_config(): auto_sample_interval = ' + str(auto_sample_interval))
 
-        config = {
-            DriverConfigKey.SCHEDULER: {
-                ScheduledJob.AUTO_SAMPLE: {
-                    DriverSchedulerConfigKey.TRIGGER: {
-                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
-                        DriverSchedulerConfigKey.SECONDS: auto_sample_interval
-                    }
-                }
-            }
+        ##config = {
+        ##    DriverConfigKey.SCHEDULER: {
+        ##        ScheduledJob.AUTO_SAMPLE: {
+        ##            DriverSchedulerConfigKey.TRIGGER: {
+        ##                DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+        ##                DriverSchedulerConfigKey.SECONDS: auto_sample_interval
+        ##            }
+        ##        }
+        ##    }
+        ##}
+
+        self._startup_config[DriverConfigKey.SCHEDULER][ScheduledJob.AUTO_SAMPLE] = {
+            DriverSchedulerConfigKey.TRIGGER: {
+                DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                DriverSchedulerConfigKey.SECONDS: auto_sample_interval}
         }
 
-        self.set_init_params(config)
+        ## self.set_init_params(config)
+
+        ##log.debug('herb: ' + 'SamiProtocol._setup_scheduler_config(): new self._startup_config = ' + str(self._startup_config))
+        ##log.debug('herb: ' + 'SamiProtocol._setup_scheduler_config(): new scheduler_config = ' + str(self._get_scheduler_config()))
 
     def _filter_capabilities(self, events):
         """
@@ -967,6 +1047,32 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
+    ########################################################################
+    # Acquire statue handler.
+    ########################################################################
+    def _handler_acquire_status(self, *args, **kwargs):
+        """
+        Acquire the instrument's status
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._handler_acquire_status()')
+
+        next_state = None
+        next_agent_state = None
+
+        try:
+            self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS, timeout=10, response_regex=REGULAR_STATUS_REGEX_MATCHER)
+            self._do_cmd_resp(SamiInstrumentCommand.GET_BATTERY_VOLTAGE, timeout=10, response_regex=BATTERY_VOLTAGE_REGEX_MATCHER)
+            self._do_cmd_resp(SamiInstrumentCommand.GET_THERMISTOR_VOLTAGE, timeout=10, response_regex=THERMISTOR_VOLTAGE_REGEX_MATCHER)
+
+            configuration_string_regex = self._get_configuration_string_regex_matcher()
+            self._do_cmd_resp(SamiInstrumentCommand.GET_CONFIG, timeout=10, response_regex=configuration_string_regex)
+
+        except InstrumentTimeoutException:
+
+            log.error('SamiProtocol._handler_command_acquire_status(): InstrumentTimeoutException')
+
+        return (next_state, next_agent_state)
 
     ########################################################################
     # Unknown handlers.
@@ -1184,30 +1290,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug("_handler_command_start_direct: entering DA mode")
         return (next_state, (next_agent_state, result))
 
-    def _handler_command_acquire_status(self, *args, **kwargs):
-        """
-        Acquire the instrument's status
-        """
-
-        log.debug('herb: ' + 'SamiProtocol._handler_command_acquire_status()')
-
-        next_state = None
-        next_agent_state = None
-
-        try:
-            self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS, timeout=10, response_regex=REGULAR_STATUS_REGEX_MATCHER)
-            ## TODO: Are B(attery) and T(hermistor) commands required?
-            configuration_string_regex = self._get_configuration_string_regex_matcher()
-            self._do_cmd_resp(SamiInstrumentCommand.GET_CONFIG, timeout=10, response_regex=configuration_string_regex)
-
-        except InstrumentTimeoutException:
-
-            ## Stay in autosample state on timeout
-            ## TODO: Is their a way to raise a timeout event and stay in mode?
-            log.error('SamiProtocol._handler_command_acquire_status(): InstrumentTimeoutException')
-
-        return (next_state, next_agent_state)
-
     def _handler_command_acquire_sample(self):
         """
         Acquire a sample
@@ -1408,31 +1490,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, (next_agent_state, result))
 
-    def _handler_autosample_acquire_status(self, *args, **kwargs):
-        """
-        Acquire the instrument's status
-        """
-
-        log.debug('herb: ' + 'SamiProtocol._handler_autosample_acquire_status()')
-
-        next_state = None
-        next_agent_state = None
-
-        try:
-
-            self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS, timeout=10, response_regex=REGULAR_STATUS_REGEX_MATCHER)
-            ## TODO: Are B(attery) and T(hermistor) commands required?
-            configuration_string_regex = self._get_configuration_string_regex_matcher()
-            self._do_cmd_resp(SamiInstrumentCommand.GET_CONFIG, timeout=10, response_regex=configuration_string_regex)
-
-        except InstrumentTimeoutException:
-
-            ## Stay in autosample state on timeout
-            ## TODO: Is their a way to raise a timeout event and stay in mode?
-            log.error('SamiProtocol._handler_autosample_acquire_status(): InstrumentTimeoutException')
-
-        return (next_state, next_agent_state)
-
     ########################################################################
     # Generic Take Sample handler used in polled and autosample states
     ########################################################################
@@ -1629,10 +1686,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_scheduled_sample_timeout')
 
-##        self._remove_scheduler(ScheduledJob.AUTO_SAMPLE)
-##        next_state = ProtocolState.WAITING
-##        next_agent_state = ResourceAgentState.BUSY
-
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
@@ -1734,6 +1787,27 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Response handlers.
     ########################################################################
+
+    def _parse_response_get_battery_voltage(self, response, prompt):
+        log.debug('herb: ' + 'SamiProtocol._parse_response_get_battery_voltage')
+
+        try:
+            self._extract_sample(SamiBatteryVoltageDataParticle, BATTERY_VOLTAGE_REGEX_MATCHER, response + NEWLINE, None)
+        except Exception as ex:
+            log.error('Unexpected exception generating SamiBatteryVoltageDataParticle: ' + str(ex))
+
+        return response
+
+    def _parse_response_get_thermistor_voltage(self, response, prompt):
+        log.debug('herb: ' + 'SamiProtocol._parse_response_get_thermistor_voltage')
+
+        try:
+            self._extract_sample(SamiThermistorVoltageDataParticle, THERMISTOR_VOLTAGE_REGEX_MATCHER, response + NEWLINE, None)
+        except Exception as ex:
+            log.error('Unexpected exception generating SamiThermistorVoltageDataParticle: ' + str(ex))
+
+        return response
+
     def _parse_response_get_status(self, response, prompt):
         log.debug('herb: ' + 'SamiProtocol._parse_response_get_status: response = ' + repr(response))
         return response
