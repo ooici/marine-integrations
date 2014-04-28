@@ -304,7 +304,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         """
         # Create and initialize the instrument driver with a mock port agent
         driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
+        self.assert_initialize_driver(driver, initial_protocol_state=ProtocolState.FILL)
 
         self.assert_raw_particle_published(driver, True)
 
@@ -347,12 +347,28 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
             ProtocolState.COMMAND: [
                 ProtocolEvent.GET,
                 ProtocolEvent.SET,
+                ProtocolEvent.INIT_PARAMS,
                 ProtocolEvent.START_DIRECT,
                 ProtocolEvent.ACQUIRE_SAMPLE,
+                ProtocolEvent.CLEAR,
                 ProtocolEvent.CLOCK_SYNC,
+            ],
+            ProtocolState.FLUSH: [
+                ProtocolEvent.FLUSH,
+                ProtocolEvent.PUMP_STATUS,
+                ProtocolEvent.INSTRUMENT_FAILURE,
+            ],
+            ProtocolState.FILL: [
+                ProtocolEvent.FILL,
+                ProtocolEvent.PUMP_STATUS,
+                ProtocolEvent.INSTRUMENT_FAILURE,
             ],
             ProtocolState.CLEAR: [
                 ProtocolEvent.CLEAR,
+                ProtocolEvent.PUMP_STATUS,
+                ProtocolEvent.INSTRUMENT_FAILURE,
+            ],
+            ProtocolState.RECOVERY: [
             ],
             ProtocolState.DIRECT_ACCESS: [
                 ProtocolEvent.STOP_DIRECT,

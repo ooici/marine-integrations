@@ -12,6 +12,7 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
+from mi.core.instrument.instrument_driver import DriverConfigKey, DriverProtocolState
 
 __author__ = 'Dan Mergens'
 __license__ = 'Apache 2.0'
@@ -38,14 +39,14 @@ from mi.idk.unit_test import \
     AgentCapabilityType
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverProtocolState, DriverConfigKey
 
 from mi.instrument.mclane.driver import \
     ProtocolState, \
     ProtocolEvent, \
     Capability, \
     Prompt, \
-    NEWLINE
+    NEWLINE, \
+    McLaneSampleDataParticleKey
 
 from mi.instrument.mclane.rasfl.pps.driver import \
     InstrumentDriver, \
@@ -53,11 +54,9 @@ from mi.instrument.mclane.rasfl.pps.driver import \
     Command, \
     Parameter, \
     Protocol, \
-    McLaneSampleDataParticleKey, \
     PPSDNSampleDataParticle
 
-from mi.core.exceptions import \
-    SampleException
+from mi.core.exceptions import SampleException
 
 from interface.objects import AgentCommand
 
@@ -228,7 +227,7 @@ class UtilMixin(DriverTestMixin):
         pps_time = time.strptime(pps_time + 'UTC', '%m/%d/%y %H:%M:%S %Z')
         current_time = time.gmtime()
         diff = time.mktime(current_time) - time.mktime(pps_time)
-        log.info('clock synched to within %d seconds', diff)
+        log.info('clock synched within %d seconds', diff)
 
         # verify that the time matches to within tolerance seconds
         self.assertLessEqual(diff, tolerance)
@@ -305,7 +304,7 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
         """
         # Create and initialize the instrument driver with a mock port agent
         driver = InstrumentDriver(self._got_data_event_callback)
-        self.assert_initialize_driver(driver)
+        self.assert_initialize_driver(driver, initial_protocol_state=ProtocolState.FILL)
 
         self.assert_raw_particle_published(driver, True)
 
@@ -348,12 +347,28 @@ class TestUNIT(InstrumentDriverUnitTestCase, UtilMixin):
             ProtocolState.COMMAND: [
                 ProtocolEvent.GET,
                 ProtocolEvent.SET,
+                ProtocolEvent.INIT_PARAMS,
                 ProtocolEvent.START_DIRECT,
                 ProtocolEvent.ACQUIRE_SAMPLE,
+                ProtocolEvent.CLEAR,
                 ProtocolEvent.CLOCK_SYNC,
+            ],
+            ProtocolState.FLUSH: [
+                ProtocolEvent.FLUSH,
+                ProtocolEvent.PUMP_STATUS,
+                ProtocolEvent.INSTRUMENT_FAILURE,
+            ],
+            ProtocolState.FILL: [
+                ProtocolEvent.FILL,
+                ProtocolEvent.PUMP_STATUS,
+                ProtocolEvent.INSTRUMENT_FAILURE,
             ],
             ProtocolState.CLEAR: [
                 ProtocolEvent.CLEAR,
+                ProtocolEvent.PUMP_STATUS,
+                ProtocolEvent.INSTRUMENT_FAILURE,
+            ],
+            ProtocolState.RECOVERY: [
             ],
             ProtocolState.DIRECT_ACCESS: [
                 ProtocolEvent.STOP_DIRECT,
@@ -404,20 +419,20 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         log.debug('Startup parameters: %s', reply)
         self.assert_driver_parameters(reply)
 
-        # self.assert_get(Parameter.FLUSH_VOLUME, 100)
-        self.assert_get(Parameter.FLUSH_VOLUME, 10)
-        self.assert_get(Parameter.FLUSH_FLOWRATE, 100)
-        self.assert_get(Parameter.FLUSH_MINFLOW, 75)
-        # self.assert_get(Parameter.FILL_VOLUME, 4000)
-        self.assert_get(Parameter.FILL_VOLUME, 10)
-        self.assert_get(Parameter.FILL_FLOWRATE, 100)
-        self.assert_get(Parameter.FILL_MINFLOW, 75)
-        # self.assert_get(Parameter.CLEAR_VOLUME, 100)
-        self.assert_get(Parameter.CLEAR_VOLUME, 10)
-        self.assert_get(Parameter.CLEAR_FLOWRATE, 100)
-        self.assert_get(Parameter.CLEAR_MINFLOW, 75)
+        # self.assert_get(Parameter.FLUSH_VOLUME, value=100)
+        self.assert_get(Parameter.FLUSH_VOLUME, value=10)
+        self.assert_get(Parameter.FLUSH_FLOWRATE, value=100)
+        self.assert_get(Parameter.FLUSH_MINFLOW, value=75)
+        # self.assert_get(Parameter.FILL_VOLUME, value=4000)
+        self.assert_get(Parameter.FILL_VOLUME, value=10)
+        self.assert_get(Parameter.FILL_FLOWRATE, value=100)
+        self.assert_get(Parameter.FILL_MINFLOW, value=75)
+        # self.assert_get(Parameter.CLEAR_VOLUME, value=100)
+        self.assert_get(Parameter.CLEAR_VOLUME, value=10)
+        self.assert_get(Parameter.CLEAR_FLOWRATE, value=100)
+        self.assert_get(Parameter.CLEAR_MINFLOW, value=75)
 
-        # Verify that readonly (or immutable) parameters will throw an exception on set attempt
+        # Verify that readonly/immutable parameters cannot be set (throw exception)
         self.assert_set_exception(Parameter.FLUSH_VOLUME)
         self.assert_set_exception(Parameter.FLUSH_FLOWRATE)
         self.assert_set_exception(Parameter.FLUSH_MINFLOW)
@@ -455,11 +470,9 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
         Test user clear command
         """
         self.assert_initialize_driver()
-        self.assert_set('clear_volume', 10)
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLEAR)
         self.assert_state_change(ProtocolState.CLEAR, CLEAR_TIMEOUT)
         self.assert_state_change(ProtocolState.COMMAND, CLEAR_TIMEOUT)
-        log.debug('test_clear complete')
 
     @unittest.skip('not completed yet')
     def test_obstructed_flush(self):
@@ -494,6 +507,8 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         """
         self.assert_enter_command_mode()
 
+        # Now reset and try to discover.  This will stop the driver and cause it to re-discover which
+        # will always go back to command for this instrument
         self.assert_reset()
         self.assert_discover(ResourceAgentState.COMMAND)
 
@@ -582,17 +597,6 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
         ##################
         #  Streaming Mode - no autosample for RAS
         ##################
-
-        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
-        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = [
-            ProtocolEvent.GET,
-            ProtocolEvent.CLOCK_SYNC,
-            ProtocolEvent.ACQUIRE_SAMPLE,
-        ]
-
-        self.assert_start_autosample()
-        self.assert_capabilities(capabilities)
-        self.assert_stop_autosample()
 
         ##################
         #  DA Mode
