@@ -100,7 +100,7 @@ class ProtocolEvent(BaseEnum):
     GET = DriverEvent.GET
     SET = DriverEvent.SET
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
-    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+    # ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
     FLUSH = 'DRIVER_EVENT_FLUSH'
     FILL = 'DRIVER_EVENT_FILL'
@@ -116,7 +116,7 @@ class Capability(BaseEnum):
     GET = ProtocolEvent.GET
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
     ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
-    ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
+    # ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
     CLEAR = ProtocolEvent.CLEAR
 
 
@@ -249,7 +249,6 @@ class McLaneDataParticleType(BaseEnum):
 ###############################################################################
 
 class McLaneSampleDataParticleKey(BaseEnum):
-    PUMP_STATUS = 'sampling_status_code'
     PORT = 'port_number'
     VOLUME_COMMANDED = 'commanded_volume'
     FLOW_RATE_COMMANDED = 'commanded_flowrate'
@@ -309,8 +308,6 @@ class McLaneSampleDataParticle(DataParticle):
             raise SampleException("RASFL_SampleDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
 
         result = [
-            {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.PUMP_STATUS,
-             DataParticleKey.VALUE: match.group('status')},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.PORT,
              DataParticleKey.VALUE: int(match.group('port'))},
             {DataParticleKey.VALUE_ID: McLaneSampleDataParticleKey.VOLUME_COMMANDED,
@@ -375,9 +372,9 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.START_DIRECT, self._handler_command_start_direct),
                 (ProtocolEvent.CLOCK_SYNC, self._handler_sync_clock),
                 (ProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire),
-                (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_status),
+                # (ProtocolEvent.ACQUIRE_STATUS, self._handler_command_status),
                 (ProtocolEvent.CLEAR, self._handler_command_clear),
-                (ProtocolEvent.GET, self._handle_get),
+                (ProtocolEvent.GET, self._handler_get),
                 (ProtocolEvent.SET, self._handler_command_set),
             ],
             ProtocolState.FLUSH: [
@@ -666,7 +663,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_unknown_discover(self, *args, **kwargs):
         """
-        Discover current state; can only be COMMAND (instrument has no actual AUTOSAMPLE mode).
+        Discover current state; can only be COMMAND (instrument has no AUTOSAMPLE mode).
         @retval (next_state, result), (ProtocolState.COMMAND, None) if successful.
         """
 
@@ -1009,14 +1006,14 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
     def _handler_command_acquire(self, *args, **kwargs):
         return ProtocolState.FLUSH, ResourceAgentState.BUSY
 
-    def _handler_command_status(self, *args, **kwargs):
-        # get the following:
-        # - VERSION
-        # - CAPACITY (pump flow)
-        # - BATTERY
-        # - CODES (termination codes)
-        # - COPYRIGHT (termination codes)
-        return None, ResourceAgentState.COMMAND
+    # def _handler_command_status(self, *args, **kwargs):
+    #     # get the following:
+    #     # - VERSION
+    #     # - CAPACITY (pump flow)
+    #     # - BATTERY
+    #     # - CODES (termination codes)
+    #     # - COPYRIGHT (termination codes)
+    #     return None, ResourceAgentState.COMMAND
 
     def _handler_command_clear(self, *args, **kwargs):
         return ProtocolState.CLEAR, ResourceAgentState.BUSY
