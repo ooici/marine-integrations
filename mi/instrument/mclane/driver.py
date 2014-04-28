@@ -114,6 +114,7 @@ class Capability(BaseEnum):
     Protocol events that should be exposed to users (subset of above).
     """
     GET = ProtocolEvent.GET
+    SET = ProtocolEvent.SET
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
     ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     # ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
@@ -346,6 +347,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+    # __metaclass__ = get_logging_metaclass(log_level='debug')
 
     def __init__(self, prompts, newline, driver_event):
         """
@@ -1004,6 +1006,7 @@ class McLaneProtocol(CommandResponseInstrumentProtocol):
         return None, (None, {'time': ras_time})
 
     def _handler_command_acquire(self, *args, **kwargs):
+        self._handler_sync_clock()
         return ProtocolState.FLUSH, ResourceAgentState.BUSY
 
     # def _handler_command_status(self, *args, **kwargs):
