@@ -76,19 +76,19 @@ class LoggerManager(Singleton):
                 print >> sys.stderr, str(os.getpid()) + ' supplemented logging from ' + LOGGING_CONTAINER_OVERRIDE
 
 
-def get_logging_metaclass(my_logger=None):
+def get_logging_metaclass(my_logger=None, log_level='trace'):
     class LoggingMetaClass(type):
         def __new__(mcs, class_name, bases, class_dict):
             new_class_dict = {}
             for attributeName, attribute in class_dict.items():
                 if type(attribute) == FunctionType:
-                    attribute = log_method(attribute, logger=my_logger, class_name=class_name)
+                    attribute = log_method(attribute, logger=my_logger, class_name=class_name, log_level=log_level)
                 new_class_dict[attributeName] = attribute
             return type.__new__(mcs, class_name, bases, new_class_dict)
     return LoggingMetaClass
 
 
-def log_method(func, logger=None, class_name=None):
+def log_method(func, logger=None, class_name=None, log_level='trace'):
     if class_name is not None:
         name = '%s.%s' % (class_name, func.__name__)
     else:
@@ -96,12 +96,13 @@ def log_method(func, logger=None, class_name=None):
 
     if logger is None:
         logger = log
+    facility = getattr(logger, log_level)
 
     @wraps(func)
     def inner(*args, **kwargs):
-        logger.trace('entered %s | args: %r | kwargs: %r', name, args, kwargs)
+        facility('entered %s | args: %r | kwargs: %r', name, args, kwargs)
         r = func(*args, **kwargs)
-        logger.trace('exiting %s | returning %r', name, r)
+        facility('exiting %s | returning %r', name, r)
         return r
     return inner
 
