@@ -4,7 +4,7 @@ header:
 
 data:
   - _index: 1
-    internal_timestamp: 3599218805.035296
+    internal_timestamp: 3599218804.0
     particle_object: MopakODclAccelParserDataParticle
     particle_type: mopak_o_dcl_accel
     mopak_accelx: -0.16807769238948822
@@ -18,7 +18,7 @@ data:
     mopak_magz: 0.45999550819396973
     mopak_timer: 64706
   - _index: 2
-    internal_timestamp: 3599218805.135296
+    internal_timestamp: 3599218804.1
     particle_object: MopakODclAccelParserDataParticle
     particle_type: mopak_o_dcl_accel
     mopak_accelx: -0.14480289816856384
