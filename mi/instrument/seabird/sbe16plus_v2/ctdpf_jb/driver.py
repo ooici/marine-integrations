@@ -284,6 +284,7 @@ class SBE19ConfigurationParticleKey(BaseEnum):
     EXT_VOLT_4 = "ext_volt_4"
     EXT_VOLT_5 = "ext_volt_5"
     SBE38 = "sbe38"
+    #TODO: Add SBE63 when the device firmware is upgraded to 2.5.2
     WETLABS = "wetlabs"
     OPTODE = "optode"
     GAS_TENSION_DEVICE = "gas_tension_device"
@@ -527,11 +528,15 @@ class SBE19HardwareParticleKey(BaseEnum):
     ASSEMBLY_NUMBER = "assembly_number"
     MANUFACTURE_DATE = "manufacture_date"
     TEMPERATURE_SENSOR_TYPE = 'temperature_sensor_type'
-    TEMPERATURE_SENSOR_SERIAL_NUMBER = 'temperature_sensor_serial_number'
+    TEMPERATURE_SENSOR_SERIAL_NUMBER = 'temp_sensor_serial_number'
     CONDUCTIVITY_SENSOR_TYPE = 'conductivity_sensor_type'
-    CONDUCTIVITY_SENSOR_SERIAL_NUMBER = 'conductivity_sensor_serial_number'
+    CONDUCTIVITY_SENSOR_SERIAL_NUMBER = 'cond_sensor_serial_number'
     PRESSURE_SENSOR_TYPE = 'pressure_sensor_type'
-    PRESSURE_SENSOR_SERIAL_NUMBER = 'pressure_sensor_serial_number'
+    PRESSURE_SENSOR_SERIAL_NUMBER = 'strain_pressure_sensor_serial_number'
+    VOLT0_TYPE = 'volt0_type'
+    VOLT0_SERIAL_NUMBER = 'volt0_serial_number'
+    VOLT1_TYPE = 'volt1_type'
+    VOLT1_SERIAL_NUMBER = 'volt1_serial_number'
 
 class SBE19HardwareParticle(SeaBirdParticle):
 
@@ -595,11 +600,6 @@ class SBE19HardwareParticle(SeaBirdParticle):
         EXTERNAL_SENSORS = "ExternalSensors"
         VOLT0 = "volt 0"
         VOLT1 = "volt 1"
-        VOLT2 = "volt 2"
-        VOLT3 = "volt 3"
-        VOLT4 = "volt 4"
-        VOLT5 = "volt 5"
-        SERIAL = "serial"
 
         # check to make sure there is a correct match before continuing
         match = SBE19HardwareParticle.regex_compiled().match(self.raw_data)
@@ -634,6 +634,10 @@ class SBE19HardwareParticle(SeaBirdParticle):
         conductivity_sensor_type = ""
         pressure_sensor_serial_number = 0
         pressure_sensor_type = ""
+        volt0_serial_number = 0
+        volt0_type = ""
+        volt1_serial_number = 0
+        volt1_type = ""
 
         for sensor in sensors:
             sensor_id = sensor.getAttribute(ID)
@@ -646,6 +650,18 @@ class SBE19HardwareParticle(SeaBirdParticle):
             elif sensor_id == PRESSURE_SENSOR_ID:
                 pressure_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
                 pressure_sensor_type = self._extract_xml_element_value(sensor, TYPE)
+
+        external_sensors_element = self._extract_xml_elements(root, EXTERNAL_SENSORS)[0]
+        sensors = self._extract_xml_elements(external_sensors_element, SENSOR)
+
+        for sensor in sensors:
+            sensor_id = sensor.getAttribute(ID)
+            if sensor_id == VOLT0:
+                volt0_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
+                volt0_type = self._extract_xml_element_value(sensor, TYPE)
+            elif sensor_id == VOLT1:
+                volt1_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
+                volt1_type = self._extract_xml_element_value(sensor, TYPE)
 
         result = [{DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.SERIAL_NUMBER,
                    DataParticleKey.VALUE: serial_number},
@@ -675,6 +691,14 @@ class SBE19HardwareParticle(SeaBirdParticle):
                    DataParticleKey.VALUE: pressure_sensor_serial_number},
                   {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.PRESSURE_SENSOR_TYPE,
                    DataParticleKey.VALUE: pressure_sensor_type},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.VOLT0_SERIAL_NUMBER,
+                   DataParticleKey.VALUE: volt0_serial_number},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.VOLT0_TYPE,
+                   DataParticleKey.VALUE: volt0_type},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.VOLT1_SERIAL_NUMBER,
+                   DataParticleKey.VALUE: volt1_serial_number},
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.VOLT0_TYPE,
+                   DataParticleKey.VALUE: volt1_type},
                   ]
 
         return result
@@ -712,9 +736,9 @@ class SBE19CalibrationParticleKey(BaseEnum):
     PTCB0 = "press_coeff_ptcb0"
     PTCB1 = "press_coeff_ptcb1"
     PTCB2 = "press_coeff_ptcb2"
-    PTEMPA0 = "press_coeff_tempa0"
-    PTEMPA1 = "press_coeff_tempa1"
-    PTEMPA2 = "press_coeff_tempa2"
+    PTEMPA0 = "press_coeff_ptempa0"
+    PTEMPA1 = "press_coeff_ptempa1"
+    PTEMPA2 = "press_coeff_ptempa2"
     POFFSET = "press_coeff_poffset"
     PRES_RANGE = "pressure_sensor_range"
 
@@ -916,8 +940,8 @@ class SBE19DataParticleKey(BaseEnum):
     CONDUCTIVITY = "conductivity"
     PRESSURE = "pressure"
     PRESSURE_TEMP = "pressure_temp"
-    VOLT0 = "volt0"
-    VOLT1 = "volt1"
+    VOLT0 = "oxy_calphase"
+    VOLT1 = "oxy_temp"
     OXYGEN = "oxygen"
 
 
@@ -1239,6 +1263,19 @@ class SBE19Protocol(SBE16Protocol):
         log.debug("_handler_unknown_discover. result start: %s", next_state)
         return (next_state, next_agent_state)
 
+
+    def _handler_command_enter(self, *args, **kwargs):
+        """
+        Enter command state.
+        @throws InstrumentTimeoutException if the device cannot be woken.
+        @throws InstrumentProtocolException if the update commands and not recognized.
+        """
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+
     def _handler_command_start_autosample(self, *args, **kwargs):
         """
         Switch into autosample mode.
@@ -1332,8 +1369,6 @@ class SBE19Protocol(SBE16Protocol):
 
         return (next_state, (next_agent_state, result))
 
-
-    #TODO: should get_config be a protocol event for us? GetCC is covered by acquire status
     def _handler_autosample_get_configuration(self, *args, **kwargs):
         """
         GetCC from SBE16.
@@ -1838,7 +1873,7 @@ class SBE19Protocol(SBE16Protocol):
                              type=ParameterDictType.INT,
                              display_name="Scans To Average",
                              startup_param = True,
-                             direct_access = True,
+                             direct_access = False,
                              default_value = 4,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.MIN_COND_FREQ,
@@ -1848,7 +1883,7 @@ class SBE19Protocol(SBE16Protocol):
                              type=ParameterDictType.INT,
                              display_name="Minimum Conductivity Frequency",
                              startup_param = True,
-                             direct_access = True,
+                             direct_access = False,
                              default_value = 500,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.PUMP_DELAY,
@@ -1858,7 +1893,7 @@ class SBE19Protocol(SBE16Protocol):
                              type=ParameterDictType.INT,
                              display_name="Pump Delay",
                              startup_param = True,
-                             direct_access = True,
+                             direct_access = False,
                              default_value = 60,
                              visibility=ParameterDictVisibility.READ_WRITE)
         self._param_dict.add(Parameter.AUTO_RUN,
