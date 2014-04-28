@@ -1,0 +1,162 @@
+#UIMM Status
+#7370_DateTime: 20131113 002307
+#ID=10
+#SN=70001787
+#Volts=8.40
+#Records=40
+#Length=4266
+#Events=943
+#Begin UIMM Data
+Record[2792]:************
+Record[2793]:****
+Record[2794]:þ                                                                  Calculating compass performance ...
+Record[2795]:fore calibration:   3.5ø <<<
+
+Press D for details or any other key to continue...
+
+Record[2796]:j
+
+
+
+
+
+
+
+
+
+
+HEADING ERROR ESTIMATE BEFORE THE FIELD CALIBRATION UPDATE:
+
+   OVERALL ERROR:
+      Peak Double + Single Cycle Error (should be < 5ø):  ñ 3.46ø
+
+   DETAILED ERROR SUMMARY:
+      Single Cycle Error:                                 ñ 3.13ø
+      Double Cycle Error:                                 ñ 0.80ø
+      Largest Double plus Single Cycle Error:             ñ 3.93ø
+      RMS of 3rd Order and Higher + Random Error:         ñ 0.19ø
+
+      Orientation:     Up
+      Average Pitch: -14.19ø         Pitch Standard Dev:    0.19ø
+      Average Roll:  -14.52ø         Roll Standard Dev:     0.12ø
+
+Successfully evaluated compass performance before the field calibration update.
+
+
+Press C to display Percent Horizontal Field Conponents
+     Relative to Calibration or any other key to continue....
+
+Record[2797]:         OneCycleK =                                       0.027 tw_rad
+          Add MagVar to get "OneCycOffset" =              182.427ø
+Press any key to continue...
+
+Record[2798]:jCalculating new calibration parameters.
+
+Record[2799]:jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
+                         Field Calibration Procedure
+                        Hard and Soft Iron Calibration
+                            Verification Rotation
+
+Temporarily loading new calibration parameters into RAM...
+
+Change the tilt to a different axis than either of the first two rotations.
+   press any key to continue ...
+
+Record[2800]:data samples are acquired...
+   rotate less than 5ø/sec.  Press Q to quit.
+
+ N       NE       E        SE       S       SW        W        NW       N
+ ^                ^                 ^                 ^                 ^
+                            Û 
+Record[2801]:***
+Record[2802]:*
+Record[2803]:**
+Record[2804]:*
+Record[2805]:*
+Record[2806]:*
+Record[2807]:*
+Record[2808]:*
+Record[2809]:*
+Record[2810]:*
+Record[2811]:*
+Record[2812]:**
+Record[2813]:*
+Record[2814]:*
+Record[2815]:*
+Record[2816]:(ü
+Record[2817]:*
+Record[2818]:*
+Record[2819]:*
+Record[2820]:*
+Record[2821]:*
+Record[2822]:*
+Record[2823]:*
+Record[2824]:*
+Record[2825]:*
+Accumulating data ...                                                                                                                                    Calculating compass performance ...
+Record[2826]:fter calibration:   0.3ø <<<
+
+Press D for details or any other key to continue...
+
+Record[2827]:j
+
+
+
+
+
+
+
+
+
+
+HEADING ERROR ESTIMATE AFTER THE FIELD CALIBRATION UPDATE:
+
+   OVERALL ERROR:
+      Peak Double + Single Cycle Error (should be < 5ø):  ñ 0.34ø
+
+   DETAILED ERROR SUMMARY:
+      Single Cycle Error:                                 ñ 0.03ø
+      Double Cycle Error:                                 ñ 0.32ø
+      Largest Double plus Single Cycle Error:             ñ 0.35ø
+      RMS of 3rd Order and Higher + Random Error:         ñ 0.13ø
+
+      Orientation:     Up
+      Average Pitch:  -1.70ø         Pitch Standard Dev:    0.07ø
+      Average Roll:   -0.93ø         Roll Standard Dev:     0.05ø
+
+Successfully evaluated compass performance after the field calibration update.
+
+
+Press C to display Percent Horizontal Field Conponents
+     Relative to Calibration or any other key to continue....
+
+Record[2828]:t Relative to Calibration:
+           a0 + a1*cosé + b1*siné + a2*cos2*é + b2*sin2*é
+          a0 =                                             42.183%
+          a1 =                                              0.007%
+          b1 =                                              0.019%
+          a2 =                                              0.226%
+          b2 =                                              0.068%
+
+          OneCycleK =                                       0.000 tw_rad
+          Add MagVar to get "OneCycOffset" =               69.394ø
+Press any key to continue...
+
+Record[2829]:nent.
+Calibration parameters have been updated in RAM and NVRAM.
+
+
+-------------------------------------------------------------------------------
+                         Field Calibration Procedure
+                        Hard and Soft Iron Calibration
+
+Compass field calibration procedure is complete.
+
+>>> Total error before calibration:   5.9ø <<<
+>>> Total error after calibration:   0.3ø <<<
+
+
+>
+Record[2830]:z
+Record[2831]:
+#End UIMM Data, 40 samples written

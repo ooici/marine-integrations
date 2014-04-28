@@ -860,3 +860,202 @@ class SingleFileDataSetDriver(SimpleDataSetDriver):
             return True
         return False
 
+class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
+
+    def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback, data_keys):
+        self._data_keys = data_keys
+
+        super(MultipleHarvesterDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
+                                                             exception_callback)
+        self._publisher_thread = {}
+        self._publisher_shutdown = {}
+        self._init_queues()
+
+    def _init_queues(self):
+        self._new_file_queue = {}
+        for key in self._data_keys:
+            self._new_file_queue[key] = []
+
+    def _start_publisher_thread(self):
+        """
+        Start however many publisher threads are needed, one for each data key
+        """
+        for key in self._data_keys:
+            self._publisher_thread[key] = gevent.spawn(self._publisher_loop, key)
+            self._publisher_shutdown[key] = False
+
+    def _stop_publisher_thread(self):
+        """
+        Shutdown all the publisher threads
+        """
+        log.debug("Signal shutdown")
+        if self._publisher_thread != {}:
+            for key in self._data_keys:
+                self._publisher_shutdown[key] = True
+                if self._publisher_thread[key]:
+                    self._publisher_thread[key].kill(block=False)
+        else:
+            log.debug("publisher not running, no need to shutdown")
+        log.debug("shutdown complete")
+
+    def _publisher_loop(self, data_key):
+        """
+        Main loop to listen for new files to parse.  Parse them and move on.
+        """
+        log.info("Starting main publishing loop for key %s", data_key)
+
+        try:
+            while(not self._publisher_shutdown[data_key]):
+                self._poll(data_key)
+                gevent.sleep(self._polling_interval)
+        except Exception as e:
+            log.error("Exception in publisher thread (resource id: %s): %s", self._resource_id, traceback.format_exc(e))
+            self._exception_callback(e)
+
+        log.debug("publisher thread detected shutdown request")
+
+    def _poll(self, data_key):
+        """
+        Main loop to listen for new files to parse.  Parse them and move on.
+        """
+        # If we have files, grab the first and process it.
+        count = len(self._new_file_queue[data_key])
+        log.trace("Checking for new files in %s queue, count: %d", data_key, count)
+        if(count > 0):
+            log.debug("New file detected, resource_id: %s, array addr: %s", self._resource_id,
+                      id(self._new_file_queue[data_key]))
+            self._got_file(self._new_file_queue[data_key].pop(0), data_key)
+
+    def _start_sampling(self):
+        """
+        Start sampling by building all the harvester and starting them
+        """
+        try:
+            self._harvester = self._build_harvester(self._driver_state)
+            for harvester in self._harvester:
+                harvester.start()
+        except Exception as e:
+            log.debug("Exception detected when starting sampling: %s", e, exc_info=True)
+            self._exception_callback(e)
+
+    def _stop_sampling(self):
+        """
+        Stop sampling by shutting down the harvesters
+        """
+        log.debug("Shutting down harvester")
+        if self._harvester:
+            for harvester in self._harvester:
+                if harvester and harvester.is_alive():
+                    log.debug("Stopping harvester %s thread", harvester)
+                    harvester.shutdown()
+            self._harvester = None
+        else:
+            log.debug("poller not running. no need to shutdown")
+
+    def _got_file(self, file_name, data_key):
+        """
+        We have a file that we want to parse.  Stand up the parser and do some work.
+        @param file_name: name of the file to parse
+        """
+        try:
+            log.debug('got file, resource_id: %s, driver state %s', self._resource_id, self._driver_state)
+
+            count = 1
+            delay = None
+
+            directory = self._harvester_config[data_key].get(DataSetDriverConfigKeys.DIRECTORY)
+
+            if self._generate_particle_count:
+                # Calculate the delay between grabbing records to publish.
+                delay = float(1) / float(self._particle_count_per_second) * float(self._generate_particle_count)
+                count = self._generate_particle_count
+
+            # Open the copied file in the storage directory so we know the file won't be
+            # changed while we are reading it
+            path = os.path.join(directory, file_name)
+
+            self._raise_new_file_event(path)
+            log.debug("Open new data source file: %s", path)
+            handle = open(path)
+
+            # the file directory is initialized in the harvester, so it will exist by this point
+            parser = self._build_parser(self._driver_state[file_name][DriverStateKey.PARSER_STATE], handle, file_name, data_key)
+
+            while(True):
+                result = parser.get_records(count)
+                if result:
+                    log.trace("Record parsed: %r delay: %f", result, delay)
+                    if delay:
+                        gevent.sleep(delay)
+                else:
+                    break
+        except SampleException as e:
+            # need to mark the bad file as ingested so we don't re-ingest it
+            log.debug("File %s fully parsed", file_name)
+            self._driver_state[file_name][DriverStateKey.INGESTED] = True
+            self._state_callback(self._driver_state)
+            self._sample_exception_callback(e)
+
+        finally:
+            self._file_in_process = None
+
+    def _save_parser_state(self, state, file_ingested, file_name):
+        """
+        Callback to store the parser state in the driver object.
+        @param state: Object used by the parser to indicate position
+        """
+        log.trace("saving parser state: %r", state)
+        # this is for the directory harvester which uses file name keys
+        self._driver_state[file_name][DriverStateKey.PARSER_STATE] = state
+        # check if file has been completely parsed by comparing the parsed position and file size
+        if file_ingested:
+            log.debug("File %s fully parsed", file_name)
+            self._driver_state[file_name][DriverStateKey.INGESTED] = True
+        self._state_callback(self._driver_state)
+
+    def _new_file_callback(self, file_name, data_key):
+        """
+        Callback used by the single directory harvester called when a new file is detected.  Store the
+        filename in a queue.
+        @param file_name: file name of the found file.
+        """
+        log.debug('got new file callback, resource_id, %s, driver state %s', self._resource_id, self._driver_state)
+        # check for duplicates, don't add it if it is already there
+        if file_name not in self._new_file_queue[data_key]:
+            log.debug("Add new file to the new file queue: resource_id: %s, queue addr: %s, name: %s",
+                      self._resource_id,
+                      id(self._new_file_queue[data_key]), file_name)
+            self._new_file_queue[data_key].append(file_name)
+
+            count = len(self._new_file_queue[data_key])
+            log.trace("Current new file queue length: %d", count)
+        # the harvester updates the driver state, make sure we save the newly found file state info
+        self._state_callback(self._driver_state)
+
+    def _verify_config(self):
+        """
+        Verify we have good configurations for the parser and harvester.
+        @raise: ConfigurationException if configuration is invalid
+        """
+        errors = []
+        log.debug("Driver Config: %s", self._config)
+
+        self._harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
+        if self._harvester_config:
+            # we are allowing partial configurations in case all instruments are not present
+            # for all deployments
+            for key in self._harvester_config:
+                sub_config = self._harvester_config.get(key)
+                log.debug('sub config is %s', sub_config)
+                if not sub_config.get(DataSetDriverConfigKeys.DIRECTORY):
+                    errors.append("harvester %s config missing 'directory" % key)
+                if not sub_config.get(DataSetDriverConfigKeys.PATTERN):
+                    errors.append("harvester %s config missing 'pattern" % key)
+        else:
+            errors.append("missing 'harvester' config")
+
+        if errors:
+            log.error("Driver configuration error: %r", errors)
+            raise ConfigurationException("driver configuration errors: %r", errors)
+
+        self._parser_config = self._config.get(DataSourceConfigKey.PARSER)
