@@ -18,43 +18,28 @@ __license__ = 'Apache 2.0'
 import gevent
 import unittest
 import os
-import hashlib
-import shutil
-import copy
 
 from nose.plugins.attrib import attr
-from mock import Mock
 
 from mi.core.log import get_logger ; log = get_logger()
 
 from exceptions import Exception
 
 from mi.idk.dataset.unit_test import DataSetTestCase
-from mi.idk.dataset.unit_test import DataSetTestConfig
-from mi.idk.dataset.unit_test import DataSetUnitTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 
-from mi.core.exceptions import ConfigurationException
-from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentParameterException
 from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
-from mi.core.instrument.instrument_driver import DriverEvent
-from mi.dataset.parser.glider import GliderParser
-from mi.dataset.parser.test.test_glider import GliderParserUnitTestCase
+
 from mi.dataset.driver.moas.gl.ctdgv.driver import CTDGVDataSetDriver
 
-from mi.dataset.parser.glider import GgldrCtdgvDelayedDataParticle
+from mi.dataset.parser.glider import CtdgvDataParticle
 from pyon.agent.agent import ResourceAgentState
-from pyon.agent.agent import ResourceAgentEvent
 
-from interface.objects import CapabilityType
-from interface.objects import AgentCapability
 from interface.objects import ResourceAgentErrorEvent
-from interface.objects import ResourceAgentConnectionLostErrorEvent
 
 DATADIR='/tmp/dsatest'
 STORAGEDIR='/tmp/stored_dsatest'
@@ -80,7 +65,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM='ggldr_ctdgv_delayed'
+SAMPLE_STREAM='ctdgv_m_glider_instrument'
     
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -101,20 +86,20 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_6.mrg")
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'single_ctdgv_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_data(CtdgvDataParticle, 'single_ctdgv_record.mrg.result.yml', count=1, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_6_6.mrg")
 
         self.clear_async_data()
         self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_7_6.mrg")
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'multiple_ctdgv_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_data(CtdgvDataParticle, 'multiple_ctdgv_record.mrg.result.yml', count=4, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_7_6.mrg")
 
         log.debug("Start second file ingestion")
         # Verify sort order isn't ascii, but numeric
         self.clear_async_data()
-        self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
-        self.assert_data(GgldrCtdgvDelayedDataParticle, count=171, timeout=30)
-        self.assert_file_ingested("unit_363_2013_245_10_6.mrg")
+        self.create_sample_data('unit_363_2013_245_6_6.mrg', "CopyOf-unit_363_2013_245_6_6.mrg")
+        self.assert_data(CtdgvDataParticle, count=240, timeout=30)
+        self.assert_file_ingested("CopyOf-unit_363_2013_245_6_6.mrg")
 
     def test_stop_resume(self):
         """
@@ -136,7 +121,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=3, timeout=10)
+        self.assert_data(CtdgvDataParticle, 'merged_ctdgv_record.mrg.result.yml', count=3, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_6_9.mrg")
 
     def test_stop_start_ingest(self):
@@ -150,14 +135,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.create_sample_data('single_ctdgv_record.mrg', "unit_363_2013_245_6_6.mrg")
         self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_7_6.mrg")
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'single_ctdgv_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_data(CtdgvDataParticle, 'single_ctdgv_record.mrg.result.yml', count=1, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_6_6.mrg")
         self.assert_file_not_ingested("unit_363_2013_245_7_6.mrg")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'multiple_ctdgv_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_data(CtdgvDataParticle, 'multiple_ctdgv_record.mrg.result.yml', count=4, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_7_6.mrg")
 
     def test_bad_sample(self):
@@ -169,7 +154,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         path = self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_6_9.mrg")
 
-        # Create and store the new driver state
+        # Create and store the new driver state - middle of a row
         state = {
             'unit_363_2013_245_6_9.mrg': self.get_file_state(path, False, 2506),
         }
@@ -177,8 +162,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.start_sampling()
 
-        # verify data is produced
-        self.assert_data(GgldrCtdgvDelayedDataParticle, 'bad_sample_ctdgv_record.mrg.result.yml', count=3, timeout=10)
+        # verify data is produced - parser skips past the bad row and parses the next three successfully
+        self.assert_data(CtdgvDataParticle, 'bad_sample_ctdgv_record.mrg.result.yml', count=3, timeout=10)
         self.assert_file_ingested("unit_363_2013_245_6_9.mrg")
 
     def test_sample_exception(self):
@@ -225,7 +210,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(GgldrCtdgvDelayedDataParticle, result_file, count=4, timeout=10)
+        self.assert_data(CtdgvDataParticle, result_file, count=4, timeout=10)
 
         dest_path_1 = os.path.join(storage_dir, "%s.%s" % (dest_file_1, RESOURCE_ID))
         log.debug("Dest Path 1: %s", dest_path_1)
@@ -266,7 +251,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self._get_driver_object(config=config)
         self.driver.start_sampling()
 
-        self.assert_data(GgldrCtdgvDelayedDataParticle, result_file, count=4, timeout=10)
+        self.assert_data(CtdgvDataParticle, result_file, count=4, timeout=10)
 
         self.assertFalse(os.path.exists(new_storagedir))
         os.rmdir(STORAGEDIR)
@@ -287,7 +272,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self._get_driver_object()
         self.driver.start_sampling()
 
-        self.assert_data(GgldrCtdgvDelayedDataParticle, result_file, count=4, timeout=10)
+        self.assert_data(CtdgvDataParticle, result_file, count=4, timeout=10)
 
         self.assertTrue(os.path.isfile(STORAGEDIR))
 
@@ -316,7 +301,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.start_sampling()
 
-        self.assert_data(GgldrCtdgvDelayedDataParticle, count=4, timeout=10)
+        self.assert_data(CtdgvDataParticle, count=4, timeout=10)
 
         # verify the file was staged properly
         self.assertTrue(os.path.exists(dest_path_4))
@@ -421,9 +406,10 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()
-            result = self.get_samples(SAMPLE_STREAM, 3)
+            result = self.get_samples(SAMPLE_STREAM, 4)
             log.debug("got result 2 %s", result)
-            self.assert_data_values(result, 'merged_ctdgv_record.mrg.result.yml')
+            #self.assert_data_values(result, 'merged_ctdgv_record.mrg.result.yml')
+            self.assert_data_values(result, 'multiple_ctdgv_record.mrg.stopstartresult.yml')
 
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
         except SampleTimeout as e:
@@ -454,7 +440,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_data_values(result, 'single_ctdgv_record.mrg.result.yml')
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
-            self.create_sample_data('multiple_ctdgv_record.mrg', "unit_363_2013_245_7_6.mrg")
+            self.create_sample_data('multiple_ctdgv_record-shutdownrestart.mrg', "unit_363_2013_245_7_6.mrg")
             # Now read the first records of the second file then stop
             result = self.get_samples(SAMPLE_STREAM, 1)
             log.debug("got result 1 %s", result)
@@ -468,9 +454,10 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_initialize(final_state=ResourceAgentState.COMMAND)
             # Restart sampling and ensure we get the last 5 records of the file
             self.assert_start_sampling()
-            result = self.get_samples(SAMPLE_STREAM, 3)
+            result = self.get_samples(SAMPLE_STREAM, 4)
             log.debug("got result 2 %s", result)
-            self.assert_data_values(result, 'merged_ctdgv_record.mrg.result.yml')
+            #self.assert_data_values(result, 'multiple_ctdgv_record.mrg.shutdownrestartresult.yml')
+            self.assert_data_values(result, 'multiple_ctdgv_record.mrg.stopstartresult.yml')
 
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
         except SampleTimeout as e:
@@ -478,21 +465,19 @@ class QualificationTest(DataSetQualificationTestCase):
             self.fail("Sample timeout.")
 
 
-    @unittest.skip('foo')
     def test_parser_exception(self):
         """
         Test an exception raised after the driver is started during
         record parsing.
         """
         self.clear_sample_data()
-        self.create_sample_data('test_data_2.txt', 'DATA002.txt')
+        self.create_sample_data('unit_363_2013_245_7_7.mrg')
 
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 9)
         self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
         # Verify an event was raised and we are in our retry state
-        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_event_received(ResourceAgentErrorEvent, 40)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)
