@@ -985,11 +985,24 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         ##    }
         ##}
 
-        self._startup_config[DriverConfigKey.SCHEDULER][ScheduledJob.AUTO_SAMPLE] = {
-            DriverSchedulerConfigKey.TRIGGER: {
-                DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
-                DriverSchedulerConfigKey.SECONDS: auto_sample_interval}
-        }
+        if self._startup_config.has_key(DriverConfigKey.SCHEDULER):
+
+            self._startup_config[DriverConfigKey.SCHEDULER][ScheduledJob.AUTO_SAMPLE] = {
+                DriverSchedulerConfigKey.TRIGGER: {
+                    DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                    DriverSchedulerConfigKey.SECONDS: auto_sample_interval}
+            }
+
+        else:
+
+            self._startup_config[DriverConfigKey.SCHEDULER] = {
+                ScheduledJob.AUTO_SAMPLE: {
+                    DriverSchedulerConfigKey.TRIGGER: {
+                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                        DriverSchedulerConfigKey.SECONDS: auto_sample_interval
+                    }
+                }
+            }
 
         ## self.set_init_params(config)
 

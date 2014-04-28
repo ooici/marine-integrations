@@ -658,7 +658,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         Verify the blank sample command can be triggered and run in command
         """
         self.assert_scheduled_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, delay=120)
-        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=280)
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=300)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_device_status_auto_sample(self):

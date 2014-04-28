@@ -681,8 +681,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         """
 
         self.assert_scheduled_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, delay=120)
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=300)
-        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample)
+        self.assert_async_particle_generation(SamiDataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=300)
+        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample)
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_device_status_auto_sample(self):

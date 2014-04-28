@@ -364,7 +364,7 @@ class Protocol(Pco2wProtocol):
 
         log.debug('herb: ' + 'Protocol._build_param_dict()')
 
-        Pco2wProtocol._build_param_dict()
+        Pco2wProtocol._build_param_dict(self)
 
         ### example configuration string
         # VALID_CONFIG_STRING = 'CEE90B0002C7EA0001E133800A000E100402000E10010B' + \
