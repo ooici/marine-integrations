@@ -602,10 +602,10 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
             AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
             AgentCapabilityType.RESOURCE_COMMAND: [
                 ProtocolEvent.ACQUIRE_SAMPLE,
-                ProtocolEvent.ACQUIRE_STATUS,
                 ProtocolEvent.CLEAR,
                 ProtocolEvent.CLOCK_SYNC,
                 ProtocolEvent.GET,
+                ProtocolEvent.SET,
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
