@@ -1,0 +1,55 @@
+# Expected Results
+
+header:
+  particle_object: CtdgvDataParticle
+  particle_type: ctdgv_m_glider_instrument
+
+data:
+  - _index: 1
+    _new_sequence: False
+    #internal_timestamp: '2013-09-05T02:48:22.10907Z'
+    internal_timestamp: 3587338016.283390045
+    m_present_time: 1378349216.28339
+    m_present_secs_into_mission: 121121
+    sci_m_present_time: 1000.2
+    sci_m_present_secs_into_mission: 1000.2
+    sci_ctd41cp_timestamp: 1000.1
+    sci_water_cond: 1000.2
+    sci_water_pressure: 1000.2
+    sci_water_temp: 1000.2
+  - _index: 2
+    _new_sequence: False
+    #internal_timestamp: '2013-09-05T02:49:22.3978Z'
+    internal_timestamp: 3587338021.016940117
+    m_present_time: 1378349221.01694
+    m_present_secs_into_mission: 121125
+    sci_m_present_time: 1000.3
+    sci_m_present_secs_into_mission: 1000.3
+    sci_ctd41cp_timestamp: 1000.1
+    sci_water_cond: 1000.3
+    sci_water_pressure: 1000.3
+    sci_water_temp: 1000.3
+  - _index: 3
+    _new_sequence: False
+    #internal_timestamp: '2013-09-05T02:50:22.87961Z'
+    internal_timestamp: 3587338025.756770134
+    m_present_time: 1378349225.75677
+    m_present_secs_into_mission: 121130
+    sci_m_present_time: 1000.4
+    sci_m_present_secs_into_mission: 1000.4
+    sci_ctd41cp_timestamp: 1000.1
+    sci_water_cond: 1000.4
+    sci_water_pressure: 1000.4
+    sci_water_temp: 1000.4
+  - _index: 4
+    _new_sequence: False
+    #internal_timestamp: '2013-09-05T02:50:22.87961Z'
+    internal_timestamp: 3587338030.711210251
+    m_present_time: 1378349230.71121
+    m_present_secs_into_mission: 121135
+    sci_m_present_time: 1000.5
+    sci_m_present_secs_into_mission: 1000.5
+    sci_ctd41cp_timestamp: 1000.1
+    sci_water_cond: 1000.5
+    sci_water_pressure: 1000.5
+    sci_water_temp: 1000.5
