@@ -57,19 +57,32 @@ class ScheduledJob(BaseEnum):
 
 class Command(BaseEnum):
 
-        DS = 'ds'
-        GET_CD = 'GetCD'
-        GET_SD = 'GetSD'
-        GET_CC = 'GetCC'
-        GET_EC = 'GetEC'
-        RESET_EC = 'ResetEC'
-        GET_HD = 'GetHD'
-        START_NOW = 'StartNow'
-        STOP = 'Stop'
-        TS = 'ts'
-        SET = 'set'
+    DS = 'ds'
+    GET_CD = 'GetCD'
+    GET_SD = 'GetSD'
+    GET_CC = 'GetCC'
+    GET_EC = 'GetEC'
+    RESET_EC = 'ResetEC'
+    GET_HD = 'GetHD'
+    START_NOW = 'StartNow'
+    STOP = 'Stop'
+    TS = 'ts'
+    SET = 'set'
+    SEND_OPTODE = 'sendOptode'
 
-        #TODO: MP, sendOptode??
+
+class SendOptodeCommand(BaseEnum):
+
+    GET_CALPHASE = 'get calphase'
+    GET_ENABLE_TEMP = 'get enable temperature'
+    GET_ENABLE_TEXT = 'get enable text'
+    GET_ENABLE_HUM_COMP = 'get enable humiditycomp'
+    GET_ENABLE_AIR_SAT = 'get enable air saturation'
+    GET_ENABLE_RAW_DATA = 'get enable raw data'
+    GET_ANALOG_OUTPUT = 'get analog output'
+    GET_INTERVAL = 'get interval'
+    GET_MODE  = 'get mode'
+
 
 class ProtocolState(BaseEnum):
     """
@@ -167,12 +180,13 @@ class ConfirmedParameter(BaseEnum):
 
 class DataParticleType(BaseEnum):
     RAW = CommonDataParticleType.RAW
-    CTD_PARSED = 'ctdpf_sample'
-    DEVICE_STATUS = 'ctdpf_status'
-    DEVICE_CALIBRATION = 'ctdpf_calibration_coefficients'
-    DEVICE_HARDWARE = 'ctdpf_hardware'
-    DEVICE_CONFIGURATION = 'ctdpf_configuration'
+    CTD_PARSED = 'ctdpf_optode_sample'
+    DEVICE_STATUS = 'ctdpf_optode_status'
+    DEVICE_CALIBRATION = 'ctdpf_optode_calibration_coefficients'
+    DEVICE_HARDWARE = 'ctdpf_optode_hardware'
+    DEVICE_CONFIGURATION = 'ctdpf_optode_configuration'
     EVENT_COUNTER = 'ctdpf_event_counter'
+    OPTODE_SETTINGS = 'ctdpf_optode_settings'
 
 class SBE19EventCounterParticleKey(BaseEnum):
     SERIAL_NUMBER = "serial_number"
@@ -182,6 +196,7 @@ class SBE19EventCounterParticleKey(BaseEnum):
     EEPROM_WRITE_COUNT = "eeprom_write_count"
 
 
+#TODO: need to revisit this one
 class SBE19EventCounterParticle(SeaBirdParticle):
     """
     Routines for parsing raw data into a data particle structure. Override
