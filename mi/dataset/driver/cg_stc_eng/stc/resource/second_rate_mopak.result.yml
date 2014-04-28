@@ -4,7 +4,7 @@ header:
 
 data:
   - _index: 1
-    internal_timestamp: 3603727352.453376
+    internal_timestamp: 3603727133.0
     particle_object: MopakODclRateParserDataParticle
     particle_type: mopak_o_dcl_rate
     mopak_roll: -1.994295001029968262
@@ -15,7 +15,7 @@ data:
     mopak_ang_ratez: 0.00347043504007160664    
     mopak_timer: 13715836
   - _index: 2
-    internal_timestamp: 3603727352.553376
+    internal_timestamp: 3603727133.099999
     particle_object: MopakODclRateParserDataParticle
     particle_type: mopak_o_dcl_rate
     mopak_roll: -1.994342684745788574
@@ -26,7 +26,7 @@ data:
     mopak_ang_ratez: 0.00168977421708405018    
     mopak_timer: 13722086
   - _index: 3
-    internal_timestamp: 3603727352.653376
+    internal_timestamp: 3603727133.199999
     particle_object: MopakODclRateParserDataParticle
     particle_type: mopak_o_dcl_rate
     mopak_roll: -1.994292974472045898
