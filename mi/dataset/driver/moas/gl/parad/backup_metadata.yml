@@ -1,8 +1,0 @@
-driver_metadata:
-  author: Stuart Pearce & Chris Wingard
-  driver_name: glider_parad
-  driver_path: moas/gl/parad
-  email: spearce@coas.oregonstate.edu
-  release_notes: initial release
-  version: 0.0.1
-  constructor: PARADDataSetDriver
