@@ -94,17 +94,13 @@ def get_logging_metaclass(log_level='trace'):
 def log_method(class_name=None, log_level='trace'):
     name = "UNKNOWN_MODULE_NAME"
     stack = inspect.stack()
-    # stack[0]: call to inspect.stack() on the line above
-    # stack[1]: call to _install_logger() by one of the delegate methods below
-    # stack[2]: call to log_method
-    # stack[3]: call to the delegate method from some outside calling module
-    frame = stack[3]
-    if frame and frame[0]:
+    # step through the stack until we leave mi.core.log
+    for frame in stack:
         module = inspect.getmodule(frame[0])
         if module:
             name = module.__name__
-        elif frame[1]:
-            name = frame[1]
+            if name != 'mi.core.log':
+                break
     logger = logging.getLogger(name)
 
     def wrapper(func):
