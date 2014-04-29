@@ -6,8 +6,7 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: False
-    internal_timestamp: 3538838519.717560
+    internal_timestamp: '2012-02-21T18:41:59.717560Z'
     m_present_time: 1329849719.71756
     m_present_secs_into_mission: 150.718
     sci_m_present_time: 1329849719.71756
