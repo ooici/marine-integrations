@@ -39,7 +39,7 @@ from mi.idk.unit_test import \
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverProtocolState, DriverConfigKey
 
-from mi.instrument.mclane.rasfl.d1000.driver import \
+from mi.instrument.mclane.ras.d1000.driver import \
     InstrumentDriver, \
     DataParticleType, \
     Command, \
@@ -67,10 +67,10 @@ parsed_stream_received = False
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.mclane.rasfl.d1000.driver',
+    driver_module='mi.instrument.mclane.ras.d1000.driver',
     driver_class="InstrumentDriver",
     instrument_agent_resource_id='DQPJJX',
-    instrument_agent_name='mclane_ras_ooicore',
+    instrument_agent_name='mclane_ras_d1000',
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={DriverConfigKey.PARAMETERS: {Parameter.SAMPLE_INTERVAL: 6}},
 )

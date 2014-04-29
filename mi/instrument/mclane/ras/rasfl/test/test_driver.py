@@ -48,7 +48,7 @@ from mi.instrument.mclane.driver import \
     NEWLINE, \
     McLaneSampleDataParticleKey
 
-from mi.instrument.mclane.rasfl.ras.driver import \
+from mi.instrument.mclane.ras.rasfl.driver import \
     InstrumentDriver, \
     DataParticleType, \
     Command, \
@@ -77,10 +77,10 @@ CLEAR_TIMEOUT = 110
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.mclane.rasfl.ras.driver',
+    driver_module='mi.instrument.mclane.ras.ras.driver',
     driver_class="InstrumentDriver",
     instrument_agent_resource_id='DQPJJX',
-    instrument_agent_name='mclane_ras_ooicore',
+    instrument_agent_name='mclane_ras_rasfl',
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={DriverConfigKey.PARAMETERS: {
         Parameter.CLEAR_VOLUME: 10,
