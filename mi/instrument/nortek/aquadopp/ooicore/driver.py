@@ -19,7 +19,8 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentPrompts, NortekProtocolParameterDict, \
     USER_CONFIG_DATA_REGEX, HARDWARE_CONFIG_DATA_REGEX, HEAD_CONFIG_DATA_REGEX, NEWLINE, log_method, \
-    ACQUIRE_STATUS_REGEX, EngineeringParameter
+    ACQUIRE_STATUS_REGEX, EngineeringParameter, BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, \
+    NortekEngBatteryDataParticle, NortekEngClockDataParticle, NortekEngIdDataParticle
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
 from mi.instrument.nortek.driver import NortekUserConfigDataParticle, NortekParameterDictVal, Parameter, \
@@ -401,6 +402,10 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(NortekUserConfigDataParticle, USER_CONFIG_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekHardwareConfigDataParticle, HARDWARE_CONFIG_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekHeadConfigDataParticle, HEAD_CONFIG_DATA_REGEX, structure, timestamp)
+
+        self._extract_sample(NortekEngBatteryDataParticle, BATTERY_DATA_REGEX, structure, timestamp)
+        self._extract_sample(NortekEngClockDataParticle, CLOCK_DATA_REGEX, structure, timestamp)
+        self._extract_sample(NortekEngIdDataParticle, ID_DATA_REGEX, structure, timestamp)
 
     @log_method
     def _build_param_dict(self):

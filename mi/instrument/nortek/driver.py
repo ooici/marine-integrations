@@ -67,6 +67,8 @@ HW_CONFIG_SYNC_BYTES = '\xa5\x05\x18\x00'
 HEAD_CONFIG_LEN = 224
 HEAD_CONFIG_SYNC_BYTES = '\xa5\x04\x70\x00'
 CHECK_SUM_SEED = 0xb58c
+BV_LEN = 4
+ID_LEN = 14
 
 HARDWARE_CONFIG_DATA_PATTERN = r'%s(.{14})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{12})(.{4})(.{2})' \
                                % HW_CONFIG_SYNC_BYTES
@@ -92,6 +94,8 @@ ACQUIRE_STATUS_REGEX = r"mc\s([0-9][0-9]:[0-9][0-9]:[0-9][0-9])"
 NORTEK_COMMON_SAMPLE_STRUCTS = [[USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN],
                                 [HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN],
                                 [HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN]]
+
+NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS = []
 
 
 def log_method(func):
@@ -1334,6 +1338,16 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
                     index = start+structure_len
 
+         # by this point, all the particles with headers have been parsed from the raw data
+        # what's left can be battery voltage and/or identification string
+        if len(NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS):
+            for structure_sync, structure_len in NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS:
+                start = raw_data.find(structure_sync)
+                if start != -1:    # found a "sync" pattern
+                    return_list.append((start, start+len(structure_sync)))
+                    log.debug("chunker_sieve_function: found %s", raw_data[start:start+len(structure_sync)].encode('hex'))
+                    NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.remove([structure_sync, structure_len])
+
         return return_list
 
     ########################################################################
@@ -1437,25 +1451,46 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             time.sleep(.1)
             self._do_cmd_resp(InstrumentCmds.CONFIRMATION, expected_prompt=InstrumentPrompts.Z_ACK)
 
-        #II
-        self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE, expected_prompt=InstrumentPrompts.Z_ACK, timeout=TIMEOUT)
-        #RC
-        self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK, expected_prompt=InstrumentPrompts.Z_ACK, timeout=TIMEOUT)
+        #GA - can use this command but need to define a new response handler
+        # result = self._do_cmd_resp(InstrumentCmds.GET_ALL_CONFIGURATIONS)
+
         #BV
-        self._do_cmd_resp(InstrumentCmds.READ_BATTERY_VOLTAGE, expected_prompt=InstrumentPrompts.Z_ACK, timeout=TIMEOUT)
-        #GA
-        self._do_cmd_resp(InstrumentCmds.GET_ALL_CONFIGURATIONS, expected_prompt=InstrumentPrompts.Z_ACK, timeout=TIMEOUT)
+         # self._handler_command_read_battery_voltage()
+        self._do_cmd_resp(InstrumentCmds.READ_BATTERY_VOLTAGE)
+        #
+        # #RC
+        self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK)
 
-        #enter measuring mode
-        self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, expected_prompt=InstrumentPrompts.Z_ACK,
-                          timeout=TIMEOUT)
+        # #GP
+        self._do_cmd_resp(InstrumentCmds.READ_HW_CONFIGURATION)
 
-        #I
-        self._do_cmd_resp(InstrumentCmds.SAMPLE_WHAT_MODE, expected_prompt=InstrumentPrompts.Z_ACK, timeout=TIMEOUT)
-        #A
-        self._do_cmd_resp(InstrumentCmds.SAMPLE_AVG_TIME, expected_prompt=InstrumentPrompts.Z_ACK, timeout=TIMEOUT)
-        #M
-        self._do_cmd_resp(InstrumentCmds.SAMPLE_INTERVAL_TIME, expected_prompt=InstrumentPrompts.Z_ACK, timeout=TIMEOUT)
+        #GH
+        # self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION)
+
+        #GC
+        # self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION)
+
+        # result_hw = self._handler_command_get_hw_config()
+
+        #II
+        # result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE, expected_prompt=InstrumentPrompts.Z_ACK,
+        #                            timeout=TIMEOUT)
+
+
+
+         # #enter measuring mode
+        # self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, expected_prompt=InstrumentPrompts.Z_ACK,
+        #                   timeout=TIMEOUT)
+        #
+        # #I
+        # self._do_cmd_resp(InstrumentCmds.SAMPLE_WHAT_MODE, expected_prompt=InstrumentPrompts.Z_ACK,
+        #                                timeout=TIMEOUT)
+        # #A
+        # self._do_cmd_resp(InstrumentCmds.SAMPLE_AVG_TIME, expected_prompt=InstrumentPrompts.Z_ACK,
+        #                                timeout=TIMEOUT)
+        # #M
+        # self._do_cmd_resp(InstrumentCmds.SAMPLE_INTERVAL_TIME, expected_prompt=InstrumentPrompts.Z_ACK,
+        #                                timeout=TIMEOUT)
 
         #put instrument back into previous state
         if currentState == DriverProtocolState.COMMAND:
@@ -2093,6 +2128,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read clock response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_clock_response: response=%s", response.encode('hex'))
+
+        # Workaround for not so unique data particle chunking
+        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, ID_LEN])
+
         ret_val = NortekProtocolParameterDict.convert_time(response)
         return ret_val
 
