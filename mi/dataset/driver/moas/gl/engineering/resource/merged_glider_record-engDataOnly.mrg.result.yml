@@ -11,7 +11,7 @@ data:
     glider_eng_filename: 'unit_247-2012-051-0-0-dbd(01840000)'
     glider_mission_name: 'ENDUR1.MI'
     glider_eng_fileopen_time: 'Tue_Feb_21_18:39:39_2012'
-    internal_timestamp: 3538838418.799619675
+    internal_timestamp: '2012-02-21T18:40:18.799620Z' 
     m_present_time: 1329849618.79962
     m_present_secs_into_mission: 49.646
     m_gps_lat:
@@ -74,7 +74,7 @@ data:
     glider_eng_filename: 'unit_247-2012-051-0-0-dbd(01840000)'
     glider_mission_name: 'ENDUR1.MI'
     glider_eng_fileopen_time: 'Tue_Feb_21_18:39:39_2012'
-    internal_timestamp: 3538838503.758150101
+    internal_timestamp: '2012-02-21T18:41:43.758150Z'
     m_present_time: 1329849703.75815
     m_present_secs_into_mission: 134.605
     m_gps_lat:
@@ -137,7 +137,7 @@ data:
     glider_eng_filename: 'unit_247-2012-051-0-0-dbd(01840000)'
     glider_mission_name: 'ENDUR1.MI'
     glider_eng_fileopen_time: 'Tue_Feb_21_18:39:39_2012'
-    internal_timestamp: 3538838522.245269775
+    internal_timestamp: '2012-02-21T18:42:02.245270Z'
     m_present_time: 1329849722.24527
     m_present_secs_into_mission: 153.091
     m_gps_lat:
