@@ -16,20 +16,20 @@ log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
 from mi.dataset.parser.glider import GliderParser
-from mi.dataset.parser.glider import GgldrCtdgvDelayedDataParticle
+from mi.dataset.parser.glider import CtdgvDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
 
 class CTDGVDataSetDriver(SimpleDataSetDriver):
     @classmethod
     def stream_config(cls):
-        return [GgldrCtdgvDelayedDataParticle.type()]
+        return [CtdgvDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
         config = self._parser_config
         config.update({
             'particle_module': 'mi.dataset.parser.glider',
-            'particle_class': 'GgldrCtdgvDelayedDataParticle'
+            'particle_class': 'CtdgvDataParticle'
         })
         log.debug("MYCONFIG: %s", config)
         self._parser = GliderParser(
@@ -55,4 +55,3 @@ class CTDGVDataSetDriver(SimpleDataSetDriver):
             self._exception_callback
         )
         return self._harvester
-
