@@ -59,6 +59,10 @@ HW_CONFIG_LEN = 48
 HW_CONFIG_SYNC_BYTES   = '\xa5\x05\x18\x00'
 HEAD_CONFIG_LEN = 224
 HEAD_CONFIG_SYNC_BYTES = '\xa5\x04\x70\x00'
+
+BV_LEN = 4
+ID_LEN = 14
+
 CHECK_SUM_SEED = 0xb58c
 
 HARDWARE_CONFIG_DATA_PATTERN = r'%s(.{14})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{12})(.{4})(.{2})' % HW_CONFIG_SYNC_BYTES
@@ -78,6 +82,12 @@ ID_DATA_REGEX = re.compile(ID_DATA_PATTERN, re.DOTALL)
 NORTEK_COMMON_SAMPLE_STRUCTS = [[USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN],
                                 [HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN],
                                 [HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN]]
+
+NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS = []
+
+# NORTEK_COMMON_REGEX = [USER_CONFIG_DATA_REGEX,
+#                            HARDWARE_CONFIG_DATA_REGEX,
+#                            HEAD_CONFIG_DATA_REGEX]
 
 class ScheduledJob(BaseEnum):
     CLOCK_SYNC = 'clock_sync'
@@ -117,13 +127,13 @@ class InstrumentCmds(BaseEnum):
     READ_ID                            = 'ID'
     # RECORDER
     #START_MEASUREMENT_AT_SPECIFIC_TIME = 'SD'
-    #START_MEASUREMENT_IMMEDIATE        = 'SR'
+    #START_MEASUREMENT_IMMEDIATE        = 'SR'      # data stored to new file in the instrument's recorder & output to serial
     START_MEASUREMENT_WITHOUT_RECORDER = 'ST'
     ACQUIRE_DATA                       = 'AD'
     CONFIRMATION                       = 'MC'        # confirm a break request
     # SAMPLE_AVG_TIME                    = 'A'
     # SAMPLE_INTERVAL_TIME               = 'M'
-    # GET_ALL_CONFIGURATIONS             = 'GA'
+    GET_ALL_CONFIGURATIONS             = 'GA'
     # GET_USER_CONFIGURATION             = 'GC'
     # SAMPLE_WHAT_MODE                   = 'I'   
 
@@ -170,6 +180,7 @@ class ProtocolEvent(BaseEnum):
     SET = DriverEvent.SET
     DISCOVER = DriverEvent.DISCOVER
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     START_DIRECT = DriverEvent.START_DIRECT
@@ -1302,6 +1313,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_get)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET_CONFIGURATION, self._handler_command_set_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.READ_CLOCK, self._handler_command_read_clock)
@@ -1363,10 +1375,38 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                     log.debug('chunker_sieve_function: calculated checksum = %s' % calculated_checksum)
                     sent_checksum = NortekProtocolParameterDict.convert_word_to_int(raw_data[start+structure_len-2:start+structure_len])
                     if sent_checksum == calculated_checksum:
-                        return_list.append((start, start+structure_len))        
+                        return_list.append((start, start+structure_len))
                         log.debug("chunker_sieve_function: found %s", raw_data[start:start+structure_len].encode('hex'))
+
+        # by this point, all the particles with headers have been parsed from the raw data
+        # what's left can be battery voltage and/or identification string
+        if len(NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS):
+            for structure_sync, structure_len in NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS:
+                start = raw_data.find(structure_sync)
+                if start != -1:    # found a "sync" pattern
+                    return_list.append((start, start+len(structure_sync)))
+                    log.debug("chunker_sieve_function: found %s", raw_data[start:start+len(structure_sync)].encode('hex'))
+                    NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.remove([structure_sync, structure_len])
                 
         return return_list
+
+
+    # @staticmethod
+    # def sieve_function(raw_data, add_regex=[]):
+    #     """
+    #     The method that splits samples
+    #     """
+    #
+    #     return_list = []
+    #
+    #     sieve_matchers = add_regex + NORTEK_COMMON_REGEX
+    #
+    #     for matcher in sieve_matchers:
+    #         for match in matcher.finditer(raw_data):
+    #             return_list.append((match.start(), match.end()))
+    #
+    #     return return_list
+
 
     ########################################################################
     # overridden superclass methods
@@ -1477,8 +1517,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._connection.send(cmd_line)
 
         # Wait for the prompt, prepare result and return, timeout exception
-        (prompt, result) = self._get_response(timeout,
-                                              expected_prompt=expected_prompt)
+        (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
+
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
         resp_result = None
@@ -1557,7 +1597,84 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         Exit command state.
         """
+        log.debug('%% IN _handler_command_exit')
         pass
+
+    def _handler_command_acquire_sample(self, *args, **kwargs):
+        log.debug('%% IN _handler_command_acquire_sample')
+
+        result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA)
+
+        return None, (None, result)
+
+    def _handler_command_acquire_status(self, *args, **kwargs):
+        log.debug('%% IN _handler_command_acquire_status')
+
+        # If not set, parameters default to expected_prompt=InstrumentPrompts.Z_ACK, timeout=TIMEOUT
+
+        #algorithm?: assuming command can be done in any mode...
+        #  check mode
+        #       if Command Mode do BV, RC, GA? etc...
+        #       if Measuring Mode do I, A, M
+        #  Should it necessarily break from Measuring mode if a measurement is being taken?
+
+        #GA - can use this command but need to define a new response handler
+        # result = self._do_cmd_resp(InstrumentCmds.GET_ALL_CONFIGURATIONS)
+
+        #BV
+        # self._handler_command_read_battery_voltage()
+        self._do_cmd_resp(InstrumentCmds.READ_BATTERY_VOLTAGE)
+        #
+        # #RC
+        self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK)
+
+        # #GP
+        self._do_cmd_resp(InstrumentCmds.READ_HW_CONFIGURATION)
+
+        #GH
+        # self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION)
+
+        #GC
+        # self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION)
+
+        # result_hw = self._handler_command_get_hw_config()
+
+        #II
+        # result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE, expected_prompt=InstrumentPrompts.Z_ACK,
+        #                            timeout=TIMEOUT)
+
+
+
+        # #enter measuring mode
+        # self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, expected_prompt=InstrumentPrompts.Z_ACK,
+        #                   timeout=TIMEOUT)
+        #
+        # #I
+        # self._do_cmd_resp(InstrumentCmds.SAMPLE_WHAT_MODE, expected_prompt=InstrumentPrompts.Z_ACK,
+        #                                timeout=TIMEOUT)
+        # #A
+        # self._do_cmd_resp(InstrumentCmds.SAMPLE_AVG_TIME, expected_prompt=InstrumentPrompts.Z_ACK,
+        #                                timeout=TIMEOUT)
+        # #M
+        # self._do_cmd_resp(InstrumentCmds.SAMPLE_INTERVAL_TIME, expected_prompt=InstrumentPrompts.Z_ACK,
+        #                                timeout=TIMEOUT)
+        #
+        # #enter command mode
+        # self._connection.send(InstrumentCmds.SOFT_BREAK_FIRST_HALF)
+        # time.sleep(.1)
+        # self._do_cmd_resp(InstrumentCmds.SOFT_BREAK_SECOND_HALF, *args, **kwargs)
+        # time.sleep(.1)
+        # self._do_cmd_resp(InstrumentCmds.CONFIRMATION, expected_prompt=InstrumentPrompts.Z_ACK, *args, **kwargs)
+
+        return None, (None, None)
+
+    def _handler_command_execute_reset(self, *args, **kwargs):
+         log.debug('%% IN _handler_command_execute_reset')
+         #TODO
+         result = self._do_cmd_resp(InstrumentCmds.POWER_DOWN, expected_prompt=InstrumentPrompts.Z_ACK,
+                                       timeout=TIMEOUT)
+
+         return None, (None, result)
 
     def _handler_command_set(self, *args, **kwargs):
         """
@@ -1630,8 +1747,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # RECORDER
         result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, 
                                    expected_prompt = InstrumentPrompts.Z_ACK, *args, **kwargs)
-        #result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_IMMEDIATE, 
-        #                           expected_prompt = InstrumentPrompts.Z_ACK, *args, **kwargs)
                                 
         next_state = ProtocolState.AUTOSAMPLE        
         next_agent_state = ResourceAgentState.STREAMING
@@ -1705,15 +1820,17 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
     def _handler_command_read_battery_voltage(self):
         """
         """
+
+        log.debug('%% IN _handler_command_read_battery_voltage')
+
         next_state = None
         next_agent_state = None
         result = None
 
         # Issue read clock command.
-        result = self._do_cmd_resp(InstrumentCmds.READ_BATTERY_VOLTAGE, 
-                                   expected_prompt = InstrumentPrompts.Z_ACK)
+        result = self._do_cmd_resp(InstrumentCmds.READ_BATTERY_VOLTAGE)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_read_id(self):
         """
@@ -1724,7 +1841,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_ID, 
-                                   expected_prompt = InstrumentPrompts.Z_ACK)
+                                   expected_prompt=InstrumentPrompts.Z_ACK)
 
         return (next_state, (next_agent_state, result))
 
@@ -1735,11 +1852,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
         result = None
 
-        # Issue read clock command.
-        result = self._do_cmd_resp(InstrumentCmds.READ_HW_CONFIGURATION, 
-                                   expected_prompt = InstrumentPrompts.Z_ACK)
+        # Issue read hw config command.
+        result = self._do_cmd_resp(InstrumentCmds.READ_HW_CONFIGURATION)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_get_head_config(self):
         """
@@ -1750,9 +1866,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION, 
-                                   expected_prompt = InstrumentPrompts.Z_ACK)
+                                   expected_prompt=InstrumentPrompts.Z_ACK)
 
-        return (next_state, (next_agent_state, result))
+        return next_state, (next_agent_state, result)
 
     def _handler_command_get_user_config(self):
         """
@@ -1763,7 +1879,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION, 
-                                   expected_prompt = InstrumentPrompts.Z_ACK)
+                                   expected_prompt=InstrumentPrompts.Z_ACK)
 
         return (next_state, (next_agent_state, result))
 
@@ -2846,7 +2962,11 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         if (len(response) != 8):
             log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read clock response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_clock_response: response=%s", response.encode('hex')) 
+        log.debug("_parse_read_clock_response: response=%s", response.encode('hex'))
+
+        # Workaround for not so unique data particle chunking
+        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, ID_LEN])
+
         time = NortekProtocolParameterDict.convert_time(response)
         return time
 
@@ -2873,11 +2993,14 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval return The time as a string
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        if (len(response) != 4):
+        if (len(response) != BV_LEN):
             log.warn("_parse_read_battery_voltage_response: Bad read battery voltage response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read battery voltage response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_battery_voltage_response: response=%s", response.encode('hex')) 
-        
+
+        # Workaround for not so unique data particle chunking
+        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, BV_LEN])
+
         return NortekProtocolParameterDict.convert_word_to_int(response[0:2])
         
     def _parse_read_id(self, response, prompt):
