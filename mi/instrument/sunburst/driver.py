@@ -1126,7 +1126,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         (next_state, next_agent_state) = self._discover()
         log.debug("_handler_unknown_discover: next agent state: %s", next_agent_state)
 
-        return (next_state, (next_agent_state, result))
+        return (next_state, next_agent_state)
 
     ########################################################################
     # Waiting handlers.
@@ -1472,7 +1472,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._remove_scheduler(ScheduledJob.AUTO_SAMPLE)
 
         next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.IDLE
+        next_agent_state = ResourceAgentState.COMMAND
         result = None
 
         return (next_state, (next_agent_state, result))
@@ -1512,7 +1512,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Acquire sample
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_take_sample()')
+        log.debug('herb: ' + 'SamiProtocol._handler_take_sample() ENTER')
         log.debug('herb: ' + 'SamiProtocol._handler_take_sample(): CURRENT_STATE == ' + self.get_current_state())
 
         try:
@@ -1522,6 +1522,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         except InstrumentTimeoutException:
             log.error('SamiProtocol._handler_take_sample(): TIMEOUT')
             self._async_raise_fsm_event(ProtocolEvent.TIMEOUT)
+
+        log.debug('herb: ' + 'SamiProtocol._handler_take_sample() EXIT')
 
         return None, None
 
@@ -1534,7 +1536,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         Acquire the instrument's status
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_take_blank_sample()')
+        log.debug('herb: ' + 'SamiProtocol._handler_take_blank_sample() ENTER')
         log.debug('herb: ' + 'SamiProtocol._handler_take_blank_sample(): CURRENT_STATE == ' + self.get_current_state())
 
         try:
@@ -1544,6 +1546,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         except InstrumentTimeoutException:
             log.error('SamiProtocol._handler_take_blank_sample(): TIMEOUT')
             self._async_raise_fsm_event(ProtocolEvent.TIMEOUT)
+
+        log.debug('herb: ' + 'SamiProtocol._handler_take_blank_sample() EXIT')
 
         return None, None
 
@@ -1581,7 +1585,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_success')
 
         next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.IDLE
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
 
         return (next_state, next_agent_state)
 
@@ -1592,11 +1598,10 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_timeout')
 
-##        next_state = ProtocolState.WAITING
-##        next_agent_state = ResourceAgentState.BUSY
-
         next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.IDLE
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
 
         return (next_state, next_agent_state)
 
@@ -1635,7 +1640,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_success')
 
         next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.IDLE
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
 
         return (next_state, next_agent_state)
 
@@ -1650,7 +1657,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 ##        next_agent_state = ResourceAgentState.BUSY
 
         next_state = ProtocolState.COMMAND
-        next_agent_state = ResourceAgentState.IDLE
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
 
         return (next_state, next_agent_state)
 
@@ -1690,6 +1699,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
+        self._async_agent_state_change(next_agent_state)
+
         return (next_state, next_agent_state)
 
     def _handler_scheduled_sample_timeout(self, *args, **kwargs):
@@ -1701,6 +1712,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
+
+        self._async_agent_state_change(next_agent_state)
 
         return (next_state, next_agent_state)
 
@@ -1740,6 +1753,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
 
+        self._async_agent_state_change(next_agent_state)
+
         return (next_state, next_agent_state)
 
     def _handler_scheduled_blank_sample_timeout(self, *args, **kwargs):
@@ -1751,6 +1766,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
+
+        self._async_agent_state_change(next_agent_state)
 
         return (next_state, next_agent_state)
 
@@ -1926,7 +1943,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             log.debug('herb: ' + 'SamiProtocol._discover: Move to command state')
 
             next_state = ProtocolState.COMMAND
-            next_agent_state = ResourceAgentState.IDLE
+            next_agent_state = ResourceAgentState.COMMAND
 
         return (next_state, next_agent_state)
 

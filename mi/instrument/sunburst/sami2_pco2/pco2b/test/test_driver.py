@@ -43,6 +43,8 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+from pyon.agent.agent import ResourceAgentEvent
+from pyon.agent.agent import ResourceAgentState
 
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import InstrumentDriver
 from mi.instrument.sunburst.driver import SamiDataParticleType
@@ -73,10 +75,9 @@ InstrumentDriverTestCase.initialize(
 
     driver_module='mi.instrument.sunburst.sami2_pco2.pco2b.driver',
     driver_class="InstrumentDriver",
-
     instrument_agent_resource_id='V7HE4T',
     instrument_agent_name='sunburst_sami2_pco2_pco2b',
-    instrument_agent_packet_config=SamiDataParticleType(),
+    instrument_agent_packet_config=DataParticleType(),
 
 #    driver_startup_config={}
     driver_startup_config={
@@ -722,6 +723,9 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
 
 # TODO: Test boot prompt recovery coming out of direct access
 
+    def setUp(self):
+        InstrumentDriverQualificationTestCase.setUp(self)
+
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly
@@ -729,17 +733,23 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         """
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
+        self.tcp_client.send_data("L%s" % NEWLINE)
 
         ###
         #   Add instrument specific code here.
         ###
 
         self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+
 
     def test_poll(self):
         '''
         No polling for a single sample
         '''
+        self.assert_enter_command_mode()
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_blank_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
 
     def test_autosample(self):
         '''

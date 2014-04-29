@@ -106,6 +106,10 @@ CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 #    Begin Classes
 ###
 
+class DataParticleType(SamiDataParticleType):
+    """
+    Data particle types produced by this driver
+    """
 
 class Parameter(Pco2SamiParameter):
     """

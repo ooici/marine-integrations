@@ -438,7 +438,7 @@ class Protocol(Pco2wProtocol):
 
         external_pump_delay = self._param_dict.get(Parameter.EXTERNAL_PUMP_DELAY)
 
-        log.debug('herb: ' + 'Protocol._take_blank_sample(): Delaying for %d seconds', external_pump_delay)
+        log.debug('herb: ' + 'Protocol._pre_sample_processing(): Delaying for %d seconds', external_pump_delay)
 
         time.sleep(external_pump_delay)
 
