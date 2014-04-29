@@ -21,7 +21,14 @@ from mi.core.log import get_logger ; log = get_logger()
 
 import json
 import socket
+from mi.core.util import dict_equal
+
+from mi.core.time import get_timestamp_delayed
 from mi.core.common import BaseEnum, InstErrorCode
+
+from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
+from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
+from mi.core.instrument.driver_dict import DriverDict
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
@@ -115,6 +122,8 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         # Short buffer to look for prompts from device in command-response
         # mode.
         self._promptbuf2 = ''
+
+        self._build_param_dict2()
 
     def _build_protocol(self):
         """
@@ -371,6 +380,14 @@ class Protocol(WorkhorseProtocol):
         _connection_4beam = None
         _connection_5thBean = None
 
+        # The parameter, comamnd, and driver dictionaries.
+        _param_dict2 = ProtocolParameterDict()
+        _cmd_dict2 = ProtocolCommandDict()
+        _driver_dict2 = DriverDict()
+
+
+
+
     """
     Specialization for this version of the workhorse driver
     """
@@ -473,43 +490,36 @@ class Protocol(WorkhorseProtocol):
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException("in InstrumentProtocol._get_raw_response()")
 
+    def _do_cmd_direct(self, cmd):
+        """
+        Issue an untranslated command to the instrument. No response is handled
+        as a result of the command.
+
+        @param cmd The high level command to issue
+        """
+
+        # Send command.
+        log.debug('_do_cmd_direct: <%s>' % cmd)
+        #self._connection.send(cmd)
+        self._connections['4Beam'].send(cmd)
+        self._connections['5thBeam'].send(cmd)
 
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
         Perform a command-response on the device.
         @param cmd The command to execute.
         @param args positional arguments to pass to the build handler.
-        @param write_delay kwarg for the amount of delay in seconds to pause
-        between each character. If none supplied, the DEFAULT_WRITE_DELAY
-        value will be used.
-        @param timeout optional wakeup and command timeout via kwargs.
-        @param expected_prompt kwarg offering a specific prompt to look for
-        other than the ones in the protocol class itself.
-        @param response_regex kwarg with a compiled regex for the response to
-        match. Groups that match will be returned as a string.
-        Cannot be supplied with expected_prompt. May be helpful for
-        instruments that do not have a prompt.
-        @retval resp_result The (possibly parsed) response result including the
-        first instance of the prompt matched. If a regex was used, the prompt
-        will be an empty string and the response will be the joined collection
-        of matched groups.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
         @raises InstrumentTimeoutException if the response did not occur in time.
         @raises InstrumentProtocolException if command could not be built or if response
         was not recognized.
         """
-
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', self.DEFAULT_CMD_TIMEOUT)
         expected_prompt = kwargs.get('expected_prompt', None)
-        response_regex = kwargs.get('response_regex', None)
         write_delay = kwargs.get('write_delay', self.DEFAULT_WRITE_DELAY)
         retval = None
-
-        if response_regex and not isinstance(response_regex, self.RE_PATTERN):
-            raise InstrumentProtocolException('Response regex is not a compiled pattern!')
-
-        if expected_prompt and response_regex:
-            raise InstrumentProtocolException('Cannot supply both regex and expected prompt!')
 
         # Get the build handler.
         build_handler = self._build_handlers.get(cmd, None)
@@ -519,53 +529,220 @@ class Protocol(WorkhorseProtocol):
         cmd_line = build_handler(cmd, *args)
         # Wakeup the device, pass up exception if timeout
 
-        prompt = self._wakeup(timeout)
-
+        if (self.last_wakeup + 30) > time.time():
+            self.last_wakeup = time.time()
+        else:
+            prompt = self._wakeup(timeout=3)
         # Clear line and prompt buffers for result.
+
+
         self._linebuf = ''
         self._promptbuf = ''
 
         # Send command.
-        log.debug('_do_cmd_resp: %s, timeout=%s, write_delay=%s, expected_prompt=%s, response_regex=%s',
-                        repr(cmd_line), timeout, write_delay, expected_prompt, response_regex)
+        log.debug('_do_cmd_resp: %s' % repr(cmd_line))
 
         if (write_delay == 0):
-            #self._connection.send(cmd_line)
             self._connections['4Beam'].send(cmd_line)
-            self._connections['5thBeam'].send(cmd_line)
         else:
             for char in cmd_line:
                 self._connections['4Beam'].send(char)
-                self._connections['5thBeam'].send(char)
                 time.sleep(write_delay)
 
         # Wait for the prompt, prepare result and return, timeout exception
-        if response_regex:
-            prompt = ""
-            result_tuple = self._get_response(timeout,
-                                              response_regex=response_regex,
+        (prompt, result) = self._get_response(timeout,
                                               expected_prompt=expected_prompt)
-            result_tuple2 = self._get_response2(timeout,
-                                              response_regex=response_regex,
-                                              expected_prompt=expected_prompt)
-            result = " \r\n From 5th beam: ".join(result_tuple, result_tuple2) #Sung -combine the two
-            log.error("Sung printing join regex response %s", repr(result))
-        else:
-            (prompt, result1) = self._get_response(timeout,
-                                                  expected_prompt=expected_prompt)
-            (prompt2, result2) = self._get_response2(timeout,
-                                                  expected_prompt=expected_prompt)
-
-            result = " \r\n From 5th beam: ".join(result1, result2) #Sung -combine the two
-            log.error("Sung printing join regex response %s", repr(result))
-
         resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
             self._response_handlers.get(cmd, None)
         resp_result = None
         if resp_handler:
-            resp_result = resp_handler(result, prompt) #Sung -combine the two
+            resp_result = resp_handler(result, prompt)
 
         return resp_result
+
+    def _do_cmd_resp2(self, cmd, *args, **kwargs):
+        """
+        Perform a command-response on the device.
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup and command timeout.
+        @retval resp_result The (possibly parsed) response result.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built or if response
+        was not recognized.
+        """
+        # Get timeout and initialize response.
+        timeout = kwargs.get('timeout', self.DEFAULT_CMD_TIMEOUT)
+        expected_prompt = kwargs.get('expected_prompt', None)
+        write_delay = kwargs.get('write_delay', self.EFAULT_WRITE_DELAY)
+        retval = None
+
+        # Get the build handler.
+        build_handler = self._build_handlers.get(cmd, None)
+        if not build_handler:
+            raise InstrumentProtocolException('Cannot build command: %s' % cmd)
+
+        cmd_line = build_handler(cmd, *args)
+        # Wakeup the device, pass up exception if timeout
+
+        if (self.last_wakeup + 30) > time.time():
+            self.last_wakeup = time.time()
+        else:
+            prompt = self._wakeup2(timeout=3)
+        # Clear line and prompt buffers for result.
+
+
+        self._linebuf2 = ''
+        self._promptbuf2 = ''
+
+        # Send command.
+        log.debug('_do_cmd_resp2: %s' % repr(cmd_line))
+
+        if (write_delay == 0):
+            self._connections['5thBeam'].send(cmd_line)
+        else:
+            for char in cmd_line:
+                self._connections['5thBeam'].send(char)
+                time.sleep(write_delay)
+
+        # Wait for the prompt, prepare result and return, timeout exception
+        (prompt, result) = self._get_response2(timeout,
+                                              expected_prompt=expected_prompt)
+        resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
+            self._response_handlers.get(cmd, None)
+        resp_result = None
+        if resp_handler:
+            resp_result = resp_handler(result, prompt)
+
+        return resp_result
+
+    def _get_response(self, timeout=10, expected_prompt=None, response_regex=None):
+        """
+        Get a response from the instrument, but be a bit loose with what we
+        find. Leave some room for white space around prompts and not try to
+        match that just in case we are off by a little whitespace or not quite
+        at the end of a line.
+
+        @todo Consider cases with no prompt
+        @param timeout The timeout in seconds
+        @param expected_prompt Only consider the specific expected prompt as
+        presented by this string
+        @param response_regex Look for a resposne value that matches the
+        supplied compiled regex pattern. Groups that match will be returned as a
+        string. Cannot be used with expected prompt. None
+        will be returned as a prompt with this match. If a regex is supplied,
+        internal the prompt list will be ignored.
+        @retval Regex search result tuple (as MatchObject.groups() would return
+        if a response_regex is supplied. A tuple of (prompt, response) if a
+        prompt is looked for.
+        @throw InstrumentProtocolException if both regex and expected prompt are
+        passed in or regex is not a compiled pattern.
+        @throw InstrumentTimeoutExecption on timeout
+        """
+        # Grab time for timeout and wait for prompt.
+        starttime = time.time()
+
+        if response_regex and not isinstance(response_regex, self.RE_PATTERN):
+            raise InstrumentProtocolException('Response regex is not a compiled pattern!')
+
+        if expected_prompt and response_regex:
+            raise InstrumentProtocolException('Cannot supply both regex and expected prompt!')
+
+        if response_regex:
+            prompt_list = []
+
+        if expected_prompt == None:
+            prompt_list = self._get_prompts()
+        else:
+            if isinstance(expected_prompt, str):
+                prompt_list = [expected_prompt]
+            else:
+                prompt_list = expected_prompt
+
+        log.debug('_get_response: timeout=%s, prompt_list=%s, expected_prompt=%s, response_regex=%s, promptbuf=%s',
+                  timeout, prompt_list, expected_prompt, response_regex, self._promptbuf)
+        while True:
+            if response_regex:
+                match = response_regex.search(self._linebuf)
+                if match:
+                    return match.groups()
+                else:
+                    time.sleep(.1)
+            else:
+                for item in prompt_list:
+                    index = self._promptbuf.find(item)
+                    if index >= 0:
+                        result = self._promptbuf[0:index+len(item)]
+                        return (item, result)
+                    else:
+                        time.sleep(.1)
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")
+
+    def _get_response2(self, timeout=10, expected_prompt=None, response_regex=None):
+        """
+        Get a response from the instrument, but be a bit loose with what we
+        find. Leave some room for white space around prompts and not try to
+        match that just in case we are off by a little whitespace or not quite
+        at the end of a line.
+
+        @todo Consider cases with no prompt
+        @param timeout The timeout in seconds
+        @param expected_prompt Only consider the specific expected prompt as
+        presented by this string
+        @param response_regex Look for a resposne value that matches the
+        supplied compiled regex pattern. Groups that match will be returned as a
+        string. Cannot be used with expected prompt. None
+        will be returned as a prompt with this match. If a regex is supplied,
+        internal the prompt list will be ignored.
+        @retval Regex search result tuple (as MatchObject.groups() would return
+        if a response_regex is supplied. A tuple of (prompt, response) if a
+        prompt is looked for.
+        @throw InstrumentProtocolException if both regex and expected prompt are
+        passed in or regex is not a compiled pattern.
+        @throw InstrumentTimeoutExecption on timeout
+        """
+        # Grab time for timeout and wait for prompt.
+        starttime = time.time()
+
+        if response_regex and not isinstance(response_regex, self.RE_PATTERN):
+            raise InstrumentProtocolException('Response regex is not a compiled pattern!')
+
+        if expected_prompt and response_regex:
+            raise InstrumentProtocolException('Cannot supply both regex and expected prompt!')
+
+        if response_regex:
+            prompt_list = []
+
+        if expected_prompt == None:
+            prompt_list = self._get_prompts()
+        else:
+            if isinstance(expected_prompt, str):
+                prompt_list = [expected_prompt]
+            else:
+                prompt_list = expected_prompt
+
+        log.debug('_get_response: timeout=%s, prompt_list=%s, expected_prompt=%s, response_regex=%s, promptbuf=%s',
+                  timeout, prompt_list, expected_prompt, response_regex, self._promptbuf)
+        while True:
+            if response_regex:
+                match = response_regex.search(self._linebuf2)
+                if match:
+                    return match.groups()
+                else:
+                    time.sleep(.1)
+            else:
+                for item in prompt_list:
+                    index = self._promptbuf.find(item)
+                    if index >= 0:
+                        result = self._promptbuf[0:index+len(item)]
+                        return (item, result)
+                    else:
+                        time.sleep(.1)
+
+            if time.time() > starttime + timeout:
+                raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")
 
     def _do_cmd_no_resp(self, cmd, *args, **kwargs):
         """
@@ -600,26 +777,52 @@ class Protocol(WorkhorseProtocol):
         log.debug('_do_cmd_no_resp: %s, timeout=%s' % (repr(cmd_line), timeout))
         if (write_delay == 0):
             self._connection_4beam.send(cmd_line)
-            self._connection_5thBean.send(cmd_line)
+            #self._connection_5thBean.send(cmd_line)
         else:
             for char in cmd_line:
                 self._connection_4beam.send(char)
-                self._connection_5thBean.send(char)
+                #self._connection_5thBean.send(char)
                 time.sleep(write_delay)
 
-    def _do_cmd_direct(self, cmd):
+    def _do_cmd_no_resp2(self, cmd, *args, **kwargs):
         """
-        Issue an untranslated command to the instrument. No response is handled
-        as a result of the command.
+        Issue a command to the instrument after a wake up and clearing of
+        buffers. No response is handled as a result of the command.
 
-        @param cmd The high level command to issue
+        @param cmd The command to execute.
+        @param args positional arguments to pass to the build handler.
+        @param timeout=timeout optional wakeup timeout.
+        @raises InstrumentTimeoutException if the response did not occur in time.
+        @raises InstrumentProtocolException if command could not be built.
         """
+
+        timeout = kwargs.get('timeout', self.DEFAULT_CMD_TIMEOUT)
+        write_delay = kwargs.get('write_delay', self.DEFAULT_WRITE_DELAY)
+
+        build_handler = self._build_handlers.get(cmd, None)
+        if not build_handler:
+            log.error('_do_cmd_no_resp: no handler for command: %s' % (cmd))
+            raise InstrumentProtocolException(error_code=InstErrorCode.BAD_DRIVER_COMMAND)
+        cmd_line = build_handler(cmd, *args)
+
+        # Wakeup the device, timeout exception as needed
+        prompt = self._wakeup2(timeout)
+
+        # Clear line and prompt buffers for result.
+
+        self._linebuf2 = ''
+        self._promptbuf2 = ''
 
         # Send command.
-        log.debug('_do_cmd_direct: <%s>' % cmd)
-        #self._connection.send(cmd)
-        self._connection_4beam.send(cmd)
-        self._connection_5thBean.send(cmd)
+        log.debug('_do_cmd_no_resp2: %s, timeout=%s' % (repr(cmd_line), timeout))
+        if (write_delay == 0):
+            #self._connection_4beam.send(cmd_line)
+            self._connection_5thBean.send(cmd_line)
+        else:
+            for char in cmd_line:
+                #self._connection_4beam.send(char)
+                self._connection_5thBean.send(char)
+                time.sleep(write_delay)
 
 
     ########################################################################
@@ -864,23 +1067,165 @@ class Protocol(WorkhorseProtocol):
         sock.send("break " + str(delay) + "\r\n")
         sock.close()
 
-
-    def _do_cmd_direct(self, cmd):
-        """
-        Issue an untranslated command to the instrument. No response is handled
-        as a result of the command.
-
-        @param cmd The high level command to issue
-        """
-
-        # Send command.
-        log.debug('_do_cmd_direct: <%s>' % cmd)
-        #self._connection.send(cmd)
-        self._connections['4Beam'].send(cmd)
-        self._connections['5thBeam'].send(cmd)
-
     ############################
 
+
+    def _sync_clock(self, command, date_time_param, timeout=TIMEOUT, delay=1, time_format="%d %b %Y %H:%M:%S"):
+        """
+        Send the command to the instrument to syncronize the clock
+        @param date_time_param: date time parameter that we want to set
+        @param prompts: expected prompt
+        @param timeout: command timeout
+        @param delay: wakeup delay
+        @param time_format: time format string for set command
+        @return: true if the command is successful
+        @throws: InstrumentProtocolException if command fails
+        """
+        prompt = self._wakeup(timeout=3, delay=delay)
+
+        # lets clear out any past data so it doesnt confuse the command
+        self._linebuf = ''
+        self._promptbuf = ''
+
+        prompt = self._wakeup(timeout=3, delay=delay)
+        str_val = get_timestamp_delayed(time_format)
+        reply = self._do_cmd_direct(date_time_param + str_val)
+        time.sleep(1)
+        reply = self._get_response(TIMEOUT)
+        reply = self._get_response2(TIMEOUT)
+
+    def _instrument_config_dirty(self):
+        """
+        Read the startup config and compare that to what the instrument
+        is configured too.  If they differ then return True
+        @return: True if the startup config doesn't match the instrument
+        @throws: InstrumentParameterException
+        """
+        log.trace("in _instrument_config_dirty")
+        # Refresh the param dict cache
+        #self._update_params()
+
+        startup_params = self._param_dict.get_startup_list()
+        startup_params2 = self._param_dict2.get_startup_list()
+        log.trace("Startup Parameters 4 beam: %s" % startup_params)
+        log.trace("Startup Parameters 5th beam: %s" % startup_params2)
+
+        for param in startup_params:
+            if not self._has_parameter(param):
+                raise InstrumentParameterException("in _instrument_config_dirty")
+
+            if (self._param_dict.get(param) != self._param_dict.get_config_value(param)):
+                log.trace("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_config_value(param)))
+                return True
+
+        for param in startup_params2:
+            if not self._has_parameter(param):
+                raise InstrumentParameterException("in _instrument_config_dirty")
+
+            if (self._param_dict2.get(param) != self._param_dict2.get_config_value(param)):
+                log.trace("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_config_value(param)))
+                return True
+
+        log.trace("Clean instrument config")
+        return False
+
+    def _update_params2(self, *args, **kwargs):
+        """
+        Update the parameter dictionary.
+        """
+        log.debug("in _update_params")
+        error = None
+        logging = self._is_logging()
+
+        try:
+            if logging:
+                # Switch to command mode,
+                self._stop_logging()
+
+
+            ###
+            # Get old param dict config.
+            old_config = self._param_dict2.get_config()
+            kwargs['expected_prompt'] = TeledynePrompt.COMMAND
+
+            cmds = self._get_params()
+            results = ""
+            for attr in sorted(cmds):
+                if attr not in ['dict', 'has', 'list', 'ALL']:
+                    if not attr.startswith("_"):
+                        key = self._getattr_key(attr)
+                        result = self._do_cmd_resp(TeledyneInstrumentCmds.GET, key, **kwargs)
+                        results += result + NEWLINE
+
+            new_config = self._param_dict2.get_config()
+
+            del old_config['TT']
+            del new_config['TT']
+
+            if not dict_equal(new_config, old_config):
+                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+            ####
+
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            log.error("EXCEPTION WAS " + str(e))
+            error = e
+
+        finally:
+            # Switch back to streaming
+            if logging:
+                log.debug("GOING BACK INTO LOGGING")
+                my_state = self._protocol_fsm.get_current_state()
+                log.debug("current_state = %s calling start_logging", my_state)
+                self._start_logging()
+
+        if(error):
+            raise error
+
+        return results
+
+    def _set_params2(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        log.trace("in _set_params2")
+        # Retrieve required parameter.
+        # Raise if no parameter provided, or not a dict.
+        result = None
+        startup = False
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+        log.trace("_set_params 2 calling _verify_not_readonly ARGS = " + repr(args))
+        self._verify_not_readonly(*args, **kwargs)
+        for (key, val) in params.iteritems():
+            result = self._do_cmd_resp2(TeledyneInstrumentCmds.SET, key, val, **kwargs)
+        log.trace("_set_params 2 calling _update_params")
+        self._update_params2()
+        return result
+
+    def _get_param_result2(self, param_list, expire_time):
+        """
+        return a dictionary of the parameters and values
+        @param expire_time: baseline time for expiration calculation
+        @return: dictionary of values
+        @throws InstrumentParameterException if missing or invalid parameter
+        @throws InstrumentParameterExpirationException if value is expired.
+        """
+        result = {}
+
+        for param in param_list:
+            val = self._param_dict2.get(param, expire_time)
+            result[param] = val
+
+        return result
 
 
     def _build_param_dict(self):
@@ -1329,4 +1674,448 @@ class Protocol(WorkhorseProtocol):
             direct_access=True,
             default_value=175)
 
+    def _build_param_dict2(self):
+        """
+        Populate the parameter dictionary with ADCP parameters.
+        For each parameter key, add match stirng, match lambda function,
+        and value formatting function for set commands.
+        """
 
+        self._param_dict2.add(Parameter.SERIAL_DATA_OUT,
+            r'CD = (\d\d\d \d\d\d \d\d\d) \-+ Serial Data Out ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="serial data out",
+            startup_param=True,
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value='000 000 000')
+
+        self._param_dict2.add(Parameter.SERIAL_FLOW_CONTROL,
+            r'CF = (\d+) \-+ Flow Ctrl ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="serial flow control",
+            startup_param=True,
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value='11110')
+
+        self._param_dict2.add(Parameter.BANNER,
+            r'CH = (\d) \-+ Suppress Banner',
+            lambda match:  bool(int(match.group(1), base=10)),
+            self._bool_to_int,
+            type=ParameterDictType.BOOL,
+            display_name="banner",
+            startup_param=True,
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value=0)
+
+        self._param_dict2.add(Parameter.INSTRUMENT_ID,
+            r'CI = (\d+) \-+ Instrument ID ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="instrument id",
+            direct_access=True,
+            startup_param=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value=0)
+
+        self._param_dict2.add(Parameter.SLEEP_ENABLE,
+            r'CL = (\d) \-+ Sleep Enable',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="sleep enable",
+            startup_param=True,
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value=False)
+
+        self._param_dict2.add(Parameter.SAVE_NVRAM_TO_RECORDER,
+            r'CN = (\d) \-+ Save NVRAM to recorder',
+            lambda match: bool(int(match.group(1), base=10)),
+            self._bool_to_int,
+            type=ParameterDictType.BOOL,
+            display_name="save nvram to recorder",
+            startup_param=True,
+            default_value=True,
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE)
+
+        self._param_dict2.add(Parameter.POLLED_MODE,
+            r'CP = (\d) \-+ PolledMode ',
+            lambda match: bool(int(match.group(1), base=10)),
+            self._bool_to_int,
+            type=ParameterDictType.BOOL,
+            display_name="polled mode",
+            startup_param=True,
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value=False)
+
+        self._param_dict2.add(Parameter.XMIT_POWER,
+            r'CQ = (\d+) \-+ Xmt Power ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="xmit power",
+            startup_param=True,
+            direct_access=True,
+            default_value=255)
+
+        self._param_dict2.add(Parameter.LATENCY_TRIGGER,
+            r'CX = (\d) \-+ Trigger Enable ',
+            lambda match: int(match.group(1), base=10),
+            self._bool_to_int,
+            type=ParameterDictType.INT,
+            display_name="latency trigger",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value=False)
+
+        self._param_dict2.add(Parameter.HEADING_ALIGNMENT,
+            r'EA = ([\+\-\d]+) \-+ Heading Alignment',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="Heading alignment",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            direct_access=True,
+            startup_param=True,
+            default_value='+00000')
+
+        self._param_dict2.add(Parameter.HEADING_BIAS,
+            r'EB = ([\+\-\d]+) \-+ Heading Bias',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="Heading Bias",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value='+00000')
+
+        self._param_dict2.add(Parameter.SPEED_OF_SOUND,
+            r'EC = (\d+) \-+ Speed Of Sound',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="speed of sound",
+            startup_param=True,
+            direct_access=True,
+            default_value=1485)
+
+        self._param_dict2.add(Parameter.TRANSDUCER_DEPTH,
+            r'ED = (\d+) \-+ Transducer Depth ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Transducer Depth",
+            startup_param=True,
+            direct_access=True,
+            default_value=8000)
+
+        self._param_dict2.add(Parameter.PITCH,
+            r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="pitch",
+            startup_param=True,
+            direct_access=True,
+            default_value=0)
+
+        self._param_dict2.add(Parameter.ROLL,
+            r'ER = ([\+\-\d]+) \-+ Tilt 2 Sensor ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="roll",
+            startup_param=True,
+            direct_access=True,
+            default_value=0)
+
+        self._param_dict2.add(Parameter.SALINITY,
+            r'ES = (\d+) \-+ Salinity ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="salinity",
+            startup_param=True,
+            direct_access=True,
+            default_value=35)
+
+        self._param_dict2.add(Parameter.COORDINATE_TRANSFORMATION,
+            r'EX = (\d+) \-+ Coord Transform ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="coordinate transformation",
+            startup_param=True,
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value='00111')
+
+        self._param_dict2.add(Parameter.SENSOR_SOURCE,
+            r'EZ = (\d+) \-+ Sensor Source ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="sensor source",
+            startup_param=True,
+            direct_access=True,
+            default_value='1111101')
+
+        self._param_dict2.add(Parameter.DATA_STREAM_SELECTION,
+            r'PD = (\d+) \-+ Data Stream Select',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Data Stream Selection",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value=0)
+
+        self._param_dict2.add(Parameter.ENSEMBLE_PER_BURST,
+            r'TC (\d+) \-+ Ensembles Per Burst',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Ensemble per burst",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value=0)
+
+        self._param_dict2.add(Parameter.TIME_PER_ENSEMBLE,
+            r'TE (\d\d:\d\d:\d\d.\d\d) \-+ Time per Ensemble ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="time per ensemble",
+            startup_param=True,
+            direct_access=True,
+            default_value='00:00:00.00')
+
+        self._param_dict2.add(Parameter.TIME_OF_FIRST_PING,
+            r'TG (..../../..,..:..:..) - Time of First Ping ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="time of first ping",
+            startup_param=False,
+            direct_access=False,
+            visibility=ParameterDictVisibility.READ_ONLY)
+
+        self._param_dict2.add(Parameter.TIME_PER_PING,
+            r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="time per ping",
+            startup_param=True,
+            direct_access=True,
+            default_value='00:01.00')
+
+        self._param_dict2.add(Parameter.TIME,
+            r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
+            lambda match: str(match.group(1) + " UTC"),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="time",
+            startup_param=True,
+            expiration=86400, # expire once per day 60 * 60 * 24
+            direct_access=True,
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            default_value='2014/04/21,20:03:01')
+
+        self._param_dict2.add(Parameter.BUFFERED_OUTPUT_PERIOD,
+            r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period:',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="Buffered output period",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value='00:00:00')
+
+        self._param_dict2.add(Parameter.FALSE_TARGET_THRESHOLD,
+            r'WA (\d+,\d+) \-+ False Target Threshold ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="false target threshold",
+            startup_param=True,
+            direct_access=True,
+            default_value='050,001')
+
+        self._param_dict2.add(Parameter.BANDWIDTH_CONTROL,
+            r'WB (\d) \-+ Bandwidth Control ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="bandwidth control",
+            startup_param=True,
+            direct_access=True,
+            default_value=0)
+
+        self._param_dict2.add(Parameter.CORRELATION_THRESHOLD,
+            r'WC (\d+) \-+ Correlation Threshold',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="correlation threshold",
+            startup_param=True,
+            direct_access=True,
+            default_value=64)
+
+        self._param_dict2.add(Parameter.SERIAL_OUT_FW_SWITCHES,
+            r'WD ([\d ]+) \-+ Data Out ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="serial out fw switches",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value='111100000')
+
+        self._param_dict2.add(Parameter.ERROR_VELOCITY_THRESHOLD,
+            r'WE (\d+) \-+ Error Velocity Threshold',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="error velocity threshold",
+            startup_param=True,
+            direct_access=True,
+            default_value=2000)
+
+        self._param_dict2.add(Parameter.BLANK_AFTER_TRANSMIT,
+            r'WF (\d+) \-+ Blank After Transmit',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="blank after transmit",
+            startup_param=True,
+            direct_access=True,
+            default_value=704)
+
+        self._param_dict2.add(Parameter.CLIP_DATA_PAST_BOTTOM,
+            r'WI (\d) \-+ Clip Data Past Bottom',
+            lambda match: bool(int(match.group(1), base=10)),
+            self._bool_to_int,
+            type=ParameterDictType.BOOL,
+            display_name="clip data past bottom",
+            startup_param=True,
+            direct_access=True,
+            default_value=False)
+
+        self._param_dict2.add(Parameter.RECEIVER_GAIN_SELECT,
+            r'WJ (\d) \-+ Rcvr Gain Select \(0=Low,1=High\)',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="receiver gain select",
+            startup_param=True,
+            direct_access=True,
+            default_value=1)
+
+        self._param_dict2.add(Parameter.WATER_REFERENCE_LAYER,
+            r'WL (\d+,\d+) \-+ Water Reference Layer:  ',
+            lambda match: str(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="water reference layer",
+            startup_param=True,
+            direct_access=True,
+            default_value='001,005')
+
+        self._param_dict2.add(Parameter.WATER_PROFILING_MODE,
+            r'WM (\d+) \-+ Profiling Mode ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="water profiling mode",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value=1)
+
+        self._param_dict2.add(Parameter.NUMBER_OF_DEPTH_CELLS,
+            r'WN (\d+) \-+ Number of depth cells',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="number of depth cells",
+            startup_param=True,
+            direct_access=True,
+            default_value=100)
+
+        self._param_dict2.add(Parameter.PINGS_PER_ENSEMBLE,
+            r'WP (\d+) \-+ Pings per Ensemble ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="pings per ensemble",
+            startup_param=True,
+            direct_access=True,
+            default_value=1)
+
+        self._param_dict2.add(Parameter.SAMPLE_AMBIENT_SOUND,
+            r'WQ (\d) \-+ Sample Ambient Sound',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Sample ambient sound",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value=0)
+
+        self._param_dict2.add(Parameter.DEPTH_CELL_SIZE,
+            r'WS (\d+) \-+ Depth Cell Size \(cm\)',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="depth cell size",
+            startup_param=True,
+            direct_access=True,
+            default_value=800)
+
+        self._param_dict2.add(Parameter.TRANSMIT_LENGTH,
+            r'WT (\d+) \-+ Transmit Length ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="transmit length",
+            startup_param=True,
+            direct_access=True,
+            default_value=0)
+
+        self._param_dict2.add(Parameter.PING_WEIGHT,
+            r'WU (\d) \-+ Ping Weighting ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="ping weight",
+            startup_param=True,
+            direct_access=True,
+            default_value=0)
+
+        self._param_dict2.add(Parameter.AMBIGUITY_VELOCITY,
+            r'WV (\d+) \-+ Mode 1 Ambiguity Vel ',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="ambiguity velocity",
+            startup_param=True,
+            direct_access=True,
+            default_value=175)
