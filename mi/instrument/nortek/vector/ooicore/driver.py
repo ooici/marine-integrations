@@ -25,6 +25,9 @@ from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
 from mi.instrument.nortek.driver import NortekUserConfigDataParticle
+from mi.instrument.nortek.driver import NortekEngBatteryDataParticle
+from mi.instrument.nortek.driver import NortekEngClockDataParticle
+from mi.instrument.nortek.driver import NortekEngIdDataParticle
 from mi.instrument.nortek.driver import NortekInstrumentDriver
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import NortekProtocolParameterDict
@@ -33,6 +36,9 @@ from mi.instrument.nortek.driver import NEWLINE
 from mi.instrument.nortek.driver import HARDWARE_CONFIG_DATA_REGEX
 from mi.instrument.nortek.driver import HEAD_CONFIG_DATA_REGEX
 from mi.instrument.nortek.driver import USER_CONFIG_DATA_REGEX
+from mi.instrument.nortek.driver import BATTERY_DATA_REGEX
+from mi.instrument.nortek.driver import CLOCK_DATA_REGEX
+from mi.instrument.nortek.driver import ID_DATA_REGEX
 
 from mi.core.instrument.chunker import StringChunker
 
@@ -57,6 +63,8 @@ SYSTEM_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1}
 SYSTEM_DATA_REGEX = re.compile(SYSTEM_DATA_PATTERN, re.DOTALL)
 VELOCITY_HEADER_DATA_PATTERN = r'^%s(.{6})(.{2})(.{1})(.{1})(.{1}).{1}(.{1})(.{1})(.{1}).{23}' % VELOCITY_HEADER_DATA_SYNC_BYTES
 VELOCITY_HEADER_DATA_REGEX = re.compile(VELOCITY_HEADER_DATA_PATTERN, re.DOTALL)
+
+VECTOR_SAMPLE_REGEX = [VELOCITY_DATA_REGEX, SYSTEM_DATA_REGEX, VELOCITY_HEADER_DATA_REGEX]
 
 class DataParticleType(NortekDataParticleType):
     VELOCITY = 'vel3d_cd_velocity_data'
@@ -455,6 +463,11 @@ class Protocol(NortekInstrumentProtocol):
         return NortekInstrumentProtocol.chunker_sieve_function(raw_data,
                                                                VECTOR_SAMPLE_STRUCTURES)
 
+    # @staticmethod
+    # def sieve_function(raw_data):
+    #     return NortekInstrumentProtocol.sieve_function(raw_data,
+    #                                                            VECTOR_SAMPLE_REGEX)
+
     ########################################################################
     # overridden superclass methods
     ########################################################################    
@@ -473,6 +486,11 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(NortekHardwareConfigDataParticle, HARDWARE_CONFIG_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekHeadConfigDataParticle, HEAD_CONFIG_DATA_REGEX, structure, timestamp)
 
+        self._extract_sample(NortekEngBatteryDataParticle, BATTERY_DATA_REGEX, structure, timestamp)
+        self._extract_sample(NortekEngClockDataParticle, CLOCK_DATA_REGEX, structure, timestamp)
+
+        self._extract_sample(NortekEngIdDataParticle, ID_DATA_REGEX, structure, timestamp)
+
             
     ########################################################################
     # Command handlers.
@@ -489,8 +507,7 @@ class Protocol(NortekInstrumentProtocol):
         result = None
 
         # the vector doesn't respond with ACKs for this command, so look for start of velocity data header structure
-        result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, 
-                                   expected_prompt = VELOCITY_HEADER_DATA_SYNC_BYTES, *args, **kwargs)
+        result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, expected_prompt=VELOCITY_HEADER_DATA_SYNC_BYTES, timeout=15, *args, **kwargs)
 
         return (next_state, (next_agent_state, result))
 
