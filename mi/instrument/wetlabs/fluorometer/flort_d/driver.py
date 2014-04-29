@@ -100,12 +100,13 @@ class ProtocolEvent(BaseEnum):
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
-    GET_MENU = 'PROTOCOL_EVENT_GET_MENU'
     GET_METADATA = 'PROTOCOL_EVENT_GET_METADATA'
     RUN_WIPER = 'PROTOCOL_EVENT_RUN_WIPER'
     RUN_WIPER_SCHEDULED = 'PROTOCOL_EVENT_RUN_WIPER_SCHEDULED'
     SCHEDULED_CLOCK_SYNC = DriverEvent.SCHEDULED_CLOCK_SYNC
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
+    SCHEDULED_ACQUIRE_STATUS = 'PROTOCOL_EVENT_SCHEDULED_ACQUIRE_STATUS'
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 
 class Capability(BaseEnum):
@@ -114,6 +115,13 @@ class Capability(BaseEnum):
     """
     RUN_WIPER = ProtocolEvent.RUN_WIPER
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
+    DISCOVER = ProtocolEvent.DISCOVER
+    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
+    START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
+    STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
+    START_DIRECT = ProtocolEvent.START_DIRECT
+    STOP_DIRECT = ProtocolEvent.STOP_DIRECT
+    ACQUIRE_STATUS = ProtocolEvent.ACQUIRE_STATUS
 
 
 class Parameter(DriverParameter):
@@ -146,8 +154,9 @@ class Parameter(DriverParameter):
     INTERNAL_MEMORY = "mem"               # Internal memory                   # int
 
     #Engineering param
-    RUN_WIPER_INTERVAL = "mvs_interval"         # Interval to schedule running wiper #str
+    RUN_WIPER_INTERVAL = "wiper_interval"         # Interval to schedule running wiper #str
     RUN_CLOCK_SYNC_INTERVAL = 'clk_interval'    # Interval to schedule syncing clock #str
+    RUN_ACQUIRE_STATUS_INTERVAL = 'status_interval'
 
 
 class ScheduledJob(BaseEnum):
@@ -156,6 +165,7 @@ class ScheduledJob(BaseEnum):
     """
     RUN_WIPER = 'run_wiper'
     CLOCK_SYNC = 'clock_sync'
+    ACQUIRE_STATUS = 'acquire_status'
 
 
 class Prompt(BaseEnum):
@@ -189,12 +199,12 @@ MNU_REGEX_MATCHER = re.compile(MNU_REGEX, re.DOTALL)
 RUN_REGEX = r"(mvs\s[0-1]\r\n)"
 RUN_REGEX_MATCHER = re.compile(RUN_REGEX, re.DOTALL)
 
-MET_REGEX = r"(Sig_1.\S*).*(Sig_2.\S*).*(Sig_3.\S*)"
+MET_REGEX = r"(Sig_1\S*).*?(Sig_2\S*).*?(Sig_3\S*)\r\n"
 MET_REGEX_MATCHER = re.compile(MET_REGEX, re.DOTALL)
 
 TIME_INTERVAL = r"[0-9][0-9]:[0-9][0-9]:[0-9][0-9]"
 
-SAMPLE_REGEX = r"(\d+/\d+/\d+\s+\d+:\d+:\d+(\s+\d+){7})"
+SAMPLE_REGEX = r"(\d+/\d+/\d+\s+\d+:\d+:\d+(\s+\d+){7}\r\n)"
 SAMPLE_REGEX_MATCHER = re.compile(SAMPLE_REGEX)
 
 
@@ -336,7 +346,7 @@ class FlortDMET_Particle(DataParticle):
         Regular expression to match a sample pattern
         @return: regex string
         """
-        pattern = [ MET_REGEX ]
+        pattern = [MET_REGEX]
         return r'\s*,\s*'.join(pattern)
 
     def _build_parsed_values(self):
@@ -368,6 +378,7 @@ class FlortDMET_Particle(DataParticle):
         data = sig_3_data.split(',')
         sig_3_offset = float(data[4])
         sig_3_scale = int(data[5])
+
 
         result = [{DataParticleKey.VALUE_ID: FlortDMET_ParticleKey.SIG_1_OFFSET, DataParticleKey.VALUE: sig_1_offset},
             {DataParticleKey.VALUE_ID: FlortDMET_ParticleKey.SIG_1_SCALE_FACTOR, DataParticleKey.VALUE: sig_1_scale},
@@ -536,7 +547,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_AUTOSAMPLE, self._handler_command_start_autosample)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_MENU, self._handler_command_get_menu)
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_METADATA, self._handler_command_get_metadata)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.RUN_WIPER, self._handler_command_run_wiper)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
@@ -547,6 +558,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.RUN_WIPER_SCHEDULED, self._handler_autosample_run_wiper)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_autosample_clock_sync)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS, self._handler_autosample_acquire_status)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -788,11 +800,11 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, result)
 
-    def _handler_command_get_menu(self, *args, **kwargs):
+    def _handler_command_acquire_status(self, *args, **kwargs):
         """
         Run the $mnu Command (print menu)
         """
-        log.debug('%% IN _handler_command_get_menu')
+        log.debug('%% IN _handler_command_acquire_status')
         result = self._do_cmd_resp(InstrumentCommand.PRINT_MENU, timeout=TIMEOUT, response_regex=MNU_REGEX_MATCHER)
         return None, (None, result)
 
@@ -892,6 +904,12 @@ class Protocol(CommandResponseInstrumentProtocol):
         else:
             self.stop_scheduled_job(ScheduledJob.CLOCK_SYNC)
 
+        log.debug("Configuring the scheduler to acquire status %s", self._param_dict.get(Parameter.RUN_ACQUIRE_STATUS_INTERVAL))
+        if self._param_dict.get(Parameter.RUN_ACQUIRE_STATUS_INTERVAL) != '00:00:00':
+            self.start_scheduled_job(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS)
+        else:
+            self.stop_scheduled_job(ScheduledJob.ACQUIRE_STATUS)
+
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Stop autosample and switch back to command mode.
@@ -903,6 +921,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         #Stop scheduled run of wiper & clock sync
         self.stop_scheduled_job(ScheduledJob.RUN_WIPER)
         self.stop_scheduled_job(ScheduledJob.CLOCK_SYNC)
+        self.stop_scheduled_job(ScheduledJob.ACQUIRE_STATUS)
 
         # Issue the stop command.
         result = self._do_cmd_resp(InstrumentCommand.INTERRUPT_INSTRUMENT, *args, timeout=TIMEOUT,
@@ -939,6 +958,21 @@ class Protocol(CommandResponseInstrumentProtocol):
                     raise InstrumentCommandException('ERROR: Wiper did not make it to the next cycle')
 
         result = self._do_cmd_resp(InstrumentCommand.RUN_SETTINGS, timeout=TIMEOUT, response_regex=SAMPLE_REGEX_MATCHER)
+        return None, (None, result)
+
+    def _handler_autosample_acquire_status(self, *args, **kwargs):
+        """
+        Get one sample from the instrument
+        """
+        log.debug('%% IN _handler_command_acquire_sample')
+
+        #put instrument into command mode to send command ($mvs)
+        self._do_cmd_resp(InstrumentCommand.INTERRUPT_INSTRUMENT, *args, timeout=TIMEOUT, response_regex=MNU_REGEX_MATCHER)
+
+        self._do_cmd_no_resp(InstrumentCommand.RUN_SETTINGS, *args, timeout=TIMEOUT, response_regex=MNU_REGEX_MATCHER)
+
+        result = self._do_cmd_resp(InstrumentCommand.RUN_SETTINGS, timeout=TIMEOUT, response_regex=SAMPLE_REGEX_MATCHER)
+
         return None, (None, result)
 
     def _handler_autosample_clock_sync(self, *args, **kwargs):
@@ -1031,7 +1065,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             log.debug('Comparing %s == %s', old_val, new_val)
 
             #if setting the mvs interval or clock sync interval, do not send a command
-            if param == Parameter.RUN_WIPER_INTERVAL or param == Parameter.RUN_CLOCK_SYNC_INTERVAL:
+            if param == Parameter.RUN_WIPER_INTERVAL or param == Parameter.RUN_CLOCK_SYNC_INTERVAL or param == Parameter.RUN_ACQUIRE_STATUS_INTERVAL:
                 self._param_dict.set_value(param, new_val)
             #else if setting the clock or date, run clock sync command
             elif param == Parameter.TIME or param == Parameter.DATE:
@@ -1046,7 +1080,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             #go into autosample mode
             self._do_cmd_no_resp(InstrumentCommand.RUN_SETTINGS)
 
-        log.debug("!!!!!! Next_state = %s, Next_agent_state = %s", next_state, next_agent_state)
+        log.debug("Next_state = %s, Next_agent_state = %s", next_state, next_agent_state)
         return next_state, (next_agent_state, None)
 
     def _handler_start_direct(self):
@@ -1091,7 +1125,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             for (key, val) in params.iteritems():
                 log.debug("KEY = " + str(key) + " VALUE = " + str(val))
                 #if setting the mvs interval or clock sync interval, do not send a command
-                if key == Parameter.RUN_WIPER_INTERVAL or key == Parameter.RUN_CLOCK_SYNC_INTERVAL:
+                if key == Parameter.RUN_WIPER_INTERVAL or key == Parameter.RUN_CLOCK_SYNC_INTERVAL or key == Parameter.RUN_ACQUIRE_STATUS_INTERVAL:
                     self._param_dict.set_value(key, val)
                 #else if setting the clock or date, run clock sync command
                 elif key == Parameter.TIME or key == Parameter.DATE:
@@ -1228,6 +1262,13 @@ class Protocol(CommandResponseInstrumentProtocol):
         log.debug("%%% IN _build_command_dict")
         self._cmd_dict.add(Capability.RUN_WIPER, display_name="run wiper")
         self._cmd_dict.add(Capability.CLOCK_SYNC, display_name='sync clock')
+        self._cmd_dict.add(Capability.DISCOVER, display_name='discover')
+        self._cmd_dict.add(Capability.ACQUIRE_SAMPLE, display_name='acquire sample')
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name='start autosample')
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name='stop autosample')
+        self._cmd_dict.add(Capability.START_DIRECT, display_name='start direct')
+        self._cmd_dict.add(Capability.STOP_DIRECT, display_name='stop direct')
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name='acquire status')
 
     def _build_param_dict(self):
         """
@@ -1488,11 +1529,11 @@ class Protocol(CommandResponseInstrumentProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              expiration=None,
-                             visibility=ParameterDictVisibility.READ_WRITE,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name="run wiper interval",
-                             default_value='00:01:00',
+                             default_value='00:00:00',
                              startup_param=True,
-                             direct_access=True)
+                             direct_access=False)
 
         self._param_dict.add(Parameter.RUN_CLOCK_SYNC_INTERVAL,
                              TIME_INTERVAL,
@@ -1500,11 +1541,23 @@ class Protocol(CommandResponseInstrumentProtocol):
                              str,
                              type=ParameterDictType.STRING,
                              expiration=None,
-                             visibility=ParameterDictVisibility.READ_WRITE,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
                              display_name="run clock sync interval",
-                             default_value='12:00:00',
+                             default_value='00:00:00',
                              startup_param=True,
-                             direct_access=True)
+                             direct_access=False)
+
+        self._param_dict.add(Parameter.RUN_ACQUIRE_STATUS_INTERVAL,
+                             TIME_INTERVAL,
+                             lambda match: match.group(0),
+                             str,
+                             type=ParameterDictType.STRING,
+                             expiration=None,
+                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             display_name="acquire status interval",
+                             default_value='00:00:00',
+                             startup_param=True,
+                             direct_access=False)
 
         #set the values of the dictionary using set_default
         for param in self._param_dict.get_keys():

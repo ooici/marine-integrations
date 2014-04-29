@@ -28,7 +28,6 @@ from pyon.agent.agent import ResourceAgentState
 
 from mi.core.log import get_logger ; log = get_logger()
 
-# MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
@@ -150,14 +149,21 @@ class DriverTestMixinSub(DriverTestMixin):
         Parameter.MANUAL_MODE: {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: 0, VALUE: 0},
         Parameter.MANUAL_START_TIME: {TYPE: str, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: '17:00:00'},
         Parameter.INTERNAL_MEMORY: {TYPE: int, READONLY: True, DA: False, STARTUP: False, DEFAULT: None, VALUE: 4095},
-        Parameter.RUN_WIPER_INTERVAL: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: '00:01:00', VALUE: '00:01:00'},
-        Parameter.RUN_CLOCK_SYNC_INTERVAL: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: '12:00:00', VALUE: '12:00:00'}
+        Parameter.RUN_WIPER_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:01:00'},
+        Parameter.RUN_CLOCK_SYNC_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '12:00:00'},
+        Parameter.RUN_ACQUIRE_STATUS_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '12:00:00'}
     }
 
     _driver_capabilities = {
-        # capabilities defined in the IOS
-        Capability.RUN_WIPER: {STATES: [ProtocolState.AUTOSAMPLE]},
-        Capability.CLOCK_SYNC: {STATES: [ProtocolState.AUTOSAMPLE]}
+        Capability.RUN_WIPER: {STATES: [ProtocolState.COMMAND]},
+        Capability.CLOCK_SYNC: {STATES: [ProtocolState.COMMAND]},
+        Capability.DISCOVER: {STATES: [ProtocolState.COMMAND]},
+        Capability.ACQUIRE_SAMPLE: {STATES: [ProtocolState.COMMAND]},
+        Capability.START_AUTOSAMPLE: {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_AUTOSAMPLE: {STATES: [ProtocolState.COMMAND]},
+        Capability.START_DIRECT: {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_DIRECT: {STATES: [ProtocolState.COMMAND]},
+        Capability.ACQUIRE_STATUS: {STATES: [ProtocolState.AUTOSAMPLE]}
     }
 
     _flortD_mnu_parameters = {
@@ -294,21 +300,20 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         """
         chunker = StringChunker(Protocol.sieve_function)
 
-        #TODO CAN'T HANDLE NOISE, WILL ADD IT TO RESULT
         self.assert_chunker_sample(chunker, SAMPLE_MNU_RESPONSE)
-        #self.assert_chunker_sample_with_noise(chunker, SAMPLE_MNU_RESPONSE)
+        self.assert_chunker_sample_with_noise(chunker, SAMPLE_MNU_RESPONSE)
         self.assert_chunker_fragmented_sample(chunker, SAMPLE_MNU_RESPONSE, 32)
         self.assert_chunker_combined_sample(chunker, SAMPLE_MNU_RESPONSE)
 
         self.assert_chunker_sample(chunker, SAMPLE_MET_RESPONSE)
-        #self.assert_chunker_sample_with_noise(chunker, SAMPLE_MET_RESPONSE)
-        #self.assert_chunker_fragmented_sample(chunker, SAMPLE_MET_RESPONSE, 32)
-        #self.assert_chunker_combined_sample(chunker, SAMPLE_MET_RESPONSE)
+        self.assert_chunker_sample_with_noise(chunker, SAMPLE_MET_RESPONSE)
+        self.assert_chunker_fragmented_sample(chunker, SAMPLE_MET_RESPONSE, 32)
+        self.assert_chunker_combined_sample(chunker, SAMPLE_MET_RESPONSE)
 
         self.assert_chunker_sample(chunker, SAMPLE_SAMPLE_RESPONSE)
         self.assert_chunker_sample_with_noise(chunker, SAMPLE_SAMPLE_RESPONSE)
         self.assert_chunker_fragmented_sample(chunker, SAMPLE_SAMPLE_RESPONSE, 32)
-        #self.assert_chunker_combined_sample(chunker, SAMPLE_SAMPLE_RESPONSE)
+        self.assert_chunker_combined_sample(chunker, SAMPLE_SAMPLE_RESPONSE)
 
     def test_got_data(self):
         """
@@ -356,7 +361,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
                                          ProtocolEvent.SET,
                                          ProtocolEvent.START_DIRECT,
                                          ProtocolEvent.START_AUTOSAMPLE,
-                                         ProtocolEvent.GET_MENU,
+                                         ProtocolEvent.ACQUIRE_STATUS,
                                          ProtocolEvent.GET_METADATA,
                                          ProtocolEvent.RUN_WIPER,
                                          ProtocolEvent.ACQUIRE_SAMPLE,
@@ -364,7 +369,8 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
 
             ProtocolState.AUTOSAMPLE:   [ProtocolEvent.STOP_AUTOSAMPLE,
                                          ProtocolEvent.RUN_WIPER_SCHEDULED,
-                                         ProtocolEvent.SCHEDULED_CLOCK_SYNC],
+                                         ProtocolEvent.SCHEDULED_CLOCK_SYNC,
+                                         ProtocolEvent.SCHEDULED_ACQUIRE_STATUS],
 
             ProtocolState.DIRECT_ACCESS: [ProtocolEvent.STOP_DIRECT,
                                           ProtocolEvent.EXECUTE_DIRECT]
@@ -537,7 +543,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, DriverTestMixin
 
         #test commands, now that we are in command mode
         #$mnu
-        self.assert_driver_command(ProtocolEvent.GET_MENU, regex=MNU_REGEX)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=MNU_REGEX)
         #$met
         self.assert_driver_command(ProtocolEvent.GET_METADATA, regex=MET_REGEX)
 
