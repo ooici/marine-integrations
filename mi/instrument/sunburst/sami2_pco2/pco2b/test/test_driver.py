@@ -726,6 +726,21 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
+    def test_boot_prompt_escape(self):
+
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+
+
+
+        # Cause boot prompt by entering L5A command without a config string
+        self.tcp_client.send_data("L5A%s" % NEWLINE)
+
+        self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+
+        ## Verify we can get a sample
+
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly
@@ -750,6 +765,9 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assert_enter_command_mode()
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_blank_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, self.assert_particle_sami_blank_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_regular_status, DataParticleType.REGULAR_STATUS, sample_count=1, timeout=200)
 
     def test_autosample(self):
         '''

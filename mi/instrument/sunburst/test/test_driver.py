@@ -440,6 +440,37 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class SamiQualificationTest(InstrumentDriverQualificationTestCase):
+
+    ## Have to override because battery and thermistor do not have port time stamps
+    def assert_data_particle_header(self, data_particle, stream_name, require_instrument_timestamp=False):
+        """
+        Verify a data particle header is formatted properly
+        @param data_particle version 1 data particle
+        @param stream_name version 1 data particle
+        @param require_instrument_timestamp should we verify the instrument timestamp exists
+        """
+        sample_dict = self.convert_data_particle_to_dict(data_particle)
+        log.debug("SAMPLEDICT: %s", sample_dict)
+
+        self.assertTrue(sample_dict[DataParticleKey.STREAM_NAME], stream_name)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_FORMAT_ID], DataParticleValue.JSON_DATA)
+        self.assertTrue(sample_dict[DataParticleKey.PKT_VERSION], 1)
+        self.assertIsInstance(sample_dict[DataParticleKey.VALUES], list)
+
+        self.assertTrue(sample_dict.get(DataParticleKey.PREFERRED_TIMESTAMP))
+
+        self.assertIsNotNone(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP))
+        self.assertIsInstance(sample_dict.get(DataParticleKey.DRIVER_TIMESTAMP), float)
+
+        # It is highly unlikely that we should have a particle without a port agent timestamp,
+        # at least that's the current assumption.
+        ## self.assertIsNotNone(sample_dict.get(DataParticleKey.PORT_TIMESTAMP))
+        ## self.assertIsInstance(sample_dict.get(DataParticleKey.PORT_TIMESTAMP), float)
+
+        if(require_instrument_timestamp):
+            self.assertIsNotNone(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP))
+            self.assertIsInstance(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP), float)
+
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 

@@ -304,8 +304,6 @@ class SamiInstrumentCommand(BaseEnum):
     ACQUIRE_SAMPLE_SAMI = 'R'
     ESCAPE_BOOT = 'u'
 
-    CHECK_FOR_BOOT_PROMPT = ''
-
 ###############################################################################
 # Data Particles
 ###############################################################################
@@ -934,7 +932,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(SamiInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.ACQUIRE_SAMPLE_SAMI, self._build_simple_command)
         self._add_build_handler(SamiInstrumentCommand.ESCAPE_BOOT, self._build_simple_command)
-        self._add_build_handler(SamiInstrumentCommand.CHECK_FOR_BOOT_PROMPT, self._build_simple_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(SamiInstrumentCommand.GET_STATUS, self._parse_response_get_status)
@@ -1072,6 +1069,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         next_state = None
         next_agent_state = None
+        result = None
 
         try:
             self._do_cmd_resp(SamiInstrumentCommand.GET_STATUS, timeout=10, response_regex=REGULAR_STATUS_REGEX_MATCHER)
@@ -1085,7 +1083,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
             log.error('SamiProtocol._handler_command_acquire_status(): InstrumentTimeoutException')
 
-        return (next_state, next_agent_state)
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Unknown handlers.
@@ -1213,6 +1211,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             command = self._queued_commands.sample
             self._queued_commands.sample = None
             log.debug('herb: ' + 'SamiProtocol._handler_autosample_enter: Raising queued command event: ' + command)
+            self._async_agent_state_change(ResourceAgentState.BUSY)
             self._async_raise_fsm_event(command)
 
     def _handler_command_init_params(self, *args, **kwargs):
@@ -1449,6 +1448,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             command = self._queued_commands.sample
             self._queued_commands.sample = None
             log.debug('herb: ' + 'SamiProtocol._handler_autosample_enter: Raising queued command event: ' + command)
+            self._async_agent_state_change(ResourceAgentState.BUSY)
             self._async_raise_fsm_event(command)
 
     def _handler_autosample_exit(self, *args, **kwargs):
