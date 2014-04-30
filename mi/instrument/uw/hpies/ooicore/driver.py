@@ -11,8 +11,6 @@ initial_rev
 __author__ = 'Dan Mergens'
 __license__ = 'Apache 2.0'
 
-import string
-
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum
@@ -24,8 +22,6 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
-from mi.core.instrument.data_particle import DataParticle
-from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
 
@@ -99,6 +95,20 @@ class InstrumentCommand(BaseEnum):
     """
     Instrument command strings
     """
+    REBOOT = 'reboot'
+    ACQUISITION_START = 'daq_start'
+    ACQUISITION_STOP = 'daq_stop'
+    IES_PORT_ON = 'ies_opto_on'  # should only be on to change parameters and start mission
+    IES_PORT_OFF = 'ies_opto_off'
+    IES_POWER_ON = 'ies_pwr_on'
+    IES_POWER_OFF = 'ies_pwr_off'  # must power cycle
+    HEF_PORT_ON = 'hef_opto_on'  # should remain on during mission
+    HEF_PORT_OFF = 'hef_opto_off'
+    HEF_POWER_ON = 'hef_pwr_on'
+    HEF_POWER_OFF = 'hef_pwr_off'
+    HEF_WAKE = 'hef_wake'
+    SYNC_CLOCK = 'force_RTC_update'  # align STM clock to RSN date/time
+    7
 
 
 ###############################################################################
