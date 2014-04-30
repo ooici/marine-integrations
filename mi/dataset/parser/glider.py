@@ -963,7 +963,6 @@ class GliderParser(BufferLoadingParser):
         Read in the column labels, data type, number of bytes of each
         data type, and the data from an ASCII glider data file.
         """
-        log.debug("_read_data: Data Record: %s", data_record)
 
         data_dict = {}
         num_columns = self._header_dict['sensors_per_cycle']
@@ -1007,7 +1006,7 @@ class GliderParser(BufferLoadingParser):
                     # convert latitude/longitude strings to decimal degrees
                     value = self._string_to_ddegrees(data[ii])
 
-                    log.debug("Converted lat/lon %s = %10.5f", data_labels[ii], value)
+                    log.debug("Converted lat/lon %s from %s to %10.5f", data_labels[ii], data[ii], value)
 
                 else:
                     # convert the string to and int or float
@@ -1150,18 +1149,10 @@ class GliderParser(BufferLoadingParser):
            or eastern/western hemispheres, respectively.
         @retval The position in decimal degrees
         """
-        log.debug("Convert lat lon to degrees: %s", pos_str)
 
         # If NaN then return NaN
         if np.isnan(float(pos_str)):
             return float(pos_str)
-
-        # It appears that in some cases lat/lon is "0" not a decimal format as
-        # indicated above.  While 0 is a valid lat/lon measurement we think
-        # because it is not in decimal form it is an erroneous value.
-        if pos_str == "0":
-            log.warn("0 value found for lat/lon, not parsing, return NaN")
-            return float("NaN")
 
         # As a stop gap fix add a .0 to integers that don't contain a decimal.  This
         # should only affect the engineering stream as the science data streams shouldn't
@@ -1169,11 +1160,19 @@ class GliderParser(BufferLoadingParser):
         if not "." in pos_str:
             pos_str += ".0"
 
+        # if there are not enough numbers to fill in DDMM, prepend zeros
+        str_words = pos_str.split('.')
+        adj_zeros = 4 - len(str_words[0])
+        if adj_zeros > 0:
+            for i in range(0, adj_zeros):
+                pos_str = '0' + pos_str
+
         regex = r'(-*\d{2,3})(\d{2}.\d+)'
         regex_matcher = re.compile(regex)
         latlon_match = regex_matcher.match(pos_str)
 
         if latlon_match is None:
+            log.error("Failed to parse lat/lon value: '%s'", pos_str)
             raise SampleException("Failed to parse lat/lon value: '%s'" % pos_str)
 
         degrees = float(latlon_match.group(1))
