@@ -22,7 +22,6 @@ from mi.core.util import dict_equal
 
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentParameterException
-from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentCommandException
 
@@ -130,33 +129,33 @@ class Parameter(DriverParameter):
     """
 
     #Device specific parameters.
-    MEASUREMENTS_PER_REPORTED = "ave"     # Measurements per reported value   # int
-    MEASUREMENT_1_DARK_COUNT = "m1d"      # Measurement 1 dark count          # int
-    MEASUREMENT_1_SLOPE = "m1s"           # Measurement 1 slope value         # float
-    MEASUREMENT_2_DARK_COUNT = "m2d"      # Measurement 2 dark count          # int
-    MEASUREMENT_2_SLOPE = "m2s"           # Measurement 2 slope value         # float
-    MEASUREMENT_3_DARK_COUNT = "m3d"      # Measurement 3 dark count          # int
-    MEASUREMENT_3_SLOPE = "m3s"           # Measurement 3 slope value         # float
-    MEASUREMENTS_PER_PACKET = "pkt"       # Measurements per packet           # int
-    BAUD_RATE = "rat"                     # Baud rate                         # int
-    PACKETS_PER_SET = "set"               # Packets per set                   # int
-    PREDEFINED_OUTPUT_SEQ = "seq"         # Predefined output sequence        # int
-    RECORDING_MODE = "rec"                # Recording mode                    # int
-    MANUAL_MODE = "man"                   # Manual mode                       # int
-    SAMPLING_INTERVAL = "int"             # Sampling interval                 # str
-    DATE = "dat"                          # Date                              # str
-    TIME = "clk"                          # Time                              # str
-    MANUAL_START_TIME = "mst"             # Manual start time                 # str
+    MEASUREMENTS_PER_REPORTED = "ave"     # Measurements per reported value    int
+    MEASUREMENT_1_DARK_COUNT = "m1d"      # Measurement 1 dark count           int
+    MEASUREMENT_1_SLOPE = "m1s"           # Measurement 1 slope value          float
+    MEASUREMENT_2_DARK_COUNT = "m2d"      # Measurement 2 dark count           int
+    MEASUREMENT_2_SLOPE = "m2s"           # Measurement 2 slope value          float
+    MEASUREMENT_3_DARK_COUNT = "m3d"      # Measurement 3 dark count           int
+    MEASUREMENT_3_SLOPE = "m3s"           # Measurement 3 slope value          float
+    MEASUREMENTS_PER_PACKET = "pkt"       # Measurements per packet            int
+    BAUD_RATE = "rat"                     # Baud rate                          int
+    PACKETS_PER_SET = "set"               # Packets per set                    int
+    PREDEFINED_OUTPUT_SEQ = "seq"         # Predefined output sequence         int
+    RECORDING_MODE = "rec"                # Recording mode                     int
+    MANUAL_MODE = "man"                   # Manual mode                        int
+    SAMPLING_INTERVAL = "int"             # Sampling interval                  str
+    DATE = "dat"                          # Date                               str
+    TIME = "clk"                          # Time                               str
+    MANUAL_START_TIME = "mst"             # Manual start time                  str
 
     #Hardware Data
-    SERIAL_NUM = "ser"                    # Serial number                     # str
-    FIRMWARE_VERSION = "ver"              # Firmware version                  # str
-    INTERNAL_MEMORY = "mem"               # Internal memory                   # int
+    SERIAL_NUM = "ser"                    # Serial number                      str
+    FIRMWARE_VERSION = "ver"              # Firmware version                   str
+    INTERNAL_MEMORY = "mem"               # Internal memory                    int
 
     #Engineering param
-    RUN_WIPER_INTERVAL = "wiper_interval"         # Interval to schedule running wiper #str
-    RUN_CLOCK_SYNC_INTERVAL = 'clk_interval'    # Interval to schedule syncing clock #str
-    RUN_ACQUIRE_STATUS_INTERVAL = 'status_interval'
+    RUN_WIPER_INTERVAL = "wiper_interval"           # Interval to schedule running wiper    str
+    RUN_CLOCK_SYNC_INTERVAL = 'clk_interval'        # Interval to schedule syncing clock    str
+    RUN_ACQUIRE_STATUS_INTERVAL = 'status_interval' # Interval to schedule status           str
 
 
 class ScheduledJob(BaseEnum):
@@ -199,7 +198,7 @@ MNU_REGEX_MATCHER = re.compile(MNU_REGEX, re.DOTALL)
 RUN_REGEX = r"(mvs\s[0-1]\r\n)"
 RUN_REGEX_MATCHER = re.compile(RUN_REGEX, re.DOTALL)
 
-MET_REGEX = r"(Sig_1\S*).*?(Sig_2\S*).*?(Sig_3\S*)\r\n"
+MET_REGEX = r"(Sig_1\S*).*?(Sig_2\S*).*?(Sig_3\S*)"
 MET_REGEX_MATCHER = re.compile(MET_REGEX, re.DOTALL)
 
 TIME_INTERVAL = r"[0-9][0-9]:[0-9][0-9]:[0-9][0-9]"
@@ -703,7 +702,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             next_agent_state = ResourceAgentState.IDLE
 
         finally:
-            log.debug("_handler_unknown_discover. result start: %s" % next_state)
+            log.debug("_handler_unknown_discover. result state: %s" % next_state)
             return next_state, next_agent_state
 
     ########################################################################
@@ -716,6 +715,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         log.debug('%% IN _handler_command_enter')
+
+        self._init_params()
 
         # Get old param dict config.
         old_config = self._param_dict.get_config()
@@ -750,7 +751,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         Set commands
         """
         log.debug('%% IN _handler_command_set')
-        startup = False
 
         try:
             params = args[0]
@@ -761,6 +761,8 @@ class Protocol(CommandResponseInstrumentProtocol):
         try:
             startup = args[1]
         except IndexError:
+            startup = False
+            log.debug("NO STARTUP VALUE")
             pass
 
         if not isinstance(params, dict):
@@ -890,25 +892,31 @@ class Protocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+        log.debug('%% IN _handler_autosample_enter: state change')
+
+        self._do_cmd_resp(InstrumentCommand.INTERRUPT_INSTRUMENT, *args, timeout=TIMEOUT,
+                                   response_regex=MNU_REGEX_MATCHER)
+        log.debug('%% IN _handler_autosample_enter: interrupt instrument')
+        self._init_params()
+        log.debug('%% IN _handler_autosample_enter: init params')
+        self._do_cmd_resp(InstrumentCommand.RUN_SETTINGS, *args, timeout=TIMEOUT,
+                                   response_regex=SAMPLE_REGEX_MATCHER)
+        log.debug('%% IN _handler_autosample_enter: run samples')
 
         #Start scheduling for running the wiper and syncing the clock
         log.debug("Configuring the scheduler to run wiper %s", self._param_dict.get(Parameter.RUN_WIPER_INTERVAL))
         if self._param_dict.get(Parameter.RUN_WIPER_INTERVAL) != '00:00:00':
-            self.start_scheduled_job(Parameter.RUN_WIPER_INTERVAL, ScheduledJob.RUN_WIPER, ProtocolEvent.RUN_WIPER)
-        else:
-            self.stop_scheduled_job(ScheduledJob.RUN_WIPER)
+            self.start_scheduled_job(Parameter.RUN_WIPER_INTERVAL, ScheduledJob.RUN_WIPER, ProtocolEvent.RUN_WIPER_SCHEDULED)
 
         log.debug("Configuring the scheduler to sync clock %s", self._param_dict.get(Parameter.RUN_CLOCK_SYNC_INTERVAL))
         if self._param_dict.get(Parameter.RUN_CLOCK_SYNC_INTERVAL) != '00:00:00':
-            self.start_scheduled_job(Parameter.RUN_CLOCK_SYNC_INTERVAL, ScheduledJob.CLOCK_SYNC, ProtocolEvent.CLOCK_SYNC)
-        else:
-            self.stop_scheduled_job(ScheduledJob.CLOCK_SYNC)
+            self.start_scheduled_job(Parameter.RUN_CLOCK_SYNC_INTERVAL, ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
         log.debug("Configuring the scheduler to acquire status %s", self._param_dict.get(Parameter.RUN_ACQUIRE_STATUS_INTERVAL))
         if self._param_dict.get(Parameter.RUN_ACQUIRE_STATUS_INTERVAL) != '00:00:00':
             self.start_scheduled_job(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS)
-        else:
-            self.stop_scheduled_job(ScheduledJob.ACQUIRE_STATUS)
+
+        log.debug("Leaving _handler_autosample_enter")
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
@@ -1100,10 +1108,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         log.debug('%% IN apply_startup_params')
         log.debug("CURRENT STATE: %s", self.get_current_state())
-        if self.get_current_state() != DriverProtocolState.COMMAND:
-            raise InstrumentProtocolException("Not in command state. Unable to apply startup params")
 
-        self._set_params(True)
+        autosample = False
+        if self.get_current_state() == DriverProtocolState.AUTOSAMPLE:
+            log.debug("In autosample. Putting instrument into command mode")
+            autosample = True
+            self._do_cmd_resp(InstrumentCommand.INTERRUPT_INSTRUMENT, timeout=TIMEOUT, response_regex=MNU_REGEX_MATCHER)
+
+        self._set_params(self.get_startup_config(), True)
+
+        if autosample:
+            self._do_cmd_resp(InstrumentCommand.RUN_SETTINGS, timeout=TIMEOUT, response_regex=MNU_REGEX_MATCHER)
 
     ########################################################################
     # Private helpers.
@@ -1124,7 +1139,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             response = None
             for (key, val) in params.iteritems():
                 log.debug("KEY = " + str(key) + " VALUE = " + str(val))
-                #if setting the mvs interval or clock sync interval, do not send a command
+                #if setting the mvs interval/clock sync interval/acquire status interval, do not send a command
                 if key == Parameter.RUN_WIPER_INTERVAL or key == Parameter.RUN_CLOCK_SYNC_INTERVAL or key == Parameter.RUN_ACQUIRE_STATUS_INTERVAL:
                     self._param_dict.set_value(key, val)
                 #else if setting the clock or date, run clock sync command

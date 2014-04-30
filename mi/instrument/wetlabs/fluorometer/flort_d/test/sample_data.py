@@ -27,4 +27,4 @@ SAMPLE_MET_RESPONSE = "Sig_1,counts,,SO,3.000E+00,3" + NEWLINE + \
                       "5,Ref_2,Emission_WL," + NEWLINE + \
                       "6,Sig_2,counts,,SO,2.000E+00,2" + NEWLINE + \
                       "7,Ref_3,Emission_WL," + NEWLINE + \
-                      "8,Sig_3,counts,,SO,1.000E+00,1" + NEWLINE
+                      "8,Sig_3,counts,,SO,1.000E+00,1"
