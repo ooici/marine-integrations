@@ -50,6 +50,7 @@ from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Capability
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Parameter
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ConfirmedParameter
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Command
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SendOptodeCommand
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ScheduledJob
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19DataParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19ConfigurationParticleKey
@@ -57,6 +58,7 @@ from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19HardwarePart
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19StatusParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19CalibrationParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19EventCounterParticleKey
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import OptodeSettingsParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Prompt
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import NEWLINE
 
@@ -334,6 +336,33 @@ class SeaBird19plusMixin(DriverTestMixin):
 "   <Event type = 'EEPROM write' count = '125'/>" + NEWLINE + \
 "</EventCounters>" + NEWLINE
 
+    VALID_SEND_OPTODE_RESPONSE = "" + \
+'Optode RX = CalPhase[Deg]	4831	134	30.050' + NEWLINE + \
+'S>sendoptode=get enable temperature' + NEWLINE + \
+'Sending Optode: get enable temperature' + NEWLINE + NEWLINE + \
+'Optode RX = Enable Temperature	4831	134	No' + NEWLINE + \
+'S>sendoptode=get enable text' + NEWLINE + \
+'Sending Optode: get enable text' + NEWLINE + NEWLINE + \
+'Optode RX = Enable Text 	4831	134	No' + NEWLINE + \
+'S>sendoptode=get enable humiditycomp' + NEWLINE + \
+'Sending Optode: get enable humiditycomp' + NEWLINE + NEWLINE + \
+'Optode RX = Enable HumidityComp	 4831	134	Yes' + NEWLINE + \
+'S>sendoptode=get enable airsaturation' + NEWLINE + \
+'Sending Optode: get enable airsaturation' + NEWLINE + NEWLINE + \
+'Optode RX = Enable AirSaturation	4831	134	No' + NEWLINE + \
+'S>sendoptode=get enable rawdata' + NEWLINE + \
+'Sending Optode: get enable rawdata' + NEWLINE + NEWLINE + \
+'Optode RX = Enable Rawdata	4831	134	No' + NEWLINE + \
+'S>sendoptode=get analog output' + NEWLINE + \
+'Sending Optode: get analog output' + NEWLINE + NEWLINE + \
+'Optode RX = Analog Output	4831	134	CalPhase' + NEWLINE + \
+'S>sendoptode=get interval' + NEWLINE + \
+'Sending Optode: get interval' + NEWLINE + NEWLINE + \
+'Optode RX = Interval	4831	134	5.000' + NEWLINE + \
+'S>sendoptode=get mode' + NEWLINE + \
+'Sending Optode: get mode' + NEWLINE + NEWLINE + \
+'Optode RX = Mode	4831	134	Smart Sensor Terminal' + NEWLINE
+
 
     VALID_DS_RESPONSE = 'SBE 19plus V 2.3  SERIAL NO. 6914    18 Apr 2014 19:14:13' + NEWLINE + \
         'vbatt = 23.3, vlith =  8.5, ioper =  62.1 ma, ipump =  71.7 ma, ' + NEWLINE + \
@@ -422,8 +451,12 @@ class SeaBird19plusMixin(DriverTestMixin):
         SBE19HardwareParticleKey.TEMPERATURE_SENSOR_TYPE: {TYPE: unicode, VALUE: 'temperature0', REQUIRED: True},
         SBE19HardwareParticleKey.CONDUCTIVITY_SENSOR_SERIAL_NUMBER: {TYPE: int, VALUE: 1906914, REQUIRED: True},
         SBE19HardwareParticleKey.CONDUCTIVITY_SENSOR_TYPE: {TYPE: unicode, VALUE: 'conductivity-0', REQUIRED: True},
-        SBE19HardwareParticleKey.PRESSURE_SENSOR_SERIAL_NUMBER: {TYPE: int, VALUE: 3313899, REQUIRED: True},
+        SBE19HardwareParticleKey.PRESSURE_SENSOR_SERIAL_NUMBER: {TYPE: unicode, VALUE: '3313899', REQUIRED: True},
         SBE19HardwareParticleKey.PRESSURE_SENSOR_TYPE: {TYPE: unicode, VALUE: 'strain-0', REQUIRED: True},
+        SBE19HardwareParticleKey.VOLT0_TYPE: {TYPE: unicode, VALUE: 'not assigned', REQUIRED: True},
+        SBE19HardwareParticleKey.VOLT0_SERIAL_NUMBER: {TYPE: unicode, VALUE: 'not assigned', REQUIRED: True},
+        SBE19HardwareParticleKey.VOLT1_TYPE: {TYPE: unicode, VALUE: 'not assigned', REQUIRED: True},
+        SBE19HardwareParticleKey.VOLT1_SERIAL_NUMBER: {TYPE: unicode, VALUE: 'not assigned', REQUIRED: True},
     }
     
     _calibration_parameters = {
@@ -481,6 +514,19 @@ class SeaBird19plusMixin(DriverTestMixin):
         SBE19EventCounterParticleKey.ALARM_SHORT_COUNT: {TYPE: int, VALUE: 18, REQUIRED: True},
         SBE19EventCounterParticleKey.EEPROM_READ_COUNT: {TYPE: int, VALUE: 117, REQUIRED: True},
         SBE19EventCounterParticleKey.EEPROM_WRITE_COUNT: {TYPE: int, VALUE: 125, REQUIRED: True},
+
+    }
+
+    _send_optode_parameters = {
+        OptodeSettingsParticleKey.ANALOG_OUTPUT: {TYPE: unicode, VALUE: 'CalPhase', REQUIRED: True},
+        OptodeSettingsParticleKey.CALPHASE: {TYPE: float, VALUE: 30.050, REQUIRED: True},
+        OptodeSettingsParticleKey.ENABLE_AIR_SAT: {TYPE: bool, VALUE: False, REQUIRED: True},
+        OptodeSettingsParticleKey.ENABLE_RAW_DATA: {TYPE: bool, VALUE: False, REQUIRED: True},
+        OptodeSettingsParticleKey.ENABLE_HUM_COMP: {TYPE: bool, VALUE: True, REQUIRED: True},
+        OptodeSettingsParticleKey.ENABLE_TEMP: {TYPE: bool, VALUE: False, REQUIRED: True},
+        OptodeSettingsParticleKey.ENABLE_TEXT: {TYPE: bool, VALUE: False, REQUIRED: True},
+        OptodeSettingsParticleKey.INTERVAL: {TYPE: float, VALUE: 5.000, REQUIRED: True},
+        OptodeSettingsParticleKey.MODE: {TYPE: unicode, VALUE: 'Smart Sensor Terminal', REQUIRED: True},
 
     }
 
@@ -592,6 +638,15 @@ class SeaBird19plusMixin(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.EVENT_COUNTER)
         self.assert_data_particle_parameters(data_particle, self._event_counter_parameters, verify_values)
 
+    def assert_particle_send_optode(self, data_particle, verify_values = False):
+        '''
+        Verify send optode particle
+        @param data_particle:  SBE19EventCounterParticle event counter particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(OptodeSettingsParticleKey, self._send_optode_parameters)
+        self.assert_data_particle_header(data_particle, DataParticleType.OPTODE_SETTINGS)
+        self.assert_data_particle_parameters(data_particle, self._send_optode_parameters, verify_values)
 
 
 ###############################################################################
@@ -618,6 +673,7 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
         """
         self.assert_enum_has_no_duplicates(ScheduledJob())
         self.assert_enum_has_no_duplicates(Command())
+        self.assert_enum_has_no_duplicates(SendOptodeCommand())
         self.assert_enum_has_no_duplicates(DataParticleType())
         self.assert_enum_has_no_duplicates(ProtocolState())
         self.assert_enum_has_no_duplicates(ProtocolEvent())
@@ -673,6 +729,12 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
         self.assert_chunker_fragmented_sample(chunker, self.VALID_GETEC_RESPONSE)
         self.assert_chunker_combined_sample(chunker, self.VALID_GETEC_RESPONSE)
 
+        self.assert_chunker_sample(chunker, self.VALID_SEND_OPTODE_RESPONSE)
+        #TODO: this one doesn't work
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_SEND_OPTODE_RESPONSE)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_SEND_OPTODE_RESPONSE)
+        self.assert_chunker_combined_sample(chunker, self.VALID_SEND_OPTODE_RESPONSE)
+
 
     def test_got_data(self):
         """
@@ -691,6 +753,7 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
         self.assert_particle_published(driver, self.VALID_GETSD_RESPONSE, self.assert_particle_status, True)
         self.assert_particle_published(driver, self.VALID_GETCD_RESPONSE, self.assert_particle_configuration, True)
         self.assert_particle_published(driver, self.VALID_GETEC_RESPONSE, self.assert_particle_event_counter, True)
+        self.assert_particle_published(driver, self.VALID_SEND_OPTODE_RESPONSE, self.assert_particle_send_optode, True)
 
     def test_protocol_filter_capabilities(self):
         """
@@ -1077,13 +1140,18 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet()
 
+        # we don't have any direct access parameters that are not read-only
+        # we modify one that's not read only, but it's not direct access either
         self.tcp_client.send_data("%snavg=15%s" % (NEWLINE, NEWLINE))
-        self.tcp_client.send_data("%sGetCD%s" % (NEWLINE, NEWLINE))
-        self.tcp_client.expect(Prompt.COMMAND)
 
+        #need to sleep as the instrument needs time to apply the new param value
+        time.sleep(5)
+
+        self.tcp_client.send_data("%sGetCD%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.expect("<ScansToAverage>15</ScansToAverage>")
         self.assert_direct_access_stop_telnet()
 
-        # verify the setting got restored.
+        # verify the setting remained unchanged in the param dict
         self.assert_enter_command_mode()
         self.assert_get_parameter(Parameter.NUM_AVG_SAMPLES, 4)
 
@@ -1158,10 +1226,9 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         # Restart autosample and gather a couple samples
         self.assert_sample_autosample(self.assert_particle_sample, DataParticleType.CTD_PARSED)
 
-    #TODO
     def test_execute_clock_sync(self):
         """
-        Verify we can syncronize the instrument internal clock
+        Verify we can synchronize the instrument internal clock
         """
         self.assert_enter_command_mode()
 
