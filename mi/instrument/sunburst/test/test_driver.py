@@ -172,7 +172,7 @@ class SamiMixin(DriverTestMixin):
         SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS:        {TYPE: int, VALUE: 0x000003, REQUIRED: True},
         SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS:       {TYPE: int, VALUE: 0x000000, REQUIRED: True},
         SamiRegularStatusDataParticleKey.NUM_BYTES_STORED:        {TYPE: int, VALUE: 0x000236, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.UNIQUE_ID:               {TYPE: int, VALUE: 0xF8, REQUIRED: True}
+        SamiRegularStatusDataParticleKey.CHECKSUM:                {TYPE: int, VALUE: 0xF8, REQUIRED: True}
     }
 
     _control_record_parameters = {

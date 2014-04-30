@@ -171,12 +171,10 @@ class SamiDataParticleType(BaseEnum):
     """
 
     RAW = CommonDataParticleType.RAW
-    REGULAR_STATUS = 'regular_status'
-    CONTROL_RECORD = 'control_record'
-    SAMI_SAMPLE = 'sami_sample'
-    CONFIGURATION = 'configuration'
-    BATTERY_VOLTAGE = 'battery_voltage'
-    THERMISTOR_VOLTAGE = 'thermistor_voltage'
+    REGULAR_STATUS = 'pco2w_regular_status'
+    CONTROL_RECORD = 'pco2w_control_record'
+    BATTERY_VOLTAGE = 'pco2w_battery_voltage'
+    THERMISTOR_VOLTAGE = 'pco2w_thermistor_voltage'
 
 class ProtocolState(BaseEnum):
     """
@@ -310,7 +308,7 @@ class SamiInstrumentCommand(BaseEnum):
 
 class SamiBatteryVoltageDataParticleKey(BaseEnum):
 
-    BATTERY_VOLTAGE = 'battery_voltage'
+    BATTERY_VOLTAGE = 'pco2w_battery_voltage'
 
 class SamiBatteryVoltageDataParticle(DataParticle):
     """
@@ -335,7 +333,7 @@ class SamiBatteryVoltageDataParticle(DataParticle):
 
 class SamiThermistorVoltageDataParticleKey(BaseEnum):
 
-    THERMISTOR_VOLTAGE = 'thermistor_voltage'
+    THERMISTOR_VOLTAGE = 'pco2w_thermistor_voltage'
 
 class SamiThermistorVoltageDataParticle(DataParticle):
     """
@@ -384,7 +382,7 @@ class SamiRegularStatusDataParticleKey(BaseEnum):
     NUM_DATA_RECORDS = 'num_data_records'
     NUM_ERROR_RECORDS = 'num_error_records'
     NUM_BYTES_STORED = 'num_bytes_stored'
-    UNIQUE_ID = 'unique_id'
+    CHECKSUM = 'checksum'  # Particle key misnamed, checksum matches driver page
 
 
 class SamiRegularStatusDataParticle(DataParticle):
@@ -439,7 +437,7 @@ class SamiRegularStatusDataParticle(DataParticle):
                          SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS,
                          SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS,
                          SamiRegularStatusDataParticleKey.NUM_BYTES_STORED,
-                         SamiRegularStatusDataParticleKey.UNIQUE_ID]
+                         SamiRegularStatusDataParticleKey.CHECKSUM]
 
         result = []
         grp_index = 1  # used to index through match groups, starting at 1
@@ -614,11 +612,11 @@ class SamiConfigDataParticleKey(BaseEnum):
     RECORDING_TIME = 'recording_time'
     PMI_SAMPLE_SCHEDULE = 'pmi_sample_schedule'
     SAMI_SAMPLE_SCHEDULE = 'sami_sample_schedule'
-    SLOT1_FOLLOWS_SAMI_SCHEDULE = 'slot1_follows_sami_schedule'
+    SLOT1_FOLLOWS_SAMI_SCHEDULE = 'slot1_follows_sami_sample'
     SLOT1_INDEPENDENT_SCHEDULE = 'slot1_independent_schedule'
-    SLOT2_FOLLOWS_SAMI_SCHEDULE = 'slot2_follows_sami_schedule'
+    SLOT2_FOLLOWS_SAMI_SCHEDULE = 'slot2_follows_sami_sample'
     SLOT2_INDEPENDENT_SCHEDULE = 'slot2_independent_schedule'
-    SLOT3_FOLLOWS_SAMI_SCHEDULE = 'slot3_follows_sami_schedule'
+    SLOT3_FOLLOWS_SAMI_SCHEDULE = 'slot3_follows_sami_sample'
     SLOT3_INDEPENDENT_SCHEDULE = 'slot3_independent_schedule'
     TIMER_INTERVAL_SAMI = 'timer_interval_sami'
     DRIVER_ID_SAMI = 'driver_id_sami'

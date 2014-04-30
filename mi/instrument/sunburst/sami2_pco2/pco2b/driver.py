@@ -31,11 +31,11 @@ from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 
-from mi.instrument.sunburst.sami2_pco2.driver import SamiDataParticleType
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiDataParticleType
 from mi.instrument.sunburst.sami2_pco2.driver import ProtocolState
 from mi.instrument.sunburst.sami2_pco2.driver import ProtocolEvent
 from mi.instrument.sunburst.sami2_pco2.driver import Capability
-from mi.instrument.sunburst.sami2_pco2.driver import Pco2SamiParameter
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiParameter
 from mi.instrument.sunburst.sami2_pco2.driver import Prompt
 from mi.instrument.sunburst.sami2_pco2.driver import SamiInstrumentCommand
 from mi.instrument.sunburst.sami2_pco2.driver import SamiRegularStatusDataParticle
@@ -118,15 +118,15 @@ CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 ###
 #    Begin Classes
 ###
-class DataParticleType(SamiDataParticleType):
+class DataParticleType(Pco2wSamiDataParticleType):
     """
     Data particle types produced by this driver
     """
     # PCO2W driver extends the base class (SamiDataParticleType) with:
-    DEV1_SAMPLE = 'dev1_sample'
+    DEV1_SAMPLE = 'pco2w_dev1_data_record'
+    CONFIGURATION = 'pco2w_configuration'
 
-
-class Parameter(Pco2SamiParameter):
+class Parameter(Pco2wSamiParameter):
     """
     Device specific parameters.
     """
@@ -220,7 +220,7 @@ class Pco2wConfigurationDataParticle(DataParticle):
     @throw SampleException If there is a problem with sample creation
     """
 
-    _data_particle_type = SamiDataParticleType.CONFIGURATION
+    _data_particle_type = DataParticleType.CONFIGURATION
 
     def _build_parsed_values(self):
         """
