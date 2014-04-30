@@ -19,6 +19,9 @@ import json
 
 from nose.plugins.attrib import attr
 
+from pyon.agent.agent import ResourceAgentEvent
+from pyon.agent.agent import ResourceAgentState
+
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
@@ -26,6 +29,7 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import AgentCapabilityType
 from mi.idk.unit_test import DriverTestMixin
+from mi.idk.unit_test import ParameterTestConfigKey
 
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
@@ -50,54 +54,40 @@ from mi.instrument.nortek.driver import NortekUserConfigDataParticle
 from mi.instrument.nortek.driver import NortekEngClockDataParticle
 from mi.instrument.nortek.driver import NortekEngBatteryDataParticle
 from mi.instrument.nortek.driver import NortekEngIdDataParticle
-from mi.instrument.nortek.driver import InstrumentPrompts
-from mi.instrument.nortek.driver import InstrumentCmds
-from mi.instrument.nortek.driver import Capability
-from mi.instrument.nortek.driver import ProtocolState
-from mi.instrument.nortek.driver import ProtocolEvent
-from mi.instrument.nortek.driver import Parameter
 from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import ScheduledJob
+from mi.instrument.nortek.driver import NortekInstrumentDriver
+from mi.core.exceptions import NotImplementedException
+from mi.core.time import get_timestamp_delayed
 
 from interface.objects import AgentCommand
-from interface.objects import CapabilityType
-from pyon.agent.agent import ResourceAgentEvent
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+
+from mi.instrument.nortek.driver import InstrumentPrompts, Parameter, ProtocolState, ProtocolEvent, InstrumentCmds, \
+    Capability
+
+
+hw_config_particle = [{DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.SERIAL_NUM, DataParticleKey.VALUE: "VEC 8181      "},
+                      {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.RECORDER_INSTALLED, DataParticleKey.VALUE: 0},
+                      {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.COMPASS_INSTALLED, DataParticleKey.VALUE: 0},
+                      {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.BOARD_FREQUENCY, DataParticleKey.VALUE: 65535},
+                      {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.PIC_VERSION, DataParticleKey.VALUE: 0},
+                      {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.HW_REVISION, DataParticleKey.VALUE: 4},
+                      {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.RECORDER_SIZE, DataParticleKey.VALUE: 144},
+                      {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.VELOCITY_RANGE, DataParticleKey.VALUE: 0},
+                      {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.FW_VERSION, DataParticleKey.VALUE: "3.36"}]
+
+
+def assert_particle_hw_config(self, data_particle, verify_value=False):
+    self.assert_data_particle_keys(NortekHardwareConfigDataParticleKey, self.hw_config_particle)
+    self.assert_data_particle_header(data_particle, NortekDataParticleType.HARDWARE_CONFIG)
+    self.assert_data_particle_parameters(self.hw_config_particle, verify_value)
 
 
 def hw_config_sample():
-    sample_as_hex = "a505180056454320383138312020202020200400ffff0000040090000\
-4000000ffff0000ffffffff0000332e3336b048" 
+    sample_as_hex = "a505180056454320383138312020202020200400ffff00000400900004000000ffff0000ffffffff0000332e3336b048"
     return sample_as_hex.decode('hex')
 
-hw_config_particle = [{DataParticleKey.VALUE_ID:
-                        NortekHardwareConfigDataParticleKey.SERIAL_NUM,
-                       DataParticleKey.VALUE: "VEC 8181      "}, 
-                      {DataParticleKey.VALUE_ID:
-                        NortekHardwareConfigDataParticleKey.RECORDER_INSTALLED,
-                       DataParticleKey.VALUE: 0}, 
-                      {DataParticleKey.VALUE_ID:
-                        NortekHardwareConfigDataParticleKey.COMPASS_INSTALLED,
-                       DataParticleKey.VALUE: 0}, 
-                      {DataParticleKey.VALUE_ID:
-                        NortekHardwareConfigDataParticleKey.BOARD_FREQUENCY,
-                       DataParticleKey.VALUE: 65535}, 
-                      {DataParticleKey.VALUE_ID:
-                        NortekHardwareConfigDataParticleKey.PIC_VERSION,
-                       DataParticleKey.VALUE: 0}, 
-                      {DataParticleKey.VALUE_ID:
-                        NortekHardwareConfigDataParticleKey.HW_REVISION,
-                       DataParticleKey.VALUE: 4}, 
-                      {DataParticleKey.VALUE_ID:
-                        NortekHardwareConfigDataParticleKey.RECORDER_SIZE,
-                       DataParticleKey.VALUE: 144}, 
-                      {DataParticleKey.VALUE_ID:
-                        NortekHardwareConfigDataParticleKey.VELOCITY_RANGE,
-                       DataParticleKey.VALUE: 0}, 
-                      {DataParticleKey.VALUE_ID:
-                        NortekHardwareConfigDataParticleKey.FW_VERSION,
-                       DataParticleKey.VALUE: "3.36"}]
 
 def head_config_sample():
     sample_as_hex = "a50470003700701701005645432034393433000000000000000000000\
@@ -108,31 +98,17 @@ f92324c00987e0afd48ff0afd547d2b01cffe3602ff7ffafff7fffaff000000000000000000000\
 000000000009f14100e100e10275b0000000000000000000000000000000000000000000300065b"
     return sample_as_hex.decode('hex')
 
-head_config_particle = [{DataParticleKey.VALUE_ID:
-                          NortekHeadConfigDataParticleKey.PRESSURE_SENSOR,
-                         DataParticleKey.VALUE: 1}, 
-                        {DataParticleKey.VALUE_ID:
-                          NortekHeadConfigDataParticleKey.MAG_SENSOR,
-                         DataParticleKey.VALUE: 1}, 
-                        {DataParticleKey.VALUE_ID:
-                          NortekHeadConfigDataParticleKey.TILT_SENSOR,
-                         DataParticleKey.VALUE: 1}, 
-                        {DataParticleKey.VALUE_ID:
-                          NortekHeadConfigDataParticleKey.TILT_SENSOR_MOUNT,
-                         DataParticleKey.VALUE: 0}, 
-                        {DataParticleKey.VALUE_ID:
-                          NortekHeadConfigDataParticleKey.HEAD_FREQ,
-                         DataParticleKey.VALUE: 6000}, 
-                        {DataParticleKey.VALUE_ID:
-                          NortekHeadConfigDataParticleKey.HEAD_TYPE,
-                         DataParticleKey.VALUE: 1}, 
-                        {DataParticleKey.VALUE_ID:
-                          NortekHeadConfigDataParticleKey.HEAD_SERIAL,
-                         DataParticleKey.VALUE: "VEC 4943"}, 
-                        {DataParticleKey.VALUE_ID:
-                          NortekHeadConfigDataParticleKey.SYSTEM_DATA,
-                         DataParticleKey.VALUE: base64.b64encode(\
-"\x00\x00\x00\x00\x00\x00\x00\x00\x99\x2a\xc3\xea\xab\xea\x0e\x00\x19\x25\xdb\
+
+head_config_particle = [{DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.PRESSURE_SENSOR, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.MAG_SENSOR, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.TILT_SENSOR, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.TILT_SENSOR_MOUNT, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.HEAD_FREQ, DataParticleKey.VALUE: 6000},
+                        {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.HEAD_TYPE, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.HEAD_SERIAL, DataParticleKey.VALUE: "VEC 4943"},
+                        {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.SYSTEM_DATA,
+                         DataParticleKey.VALUE: base64.b64encode(
+                                "\x00\x00\x00\x00\x00\x00\x00\x00\x99\x2a\xc3\xea\xab\xea\x0e\x00\x19\x25\xdb\
 \xda\x78\x05\x83\x05\x89\x05\x1c\xbd\x0d\x00\x82\x2b\xec\xff\x1d\xbf\x05\xfc\
 \x22\x2b\x42\x00\xa0\x0f\x00\x00\x00\x00\xff\xff\x00\x00\xff\xff\x00\x00\xff\
 \xff\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff\x00\x00\x01\x00\x00\x00\x01\x00\
@@ -143,235 +119,120 @@ head_config_particle = [{DataParticleKey.VALUE_ID:
 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x9f\x14\x10\
 \x0e\x10\x0e\x10\x27"),
                          DataParticleKey.BINARY: True}, 
-                        {DataParticleKey.VALUE_ID:
-                          NortekHeadConfigDataParticleKey.NUM_BEAMS,
-                         DataParticleKey.VALUE: 3}]
+                        {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.NUM_BEAMS, DataParticleKey.VALUE: 3}]
+
 
 def user_config_sample():
     # Visually break it up a bit (full lines are 30 bytes wide)
     sample_as_hex = \
-    "a500 0001 0200 1000 0700 2c00 0002 0100 3c00 0300 8200 0000 cc4e 0000 0000 \
-     0200 0100 0100 0700 5802 3439 3433 0000 0100 2642 2812 1209 c0a8 0000 3000 \
-     1141 1400 0100 1400 0400 0000 2035 \
-     5e01 \
-     023d 1e3d 393d 533d 6e3d 883d a23d bb3d d43d ed3d 063e 1e3e 363e 4e3e 653e \
-     7d3e 933e aa3e c03e d63e ec3e 023f 173f 2c3f 413f 553f 693f 7d3f 913f a43f \
-     b83f ca3f dd3f f03f 0240 1440 2640 3740 4940 5a40 6b40 7c40 8c40 9c40 ac40 \
-     bc40 cc40 db40 ea40 f940 0841 1741 2541 3341 4241 4f41 5d41 6a41 7841 8541 \
-     9241 9e41 ab41 b741 c341 cf41 db41 e741 f241 fd41 0842 1342 1e42 2842 3342 \
-     3d42 4742 5142 5b42 6442 6e42 7742 8042 8942 9142 9a42 a242 aa42 b242 ba42 \
-     \
-     3333 3035 2d30 3031 3036 5f30 3030 3031 5f32 3830 3932 3031 3200 0000 0000 \
-     0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 \
-     0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 1e00 \
-     5a00 5a00 bc02 3200 0000 0000 0000 0700 0000 0000 0000 0000 0000 0000 0100 \
-     0000 0000 2a00 0000 0200 1400 ea01 1400 ea01 0a00 0500 0000 4000 4000 0200 \
-     0f00 5a00 0000 0100 c800 0000 0000 0f00 ea01 ea01 0000 0000 0000 0000 0000 \
-     \
-     0712 0080 0040 0000 0000 0000 8200 0000 0a00 0800 b12b 0000 0000 0200 0600 \
-     0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0aff \
-     cdff 8b00 e500 ee00 0b00 84ff 3dff a7ff"
+        "a500 0001 0200 1000 0700 2c00 0002 0100 3c00 0300 8200 0000 cc4e 0000 0000 \
+        0200 0100 0100 0700 5802 3439 3433 0000 0100 2642 2812 1209 c0a8 0000 3000 \
+        1141 1400 0100 1400 0400 0000 2035 \
+        5e01 \
+        023d 1e3d 393d 533d 6e3d 883d a23d bb3d d43d ed3d 063e 1e3e 363e 4e3e 653e \
+        7d3e 933e aa3e c03e d63e ec3e 023f 173f 2c3f 413f 553f 693f 7d3f 913f a43f \
+        b83f ca3f dd3f f03f 0240 1440 2640 3740 4940 5a40 6b40 7c40 8c40 9c40 ac40 \
+        bc40 cc40 db40 ea40 f940 0841 1741 2541 3341 4241 4f41 5d41 6a41 7841 8541 \
+        9241 9e41 ab41 b741 c341 cf41 db41 e741 f241 fd41 0842 1342 1e42 2842 3342 \
+        3d42 4742 5142 5b42 6442 6e42 7742 8042 8942 9142 9a42 a242 aa42 b242 ba42 \
+        \
+        3333 3035 2d30 3031 3036 5f30 3030 3031 5f32 3830 3932 3031 3200 0000 0000 \
+        0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 \
+        0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 1e00 \
+        5a00 5a00 bc02 3200 0000 0000 0000 0700 0000 0000 0000 0000 0000 0000 0100 \
+        0000 0000 2a00 0000 0200 1400 ea01 1400 ea01 0a00 0500 0000 4000 4000 0200 \
+        0f00 5a00 0000 0100 c800 0000 0000 0f00 ea01 ea01 0000 0000 0000 0000 0000 \
+        \
+        0712 0080 0040 0000 0000 0000 8200 0000 0a00 0800 b12b 0000 0000 0200 0600 \
+        0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0aff \
+        cdff 8b00 e500 ee00 0b00 84ff 3dff a7ff"
     
     return sample_as_hex.translate(None, ' ').decode('hex')
 
-user_config_particle = [{DataParticleKey.VALUE_ID:
-                          NortekUserConfigDataParticleKey.TX_LENGTH,
-                         DataParticleKey.VALUE: 2}, 
-                        {DataParticleKey.VALUE_ID:
-                          NortekUserConfigDataParticleKey.BLANK_DIST,
-                         DataParticleKey.VALUE: 16},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.RX_LENGTH,
-                         DataParticleKey.VALUE: 7},
-                        {DataParticleKey.VALUE_ID:
-                          NortekUserConfigDataParticleKey.TIME_BETWEEN_PINGS,
-                         DataParticleKey.VALUE: 44},
-                        {DataParticleKey.VALUE_ID:
-                          NortekUserConfigDataParticleKey.TIME_BETWEEN_BURSTS,
-                         DataParticleKey.VALUE: 512},
-                        {DataParticleKey.VALUE_ID:
-                          NortekUserConfigDataParticleKey.NUM_PINGS,
-                         DataParticleKey.VALUE: 1},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.AVG_INTERVAL,
-                         DataParticleKey.VALUE: 60},
-                        {DataParticleKey.VALUE_ID:
-                          NortekUserConfigDataParticleKey.NUM_BEAMS,
-                         DataParticleKey.VALUE: 3},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.PROFILE_TYPE,
-                         DataParticleKey.VALUE: 1},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.MODE_TYPE,
-                         DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.POWER_TCM1,
-                         DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.POWER_TCM2,
-                         DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.SYNC_OUT_POSITION,
-                         DataParticleKey.VALUE: 1},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.SAMPLE_ON_SYNC,
-                         DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.START_ON_SYNC,
-                         DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.POWER_PCR1,
-                         DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.POWER_PCR2,
-                         DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.COMPASS_UPDATE_RATE,
-                         DataParticleKey.VALUE: 2},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.COORDINATE_SYSTEM,
-                         DataParticleKey.VALUE: 1},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.NUM_CELLS,
-                         DataParticleKey.VALUE: 1},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.CELL_SIZE,
-                         DataParticleKey.VALUE: 7},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.MEASUREMENT_INTERVAL,
-                         DataParticleKey.VALUE: 600},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.DEPLOYMENT_NAME,
-                         DataParticleKey.VALUE: "4943"},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.WRAP_MODE,
-                         DataParticleKey.VALUE: 1},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.DEPLOY_START_TIME,
-                         DataParticleKey.VALUE: [26, 42, 28, 12, 12, 9]},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.DIAG_INTERVAL,
-                         DataParticleKey.VALUE: 43200},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.USE_SPEC_SOUND_SPEED,
-                         DataParticleKey.VALUE: False},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.DIAG_MODE_ON,
-                         DataParticleKey.VALUE: False},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.ANALOG_OUTPUT_ON,
-                         DataParticleKey.VALUE: False},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.OUTPUT_FORMAT,
-                         DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.SCALING,
-                         DataParticleKey.VALUE: 1},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.SERIAL_OUT_ON,
-                         DataParticleKey.VALUE: True},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.STAGE_ON,
-                         DataParticleKey.VALUE: False},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.ANALOG_POWER_OUTPUT,
-                         DataParticleKey.VALUE: False},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.SOUND_SPEED_ADJUST,
-                         DataParticleKey.VALUE: 16657},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.NUM_DIAG_SAMPLES,
-                         DataParticleKey.VALUE: 20},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.NUM_BEAMS_PER_CELL,
-                         DataParticleKey.VALUE: 1},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.NUM_PINGS_DIAG,
-                         DataParticleKey.VALUE: 20},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.USE_DSP_FILTER,
-                         DataParticleKey.VALUE: False},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.FILTER_DATA_OUTPUT,
-                         DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR,
-                         DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.SW_VER,
-                         DataParticleKey.VALUE: 13600},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR,
-                         DataParticleKey.VALUE: \
-                          "Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQKxAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC"},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.FILE_COMMENTS,
-                         DataParticleKey.VALUE: "3305-00106_00001_28092012"},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.WAVE_DATA_RATE,
-                         DataParticleKey.VALUE: 1},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.WAVE_CELL_POS,
-                         DataParticleKey.VALUE: 1},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.DYNAMIC_POS_TYPE,
-                         DataParticleKey.VALUE: 1},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.PERCENT_WAVE_CELL_POS,
-                         DataParticleKey.VALUE: 32768},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.WAVE_TX_PULSE,
-                         DataParticleKey.VALUE: 16384},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.FIX_WAVE_BLANK_DIST,
-                         DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.WAVE_CELL_SIZE,
-                         DataParticleKey.VALUE: 0},                         
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.NUM_DIAG_PER_WAVE,
-                         DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.NUM_SAMPLE_PER_BURST,
-                         DataParticleKey.VALUE: 10},                         
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.ANALOG_SCALE_FACTOR,
-                         DataParticleKey.VALUE: 11185}, 
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.CORRELATION_THRS,
-                         DataParticleKey.VALUE: 0}, 
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND,
-                         DataParticleKey.VALUE: 2}, 
-                        {DataParticleKey.VALUE_ID:
-			  NortekUserConfigDataParticleKey.FILTER_CONSTANTS,
-                         DataParticleKey.VALUE: 'Cv/N/4sA5QDuAAsAhP89/w=='}]
+user_config_particle = [{DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.TX_LENGTH, DataParticleKey.VALUE: 2},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.BLANK_DIST, DataParticleKey.VALUE: 16},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.RX_LENGTH, DataParticleKey.VALUE: 7},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.TIME_BETWEEN_PINGS, DataParticleKey.VALUE: 44},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.TIME_BETWEEN_BURSTS, DataParticleKey.VALUE: 512},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_PINGS, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.AVG_INTERVAL, DataParticleKey.VALUE: 60},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_BEAMS, DataParticleKey.VALUE: 3},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.PROFILE_TYPE, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.MODE_TYPE, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.POWER_TCM1, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.POWER_TCM2, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SYNC_OUT_POSITION, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SAMPLE_ON_SYNC, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.START_ON_SYNC, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.POWER_PCR1, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.POWER_PCR2, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.COMPASS_UPDATE_RATE, DataParticleKey.VALUE: 2},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.COORDINATE_SYSTEM, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_CELLS, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.CELL_SIZE, DataParticleKey.VALUE: 7},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.MEASUREMENT_INTERVAL, DataParticleKey.VALUE: 600},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DEPLOYMENT_NAME, DataParticleKey.VALUE: "4943"},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WRAP_MODE, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DEPLOY_START_TIME, DataParticleKey.VALUE: [26, 42, 28, 12, 12, 9]},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DIAG_INTERVAL, DataParticleKey.VALUE: 43200},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.USE_SPEC_SOUND_SPEED, DataParticleKey.VALUE: False},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DIAG_MODE_ON, DataParticleKey.VALUE: False},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_OUTPUT_ON, DataParticleKey.VALUE: False},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.OUTPUT_FORMAT, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SCALING, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SERIAL_OUT_ON, DataParticleKey.VALUE: True},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.STAGE_ON, DataParticleKey.VALUE: False},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_POWER_OUTPUT, DataParticleKey.VALUE: False},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SOUND_SPEED_ADJUST, DataParticleKey.VALUE: 16657},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_DIAG_SAMPLES, DataParticleKey.VALUE: 20},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_BEAMS_PER_CELL, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_PINGS_DIAG, DataParticleKey.VALUE: 20},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.USE_DSP_FILTER, DataParticleKey.VALUE: False},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FILTER_DATA_OUTPUT, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SW_VER,DataParticleKey.VALUE: 13600},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR, DataParticleKey.VALUE:
+                          "Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8XPyw/QT9VP2k/fT+RP6Q/uD/KP90/"
+                          "8D8CQBRAJkA3QElAWkBrQHxAjECcQKxAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20"
+                          "HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC"},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FILE_COMMENTS, DataParticleKey.VALUE: "3305-00106_00001_28092012"},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_DATA_RATE, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_CELL_POS, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DYNAMIC_POS_TYPE, DataParticleKey.VALUE: 1},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.PERCENT_WAVE_CELL_POS, DataParticleKey.VALUE: 32768},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_TX_PULSE, DataParticleKey.VALUE: 16384},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FIX_WAVE_BLANK_DIST, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_CELL_SIZE, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_DIAG_PER_WAVE, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_SAMPLE_PER_BURST, DataParticleKey.VALUE: 10},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_SCALE_FACTOR, DataParticleKey.VALUE: 11185},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.CORRELATION_THRS, DataParticleKey.VALUE: 0},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND, DataParticleKey.VALUE: 2},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FILTER_CONSTANTS, DataParticleKey.VALUE: 'Cv/N/4sA5QDuAAsAhP89/w=='}]
+
 
 def eng_clock_sample():
     sample_as_hex = "0907021110120606"
     return sample_as_hex.decode('hex')
 
-eng_clock_particle = [{DataParticleKey.VALUE_ID:
-                        NortekEngClockDataParticleKey.DATE_TIME_ARRAY,
-                       DataParticleKey.VALUE: [9, 7, 2, 11, 10, 12]}
-                      ]
+
+eng_clock_particle = [{DataParticleKey.VALUE_ID: NortekEngClockDataParticleKey.DATE_TIME_ARRAY, DataParticleKey.VALUE: [9, 7, 2, 11, 10, 12]}]
+
 
 def eng_battery_sample():
     sample_as_hex = "a71f0606"
     return sample_as_hex.decode('hex')
 
-eng_battery_particle = [{DataParticleKey.VALUE_ID:
-                          NortekEngBatteryDataParticleKey.BATTERY_VOLTAGE,
-                         DataParticleKey.VALUE: 8103}]
+eng_battery_particle = [{DataParticleKey.VALUE_ID: NortekEngBatteryDataParticleKey.BATTERY_VOLTAGE, DataParticleKey.VALUE: 8103}]
+
 
 def eng_id_sample():
     sample_as_hex = "41514420313231352020202020200606"
     return sample_as_hex.decode('hex')
 
-eng_id_particle = [{DataParticleKey.VALUE_ID:
-                     NortekEngIdDataParticleKey.ID,
-                    DataParticleKey.VALUE: "AQD 1215      "}]
-                      
+eng_id_particle = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID, DataParticleKey.VALUE: "AQD 1215      "}]
+
+
 def user_config1():
     # NumberSamplesPerBurst = 20, MeasurementInterval = 500
     # deployment output from the vector application
@@ -413,42 +274,43 @@ def user_config1():
         user_config += chr(int(value, 16))
     return user_config
 
+
 def user_config2():
     # NumberSamplesPerBurst = 10, MeasurementInterval = 600
     # instrument user configuration from the OSU instrument itself
-    user_config_values = [\
-    0xa5, 0x00, 0x00, 0x01, 0x02, 0x00, 0x10, 0x00, 0x07, 0x00, 0x2c, 0x00, 0x00, 0x02, 0x01, 0x00, 
-    0x3c, 0x00, 0x03, 0x00, 0x82, 0x00, 0x00, 0x00, 0xcc, 0x4e, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 
-    0x01, 0x00, 0x01, 0x00, 0x07, 0x00, 0x58, 0x02, 0x34, 0x39, 0x34, 0x33, 0x00, 0x00, 0x01, 0x00, 
-    0x26, 0x42, 0x28, 0x12, 0x12, 0x09, 0xc0, 0xa8, 0x00, 0x00, 0x30, 0x00, 0x11, 0x41, 0x14, 0x00, 
-    0x01, 0x00, 0x14, 0x00, 0x04, 0x00, 0x00, 0x00, 0x20, 0x35, 0x5e, 0x01, 0x02, 0x3d, 0x1e, 0x3d, 
-    0x39, 0x3d, 0x53, 0x3d, 0x6e, 0x3d, 0x88, 0x3d, 0xa2, 0x3d, 0xbb, 0x3d, 0xd4, 0x3d, 0xed, 0x3d, 
-    0x06, 0x3e, 0x1e, 0x3e, 0x36, 0x3e, 0x4e, 0x3e, 0x65, 0x3e, 0x7d, 0x3e, 0x93, 0x3e, 0xaa, 0x3e, 
-    0xc0, 0x3e, 0xd6, 0x3e, 0xec, 0x3e, 0x02, 0x3f, 0x17, 0x3f, 0x2c, 0x3f, 0x41, 0x3f, 0x55, 0x3f, 
-    0x69, 0x3f, 0x7d, 0x3f, 0x91, 0x3f, 0xa4, 0x3f, 0xb8, 0x3f, 0xca, 0x3f, 0xdd, 0x3f, 0xf0, 0x3f, 
-    0x02, 0x40, 0x14, 0x40, 0x26, 0x40, 0x37, 0x40, 0x49, 0x40, 0x5a, 0x40, 0x6b, 0x40, 0x7c, 0x40, 
-    0x8c, 0x40, 0x9c, 0x40, 0xac, 0x40, 0xbc, 0x40, 0xcc, 0x40, 0xdb, 0x40, 0xea, 0x40, 0xf9, 0x40, 
-    0x08, 0x41, 0x17, 0x41, 0x25, 0x41, 0x33, 0x41, 0x42, 0x41, 0x4f, 0x41, 0x5d, 0x41, 0x6a, 0x41, 
-    0x78, 0x41, 0x85, 0x41, 0x92, 0x41, 0x9e, 0x41, 0xab, 0x41, 0xb7, 0x41, 0xc3, 0x41, 0xcf, 0x41, 
-    0xdb, 0x41, 0xe7, 0x41, 0xf2, 0x41, 0xfd, 0x41, 0x08, 0x42, 0x13, 0x42, 0x1e, 0x42, 0x28, 0x42, 
-    0x33, 0x42, 0x3d, 0x42, 0x47, 0x42, 0x51, 0x42, 0x5b, 0x42, 0x64, 0x42, 0x6e, 0x42, 0x77, 0x42, 
-    0x80, 0x42, 0x89, 0x42, 0x91, 0x42, 0x9a, 0x42, 0xa2, 0x42, 0xaa, 0x42, 0xb2, 0x42, 0xba, 0x42, 
-    0x33, 0x33, 0x30, 0x35, 0x2d, 0x30, 0x30, 0x31, 0x30, 0x36, 0x5f, 0x30, 0x30, 0x30, 0x30, 0x31, 
-    0x5f, 0x32, 0x38, 0x30, 0x39, 0x32, 0x30, 0x31, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1e, 0x00, 0x5a, 0x00, 0x5a, 0x00, 0xbc, 0x02, 
-    0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2a, 0x00, 0x00, 0x00, 
-    0x02, 0x00, 0x14, 0x00, 0xea, 0x01, 0x14, 0x00, 0xea, 0x01, 0x0a, 0x00, 0x05, 0x00, 0x00, 0x00, 
-    0x40, 0x00, 0x40, 0x00, 0x02, 0x00, 0x0f, 0x00, 0x5a, 0x00, 0x00, 0x00, 0x01, 0x00, 0xc8, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x0f, 0x00, 0xea, 0x01, 0xea, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x07, 0x12, 0x00, 0x80, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x82, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x08, 0x00, 0xb1, 0x2b, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 
-    0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, 0xff, 
-    0xcd, 0xff, 0x8b, 0x00, 0xe5, 0x00, 0xee, 0x00, 0x0b, 0x00, 0x84, 0xff, 0x3d, 0xff, 0xa7, 0xff]
+    user_config_values = [
+        0xa5, 0x00, 0x00, 0x01, 0x02, 0x00, 0x10, 0x00, 0x07, 0x00, 0x2c, 0x00, 0x00, 0x02, 0x01, 0x00,
+        0x3c, 0x00, 0x03, 0x00, 0x82, 0x00, 0x00, 0x00, 0xcc, 0x4e, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
+        0x01, 0x00, 0x01, 0x00, 0x07, 0x00, 0x58, 0x02, 0x34, 0x39, 0x34, 0x33, 0x00, 0x00, 0x01, 0x00,
+        0x26, 0x42, 0x28, 0x12, 0x12, 0x09, 0xc0, 0xa8, 0x00, 0x00, 0x30, 0x00, 0x11, 0x41, 0x14, 0x00,
+        0x01, 0x00, 0x14, 0x00, 0x04, 0x00, 0x00, 0x00, 0x20, 0x35, 0x5e, 0x01, 0x02, 0x3d, 0x1e, 0x3d,
+        0x39, 0x3d, 0x53, 0x3d, 0x6e, 0x3d, 0x88, 0x3d, 0xa2, 0x3d, 0xbb, 0x3d, 0xd4, 0x3d, 0xed, 0x3d,
+        0x06, 0x3e, 0x1e, 0x3e, 0x36, 0x3e, 0x4e, 0x3e, 0x65, 0x3e, 0x7d, 0x3e, 0x93, 0x3e, 0xaa, 0x3e,
+        0xc0, 0x3e, 0xd6, 0x3e, 0xec, 0x3e, 0x02, 0x3f, 0x17, 0x3f, 0x2c, 0x3f, 0x41, 0x3f, 0x55, 0x3f,
+        0x69, 0x3f, 0x7d, 0x3f, 0x91, 0x3f, 0xa4, 0x3f, 0xb8, 0x3f, 0xca, 0x3f, 0xdd, 0x3f, 0xf0, 0x3f,
+        0x02, 0x40, 0x14, 0x40, 0x26, 0x40, 0x37, 0x40, 0x49, 0x40, 0x5a, 0x40, 0x6b, 0x40, 0x7c, 0x40,
+        0x8c, 0x40, 0x9c, 0x40, 0xac, 0x40, 0xbc, 0x40, 0xcc, 0x40, 0xdb, 0x40, 0xea, 0x40, 0xf9, 0x40,
+        0x08, 0x41, 0x17, 0x41, 0x25, 0x41, 0x33, 0x41, 0x42, 0x41, 0x4f, 0x41, 0x5d, 0x41, 0x6a, 0x41,
+        0x78, 0x41, 0x85, 0x41, 0x92, 0x41, 0x9e, 0x41, 0xab, 0x41, 0xb7, 0x41, 0xc3, 0x41, 0xcf, 0x41,
+        0xdb, 0x41, 0xe7, 0x41, 0xf2, 0x41, 0xfd, 0x41, 0x08, 0x42, 0x13, 0x42, 0x1e, 0x42, 0x28, 0x42,
+        0x33, 0x42, 0x3d, 0x42, 0x47, 0x42, 0x51, 0x42, 0x5b, 0x42, 0x64, 0x42, 0x6e, 0x42, 0x77, 0x42,
+        0x80, 0x42, 0x89, 0x42, 0x91, 0x42, 0x9a, 0x42, 0xa2, 0x42, 0xaa, 0x42, 0xb2, 0x42, 0xba, 0x42,
+        0x33, 0x33, 0x30, 0x35, 0x2d, 0x30, 0x30, 0x31, 0x30, 0x36, 0x5f, 0x30, 0x30, 0x30, 0x30, 0x31,
+        0x5f, 0x32, 0x38, 0x30, 0x39, 0x32, 0x30, 0x31, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1e, 0x00, 0x5a, 0x00, 0x5a, 0x00, 0xbc, 0x02,
+        0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2a, 0x00, 0x00, 0x00,
+        0x02, 0x00, 0x14, 0x00, 0xea, 0x01, 0x14, 0x00, 0xea, 0x01, 0x0a, 0x00, 0x05, 0x00, 0x00, 0x00,
+        0x40, 0x00, 0x40, 0x00, 0x02, 0x00, 0x0f, 0x00, 0x5a, 0x00, 0x00, 0x00, 0x01, 0x00, 0xc8, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x0f, 0x00, 0xea, 0x01, 0xea, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x07, 0x12, 0x00, 0x80, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x82, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x08, 0x00, 0xb1, 0x2b, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
+        0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, 0xff,
+        0xcd, 0xff, 0x8b, 0x00, 0xe5, 0x00, 0xee, 0x00, 0x0b, 0x00, 0x84, 0xff, 0x3d, 0xff, 0xa7, 0xff]
     
     user_config = ''
     for value in user_config_values:
@@ -457,6 +319,195 @@ def user_config2():
 
 PORT_TIMESTAMP = 3558720820.531179
 DRIVER_TIMESTAMP = 3555423722.711772
+
+
+###############################################################################
+#                           DRIVER TEST MIXIN        		                  #
+#     Defines a set of constants and assert methods used for data particle    #
+#     verification 														      #
+#                                                                             #
+#  In python, mixin classes are classes designed such that they wouldn't be   #
+#  able to stand on their own, but are inherited by other classes generally   #
+#  using multiple inheritance.                                                #
+#                                                                             #
+# This class defines a configuration structure for testing and common assert  #
+# methods for validating data particles.									  #
+###############################################################################
+
+class DriverTestMixinSub(DriverTestMixin):
+    """
+    Mixin class used for storing data particle constance and common data assertion methods.
+    """
+
+    #Create some short names for the parameter test config
+    TYPE = ParameterTestConfigKey.TYPE
+    READONLY = ParameterTestConfigKey.READONLY
+    STARTUP = ParameterTestConfigKey.STARTUP
+    DA = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE = ParameterTestConfigKey.VALUE
+    REQUIRED = ParameterTestConfigKey.REQUIRED
+    DEFAULT = ParameterTestConfigKey.DEFAULT
+    STATES = ParameterTestConfigKey.STATES
+
+    _battery_voltage_parameter = {
+        NortekEngBatteryDataParticleKey.BATTERY_VOLTAGE: {TYPE: int, VALUE: 0, REQUIRED: True}
+    }
+
+    _clock_data_parameter = {
+        NortekEngClockDataParticleKey.DATE_TIME_ARRAY: {TYPE: list, VALUE: [1, 2, 3, 4, 5, 6], REQUIRED: True},
+        NortekEngClockDataParticleKey.DATE_TIME_STAMP: {TYPE: int, VALUE: 0, REQUIRED: False}
+    }
+
+    _user_config_parameters = {
+        NortekUserConfigDataParticleKey.TX_LENGTH: {TYPE: int, VALUE: 2, REQUIRED: True},
+        NortekUserConfigDataParticleKey.BLANK_DIST: {TYPE: int, VALUE: 16, REQUIRED: True},
+        NortekUserConfigDataParticleKey.RX_LENGTH: {TYPE: int, VALUE: 7, REQUIRED: True},
+        NortekUserConfigDataParticleKey.TIME_BETWEEN_PINGS: {TYPE: int, VALUE: 44, REQUIRED: True},
+        NortekUserConfigDataParticleKey.TIME_BETWEEN_BURSTS: {TYPE: int, VALUE: 512, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_PINGS: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.AVG_INTERVAL: {TYPE: int, VALUE: 61, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_BEAMS: {TYPE: int, VALUE: 3, REQUIRED: True},
+        NortekUserConfigDataParticleKey.PROFILE_TYPE: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.MODE_TYPE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.TCR: {TYPE: int, VALUE: 0, REQUIRED: False},
+        NortekUserConfigDataParticleKey.PCR: {TYPE: int, VALUE: 0, REQUIRED: False},
+        NortekUserConfigDataParticleKey.POWER_TCM1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.POWER_TCM2: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.SYNC_OUT_POSITION: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.SAMPLE_ON_SYNC: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.START_ON_SYNC: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.POWER_PCR1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.POWER_PCR2: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.COMPASS_UPDATE_RATE: {TYPE: int, VALUE: 2, REQUIRED: True},
+        NortekUserConfigDataParticleKey.COORDINATE_SYSTEM: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_CELLS: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.CELL_SIZE: {TYPE: int, VALUE: 7, REQUIRED: True},
+        NortekUserConfigDataParticleKey.MEASUREMENT_INTERVAL: {TYPE: int, VALUE: 3600, REQUIRED: True},
+        NortekUserConfigDataParticleKey.DEPLOYMENT_NAME: {TYPE: unicode, VALUE: '4943', REQUIRED: True},
+        NortekUserConfigDataParticleKey.WRAP_MODE: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.DEPLOY_START_TIME: {TYPE: list, VALUE: [26, 42, 28, 12, 12, 9], REQUIRED: True},
+        NortekUserConfigDataParticleKey.DIAG_INTERVAL: {TYPE: int, VALUE: 43200, REQUIRED: True},
+        NortekUserConfigDataParticleKey.MODE: {TYPE: int, VALUE: 0, REQUIRED: False},
+        NortekUserConfigDataParticleKey.USE_SPEC_SOUND_SPEED: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekUserConfigDataParticleKey.DIAG_MODE_ON: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekUserConfigDataParticleKey.ANALOG_OUTPUT_ON: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekUserConfigDataParticleKey.OUTPUT_FORMAT: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.SCALING: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.SERIAL_OUT_ON: {TYPE: bool, VALUE: True, REQUIRED: True},
+        NortekUserConfigDataParticleKey.STAGE_ON: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekUserConfigDataParticleKey.ANALOG_POWER_OUTPUT: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekUserConfigDataParticleKey.SOUND_SPEED_ADJUST: {TYPE: int, VALUE: 16657, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_DIAG_SAMPLES: {TYPE: int, VALUE: 20, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_BEAMS_PER_CELL: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_PINGS_DIAG: {TYPE: int, VALUE: 20, REQUIRED: True},
+        NortekUserConfigDataParticleKey.MODE_TEST: {TYPE: int, VALUE: 0, REQUIRED: False},
+        NortekUserConfigDataParticleKey.USE_DSP_FILTER: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekUserConfigDataParticleKey.FILTER_DATA_OUTPUT: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.SW_VER: {TYPE: int, VALUE: 13600, REQUIRED: True},
+        NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR: {TYPE: unicode, VALUE: '', REQUIRED: True},
+        NortekUserConfigDataParticleKey.FILE_COMMENTS: {TYPE: unicode, VALUE: '', REQUIRED: True},
+        NortekUserConfigDataParticleKey.WAVE_MODE: {TYPE: int, VALUE: 1, REQUIRED: False},
+        NortekUserConfigDataParticleKey.WAVE_DATA_RATE: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.WAVE_CELL_POS: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.DYNAMIC_POS_TYPE: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.PERCENT_WAVE_CELL_POS: {TYPE: int, VALUE: 32768, REQUIRED: True},
+        NortekUserConfigDataParticleKey.WAVE_TX_PULSE: {TYPE: int, VALUE: 16384, REQUIRED: True},
+        NortekUserConfigDataParticleKey.FIX_WAVE_BLANK_DIST: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.WAVE_CELL_SIZE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_DIAG_PER_WAVE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_SAMPLE_PER_BURST: {TYPE: int, VALUE: 10, REQUIRED: True},
+        NortekUserConfigDataParticleKey.ANALOG_SCALE_FACTOR: {TYPE: int, VALUE: 11185, REQUIRED: True},
+        NortekUserConfigDataParticleKey.CORRELATION_THRS: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND: {TYPE: int, VALUE: 2, REQUIRED: True},
+        NortekUserConfigDataParticleKey.FILTER_CONSTANTS: {TYPE: unicode, VALUE: '', REQUIRED: True},
+        NortekUserConfigDataParticleKey.CHECKSUM: {TYPE: int, VALUE: 0, REQUIRED: False}
+    }
+
+    _head_config_parameter = {
+        NortekHeadConfigDataParticleKey.PRESSURE_SENSOR: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.MAG_SENSOR: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.TILT_SENSOR: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.TILT_SENSOR_MOUNT: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.HEAD_FREQ: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.HEAD_TYPE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.HEAD_SERIAL: {TYPE: unicode, VALUE: '', REQUIRED: True},
+        NortekHeadConfigDataParticleKey.SYSTEM_DATA: {TYPE: unicode, VALUE: '', REQUIRED: True},
+        NortekHeadConfigDataParticleKey.NUM_BEAMS: {TYPE: int, VALUE: 3, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.CONFIG: {TYPE: int, VALUE: 0, REQUIRED: False},
+        NortekUserConfigDataParticleKey.CHECKSUM: {TYPE: int, VALUE: 0, REQUIRED: False}
+    }
+
+    _hardware_config_parameter = {
+        NortekHardwareConfigDataParticleKey.SERIAL_NUM: {TYPE: unicode, VALUE: 0, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.RECORDER_INSTALLED: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.COMPASS_INSTALLED: {TYPE: bool, VALUE: True, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.BOARD_FREQUENCY: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.PIC_VERSION: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.HW_REVISION: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.RECORDER_SIZE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.VELOCITY_RANGE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.FW_VERSION: {TYPE: unicode, VALUE: '', REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.STATUS: {TYPE: int, VALUE: 0, REQUIRED: False},
+        NortekHardwareConfigDataParticleKey.CONFIG: {TYPE: unicode, VALUE: 0, REQUIRED: False},
+        NortekHardwareConfigDataParticleKey.CHECKSUM: {TYPE: int, VALUE: 0, REQUIRED: False}
+    }
+
+    def assert_particle_battery(self, data_particle, verify_values=False):
+        """
+        Verify [flortd]_sample particle
+        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        @param verify_values:  bool, should we verify parameter values
+        """
+
+        self.assert_data_particle_keys(NortekEngBatteryDataParticleKey, self._battery_voltage_parameter)
+        self.assert_data_particle_header(data_particle, NortekDataParticleType.BATTERY)
+        self.assert_data_particle_parameters(data_particle, self._battery_voltage_parameter, verify_values)
+
+    def assert_particle_clock(self, data_particle, verify_values=False):
+        """
+        Verify [flortd]_sample particle
+        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        @param verify_values:  bool, should we verify parameter values
+        """
+
+        self.assert_data_particle_keys(NortekEngClockDataParticleKey, self._clock_data_parameter)
+        self.assert_data_particle_header(data_particle, NortekDataParticleType.CLOCK)
+        self.assert_data_particle_parameters(data_particle, self._clock_data_parameter, verify_values)
+
+    def assert_particle_hardware(self, data_particle, verify_values=False):
+        """
+        Verify [flortd]_sample particle
+        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        @param verify_values:  bool, should we verify parameter values
+        """
+
+        self.assert_data_particle_keys(NortekHardwareConfigDataParticleKey, self._hardware_config_parameter)
+        self.assert_data_particle_header(data_particle, NortekDataParticleType.HARDWARE_CONFIG)
+        self.assert_data_particle_parameters(data_particle, self._hardware_config_parameter, verify_values)
+
+    def assert_particle_head(self, data_particle, verify_values=False):
+        """
+        Verify [flortd]_sample particle
+        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        @param verify_values:  bool, should we verify parameter values
+        """
+
+        self.assert_data_particle_keys(NortekHeadConfigDataParticleKey, self._head_config_parameter)
+        self.assert_data_particle_header(data_particle, NortekDataParticleType.HEAD_CONFIG)
+        self.assert_data_particle_parameters(data_particle, self._head_config_parameter, verify_values)
+
+    def assert_particle_user(self, data_particle, verify_values=False):
+        """
+        Verify [flortd]_sample particle
+        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        @param verify_values:  bool, should we verify parameter values
+        """
+
+        self.assert_data_particle_keys(NortekUserConfigDataParticleKey, self._user_config_parameters)
+        self.assert_data_particle_header(data_particle, NortekDataParticleType.USER_CONFIG)
+        self.assert_data_particle_parameters(data_particle, self._user_config_parameters, verify_values)
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -512,13 +563,13 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         self.assertEqual(result, None)
 
     def test_date_conversion(self):
-	date = "\x09\x07\x02\x11\x10\x12"
-	datetime_from_words = NortekProtocolParameterDict.convert_words_to_datetime(date)
-	log.debug("Date time conversion from words: %s", datetime_from_words)
-	words_from_datetime = NortekProtocolParameterDict.convert_datetime_to_words(datetime_from_words)
-	log.debug("Date time conversion back to words: %s", words_from_datetime)
-	self.assertEqual(words_from_datetime, date)
-	
+        date = "\x09\x07\x02\x11\x10\x12"
+        datetime_from_words = NortekProtocolParameterDict.convert_words_to_datetime(date)
+        log.debug("Date time conversion from words: %s", datetime_from_words)
+        words_from_datetime = NortekProtocolParameterDict.convert_datetime_to_words(datetime_from_words)
+        log.debug("Date time conversion back to words: %s", words_from_datetime)
+        self.assertEqual(words_from_datetime, date)
+
     def test_core_chunker(self):
         """
         Tests the chunker
@@ -531,23 +582,14 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         self.assert_chunker_sample(chunker, user_config_sample())
 
         # test fragmented data structures
-        sample = hw_config_sample()
-        fragments = [sample[0:4], sample[4:10], sample[10:14], sample[14:]]
-        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
-
-        sample = head_config_sample()
-        fragments = [sample[0:4], sample[4:10], sample[10:14], sample[14:]]
-        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
-
-        sample = user_config_sample()
-        fragments = [sample[0:4], sample[4:10], sample[10:14], sample[14:]]
-        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
+        self.assert_chunker_fragmented_sample(chunker, hw_config_sample())
+        self.assert_chunker_fragmented_sample(chunker, head_config_sample())
+        self.assert_chunker_fragmented_sample(chunker, user_config_sample())
 
         # test combined data structures
-        self.assert_chunker_combined_sample(chunker,
-					    hw_config_sample(),
-					    head_config_sample(),
-					    user_config_sample())
+        self.assert_chunker_combined_sample(chunker, hw_config_sample())
+        self.assert_chunker_combined_sample(chunker, head_config_sample())
+        self.assert_chunker_combined_sample(chunker, user_config_sample())
 
         # test data structures with noise
         self.assert_chunker_sample_with_noise(chunker, hw_config_sample())
@@ -592,12 +634,9 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: hw_config_particle
-            }
-        
-        self.compare_parsed_data_particle(NortekHardwareConfigDataParticle,
-                                          hw_config_sample(),
-                                          expected_particle)
+            DataParticleKey.VALUES: hw_config_particle}
+
+        self.compare_parsed_data_particle(NortekHardwareConfigDataParticle, hw_config_sample(), expected_particle)
 
     def test_head_config_sample_format(self):
         """
@@ -617,12 +656,9 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: head_config_particle
-            }
-        
-        self.compare_parsed_data_particle(NortekHeadConfigDataParticle,
-                                          head_config_sample(),
-                                          expected_particle)
+            DataParticleKey.VALUES: head_config_particle}
+
+        self.compare_parsed_data_particle(NortekHeadConfigDataParticle, head_config_sample(), expected_particle)
         
     def test_user_config_sample_format(self):
         """
@@ -642,9 +678,8 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: user_config_particle
-            }
-        
+            DataParticleKey.VALUES: user_config_particle}
+
         self.compare_parsed_data_particle(NortekUserConfigDataParticle,
                                           user_config_sample(),
                                           expected_particle)
@@ -667,9 +702,8 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: eng_clock_particle
-            }
-        
+            DataParticleKey.VALUES: eng_clock_particle}
+
         self.compare_parsed_data_particle(NortekEngClockDataParticle,
                                           eng_clock_sample(),
                                           expected_particle)
@@ -692,9 +726,8 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: eng_battery_particle
-            }
-        
+            DataParticleKey.VALUES: eng_battery_particle}
+
         self.compare_parsed_data_particle(NortekEngBatteryDataParticle,
                                           eng_battery_sample(),
                                           expected_particle)
@@ -717,9 +750,8 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
             DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
             DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: eng_id_particle
-            }
-        
+            DataParticleKey.VALUES: eng_id_particle}
+
         self.compare_parsed_data_particle(NortekEngIdDataParticle,
                                           eng_id_sample(),
                                           expected_particle)
@@ -773,8 +805,123 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('INT', group='mi')
-class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
-    
+class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
+
+
+    def test_commands(self):
+        """
+        Run instrument commands from command mode.
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+
+        #test commands, now that we are in command mode
+        #$mnu
+        self.assert_driver_command(ProtocolEvent.GET_MENU, regex=MNU_REGEX)
+        #$met
+        self.assert_driver_command(ProtocolEvent.GET_METADATA, regex=MET_REGEX)
+
+        #$run - testing putting instrument into autosample
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        #!!!!! - testing put instrument into command mode
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, regex=MNU_REGEX)
+        #$mvs - test running wiper
+        self.assert_driver_command(ProtocolEvent.RUN_WIPER, state=ProtocolState.COMMAND, regex=RUN_REGEX)
+        #test syncing clock
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC, state=ProtocolState.COMMAND)
+
+        self.assert_driver_command(ProtocolEvent.GET, state=ProtocolState.COMMAND)
+        self.assert_driver_command(ProtocolEvent.SET, state=ProtocolState.COMMAND)
+        self.assert_driver_command(ProtocolEvent.DISCOVER, state=ProtocolState.COMMAND)
+
+        # self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND)
+        # self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, state=ProtocolState.COMMAND)
+
+        self.assert_driver_command(ProtocolEvent.START_DIRECT, state=ProtocolState.COMMAND)
+        self.assert_driver_command(ProtocolEvent.STOP_DIRECT, state=ProtocolState.COMMAND)
+        self.assert_driver_command(ProtocolEvent.EXECUTE_DIRECT, state=ProtocolState.COMMAND)
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC, state=ProtocolState.COMMAND)
+
+
+        ####
+        # Test a bad command
+        ####
+        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
+
+
+    def test_command_acquire_status(self):
+        """
+        Test acquire status command and events.
+        """
+
+        """
+        1. initialize the instrument to COMMAND state
+        2. command the instrument to ACQUIRESTATUS
+        3. verify the particle coming in
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND) # at some point, current state probably shouldn't matter
+        # self.assert_initialize_driver()
+
+        # test acquire status
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=1)
+        #BV
+        self.assert_async_particle_generation(NortekDataParticleType.BATTERY, self.assert_particle_battery)
+        #RC
+        self.assert_async_particle_generation(NortekDataParticleType.CLOCK, self.assert_particle_clock)
+        #GP
+        self.assert_async_particle_generation(NortekDataParticleType.HARDWARE_CONFIG, self.assert_particle_hardware)
+        #GH
+        self.assert_async_particle_generation(NortekDataParticleType.HEAD_CONFIG, self.assert_particle_head)
+        #GC
+        self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
+        #
+        # # II/I are the same command for
+        #
+        # self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_user, timeout=10)
+
+        #A?
+
+        #M?
+
+    def test_parameters(self):
+        """
+        Verify that we can set the parameters
+
+        1. Cannot set read only parameters
+        2. Can set read/write parameters
+        3. Can set read/write parameters w/direct access only
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+
+        #test read/write parameter
+        self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 14)
+
+        #test read/write parameter w/direct access only
+        # self.assert_set(Parameter.USER_NUMBER_BEAMS, 2)
+        #
+        # #test setting intervals for scheduled events
+        # # self.assert_set(Parameter.Run_wiper_interval, '05:00:23')
+        # # self.assert_set(Parameter.Run_clock_sync_interval, '12:12:12')
+        #
+        # #test setting date/time
+        # self.assert_set(Parameter.CLOCK_DEPLOY, get_timestamp_delayed("%m/%d/%y"))
+        #
+        # #test read only parameter - should not be set, value should not change
+        # self.assert_set(Parameter.SW_VERSION, 13700, no_get=True)
+        # reply = self.driver_client.cmd_dvr('get_resource', [Parameter.SW_VERSION])
+        # return_value = reply.get(Parameter.SW_VERSION)
+        # self.assertNotEqual(return_value, 13700)
+
+
+    def test_direct_access(self):
+        """
+        Verify we can enter the direct access state
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
+        self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
+
+
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
@@ -984,70 +1131,71 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 					      ProtocolEvent.GET_HEAD_CONFIGURATION)
         
         log.debug("read HEAD config returned: %s", response)
-	#for (k, v) in response[1].items():
-	#    log.debug("Comparing item with key %s and value %s", k, v)
-	#    self.assert_(k in head_config)
-	#    self.assert_(v == head_config[k])
+        #for (k, v) in response[1].items():
+        #    log.debug("Comparing item with key %s and value %s", k, v)
+        #    self.assert_(k in head_config)
+        #    self.assert_(v == head_config[k])
         self.assertEqual(head_config, response[1])
 
     def test_instrument_read_user_config(self):
-	"""
-	Read the user config. Doesnt matter so much whats in there, but the
-	length is probably the important bit.
-	"""
-	# This may need adjustment if the real device gets a different default config
-	user_config = {NortekUserConfigDataParticleKey.DIAG_INTERVAL: 43200,
-		       NortekUserConfigDataParticleKey.PERCENT_WAVE_CELL_POS: 32768,
-		       NortekUserConfigDataParticleKey.DEPLOYMENT_NAME: '4943',
-		       NortekUserConfigDataParticleKey.TCR: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
-		       NortekUserConfigDataParticleKey.NUM_BEAMS_PER_CELL: 1,
-		       NortekUserConfigDataParticleKey.FILE_COMMENTS: '3305-00106_00001_28092012',
-		       NortekUserConfigDataParticleKey.CORRELATION_THRS: 0,
-		       NortekUserConfigDataParticleKey.NUM_SAMPLE_PER_BURST: 10,
-		       NortekUserConfigDataParticleKey.MODE_TEST: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-		       NortekUserConfigDataParticleKey.NUM_DIAG_SAMPLES: 20,
-		       NortekUserConfigDataParticleKey.CELL_SIZE: 7,
-		       NortekUserConfigDataParticleKey.NUM_BEAMS: 3,
-		       NortekUserConfigDataParticleKey.WRAP_MODE: 1,
-		       NortekUserConfigDataParticleKey.PCR: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-		       NortekUserConfigDataParticleKey.BLANK_DIST: 16,
-		       NortekUserConfigDataParticleKey.WAVE_TX_PULSE: 16384,
-		       NortekUserConfigDataParticleKey.TIME_BETWEEN_PINGS: 44,
-		       NortekUserConfigDataParticleKey.NUM_DIAG_PER_WAVE: 0,
-		       NortekUserConfigDataParticleKey.FIX_WAVE_BLANK_DIST: 0,
-		       NortekUserConfigDataParticleKey.SOUND_SPEED_ADJUST: 16657,
-		       NortekUserConfigDataParticleKey.FILTER_CONSTANTS: 'Cv/N/4sA5QDuAAsAhP89/w==',
-		       NortekUserConfigDataParticleKey.SW_VER: 13600,
-		       NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR: 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQKxAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',
-		       NortekUserConfigDataParticleKey.DEPLOY_START_TIME: [26, 42, 28, 12, 12, 9],
-		       NortekUserConfigDataParticleKey.TX_LENGTH: 2,
-		       NortekUserConfigDataParticleKey.MEASUREMENT_INTERVAL: 3600,
-		       NortekUserConfigDataParticleKey.WAVE_MODE: [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1],
-		       NortekUserConfigDataParticleKey.AVG_INTERVAL: 61,
-		       NortekUserConfigDataParticleKey.NUM_CELLS: 1,
-		       NortekUserConfigDataParticleKey.COORDINATE_SYSTEM: 1,
-		       NortekUserConfigDataParticleKey.CHECKSUM: 64970,
-		       NortekUserConfigDataParticleKey.NUM_PINGS: 1,
-		       NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR: 0,
-		       NortekUserConfigDataParticleKey.MODE: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-		       NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND: 2,
-		       NortekUserConfigDataParticleKey.RX_LENGTH: 7,
-		       NortekUserConfigDataParticleKey.WAVE_CELL_SIZE: 0,
-		       NortekUserConfigDataParticleKey.COMPASS_UPDATE_RATE: 2,
-		       NortekUserConfigDataParticleKey.TIME_BETWEEN_BURSTS: 512,
-		       NortekUserConfigDataParticleKey.ANALOG_SCALE_FACTOR: 11185,
-		       NortekUserConfigDataParticleKey.NUM_PINGS_DIAG: 20}
+        """
+        Read the user config. Doesnt matter so much whats in there, but the
+        length is probably the important bit.
+        """
+        # This may need adjustment if the real device gets a different default config
+        user_config = {NortekUserConfigDataParticleKey.DIAG_INTERVAL: 43200,
+                       NortekUserConfigDataParticleKey.PERCENT_WAVE_CELL_POS: 32768,
+                       NortekUserConfigDataParticleKey.DEPLOYMENT_NAME: '4943',
+                       NortekUserConfigDataParticleKey.TCR: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
+                       NortekUserConfigDataParticleKey.NUM_BEAMS_PER_CELL: 1,
+                       NortekUserConfigDataParticleKey.FILE_COMMENTS: '3305-00106_00001_28092012',
+                       NortekUserConfigDataParticleKey.CORRELATION_THRS: 0,
+                       NortekUserConfigDataParticleKey.NUM_SAMPLE_PER_BURST: 10,
+                       NortekUserConfigDataParticleKey.MODE_TEST: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+                       NortekUserConfigDataParticleKey.NUM_DIAG_SAMPLES: 20,
+                       NortekUserConfigDataParticleKey.CELL_SIZE: 7,
+                       NortekUserConfigDataParticleKey.NUM_BEAMS: 3,
+                       NortekUserConfigDataParticleKey.WRAP_MODE: 1,
+                       NortekUserConfigDataParticleKey.PCR: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                       NortekUserConfigDataParticleKey.BLANK_DIST: 16,
+                       NortekUserConfigDataParticleKey.WAVE_TX_PULSE: 16384,
+                       NortekUserConfigDataParticleKey.TIME_BETWEEN_PINGS: 44,
+                       NortekUserConfigDataParticleKey.NUM_DIAG_PER_WAVE: 0,
+                       NortekUserConfigDataParticleKey.FIX_WAVE_BLANK_DIST: 0,
+                       NortekUserConfigDataParticleKey.SOUND_SPEED_ADJUST: 16657,
+                       NortekUserConfigDataParticleKey.FILTER_CONSTANTS: 'Cv/N/4sA5QDuAAsAhP89/w==',
+                       NortekUserConfigDataParticleKey.SW_VER: 13600,
+                       NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR: 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQKxAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',
+                       NortekUserConfigDataParticleKey.DEPLOY_START_TIME: [26, 42, 28, 12, 12, 9],
+                       NortekUserConfigDataParticleKey.TX_LENGTH: 2,
+                       NortekUserConfigDataParticleKey.MEASUREMENT_INTERVAL: 3600,
+                       NortekUserConfigDataParticleKey.WAVE_MODE: [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+                       NortekUserConfigDataParticleKey.AVG_INTERVAL: 61,
+                       NortekUserConfigDataParticleKey.NUM_CELLS: 1,
+                       NortekUserConfigDataParticleKey.COORDINATE_SYSTEM: 1,
+                       NortekUserConfigDataParticleKey.CHECKSUM: 64970,
+                       NortekUserConfigDataParticleKey.NUM_PINGS: 1,
+                       NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR: 0,
+                       NortekUserConfigDataParticleKey.MODE: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+                       NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND: 2,
+                       NortekUserConfigDataParticleKey.RX_LENGTH: 7,
+                       NortekUserConfigDataParticleKey.WAVE_CELL_SIZE: 0,
+                       NortekUserConfigDataParticleKey.COMPASS_UPDATE_RATE: 2,
+                       NortekUserConfigDataParticleKey.TIME_BETWEEN_BURSTS: 512,
+                       NortekUserConfigDataParticleKey.ANALOG_SCALE_FACTOR: 11185,
+                       NortekUserConfigDataParticleKey.NUM_PINGS_DIAG: 20}
+
         self.assert_initialize_driver()
         self.driver_client.cmd_dvr('apply_startup_params')
-        
+
         # command the instrument to read the head config.
         response = self.driver_client.cmd_dvr('execute_resource',
-					      ProtocolEvent.GET_USER_CONFIGURATION)
-        
+                                          ProtocolEvent.GET_USER_CONFIGURATION)
+
         log.debug("read USER config returned: %s, length: %s",
-		  response, len(response))
+              response, len(response))
         self.assertEqual(user_config, response[1])
-	
+
 
     # RECORDER
     #def test_instrument_start_measurement_immediate(self):
@@ -1163,7 +1311,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 
         # stop autosample and return to command mode
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-                
+
         self.check_state(ProtocolState.COMMAND)
                         
     def test_scheduled_clock_sync_autosample(self):
@@ -1186,10 +1334,10 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 
         end_wall_time = time.gmtime()
         result = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
-	end_time = time.strptime(result[1],
+        end_time = time.strptime(result[1],
                                  "%d/%m/%Y %H:%M:%S")
         
-	log.debug("Start time: %s, end time: %s", start_wall_time, end_wall_time)
+        log.debug("Start time: %s, end time: %s", start_wall_time, end_wall_time)
         self.assert_(end_wall_time > start_wall_time)
         # this could be better...tricky to measure two varying variables
         self.assertNotEqual(end_time, end_wall_time) # gonna be off by at least a little
@@ -1201,7 +1349,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
         commands, and parameters.
         """
         self.assert_initialize_driver()
-	self.assert_metadata_generation(instrument_params=Parameter.list(),
+        self.assert_metadata_generation(instrument_params=Parameter.list(),
                                         commands=Capability.list())
         
         # check one to see that the file is loading data from somewhere. This is
@@ -1217,7 +1365,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
         cmds = result[ConfigMetadataKey.COMMANDS]
         self.assertEqual(cmds[Capability.SET_CONFIGURATION][CommandDictKey.DISPLAY_NAME],
                          "Set configuration")
-        
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -1226,7 +1373,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 ###############################################################################
 @attr('QUAL', group='mi')
 class NortekQualTest(InstrumentDriverQualificationTestCase):
-    
+
     def assert_execute_resource(self, command):
         """
         @brief send an execute_resource command and ensure no exceptions are raised
@@ -1423,30 +1570,30 @@ class NortekQualTest(InstrumentDriverQualificationTestCase):
         
                 else:
                     self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-	    return True
-	elif sample[DataParticleKey.STREAM_NAME] == NortekDataParticleType.CLOCK:
+            return True
+        elif sample[DataParticleKey.STREAM_NAME] == NortekDataParticleType.CLOCK:
             log.debug('assertSampleDataParticle: NortekEngClockDataParticleKey detected')
             self.assertEqual(sorted(value_ids),
 			     sorted(NortekEngClockDataParticleKey.list()))
             for value in values:
                 self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-	    return True
+            return True
         elif sample[DataParticleKey.STREAM_NAME] == NortekDataParticleType.BATTERY:
             log.debug('assertSampleDataParticle: NortekEngBatteryDataParticleKey detected')
             self.assertEqual(sorted(value_ids),
 			     sorted(NortekEngBatteryDataParticleKey.list()))
             for value in values:
                 self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-	    return True
+            return True
         elif sample[DataParticleKey.STREAM_NAME] == NortekDataParticleType.ID_STRING:
             log.debug('assertSampleDataParticle: NortekEngIdDataParticleKey detected')
             self.assertEqual(sorted(value_ids),
 			     sorted(NortekEngIdDataParticleKey.list()))
             for value in values:
                 self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
-	    return True
-	else:
-	    return False
+            return True
+        else:
+            return False
 
     @unittest.skip("skip for automatic tests")
     def test_direct_access_telnet_mode_manually(self):
