@@ -16,20 +16,20 @@ log = get_logger()
 
 from mi.dataset.dataset_driver import SimpleDataSetDriver
 from mi.dataset.parser.glider import GliderParser
-from mi.dataset.parser.glider import GgldrDostaDelayedDataParticle
+from mi.dataset.parser.glider import DostaTelemeteredDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
 
 class DOSTADataSetDriver(SimpleDataSetDriver):
     @classmethod
     def stream_config(cls):
-        return [GgldrDostaDelayedDataParticle.type()]
+        return [DostaTelemeteredDataParticle.type()]
 
     def _build_parser(self, parser_state, infile):
         config = self._parser_config
         config.update({
             'particle_module': 'mi.dataset.parser.glider',
-            'particle_class': 'GgldrDostaDelayedDataParticle'
+            'particle_class': 'DostaTelemeteredDataParticle'
         })
         log.debug("MYCONFIG: %s", config)
         self._parser = GliderParser(
