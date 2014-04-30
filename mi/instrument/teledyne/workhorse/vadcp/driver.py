@@ -46,8 +46,18 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.data_particle import RawDataParticle
 from mi.instrument.teledyne.particles import *
 
-from mi.instrument.teledyne.driver import  TeledyneProtocol
+from mi.core.instrument.instrument_protocol import InitializationType
 
+from mi.instrument.teledyne.driver import  TeledyneProtocol
+from mi.core.exceptions import InstrumentParameterExpirationException
+
+from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.instrument.teledyne.driver import TeledyneParameter
+
+from mi.core.instrument.instrument_driver import DriverParameter
+
+import re
+import base64
 
 
 class SlaveProtocol(BaseEnum):
@@ -116,14 +126,9 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
         #multiple portAgentClient
         self._connections = {}
 
-        # Line buffer for input from device.
-        self._linebuf2 = ''
 
-        # Short buffer to look for prompts from device in command-response
-        # mode.
-        self._promptbuf2 = ''
 
-        self._build_param_dict2()
+
 
     def _build_protocol(self):
         """
@@ -226,6 +231,13 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
                                       self._lost_connection_callback)
             self._protocol._connection_4Beam = self.connections['4Beam']
 
+        except InstrumentConnectionException as e:
+            log.error("4 beam Connection Exception: %s", e)
+            log.error("Instrument Driver remaining in disconnected state.")
+            # Re-raise the exception
+            raise
+
+        try:
             self._connections['5thBeam'].init_comms(self._protocol.got_data2, # Sung
                                       self._protocol.got_raw2,  # Sung
                                       self._got_exception,
@@ -233,46 +245,14 @@ class InstrumentDriver(WorkhorseInstrumentDriver):
             self._protocol._connection_5thBeam = self.connections['5thBeam']
 
         except InstrumentConnectionException as e:
-            log.error("Connection Exception: %s", e)
+            log.error("5th beam Connection Exception: %s", e)
             log.error("Instrument Driver remaining in disconnected state.")
+            # we don't need to roll back the connection on 4 beam
+            # Just don't change the state to 'CONNECTED'
             # Re-raise the exception
             raise
         log.debug('_handler_disconnected_connect exit')
         return next_state, result
-
-    def _handler_disconnected_connect(self, *args, **kwargs):
-        """
-        Establish communications with the device via port agent / logger and
-        construct and intialize a protocol FSM for device interaction.
-        @retval (next_state, result) tuple, (DriverConnectionState.CONNECTED,
-        None) if successful.
-        @raises InstrumentConnectionException if the attempt to connect failed.
-        """
-        next_state = None
-        result = None
-        self._build_protocol()
-        try:
-            self._connections['4Beam'].init_comms(self._protocol.got_data, # Sung
-                                      self._protocol.got_raw,  # Sung
-                                      self._got_exception,
-                                      self._lost_connection_callback)
-            self._protocol._connection_4Beam = self.connections['4Beam']
-
-            self._connections['5thBeam'].init_comms(self._protocol.got_data2, # Sung
-                                      self._protocol.got_raw2,  # Sung
-                                      self._got_exception,
-                                      self._lost_connection_callback)
-            self._protocol._connection_5thBeam = self.connections['5thBeam']
-
-            next_state = DriverConnectionState.CONNECTED
-        except InstrumentConnectionException as e:
-            log.error("Connection Exception: %s", e)
-            log.error("Instrument Driver remaining in disconnected state.")
-            # Re-raise the exception
-            raise
-
-        return (next_state, result)
-
 
     ########################################################################
     # Connected handlers.
@@ -377,13 +357,21 @@ class Protocol(WorkhorseProtocol):
         # Construct protocol superclass.
         TeledyneProtocol.__init__(self, prompts, newline, driver_event)
 
-        _connection_4beam = None
-        _connection_5thBean = None
+        self._connection_4beam = None
+        self._connection_5thBean = None
+
+        # Line buffer for input from device.
+        self._linebuf2 = ''
+
+        # Short buffer to look for prompts from device in command-response
+        # mode.
+        self._promptbuf2 = ''
 
         # The parameter, comamnd, and driver dictionaries.
-        _param_dict2 = ProtocolParameterDict()
-        _cmd_dict2 = ProtocolCommandDict()
-        _driver_dict2 = DriverDict()
+        self._param_dict2 = ProtocolParameterDict()
+        self._cmd_dict2 = ProtocolCommandDict()
+        self._driver_dict2 = DriverDict()
+        self._build_param_dict2()
 
 
 
@@ -501,8 +489,8 @@ class Protocol(WorkhorseProtocol):
         # Send command.
         log.debug('_do_cmd_direct: <%s>' % cmd)
         #self._connection.send(cmd)
-        self._connections['4Beam'].send(cmd)
-        self._connections['5thBeam'].send(cmd)
+        self._connection_4beam.send(cmd)
+        self._connection_5thBean.send(cmd)
 
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
@@ -543,10 +531,10 @@ class Protocol(WorkhorseProtocol):
         log.debug('_do_cmd_resp: %s' % repr(cmd_line))
 
         if (write_delay == 0):
-            self._connections['4Beam'].send(cmd_line)
+            self._connection_4beam.send(cmd_line)
         else:
             for char in cmd_line:
-                self._connections['4Beam'].send(char)
+                self._connection_4beam.send(char)
                 time.sleep(write_delay)
 
         # Wait for the prompt, prepare result and return, timeout exception
@@ -599,10 +587,10 @@ class Protocol(WorkhorseProtocol):
         log.debug('_do_cmd_resp2: %s' % repr(cmd_line))
 
         if (write_delay == 0):
-            self._connections['5thBeam'].send(cmd_line)
+            self._connection_5thBean.send(cmd_line)
         else:
             for char in cmd_line:
-                self._connections['5thBeam'].send(char)
+                self._connection_5thBean.send(char)
                 time.sleep(write_delay)
 
         # Wait for the prompt, prepare result and return, timeout exception
@@ -954,14 +942,7 @@ class Protocol(WorkhorseProtocol):
     # Wakeup helpers.
     ########################################################################
 
-    def _send_wakeup(self):
-        """
-        Send a wakeup to the device. Overridden by device specific
-        subclasses.
-        """
-        pass
-
-    def _wakeup(self, timeout, delay=1):
+    def _wakeup2(self, timeout, delay=1):
         """
         Clear buffers and send a wakeup command to the instrument
         @param timeout The timeout to wake the device.
@@ -978,7 +959,7 @@ class Protocol(WorkhorseProtocol):
         while True:
             # Send a line return and wait a sec.
             log.trace('Sending wakeup. timeout=%s', timeout)
-            self._send_wakeup()
+            self._send_wakeup2()
             time.sleep(delay)
 
             log.debug("Prompts: %s", self._get_prompts())
@@ -996,7 +977,7 @@ class Protocol(WorkhorseProtocol):
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException("in _wakeup()")
 
-    def _wakeup_until(self, timeout, desired_prompt, delay=1, no_tries=5):
+    def _wakeup_until2(self, timeout, desired_prompt, delay=1, no_tries=5):
         """
         Continue waking device until a specific prompt appears or a number
         of tries has occurred. Desired prompt must be in the instrument's
@@ -1012,7 +993,7 @@ class Protocol(WorkhorseProtocol):
 
         count = 0
         while True:
-            prompt = self._wakeup(timeout, delay)
+            prompt = self._wakeup2(timeout, delay)
             if prompt == desired_prompt:
                 break
             else:
@@ -1020,6 +1001,128 @@ class Protocol(WorkhorseProtocol):
                 count += 1
                 if count >= no_tries:
                     raise InstrumentProtocolException('Incorrect prompt.')
+
+
+    ####
+
+    def _send_break(self, duration=500):
+        """
+        Send a BREAK to attempt to wake the device.
+        """
+        log.debug("IN _send_break, clearing buffer.")
+        self._promptbuf = ''
+        self._linebuf = ''
+        self._send_break_cmd_4beam(duration)
+        break_confirmation = []
+        log.trace("self._linebuf = " + self._linebuf)
+
+        break_confirmation.append("[BREAK Wakeup A]" + NEWLINE + \
+        "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
+        "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
+        "All Rights Reserved.")
+
+        break_confirmation.append("[BREAK Wakeup A]")
+        found = False
+        timeout = 30
+        count = 0
+        while (not found):
+            count += 1
+            for break_message in break_confirmation:
+                if break_message in self._linebuf:
+                    log.error("GOT A BREAK MATCH ==> " + str(break_message))
+                    found = True
+            if count > (timeout * 10):
+                if True != found:
+                    raise InstrumentTimeoutException("NO BREAK RESPONSE.")
+            time.sleep(0.1)
+        self._chunker._clean_buffer(len(self._chunker.raw_chunk_list))
+        self._promptbuf = ''
+        self._linebuf = ''
+        log.trace("leaving send_break")
+        return True
+
+    def _send_break2(self, duration=500):
+        """
+        Send a BREAK to attempt to wake the device.
+        """
+        log.debug("IN _send_break, clearing buffer.")
+        self._promptbuf2 = ''
+        self._linebuf2 = ''
+        self._send_break_cmd_5thBeam(duration)
+        break_confirmation = []
+        log.trace("self._linebuf = " + self._linebuf)
+
+        break_confirmation.append("[BREAK Wakeup A]" + NEWLINE + \
+        "WorkHorse Broadband ADCP Version 50.40" + NEWLINE + \
+        "Teledyne RD Instruments (c) 1996-2010" + NEWLINE + \
+        "All Rights Reserved.")
+
+        break_confirmation.append("[BREAK Wakeup A]")
+        found = False
+        timeout = 30
+        count = 0
+        while (not found):
+            count += 1
+            for break_message in break_confirmation:
+                if break_message in self._linebuf2:
+                    log.error("GOT A BREAK MATCH ==> " + str(break_message))
+                    found = True
+            if count > (timeout * 10):
+                if True != found:
+                    raise InstrumentTimeoutException("NO BREAK RESPONSE.")
+            time.sleep(0.1)
+        self._chunker._clean_buffer(len(self._chunker.raw_chunk_list))
+        self._promptbuf2 = ''
+        self._linebuf2 = ''
+        log.trace("leaving send_break")
+        return True
+
+    def _send_wakeup(self):
+        """
+        Send a newline to attempt to wake the device.
+        """
+        log.trace("IN _send_wakeup")
+
+        self._connection_4beam.send(NEWLINE)
+
+    def _send_wakeup2(self):
+        """
+        Send a newline to attempt to wake the device.
+        """
+        log.trace("IN _send_wakeup")
+
+        self._connection_5thBean.send(NEWLINE)
+
+    def _wakeup2(self, timeout=3, delay=1):
+        """
+        Clear buffers and send a wakeup command to the instrument
+        @param timeout The timeout to wake the device.
+        @param delay The time to wait between consecutive wakeups.
+        @throw InstrumentTimeoutException if the device could not be woken.
+        """
+
+        self.last_wakeup = time.time()
+        # Clear the prompt buffer.
+        self._promptbuf = ''
+
+        # Grab time for timeout.
+        starttime = time.time()
+        endtime = starttime + float(timeout)
+
+        # Send a line return and wait a sec.
+        log.debug('Sending wakeup. timeout=%s' % timeout)
+        self._send_wakeup2()
+
+        while time.time() < endtime:
+            time.sleep(0.05)
+            for item in self._get_prompts():
+                index = self._promptbuf.find(item)
+                if index >= 0:
+                    log.debug('wakeup got prompt: %s' % repr(item))
+                    return item
+        return None
+
+    ####
 
     # This will over-write _send_break_cmd in teledyne/driver.py
     def _send_break_cmd_4beam(self, delay):
@@ -1081,49 +1184,48 @@ class Protocol(WorkhorseProtocol):
         @return: true if the command is successful
         @throws: InstrumentProtocolException if command fails
         """
-        prompt = self._wakeup(timeout=3, delay=delay)
+        prompt = self._wakeup2(timeout=3, delay=delay)
 
         # lets clear out any past data so it doesnt confuse the command
         self._linebuf = ''
         self._promptbuf = ''
 
+        self._linebuf2 = ''
+        self._promptbuf2 = ''
+
+
         prompt = self._wakeup(timeout=3, delay=delay)
+        prompt = self._wakeup2(timeout=3, delay=delay)
         str_val = get_timestamp_delayed(time_format)
         reply = self._do_cmd_direct(date_time_param + str_val)
         time.sleep(1)
         reply = self._get_response(TIMEOUT)
         reply = self._get_response2(TIMEOUT)
 
-    def _instrument_config_dirty(self):
+
+
+    def _instrument_config_dirty2(self):
         """
         Read the startup config and compare that to what the instrument
         is configured too.  If they differ then return True
         @return: True if the startup config doesn't match the instrument
         @throws: InstrumentParameterException
         """
-        log.trace("in _instrument_config_dirty")
+        log.trace("in _instrument_config_dirty2")
         # Refresh the param dict cache
         #self._update_params()
 
-        startup_params = self._param_dict.get_startup_list()
+        #startup_params = self._param_dict.get_startup_list()
         startup_params2 = self._param_dict2.get_startup_list()
-        log.trace("Startup Parameters 4 beam: %s" % startup_params)
+        #log.trace("Startup Parameters 4 beam: %s" % startup_params)
         log.trace("Startup Parameters 5th beam: %s" % startup_params2)
-
-        for param in startup_params:
-            if not self._has_parameter(param):
-                raise InstrumentParameterException("in _instrument_config_dirty")
-
-            if (self._param_dict.get(param) != self._param_dict.get_config_value(param)):
-                log.trace("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_config_value(param)))
-                return True
 
         for param in startup_params2:
             if not self._has_parameter(param):
-                raise InstrumentParameterException("in _instrument_config_dirty")
+                raise InstrumentParameterException("in _instrument_config_dirty2")
 
             if (self._param_dict2.get(param) != self._param_dict2.get_config_value(param)):
-                log.trace("DIRTY: %s %s != %s" % (param, self._param_dict.get(param), self._param_dict.get_config_value(param)))
+                log.trace("DIRTY: %s %s != %s" % (param, self._param_dict2.get(param), self._param_dict2.get_config_value(param)))
                 return True
 
         log.trace("Clean instrument config")
@@ -1135,12 +1237,12 @@ class Protocol(WorkhorseProtocol):
         """
         log.debug("in _update_params")
         error = None
-        logging = self._is_logging()
+        logging = self._is_logging2()
 
         try:
             if logging:
                 # Switch to command mode,
-                self._stop_logging()
+                self._stop_logging2()
 
 
             ###
@@ -1148,13 +1250,13 @@ class Protocol(WorkhorseProtocol):
             old_config = self._param_dict2.get_config()
             kwargs['expected_prompt'] = TeledynePrompt.COMMAND
 
-            cmds = self._get_params()
+            cmds = self._get_params2()
             results = ""
             for attr in sorted(cmds):
                 if attr not in ['dict', 'has', 'list', 'ALL']:
                     if not attr.startswith("_"):
                         key = self._getattr_key(attr)
-                        result = self._do_cmd_resp(TeledyneInstrumentCmds.GET, key, **kwargs)
+                        result = self._do_cmd_resp2(TeledyneInstrumentCmds.GET, key, **kwargs)
                         results += result + NEWLINE
 
             new_config = self._param_dict2.get_config()
@@ -1204,7 +1306,7 @@ class Protocol(WorkhorseProtocol):
         except IndexError:
             pass
         log.trace("_set_params 2 calling _verify_not_readonly ARGS = " + repr(args))
-        self._verify_not_readonly(*args, **kwargs)
+        self._verify_not_readonly2(*args, **kwargs)
         for (key, val) in params.iteritems():
             result = self._do_cmd_resp2(TeledyneInstrumentCmds.SET, key, val, **kwargs)
         log.trace("_set_params 2 calling _update_params")
@@ -1227,6 +1329,362 @@ class Protocol(WorkhorseProtocol):
 
         return result
 
+    def _init_params2(self):
+        """
+        Initialize parameters based on initialization type.  If we actually
+        do some initialization (either startup or DA) after we are done
+        set the init type to None so we don't initialize again.
+        @raises InstrumentProtocolException if the init_type isn't set or it
+                                            is unknown
+        """
+        if(self._init_type == InitializationType.STARTUP):
+            log.debug("_init_params: Apply Startup Config")
+            self.apply_startup_params2()
+            self._init_type = InitializationType.NONE
+        elif(self._init_type == InitializationType.DIRECTACCESS):
+            log.debug("_init_params: Apply DA Config")
+            self.apply_direct_access_params2()
+            self._init_type = InitializationType.NONE
+            pass
+        elif(self._init_type == InitializationType.NONE):
+            log.debug("_init_params: No initialization required")
+            pass
+        elif(self._init_type == None):
+            raise InstrumentProtocolException("initialization type not set")
+        else:
+            raise InstrumentProtocolException("Unknown initialization type: %s" % self._init_type)
+
+    def apply_startup_params2(self):
+        """
+        Apply all startup parameters.  First we check the instrument to see
+        if we need to set the parameters.  If they are they are set
+        correctly then we don't do anything.
+
+        If we need to set parameters then we might need to transition to
+        command first.  Then we will transition back when complete.
+
+        @throws: InstrumentProtocolException if not in command or streaming
+        """
+        # Let's give it a try in unknown state
+        log.debug("in apply_startup_params")
+        if (self.get_current_state() != TeledyneProtocolState.COMMAND and
+            self.get_current_state() != TeledyneProtocolState.AUTOSAMPLE):
+            raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
+
+        logging = self._is_logging()
+        # If we are in streaming mode and our configuration on the
+        # instrument matches what we think it should be then we
+        # don't need to do anything.
+
+        if(not self._instrument_config_dirty2()):
+            log.trace("in apply_startup_params returning True")
+            return True
+
+        error = None
+
+        try:
+            if logging:
+                # Switch to command mode,
+                self._stop_logging()
+
+            self._apply_params2()
+
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            log.error("EXCEPTION WAS " + str(e))
+            error = e
+
+        finally:
+            # Switch back to streaming
+            if logging:
+                log.debug("GOING BACK INTO LOGGING")
+                my_state = self._protocol_fsm.get_current_state()
+                log.trace("current_state = %s", my_state)
+                self._start_logging()
+
+        if(error):
+            raise error
+
+    def _apply_params2(self):
+        """
+        apply startup parameters to the instrument.
+        @throws: InstrumentProtocolException if in wrong mode.
+        """
+        log.debug("IN _apply_params")
+        config = self.get_startup_config2()
+        # Pass true to _set_params so we know these are startup values
+        self._set_params2(config, True)
+
+    def get_startup_config2(self):
+        """
+        Gets the startup configuration for the instrument. The parameters
+        returned are marked as startup, and the values are the best as chosen
+        from the initialization, default, and current parameters.
+
+        @retval The dict of parameter_name/values (override this method if it
+            is more involved for a specific instrument) that should be set at
+            a higher level.
+
+        @raise InstrumentProtocolException if a startup parameter doesn't
+               have a init or default value
+        """
+        return_dict = {}
+        start_list = self._param_dict2.get_keys()
+        log.trace("Startup list 2: %s", start_list)
+        assert isinstance(start_list, list)
+
+        for param in start_list:
+            result = self._param_dict2.get_config_value(param)
+            if(result != None):
+                return_dict[param] = result
+            elif(self._param_dict2.is_startup_param(param)):
+                raise InstrumentProtocolException("Required startup value not specified: %s" % param)
+
+        log.debug("Applying startup config: %s", return_dict)
+        return return_dict
+
+    def _handler_get2(self, *args, **kwargs):
+        """
+        Get device parameters from the parameter dict.  First we set a baseline timestamp
+        that all data expirations will be calculated against.  Then we try to get parameter
+        value.  If we catch an expired parameter then we will update all parameters and get
+        values using the original baseline time that we set at the beginning of this method.
+        Assuming our _update_params is updating all parameter values properly then we can
+        ensure that all data will be fresh.  Nobody likes stale data!
+        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
+        @raise InstrumentParameterException if missing or invalid parameter.
+        @raise InstrumentParameterExpirationException If we fail to update a parameter
+        on the second pass this exception will be raised on expired data
+        """
+        log.debug("%%% IN base _handler_get")
+
+        next_state = None
+        result = None
+
+        # Grab a baseline time for calculating expiration time.  It is assumed
+        # that all data if valid if acquired after this time.
+        expire_time = self._param_dict2.get_current_timestamp()
+
+        # build a list of parameters we need to get
+        param_list = self._get_param_list2(*args, **kwargs)
+
+        try:
+            # Take a first pass at getting parameters.  If they are
+            # expired an exception will be raised.
+            result = self._get_param_result2(param_list, expire_time)
+        except InstrumentParameterExpirationException as e:
+            # In the second pass we need to update parameters, it is assumed
+            # that _update_params does everything required to refresh all
+            # parameters or at least those that would expire.
+            log.debug("Parameter expired, refreshing, %s", e)
+            self._update_params2()
+
+            # Take a second pass at getting values, this time is should
+            # have all fresh values.
+            log.debug("Fetching parameters for the second time")
+            result = self._get_param_result2(param_list, expire_time)
+
+        return (next_state, result)
+
+    ########################################################################
+    # Helper methods
+    ########################################################################
+    def _init_params2(self):
+        """
+        Initialize parameters based on initialization type.  If we actually
+        do some initialization (either startup or DA) after we are done
+        set the init type to None so we don't initialize again.
+        @raises InstrumentProtocolException if the init_type isn't set or it
+                                            is unknown
+        """
+        if(self._init_type == InitializationType.STARTUP):
+            log.debug("_init_params: Apply Startup Config")
+            self.apply_startup_params2()
+            self._init_type = InitializationType.NONE
+        elif(self._init_type == InitializationType.DIRECTACCESS):
+            log.debug("_init_params: Apply DA Config")
+            self.apply_direct_access_params2()
+            self._init_type = InitializationType.NONE
+            pass
+        elif(self._init_type == InitializationType.NONE):
+            log.debug("_init_params: No initialization required")
+            pass
+        elif(self._init_type == None):
+            raise InstrumentProtocolException("initialization type not set")
+        else:
+            raise InstrumentProtocolException("Unknown initialization type: %s" % self._init_type)
+
+
+    def _is_logging2(self, timeout=TIMEOUT):
+        """
+        Poll the instrument to see if we are in logging mode.  Return True
+        if we are, False if not.
+        @param: timeout - Command timeout
+        @return: True - instrument logging, False - not logging
+        """
+        log.debug("in _is_logging")
+
+        self._linebuf2 = ""
+        self._promptbuf2 = ""
+
+        prompt = self._wakeup2(timeout=3)
+        #log.debug("********** GOT PROMPT" + repr(prompt))
+        if TeledynePrompt.COMMAND == prompt:
+            logging = False
+            log.trace("COMMAND MODE!")
+        else:
+            logging = True
+            log.trace("AUTOSAMPLE MODE!")
+
+        return logging
+
+    def _start_logging2(self, timeout=TIMEOUT):
+        """
+        Command the instrument to start logging
+        @param timeout: how long to wait for a prompt
+        @return: True if successful
+        @throws: InstrumentProtocolException if failed to start logging
+        """
+        log.debug("in _start_logging - are we logging? ")
+        if (self._is_logging2()):
+            log.debug("ALREADY LOGGING")
+            return True
+        log.debug("SENDING START LOGGING")
+        self._do_cmd_no_resp2(TeledyneInstrumentCmds.START_LOGGING, timeout=timeout)
+
+        return True
+
+    def _stop_logging2(self, timeout=TIMEOUT):
+        """
+        Command the instrument to stop logging
+        @param timeout: how long to wait for a prompt
+        @return: True if successful
+        @throws: InstrumentTimeoutException if prompt isn't seen
+        @throws: InstrumentProtocolException failed to stop logging
+        """
+        log.debug("in Stop Logging2!")
+        # Issue the stop command.
+
+
+        # Send break twice, as sometimes the driver ack's the first one then
+        # forgets to actually break.
+        self._send_break2(duration=500)
+        time.sleep(2)
+        self._send_break2(duration=500)
+        time.sleep(2)
+        # Prompt device until command prompt is seen.
+        timeout = 3
+        self._wakeup_until2(timeout, TeledynePrompt.COMMAND)
+
+        # set logging to false, as we just got a prompt after a break
+        logging = False
+
+        if self._is_logging2(timeout):
+            log.debug("FAILED TO STOP LOGGING")
+            raise InstrumentProtocolException("failed to stop logging")
+
+        return True
+
+
+    def _get_param_result2(self,param_list, expire_time):
+        """
+        return a dictionary of the parameters and values
+        @param expire_time: baseline time for expiration calculation
+        @return: dictionary of values
+        @raise InstrumentParameterException if missing or invalid parameter
+        @raise InstrumentParameterExpirationException if value is expired.
+        """
+        result = {}
+
+        for param in param_list:
+            val = self._param_dict2.get(param, expire_time)
+            result[param] = val
+
+        return result
+
+    def _verify_not_readonly2(self, params_to_set, startup=False):
+        """
+        Verify that the parameters we are attempting to set in upstream methods
+        are not readonly.  A parameter is considered read only if it is characterized
+        as read-only or immutable.  However, if the startup flag is passed in as true
+        then immutable will be considered settable.
+        @param params_to_set: dictionary containing parameters to set
+        @param startup: startup flag, if set don't verify visibility
+        @return: True if we aren't violating visibility
+        @raise: InstrumentParameterException if we violate visibility
+        """
+        log.debug("Verify parameters are not read only, startup: %s", startup)
+        if not isinstance(params_to_set, dict):
+            raise InstrumentParameterException('parameters not a dict.')
+
+        readonly_params = self._param_dict2.get_visibility_list(ParameterDictVisibility.READ_ONLY)
+        if not startup:
+            readonly_params += self._param_dict2.get_visibility_list(ParameterDictVisibility.IMMUTABLE)
+
+        log.debug("Read only params 2: %s", readonly_params)
+
+        not_settable = []
+        for (key, val) in params_to_set.iteritems():
+            if key in readonly_params:
+                not_settable.append(key)
+        if len(not_settable) > 0:
+            raise InstrumentParameterException("Attempt to set read only parameter(s) (%s)" %not_settable)
+
+        return True
+
+    def _get_param_list2(self, *args, **kwargs):
+        """
+        returns a list of parameters based on the list passed in.  If the
+        list contains and ALL parameters request then the list will contain
+        all parameters.  Otherwise the original list will be returned. Also
+        check the list for unknown parameters
+        @param args[0] list of parameters to inspect
+        @return: list of parameters.
+        @raises: InstrumentParameterException when the wrong param type is passed
+        in or an unknown parameter is in the list
+        """
+        try:
+            param_list = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Parameter required, none specified')
+
+        if(isinstance(param_list, str)):
+            param_list = [param_list]
+        elif(not isinstance(param_list, (list, tuple))):
+            raise InstrumentParameterException("Expected a list, tuple or a string")
+
+        # Verify all parameters are known parameters
+        bad_params = []
+        known_params = self._param_dict2.get_keys() + [DriverParameter.ALL]
+        for param in param_list:
+            if(param not in known_params):
+                bad_params.append(param)
+
+        if(len(bad_params)):
+            raise InstrumentParameterException("Unknown parameters: %s" % bad_params)
+
+        if(DriverParameter.ALL in param_list):
+            return self._param_dict2.get_keys()
+        else:
+            return param_list
+
+
+    def _get_param_result2(self, param_list, expire_time):
+        """
+        return a dictionary of the parameters and values
+        @param expire_time: baseline time for expiration calculation
+        @return: dictionary of values
+        @throws InstrumentParameterException if missing or invalid parameter
+        @throws InstrumentParameterExpirationException if value is expired.
+        """
+        result = {}
+
+        for param in param_list:
+            val = self._param_dict2.get(param, expire_time)
+            result[param] = val
+
+        return result
 
     def _build_param_dict(self):
         """
@@ -2119,3 +2577,288 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             direct_access=True,
             default_value=175)
+
+    def _handler_command_init_params(self, *args, **kwargs):
+        """
+        initialize parameters
+        """
+        next_state = None
+        result = None
+
+        self._init_params()
+        self._init_params2()
+        return (next_state, result)
+
+    def _handler_command_start_autosample(self, *args, **kwargs):
+        """
+        Switch into autosample mode.
+        @retval (next_state, result) tuple, (ProtocolState.AUTOSAMPLE,
+        None) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        result = None
+        kwargs['expected_prompt'] = TeledynePrompt.COMMAND
+        kwargs['timeout'] = 30
+
+        log.info("SYNCING TIME WITH SENSOR.")
+        resp = self._do_cmd_resp(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
+        resp = self._do_cmd_resp2(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, get_timestamp_delayed("%Y/%m/%d, %H:%M:%S"), **kwargs)
+
+        # Save setup to nvram and switch to autosample if successful.
+        resp = self._do_cmd_resp(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
+        resp = self._do_cmd_resp2(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
+
+        # Issue start command and switch to autosample if successful.
+        self._start_logging()
+        self._start_logging2()
+
+        next_state = TeledyneProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_get(self, *args, **kwargs):
+        """
+        Get device parameters from the parameter dict.
+        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
+        @throws InstrumentParameterException if missing or invalid parameter.
+        """
+        log.trace("in _handler_command_get")
+        next_state = None
+        result = None
+        error = None
+
+        # Grab a baseline time for calculating expiration time.  It is assumed
+        # that all data if valid if acquired after this time.
+        expire_time = self._param_dict.get_current_timestamp()
+        log.trace("expire_time = " + str(expire_time))
+        # build a list of parameters we need to get
+        param_list = self._get_param_list(*args, **kwargs)
+        param_list2 = self._get_param_list2(*args, **kwargs)
+
+        try:
+            # Take a first pass at getting parameters.  If they are
+            # expired an exception will be raised.
+            result = self._get_param_result(param_list, expire_time)
+        except InstrumentParameterExpirationException as e:
+            # In the second pass we need to update parameters, it is assumed
+            # that _update_params does everything required to refresh all
+            # parameters or at least those that would expire.
+
+            log.trace("in _handler_command_get Parameter expired, refreshing, %s", e)
+
+            if self._is_logging():
+                log.trace("I am logging")
+                try:
+                    # Switch to command mode,
+                    self._stop_logging()
+
+                    self._update_params()
+                    # Take a second pass at getting values, this time is should
+                    # have all fresh values.
+                    log.trace("Fetching parameters for the second time")
+                    result = self._get_param_result(param_list, expire_time)
+                # Catch all error so we can put ourself back into
+                # streaming.  Then rethrow the error
+                except Exception as e:
+                    error = e
+
+                finally:
+                    # Switch back to streaming
+                    self._start_logging()
+
+                if(error):
+                    raise error
+            else:
+                log.trace("I am not logging")
+                self._update_params()
+                # Take a second pass at getting values, this time is should
+                # have all fresh values.
+                log.trace("Fetching parameters for the second time")
+                result = self._get_param_result(param_list, expire_time)
+
+        try:
+            # Take a first pass at getting parameters.  If they are
+            # expired an exception will be raised.
+            result2 = self._get_param_result2(param_list, expire_time)
+        except InstrumentParameterExpirationException as e:
+            # In the second pass we need to update parameters, it is assumed
+            # that _update_params does everything required to refresh all
+            # parameters or at least those that would expire.
+
+            log.trace("in _handler_command_get Parameter expired, refreshing, %s", e)
+
+            if self._is_logging2():
+                log.trace("I am logging")
+                try:
+                    # Switch to command mode,
+                    self._stop_logging2()
+
+                    self._update_params2()
+                    # Take a second pass at getting values, this time is should
+                    # have all fresh values.
+                    log.trace("Fetching parameters for the second time")
+                    result2 = self._get_param_result2(param_list, expire_time)
+                # Catch all error so we can put ourself back into
+                # streaming.  Then rethrow the error
+                except Exception as e:
+                    error = e
+
+                finally:
+                    # Switch back to streaming
+                    self._start_logging2()
+
+                if(error):
+                    raise error
+            else:
+                log.trace("I am not logging")
+                self._update_params2()
+                # Take a second pass at getting values, this time is should
+                # have all fresh values.
+                log.trace("Fetching parameters for the second time")
+                result2 = self._get_param_result2(param_list, expire_time)
+
+        result_combined = ",".join(result, result2)
+        return (next_state, result_combined)
+
+    def _handler_command_set(self, *args, **kwargs):
+        """
+        Perform a set command.
+        @param args[0] parameter : value dict.
+        @retval (next_state, result) tuple, (None, None).
+        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
+        not a dict, or if paramter can't be properly formatted.
+        @throws InstrumentTimeoutException if device cannot be woken for set command.
+        @throws InstrumentProtocolException if set command could not be built or misunderstood.
+        """
+        log.trace("IN _handler_command_set")
+        next_state = None
+        result = None
+        startup = False
+
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('_handler_command_set Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        if not isinstance(params, dict):
+            raise InstrumentParameterException('Set parameters not a dict.')
+
+        # For each key, val in the dict, issue set command to device.
+        # Raise if the command not understood.
+        else:
+            result = self._set_params(params, startup)
+            result2 = self._set_params2(params, startup)
+
+        return (next_state, result)
+
+    def _handler_command_clock_sync(self, *args, **kwargs):
+        """
+        execute a clock sync on the leading edge of a second change
+        @retval (next_state, result) tuple, (None, (None, )) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        timeout = kwargs.get('timeout', TIMEOUT)
+        prompt = self._wakeup(timeout=3)
+        prompt = self._wakeup2(timeout=3)
+        self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_get_calibration(self, *args, **kwargs):
+        """
+        @param args:
+        @param kwargs:
+        @return:
+        """
+        log.trace("IN _handler_command_get_calibration")
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        kwargs['timeout'] = 120
+
+        output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
+        output2 = self._do_cmd_resp2(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, *args, **kwargs)
+        result = self._sanitize(base64.b64decode(output))
+        result2 = self._sanitize(base64.b64decode(output2))
+
+        result_combined = ",".join(result, result2)
+        return (next_state, (next_agent_state, result_combined))
+
+    def _handler_command_save_setup_to_ram(self, *args, **kwargs):
+        """
+        save setup to ram.
+        """
+        next_state = None
+        kwargs['timeout'] = 30
+        kwargs['expected_prompt'] = TeledynePrompt.COMMAND
+        result = self._do_cmd_resp(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
+        result = self._do_cmd_resp2(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, *args, **kwargs)
+
+
+        return (next_state, result)
+
+    def _handler_command_send_last_sample(self, *args, **kwargs):
+        log.debug("IN _handler_command_send_last_sample")
+
+        next_state = None
+        next_agent_state = None
+        kwargs['timeout'] = 30
+        kwargs['expected_prompt'] = '>\r\n>' # special one off prompt.
+        prompt = self._wakeup(timeout=3)
+        prompt = self._wakeup2(timeout=3)
+
+        # Disable autosample recover, so it isnt faked out....
+        self.disable_autosample_recover = True
+        (result, last_sample) = self._do_cmd_resp(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
+        (result2, last_sample2) = self._do_cmd_resp2(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
+        # re-enable it.
+        self.disable_autosample_recover = False
+
+        last_sample_combined = ",".join(last_sample, last_sample2)
+        decoded_last_sample = base64.b64decode(last_sample_combined)
+
+        return (next_state, (next_agent_state, decoded_last_sample))
+
+    def _handler_command_get_instrument_transform_matrix(self, *args, **kwargs):
+        """
+        get instrument transform matrix.
+        """
+        next_state = None
+        kwargs['timeout'] = 30
+        kwargs['expected_prompt'] = TeledynePrompt.COMMAND
+        result = self._do_cmd_resp(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, *args, **kwargs)
+        result2 = self._do_cmd_resp2(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, *args, **kwargs)
+        result_combined = ",".join(result, result2)
+        return (next_state, result_combined)
+
+    def _handler_command_get_configuration(self, *args, **kwargs):
+        """
+        @param args:
+        @param kwargs:
+        @return:
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        kwargs['timeout'] = 120  # long time to get params.
+        log.debug("in _handler_command_get_configuration")
+        output = self._do_cmd_resp(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
+        output2 = self._do_cmd_resp2(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, *args, **kwargs)
+        result = self._sanitize(base64.b64decode(output))
+        result2 = self._sanitize(base64.b64decode(output2))
+        result_combined = ",".join(result, result2)
+        return (next_state, (next_agent_state, {'result': result_combined}))
