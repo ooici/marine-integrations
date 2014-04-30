@@ -909,6 +909,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
         #A?
 
+
         #M?
 
     def test_parameters(self):
