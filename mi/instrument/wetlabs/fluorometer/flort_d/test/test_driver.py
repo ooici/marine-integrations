@@ -17,8 +17,6 @@ __author__ = 'Art Teranishi'
 __license__ = 'Apache 2.0'
 
 import gevent
-import time
-import copy
 
 from nose.plugins.attrib import attr
 from mock import Mock, call
@@ -39,7 +37,7 @@ from mi.core.time import get_timestamp_delayed
 
 from mi.core.instrument.chunker import StringChunker
 
-from mi.instrument.wetlabs.fluorometer.flort_d.driver import InstrumentDriver, ScheduledJob
+from mi.instrument.wetlabs.fluorometer.flort_d.driver import InstrumentDriver
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import DataParticleType
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import InstrumentCommand
 from mi.instrument.wetlabs.fluorometer.flort_d.driver import ProtocolState
@@ -65,7 +63,6 @@ from mi.instrument.wetlabs.fluorometer.flort_d.test.sample_data import SAMPLE_SA
 from mi.instrument.wetlabs.fluorometer.flort_d.test.sample_data import SAMPLE_MET_RESPONSE
 
 from mi.core.exceptions import InstrumentCommandException
-from mi.core.exceptions import InstrumentProtocolException
 
 ###
 #   Driver parameters for the tests
@@ -509,35 +506,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assertEqual(cmd, '$int 110034' + NEWLINE)
         cmd = protocol._build_single_parameter_command('$mst', Parameter.MANUAL_START_TIME, '012134')
         self.assertEqual(cmd, '$mst 012134' + NEWLINE)
-
-    # def test_schedulable_events(self):
-    #     """
-    #     Test creating a schedulable event.  Testing here because we cannot test this in integration or qualification
-    #     tests
-    #     """
-    #     #TODO
-    #     mock_callback = Mock()
-    #     protocol = Protocol(Prompt, NEWLINE, mock_callback)
-    #
-    #     #protocol._param_dict.add_parameter(Parameter.RUN_WIPER_INTERVAL)
-    #
-    #     for param in protocol._param_dict.get_keys():
-    #         if param == Parameter.RUN_WIPER_INTERVAL or param == Parameter.RUN_CLOCK_SYNC_INTERVAL or param == Parameter.RUN_ACQUIRE_STATUS_INTERVAL:
-    #             protocol._param_dict.set_value(param, '00:00:01')
-    #     protocol._protocol_fsm.current_state = ProtocolState.AUTOSAMPLE
-    #
-    #     protocol.start_scheduled_job(Parameter.RUN_WIPER_INTERVAL, ScheduledJob.RUN_WIPER, ProtocolEvent.RUN_WIPER_SCHEDULED)
-    #     #protocol.start_scheduled_job(Parameter.RUN_CLOCK_SYNC_INTERVAL, ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
-    #     #protocol.start_scheduled_job(Parameter.RUN_ACQUIRE_STATUS_INTERVAL, ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS)
-    #     protocol._linebuf = SAMPLE_MNU_RESPONSE
-    #     protocol._promptbuf = SAMPLE_MNU_RESPONSE
-    #
-    #     time.sleep(2)
-    #
-    #     protocol._linebuf = SAMPLE_SAMPLE_RESPONSE
-    #     protocol._promptbuf = SAMPLE_SAMPLE_RESPONSE
-    #     protocol._protocol_fsm.on_event.assert_has_calls([call(ProtocolEvent.RUN_WIPER_SCHEDULED)])
-
 
 
 ###############################################################################

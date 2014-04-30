@@ -53,6 +53,8 @@ from mi.core.driver_scheduler import TriggerType
 
 from mi.core.time import get_timestamp_delayed
 
+from mi.core.log import get_logging_metaclass
+
 
 # newline.
 NEWLINE = '\r\n'
@@ -425,7 +427,7 @@ class FlortDSample_Particle(DataParticle):
         Regular expression to match a sample pattern
         @return: regex string
         """
-        pattern = [ SAMPLE_REGEX ]
+        pattern = [SAMPLE_REGEX]
         return r'\s*,\s*'.join(pattern)
 
     def _build_parsed_values(self):
@@ -441,7 +443,6 @@ class FlortDSample_Particle(DataParticle):
 
         if not match:
             raise SampleException("No regex match of parsed sample data: [%s]" % self.raw_data)
-
 
         split_data = match.group(0).split('\t')
         date_str = str(split_data[0])
@@ -518,6 +519,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+    __metaclass__ = get_logging_metaclass(log_level='info')
 
     def __init__(self, prompts, newline, driver_event):
         """
@@ -1107,18 +1109,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         If they are they are set correctly then we don't do anything.
         """
         log.debug('%% IN apply_startup_params')
-        log.debug("CURRENT STATE: %s", self.get_current_state())
-
-        autosample = False
-        if self.get_current_state() == DriverProtocolState.AUTOSAMPLE:
-            log.debug("In autosample. Putting instrument into command mode")
-            autosample = True
-            self._do_cmd_resp(InstrumentCommand.INTERRUPT_INSTRUMENT, timeout=TIMEOUT, response_regex=MNU_REGEX_MATCHER)
-
         self._set_params(self.get_startup_config(), True)
-
-        if autosample:
-            self._do_cmd_resp(InstrumentCommand.RUN_SETTINGS, timeout=TIMEOUT, response_regex=MNU_REGEX_MATCHER)
 
     ########################################################################
     # Private helpers.
@@ -1150,12 +1141,12 @@ class Protocol(CommandResponseInstrumentProtocol):
                     response = self._do_cmd_resp(InstrumentCommand.SET, key, val, response_regex=MNU_REGEX_MATCHER)
 
             self._param_dict.update(response)
-            log.debug("configure command response: %s" % response)
+            log.debug("configure command response: %s", response)
 
             # Get new param dict config. If it differs from the old config,
             # tell driver superclass to publish a config change event.
             new_config = self._param_dict.get_config()
-            log.debug("new_config: %s == old_config: %s" % (new_config, old_config))
+            log.debug("new_config: %s == old_config: %s", new_config, old_config)
             if not dict_equal(old_config, new_config, ignore_keys=Parameter.TIME):
                 log.debug("configuration has changed.  Send driver event")
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
