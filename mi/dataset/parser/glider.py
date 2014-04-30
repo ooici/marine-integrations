@@ -12,6 +12,8 @@ import re
 import numpy as np
 import ntplib
 import copy
+import time
+from datetime import datetime
 
 from math import copysign
 from functools import partial
@@ -28,6 +30,7 @@ log = get_logger()
 
 class StateKey(BaseEnum):
     POSITION = 'position'
+    SENT_METADATA = 'sent_metadata'
 
 
 class DataParticleType(BaseEnum):
@@ -42,9 +45,11 @@ class DataParticleType(BaseEnum):
     PARAD_M_GLIDER_INSTRUMENT = 'parad_m_glider_instrument'
     PARAD_M_GLIDER_RECOVERED = 'parad_m_glider_recovered'
     GLIDER_ENG_TELEMETERED = 'glider_eng_telemetered'
+    GLIDER_ENG_METADATA = 'glider_eng_metadata'
     GLIDER_ENG_RECOVERED = 'glider_eng_recovered'
     GLIDER_ENG_SCI_TELEMETERED = 'glider_eng_sci_telemetered'
     GLIDER_ENG_SCI_RECOVERED = 'glider_eng_sci_recovered'
+    GLIDER_ENG_METADATA_RECOVERED = 'glider_eng_metadata_recovered'
 
 class GliderParticleKey(BaseEnum):
     """
@@ -100,7 +105,7 @@ class GliderParticle(DataParticle):
                 # read the value of the item from the dictionary
                 value = self.raw_data[key]['Data']
 
-                log.debug(" # GliderParticle._parsed_values(): Evaluating key= %s, value= %s", key, value)
+                log.trace("Evaluating key= %s, value= %s", key, value)
                 # check if this value is a string, implying it is one of the three
                 # file info data items in the particle (filename,fileopen time & mission name)
                 # - don't need to perform a NaN check on a string
@@ -108,8 +113,7 @@ class GliderParticle(DataParticle):
                     # add the value to the record
                     result.append({DataParticleKey.VALUE_ID: key,
                                    DataParticleKey.VALUE: value})
-                    log.trace("Key: %s, value: %s", key, value)
-                    log.debug("# GliderParticle._parsed_values(): Adding Engineering Key: %s, value: %s to particle", key, value)
+                    log.trace("Adding Engineering Key: %s, value: %s to particle", key, value)
                 else:
                     # check to see that the value is not a 'NaN'
                     if np.isnan(value):
@@ -119,17 +123,16 @@ class GliderParticle(DataParticle):
                     # add the value to the record
                     result.append({DataParticleKey.VALUE_ID: key,
                                    DataParticleKey.VALUE: value})
-                    log.trace("Key: %s, value: %s", key, value)
-                    log.debug("# GliderParticle._parsed_values(): Adding Key: %s, value: %s to particle", key, value)
+                    log.trace("Adding Key: %s, value: %s to particle", key, value)
 
             else:
-                log.warn("The particle defined in the" +
-                    "ParticleKey, %s, is not present in the current" % key +
-                    "data set.")
+                # keep a list of parameters that are expected to not show up frequently in order to
+                # limit number of warnings output
+                if key not in OptionalParams.list():
+                    log.warn("The particle key %s is not present in the current data set." % key )
                 value = None
 
         return result
-
 
 class CtdgvParticleKey(GliderParticleKey):
     # science data made available via telemetry or Glider recovery
@@ -594,8 +597,6 @@ class EngineeringRecoveredParticleKey(GliderParticleKey):
 
 class EngineeringScienceRecoveredParticleKey(GliderParticleKey):
     # science data made available via glider recovery
-    #SCI_M_PRESENT_TIME = 'sci_m_present_time'
-    #SCI_M_PRESENT_SECS_INTO_MISSION = 'sci_m_present_secs_into_mission'
     SCI_M_DISK_FREE = 'sci_m_disk_free'
     SCI_M_DISK_USAGE = 'sci_m_disk_usage'
     SCI_M_FREE_HEAP = 'sci_m_free_heap'
@@ -616,15 +617,13 @@ class EngineeringScienceRecoveredParticleKey(GliderParticleKey):
     SCI_X_DISK_FILES_REMOVED = 'sci_x_disk_files_removed'
     SCI_X_SENT_DATA_FILES = 'sci_x_sent_data_files'
 
-
-class EngineeringTelemeteredParticleKey(GliderParticleKey):
-    # engineering data made available via telemetry
-
+class EngineeringMetadataParticleKey(BaseEnum):
     GLIDER_ENG_FILENAME = 'glider_eng_filename'
     GLIDER_MISSION_NAME = 'glider_mission_name'
     GLIDER_ENG_FILEOPEN_TIME = 'glider_eng_fileopen_time'
-    #M_PRESENT_SECS_INTO_MISSION = 'm_present_secs_into_mission'
-    #M_PRESENT_TIME = 'm_present_time' # you need the m_ timestamps for lats & lons
+
+class EngineeringTelemeteredParticleKey(GliderParticleKey):
+    # engineering data made available via telemetry
     M_GPS_LAT = 'm_gps_lat'
     M_GPS_LON = 'm_gps_lon'
     M_LAT = 'm_lat'
@@ -687,6 +686,20 @@ class EngineeringTelemeteredDataParticle(GliderParticle):
         # need to exclude sci_m_present_times
         return self._parsed_values(EngineeringTelemeteredDataParticle.keys_exclude_sci_times)
 
+class EngineeringMetadataDataParticle(GliderParticle):
+    _data_particle_type = DataParticleType.GLIDER_ENG_METADATA
+
+    def _build_parsed_values(self):
+        """
+        Takes a GliderParser object and extracts engineering metadata from the
+        header and puts the data into a Data Particle.
+
+        @param result A returned list with sub dictionaries of the data
+        @throws SampleException if the data is not a glider data dictionary
+            produced by GliderParser._read_data
+        """
+        # need to exclude sci_m_present_times
+        return self._parsed_values(EngineeringMetadataParticleKey.list())
 
 class EngineeringScienceTelemeteredDataParticle(GliderParticle):
     _data_particle_type = DataParticleType.GLIDER_ENG_SCI_TELEMETERED
@@ -747,6 +760,27 @@ class EngineeringScienceRecoveredDataParticle(GliderParticle):
         """
         return self._parsed_values(EngineeringScienceRecoveredDataParticle.keys_exclude_times)
 
+class OptionalParams(BaseEnum):
+    """
+    This is class is used to store parameters that may or may not appear in a particle
+    to limit the number of warnings which are output.  
+    """
+    SCI_CTD41CP_TIMESTAMP = CtdgvParticleKey.SCI_CTD41CP_TIMESTAMP
+    M_COULOMB_AMPHR= EngineeringTelemeteredParticleKey.M_COULOMB_AMPHR
+    C_BALLAST_PUMPED = EngineeringTelemeteredParticleKey.C_BALLAST_PUMPED
+    M_BALLAST_PUMPED = EngineeringTelemeteredParticleKey.M_BALLAST_PUMPED
+    M_PRESSURE = EngineeringTelemeteredParticleKey.M_PRESSURE
+    M_RAW_ALTITUDE = EngineeringTelemeteredParticleKey.M_RAW_ALTITUDE
+    M_SPEED = EngineeringTelemeteredParticleKey.M_SPEED
+    M_VACUUM = EngineeringTelemeteredParticleKey.M_VACUUM
+    C_BATTPOS = EngineeringTelemeteredParticleKey.C_BATTPOS
+    C_DVL_ON = EngineeringTelemeteredParticleKey.C_DVL_ON
+    C_PITCH = EngineeringTelemeteredParticleKey.C_PITCH
+    M_AIR_PUMP = EngineeringTelemeteredParticleKey.M_AIR_PUMP
+    M_BATTERY = EngineeringTelemeteredParticleKey.M_BATTERY
+    M_COULOMB_AMPHR_TOTAL = EngineeringTelemeteredParticleKey.M_COULOMB_AMPHR_TOTAL
+    M_COULOMB_CURRENT = EngineeringTelemeteredParticleKey.M_COULOMB_CURRENT
+    M_LITHIUM_BATTERY_RELATIVE_CHARGE = EngineeringTelemeteredParticleKey.M_LITHIUM_BATTERY_RELATIVE_CHARGE
 
 class GliderParser(BufferLoadingParser):
     """
@@ -767,7 +801,6 @@ class GliderParser(BufferLoadingParser):
 
         self._stream_handle = stream_handle
 
-        self._timestamp = 0.0
         self._record_buffer = []  # holds tuples of (record, state)
         self._read_state = {StateKey.POSITION: 0}
 
@@ -835,16 +868,13 @@ class GliderParser(BufferLoadingParser):
             if len(line) == 0:
                 raise SampleException("GliderParser._read_file_definition(): Header line is empty")
 
-            log.debug(" ### ### GliderParser._read_file_definition(): File position: %s line: %s",
-                      self._stream_handle.tell(), line)
-
             match = header_re.match(line)
 
             if match:
                 key = match.group(1)
                 value = match.group(2)
                 value = value.strip()
-                log.debug(" ### ### GliderParser._read_file_definition(): header key: %s, value: %s", key, value)
+                log.debug("header key: %s, value: %s", key, value)
 
                 # update num_hdr_lines based on the header info.
                 if key in ['num_ascii_tags', 'num_label_lines', 'sensors_per_cycle']:
@@ -861,7 +891,7 @@ class GliderParser(BufferLoadingParser):
                     self._header_dict[key] = value
 
             else:
-                log.warn(" ### ### GliderParser._read_file_definition(): Failed to parse header row: %s.", line)
+                log.warn("Failed to parse header row: %s.", line)
 
             row_count += 1
 
@@ -946,7 +976,7 @@ class GliderParser(BufferLoadingParser):
 
         if num_columns != len(data):
 
-            log.debug("Num Of Columns NOT EQUAL to Num of Data items: "
+            log.error("Num Of Columns NOT EQUAL to Num of Data items: "
                      "Expected Columns= %s vs Actual Data= %s", num_columns, len(data))
 
             raise SampleException('Glider data file does not have the ' +
@@ -1001,7 +1031,7 @@ class GliderParser(BufferLoadingParser):
         log.debug("Buffer read bytes: %d", len)
 
         if len != size:
-            self._chunker.add_chunk("\n", self._timestamp)
+            self._chunker.add_chunk("\n", ntplib.system_to_ntp_time(time.time()))
 
         return len
 
@@ -1015,7 +1045,6 @@ class GliderParser(BufferLoadingParser):
         # set defaults
         result_particles = []
 
-        log.debug("BUFFER: %s", self._chunker.buffer)
         # collect the non-data from the file
         (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         # collect the data from the file
@@ -1087,7 +1116,7 @@ class GliderParser(BufferLoadingParser):
 
             self._increment_state(len(non_data))
 
-            log.warn("### ### GliderParser.handle_non_data(): Found data in un-expected non-data from the chunker: %s",
+            log.warn("GliderParser.handle_non_data(): Found data in un-expected non-data from the chunker: %s",
                      non_data)
 
             # if non-data is a fatal error, directly call the exception,
@@ -1156,6 +1185,49 @@ class GliderParser(BufferLoadingParser):
 
 class GliderEngineeringParser(GliderParser):
 
+    def __init__(self,
+                 config,
+                 state,
+                 stream_handle,
+                 state_callback,
+                 publish_callback,
+                 exception_callback,
+                 *args, **kwargs):
+
+        super(GliderEngineeringParser, self).__init__(config,
+                                                      state,
+                                                      stream_handle,
+                                                      state_callback,
+                                                      publish_callback,
+                                                      exception_callback,
+                                                      *args, **kwargs)
+        # make sure read state is initialized with sent metadata key, don't overwrite
+        # position which is set in reading the header 
+        if not state:
+            self._read_state[StateKey.SENT_METADATA] = False
+
+    def set_state(self, state_obj):
+        """
+        Set the value of the state object for this parser @param state_obj The
+        object to set the state to. Should be a dict with a StateKey.POSITION
+        value. The position is number of bytes into the file.
+        @throws DatasetParserException if there is a bad state structure
+        """
+        log.trace("Attempting to set state to: %s", state_obj)
+        if not isinstance(state_obj, dict):
+            raise DatasetParserException("Invalid state structure")
+        if not (StateKey.POSITION in state_obj) or not (StateKey.SENT_METADATA in state_obj):
+            log.debug('state_obj %s', state_obj)
+            raise DatasetParserException("Invalid state keys")
+
+        self._record_buffer = []
+        self._state = state_obj
+        self._read_state = state_obj
+
+        # seek to it
+        log.debug("seek to position: %d", state_obj[StateKey.POSITION])
+        self._stream_handle.seek(state_obj[StateKey.POSITION])
+
     def parse_chunks(self):
         """
         Create particles out of chunks and raise an event
@@ -1166,16 +1238,21 @@ class GliderEngineeringParser(GliderParser):
         # set defaults
         result_particles = []
 
-        log.debug("BUFFER: %s", self._chunker.buffer)
+        # check if we have sent the metadata particle yet
+        if not self._read_state[StateKey.SENT_METADATA] and self._header_dict != {}:
+            # we haven't sent it yet and we have a header, send it now
+            data_dict = self.get_header_info_dict()
+            timestamp = self.fileopen_str_to_timestamp(data_dict['glider_eng_fileopen_time']['Data'])
+            particle = self._extract_sample(EngineeringMetadataDataParticle, None, data_dict, timestamp)
+            self._read_state[StateKey.SENT_METADATA] = True
+            result_particles.append((particle, copy.copy(self._read_state)))
+
         # collect the non-data from the file
         (nd_timestamp, non_data, none_start, none_end) = self._chunker.get_next_non_data_with_index(clean=False)
         # collect the data from the file
-        (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
+        (chunker_timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
         self.handle_non_data(non_data, none_start, none_end, start)
-
-        log.debug(" ### GliderEngineeringParser.parse_chunks(): timestamp= %s, start= %s, end= %s",
-                  timestamp, start, end)
 
         while data_record is not None:
             log.debug("data record: %s", data_record)
@@ -1194,11 +1271,10 @@ class GliderEngineeringParser(GliderParser):
                     # create the dictionary of key/value pairs composed of the labels and the values from the
                     # record being parsed
                     data_dict = self._read_data(data_record)
-
                 except SampleException as e:
                     exception_detected = True
                     self._exception_callback(e)
-                    log.warn(" ### GliderEngineeringParser.parse_chunks(): Sample Exception %s", e)
+                    log.warn("GliderEngineeringParser.parse_chunks(): Sample Exception %s", e)
                     data_dict = {}
 
                 # from the parsed data, m_present_time is the unix timestamp
@@ -1206,7 +1282,7 @@ class GliderEngineeringParser(GliderParser):
                     if not exception_detected:
                         record_time = data_dict['m_present_time']['Data']
                         timestamp = ntplib.system_to_ntp_time(data_dict['m_present_time']['Data'])
-                        log.debug(" ###Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
+                        log.debug("Converting record timestamp %f to ntp timestamp %f", record_time, timestamp)
                 except KeyError:
                     exception_detected = True
                     self._exception_callback(SampleException("unable to find timestamp in data"))
@@ -1217,28 +1293,18 @@ class GliderEngineeringParser(GliderParser):
 
                 incremented = False
 
+                # this data_dict might contain both particles, return both if they are there
                 if self._contains_eng_data(data_dict, EngineeringTelemeteredDataParticle):
-
-                    # check if we're working on an engineering particle
-                        # since we're working on an engineering data particle, add the file info to the data dict
-                    data_dict = self.add_file_info_to_data_dict(data_dict)
-
-                    log.debug(" ### ### GliderEngineeringParser.parse_chunks(): filename = %s, "
-                              "mission name = %s, file open time = %s", data_dict['glider_eng_filename'],
-                              data_dict['glider_mission_name'], data_dict['glider_eng_fileopen_time'])
-
-                    # create the particle
+                    # create the particle eng telemetered
                     particle = self._extract_sample(EngineeringTelemeteredDataParticle, None,
                                                     data_dict, timestamp)
-
                     self._increment_state(end)
 
                     incremented = True
                     result_particles.append((particle, copy.copy(self._read_state)))
 
                 if self._contains_eng_data(data_dict, EngineeringScienceTelemeteredDataParticle):
-
-                    # create the particle
+                    # create the particle eng science telemetered
                     particle = self._extract_sample(EngineeringScienceTelemeteredDataParticle, None,
                                                     data_dict, timestamp)
 
@@ -1254,21 +1320,18 @@ class GliderEngineeringParser(GliderParser):
             # collect the non-data from the file
             (nd_timestamp, non_data, none_start, none_end) = self._chunker.get_next_non_data_with_index(clean=False)
             # collect the data from the file
-            (timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
+            (chunker_timestamp, data_record, start, end) = self._chunker.get_next_data_with_index()
 
             self.handle_non_data(non_data, none_start, none_end, start)
 
         # publish the results
         return result_particles
 
-    def add_file_info_to_data_dict(self, data_dict):
+    def get_header_info_dict(self):
         """
         Add the three file information attributes to the data dictionary (file name,
         mission name, time the file was opened)
         """
-        filename_label_dict = {}
-        mission_name_dict = {}
-        fileopen_time_dict = {}
 
         # data_dict holds key, value pairs where
         # key = particle attribute name
@@ -1281,26 +1344,26 @@ class GliderEngineeringParser(GliderParser):
         mission_name_value = self._header_dict.get('mission_name')
         fileopen_time_value = self._header_dict.get('fileopen_time')
 
-        log.debug("  ### ### ### GliderEngineeringParser.add_file_info_to_data_dict(): "
-                  "filename= %s, missionname= %s, fileopentime= %s",
+        log.debug("Adding filename= %s, missionname= %s, fileopentime= %s",
                   filename_label_value, filename_label_value, filename_label_value)
 
-        # Populate the VALUE DICTs for the three items
-        filename_label_dict['Data'] = filename_label_value
-        filename_label_dict['Name'] = 'glider_eng_filename'  # hard-coded particle key attribute
-
-        mission_name_dict['Data'] = mission_name_value
-        mission_name_dict['Name'] = 'glider_mission_name'  # hard-coded particle key attribute
-
-        fileopen_time_dict['Data'] = fileopen_time_value
-        fileopen_time_dict['Name'] = 'glider_eng_fileopen_time'  # hard-coded particle key attribute
-
         # ADD the three dicts to the data dict
-        data_dict['glider_eng_filename'] = filename_label_dict
-        data_dict['glider_mission_name'] = mission_name_dict
-        data_dict['glider_eng_fileopen_time'] = fileopen_time_dict
+        data_dict = {}
+        data_dict['glider_eng_filename'] = {'Data': filename_label_value, 'Name': 'glider_eng_filename'}
+        data_dict['glider_mission_name'] = {'Data': mission_name_value, 'Name': 'glider_mission_name'}
+        data_dict['glider_eng_fileopen_time'] = {'Data': fileopen_time_value, 'Name': 'glider_eng_fileopen_time'}
 
         return data_dict
+
+    def fileopen_str_to_timestamp(self, fileopen_str):
+        """
+        Parse the fileopen time into a timestamp
+        """
+        converted_time = datetime.strptime(fileopen_str, "%a_%b_%d_%H:%M:%S_%Y")
+        log.debug('Converted string %s to time %s', fileopen_str, converted_time)
+        localtime = time.mktime(converted_time.timetuple())
+        utctime = localtime - time.timezone
+        return ntplib.system_to_ntp_time(float(utctime))
 
     def _contains_eng_data(self, data_dict, particle_class):
         """

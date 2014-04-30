@@ -19,26 +19,22 @@ import unittest
 
 from nose.plugins.attrib import attr
 
-from mi.core.log import get_logger ; log = get_logger()
-
+from pyon.agent.agent import ResourceAgentState
+from interface.objects import ResourceAgentErrorEvent
 from exceptions import Exception
 
+from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.dataset.unit_test import DataSetTestCase
 from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
-
 from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 from mi.dataset.driver.moas.gl.engineering.driver import EngineeringDataSetDriver
+from mi.dataset.parser.glider import EngineeringTelemeteredDataParticle, DataParticleType
+from mi.dataset.parser.glider import EngineeringScienceTelemeteredDataParticle, EngineeringMetadataDataParticle
 
-from mi.dataset.parser.glider import EngineeringTelemeteredDataParticle
-from mi.dataset.parser.glider import EngineeringScienceTelemeteredDataParticle
-
-from pyon.agent.agent import ResourceAgentState
-
-from interface.objects import ResourceAgentErrorEvent
 
 DataSetTestCase.initialize(
     driver_module='mi.dataset.driver.moas.gl.engineering.driver',
@@ -58,9 +54,6 @@ DataSetTestCase.initialize(
         DataSourceConfigKey.PARSER: {}
     }
 )
-
-ENG_SAMPLE_STREAM = 'glider_eng_telemetered'
-ENG_SCI_SAMPLE_STREAM = 'glider_eng_sci_telemetered'
     
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -79,28 +72,31 @@ class IntegrationTest(DataSetIntegrationTestCase):
         can be started and stopped.
         """
         self.clear_sample_data()
-
+        log.debug("cleared sample data")
         # Start sampling and watch for an exception
         self.driver.start_sampling()
-
+        log.debug("started sampling")
         self.clear_async_data()
         self.create_sample_data('single_glider_record-engDataOnly.mrg', "CopyOf-single_glider_record-engDataOnly.mrg")
         # Results file, Number of Particles (rows) expected to compare, timeout
-        self.assert_data((EngineeringScienceTelemeteredDataParticle, EngineeringTelemeteredDataParticle),
-                         'single_glider_record-engDataOnly.mrg.result.yml', count=2, timeout=10)
+        self.assert_data((EngineeringMetadataDataParticle, EngineeringScienceTelemeteredDataParticle,
+                          EngineeringTelemeteredDataParticle),
+                         'single_glider_record-engDataOnly.mrg.result.yml', count=3, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('multiple_glider_record-engDataOnly.mrg',
                                 "CopyOf-multiple_glider_record-engDataOnly.mrg")
         # Results file, Number of Particles (rows) expected to compare, timeout
-        self.assert_data((EngineeringScienceTelemeteredDataParticle, EngineeringTelemeteredDataParticle),
-                         'multiple_glider_record-engDataOnly.mrg.result.yml', count=8, timeout=10)
+        self.assert_data((EngineeringMetadataDataParticle, EngineeringScienceTelemeteredDataParticle,
+                          EngineeringTelemeteredDataParticle),
+                         'multiple_glider_record-engDataOnly.mrg.result.yml', count=9, timeout=10)
 
         # log.debug("IntegrationTest.test_get(): Start second file ingestion")
         self.clear_async_data()
         self.create_sample_data('unit_247_2012_051_0_0-engDataOnly.mrg', "CopyOf-unit_247_2012_051_0_0-engDataOnly.mrg")
-        self.assert_data((EngineeringScienceTelemeteredDataParticle, EngineeringTelemeteredDataParticle),
-                         count=100, timeout=30)
+        self.assert_data((EngineeringMetadataDataParticle, EngineeringScienceTelemeteredDataParticle,
+                          EngineeringTelemeteredDataParticle),
+                         count=101, timeout=30)
         self.assert_file_ingested("CopyOf-unit_247_2012_051_0_0-engDataOnly.mrg")
 
     def test_stop_resume(self):
@@ -117,6 +113,8 @@ class IntegrationTest(DataSetIntegrationTestCase):
             'CopyOf-single_glider_record-engDataOnly.mrg': self.get_file_state(path_1, True, 1160),
             'CopyOf-multiple_glider_record-engDataOnly.mrg': self.get_file_state(path_2, False, 10816)
         }
+        state['CopyOf-single_glider_record-engDataOnly.mrg']['parser_state']['sent_metadata'] = True
+        state['CopyOf-multiple_glider_record-engDataOnly.mrg']['parser_state']['sent_metadata'] = True
         self.driver = self._get_driver_object(memento=state)
 
         # create some data to parse
@@ -141,16 +139,18 @@ class IntegrationTest(DataSetIntegrationTestCase):
                                 "CopyOf-single_glider_record-engDataOnly.mrg")
         self.create_sample_data('multiple_glider_record-engDataOnly.mrg',
                                 "xCopyOf-multiple_glider_record-engDataOnly.mrg")
-        self.assert_data((EngineeringScienceTelemeteredDataParticle, EngineeringTelemeteredDataParticle),
-                         'single_glider_record-engDataOnly.mrg.result.yml', count=2, timeout=10)
+        self.assert_data((EngineeringMetadataDataParticle, EngineeringScienceTelemeteredDataParticle,
+                          EngineeringTelemeteredDataParticle),
+                         'single_glider_record-engDataOnly.mrg.result.yml', count=3, timeout=10)
         self.assert_file_ingested("CopyOf-single_glider_record-engDataOnly.mrg")
         self.assert_file_not_ingested("xCopyOf-multiple_glider_record-engDataOnly.mrg")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data((EngineeringScienceTelemeteredDataParticle, EngineeringTelemeteredDataParticle),
-                         'multiple_glider_record-engDataOnly.mrg.result.yml', count=8, timeout=10)
+        self.assert_data((EngineeringMetadataDataParticle, EngineeringScienceTelemeteredDataParticle,
+                          EngineeringTelemeteredDataParticle),
+                         'multiple_glider_record-engDataOnly.mrg.result.yml', count=9, timeout=10)
         self.assert_file_ingested("xCopyOf-multiple_glider_record-engDataOnly.mrg")
 
     def test_bad_sample(self):
@@ -167,6 +167,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         state = {
             'CopyOf-multiple_glider_record-engDataOnly.mrg': self.get_file_state(path, False, 12167),
         }
+        state['CopyOf-multiple_glider_record-engDataOnly.mrg']['parser_state']['sent_metadata'] = True
         self.driver = self._get_driver_object(memento=state)
 
         self.driver.start_sampling()
@@ -200,9 +201,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-    def setUp(self):
-        super(QualificationTest, self).setUp()
-
     #
     # QUAL TESTS FOR ENGINEERING & SCIENCE DATA PARTICLE
     #
@@ -216,14 +214,16 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # Verify we get one sample
         try:
-            result1 = self.data_subscribers.get_samples(ENG_SAMPLE_STREAM)
-            result2 = self.data_subscribers.get_samples(ENG_SCI_SAMPLE_STREAM)
+            result0 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_METADATA)
+            result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED)
+            result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
-            result1.extend(result2)
-            log.debug("## QualificationTest.test_publish_path(): RESULT: %s", result1)
+            result0.extend(result1)
+            result0.extend(result2)
+            log.debug("## QualificationTest.test_publish_path(): RESULT: %s", result0)
 
             # Verify values in the combined result
-            self.assert_data_values(result1, 'single_glider_record-engDataOnly.mrg.result.yml')
+            self.assert_data_values(result0, 'single_glider_record-engDataOnly.mrg.result.yml')
         except Exception as e:
             log.error("## QualificationTest.test_publish_path(): Exception trapped: %s", e)
             self.fail("Sample timeout.")
@@ -239,14 +239,16 @@ class QualificationTest(DataSetQualificationTestCase):
 
         # Verify we get one sample
         try:
-            result1 = self.data_subscribers.get_samples(ENG_SAMPLE_STREAM, 2)
-            result2 = self.data_subscribers.get_samples(ENG_SCI_SAMPLE_STREAM, 2)
+            result0 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_METADATA, 1)
+            result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED, 2)
+            result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED, 2)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
-            result1.extend(result2)
-            log.debug("## QualificationTest.test_separate_particles(): RESULT: %s", result1)
+            result0.extend(result1)
+            result0.extend(result2)
+            log.debug("## QualificationTest.test_separate_particles(): RESULT: %s", result0)
 
             # Verify values in the combined result
-            self.assert_data_values(result1, 'eng_data_separate.mrg.result.yml')
+            self.assert_data_values(result0, 'eng_data_separate.mrg.result.yml')
         except Exception as e:
             log.error("## QualificationTest.test_separate_particles(): Exception trapped: %s", e)
             self.fail("## QualificationTest.test_separate_particles(): Sample timeout.")
@@ -261,8 +263,9 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data('unit_247_2012_051_0_0-engDataOnly.mrg')
         self.assert_initialize()
 
-        result1 = self.data_subscribers.get_samples(ENG_SAMPLE_STREAM, 100, 240)
-        result2 = self.data_subscribers.get_samples(ENG_SCI_SAMPLE_STREAM, 3, 240)
+        result0 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_METADATA, 1)
+        result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED, 100, 240)
+        result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED, 3, 240)
 
     def test_stop_start(self):
         """
@@ -281,47 +284,55 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result1 = self.data_subscribers.get_samples(ENG_SAMPLE_STREAM)
-            result2 = self.data_subscribers.get_samples(ENG_SCI_SAMPLE_STREAM)
+            result0 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_METADATA)
+            result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED)
+            result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
-            result1.extend(result2)
-            log.debug("## QualificationTest.test_stop_start(): RESULT: %s", result1)
+            result0.extend(result1)
+            result0.extend(result2)
+            log.debug("## QualificationTest.test_stop_start(): RESULT: %s", result0)
 
             # Verify values
-            self.assert_data_values(result1, 'single_glider_record-engDataOnly.mrg.result.yml')
-            self.assert_sample_queue_size(ENG_SCI_SAMPLE_STREAM, 0)
-            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+            self.assert_data_values(result0, 'single_glider_record-engDataOnly.mrg.result.yml')
+            self.assert_all_queue_size_zero()
 
             self.create_sample_data('multiple_glider_record-engDataOnly.mrg',
                                     "CopyOf-multiple_glider_record-engDataOnly.mrg")
             # Now read the first three records of the second file then stop
-            #result = self.get_samples((ENG_SAMPLE_STREAM, ENG_SCI_SAMPLE_STREAM), 1)
-            result1 = self.get_samples(ENG_SAMPLE_STREAM, 1)
-            result2 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 1)
+            result0 = self.get_samples(DataParticleType.GLIDER_ENG_METADATA, 1)
+            result1 = self.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED, 1)
+            result2 = self.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED, 1)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
-            result1.extend(result2)
-            log.debug("## QualificationTest.test_stop_start(): got result 1 %s", result1)
+            result0.extend(result1)
+            result0.extend(result2)
+            log.debug("## QualificationTest.test_stop_start(): got result 1 %s", result0)
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(ENG_SCI_SAMPLE_STREAM, 0)
-            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+            self.assert_all_queue_size_zero()
 
             # Restart sampling and ensure we get the last 3 records of the file
             self.assert_start_sampling()
-            result3 = self.get_samples(ENG_SAMPLE_STREAM, 3)
-            result4 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 3)
+            result3 = self.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED, 3)
+            result4 = self.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED, 3)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
             result3.extend(result4)
 
-            result1.extend(result3)
+            result0.extend(result3)
 
-            log.debug("## QualificationTest.test_stop_start(): got combined result %s", result1)
-            self.assert_data_values(result1, 'shutdownrestart_glider_record-engDataOnly.mrg.result.yml')
+            log.debug("## QualificationTest.test_stop_start(): got combined result %s", result0)
+            self.assert_data_values(result0, 'shutdownrestart_glider_record-engDataOnly.mrg.result.yml')
 
-            self.assert_sample_queue_size(ENG_SCI_SAMPLE_STREAM, 0)
-            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+            self.assert_all_queue_size_zero()
         except SampleTimeout as e:
             log.error("## QualificationTest.test_stop_start(): Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
+
+    def assert_all_queue_size_zero(self):
+        """
+        make sure all 3 queues have no samples and are size 0
+        """
+        self.assert_sample_queue_size(DataParticleType.GLIDER_ENG_METADATA, 0)
+        self.assert_sample_queue_size(DataParticleType.GLIDER_ENG_SCI_TELEMETERED, 0)
+        self.assert_sample_queue_size(DataParticleType.GLIDER_ENG_TELEMETERED, 0)
 
     def test_shutdown_restart(self):
         """
@@ -340,29 +351,30 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result1 = self.data_subscribers.get_samples(ENG_SAMPLE_STREAM)
-            result2 = self.data_subscribers.get_samples(ENG_SCI_SAMPLE_STREAM)
+            result0 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_METADATA)
+            result1 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED)
+            result2 = self.data_subscribers.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
-            result1.extend(result2)
-            log.debug("## QualificationTest.test_shutdown_restart(): RESULT: %s", result1)
+            result0.extend(result1)
+            result0.extend(result2)
+            log.debug("## QualificationTest.test_shutdown_restart(): RESULT: %s", result0)
 
             # Verify values
-            self.assert_data_values(result1, 'single_glider_record-engDataOnly.mrg.result.yml')
-            self.assert_sample_queue_size(ENG_SCI_SAMPLE_STREAM, 0)
-            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+            self.assert_data_values(result0, 'single_glider_record-engDataOnly.mrg.result.yml')
+            self.assert_all_queue_size_zero()
 
             self.create_sample_data('multiple_glider_record-engDataOnly.mrg',
                                     "CopyOf-multiple_glider_record-engDataOnly.mrg")
             # Now read the first three records of the second file then stop
-            #result = self.get_samples((ENG_SAMPLE_STREAM, ENG_SCI_SAMPLE_STREAM), 1)
-            result1 = self.get_samples(ENG_SAMPLE_STREAM, 1)
-            result2 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 1)
+            result0 = self.get_samples(DataParticleType.GLIDER_ENG_METADATA, 1)
+            result1 = self.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED, 1)
+            result2 = self.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED, 1)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
-            result1.extend(result2)
-            log.debug("## QualificationTest.test_shutdown_restart(): got result 1 %s", result1)
+            result0.extend(result1)
+            result0.extend(result2)
+            log.debug("## QualificationTest.test_shutdown_restart(): got result 1 %s", result0)
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(ENG_SCI_SAMPLE_STREAM, 0)
-            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+            self.assert_all_queue_size_zero()
 
             # stop the agent
             self.stop_dataset_agent_client()
@@ -373,18 +385,17 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and ensure we get the last 3 records of the file
             self.assert_start_sampling()
-            result3 = self.get_samples(ENG_SAMPLE_STREAM, 3)
-            result4 = self.get_samples(ENG_SCI_SAMPLE_STREAM, 3)
+            result3 = self.get_samples(DataParticleType.GLIDER_ENG_TELEMETERED, 3)
+            result4 = self.get_samples(DataParticleType.GLIDER_ENG_SCI_TELEMETERED, 3)
             # append result2 (the eng sci particle) to result 1 (the eng particle)
             result3.extend(result4)
 
-            result1.extend(result3)
+            result0.extend(result3)
 
-            log.debug("## QualificationTest.test_shutdown_restart(): got combined result %s", result1)
-            self.assert_data_values(result1, 'shutdownrestart_glider_record-engDataOnly.mrg.result.yml')
+            log.debug("## QualificationTest.test_shutdown_restart(): got combined result %s", result0)
+            self.assert_data_values(result0, 'shutdownrestart_glider_record-engDataOnly.mrg.result.yml')
 
-            self.assert_sample_queue_size(ENG_SCI_SAMPLE_STREAM, 0)
-            self.assert_sample_queue_size(ENG_SAMPLE_STREAM, 0)
+            self.assert_all_queue_size_zero()
 
         except SampleTimeout as e:
             log.error("## QualificationTest.test_shutdown_restart(): Exception trapped: %s", e, exc_info=True)
@@ -401,7 +412,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        self.assert_sample_queue_size((ENG_SAMPLE_STREAM, ENG_SCI_SAMPLE_STREAM), 0)
+        self.assert_all_queue_size_zero()
 
         # Verify an event was raised and we are in our retry state
         self.assert_event_received(ResourceAgentErrorEvent, 40)

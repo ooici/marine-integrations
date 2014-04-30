@@ -8,9 +8,6 @@ data:
   - _index: 1
     particle_object: EngineeringTelemeteredDataParticle
     particle_type: glider_eng_telemetered
-    glider_eng_filename: 'unit_247-2012-051-0-0-dbd(01840000)'
-    glider_mission_name: 'ENDUR1.MI'
-    glider_eng_fileopen_time: 'Tue_Feb_21_18:39:39_2012'
     internal_timestamp: '2012-02-21T18:41:43.758150Z'
     m_present_time: 1329849703.75815
     m_present_secs_into_mission: 134.605
