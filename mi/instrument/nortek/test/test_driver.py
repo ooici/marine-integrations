@@ -584,10 +584,12 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
                                          ProtocolEvent.ACQUIRE_STATUS,
                                          ProtocolEvent.SET_CONFIGURATION,
                                          ProtocolEvent.SCHEDULED_CLOCK_SYNC,
-                                         ProtocolEvent.RESET],
+                                         ProtocolEvent.RESET,
+                                         ProtocolEvent.SCHEDULED_ACQUIRE_STATUS],
 
             ProtocolState.AUTOSAMPLE:   [ProtocolEvent.STOP_AUTOSAMPLE,
-                                         ProtocolEvent.SCHEDULED_CLOCK_SYNC],
+                                         ProtocolEvent.SCHEDULED_CLOCK_SYNC,
+                                         ProtocolEvent.SCHEDULED_ACQUIRE_STATUS],
 
             ProtocolState.DIRECT_ACCESS: [ProtocolEvent.STOP_DIRECT,
                                           ProtocolEvent.EXECUTE_DIRECT]

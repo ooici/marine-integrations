@@ -217,10 +217,6 @@ class ProtocolEvent(BaseEnum):
     READ_USER_CONFIGURATION = "PROTOCOL_EVENT_READ_USER_CONFIGURATION"
     SCHEDULED_ACQUIRE_STATUS = "PROTOCOL_EVENT_SCHEDULED_ACQUIRE_STATUS"
 
-    #operator events
-    SET_ACQUIRE_STATUS_INTERVAL = 'PROTOCOL_EVENT_SET_SET_ACQUIRE_STATUS_INTERVAL'
-    SET_CLOCK_SYNC_INTERVAL = 'PROTOCOL_EVENT_SET_CLOCK_SYNC_INTERVAL'
-
 
 class Capability(BaseEnum):
     """
@@ -245,8 +241,6 @@ class Capability(BaseEnum):
     #GET_HW_CONFIGURATION = ProtocolEvent.GET_HW_CONFIGURATION
     #GET_HEAD_CONFIGURATION = ProtocolEvent.GET_HEAD_CONFIGURATION
     #READ_USER_CONFIGURATION = ProtocolEvent.READ_USER_CONFIGURATION
-    SET_ACQUIRE_STATUS_INTERVAL = ProtocolEvent.SET_ACQUIRE_STATUS_INTERVAL
-    SET_CLOCK_SYNC_INTERVAL = ProtocolEvent.SET_CLOCK_SYNC_INTERVAL
 
 
 # Device specific parameters.
@@ -1266,8 +1260,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET_CONFIGURATION, self._handler_command_set_configuration)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET_CLOCK_SYNC_INTERVAL, self._handler_command_set_engineering_param)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET_ACQUIRE_STATUS_INTERVAL, self._handler_command_set_engineering_param)
         #TODO - DO WE WANT SCHEDULED EVENTS TO HAPPEN WHILE IN COMMAND MODE?
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS, self._handler_acquire_status)
@@ -2238,8 +2230,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # self._cmd_dict.add(Capability.STOP_AUTOSAMPLE)
         self._cmd_dict.add(Capability.CLOCK_SYNC)
         self._cmd_dict.add(Capability.SET_CONFIGURATION)
-        self._cmd_dict.add(Capability.SET_ACQUIRE_STATUS_INTERVAL)
-        self._cmd_dict.add(Capability.SET_CLOCK_SYNC_INTERVAL)
         self._cmd_dict.add(Capability.RESET)
         # self._cmd_dict.add(Capability.READ_CLOCK)
         # self._cmd_dict.add(Capability.READ_MODE)
@@ -2917,11 +2907,11 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    str,
                                    type=ParameterDictType.STRING,
                                    expiration=None,
-                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="clock sync interval",
                                    default_value='00:00:00',
                                    startup_param=True,
-                                   direct_access=True))
+                                   direct_access=False))
         self._param_dict.add_parameter(
                                    NortekParameterDictVal(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
                                    RUN_CLOCK_SYNC_REGEX,
@@ -2929,11 +2919,11 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                    str,
                                    type=ParameterDictType.STRING,
                                    expiration=None,
-                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="acquire status interval",
                                    default_value='00:00:00',
                                    startup_param=True,
-                                   direct_access=True))
+                                   direct_access=False))
 
         #set the values of the dictionary using set_default
         for param in self._param_dict.get_keys():

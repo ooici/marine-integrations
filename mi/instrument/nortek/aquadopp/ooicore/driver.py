@@ -437,10 +437,10 @@ class Protocol(NortekInstrumentProtocol):
                                     str,
                                     type=ParameterDictType.STRING,
                                     expiration=None,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="clock sync interval",
                                     default_value='00:00:00',
-                                    startup_param=False,
+                                    startup_param=True,
                                     direct_access=False))
 
         self._param_dict.add_parameter(
@@ -450,10 +450,10 @@ class Protocol(NortekInstrumentProtocol):
                                     str,
                                     type=ParameterDictType.STRING,
                                     expiration=None,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="acquire status interval",
                                     default_value='00:00:00',
-                                    startup_param=False,
+                                    startup_param=True,
                                     direct_access=False))
 
         self._param_dict.set_value(Parameter.NUMBER_SAMPLES_PER_BURST,
