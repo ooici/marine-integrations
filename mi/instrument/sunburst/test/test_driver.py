@@ -32,6 +32,10 @@ from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
+from mi.idk.unit_test import GO_ACTIVE_TIMEOUT
+from mi.idk.unit_test import DriverProtocolState
+from mi.idk.unit_test import DriverEvent
+from mi.idk.unit_test import ResourceAgentState
 
 from interface.objects import AgentCommand
 
@@ -470,6 +474,42 @@ class SamiQualificationTest(InstrumentDriverQualificationTestCase):
         if(require_instrument_timestamp):
             self.assertIsNotNone(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP))
             self.assertIsInstance(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP), float)
+
+    ## Have to override because the driver enters a sample state as soon as autosample mode is entered by design.
+    def assert_sample_autosample(self, sample_data_assert, sample_queue,
+                                 timeout=GO_ACTIVE_TIMEOUT, sample_count=3):
+        """
+        Test instrument driver execute interface to start and stop streaming
+        mode.
+
+        This command is only useful for testing one stream produced in
+        streaming mode at a time.  If your driver has multiple streams
+        then you will need to call this method more than once or use a
+        different test.
+        """
+        ## self.assert_enter_command_mode()
+
+        # Begin streaming.
+        ## self.assert_start_autosample()
+
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverProtocolState.COMMAND)
+
+        # Begin streaming.
+        cmd = AgentCommand(command=DriverEvent.START_AUTOSAMPLE)
+        retval = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
+
+        # Wait for driver to exit sample state
+        self.assert_particle_async(sample_queue, sample_data_assert, 1, timeout)
+
+        state = self.instrument_agent_client.get_agent_state()
+        self.assertEqual(state, ResourceAgentState.STREAMING)
+
+        sample_count -= 1
+        self.assert_particle_async(sample_queue, sample_data_assert, sample_count, timeout)
+
+        # Halt streaming.
+        self.assert_stop_autosample()
 
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)

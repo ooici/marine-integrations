@@ -770,9 +770,16 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_regular_status, DataParticleType.REGULAR_STATUS, sample_count=1, timeout=200)
 
     def test_autosample(self):
-        '''
-        start and stop autosample and verify data particle
-        '''
+        """
+        Verify autosample works and data particles are created
+        """
+        self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.AUTO_SAMPLE_INTERVAL, 180)
+
+        ## Get the blank sample out of the way
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_blank_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
+
+        self.assert_sample_autosample(self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE)
 
     def test_get_set_parameters(self):
         '''
