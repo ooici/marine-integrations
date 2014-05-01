@@ -18,6 +18,7 @@ __license__ = 'Apache 2.0'
 
 import unittest
 import time
+import copy
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -36,7 +37,8 @@ from mi.idk.unit_test import GO_ACTIVE_TIMEOUT
 from mi.idk.unit_test import DriverProtocolState
 from mi.idk.unit_test import DriverEvent
 from mi.idk.unit_test import ResourceAgentState
-
+from mi.idk.unit_test import AgentCapabilityType
+from pyon.agent.agent import ResourceAgentEvent
 from interface.objects import AgentCommand
 
 from mi.core.instrument.logger_client import LoggerClient
@@ -52,6 +54,7 @@ from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 
 from mi.instrument.sunburst.driver import Capability
+from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import NEWLINE
 from mi.instrument.sunburst.driver import ProtocolEvent
 from mi.instrument.sunburst.driver import ProtocolState
@@ -142,12 +145,7 @@ class SamiMixin(DriverTestMixin):
         Capability.START_AUTOSAMPLE:    {STATES: [ProtocolState.COMMAND,
                                                   ProtocolState.AUTOSAMPLE]},
         Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
-                                                  ProtocolState.COMMAND]},
-        Capability.START_DIRECT:        {STATES: [ProtocolState.COMMAND,
-                                                  ProtocolState.UNKNOWN,
-                                                  ProtocolState.DIRECT_ACCESS]},
-        Capability.STOP_DIRECT:         {STATES: [ProtocolState.DIRECT_ACCESS,
-                                                  ProtocolState.UNKNOWN]}
+                                                  ProtocolState.COMMAND]}
     }
 
     _regular_status_parameters = {
@@ -476,6 +474,23 @@ class SamiQualificationTest(InstrumentDriverQualificationTestCase):
             self.assertIsInstance(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP), float)
 
     ## Have to override because the driver enters a sample state as soon as autosample mode is entered by design.
+    def assert_start_autosample(self, timeout=GO_ACTIVE_TIMEOUT):
+        '''
+        Enter autosample mode from command
+        '''
+        res_state = self.instrument_agent_client.get_resource_state()
+        self.assertEqual(res_state, DriverProtocolState.COMMAND)
+
+        # Begin streaming.
+        cmd = AgentCommand(command=DriverEvent.START_AUTOSAMPLE)
+        retval = self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
+
+        # state = self.instrument_agent_client.get_agent_state()
+        # self.assertEqual(state, ResourceAgentState.STREAMING)
+
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, timeout=timeout)
+
+    ## Have to override because the driver enters a sample state as soon as autosample mode is entered by design.
     def assert_sample_autosample(self, sample_data_assert, sample_queue,
                                  timeout=GO_ACTIVE_TIMEOUT, sample_count=3):
         """
@@ -514,39 +529,27 @@ class SamiQualificationTest(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    def test_direct_access_telnet_mode(self):
-        """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
-        """
+    def test_boot_prompt_escape(self):
+
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
-        ###
-        #   Add instrument specific code here.
-        ###
+        # Erase memory
+        self.tcp_client.send_data("E5A%s" % NEWLINE)
+
+        time.sleep(1)
+
+        # Cause boot prompt by entering L5A command without a config string
+        self.tcp_client.send_data("L5A%s" % NEWLINE)
+
+        time.sleep(10)
+
+        self.tcp_client.send_data(NEWLINE)
+
+        boot_prompt = self.tcp_client.expect(Prompt.BOOT_PROMPT)
+        self.assertTrue(boot_prompt)
 
         self.assert_direct_access_stop_telnet()
 
-    def test_poll(self):
-        '''
-        No polling for a single sample
-        '''
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
 
-    def test_autosample(self):
-        '''
-        start and stop autosample and verify data particle
-        '''
-
-    def test_get_set_parameters(self):
-        '''
-        verify that all parameters can be get set properly, this includes
-        ensuring that read only parameters fail on set.
-        '''
-        self.assert_enter_command_mode()
-
-    def test_get_capabilities(self):
-        """
-        @brief Walk through all driver protocol states and verify capabilities
-        returned by get_current_capabilities
-        """
-        self.assert_enter_command_mode()

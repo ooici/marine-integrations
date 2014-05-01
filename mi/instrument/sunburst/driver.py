@@ -224,9 +224,6 @@ class Capability(BaseEnum):
     ACQUIRE_BLANK_SAMPLE = ProtocolEvent.ACQUIRE_BLANK_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
-    START_DIRECT = ProtocolEvent.START_DIRECT
-    STOP_DIRECT = ProtocolEvent.STOP_DIRECT
-
 
 class SamiParameter(DriverParameter):
     """
@@ -1785,8 +1782,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name="acquire status")
         self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
         self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
-        self._cmd_dict.add(Capability.START_DIRECT, display_name="start direct access")
-        self._cmd_dict.add(Capability.STOP_DIRECT, display_name="stop direct access")
 
     def _build_driver_dict(self):
         """
@@ -2456,13 +2451,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         raise NotImplementedException()
 
     def _get_specific_configuration_string_parameters(self):
-        """
-        Overridden by device specific subclasses.
-        """
-
-        raise NotImplementedException()
-
-    def _build_configuration_string_specific(self):
         """
         Overridden by device specific subclasses.
         """

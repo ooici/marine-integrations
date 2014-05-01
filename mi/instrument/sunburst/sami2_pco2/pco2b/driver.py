@@ -626,5 +626,3 @@ class Protocol(Pco2wProtocol):
         return SAMPLE_DELAY
     def _get_sample_timeout(self):
         return SAMPLE_DELAY
-    def _get_sample_regex(self):
-        return SAMI_SAMPLE_REGEX_MATCHER
