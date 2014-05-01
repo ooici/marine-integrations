@@ -89,7 +89,7 @@ class WfpEFileParser(BufferLoadingParser):
 
             remain_bytes = raw_data_len - data_index
             # if the remaining bytes are less than the data sample bytes, all we might have left is a status sample, if we don't we're done
-            if remain_bytes < STATUS_BYTES or (remain_bytes < SAMPLE_BYTES and remain_bytes > STATUS_BYTES and \
+            if remain_bytes < STATUS_BYTES or (remain_bytes < SAMPLE_BYTES and remain_bytes >= STATUS_BYTES and \
             not STATUS_START_MATCHER.match(raw_data[data_index:data_index+4])):
                 break
         log.debug("returning sieve list %s", return_list)

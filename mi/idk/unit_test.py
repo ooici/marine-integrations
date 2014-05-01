@@ -1880,7 +1880,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         particle_callback(particle)
 
-    def assert_async_particle_generation(self, particle_type, particle_callback, particle_count = 1, timeout=10):
+    def assert_async_particle_generation(self, particle_type, particle_callback, particle_count=1, timeout=10):
         """
         Watch the event queue for a published data particles.
         @param particle_type: particle type we are looking for
@@ -1888,27 +1888,25 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
         @param timeout: how long should we wait for a particle
         """
         end_time = time.time() + timeout
-        samples = []
-        count = 0
 
-        while(count < particle_count):
+        while True:
             samples = self.get_sample_events(particle_type)
-            log.debug("Found %d samples, seen %d", len(samples), count)
-            if(len(samples) >= 1):
-                sample = samples.pop()
-                self.assertIsNotNone(sample)
+            if len(samples) >= particle_count:
+                for sample in samples:
+                    self.assertIsNotNone(sample)
 
-                value = sample.get('value')
-                self.assertIsNotNone(value)
+                    value = sample.get('value')
+                    self.assertIsNotNone(value)
 
-                particle = json.loads(value)
-                self.assertIsNotNone(particle)
+                    particle = json.loads(value)
+                    self.assertIsNotNone(particle)
 
-                # So we have found one particle and verified it.  We are done here!
-                particle_callback(particle)
+                    # So we have found one particle and verified it.  We are done here!
+                    particle_callback(particle)
+                log.debug('Found %d particles and all particles verified', len(samples))
+                return
 
-                count += 1
-
+            log.error("Only found %d samples, looking for %d", len(samples), particle_count)
             self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
             time.sleep(.3)
 

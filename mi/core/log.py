@@ -23,10 +23,14 @@ to create a logger automatically scoped with the calling package and ready to us
     from ooi.logging import log    # no longer need get_logger at all
 
 """
+import inspect
+import logging
 import os
 import sys
 import yaml
 import pkg_resources
+from types import FunctionType
+from functools import wraps
 
 from mi.core.common import Singleton
 from ooi.logging import config, log
@@ -37,6 +41,7 @@ LOGGING_PRIMARY_FROM_FILE='res/config/mi-logging.yml'
 LOGGING_PRIMARY_FROM_EGG='mi-logging.yml'
 LOGGING_MI_OVERRIDE='res/config/mi-logging.local.yml'
 LOGGING_CONTAINER_OVERRIDE='res/config/logging.local.yml'
+
 
 class LoggerManager(Singleton):
     """
@@ -72,7 +77,48 @@ class LoggerManager(Singleton):
             if debug:
                 print >> sys.stderr, str(os.getpid()) + ' supplemented logging from ' + LOGGING_CONTAINER_OVERRIDE
 
+
+def get_logging_metaclass(log_level='trace'):
+    class LoggingMetaClass(type):
+        def __new__(mcs, class_name, bases, class_dict):
+            wrapper = log_method(class_name=class_name, log_level=log_level)
+            new_class_dict = {}
+            for attributeName, attribute in class_dict.items():
+                if type(attribute) == FunctionType:
+                    attribute = wrapper(attribute)
+                new_class_dict[attributeName] = attribute
+            return type.__new__(mcs, class_name, bases, new_class_dict)
+    return LoggingMetaClass
+
+
+def log_method(class_name=None, log_level='trace'):
+    name = "UNKNOWN_MODULE_NAME"
+    stack = inspect.stack()
+    # step through the stack until we leave mi.core.log
+    for frame in stack:
+        module = inspect.getmodule(frame[0])
+        if module:
+            name = module.__name__
+            if name != 'mi.core.log':
+                break
+    logger = logging.getLogger(name)
+
+    def wrapper(func):
+        if class_name is not None:
+            func_name = '%s.%s' % (class_name, func.__name__)
+        else:
+            func_name = func.__name__
+
+        @wraps(func)
+        def inner(*args, **kwargs):
+            getattr(logger, log_level)('entered %s | args: %r | kwargs: %r', func_name, args, kwargs)
+            r = func(*args, **kwargs)
+            getattr(logger, log_level)('exiting %s | returning %r', func_name, r)
+            return r
+        return inner
+
+    return wrapper
+
+
 def get_logger():
     return log
-
-

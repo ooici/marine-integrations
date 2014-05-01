@@ -6,7 +6,6 @@ header:
 
 data:
   - _index: 1
-    _new_sequence: True
     internal_timestamp: '2013-07-25T17:26:16.97'
     pd12_packet_id: 32622
     num_bytes: 258
@@ -36,7 +35,6 @@ data:
     error_velocity: [4608, 512, -1, -2561, 2304, -3585, -513, 8192, -4353, 3072, -4097, 7168, -1025, -513, -11009, -9985, -7937, 4096, -6913, 11520, -6401, -2561, -11009, -12545, -2305, 27648, 11520, 128]
     checksum: -30565
   - _index: 2
-    _new_sequence: True
     internal_timestamp: '2013-07-25T19:26:16.97'
     pd12_packet_id: 32622
     num_bytes: 258
