@@ -1,21 +1,19 @@
 # Expected Results
 
 header:
-  particle_object: FlordDataParticle
-  particle_type: flord_m_glider_instrument
+  particle_object: FlortTelemeteredDataParticle
+  particle_type: flort_m_glider_instrument
 
 data:
   - _index: 1
+    _new_sequence: False
     internal_timestamp: '2012-02-21T18:42:06.168370Z' 
     m_present_time: 1329849726.16837
     m_present_secs_into_mission: 157.168
     sci_m_present_time: 1329849726.16837
     sci_m_present_secs_into_mission: 157.168
-    sci_flbbcd_timestamp: 1000.1
-    sci_flbbcd_bb_ref: 700
-    sci_flbbcd_bb_sig: 134
     sci_flbbcd_bb_units: 0.000266046
-    sci_flbbcd_chlor_ref: 695
-    sci_flbbcd_chlor_sig: 127
+    sci_flbbcd_cdom_units: 1.9504
     sci_flbbcd_chlor_units: 0.9922
-    sci_flbbcd_therm: 559
+
+
