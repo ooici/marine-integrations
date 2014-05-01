@@ -61,20 +61,20 @@ class DataParticleType(BaseEnum):
 # Data particles
 ###############################################################################
 class AquadoppDwDiagnosticHeaderDataParticleKey(BaseEnum):
-    RECORDS = "records"
-    CELL = "cell"
-    NOISE1 = "noise1"
-    NOISE2 = "noise2"
-    NOISE3 = "noise3"
-    NOISE4 = "noise4"
+    RECORDS = "records_to_follow"
+    CELL = "cell_number_diagnostics"
+    NOISE1 = "noise_amplitude_beam1"
+    NOISE2 = "noise_amplitude_beam2"
+    NOISE3 = "noise_amplitude_beam3"
+    NOISE4 = "noise_amplitude_beam4"
     PROCESSING_MAGNITUDE_BEAM1 = "processing_magnitude_beam1"
     PROCESSING_MAGNITUDE_BEAM2 = "processing_magnitude_beam2"
     PROCESSING_MAGNITUDE_BEAM3 = "processing_magnitude_beam3"
     PROCESSING_MAGNITUDE_BEAM4 = "processing_magnitude_beam4"
-    DISTANCE1 = "distance1"
-    DISTANCE2 = "distance2"
-    DISTANCE3 = "distance3"
-    DISTANCE4 = "distance4"
+    DISTANCE1 = "distance_beam1"
+    DISTANCE2 = "distance_beam2"
+    DISTANCE3 = "distance_beam3"
+    DISTANCE4 = "distance_beam4"
     
             
 class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
@@ -172,8 +172,8 @@ class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
 
     
 class AquadoppDwVelocityDataParticleKey(BaseEnum):
-    TIMESTAMP = "timestamp"
-    ERROR = "error"
+    TIMESTAMP = "date_time_string"
+    ERROR = "error_code"
     ANALOG1 = "analog1"
     BATTERY_VOLTAGE = "battery_voltage"
     SOUND_SPEED_ANALOG2 = "sound_speed_analog2"
