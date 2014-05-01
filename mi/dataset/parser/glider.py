@@ -126,10 +126,6 @@ class GliderParticle(DataParticle):
                     log.trace("Adding Key: %s, value: %s to particle", key, value)
 
             else:
-                # keep a list of parameters that are expected to not show up frequently in order to
-                # limit number of warnings output
-                if key not in OptionalParams.list():
-                    log.warn("The particle key %s is not present in the current data set." % key )
                 value = None
 
         return result
@@ -759,28 +755,6 @@ class EngineeringScienceRecoveredDataParticle(GliderParticle):
             produced by GliderParser._read_data
         """
         return self._parsed_values(EngineeringScienceRecoveredDataParticle.keys_exclude_times)
-
-class OptionalParams(BaseEnum):
-    """
-    This is class is used to store parameters that may or may not appear in a particle
-    to limit the number of warnings which are output.  
-    """
-    SCI_CTD41CP_TIMESTAMP = CtdgvParticleKey.SCI_CTD41CP_TIMESTAMP
-    M_COULOMB_AMPHR= EngineeringTelemeteredParticleKey.M_COULOMB_AMPHR
-    C_BALLAST_PUMPED = EngineeringTelemeteredParticleKey.C_BALLAST_PUMPED
-    M_BALLAST_PUMPED = EngineeringTelemeteredParticleKey.M_BALLAST_PUMPED
-    M_PRESSURE = EngineeringTelemeteredParticleKey.M_PRESSURE
-    M_RAW_ALTITUDE = EngineeringTelemeteredParticleKey.M_RAW_ALTITUDE
-    M_SPEED = EngineeringTelemeteredParticleKey.M_SPEED
-    M_VACUUM = EngineeringTelemeteredParticleKey.M_VACUUM
-    C_BATTPOS = EngineeringTelemeteredParticleKey.C_BATTPOS
-    C_DVL_ON = EngineeringTelemeteredParticleKey.C_DVL_ON
-    C_PITCH = EngineeringTelemeteredParticleKey.C_PITCH
-    M_AIR_PUMP = EngineeringTelemeteredParticleKey.M_AIR_PUMP
-    M_BATTERY = EngineeringTelemeteredParticleKey.M_BATTERY
-    M_COULOMB_AMPHR_TOTAL = EngineeringTelemeteredParticleKey.M_COULOMB_AMPHR_TOTAL
-    M_COULOMB_CURRENT = EngineeringTelemeteredParticleKey.M_COULOMB_CURRENT
-    M_LITHIUM_BATTERY_RELATIVE_CHARGE = EngineeringTelemeteredParticleKey.M_LITHIUM_BATTERY_RELATIVE_CHARGE
 
 class GliderParser(BufferLoadingParser):
     """
