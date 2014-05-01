@@ -21,7 +21,7 @@ from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentProm
     USER_CONFIG_DATA_REGEX, HARDWARE_CONFIG_DATA_REGEX, HEAD_CONFIG_DATA_REGEX, NEWLINE, \
     BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, \
     NortekEngBatteryDataParticle, NortekEngClockDataParticle, NortekEngIdDataParticle, EngineeringParameter, \
-    RUN_CLOCK_SYNC_REGEX, ACQUIRE_STATUS_REGEX
+    INTERVAL_TIME_REGEX, TIMEOUT
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
 from mi.instrument.nortek.driver import NortekUserConfigDataParticle, NortekParameterDictVal, Parameter, \
@@ -383,7 +383,6 @@ class Protocol(NortekInstrumentProtocol):
     # overridden superclass methods
     ########################################################################
     @staticmethod
-    
     def chunker_sieve_function(raw_data, add_structs=[]):
         return NortekInstrumentProtocol.chunker_sieve_function(raw_data,
                                                                VECTOR_SAMPLE_STRUCTURES)
@@ -403,6 +402,33 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(NortekEngBatteryDataParticle, BATTERY_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekEngClockDataParticle, CLOCK_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekEngIdDataParticle, ID_DATA_REGEX, structure, timestamp)
+
+    # def _handler_unknown_discover(self, *args, **kwargs):
+    #     """
+    #     Discover current state of instrument; can be COMMAND or AUTOSAMPLE.
+    #     @retval (next_state, result)
+    #     """
+    #     next_state = None
+    #     result = None
+    #
+    #
+    #     #TODO - THIS DOES NOT DISCOVER CORRECTLY
+    #
+    #     # try to discover the device mode using timeout if passed.
+    #     timeout = kwargs.get('timeout', TIMEOUT)
+    #     prompt = self._get_mode(timeout)
+    #     if prompt == InstrumentPrompts.COMMAND_MODE:
+    #         next_state = ProtocolState.COMMAND
+    #         result = ResourceAgentState.IDLE
+    #     elif prompt == InstrumentPrompts.CONFIRMATION:
+    #         next_state = ProtocolState.AUTOSAMPLE
+    #         result = ResourceAgentState.STREAMING
+    #
+    #     log.debug('_handler_unknown_discover: state=%s', next_state)
+    #
+    #     return next_state, result
+
+
 
     def _build_param_dict(self):
         """
@@ -428,7 +454,7 @@ class Protocol(NortekInstrumentProtocol):
 
         self._param_dict.add_parameter(
                                     NortekParameterDictVal(EngineeringParameter.CLOCK_SYNC_INTERVAL,
-                                    RUN_CLOCK_SYNC_REGEX,
+                                    INTERVAL_TIME_REGEX,
                                     lambda match: match.group(1),
                                     str,
                                     type=ParameterDictType.STRING,
@@ -441,7 +467,7 @@ class Protocol(NortekInstrumentProtocol):
 
         self._param_dict.add_parameter(
                                     NortekParameterDictVal(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
-                                    ACQUIRE_STATUS_REGEX,
+                                    INTERVAL_TIME_REGEX,
                                     lambda match: match.group(1),
                                     str,
                                     type=ParameterDictType.STRING,

@@ -556,25 +556,6 @@ class IntFromIDK(NortekIntTest):
         
         reply = self.driver_client.cmd_dvr('get_resource', [Parameter.WRAP_MODE, Parameter.AVG_INTERVAL, Parameter.DIAGNOSTIC_INTERVAL])
         self.assertEqual(new_params, reply)
-        
-    def test_instrument_acquire_sample(self):
-        """
-        Test acquire sample command and events.
-        """
-
-        self.put_driver_in_command_mode()
-
-        # command the instrument to auto-sample mode.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
-
-        # wait for some samples to be generated
-        gevent.sleep(100)
-
-        # Verify we received at least 4 samples.
-        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        log.debug('test_instrument_start_stop_autosample: # 0f samples = %d', len(sample_events))
-        #log.debug('samples=%s' %sample_events)
-        self.assertTrue(len(sample_events) >= 4)
                
     def test_errors(self):
         """

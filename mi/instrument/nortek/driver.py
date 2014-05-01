@@ -211,15 +211,18 @@ class Capability(BaseEnum):
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    SET_CONFIGURATION = ProtocolEvent.SET_CONFIGURATION
-    READ_CLOCK = ProtocolEvent.READ_CLOCK
-    READ_MODE = ProtocolEvent.READ_MODE
-    POWER_DOWN = ProtocolEvent.POWER_DOWN
-    READ_BATTERY_VOLTAGE = ProtocolEvent.READ_BATTERY_VOLTAGE
-    READ_ID = ProtocolEvent.READ_ID
-    GET_HW_CONFIGURATION = ProtocolEvent.GET_HW_CONFIGURATION
-    GET_HEAD_CONFIGURATION = ProtocolEvent.GET_HEAD_CONFIGURATION
-    GET_USER_CONFIGURATION = ProtocolEvent.GET_USER_CONFIGURATION
+    # SET_CONFIGURATION = ProtocolEvent.SET_CONFIGURATION
+    # READ_CLOCK = ProtocolEvent.READ_CLOCK
+    # READ_MODE = ProtocolEvent.READ_MODE
+    # POWER_DOWN = ProtocolEvent.POWER_DOWN
+    # READ_BATTERY_VOLTAGE = ProtocolEvent.READ_BATTERY_VOLTAGE
+    # READ_ID = ProtocolEvent.READ_ID
+    # GET_HW_CONFIGURATION = ProtocolEvent.GET_HW_CONFIGURATION
+    # GET_HEAD_CONFIGURATION = ProtocolEvent.GET_HEAD_CONFIGURATION
+    # GET_USER_CONFIGURATION = ProtocolEvent.GET_USER_CONFIGURATION
+    START_DIRECT = DriverEvent.START_DIRECT
+    STOP_DIRECT = DriverEvent.STOP_DIRECT
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 # Device specific parameters.
 class Parameter(DriverParameter):
@@ -2100,27 +2103,25 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         from a file if present.
         """
         self._cmd_dict = ProtocolCommandDict()
-        self._cmd_dict.add(Capability.SET)
-        self._cmd_dict.add(Capability.GET)
-        self._cmd_dict.add(Capability.ACQUIRE_SAMPLE)
-        self._cmd_dict.add(Capability.START_AUTOSAMPLE)
-        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE)
-        self._cmd_dict.add(Capability.CLOCK_SYNC)
-        self._cmd_dict.add(Capability.SET_CONFIGURATION)
-        self._cmd_dict.add(Capability.READ_CLOCK)
-        self._cmd_dict.add(Capability.READ_MODE)
-        self._cmd_dict.add(Capability.POWER_DOWN)
-        self._cmd_dict.add(Capability.READ_BATTERY_VOLTAGE)
-        self._cmd_dict.add(Capability.READ_ID)
-        self._cmd_dict.add(Capability.GET_HW_CONFIGURATION)
-        self._cmd_dict.add(Capability.GET_HEAD_CONFIGURATION)
-        self._cmd_dict.add(Capability.GET_USER_CONFIGURATION)
-        # RECORDER
-        #self._cmd_dict.add(Capability.START_MEASUREMENT_AT_SPECIFIC_TIME)
-        #self._cmd_dict.add(Capability.START_MEASUREMENT_IMMEDIATE)
+        self._cmd_dict.add(Capability.SET, display_name='set')
+        self._cmd_dict.add(Capability.GET, display_name='get')
+        self._cmd_dict.add(Capability.ACQUIRE_SAMPLE, display_name='acquire sample')
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name='start autosample')
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name='stop autosample')
+        self._cmd_dict.add(Capability.CLOCK_SYNC, display_name='clock sync')
+        self._cmd_dict.add(Capability.START_DIRECT, display_name='start direct access')
+        self._cmd_dict.add(Capability.STOP_DIRECT, display_name='stop direct access')
+        self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name='acquire status')
+        #self._cmd_dict.add(Capability.SET_CONFIGURATION, display_name='')
+        # self._cmd_dict.add(Capability.READ_CLOCK, display_name='')
+        # self._cmd_dict.add(Capability.READ_MODE, display_name='')
+        # self._cmd_dict.add(Capability.POWER_DOWN, display_name='')
+        # self._cmd_dict.add(Capability.READ_BATTERY_VOLTAGE, display_name='')
+        # self._cmd_dict.add(Capability.READ_ID, display_name='')
+        # self._cmd_dict.add(Capability.GET_HW_CONFIGURATION, display_name='')
+        # self._cmd_dict.add(Capability.GET_HEAD_CONFIGURATION, display_name='')
+        # self._cmd_dict.add(Capability.GET_USER_CONFIGURATION, display_name='')
 
-        # Child should load this, no need to do it twice
-        # self._cmd_dict.load_strings()
 
     def _build_param_dict(self):
         """
