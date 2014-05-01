@@ -7,6 +7,7 @@ Release notes:
 This supports the UW BARS instrument from the Marv Tilley lab
 
 """
+from mi.core.instrument.driver_dict import DriverDictKey
 
 __author__ = 'Steve Foley'
 __license__ = 'Apache 2.0'
@@ -22,7 +23,7 @@ from mi.core.exceptions import InstrumentTimeoutException
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.protocol_param_dict import ProtocolParameterDict, ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ProtocolParameterDict, ParameterDictVisibility, ParameterDictType
 
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
@@ -266,7 +267,7 @@ class BarsDataParticle(DataParticle):
         
         if not match:
             raise SampleException("No regex match of parsed sample data: [%s]" %
-                                  self.decoded_raw)
+                                  self.raw_data)
             
         log.trace("Matching sample [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s], [%s]",
                   match.group(1),match.group(2),match.group(3),match.group(4),match.group(5),
@@ -430,6 +431,8 @@ class Protocol(MenuInstrumentProtocol):
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
+        self._build_driver_dict()
+        self._build_command_dict()
         self._build_param_dict()
 
         # Add build handlers for device commands.
@@ -633,6 +636,7 @@ class Protocol(MenuInstrumentProtocol):
         for (key, val) in params.iteritems():
             log.debug(">>> KEY = %s VALUE = %s", key, val)
             if not Parameter.has(key):
+                log.debug("Param %s not in Parameter keys", key)
                 raise InstrumentParameterException()
 
             # restrict operations to just the read/write parameters
@@ -647,7 +651,8 @@ class Protocol(MenuInstrumentProtocol):
                     result = self._do_cmd_resp(Command.DIRECT_SET, value,
                                       expected_prompt=Prompt.CHANGE_PARAM_MENU)
 
-                except InstrumentProtocolException:
+                except InstrumentParameterException:
+                    log.debug("Could not set cycle time. InstrumentParameterException!")
                     self._go_to_root_menu()
                     raise InstrumentProtocolException("Could not set cycle time")
                 log.debug(">>>finished setting CYCLE_TIME go to root menu")
@@ -742,116 +747,6 @@ class Protocol(MenuInstrumentProtocol):
         self._update_params()
 
 
-    def _set_params_save(self, *args, **kwargs):
-        """
-        Issue commands to the instrument to set various parameters
-        """
-        log.debug('>>>_set_params')
-
-        next_state = None
-        result = None
-        try:
-            params = args[0]
-        except IndexError:
-            raise InstrumentParameterException('Set command requires a parameter dict.')
-
-        # set parameters are only allowed in COMMAND state
-        if (self.get_current_state() != ProtocolState.COMMAND):
-            raise InstrumentProtocolException("Not in command state. Unable to set read-only params")
-
-        self._verify_not_readonly(*args, **kwargs)
-
-        self._go_to_root_menu()
-        for (key, val) in params.iteritems():
-            log.debug(">>> KEY = %s VALUE = %s", key, val)
-            if not Parameter.has(key):
-                raise InstrumentParameterException()
-
-            # restrict operations to just the read/write parameters
-            if (key == Parameter.CYCLE_TIME):
-                self._navigate(SubMenu.CYCLE_TIME)
-                (unit, value) = self._from_seconds(val)
-
-                try:
-                    result = self._do_cmd_resp(Command.DIRECT_SET, unit,
-                                      expected_prompt=[Prompt.CYCLE_TIME_SEC_VALUE_PROMPT,
-                                                      Prompt.CYCLE_TIME_MIN_VALUE_PROMPT])
-                    result = self._do_cmd_resp(Command.DIRECT_SET, value,
-                                      expected_prompt=Prompt.CHANGE_PARAM_MENU)
-
-                except InstrumentProtocolException:
-                    self._go_to_root_menu()
-                    raise InstrumentProtocolException("Could not set cycle time")
-                log.debug(">>>finished setting CYCLE_TIME go to root menu")
-                self._go_to_root_menu()
-
-            elif (key == Parameter.METADATA_POWERUP):
-                self._navigate(SubMenu.METADATA_POWERUP)
-                result = self._do_cmd_resp(Command.DIRECT_SET, (1+ int(self._param_dict.get_init_value(key))),
-                                           expected_prompt=Prompt.CHANGE_PARAM_MENU)
-                if not result:
-                    raise InstrumentParameterException("Could not set param %s" % key)
-
-                log.debug(">>>finished setting METADATA_POWERUP")
-                self._go_to_root_menu()
-
-            elif (key == Parameter.METADATA_RESTART):
-
-                self._navigate(SubMenu.METADATA_RESTART)
-                result = self._do_cmd_resp(Command.DIRECT_SET, (1 + int(self._param_dict.get_init_value(key))),
-                                           expected_prompt=Prompt.CHANGE_PARAM_MENU)
-                if not result:
-                    raise InstrumentParameterException("Could not set param %s" % key)
-
-                log.debug(">>>finished setting METADATA_RESTART")
-                self._go_to_root_menu()
-
-            elif (key == Parameter.VERBOSE):
-
-                self._navigate(SubMenu.VERBOSE)
-                result = self._do_cmd_resp(Command.DIRECT_SET, self._param_dict.get_init_value(key),
-                                           expected_prompt=Prompt.CHANGE_PARAM_MENU)
-                if not result:
-                    raise InstrumentParameterException("Could not set param %s" % key)
-
-                log.debug(">>>finished setting VERBOSE")
-                self._go_to_root_menu()
-
-            elif (key == Parameter.EH_ISOLATION_AMP_POWER):
-
-                result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
-                while not result:
-                    result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
-
-                log.debug(">>>finished setting EH_ISOLATION_AMP_POWER")
-            elif (key == Parameter.HYDROGEN_POWER):
-
-                log.debug(">>>Trying to set HYDROGEN_POWER ")
-                result = self._navigate(SubMenu.HYDROGEN_POWER)
-                while not result:
-                    result = self._navigate(SubMenu.HYDROGEN_POWER)
-
-            elif (key == Parameter.INST_AMP_POWER):
-                result = self._navigate(SubMenu.INST_AMP_POWER)
-                while not result:
-                    result = self._navigate(SubMenu.INST_AMP_POWER)
-
-            elif (key == Parameter.REFERENCE_TEMP_POWER):
-                result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
-                while not result:
-                    result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
-
-            elif (key == Parameter.RES_SENSOR_POWER):
-                result = self._navigate(SubMenu.RES_SENSOR_POWER)
-                while not result:
-                    result = self._navigate(SubMenu.RES_SENSOR_POWER)
-
-
-        # re-sync with param dict?
-        self._go_to_root_menu()
-        self._update_params()
-
-
 
     def _handler_command_set(self, *args, **kwargs):
         """Handle setting data from command mode
@@ -887,53 +782,6 @@ class Protocol(MenuInstrumentProtocol):
         return (next_state, result)
 
 
-    def _handler_command_set_save(self, params, *args, **kwargs):
-        """Handle setting data from command mode
-         
-        @param params Dict of the parameters and values to pass to the state
-        @retval return (next state, result)
-        @throw InstrumentProtocolException For invalid parameter
-        """
-        next_state = None
-        result = None
-        result_vals = {}    
-
-        log.debug('>>>_handler_command_set')
-        if ((params == None) or (not isinstance(params, dict))):
-            raise InstrumentParameterException()
-
-        self._verify_not_readonly(params, False)
-        name_values = params
-        for key in name_values.keys():
-            if not Parameter.has(key):
-                raise InstrumentParameterException()
-            
-            # restrict operations to just the read/write parameters
-            if (key == Parameter.CYCLE_TIME):
-                self._navigate(SubMenu.CYCLE_TIME)
-                (unit, value) = self._from_seconds(name_values[key])
-                
-                try:                
-                    self._do_cmd_resp(Command.DIRECT_SET, unit,
-                                      expected_prompt=[Prompt.CYCLE_TIME_SEC_VALUE_PROMPT,
-                                                      Prompt.CYCLE_TIME_MIN_VALUE_PROMPT])
-                    self._do_cmd_resp(Command.DIRECT_SET, value,
-                                      expected_prompt=Prompt.CHANGE_PARAM_MENU)
-                except InstrumentProtocolException:
-                    self._go_to_root_menu()
-                    raise InstrumentProtocolException("Could not set cycle time")
-                
-                # Populate with actual value set
-                result_vals[key] = name_values[key]
-                
-        # re-sync with param dict?
-        self._go_to_root_menu()
-        self._update_params()
-        
-        result = result_vals
-            
-        log.debug("next: %s, result: %s", next_state, result) 
-        return (next_state, None)
 
     def _handler_command_autosample(self, *args, **kwargs):
         """ Start autosample mode """
@@ -1240,7 +1088,27 @@ class Protocol(MenuInstrumentProtocol):
                 log.debug(">>>>param = %s, param_dict param = %s, param_dict int val = %s", param,
                     self._param_dict.get(param), self._param_dict.get_init_value(param))
                 raise InstrumentProtocolException("Could not set default values!")
-                
+
+
+    def _build_driver_dict(self):
+        """
+        Populate the driver dictionary with options
+        """
+        self._driver_dict.add(DriverDictKey.VENDOR_SW_COMPATIBLE, True)
+
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+        self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name="start autosample")
+        self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name="stop autosample")
+        self._cmd_dict.add(Capability.GET, display_name="get")
+        self._cmd_dict.add(Capability.SET, display_name="set")
+        self._cmd_dict.add(Capability.START_DIRECT, display_name="start direct")
+        self._cmd_dict.add(Capability.STOP_DIRECT, display_name="stop direct")
+        self._cmd_dict.add(Capability.EXECUTE_DIRECT, display_name="execute direct")
+
         
     def _build_param_dict(self):
         """
@@ -1256,6 +1124,8 @@ class Protocol(MenuInstrumentProtocol):
                              lambda match : self._to_seconds(int(match.group(1)),
                                                              int(match.group(2))),
                              self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Cycle Time",
                              visibility=ParameterDictVisibility.READ_WRITE,
                              startup_param=True,
                              direct_access=True,
@@ -1269,6 +1139,8 @@ class Protocol(MenuInstrumentProtocol):
                              r'', # Write-only, so does it really matter?
                              lambda match : None,
                              self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Verbose",
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -1280,6 +1152,8 @@ class Protocol(MenuInstrumentProtocol):
                              r'(0|1)\s+= Metadata Print Status on Power up',
                              lambda match : int(match.group(1)),
                              self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Metadata Powerup",
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -1291,6 +1165,8 @@ class Protocol(MenuInstrumentProtocol):
                              r'(0|1)\s+= Metadata Print Status on Restart Data Collection',
                              lambda match : int(match.group(1)),
                              self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Metadata Restart",
                              visibility=ParameterDictVisibility.IMMUTABLE,
                              startup_param=True,
                              direct_access=True,
@@ -1302,6 +1178,8 @@ class Protocol(MenuInstrumentProtocol):
                              r'(0|1)\s+= Res Power Status',
                              lambda match : int(match.group(1)),
                              self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Res Sensor Power",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
@@ -1315,6 +1193,8 @@ class Protocol(MenuInstrumentProtocol):
                              r'(0|1)\s+= Thermocouple & Hydrogen Amp Power Status',
                              lambda match : int(match.group(1)),
                              self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Inst Amp Power",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
@@ -1328,6 +1208,8 @@ class Protocol(MenuInstrumentProtocol):
                              r'(0|1)\s+= eh Amp Power Status',
                              lambda match : int(match.group(1)),
                              self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Eh Iso Amp Power",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
@@ -1341,6 +1223,8 @@ class Protocol(MenuInstrumentProtocol):
                              r'(0|1)\s+= Hydrogen Sensor Power Status',
                              lambda match : int(match.group(1)),
                              self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Hydrogen Sensor Power Status",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
@@ -1354,6 +1238,8 @@ class Protocol(MenuInstrumentProtocol):
                              r'(0|1)\s+= Reference Temperature Power Status',
                              lambda match : int(match.group(1)),
                              self._int_to_string,
+                             type=ParameterDictType.INT,
+                             display_name="Ref Temp Power",
                              visibility=ParameterDictVisibility.READ_ONLY,
                              startup_param=False,
                              direct_access=False,
