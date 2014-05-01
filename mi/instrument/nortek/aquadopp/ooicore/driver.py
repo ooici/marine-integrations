@@ -18,13 +18,14 @@ from mi.core.exceptions import SampleException
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentPrompts, NortekProtocolParameterDict, \
-    USER_CONFIG_DATA_REGEX, HARDWARE_CONFIG_DATA_REGEX, HEAD_CONFIG_DATA_REGEX, NEWLINE, log_method, \
-    ACQUIRE_STATUS_REGEX, EngineeringParameter, BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, \
-    NortekEngBatteryDataParticle, NortekEngClockDataParticle, NortekEngIdDataParticle
+    USER_CONFIG_DATA_REGEX, HARDWARE_CONFIG_DATA_REGEX, HEAD_CONFIG_DATA_REGEX, NEWLINE, \
+    BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, \
+    NortekEngBatteryDataParticle, NortekEngClockDataParticle, NortekEngIdDataParticle, EngineeringParameter, \
+    RUN_CLOCK_SYNC_REGEX, ACQUIRE_STATUS_REGEX
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
 from mi.instrument.nortek.driver import NortekUserConfigDataParticle, NortekParameterDictVal, Parameter, \
-    RUN_CLOCK_SYNC_REGEX, NortekInstrumentDriver
+    NortekInstrumentDriver
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 
@@ -82,7 +83,6 @@ class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
     """
     _data_particle_type = DataParticleType.DIAGNOSTIC_HEADER
 
-    @log_method
     def _build_parsed_values(self):
         """
         Take something in the diagnostic data header sample format and parse it into
@@ -197,7 +197,6 @@ class AquadoppDwVelocityDataParticle(DataParticle):
     """
     _data_particle_type = DataParticleType.VELOCITY
 
-    @log_method
     def _build_parsed_values(self):
         """
         Take something in the velocity data sample format and parse it into
@@ -313,7 +312,6 @@ class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
     """
     _data_particle_type = DataParticleType.DIAGNOSTIC
 
-    @log_method
     def _build_parsed_values(self):
         """
         Take something in the diagnostic data sample format and parse it into
@@ -339,7 +337,7 @@ class InstrumentDriver(NortekInstrumentDriver):
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
     """
-    @log_method
+    
     def __init__(self, evt_callback):
         """
         Driver constructor.
@@ -351,7 +349,7 @@ class InstrumentDriver(NortekInstrumentDriver):
     ########################################################################
     # Protocol builder.
     ########################################################################
-    @log_method
+    
     def _build_protocol(self):
         """
         Construct the driver protocol state machine.
@@ -367,7 +365,7 @@ class Protocol(NortekInstrumentProtocol):
     Instrument protocol class
     Subclasses NortekInstrumentProtocol
     """
-    @log_method
+    
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -385,12 +383,11 @@ class Protocol(NortekInstrumentProtocol):
     # overridden superclass methods
     ########################################################################
     @staticmethod
-    @log_method
+    
     def chunker_sieve_function(raw_data, add_structs=[]):
         return NortekInstrumentProtocol.chunker_sieve_function(raw_data,
                                                                VECTOR_SAMPLE_STRUCTURES)
 
-    @log_method
     def _got_chunk(self, structure, timestamp):
         """
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
@@ -407,7 +404,6 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(NortekEngClockDataParticle, CLOCK_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekEngIdDataParticle, ID_DATA_REGEX, structure, timestamp)
 
-    @log_method
     def _build_param_dict(self):
         """
         Overwrite base classes method.

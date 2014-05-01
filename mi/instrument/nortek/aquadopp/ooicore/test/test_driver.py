@@ -62,7 +62,7 @@ from interface.objects import AgentCommand
 from interface.objects import CapabilityType
 
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest
-from mi.instrument.nortek.driver import Parameter, ProtocolState, ProtocolEvent
+from mi.instrument.nortek.driver import Parameter, ProtocolState, ProtocolEvent, ID_DATA_PATTERN
 
 ###
 #   Driver parameters for the tests
@@ -427,6 +427,22 @@ class IntFromIDK(NortekIntTest):
     
     def setUp(self):
         NortekIntTest.setUp(self)
+
+
+    def test_instrument_read_id(self):
+        """
+        Test for reading ID, need to be implemented int the child class because each ID is unique to the
+        instrument.
+        """
+        self.assert_initialize_driver()
+
+        # command the instrument to read the ID.
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
+
+        log.debug("read ID returned: %s", response)
+        self.assertTrue(re.search(r'AQD 8493.*', response[1]))
+
+        self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
  
     def test_set_init_params(self):
         """

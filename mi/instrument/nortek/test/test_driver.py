@@ -25,7 +25,7 @@ from pyon.agent.agent import ResourceAgentState
 
 from mi.core.log import get_logger ; log = get_logger()
 
-from mi.idk.unit_test import InstrumentDriverUnitTestCase
+from mi.idk.unit_test import InstrumentDriverUnitTestCase, ParameterTestConfigKey
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import AgentCapabilityType
@@ -34,13 +34,13 @@ from mi.idk.unit_test import DriverTestMixin
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverAsyncEvent, DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.core.instrument.protocol_cmd_dict import CommandDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictKey
 
-from mi.instrument.nortek.driver import NortekProtocolParameterDict
+from mi.instrument.nortek.driver import NortekProtocolParameterDict, CLOCK_DATA_REGEX, CLOCK_DATA_PATTERN
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekUserConfigDataParticleKey
@@ -57,7 +57,7 @@ from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import ScheduledJob
 from mi.instrument.nortek.driver import NortekInstrumentDriver
-from mi.core.exceptions import NotImplementedException
+from mi.core.exceptions import NotImplementedException, InstrumentCommandException
 
 from interface.objects import AgentCommand
 
@@ -318,6 +318,192 @@ def user_config2():
 PORT_TIMESTAMP = 3558720820.531179
 DRIVER_TIMESTAMP = 3555423722.711772
 
+###############################################################################
+#                           DRIVER TEST MIXIN        		                  #
+#     Defines a set of constants and assert methods used for data particle    #
+#     verification 														      #
+#                                                                             #
+#  In python, mixin classes are classes designed such that they wouldn't be   #
+#  able to stand on their own, but are inherited by other classes generally   #
+#  using multiple inheritance.                                                #
+#                                                                             #
+# This class defines a configuration structure for testing and common assert  #
+# methods for validating data particles.									  #
+###############################################################################
+
+class DriverTestMixinSub(DriverTestMixin):
+    """
+    Mixin class used for storing data particle constance and common data assertion methods.
+    """
+
+    #Create some short names for the parameter test config
+    TYPE = ParameterTestConfigKey.TYPE
+    READONLY = ParameterTestConfigKey.READONLY
+    STARTUP = ParameterTestConfigKey.STARTUP
+    DA = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE = ParameterTestConfigKey.VALUE
+    REQUIRED = ParameterTestConfigKey.REQUIRED
+    DEFAULT = ParameterTestConfigKey.DEFAULT
+    STATES = ParameterTestConfigKey.STATES
+
+    _battery_voltage_parameter = {
+        NortekEngBatteryDataParticleKey.BATTERY_VOLTAGE: {TYPE: int, VALUE: 0, REQUIRED: True}
+    }
+
+    _clock_data_parameter = {
+        NortekEngClockDataParticleKey.DATE_TIME_ARRAY: {TYPE: list, VALUE: [1, 2, 3, 4, 5, 6], REQUIRED: True},
+        NortekEngClockDataParticleKey.DATE_TIME_STAMP: {TYPE: int, VALUE: 0, REQUIRED: False}
+    }
+
+    _user_config_parameters = {
+        NortekUserConfigDataParticleKey.TX_LENGTH: {TYPE: int, VALUE: 2, REQUIRED: True},
+        NortekUserConfigDataParticleKey.BLANK_DIST: {TYPE: int, VALUE: 16, REQUIRED: True},
+        NortekUserConfigDataParticleKey.RX_LENGTH: {TYPE: int, VALUE: 7, REQUIRED: True},
+        NortekUserConfigDataParticleKey.TIME_BETWEEN_PINGS: {TYPE: int, VALUE: 44, REQUIRED: True},
+        NortekUserConfigDataParticleKey.TIME_BETWEEN_BURSTS: {TYPE: int, VALUE: 512, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_PINGS: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.AVG_INTERVAL: {TYPE: int, VALUE: 61, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_BEAMS: {TYPE: int, VALUE: 3, REQUIRED: True},
+        NortekUserConfigDataParticleKey.PROFILE_TYPE: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.MODE_TYPE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.TCR: {TYPE: int, VALUE: 0, REQUIRED: False},
+        NortekUserConfigDataParticleKey.PCR: {TYPE: int, VALUE: 0, REQUIRED: False},
+        NortekUserConfigDataParticleKey.POWER_TCM1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.POWER_TCM2: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.SYNC_OUT_POSITION: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.SAMPLE_ON_SYNC: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.START_ON_SYNC: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.POWER_PCR1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.POWER_PCR2: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.COMPASS_UPDATE_RATE: {TYPE: int, VALUE: 2, REQUIRED: True},
+        NortekUserConfigDataParticleKey.COORDINATE_SYSTEM: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_CELLS: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.CELL_SIZE: {TYPE: int, VALUE: 7, REQUIRED: True},
+        NortekUserConfigDataParticleKey.MEASUREMENT_INTERVAL: {TYPE: int, VALUE: 3600, REQUIRED: True},
+        NortekUserConfigDataParticleKey.DEPLOYMENT_NAME: {TYPE: unicode, VALUE: '4943', REQUIRED: True},
+        NortekUserConfigDataParticleKey.WRAP_MODE: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.DEPLOY_START_TIME: {TYPE: list, VALUE: [26, 42, 28, 12, 12, 9], REQUIRED: True},
+        NortekUserConfigDataParticleKey.DIAG_INTERVAL: {TYPE: int, VALUE: 43200, REQUIRED: True},
+        NortekUserConfigDataParticleKey.MODE: {TYPE: int, VALUE: 0, REQUIRED: False},
+        NortekUserConfigDataParticleKey.USE_SPEC_SOUND_SPEED: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekUserConfigDataParticleKey.DIAG_MODE_ON: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekUserConfigDataParticleKey.ANALOG_OUTPUT_ON: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekUserConfigDataParticleKey.OUTPUT_FORMAT: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.SCALING: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.SERIAL_OUT_ON: {TYPE: bool, VALUE: True, REQUIRED: True},
+        NortekUserConfigDataParticleKey.STAGE_ON: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekUserConfigDataParticleKey.ANALOG_POWER_OUTPUT: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekUserConfigDataParticleKey.SOUND_SPEED_ADJUST: {TYPE: int, VALUE: 16657, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_DIAG_SAMPLES: {TYPE: int, VALUE: 20, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_BEAMS_PER_CELL: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_PINGS_DIAG: {TYPE: int, VALUE: 20, REQUIRED: True},
+        NortekUserConfigDataParticleKey.MODE_TEST: {TYPE: int, VALUE: 0, REQUIRED: False},
+        NortekUserConfigDataParticleKey.USE_DSP_FILTER: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekUserConfigDataParticleKey.FILTER_DATA_OUTPUT: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.SW_VER: {TYPE: int, VALUE: 13600, REQUIRED: True},
+        NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR: {TYPE: unicode, VALUE: '', REQUIRED: True},
+        NortekUserConfigDataParticleKey.FILE_COMMENTS: {TYPE: unicode, VALUE: '', REQUIRED: True},
+        NortekUserConfigDataParticleKey.WAVE_MODE: {TYPE: int, VALUE: 1, REQUIRED: False},
+        NortekUserConfigDataParticleKey.WAVE_DATA_RATE: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.WAVE_CELL_POS: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.DYNAMIC_POS_TYPE: {TYPE: int, VALUE: 1, REQUIRED: True},
+        NortekUserConfigDataParticleKey.PERCENT_WAVE_CELL_POS: {TYPE: int, VALUE: 32768, REQUIRED: True},
+        NortekUserConfigDataParticleKey.WAVE_TX_PULSE: {TYPE: int, VALUE: 16384, REQUIRED: True},
+        NortekUserConfigDataParticleKey.FIX_WAVE_BLANK_DIST: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.WAVE_CELL_SIZE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_DIAG_PER_WAVE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.NUM_SAMPLE_PER_BURST: {TYPE: int, VALUE: 10, REQUIRED: True},
+        NortekUserConfigDataParticleKey.ANALOG_SCALE_FACTOR: {TYPE: int, VALUE: 11185, REQUIRED: True},
+        NortekUserConfigDataParticleKey.CORRELATION_THRS: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND: {TYPE: int, VALUE: 2, REQUIRED: True},
+        NortekUserConfigDataParticleKey.FILTER_CONSTANTS: {TYPE: unicode, VALUE: '', REQUIRED: True},
+        NortekUserConfigDataParticleKey.CHECKSUM: {TYPE: int, VALUE: 0, REQUIRED: False}
+    }
+
+    _head_config_parameter = {
+        NortekHeadConfigDataParticleKey.PRESSURE_SENSOR: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.MAG_SENSOR: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.TILT_SENSOR: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.TILT_SENSOR_MOUNT: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.HEAD_FREQ: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.HEAD_TYPE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.HEAD_SERIAL: {TYPE: unicode, VALUE: '', REQUIRED: True},
+        NortekHeadConfigDataParticleKey.SYSTEM_DATA: {TYPE: unicode, VALUE: '', REQUIRED: True},
+        NortekHeadConfigDataParticleKey.NUM_BEAMS: {TYPE: int, VALUE: 3, REQUIRED: True},
+        NortekHeadConfigDataParticleKey.CONFIG: {TYPE: int, VALUE: 0, REQUIRED: False},
+        NortekUserConfigDataParticleKey.CHECKSUM: {TYPE: int, VALUE: 0, REQUIRED: False}
+    }
+
+    _hardware_config_parameter = {
+        NortekHardwareConfigDataParticleKey.SERIAL_NUM: {TYPE: unicode, VALUE: 0, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.RECORDER_INSTALLED: {TYPE: bool, VALUE: False, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.COMPASS_INSTALLED: {TYPE: bool, VALUE: True, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.BOARD_FREQUENCY: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.PIC_VERSION: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.HW_REVISION: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.RECORDER_SIZE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.VELOCITY_RANGE: {TYPE: int, VALUE: 0, REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.FW_VERSION: {TYPE: unicode, VALUE: '', REQUIRED: True},
+        NortekHardwareConfigDataParticleKey.STATUS: {TYPE: int, VALUE: 0, REQUIRED: False},
+        NortekHardwareConfigDataParticleKey.CONFIG: {TYPE: unicode, VALUE: 0, REQUIRED: False},
+        NortekHardwareConfigDataParticleKey.CHECKSUM: {TYPE: int, VALUE: 0, REQUIRED: False}
+    }
+
+    def assert_particle_battery(self, data_particle, verify_values=False):
+        """
+        Verify [flortd]_sample particle
+        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        @param verify_values:  bool, should we verify parameter values
+        """
+
+        self.assert_data_particle_keys(NortekEngBatteryDataParticleKey, self._battery_voltage_parameter)
+        self.assert_data_particle_header(data_particle, NortekDataParticleType.BATTERY)
+        self.assert_data_particle_parameters(data_particle, self._battery_voltage_parameter, verify_values)
+
+    def assert_particle_clock(self, data_particle, verify_values=False):
+        """
+        Verify [flortd]_sample particle
+        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        @param verify_values:  bool, should we verify parameter values
+        """
+
+        self.assert_data_particle_keys(NortekEngClockDataParticleKey, self._clock_data_parameter)
+        self.assert_data_particle_header(data_particle, NortekDataParticleType.CLOCK)
+        self.assert_data_particle_parameters(data_particle, self._clock_data_parameter, verify_values)
+
+    def assert_particle_hardware(self, data_particle, verify_values=False):
+        """
+        Verify [flortd]_sample particle
+        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        @param verify_values:  bool, should we verify parameter values
+        """
+
+        self.assert_data_particle_keys(NortekHardwareConfigDataParticleKey, self._hardware_config_parameter)
+        self.assert_data_particle_header(data_particle, NortekDataParticleType.HARDWARE_CONFIG)
+        self.assert_data_particle_parameters(data_particle, self._hardware_config_parameter, verify_values)
+
+    def assert_particle_head(self, data_particle, verify_values=False):
+        """
+        Verify [flortd]_sample particle
+        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        @param verify_values:  bool, should we verify parameter values
+        """
+
+        self.assert_data_particle_keys(NortekHeadConfigDataParticleKey, self._head_config_parameter)
+        self.assert_data_particle_header(data_particle, NortekDataParticleType.HEAD_CONFIG)
+        self.assert_data_particle_parameters(data_particle, self._head_config_parameter, verify_values)
+
+    def assert_particle_user(self, data_particle, verify_values=False):
+        """
+        Verify [flortd]_sample particle
+        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        @param verify_values:  bool, should we verify parameter values
+        """
+
+        self.assert_data_particle_keys(NortekUserConfigDataParticleKey, self._user_config_parameters)
+        self.assert_data_particle_header(data_particle, NortekDataParticleType.USER_CONFIG)
+        self.assert_data_particle_parameters(data_particle, self._user_config_parameters, verify_values)
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -584,8 +770,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
                                          ProtocolEvent.ACQUIRE_STATUS,
                                          ProtocolEvent.SET_CONFIGURATION,
                                          ProtocolEvent.SCHEDULED_CLOCK_SYNC,
-                                         ProtocolEvent.RESET,
-                                         ProtocolEvent.SCHEDULED_ACQUIRE_STATUS],
+                                         ProtocolEvent.RESET],
 
             ProtocolState.AUTOSAMPLE:   [ProtocolEvent.STOP_AUTOSAMPLE,
                                          ProtocolEvent.SCHEDULED_CLOCK_SYNC,
@@ -596,6 +781,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         }
 
         driver = NortekInstrumentDriver(self._got_data_event_callback)
+        log.debug("GOT DRIVER")
         self.assert_capabilities(driver, capabilities)
 
 
@@ -605,7 +791,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('INT', group='mi')
-class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
+class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
     
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
@@ -618,23 +804,25 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 	
     def test_instrument_clock_sync(self):
         """
-        @brief Test for syncing clock
+        @brief Test for reading and syncing the clock
         """
-        self.self.assert_initialize_driver()
+        self.assert_initialize_driver()
         
         # command the instrument to read the clock.
-        response = self.driver_client.cmd_dvr('execute_resource',
-					      ProtocolEvent.READ_CLOCK)
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
+        #self.assert_driver_command(ProtocolEvent.READ_CLOCK, regex=CLOCK_DATA_PATTERN)
         
         log.debug("read clock returned: %s", response)
         self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
+
+        time.sleep(5)
 
         # command the instrument to sync the clck.
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
 
         # command the instrument to read the clock.
-        response = self.driver_client.cmd_dvr('execute_resource',
-					      ProtocolEvent.READ_CLOCK)
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
+        #response = self.assert_driver_command(ProtocolEvent.READ_CLOCK, regex=CLOCK_DATA_PATTERN)
         
         log.debug("read clock returned: %s", response)
         self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
@@ -642,39 +830,38 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
         # verify that the dates match 
         local_time = time.gmtime(time.mktime(time.localtime()))
         local_time_str = time.strftime("%d/%m/%Y %H:%M:%S", local_time)
+        log.debug("assert time: %s", local_time_str)
         self.assertTrue(local_time_str[:12].upper() in response[1].upper())
         
         # verify that the times match closely
         instrument_time = time.strptime(response[1], '%d/%m/%Y %H:%M:%S')
-        #log.debug("it=%s, lt=%s", instrument_time, local_time)
         it = datetime.datetime(*instrument_time[:6])
         lt = datetime.datetime(*local_time[:6])
-        #log.debug("it=%s, lt=%s, lt-it=%s", it, lt, lt-it)
         if lt - it > datetime.timedelta(seconds = 5):
-            self.fail("time delta too large after clock sync")      
+            self.fail("time delta too large after clock sync")
 
-    def test_instrument_read_clock(self):
-        """
-        @brief Test for reading instrument clock
-        """
-        self.assert_initialize_driver()
-        
-        # command the instrument to read the clock.
-        response = self.driver_client.cmd_dvr('execute_resource',
-					      ProtocolEvent.READ_CLOCK)
-        
-        log.debug("read clock returned: %s", response)
-        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
+    # def test_instrument_read_clock(self):
+    #     """
+    #     @brief Test for reading instrument clock
+    #     """
+    #     self.assert_initialize_driver()
+    #
+    #     # command the instrument to read the clock.
+    #     response = self.driver_client.cmd_dvr('execute_resource',
+		# 			      ProtocolEvent.READ_CLOCK)
+    #
+    #     log.debug("read clock returned: %s", response)
+    #     self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
 
     def test_instrument_read_mode(self):
         """
         @brief Test for reading what mode
         """
+        #TODO - DO WE NEED THIS TEST?  WHAT IS THIS COMMAND USED FOR?
         self.assert_initialize_driver()
         
         # command the instrument to read the mode.
-        response = self.driver_client.cmd_dvr('execute_resource',
-					      ProtocolEvent.READ_MODE)
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_MODE)
         
         log.debug("what mode returned: %s", response)
         self.assertTrue(2, response[1])
@@ -685,9 +872,10 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
         @brief Test for power_down
         """
         self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.POWER_DOWN)
         
         # command the instrument to power down.
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.POWER_DOWN)
+        #self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.POWER_DOWN)
         
 
     def test_instrument_read_battery_voltage(self):
@@ -697,8 +885,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
         self.assert_initialize_driver()
         
         # command the instrument to read the battery voltage.
-        response = self.driver_client.cmd_dvr('execute_resource',
-					      ProtocolEvent.READ_BATTERY_VOLTAGE)
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_BATTERY_VOLTAGE)
         
         log.debug("read battery voltage returned: %s", response)
         self.assertTrue(isinstance(response[1], int))
@@ -706,22 +893,18 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 
     def test_instrument_read_id(self):
         """
-        @brief Test for reading ID
+        Test for reading ID, need to be implemented int the child class because each ID is unique to the
+        instrument.
         """
-        self.assert_initialize_driver()
-        
-        # command the instrument to read the ID.
-        response = self.driver_client.cmd_dvr('execute_resource',
-					      ProtocolEvent.READ_ID)
-        
-        log.debug("read ID returned: %s", response)
-        self.assertTrue(re.search(r'VEC 8181.*', response[1]))
+        raise NotImplementedException('Implement in child class!')
 
 
     def test_instrument_read_hw_config(self):
         """
         @brief Test for reading HW config
         """
+
+        #TODO THIS COMMAND IS NOT USED BY THE OPERATOR, SHOULD PROBABLY REMOVE TEST?
         
         hw_config = {NortekHardwareConfigDataParticleKey.STATUS: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], 
                      NortekHardwareConfigDataParticleKey.RECORDER_SIZE: 144, 
@@ -747,6 +930,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
         """
         @brief Test for reading HEAD config
         """
+        #TODO THIS COMMAND IS NOT USED BY THE OPERATOR, SHOULD PROBABLY REMOVE TEST?
         
         head_config = {NortekHeadConfigDataParticleKey.CONFIG: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1], 
                        NortekHeadConfigDataParticleKey.HEAD_SERIAL: 'VEC 4943', 
@@ -774,6 +958,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 	    Read the user config. Doesnt matter so much whats in there, but the
 	    length is probably the important bit.
 	    """
+        #TODO THIS COMMAND IS NOT USED BY THE OPERATOR, SHOULD PROBABLY REMOVE TEST?
         # This may need adjustment if the real device gets a different default config
         user_config = {NortekUserConfigDataParticleKey.DIAG_INTERVAL: 43200,
                        NortekUserConfigDataParticleKey.PERCENT_WAVE_CELL_POS: 32768,
@@ -837,6 +1022,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
         self.assert_initialize_driver()
 
         # command the instrument to auto-sample mode.
+        #self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, regex=)
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
 
         # wait for some samples to be generated
@@ -844,16 +1030,15 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
 
         # Verify we received at least 4 samples.
         sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        log.debug('test_instrument_acquire_sample: # 0f samples = %d',
-		  len(sample_events))
-        #log.debug('samples=%s' %sample_events)
+        log.debug('test_instrument_acquire_sample: # 0f samples = %d', len(sample_events))
+        log.debug('samples=%s', sample_events)
         self.assertTrue(len(sample_events) >= 4)
 
     def test_instrument_start_stop_autosample(self):
         """
         @brief Test for putting instrument in 'auto-sample' state
         """
-        self.assert_initialize_driver(final_state=ProtocolEvent.AUTOSAMPLE)
+        self.assert_initialize_driver(final_state=ProtocolState.AUTOSAMPLE)
 
         # wait for some samples to be generated
         gevent.sleep(200)
@@ -919,6 +1104,358 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixin):
         cmds = result[ConfigMetadataKey.COMMANDS]
         self.assertEqual(cmds[Capability.SET_CONFIGURATION][CommandDictKey.DISPLAY_NAME],
                          "Set configuration")
+
+
+
+
+        ###################
+        #RONS TESTS
+        #################
+
+
+        def test_commands(self):
+            """
+            Run instrument commands from command mode.
+            """
+            self.assert_initialize_driver(ProtocolState.COMMAND)
+
+        # #test commands, now that we are in command mode
+        # #$mnu
+        # self.assert_driver_command(ProtocolEvent.GET_MENU, regex=MNU_REGEX)
+        # #$met
+        # self.assert_driver_command(ProtocolEvent.GET_METADATA, regex=MET_REGEX)
+        #
+        # #$run - testing putting instrument into autosample
+        # self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        # #!!!!! - testing put instrument into command mode
+        # self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, regex=MNU_REGEX)
+        # #$mvs - test running wiper
+        # self.assert_driver_command(ProtocolEvent.RUN_WIPER, state=ProtocolState.COMMAND, regex=RUN_REGEX)
+        # #test syncing clock
+        # self.assert_driver_command(ProtocolEvent.CLOCK_SYNC, state=ProtocolState.COMMAND)
+
+
+
+        # self.assert_driver_command(ProtocolEvent.GET, state=ProtocolState.COMMAND)
+        # self.assert_driver_command(ProtocolEvent.SET, state=ProtocolState.COMMAND)
+        # self.assert_driver_command(ProtocolEvent.DISCOVER, state=ProtocolState.COMMAND)
+
+        # self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND)
+        # self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, state=ProtocolState.COMMAND)
+
+        # self.assert_driver_command(ProtocolEvent.START_DIRECT, state=ProtocolState.COMMAND)
+        # self.assert_driver_command(ProtocolEvent.STOP_DIRECT, state=ProtocolState.COMMAND)
+        # self.assert_driver_command(ProtocolEvent.EXECUTE_DIRECT, state=ProtocolState.COMMAND)
+        # self.assert_driver_command(ProtocolEvent.CLOCK_SYNC, state=ProtocolState.COMMAND)
+
+
+        ####
+        # Test a bad command
+        ####
+        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
+
+    @unittest.skip('temp disable')
+    def test_command_acquire_status(self):
+        """
+        Test acquire status command and events.
+
+        1. initialize the instrument to COMMAND state
+        2. command the instrument to ACQUIRESTATUS
+        3. verify the particle coming in
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND) # at some point, current state probably shouldn't matter
+        # self.assert_initialize_driver()
+
+        # test acquire status
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=1)
+        #BV
+        self.assert_async_particle_generation(NortekDataParticleType.BATTERY, self.assert_particle_battery)
+        #RC
+        self.assert_async_particle_generation(NortekDataParticleType.CLOCK, self.assert_particle_clock)
+        #GP
+        self.assert_async_particle_generation(NortekDataParticleType.HARDWARE_CONFIG, self.assert_particle_hardware)
+        #GH
+        self.assert_async_particle_generation(NortekDataParticleType.HEAD_CONFIG, self.assert_particle_head)
+        #GC
+        self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
+        #
+        # # II/I are the same command for
+        #
+        # self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_user, timeout=10)
+
+        #A?
+
+
+        #M?
+
+    def test_parameters(self):
+        """
+        Verify that we can set the parameters
+
+        1. Cannot set read only parameters
+        2. Can set read/write parameters
+        3. Can set read/write parameters w/direct access only
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+
+        #test read/write parameter
+        # self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 14)
+
+        #test read/write parameter w/direct access only
+        # self.assert_set(Parameter.USER_NUMBER_BEAMS, 2)
+        #
+        # #test setting intervals for scheduled events
+        # # self.assert_set(Parameter.Run_wiper_interval, '05:00:23')
+        # # self.assert_set(Parameter.Run_clock_sync_interval, '12:12:12')
+        #
+        # #test setting date/time
+        # self.assert_set(Parameter.CLOCK_DEPLOY, get_timestamp_delayed("%m/%d/%y"))
+        #
+        # #test read only parameter - should not be set, value should not change
+        # self.assert_set(Parameter.SW_VERSION, 13700, no_get=True)
+        # reply = self.driver_client.cmd_dvr('get_resource', [Parameter.SW_VERSION])
+        # return_value = reply.get(Parameter.SW_VERSION)
+        # self.assertNotEqual(return_value, 13700)
+
+
+    def test_direct_access(self):
+        """
+        Verify we can enter the direct access state
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
+        self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
+
+    def assertParamDictionariesEqual(self, pd1, pd2, all_params=False):
+        """
+        Verify all device parameters exist and are correct type.
+        """
+        self.assert_state_change()
+
+
+        if all_params:
+            self.assertEqual(set(pd1.keys()), set(pd2.keys()))
+            for (key, type_val) in pd2.iteritems():
+                log.debug("pd1 key: %s, value: %s, type: %s", key, pd1[key], type_val)
+                self.assertTrue(isinstance(pd1[key], type_val))
+        else:
+            for (key, val) in pd1.iteritems():
+                self.assertTrue(pd2.has_key(key))
+                self.assertTrue(isinstance(val, pd2[key]))
+
+    # def test_instrument_read_head_config(self):
+    #     """
+    #     @brief Test for reading HEAD config
+    #     """
+    #
+    #     head_config = {NortekHeadConfigDataParticleKey.CONFIG: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1],
+    #                    NortekHeadConfigDataParticleKey.HEAD_SERIAL: 'VEC 4943',
+    #                    NortekHeadConfigDataParticleKey.SYSTEM_DATA: 'AAAAAAAAAACZKsPqq+oOABkl29p4BYMFiQUcvQ0Agivs/x2/BfwiK0IAoA8AAAAA//8AAP//AAD//wAAAAAAAAAA//8AAAEAAAABAAAAAAAAAP////8AAAAA//8BAAAAAAAZAKL2WRTJBQMB2BtaKp2f/vw1Ml0Ae55P/5IyTACYfgr9SP8K/VR9KwHP/jYC/3/6//f/+v8AAAAAAAAAAAAAAAAAAAAAnxQQDhAOECc=',
+    #                    NortekHeadConfigDataParticleKey.HEAD_FREQ: 6000,
+    #                    NortekHeadConfigDataParticleKey.NUM_BEAMS: 3,
+    #                    NortekHeadConfigDataParticleKey.HEAD_TYPE: 1,
+		#        NortekHeadConfigDataParticleKey.CHECKSUM: 23302}
+    #
+    #     self.put_driver_in_command_mode()
+    #
+    #     # command the instrument to read the head config.
+    #     response = self.driver_client.cmd_dvr('execute_resource',
+		# 			      ProtocolEvent.GET_HEAD_CONFIGURATION)
+    #
+    #     log.debug("read HEAD config returned: %s", response)
+    #     #for (k, v) in response[1].items():
+    #     #    log.debug("Comparing item with key %s and value %s", k, v)
+    #     #    self.assert_(k in head_config)
+    #     #    self.assert_(v == head_config[k])
+    #     self.assertEqual(head_config, response[1])
+
+    # def test_instrument_read_user_config(self):
+    #     """
+    #     Read the user config. Doesnt matter so much whats in there, but the
+    #     length is probably the important bit.
+    #     """
+    #     # This may need adjustment if the real device gets a different default config
+    #     user_config = {NortekUserConfigDataParticleKey.DIAG_INTERVAL: 43200,
+    #                    NortekUserConfigDataParticleKey.PERCENT_WAVE_CELL_POS: 32768,
+    #                    NortekUserConfigDataParticleKey.DEPLOYMENT_NAME: '4943',
+    #                    NortekUserConfigDataParticleKey.TCR: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
+    #                    NortekUserConfigDataParticleKey.NUM_BEAMS_PER_CELL: 1,
+    #                    NortekUserConfigDataParticleKey.FILE_COMMENTS: '3305-00106_00001_28092012',
+    #                    NortekUserConfigDataParticleKey.CORRELATION_THRS: 0,
+    #                    NortekUserConfigDataParticleKey.NUM_SAMPLE_PER_BURST: 10,
+    #                    NortekUserConfigDataParticleKey.MODE_TEST: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+    #                    NortekUserConfigDataParticleKey.NUM_DIAG_SAMPLES: 20,
+    #                    NortekUserConfigDataParticleKey.CELL_SIZE: 7,
+    #                    NortekUserConfigDataParticleKey.NUM_BEAMS: 3,
+    #                    NortekUserConfigDataParticleKey.WRAP_MODE: 1,
+    #                    NortekUserConfigDataParticleKey.PCR: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #                    NortekUserConfigDataParticleKey.BLANK_DIST: 16,
+    #                    NortekUserConfigDataParticleKey.WAVE_TX_PULSE: 16384,
+    #                    NortekUserConfigDataParticleKey.TIME_BETWEEN_PINGS: 44,
+    #                    NortekUserConfigDataParticleKey.NUM_DIAG_PER_WAVE: 0,
+    #                    NortekUserConfigDataParticleKey.FIX_WAVE_BLANK_DIST: 0,
+    #                    NortekUserConfigDataParticleKey.SOUND_SPEED_ADJUST: 16657,
+    #                    NortekUserConfigDataParticleKey.FILTER_CONSTANTS: 'Cv/N/4sA5QDuAAsAhP89/w==',
+    #                    NortekUserConfigDataParticleKey.SW_VER: 13600,
+    #                    NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR: 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQKxAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',
+    #                    NortekUserConfigDataParticleKey.DEPLOY_START_TIME: [26, 42, 28, 12, 12, 9],
+    #                    NortekUserConfigDataParticleKey.TX_LENGTH: 2,
+    #                    NortekUserConfigDataParticleKey.MEASUREMENT_INTERVAL: 3600,
+    #                    NortekUserConfigDataParticleKey.WAVE_MODE: [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+    #                    NortekUserConfigDataParticleKey.AVG_INTERVAL: 61,
+    #                    NortekUserConfigDataParticleKey.NUM_CELLS: 1,
+    #                    NortekUserConfigDataParticleKey.COORDINATE_SYSTEM: 1,
+    #                    NortekUserConfigDataParticleKey.CHECKSUM: 64970,
+    #                    NortekUserConfigDataParticleKey.NUM_PINGS: 1,
+    #                    NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR: 0,
+    #                    NortekUserConfigDataParticleKey.MODE: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+    #                    NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND: 2,
+    #                    NortekUserConfigDataParticleKey.RX_LENGTH: 7,
+    #                    NortekUserConfigDataParticleKey.WAVE_CELL_SIZE: 0,
+    #                    NortekUserConfigDataParticleKey.COMPASS_UPDATE_RATE: 2,
+    #                    NortekUserConfigDataParticleKey.TIME_BETWEEN_BURSTS: 512,
+    #                    NortekUserConfigDataParticleKey.ANALOG_SCALE_FACTOR: 11185,
+    #                    NortekUserConfigDataParticleKey.NUM_PINGS_DIAG: 20}
+    #
+    #     self.assert_initialize_driver()
+    #     self.driver_client.cmd_dvr('apply_startup_params')
+    #
+    #     # command the instrument to read the head config.
+    #     response = self.driver_client.cmd_dvr('execute_resource',
+    #                                       ProtocolEvent.GET_USER_CONFIGURATION)
+    #
+    #     log.debug("read USER config returned: %s, length: %s",
+    #           response, len(response))
+    #     self.assertEqual(user_config, response[1])
+
+
+    # def test_instrument_acquire_sample(self):
+    #     """
+    #     Test acquire sample command and events.
+    #     """
+    #
+    #     self.put_driver_in_command_mode()
+    #
+    #     # command the instrument to auto-sample mode.
+    #     self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
+    #
+    #     # wait for some samples to be generated
+    #     gevent.sleep(120)
+    #
+    #     # Verify we received at least 4 samples.
+    #     sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
+    #     log.debug('test_instrument_acquire_sample: # 0f samples = %d',
+		#   len(sample_events))
+    #     #log.debug('samples=%s' %sample_events)
+    #     self.assertTrue(len(sample_events) >= 4)
+    #
+    # def test_instrument_start_stop_autosample(self):
+    #     """
+    #     @brief Test for putting instrument in 'auto-sample' state
+    #     """
+    #     self.put_driver_in_command_mode()
+    #
+    #     # command the instrument to auto-sample mode.
+    #     self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
+    #
+    #     self.assert_state_change(ProtocolState.AUTOSAMPLE)
+    #
+    #     # re-initialize the driver and re-discover instrument state (should be in autosample)
+    #     # Transition driver to disconnected.
+    #     self.driver_client.cmd_dvr('disconnect')
+    #
+    #     # Test the driver is disconnected.
+    #     self.assert_state_change(DriverConnectionState.DISCONNECTED)
+    #
+    #     # Transition driver to unconfigured.
+    #     self.driver_client.cmd_dvr('initialize')
+    #
+    #     # Test the driver is unconfigured.
+    #     self.assert_state_change(DriverConnectionState.UNCONFIGURED)
+    #
+    #     # Configure driver and transition to disconnected.
+    #     self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+    #
+    #     # Test that the driver is in state disconnected.
+    #     self.assert_state_change(DriverConnectionState.DISCONNECTED)
+    #
+    #     # Setup the protocol state machine and the connection to port agent.
+    #     self.driver_client.cmd_dvr('connect')
+    #
+    #     # Test that the driver protocol is in state unknown.
+    #     self.assert_state_change(ProtocolState.UNKNOWN)
+    #
+    #     # Discover what state the instrument is in and set the protocol state accordingly.
+    #     self.driver_client.cmd_dvr('discover_state')
+    #
+    #     self.assert_state_change(ProtocolState.AUTOSAMPLE)
+    #
+    #     # wait for some samples to be generated
+    #     gevent.sleep(200)
+    #
+    #     # Verify we received at least 4 samples.
+    #     sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
+    #     log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
+    #     #log.debug('samples=%s' %sample_events)
+    #     self.assertTrue(len(sample_events) >= 4)
+    #
+    #     # stop autosample and return to command mode
+    #     self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
+    #
+    #     self.assert_state_change(ProtocolState.COMMAND)
+    #
+    # def test_scheduled_clock_sync_autosample(self):
+    #     """
+    #     Verify the scheduled clock sync is triggered and functions as expected
+    #     """
+    #     self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=20,
+    #                                 autosample_command=ProtocolEvent.START_AUTOSAMPLE)
+    #
+    #     self.assert_current_state(ProtocolState.AUTOSAMPLE)
+    #
+    # def test_scheduled_clock_sync(self):
+    #     """
+    #     Verify the scheduled clock sync is triggered and functions as expected
+    #     """
+    #     start_wall_time = time.gmtime()
+    #
+    #     self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=20)
+    #     self.assert_current_state(ProtocolState.COMMAND)
+    #
+    #     end_wall_time = time.gmtime()
+    #     result = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
+    #     end_time = time.strptime(result[1],
+    #                              "%d/%m/%Y %H:%M:%S")
+    #
+    #     log.debug("Start time: %s, end time: %s", start_wall_time, end_wall_time)
+    #     self.assert_(end_wall_time > start_wall_time)
+    #     # this could be better...tricky to measure two varying variables
+    #     self.assertNotEqual(end_time, end_wall_time) # gonna be off by at least a little
+    #     #self.assertNotEqual(end_time_offset, start_time_offset)
+    #
+    # def test_metadata_generation(self):
+    #     """
+    #     Test that we can generate metadata information for the driver,
+    #     commands, and parameters.
+    #     """
+    #     self.assert_initialize_driver()
+    #     self.assert_metadata_generation(instrument_params=Parameter.list(),
+    #                                     commands=Capability.list())
+    #
+    #     # check one to see that the file is loading data from somewhere. This is
+    #     # a brittle test, but a key indicator probably worth having should the
+    #     # file load system not be working
+    #     json_result = self.driver_client.cmd_dvr("get_config_metadata")
+    #     result = json.loads(json_result)
+    #
+    #     params = result[ConfigMetadataKey.PARAMETERS]
+    #     self.assertEqual(params[Parameter.TRANSMIT_PULSE_LENGTH][ParameterDictKey.DESCRIPTION],
+    #                      "Transmit pulse length")
+    #
+    #     cmds = result[ConfigMetadataKey.COMMANDS]
+    #     self.assertEqual(cmds[Capability.SET_CONFIGURATION][CommandDictKey.DISPLAY_NAME],
+    #                      "Set configuration")
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
