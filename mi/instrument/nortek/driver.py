@@ -508,7 +508,7 @@ class NortekHeadConfigDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.NUM_BEAMS,
                    DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.NUM_BEAMS]}
                   ]
-        
+
         calculated_checksum = NortekProtocolParameterDict.calculate_checksum(self.raw_data)
         if working_value[NortekHeadConfigDataParticleKey.CHECKSUM] != calculated_checksum:
             log.warn("Calculated checksum: %s did not match packet checksum: %s",
@@ -1402,6 +1402,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._build_cmd_dict()
         self._build_driver_dict()
 
+        # self._chunker = StringChunker(NortekInstrumentProtocol.chunker_sieve_function) # Check if this is needed
+
     @staticmethod
     def chunker_sieve_function(raw_data, add_structs=[]):
         """ The method that detects data sample structures from instrument
@@ -1544,6 +1546,47 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         else:
             for name in param_config.keys():
                 self._param_dict.set_init_value(name, param_config[name])
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        Also called when setting parameters during startup and direct access
+        """
+        log.debug("%% IN _set_params")
+
+        params = args[0]
+
+        try:
+            self._verify_not_readonly(*args, **kwargs)
+            old_config = self._param_dict.get_config()
+
+            response = None
+            for (key, val) in params.iteritems():
+                # log.debug("KEY = " + str(key) + " VALUE = " + str(val))
+                # #if setting the mvs interval or clock sync interval, do not send a command
+                # if key == Parameter.Run_wiper_interval or key == Parameter.Run_clock_sync_interval:
+                #     self._param_dict.set_value(key, val)
+                # #else if setting the clock or date, run clock sync command
+                # elif key == Parameter.Time_value or key == Parameter.Date_value:
+                #     self._sync_clock()
+                # #else perform regular command
+                # else:
+                response = self._do_cmd_resp(InstrumentCmds.CONFIGURE_INSTRUMENT, key, val)
+
+            self._param_dict.update(response)
+            log.debug("configure command response: %s" % response)
+
+            # Get new param dict config. If it differs from the old config,
+            # tell driver superclass to publish a config change event.
+            new_config = self._param_dict.get_config()
+            log.debug("new_config: %s == old_config: %s" % (new_config, old_config))
+            if not dict_equal(old_config, new_config):
+                log.debug("configuration has changed.  Send driver event")
+                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+        except InstrumentParameterException:
+            log.debug("Attempt to set read only parameter(s) (%s)", params)
+
 
     def _get_response(self, timeout=TIMEOUT, expected_prompt=None):
         """
@@ -1829,6 +1872,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_start_direct(self):
         """
+        Start Direct Access
         """
         log.debug('%% IN _handler_start_direct: entering DA mode')
 
@@ -2031,7 +2075,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             self._protocol_fsm._on_event(InstrumentCmds.START_AUTOSAMPLE)
             next_state = ProtocolState.AUTOSAMPLE
             next_agent_state = ResourceAgentState.STREAMING
-        finally:        
+        finally:
             return (next_state, (next_agent_state, result))
 
         return next_state, (next_agent_state, result)
@@ -2068,6 +2112,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if command misunderstood or
         incorrect prompt received.
         """
+        log.debug('%% IN _handler_autosample_stop_autosample')
+
         next_state = None
         result = None
 
@@ -2111,6 +2157,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_direct_access_execute_direct(self, data):
         """
+        Execute Direct Access command(s)
         """
         log.debug('%% IN _handler_direct_access_execute_direct')
         next_state = None
@@ -2125,6 +2172,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_direct_access_stop_direct(self):
         """
+        Stop Direct Access, and put the driver into a healthy state by reverting itself back to the previous
+        state before starting Direct Access.
         @throw InstrumentProtocolException on invalid command
         """
         log.debug("%% IN _handler_direct_access_stop_direct")
@@ -2191,6 +2240,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         Build a command dictionary structure, load the strings for the metadata
         from a file if present.
         """
+        log.debug("%%% IN _build_cmd_dict")
         self._cmd_dict = ProtocolCommandDict()
         self._cmd_dict.add(Capability.SET)
         self._cmd_dict.add(Capability.GET)
