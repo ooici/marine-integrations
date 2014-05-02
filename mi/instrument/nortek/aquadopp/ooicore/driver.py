@@ -458,12 +458,10 @@ class Protocol(NortekInstrumentProtocol):
                                     lambda match: match.group(1),
                                     str,
                                     type=ParameterDictType.STRING,
-                                    expiration=None,
                                     visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="clock sync interval",
                                     default_value='00:00:00',
-                                    startup_param=True,
-                                    direct_access=False))
+                                    startup_param=True))
 
         self._param_dict.add_parameter(
                                     NortekParameterDictVal(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
@@ -471,12 +469,10 @@ class Protocol(NortekInstrumentProtocol):
                                     lambda match: match.group(1),
                                     str,
                                     type=ParameterDictType.STRING,
-                                    expiration=None,
                                     visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="acquire status interval",
                                     default_value='00:00:00',
-                                    startup_param=True,
-                                    direct_access=False))
+                                    startup_param=True))
 
         self._param_dict.set_value(Parameter.NUMBER_SAMPLES_PER_BURST,
                                    self._param_dict.get_default_value(Parameter.NUMBER_SAMPLES_PER_BURST))

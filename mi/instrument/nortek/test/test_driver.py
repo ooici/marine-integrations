@@ -25,7 +25,7 @@ from pyon.agent.agent import ResourceAgentState
 
 from mi.core.log import get_logger ; log = get_logger()
 
-from mi.idk.unit_test import InstrumentDriverUnitTestCase, ParameterTestConfigKey
+from mi.idk.unit_test import InstrumentDriverUnitTestCase, ParameterTestConfigKey, InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import AgentCapabilityType
@@ -34,14 +34,15 @@ from mi.idk.unit_test import DriverTestMixin
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 
-from mi.core.instrument.instrument_driver import DriverAsyncEvent, DriverConnectionState, DriverParameter
+from mi.core.instrument.instrument_driver import DriverAsyncEvent, DriverConnectionState, DriverParameter, \
+    DriverConfigKey
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.core.instrument.protocol_cmd_dict import CommandDictKey
-from mi.core.instrument.protocol_param_dict import ParameterDictKey
+from mi.core.instrument.protocol_param_dict import ParameterDictKey, ParameterDictType, ParameterDictVisibility
 
 from mi.instrument.nortek.driver import NortekProtocolParameterDict, CLOCK_DATA_REGEX, CLOCK_DATA_PATTERN, \
-    EngineeringParameter, TIMEOUT
+    EngineeringParameter, TIMEOUT, NortekParameterDictVal, INTERVAL_TIME_REGEX
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekUserConfigDataParticleKey
@@ -65,6 +66,22 @@ from interface.objects import AgentCommand
 
 from mi.instrument.nortek.driver import InstrumentPrompts, Parameter, ProtocolState, ProtocolEvent, InstrumentCmds, \
     Capability, NEWLINE
+
+
+
+InstrumentDriverTestCase.initialize(
+    driver_module='mi.instrument.nortek.driver',
+    driver_class="InstrumentDriver",
+
+    instrument_agent_resource_id='3DLE2A',
+    instrument_agent_name='nortek_driver',
+    instrument_agent_packet_config=NortekDataParticleType(),
+
+    driver_startup_config={
+        DriverConfigKey.PARAMETERS:
+            {EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:10',
+             EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:10'}}
+)
 
 
 hw_config_particle = [{DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.SERIAL_NUM, DataParticleKey.VALUE: "VEC 8181      "},
@@ -786,6 +803,45 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         driver = NortekInstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
+    def test_scheduled_clock_sync_autosample(self):
+        """
+        Verify the scheduled clock sync and acquire status is added to the protocol
+        Verify if there is no scheduling, nothing is added to the protocol
+        """
+
+        mock_callback = Mock(spec="PortAgentClient")
+        protocol = NortekInstrumentProtocol(InstrumentPrompts, NEWLINE, mock_callback)
+
+        #Verify there is nothing scheduled
+        self.assertEqual(protocol._scheduler_callback.get(ScheduledJob.CLOCK_SYNC), None)
+        self.assertEqual(protocol._scheduler_callback.get(ScheduledJob.ACQUIRE_STATUS), None)
+
+        protocol._param_dict.add_parameter(NortekParameterDictVal(EngineeringParameter.CLOCK_SYNC_INTERVAL,
+                                   INTERVAL_TIME_REGEX,
+                                   lambda match: match.group(1),
+                                   str,
+                                   type=ParameterDictType.STRING,
+                                   display_name="clock sync interval",
+                                   default_value='00:00:10'))
+        protocol._param_dict.add_parameter(
+                                   NortekParameterDictVal(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
+                                   INTERVAL_TIME_REGEX,
+                                   lambda match: match.group(1),
+                                   str,
+                                   type=ParameterDictType.STRING,
+                                   display_name="acquire status interval",
+                                   default_value='00:00:10'))
+        #set the values of the dictionary using set_default
+        protocol._param_dict.set_value(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
+                                   protocol._param_dict.get_default_value(EngineeringParameter.ACQUIRE_STATUS_INTERVAL))
+        protocol._param_dict.set_value(EngineeringParameter.CLOCK_SYNC_INTERVAL,
+                                   protocol._param_dict.get_default_value(EngineeringParameter.CLOCK_SYNC_INTERVAL))
+        protocol._handler_autosample_enter()
+
+        #Verify there is scheduled events
+        self.assertTrue(protocol._scheduler_callback.get(ScheduledJob.CLOCK_SYNC))
+        self.assertTrue(protocol._scheduler_callback.get(ScheduledJob.ACQUIRE_STATUS))
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -878,74 +934,29 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         """
         raise NotImplementedException('Implement in child class!')
 
-    def test_instrument_acquire_sample(self):
+    def test_acquire_sample(self):
         """
         Test acquire sample command and events.
+        1. initialize the instrument to COMMAND state
+        2. command the driver to ACQUIRESAMPLE
+        3. verify the particle coming in
+
+        Implement in child class because the particles being generated are specific to the instrument
         """
+        raise NotImplementedException('Implement in child class!')
 
-        self.assert_initialize_driver()
-
-        # command the instrument to auto-sample mode.
-        #self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, regex=)
-        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.ACQUIRE_SAMPLE)
-        #
-        # # wait for some samples to be generated
-        gevent.sleep(10)
-        #
-        # # Verify we received at least 4 samples.
-        sample_events = [evt for evt in self.events if evt['type'] == DriverAsyncEvent.SAMPLE]
-        log.debug('test_instrument_acquire_sample: # 0f samples = %d', len(sample_events))
-        log.debug('samples=%s', sample_events)
-        self.assertTrue(len(sample_events) >= 4)
-
-    def test_instrument_start_stop_autosample(self):
+    def test_command_autosample(self):
         """
-        @brief Test for putting instrument in 'auto-sample' state
+        Test autosample command and events.
+        1. initialize the instrument to COMMAND state
+        2. command the instrument to AUTOSAMPLE state
+        3. verify the particle coming in
+        4. command the instrument back to COMMAND state
+        5. verify the sampling is continuous by gathering several samples
+
+        Implement in child class because the particles being generated are specific to the instrument
         """
-        self.assert_initialize_driver(final_state=ProtocolState.AUTOSAMPLE)
-
-        # wait for some samples to be generated
-        gevent.sleep(2)
-
-        # # Verify we received at least 4 samples.
-        # sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-        # log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
-        # #log.debug('samples=%s' %sample_events)
-        # self.assertTrue(len(sample_events) >= 4)
-
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
-
-                        
-    # def test_scheduled_clock_sync_autosample(self):
-    #       todo - move this to vector test, there is no scheduled event for velptd
-    #     """
-    #     Verify the scheduled clock sync is triggered and functions as expected
-    #     """
-    #     self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=20,
-    #                                 autosample_command=ProtocolEvent.START_AUTOSAMPLE)
-    #
-    #     self.assert_current_state(ProtocolState.AUTOSAMPLE)
-    #
-    # def test_scheduled_clock_sync(self):
-    # todo - move this to vector test, there is no scheduled event for velptd
-    #     """
-    #     Verify the scheduled clock sync is triggered and functions as expected
-    #     """
-    #     start_wall_time = time.gmtime()
-    #
-    #     self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=20)
-    #     self.assert_current_state(ProtocolState.COMMAND)
-    #
-    #     end_wall_time = time.gmtime()
-    #     result = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
-    #     end_time = time.strptime(result[1],
-    #                              "%d/%m/%Y %H:%M:%S")
-    #
-    #     log.debug("Start time: %s, end time: %s", start_wall_time, end_wall_time)
-    #     self.assert_(end_wall_time > start_wall_time)
-    #     # this could be better...tricky to measure two varying variables
-    #     self.assertNotEqual(end_time, end_wall_time) # gonna be off by at least a little
-    #     #self.assertNotEqual(end_time_offset, start_time_offset)
+        raise NotImplementedException('Implement in child class!')
 
     def test_metadata_generation(self):
         """

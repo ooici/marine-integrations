@@ -540,7 +540,7 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         self.assert_initialize_driver(ProtocolState.COMMAND)
         # test acquire sample
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
-        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample)
+        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_velocity, timeout=TIMEOUT)
 
     def test_command_autosample(self):
         """
@@ -549,9 +549,11 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         2. command the instrument to AUTOSAMPLE state
         3. verify the particle coming in
         4. command the instrument back to COMMAND state
+        5. verify the sampling is continuous by gathering several samples
         """
 
         self.assert_initialize_driver(ProtocolState.COMMAND)
+
         # test autosample
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
 
@@ -561,6 +563,15 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         # TODO - WHEN DOES THIS PARTICLE COME ABOUT?
         #self.assert_async_particle_generation(DataParticleType.DIAGNOSTIC_HEADER, self.assert_particle_diagnostic_header, timeout=TIMEOUT)
         #self.assert_async_particle_generation(DataParticleType.DIAGNOSTIC, self.assert_particle_diagnostic, timeout=TIMEOUT)
+
+        # # wait for some samples to be generated
+        gevent.sleep(10)
+
+        # Verify we received at least 4 samples.
+        sample_events = [evt for evt in self.events if evt['type'] == DriverAsyncEvent.SAMPLE]
+        log.debug('test_instrument_acquire_sample: # 0f samples = %d', len(sample_events))
+        log.debug('samples=%s', sample_events)
+        self.assertTrue(len(sample_events) >= 4)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
@@ -695,8 +706,6 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
     #     reply = self.driver_client.cmd_dvr('get_resource', [Parameter.WRAP_MODE, Parameter.AVG_INTERVAL, Parameter.DIAGNOSTIC_INTERVAL])
     #     self.assertEqual(new_params, reply)
                
-
-        
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
