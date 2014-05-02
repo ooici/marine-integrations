@@ -57,7 +57,6 @@ from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19Configuratio
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19HardwareParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19StatusParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19CalibrationParticleKey
-from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19EventCounterParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import OptodeSettingsParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Prompt
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import NEWLINE
@@ -327,15 +326,6 @@ class SeaBird19plusMixin(DriverTestMixin):
 "   </MemorySummary>" + NEWLINE + \
 "</StatusData>" + NEWLINE
 
-
-    VALID_GETEC_RESPONSE = "" + \
-"<EventCounters DeviceType = 'SBE19plus' SerialNumber = '01906914'>" + NEWLINE + \
-"   <EventSummary numEvents = '260'/>" + NEWLINE + \
-"   <Event type = 'alarm short' count = '18'/>" + NEWLINE + \
-"   <Event type = 'EEPROM read' count = '117'/>" + NEWLINE + \
-"   <Event type = 'EEPROM write' count = '125'/>" + NEWLINE + \
-"</EventCounters>" + NEWLINE
-
     VALID_SEND_OPTODE_RESPONSE = "" + \
 'Optode RX = CalPhase[Deg]	4831	134	30.050' + NEWLINE + \
 'S>sendoptode=get enable temperature' + NEWLINE + \
@@ -508,15 +498,6 @@ class SeaBird19plusMixin(DriverTestMixin):
         SBE19CalibrationParticleKey.EXT_FREQ: {TYPE: float, VALUE: 1.000008e+00, REQUIRED: True},
     }
 
-    _event_counter_parameters = {
-        SBE19EventCounterParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 1906914, REQUIRED: True},
-        SBE19EventCounterParticleKey.NUMBER_OF_EVENTS: {TYPE: int, VALUE: 260, REQUIRED: True},
-        SBE19EventCounterParticleKey.ALARM_SHORT_COUNT: {TYPE: int, VALUE: 18, REQUIRED: True},
-        SBE19EventCounterParticleKey.EEPROM_READ_COUNT: {TYPE: int, VALUE: 117, REQUIRED: True},
-        SBE19EventCounterParticleKey.EEPROM_WRITE_COUNT: {TYPE: int, VALUE: 125, REQUIRED: True},
-
-    }
-
     _send_optode_parameters = {
         OptodeSettingsParticleKey.ANALOG_OUTPUT: {TYPE: unicode, VALUE: 'CalPhase', REQUIRED: True},
         OptodeSettingsParticleKey.CALPHASE: {TYPE: float, VALUE: 30.050, REQUIRED: True},
@@ -628,16 +609,6 @@ class SeaBird19plusMixin(DriverTestMixin):
         self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CONFIGURATION)
         self.assert_data_particle_parameters(data_particle, self._configuration_parameters, verify_values)
 
-    def assert_particle_event_counter(self, data_particle, verify_values = False):
-        '''
-        Verify event counter particle
-        @param data_particle:  SBE19EventCounterParticle event counter particle
-        @param verify_values:  bool, should we verify parameter values
-        '''
-        self.assert_data_particle_keys(SBE19EventCounterParticleKey, self._event_counter_parameters)
-        self.assert_data_particle_header(data_particle, DataParticleType.EVENT_COUNTER)
-        self.assert_data_particle_parameters(data_particle, self._event_counter_parameters, verify_values)
-
     def assert_particle_send_optode(self, data_particle, verify_values = False):
         '''
         Verify send optode particle
@@ -665,7 +636,6 @@ class SeaBird19plusMixin(DriverTestMixin):
 @attr('UNIT', group='mi')
 class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
 
-
     def test_driver_enums(self):
         """
         Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
@@ -691,7 +661,6 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
         """
         driver = self.InstrumentDriver(self._got_data_event_callback)
         self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
-
 
     def test_chunker(self):
         """
@@ -724,17 +693,10 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
         self.assert_chunker_fragmented_sample(chunker, self.VALID_GETCD_RESPONSE)
         self.assert_chunker_combined_sample(chunker, self.VALID_GETCD_RESPONSE)
 
-        self.assert_chunker_sample(chunker, self.VALID_GETEC_RESPONSE)
-        self.assert_chunker_sample_with_noise(chunker, self.VALID_GETEC_RESPONSE)
-        self.assert_chunker_fragmented_sample(chunker, self.VALID_GETEC_RESPONSE)
-        self.assert_chunker_combined_sample(chunker, self.VALID_GETEC_RESPONSE)
-
         self.assert_chunker_sample(chunker, self.VALID_SEND_OPTODE_RESPONSE)
-        #TODO: this one doesn't work
         self.assert_chunker_sample_with_noise(chunker, self.VALID_SEND_OPTODE_RESPONSE)
         self.assert_chunker_fragmented_sample(chunker, self.VALID_SEND_OPTODE_RESPONSE)
         self.assert_chunker_combined_sample(chunker, self.VALID_SEND_OPTODE_RESPONSE)
-
 
     def test_got_data(self):
         """
@@ -752,7 +714,6 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
         self.assert_particle_published(driver, self.VALID_GETCC_RESPONSE, self.assert_particle_calibration, True)
         self.assert_particle_published(driver, self.VALID_GETSD_RESPONSE, self.assert_particle_status, True)
         self.assert_particle_published(driver, self.VALID_GETCD_RESPONSE, self.assert_particle_configuration, True)
-        self.assert_particle_published(driver, self.VALID_GETEC_RESPONSE, self.assert_particle_event_counter, True)
         self.assert_particle_published(driver, self.VALID_SEND_OPTODE_RESPONSE, self.assert_particle_send_optode, True)
 
     def test_protocol_filter_capabilities(self):
@@ -869,6 +830,7 @@ class SBE19UnitTestCase(SeaBirdUnitTest, SeaBird19plusMixin):
 ###############################################################################
 @attr('INT', group='mi')
 class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
+
     def test_connection(self):
         self.assert_initialize_driver()
 
@@ -921,8 +883,8 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'<EXTFREQSF>')
-        self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION, regex=r'<EXTFREQSF>')
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION)
         self.assert_driver_command(ProtocolEvent.RESET_EC)
 
         # Invalid command/state transition: try to stop autosampling in command mode
@@ -935,8 +897,8 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
 
         self.assert_driver_command(ProtocolEvent.SCHEDULED_CLOCK_SYNC)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, regex=r'<EXTFREQSF>')
-        self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION, regex=r'<EXTFREQSF>')
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
@@ -944,12 +906,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         # Test a bad command
         ####
         self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
-
-    def test_invalid_command(self):
-        self.assert_initialize_driver()
-
-        # Invalid command
-        self.assert_driver_command_exception(ProtocolEvent.STOP_AUTOSAMPLE, exception_class=InstrumentCommandException)
 
     def test_parameters(self):
         """
@@ -1002,7 +958,9 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_HARDWARE, self.assert_particle_hardware)
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CONFIGURATION, self.assert_particle_configuration)
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.EVENT_COUNTER, self.assert_particle_event_counter)
+
+        #TODO: this won't work until the instrument firmware is upgraded to 2.5.2
+        #self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.OPTODE_SETTINGS, self.assert_particle_send_optode)
 
     def test_configuration(self):
         self.assert_initialize_driver()
@@ -1036,7 +994,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_HARDWARE, self.assert_particle_hardware)
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CONFIGURATION, self.assert_particle_configuration)
         self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.EVENT_COUNTER, self.assert_particle_event_counter)
 
         self.assert_particle_generation(ProtocolEvent.GET_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
 
@@ -1096,7 +1053,6 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         timeout = 120
         self.assert_scheduled_event(ScheduledJob.CLOCK_SYNC, delay=timeout)
         self.assert_current_state(ProtocolState.COMMAND)
-
 
     def test_scheduled_clock_sync_autosample(self):
         """
@@ -1193,7 +1149,10 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_hardware, DataParticleType.DEVICE_HARDWARE, sample_count=1, timeout=30)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.DEVICE_CONFIGURATION, sample_count=1, timeout=30)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_event_counter, DataParticleType.EVENT_COUNTER, sample_count=1, timeout=30)
+
+        #TODO: this won't work until the instrument firmware is upgraded to 2.5.2
+        #self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_send_optode, DataParticleType.OPTODE_SETTINGS, sample_count=1, timeout=30)
+
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
 
 
@@ -1210,7 +1169,6 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_hardware, DataParticleType.DEVICE_HARDWARE, sample_count=1, timeout=30)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.DEVICE_CONFIGURATION, sample_count=1, timeout=30)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_event_counter, DataParticleType.EVENT_COUNTER, sample_count=1, timeout=30)
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
 
         # Stop autosample and do run a couple commands.
@@ -1220,7 +1178,10 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_hardware, DataParticleType.DEVICE_HARDWARE, sample_count=1, timeout=30)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.DEVICE_CONFIGURATION, sample_count=1, timeout=30)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_event_counter, DataParticleType.EVENT_COUNTER, sample_count=1, timeout=30)
+
+        #TODO: this won't work until the instrument firmware is upgraded to 2.5.2
+        #self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_send_optode, DataParticleType.OPTODE_SETTINGS, sample_count=1, timeout=30)
+
         self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
 
         # Restart autosample and gather a couple samples
@@ -1247,6 +1208,8 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
 
         # Now verify that the time matches to within 15 seconds
         self.assertLessEqual(abs(instrument_time - local_time), 15)
+
+    #TODO:test_commands, startup_params(?), test_get_set
 
     def test_get_set_parameters(self):
         '''
