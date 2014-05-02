@@ -557,10 +557,8 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
 
         self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
         self.assert_async_particle_generation(DataParticleType.VELOCITY_HEADER, self.assert_particle_velocity)
-        self.assert_async_particle_generation(DataParticleType.SYSTEM, self.assert_particle_system, timeout=120)
-        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=120)
-
-        # time.sleep(150)
+        self.assert_async_particle_generation(DataParticleType.SYSTEM, self.assert_particle_system)
+        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=45)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
 
