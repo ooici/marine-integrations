@@ -2239,7 +2239,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="time between burst sequences",
                                     default_value=None,
                                     init_value=512,
@@ -2251,7 +2251,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="number pings",
                                     default_value=None,
                                     init_value=1,
@@ -2275,7 +2275,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="user number beams",
                                     default_value=3,
                                     init_value=3,
@@ -2340,7 +2340,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="compass update rate",
                                     default_value=1,
                                     init_value=2,
@@ -2365,7 +2365,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="number bins",
                                     default_value=1,
                                     init_value=1,
@@ -2378,7 +2378,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="bin length",
                                     default_value=7,
                                     init_value=7,
@@ -2391,7 +2391,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="measurement interval",
                                     default_value=3600,
                                     init_value=600,
@@ -2405,7 +2405,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     lambda string : string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.STRING,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="deployment name",
                                     default_value=None,
                                     startup_param=False,
@@ -2438,7 +2438,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.double_word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="diagnostic interval",
                                     default_value=10800,
                                     init_value=43200,
@@ -2451,7 +2451,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="mode",
                                     default_value=None,
                                     # init_value=,
@@ -2476,7 +2476,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="number samples diagnostic",
                                     default_value=1,
                                     init_value=20,
@@ -2489,7 +2489,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="number beams cell diagnostic",
                                     default_value=1,
                                     init_value=1,
@@ -2502,7 +2502,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="number pings diagnostic",
                                     default_value=1,
                                     init_value=20,
@@ -2515,7 +2515,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.STRING,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="mode test",
                                     default_value=None,
                                     # init_value=,
@@ -2572,7 +2572,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     lambda string : string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.STRING,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="comments",
                                     default_value=None,
                                     init_value='3305-00106_00001_28092012',
@@ -2665,7 +2665,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="number samples per burst",
                                     default_value=0,
                                     init_value=10,   # change this value so that it is always in continuous mode
@@ -2722,7 +2722,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     NortekProtocolParameterDict.word_to_string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.INT,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="transmit pulse length second lag",
                                     default_value=2,
                                     init_value=2,
@@ -2746,7 +2746,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     lambda string : string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.STRING,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                     display_name="qual constants",
                                     default_value=None,
                                     init_value='Cv/N/4sA5QDuAAsAhP89/w==',
@@ -2830,6 +2830,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                         self._param_dict.update(self._promptbuf)
                         new_config = self._param_dict.get_config()
                         if new_config != old_config:
+                            log.debug("configuration has changed.  Send driver event")
                             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
                         return
                     break
@@ -2860,7 +2861,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         while True:
             log.debug('Sending what_mode command to get a response from the instrument.')
             # Send what_mode command to attempt to get a response.
-            self._connection.send(InstrumentCmds.CMD_WHAT_MODE)
+            self._connection.send(InstrumentCmds.SOFT_BREAK_SECOND_HALF)
+            self._connection.send(InstrumentCmds.SOFT_BREAK_SECOND_HALF)
             time.sleep(delay)
             
             for item in self._prompts.list():
@@ -2871,27 +2873,27 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException()
-    
+
     def _create_set_output(self, parameters):
         # load buffer with sync byte (A5), ID byte (0), and size word (# of words in little-endian form)
         # 'user' configuration is 512 bytes, 256 words long, so size is 0x100
         output = '\xa5\x00\x00\x01'
         for name in self.UserParameters:
             log.debug('_create_set_output: adding %s to list', name)
-            if (name == Parameter.COMMENTS):
+            if name == Parameter.COMMENTS:
                 output += parameters.format(name).ljust(180, "\x00")
-            elif (name == Parameter.DEPLOYMENT_NAME):
+            elif name == Parameter.DEPLOYMENT_NAME:
                 output += parameters.format(name).ljust(6, "\x00")
-            elif (name == Parameter.QUAL_CONSTANTS):
+            elif name == Parameter.QUAL_CONSTANTS:
                 output += base64.b64decode(parameters.format(name))
-            elif (name == Parameter.VELOCITY_ADJ_TABLE):
+            elif name == Parameter.VELOCITY_ADJ_TABLE:
                 output += base64.b64decode(parameters.format(name))
-            elif (name == Parameter.CLOCK_DEPLOY):
+            elif name == Parameter.CLOCK_DEPLOY:
                 output += NortekProtocolParameterDict.convert_datetime_to_words(parameters.format(name))
-            else:            
+            else:
                 output += parameters.format(name)
         log.debug("Created set output: %s with length: %s", output, len(output))
-        
+
         checksum = CHECK_SUM_SEED
         for word_index in range(0, len(output), 2):
             word_value = NortekProtocolParameterDict.convert_word_to_int(output[word_index:word_index+2])
@@ -2900,10 +2902,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         log.debug('_create_set_output: user checksum = %s', checksum)
 
         output += NortekProtocolParameterDict.word_to_string(checksum)
-        self._dump_config(output)                      
-        
+        self._dump_config(output)
+
         return output
-    
+
     def _build_set_configuration_command(self, cmd, *args, **kwargs):
         user_configuration = kwargs.get('user_configuration', None)
         if not user_configuration:
@@ -2911,15 +2913,13 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         if not isinstance(user_configuration, str):
             raise InstrumentParameterException('set_configuration command requires a string user_configuration parameter.')
         user_configuration = base64.b64decode(user_configuration)
-        self._dump_config(user_configuration)        
-            
+        self._dump_config(user_configuration)
+
         cmd_line = cmd + user_configuration
         return cmd_line
 
-
     def _build_set_real_time_clock_command(self, cmd, time, **kwargs):
         return cmd + time
-
 
     def _parse_read_clock_response(self, response, prompt):
         """ Parse the response from the instrument for a read clock command.
@@ -2931,7 +2931,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         # packed BCD format, so convert binary to hex to get value
         # should be the 6 byte response ending with two ACKs
-        if (len(response) != 8):
+        if len(response) != 8:
             log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read clock response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_clock_response: response=%s", response.encode('hex'))
@@ -2950,10 +2950,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval return The time as a string
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        if (len(response) != 4):
+        if len(response) != 4:
             log.warn("_parse_what_mode_response: Bad what mode response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid what mode response. (%s)" % response.encode('hex'))
-        log.debug("_parse_what_mode_response: response=%s", response.encode('hex')) 
+        log.debug("_parse_what_mode_response: response=%s", response.encode('hex'))
         return NortekProtocolParameterDict.convert_word_to_int(response[0:2])
         
 
@@ -3040,7 +3040,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         FWversion (binary)
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        if not self._check_configuration(self._promptbuf, HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN):                    
+        if not self._check_configuration(self._promptbuf, HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN):
             log.warn("_parse_read_hw_config: Bad read hw response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read hw response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_hw_config: response=%s", response.encode('hex'))
@@ -3057,7 +3057,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         System (binary), NBeams (int)
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        if not self._check_configuration(self._promptbuf, HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN):                    
+        if not self._check_configuration(self._promptbuf, HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN):
             log.warn("_parse_read_head_config: Bad read head response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read head response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_head_config: response=%s", response.encode('hex'))
@@ -3073,7 +3073,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        if not self._check_configuration(self._promptbuf, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):                    
+        if not self._check_configuration(self._promptbuf, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):
             log.warn("_parse_read_user_config: Bad read user response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read user response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_user_config: response=%s", response.encode('hex'))
