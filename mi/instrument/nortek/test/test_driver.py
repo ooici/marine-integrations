@@ -320,6 +320,7 @@ def user_config2():
 PORT_TIMESTAMP = 3558720820.531179
 DRIVER_TIMESTAMP = 3555423722.711772
 
+
 ###############################################################################
 #                           DRIVER TEST MIXIN        		                  #
 #     Defines a set of constants and assert methods used for data particle    #
@@ -332,7 +333,6 @@ DRIVER_TIMESTAMP = 3555423722.711772
 # This class defines a configuration structure for testing and common assert  #
 # methods for validating data particles.									  #
 ###############################################################################
-
 class DriverTestMixinSub(DriverTestMixin):
     """
     Mixin class used for storing data particle constance and common data assertion methods.
@@ -506,6 +506,7 @@ class DriverTestMixinSub(DriverTestMixin):
         self.assert_data_particle_keys(NortekUserConfigDataParticleKey, self._user_config_parameters)
         self.assert_data_particle_header(data_particle, NortekDataParticleType.USER_CONFIG)
         self.assert_data_particle_parameters(data_particle, self._user_config_parameters, verify_values)
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -796,7 +797,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
     
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
-	
+
     def test_instrument_clock_sync(self):
         """
         @brief Test for reading and syncing the clock
@@ -806,7 +807,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         # command the instrument to read the clock.
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
 
-        
         log.debug("read clock returned: %s", response)
         self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
 
@@ -831,7 +831,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         instrument_time = time.strptime(response[1], '%d/%m/%Y %H:%M:%S')
         it = datetime.datetime(*instrument_time[:6])
         lt = datetime.datetime(*local_time[:6])
-        if lt - it > datetime.timedelta(seconds = 5):
+        if lt - it > datetime.timedelta(seconds=5):
             self.fail("time delta too large after clock sync")
 
         #test regex
@@ -849,15 +849,15 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         log.debug("what mode returned: %s", response)
         self.assertTrue(2, response[1])
 
-    def test_instrument_power_down(self):
-        """
-        @brief Test for power_down
-        """
-        self.assert_initialize_driver()
-        self.assert_driver_command(ProtocolEvent.POWER_DOWN)
-
-        # command the instrument to power down.
-        #self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.POWER_DOWN)
+    # def test_instrument_power_down(self):
+    #     """
+    #     @brief Test for power_down
+    #     """
+    #     self.assert_initialize_driver()
+    #     self.assert_driver_command(ProtocolEvent.POWER_DOWN)
+    #
+    #     # command the instrument to power down.
+    #     #self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.POWER_DOWN)
 
     def test_instrument_read_battery_voltage(self):
         """
@@ -893,7 +893,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         gevent.sleep(10)
         #
         # # Verify we received at least 4 samples.
-        sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
+        sample_events = [evt for evt in self.events if evt['type'] == DriverAsyncEvent.SAMPLE]
         log.debug('test_instrument_acquire_sample: # 0f samples = %d', len(sample_events))
         log.debug('samples=%s', sample_events)
         self.assertTrue(len(sample_events) >= 4)
@@ -1003,35 +1003,35 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         #self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_user, timeout=10)
 
 
-    def test_parameters(self):
-        """
-        Verify that we can set the parameters
-
-        1. Cannot set read only parameters
-        2. Can set read/write parameters
-        3. Can set read/write parameters w/direct access only
-        """
-        self.assert_initialize_driver(ProtocolState.COMMAND)
-
-        #test read/write parameter
-        self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 14)
-
-        #test read/write parameter w/direct access only
-        self.assert_set(Parameter.USER_NUMBER_BEAMS, 2)
-
-        #test setting intervals for scheduled events
-        # self.assert_set(Parameter.Run_wiper_interval, '05:00:23')
-        # self.assert_set(Parameter.Run_clock_sync_interval, '12:12:12')
-
-        #test setting date/time
-        #self.assert_set(Parameter.CLOCK_DEPLOY, get_timestamp_delayed("%m/%d/%y"))
-
-        #test read only parameter - should not be set, value should not change
-        self.assert_set(Parameter.SW_VERSION, 13700, no_get=True)
-        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.SW_VERSION])
-        return_value = reply.get(Parameter.SW_VERSION)
-        self.assertNotEqual(return_value, 13700)
-
+    # def test_parameters(self):
+    #TODO
+    #     """
+    #     Verify that we can set the parameters
+    #
+    #     1. Cannot set read only parameters
+    #     2. Can set read/write parameters
+    #     3. Can set read/write parameters w/direct access only
+    #     """
+    #     self.assert_initialize_driver(ProtocolState.COMMAND)
+    #
+    #     #test read/write parameter
+    #     self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 14)
+    #
+    #     #test read/write parameter w/direct access only
+    #     self.assert_set(Parameter.USER_NUMBER_BEAMS, 2)
+    #
+    #     #test setting intervals for scheduled events
+    #     # self.assert_set(Parameter.Run_wiper_interval, '05:00:23')
+    #     # self.assert_set(Parameter.Run_clock_sync_interval, '12:12:12')
+    #
+    #     #test setting date/time
+    #     #self.assert_set(Parameter.CLOCK_DEPLOY, get_timestamp_delayed("%m/%d/%y"))
+    #
+    #     #test read only parameter - should not be set, value should not change
+    #     self.assert_set(Parameter.SW_VERSION, 13700, no_get=True)
+    #     reply = self.driver_client.cmd_dvr('get_resource', [Parameter.SW_VERSION])
+    #     return_value = reply.get(Parameter.SW_VERSION)
+    #     self.assertNotEqual(return_value, 13700)
 
     def test_direct_access(self):
         """
@@ -1042,19 +1042,20 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
         self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
 
-    def assertParamDictionariesEqual(self, pd1, pd2, all_params=False):
-        """
-        Verify all device parameters exist and are correct type.
-        """
-        if all_params:
-            self.assertEqual(set(pd1.keys()), set(pd2.keys()))
-            for (key, type_val) in pd2.iteritems():
-                log.debug("pd1 key: %s, value: %s, type: %s", key, pd1[key], type_val)
-                self.assertTrue(isinstance(pd1[key], type_val))
-        else:
-            for (key, val) in pd1.iteritems():
-                self.assertTrue(pd2.has_key(key))
-                self.assertTrue(isinstance(val, pd2[key]))
+    # def assertParamDictionariesEqual(self, pd1, pd2, all_params=False):
+    #TODO - MAY NOT NEED
+    #     """
+    #     Verify all device parameters exist and are correct type.
+    #     """
+    #     if all_params:
+    #         self.assertEqual(set(pd1.keys()), set(pd2.keys()))
+    #         for (key, type_val) in pd2.iteritems():
+    #             log.debug("pd1 key: %s, value: %s, type: %s", key, pd1[key], type_val)
+    #             self.assertTrue(isinstance(pd1[key], type_val))
+    #     else:
+    #         for (key, val) in pd1.iteritems():
+    #             self.assertTrue(pd2.has_key(key))
+    #             self.assertTrue(isinstance(val, pd2[key]))
 
 
     def test_errors(self):

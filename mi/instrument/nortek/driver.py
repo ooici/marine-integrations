@@ -1680,6 +1680,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for set command.
         @throws InstrumentProtocolException if set command could not be built or misunderstood.
         """
+        log.debug("IN HERE!!!")
         next_state = None
         result = None
 
@@ -2905,41 +2906,41 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
             continue
 
-    def  _get_mode(self, timeout, delay=1):
-        """
-        _wakeup is replaced by this method for this instrument to search for
-        prompt strings at other than just the end of the line.
-        @param timeout The timeout to wake the device.
-        @param delay The time to wait between consecutive wakeups.
-        @throw InstrumentTimeoutException if the device could not be woken.
-        """
-        # Clear the prompt buffer.
-        self._promptbuf = ''
-
-        # Grab time for timeout.
-        starttime = time.time()
-
-        log.debug("_get_mode: timeout = %d", timeout)
-
-        while True:
-            log.debug('Sending what_mode command to get a response from the instrument.')
-            # Send what_mode command to attempt to get a response.
-            self._connection.send(InstrumentCmds.CMD_WHAT_MODE)
-            #time.sleep(delay)
-
-            for item in self._prompts.list():
-                log.debug("for loop = %s", item)
-                if item in self._promptbuf:
-                    log.debug("if loop = %s", item)
-                    if item != InstrumentPrompts.Z_NACK:
-                        log.debug('get_mode got prompt: %s' % repr(item))
-                        return item
-                    else:
-                        log.debug("did not get a response")
-                        return InstrumentCommandException("Error getting the mode")
-
-            if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException()
+    # def  _get_mode(self, timeout, delay=1):
+    #     """
+    #     _wakeup is replaced by this method for this instrument to search for
+    #     prompt strings at other than just the end of the line.
+    #     @param timeout The timeout to wake the device.
+    #     @param delay The time to wait between consecutive wakeups.
+    #     @throw InstrumentTimeoutException if the device could not be woken.
+    #     """
+    #     # Clear the prompt buffer.
+    #     self._promptbuf = ''
+    #
+    #     # Grab time for timeout.
+    #     starttime = time.time()
+    #
+    #     log.debug("_get_mode: timeout = %d", timeout)
+    #
+    #     while True:
+    #         log.debug('Sending what_mode command to get a response from the instrument.')
+    #         # Send what_mode command to attempt to get a response.
+    #         self._connection.send(InstrumentCmds.CMD_WHAT_MODE)
+    #         #time.sleep(delay)
+    #
+    #         for item in self._prompts.list():
+    #             log.debug("for loop = %s", item)
+    #             if item in self._promptbuf:
+    #                 log.debug("if loop = %s", item)
+    #                 if item != InstrumentPrompts.Z_NACK:
+    #                     log.debug('get_mode got prompt: %s' % repr(item))
+    #                     return item
+    #                 else:
+    #                     log.debug("did not get a response")
+    #                     return InstrumentCommandException("Error getting the mode")
+    #
+    #         if time.time() > starttime + timeout:
+    #             raise InstrumentTimeoutException()
 
     # def _send_wakeup(self):
     #     """
