@@ -20,9 +20,8 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.util import dict_equal
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
-from mi.core.instrument.data_particle import DataParticleKey, CommonDataParticleType
+from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_fsm import InstrumentFSM
-from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -47,8 +46,11 @@ from mi.instrument.seabird.driver import SeaBirdParticle
 from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 from mi.instrument.seabird.driver import NEWLINE
 from mi.instrument.seabird.driver import TIMEOUT
+from mi.instrument.seabird.driver import DEFAULT_ENCODER_KEY
 
 WAKEUP_TIMEOUT = 60
+
+SEND_OPTODE_COMMAND = "sendoptode="
 
 class ScheduledJob(BaseEnum):
     ACQUIRE_STATUS = 'acquire_status'
@@ -77,8 +79,8 @@ class SendOptodeCommand(BaseEnum):
     GET_ENABLE_TEMP = 'get enable temperature'
     GET_ENABLE_TEXT = 'get enable text'
     GET_ENABLE_HUM_COMP = 'get enable humiditycomp'
-    GET_ENABLE_AIR_SAT = 'get enable air saturation'
-    GET_ENABLE_RAW_DATA = 'get enable raw data'
+    GET_ENABLE_AIR_SAT = 'get enable airsaturation'
+    GET_ENABLE_RAW_DATA = 'get enable rawdata'
     GET_ANALOG_OUTPUT = 'get analog output'
     GET_INTERVAL = 'get interval'
     GET_MODE  = 'get mode'
@@ -133,8 +135,6 @@ class Parameter(DriverParameter):
     Device specific parameters for SBE19.
     """
     DATE_TIME = "DateTime"
-    #ECHO = "Echo"
-    #OUTPUT_EXEC_TAG = 'OutputExecutedTag'
     PTYPE = "PType"
     VOLT0 = "Volt0"
     VOLT1 = "Volt1"
@@ -185,100 +185,7 @@ class DataParticleType(BaseEnum):
     DEVICE_CALIBRATION = 'ctdpf_optode_calibration_coefficients'
     DEVICE_HARDWARE = 'ctdpf_optode_hardware'
     DEVICE_CONFIGURATION = 'ctdpf_optode_configuration'
-    EVENT_COUNTER = 'ctdpf_event_counter'
     OPTODE_SETTINGS = 'ctdpf_optode_settings'
-
-class SBE19EventCounterParticleKey(BaseEnum):
-    SERIAL_NUMBER = "serial_number"
-    NUMBER_OF_EVENTS = "num_events"
-    ALARM_SHORT_COUNT = "alarm_short_count"
-    EEPROM_READ_COUNT = "eeprom_read_count"
-    EEPROM_WRITE_COUNT = "eeprom_write_count"
-
-
-#TODO: need to revisit this one
-class SBE19EventCounterParticle(SeaBirdParticle):
-    """
-    Routines for parsing raw data into a data particle structure. Override
-    the building of values, and the rest should come along for free.
-    """
-    _data_particle_type = DataParticleType.EVENT_COUNTER
-
-    @staticmethod
-    def regex():
-        pattern = r'(<EventCounters.*?</EventCounters>)' + NEWLINE
-        return pattern
-
-    @staticmethod
-    def regex_compiled():
-        return re.compile(SBE19EventCounterParticle.regex(), re.DOTALL)
-
-    @staticmethod
-    def resp_regex():
-        pattern = r'(<EventCounters.*?</EventCounters>)'
-        return pattern
-
-    @staticmethod
-    def resp_regex_compiled():
-        return re.compile(SBE19EventCounterParticle.resp_regex(), re.DOTALL)
-
-    def _build_parsed_values(self):
-        """
-        Parse the output of the getSD command
-        @throws SampleException If there is a problem with sample creation
-        """
-
-        SERIAL_NUMBER = "SerialNumber"
-        EVENT_SUMMARY = "EventSummary"
-        NUMBER_OF_EVENTS = "numEvents"
-        EVENT = "Event"
-        TYPE = "type"
-        COUNT = "count"
-        ALARM_SHORT = "alarm short"
-        EEPROM_READ = "EEPROM read"
-        EEPROM_WRITE = "EEPROM write"
-
-        # check to make sure there is a correct match before continuing
-        match = SBE19EventCounterParticle.regex_compiled().match(self.raw_data)
-        if not match:
-            raise SampleException("No regex match of parsed event counter data: [%s]" %
-                                  self.raw_data)
-
-        dom = parseString(self.raw_data)
-        root = dom.documentElement
-        log.debug("root.tagName = %s" %root.tagName)
-        serial_number = int(root.getAttribute(SERIAL_NUMBER))
-        event_summary = self._extract_xml_elements(root, EVENT_SUMMARY)[0]
-        number_of_events = int(event_summary.getAttribute(NUMBER_OF_EVENTS))
-
-        result = [{DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.SERIAL_NUMBER,
-                   DataParticleKey.VALUE: serial_number},
-                  {DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.NUMBER_OF_EVENTS,
-                   DataParticleKey.VALUE: number_of_events},
-                 ]
-
-        if(number_of_events > 0):
-            event_elements = self._extract_xml_elements(root, EVENT)
-
-            for event in event_elements:
-                type = event.getAttribute(TYPE)
-                count = int(event.getAttribute(COUNT))
-                if type == ALARM_SHORT:
-                    result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.ALARM_SHORT_COUNT, DataParticleKey.VALUE: count})
-                elif type == EEPROM_READ:
-                    result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.EEPROM_READ_COUNT, DataParticleKey.VALUE: count})
-                elif type == EEPROM_WRITE:
-                    result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.EEPROM_WRITE_COUNT, DataParticleKey.VALUE: count})
-        else:
-            result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.ALARM_SHORT_COUNT, DataParticleKey.VALUE: 0})
-            result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.EEPROM_READ_COUNT, DataParticleKey.VALUE: 0})
-            result.append({DataParticleKey.VALUE_ID: SBE19EventCounterParticleKey.EEPROM_WRITE_COUNT, DataParticleKey.VALUE: 0})
-
-
-
-
-        return result
-
 
 class SBE19ConfigurationParticleKey(BaseEnum):
     SERIAL_NUMBER = "serial_number"
@@ -640,9 +547,6 @@ class SBE19HardwareParticle(SeaBirdParticle):
             pcb_serial_number.append(assembly.getAttribute(PCB_SERIAL_NUMBER))
             pcb_assembly.append(assembly.getAttribute(ASSEMBLY_NUMBER))
 
-        internal_sensors_element = self._extract_xml_elements(root, INTERNAL_SENSORS)[0]
-        sensors = self._extract_xml_elements(internal_sensors_element, SENSOR)
-
         temperature_sensor_serial_number = 0
         temperature_sensor_type = ""
         conductivity_sensor_serial_number = 0
@@ -654,6 +558,9 @@ class SBE19HardwareParticle(SeaBirdParticle):
         volt1_serial_number = 0
         volt1_type = ""
 
+        internal_sensors_element = self._extract_xml_elements(root, INTERNAL_SENSORS)[0]
+        sensors = self._extract_xml_elements(internal_sensors_element, SENSOR)
+
         for sensor in sensors:
             sensor_id = sensor.getAttribute(ID)
             if sensor_id == TEMPERATURE_SENSOR_ID:
@@ -663,7 +570,7 @@ class SBE19HardwareParticle(SeaBirdParticle):
                 conductivity_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
                 conductivity_sensor_type = self._extract_xml_element_value(sensor, TYPE)
             elif sensor_id == PRESSURE_SENSOR_ID:
-                pressure_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
+                pressure_sensor_serial_number = self._extract_xml_element_value(sensor, SERIAL_NUMBER)
                 pressure_sensor_type = self._extract_xml_element_value(sensor, TYPE)
 
         external_sensors_element = self._extract_xml_elements(root, EXTERNAL_SENSORS)[0]
@@ -672,10 +579,10 @@ class SBE19HardwareParticle(SeaBirdParticle):
         for sensor in sensors:
             sensor_id = sensor.getAttribute(ID)
             if sensor_id == VOLT0:
-                volt0_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
+                volt0_serial_number = self._extract_xml_element_value(sensor, SERIAL_NUMBER)
                 volt0_type = self._extract_xml_element_value(sensor, TYPE)
             elif sensor_id == VOLT1:
-                volt1_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
+                volt1_serial_number = self._extract_xml_element_value(sensor, SERIAL_NUMBER)
                 volt1_type = self._extract_xml_element_value(sensor, TYPE)
 
         result = [{DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.SERIAL_NUMBER,
@@ -712,7 +619,7 @@ class SBE19HardwareParticle(SeaBirdParticle):
                    DataParticleKey.VALUE: volt0_type},
                   {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.VOLT1_SERIAL_NUMBER,
                    DataParticleKey.VALUE: volt1_serial_number},
-                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.VOLT0_TYPE,
+                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.VOLT1_TYPE,
                    DataParticleKey.VALUE: volt1_type},
                   ]
 
@@ -1050,6 +957,86 @@ class SBE19DataParticle(SeaBirdParticle):
 
         return result
 
+
+class OptodeSettingsParticleKey(BaseEnum):
+
+    CALPHASE = 'calphase'
+    ENABLE_TEMP = 'enable_temperature'
+    ENABLE_TEXT = 'enable_text'
+    ENABLE_HUM_COMP = 'enable_humiditycomp'
+    ENABLE_AIR_SAT = 'enable_airsaturation'
+    ENABLE_RAW_DATA = 'enable_rawdata'
+    ANALOG_OUTPUT = 'analog_output'
+    INTERVAL = 'interval'
+    MODE  = 'mode'
+
+
+class OptodeSettingsParticle(SeaBirdParticle):
+    """
+    Routines for parsing raw data into a data particle structure. Override
+    the building of values, and the rest should come along for free.
+    """
+    _data_particle_type = DataParticleType.OPTODE_SETTINGS
+
+    @staticmethod
+    def regex():
+        # pattern for the first sendoptode command
+        pattern =  r'Optode RX = CalPhase\[Deg]'
+        pattern += r'.*?' # non-greedy match of all the junk between
+        pattern += r'Optode RX = Mode[\s]*[\d]+[\s]+[\d]+[\s]+([\w\- \t]+)' + NEWLINE
+        return pattern
+
+    @staticmethod
+    def regex_compiled():
+        return re.compile(OptodeSettingsParticle.regex(), re.DOTALL)
+
+    def encoders(self):
+        return {
+            DEFAULT_ENCODER_KEY: str,
+
+            OptodeSettingsParticleKey.CALPHASE : float,
+            OptodeSettingsParticleKey.ENABLE_TEMP : self.yesno2bool,
+            OptodeSettingsParticleKey.ENABLE_TEXT : self.yesno2bool,
+            OptodeSettingsParticleKey.ENABLE_HUM_COMP : self.yesno2bool,
+            OptodeSettingsParticleKey.ENABLE_AIR_SAT : self.yesno2bool,
+            OptodeSettingsParticleKey.ENABLE_RAW_DATA : self.yesno2bool,
+            OptodeSettingsParticleKey.INTERVAL : float,
+
+        }
+
+
+    def regex_multiline(self):
+        return {
+            OptodeSettingsParticleKey.CALPHASE : r'Optode RX = CalPhase\[Deg][\s]+[\d]+[\s]+[\d]+[\s]+(\d+.\d+)',
+            OptodeSettingsParticleKey.ENABLE_TEMP : r'Optode RX = Enable Temperature[\s]+[\d]+[\s]+[\d]+[\s]+(Yes|No)',
+            OptodeSettingsParticleKey.ENABLE_TEXT : r'Optode RX = Enable Text[\s]*[\d]+[\s]+[\d]+[\s]+(Yes|No)',
+            OptodeSettingsParticleKey.ENABLE_HUM_COMP : r'Optode RX = Enable HumidityComp[\s]*[\d]+[\s]+[\d]+[\s]+(Yes|No)',
+            OptodeSettingsParticleKey.ENABLE_AIR_SAT: r'Optode RX = Enable AirSaturation[\s]*[\d]+[\s]+[\d]+[\s]+(Yes|No)',
+            OptodeSettingsParticleKey.ENABLE_RAW_DATA: r'Optode RX = Enable Rawdata[\s]*[\d]+[\s]+[\d]+[\s]+(Yes|No)',
+            OptodeSettingsParticleKey.ANALOG_OUTPUT: r'Optode RX = Analog Output[\s]*[\d]+[\s]+[\d]+[\s]+([\w]+)',
+            OptodeSettingsParticleKey.INTERVAL : r'Optode RX = Interval[\s]+[\d]+[\s]+[\d]+[\s]+(\d+.\d+)',
+            OptodeSettingsParticleKey.MODE: r'Optode RX = Mode[\s]*[\d]+[\s]+[\d]+[\s]+([\w\- \t]+)',
+
+        }
+
+    def _build_parsed_values(self):
+        """
+        Parse the output of the SendOptode commands
+
+        @throws SampleException If there is a problem with sample creation
+        """
+        match = OptodeSettingsParticle.regex_compiled().match(self.raw_data)
+
+        if not match:
+            raise SampleException("No regex match of parsed optode data: [%s]" %
+                                  self.raw_data)
+
+        try:
+            return self._get_multiline_values()
+        except ValueError as e:
+            raise SampleException("ValueError while decoding optode output: [%s]" % e)
+
+
 ###############################################################################
 # Driver
 ###############################################################################
@@ -1162,6 +1149,7 @@ class SBE19Protocol(SBE16Protocol):
         self._add_build_handler(Command.STOP, self._build_simple_command)
         self._add_build_handler(Command.TS, self._build_simple_command)
         self._add_build_handler(Command.SET, self._build_set_command)
+        self._add_build_handler(Command.SEND_OPTODE, self._build_send_optode_command)
 
         # Add response handlers for device commands.
         # these are here to ensure that correct responses to the commands are received before the next command is sent
@@ -1172,6 +1160,7 @@ class SBE19Protocol(SBE16Protocol):
         self._add_response_handler(Command.GET_CD, self._validate_GetCD_response)
         self._add_response_handler(Command.GET_CC, self._validate_GetCC_response)
         self._add_response_handler(Command.GET_EC, self._validate_GetEC_response)
+        self._add_response_handler(Command.SEND_OPTODE, self._validate_SendOptode_response)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -1196,7 +1185,7 @@ class SBE19Protocol(SBE16Protocol):
         matchers.append(SBE19CalibrationParticle.regex_compiled())
         matchers.append(SBE19StatusParticle.regex_compiled())
         matchers.append(SBE19ConfigurationParticle.regex_compiled())
-        matchers.append(SBE19EventCounterParticle.regex_compiled())
+        matchers.append(OptodeSettingsParticle.regex_compiled())
 
         for matcher in matchers:
             for match in matcher.finditer(raw_data):
@@ -1348,9 +1337,30 @@ class SBE19Protocol(SBE16Protocol):
         result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE19CalibrationParticle.regex_compiled(),
                                     timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_EC, response_regex=SBE19EventCounterParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result += self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetEC Response: %s", result)
+
+        #Reset the event counter right after getEC
+        self._do_cmd_resp(Command.RESET_EC, timeout=TIMEOUT)
+
+        #Now send commands to the Optode to get its status
+        #Stop the optode first, need to send the command twice
+        stop_command = "stop"
+        start_command = "start"
+        self._do_cmd_resp(Command.SEND_OPTODE, stop_command, timeout=TIMEOUT)
+        time.sleep(2)
+        self._do_cmd_resp(Command.SEND_OPTODE, stop_command, timeout=TIMEOUT)
+        time.sleep(3)
+
+        #Send all the 'sendoptode=' commands one by one
+        optode_commands = SendOptodeCommand.list()
+        for command in optode_commands:
+            log.debug("Sending optode command: %s" % command)
+            result += self._do_cmd_resp(Command.SEND_OPTODE, command, timeout=TIMEOUT)
+            log.debug("_handler_command_acquire_status: SendOptode Response: %s", result)
+
+        #restart the optode
+        self._do_cmd_resp(Command.SEND_OPTODE, start_command, timeout=TIMEOUT)
 
         return (next_state, (next_agent_state, result))
 
@@ -1378,9 +1388,11 @@ class SBE19Protocol(SBE16Protocol):
         result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE19CalibrationParticle.regex_compiled(),
                                     timeout=TIMEOUT)
         log.debug("_handler_autosample_acquire_status: GetCC Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_EC, response_regex=SBE19EventCounterParticle.regex_compiled(),
-                                    timeout=TIMEOUT)
+        result += self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT)
         log.debug("_handler_autosample_acquire_status: GetEC Response: %s", result)
+
+        #Reset the event counter right after getEC
+        self._do_cmd_no_resp(Command.RESET_EC)
 
         return (next_state, (next_agent_state, result))
 
@@ -1574,6 +1586,17 @@ class SBE19Protocol(SBE16Protocol):
         return set_cmd
 
 
+    def _build_send_optode_command(self, cmd, command):
+        """
+        Build handler for sendoptode command.
+        @param cmd The command to build.
+        @param command The optode command.
+        @ retval The set command to be sent to the device.
+
+        """
+        return "%s=%s%s" % (cmd, command, self._newline)
+
+
     def _parse_dsdc_response(self, response, prompt):
         """
         Parse handler for dsdc commands.
@@ -1682,12 +1705,22 @@ class SBE19Protocol(SBE16Protocol):
             log.error("GetEC command encountered error; type='%s' msg='%s'", error[0], error[1])
             raise InstrumentProtocolException('GetEC command failure: type="%s" msg="%s"' % (error[0], error[1]))
 
-        if not SBE19EventCounterParticle.resp_regex_compiled().search(response):
-            log.error('_validate_GetEC_response: GetEC command not recognized: %s.' % response)
-            raise InstrumentProtocolException('GetEC command not recognized: %s.' % response)
-
         return response
 
+    def _validate_SendOptode_response(self, response, prompt):
+        """
+        validation handler for GetEC command
+        @param response command response string.
+        @param prompt prompt following command response.
+        @throws InstrumentProtocolException if command misunderstood.
+        """
+        error = self._find_error(response)
+
+        if error:
+            log.error("SendOptode command encountered error; type='%s' msg='%s'", error[0], error[1])
+            raise InstrumentProtocolException('Send Optode command failure: type="%s" msg="%s"' % (error[0], error[1]))
+
+        return response
 
     def _build_command_dict(self):
         """
@@ -1716,18 +1749,6 @@ class SBE19Protocol(SBE16Protocol):
                              display_name="Date/Time",
                              #expiration=0,
                              visibility=ParameterDictVisibility.READ_ONLY)
-        """
-        self._param_dict.add(Parameter.ECHO,
-                             r'echo characters = (yes|no)',
-                             lambda match : True if match.group(1)=='yes' else False,
-                             self._true_false_to_string,
-                             type=ParameterDictType.BOOL,
-                             display_name="Echo Characters",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = False,
-                             visibility=ParameterDictVisibility.IMMUTABLE)
-        """
         self._param_dict.add(Parameter.LOGGING,
                              r'status = (not )?logging',
                              lambda match : False if (match.group(1)) else True,
@@ -1736,18 +1757,6 @@ class SBE19Protocol(SBE16Protocol):
                              display_name="Is Logging",
                              #expiration=0,
                              visibility=ParameterDictVisibility.READ_ONLY)
-        """
-        self._param_dict.add(Parameter.OUTPUT_EXEC_TAG,
-                             r'.',
-                             lambda match : False,
-                             self._true_false_to_string,
-                             type=ParameterDictType.BOOL,
-                             display_name="Output Execute Tag",
-                             startup_param = True,
-                             direct_access = True,
-                             default_value = False,
-                             visibility=ParameterDictVisibility.READ_WRITE)
-        """
         self._param_dict.add(Parameter.PTYPE,
                              r'pressure sensor = ([\w\s]+),',
                              self._pressure_sensor_to_int,
@@ -1758,8 +1767,6 @@ class SBE19Protocol(SBE16Protocol):
                              direct_access = True,
                              default_value = 1,
                              visibility=ParameterDictVisibility.IMMUTABLE)
-
-        #Current defaults assume Anderra Optode
         self._param_dict.add(Parameter.VOLT0,
                              r'Ext Volt 0 = ([\w]+)',
                              lambda match : True if match.group(1) == 'yes' else False,
@@ -1860,7 +1867,6 @@ class SBE19Protocol(SBE16Protocol):
                              direct_access = True,
                              default_value = False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
-
         self._param_dict.add(Parameter.OPTODE,
                              r'OPTODE = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
@@ -1933,7 +1939,6 @@ class SBE19Protocol(SBE16Protocol):
                              visibility=ParameterDictVisibility.IMMUTABLE)
 
 
-
     def _got_chunk(self, chunk, timestamp):
         """
         Over-ride sieve function to handle additional particles.
@@ -1945,7 +1950,7 @@ class SBE19Protocol(SBE16Protocol):
                 self._extract_sample(SBE19CalibrationParticle, SBE19CalibrationParticle.regex_compiled(), chunk, timestamp) or
                 self._extract_sample(SBE19ConfigurationParticle, SBE19ConfigurationParticle.regex_compiled(), chunk, timestamp) or
                 self._extract_sample(SBE19StatusParticle, SBE19StatusParticle.regex_compiled(), chunk, timestamp) or
-                self._extract_sample(SBE19EventCounterParticle, SBE19EventCounterParticle.regex_compiled(), chunk, timestamp)):
+                self._extract_sample(OptodeSettingsParticle, OptodeSettingsParticle.regex_compiled(), chunk, timestamp)):
             raise InstrumentProtocolException("Unhandled chunk %s" %chunk)
 
 
