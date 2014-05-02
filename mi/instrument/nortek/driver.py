@@ -259,7 +259,7 @@ class Parameter(DriverParameter):
     BATTERY_VOLTAGE = "BatteryVoltage"
     IDENTIFICATION_STRING = "IdentificationString"
     """
-    
+
     # user configuration
     TRANSMIT_PULSE_LENGTH = "TransmitPulseLength"                # T1
     BLANKING_DISTANCE = "BlankingDistance"                       # T2
@@ -274,7 +274,7 @@ class Parameter(DriverParameter):
     A1_1_SPARE = 'A1_1Spare'
     B0_1_SPARE = 'B0_1Spare'
     B1_1_SPARE = 'B1_1Spare'
-    COMPASS_UPDATE_RATE ="CompassUpdateRate"
+    COMPASS_UPDATE_RATE = "CompassUpdateRate"
     COORDINATE_SYSTEM = "CoordinateSystem"
     NUMBER_BINS = "NumberOfBins"      # number of cells
     BIN_LENGTH = "BinLength"          # cell size
@@ -469,10 +469,10 @@ class NortekHeadConfigDataParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
         #match = HEAD_CONFIG_DATA_REGEX.match(self.raw_data)
-                
+
         #if not match:
         #    raise SampleException("VectorHeadConfigDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
-        
+
         working_value = head_config_to_dict(self.raw_data)
         for key in working_value.keys():
             if None == working_value[key]:
@@ -532,11 +532,11 @@ def user_config_to_dict(input):
     if str(input[-2:]) == InstrumentPrompts.Z_ACK:
         if (len(input) != USER_CONFIG_LEN+2):
             raise SampleException("Invalid input when parsing user config. Got input of size %s with an ACK" % len(input))
-    else:    
+    else:
         if (len(input) != USER_CONFIG_LEN):
             raise SampleException("Invalid input when parsing user config. Got input of size %s with no ACK" % len(input))
-            
-    parsed = {} 
+
+    parsed = {}
     parsed[NortekUserConfigDataParticleKey.TX_LENGTH] = NortekProtocolParameterDict.convert_word_to_int(input[4:6])
     parsed[NortekUserConfigDataParticleKey.BLANK_DIST] = NortekProtocolParameterDict.convert_word_to_int(input[6:8])
     parsed[NortekUserConfigDataParticleKey.RX_LENGTH] = NortekProtocolParameterDict.convert_word_to_int(input[8:10])
@@ -546,7 +546,7 @@ def user_config_to_dict(input):
     parsed[NortekUserConfigDataParticleKey.AVG_INTERVAL] = NortekProtocolParameterDict.convert_word_to_int(input[16:18])
     parsed[NortekUserConfigDataParticleKey.NUM_BEAMS] = NortekProtocolParameterDict.convert_word_to_int(input[18:20])
     parsed[NortekUserConfigDataParticleKey.TCR] = NortekProtocolParameterDict.convert_bytes_to_bit_field(input[20:22])
-    parsed[NortekUserConfigDataParticleKey.PCR] = NortekProtocolParameterDict.convert_bytes_to_bit_field(input[22:24])        
+    parsed[NortekUserConfigDataParticleKey.PCR] = NortekProtocolParameterDict.convert_bytes_to_bit_field(input[22:24])
     parsed[NortekUserConfigDataParticleKey.COMPASS_UPDATE_RATE] = NortekProtocolParameterDict.convert_word_to_int(input[30:32])
     parsed[NortekUserConfigDataParticleKey.COORDINATE_SYSTEM] = NortekProtocolParameterDict.convert_word_to_int(input[32:34])
     parsed[NortekUserConfigDataParticleKey.NUM_CELLS] = NortekProtocolParameterDict.convert_word_to_int(input[34:36])
@@ -1106,7 +1106,7 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
     def set_params_to_read_write(self):
         for (name, val) in self._param_dict.iteritems():
             val.description.visibility = ParameterDictVisibility.READ_WRITE
-        
+
     @staticmethod
     def word_to_string(value):
         low_byte = value & 0xff
@@ -1251,6 +1251,25 @@ class NortekInstrumentDriver(SingleConnectionInstrumentDriver):
     """
     Base class for all seabird instrument drivers.
     """
+    def __init__(self, evt_callback):
+        """
+        Driver constructor.
+        @param evt_callback Driver process event callback.
+        """
+        #Construct superclass.
+        SingleConnectionInstrumentDriver.__init__(self, evt_callback)
+
+    def _build_protocol(self):
+        """
+        Construct the driver protocol state machine.
+        """
+        self._protocol = NortekInstrumentProtocol(InstrumentPrompts, NEWLINE, self._driver_event)
+
+    def get_resource_params(self):
+        """
+        Return list of device parameters available.
+        """
+        return Parameter.list()
 
     def apply_startup_params(self):
         """
@@ -1579,7 +1598,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             cmd_line = cmd
 
         # Send command.
-        log.debug('_do_cmd_resp: %s(%s), timeout=%s, expected_prompt=%s (%s),', 
+        log.debug('_do_cmd_resp: %s(%s), timeout=%s, expected_prompt=%s (%s),',
                   repr(cmd_line), repr(cmd_line.encode("hex")), timeout, expected_prompt, expected_prompt.encode("hex"))
         self._connection.send(cmd_line)
 
@@ -1720,8 +1739,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # self._do_cmd_resp(InstrumentCmds.READ_ID)
 
 
-
-
         return None, (None, None)
 
     def _handler_command_execute_reset(self, *args, **kwargs):
@@ -1765,7 +1782,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # over-ride read-only parameters
         if not_user_requested:
             parameters.set_params_to_read_write()
-        
+
         # For each key, value in the params_to_set list set the value in parameters copy.
         try:
             for (name, value) in params_to_set.iteritems():
@@ -2023,6 +2040,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         Enter autosample state.
         """
+        log.debug('%% IN _handler_autosample_enter')
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -2082,6 +2101,13 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
         self._sent_cmds = []
+
+    def _handler_direct_access_exit(self, *args, **kwargs):
+        """
+        Exit direct access state.
+        """
+        log.debug('%% IN _handler_direct_access_exit')
+        pass
 
     def _handler_direct_access_execute_direct(self, data):
         """
@@ -2187,7 +2213,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         # Child should load this, no need to do it twice 
         # self._cmd_dict.load_strings()
-        
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
@@ -2337,7 +2363,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     lambda string : string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.STRING,
-
                                     visibility=ParameterDictVisibility.READ_ONLY,
                                     display_name="b0 1 spare",
                                     default_value=None))
@@ -2348,7 +2373,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     lambda string : string,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.STRING,
-
                                     visibility=ParameterDictVisibility.READ_ONLY,
                                     display_name="b1 1 spare",
                                     default_value=None))
@@ -2771,10 +2795,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     init_value='Cv/N/4sA5QDuAAsAhP89/w==',
                                     startup_param=True,
                                     direct_access=True))
-        
+
         # Child should do this after adding any special strings
         # self._param_dict.load_strings()
-        
+
     def _dump_config(self, input):
         # dump config block
         dump = ''
@@ -3064,9 +3088,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             log.warn("_parse_read_hw_config: Bad read hw response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid read hw response. (%s)" % response.encode('hex'))
         log.debug("_parse_read_hw_config: response=%s", response.encode('hex'))
-        
+
         return hw_config_to_dict(response)
-        
+
     def _parse_read_head_config(self, response, prompt):
         """ Parse the response from the instrument for a read head command.
         
@@ -3083,7 +3107,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         log.debug("_parse_read_head_config: response=%s", response.encode('hex'))
 
         return head_config_to_dict(response)
-        
+
     def _parse_read_user_config(self, response, prompt):
         """ Parse the response from the instrument for a read user command.
         
