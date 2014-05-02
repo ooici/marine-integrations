@@ -15,7 +15,7 @@ import time
 import copy
 import base64
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger; log = get_logger()
 
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 
@@ -47,12 +47,16 @@ from mi.core.exceptions import SampleException
 from mi.core.time import get_timestamp_delayed
 from mi.core.common import InstErrorCode, BaseEnum
 
+from mi.core.util import dict_equal
+
+from mi.core.instrument.chunker import StringChunker
+
 # newline.
 NEWLINE = '\n\r'
 
 # default timeout.
 TIMEOUT = 60
-# set up the 'structure' lengths (in bytes) and sync/id/size constants   /
+# set up the 'structure' lengths (in bytes) and sync/id/size constants
 USER_CONFIG_LEN = 512
 USER_CONFIG_SYNC_BYTES = '\xa5\x00\x00\x01'
 HW_CONFIG_LEN = 48
@@ -67,11 +71,15 @@ INTVL_LEN = 4
 
 CHECK_SUM_SEED = 0xb58c
 
-HARDWARE_CONFIG_DATA_PATTERN = r'%s(.{14})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{12})(.{4})(.{2})' % HW_CONFIG_SYNC_BYTES
+HARDWARE_CONFIG_DATA_PATTERN = r'%s(.{14})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{12})(.{4})(.{2})' \
+                               % HW_CONFIG_SYNC_BYTES
 HARDWARE_CONFIG_DATA_REGEX = re.compile(HARDWARE_CONFIG_DATA_PATTERN, re.DOTALL)
 HEAD_CONFIG_DATA_PATTERN = r'%s(.{2})(.{2})(.{2})(.{12})(.{176})(.{22})(.{2})(.{2})' % HEAD_CONFIG_SYNC_BYTES
 HEAD_CONFIG_DATA_REGEX = re.compile(HEAD_CONFIG_DATA_PATTERN, re.DOTALL)
-USER_CONFIG_DATA_PATTERN = r'%s(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{6})(.{2})(.{6})(.{4})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{180})(.{180})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{30})(.{16})(.{2})' % USER_CONFIG_SYNC_BYTES
+USER_CONFIG_DATA_PATTERN = r'%s(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})' \
+                           r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{6})(.{2})(.{6})(.{4})(.{2})(.{2})(.{2})(.{2})(.{2})' \
+                           r'(.{2})(.{2})(.{2})(.{2})(.{180})(.{180})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})' \
+                           r'(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{30})(.{16})(.{2})' % USER_CONFIG_SYNC_BYTES
 USER_CONFIG_DATA_REGEX = re.compile(USER_CONFIG_DATA_PATTERN, re.DOTALL)
 
 CLOCK_DATA_PATTERN = r'(.{1})(.{1})(.{1})(.{1})(.{1})(.{1})\x06\x06'
@@ -2090,6 +2098,13 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
+    def _handler_autosample_exit(self, *args, **kwargs):
+        """
+        Exit autosample state.
+        """
+        log.debug("%%% IN _handler_autosample_exit")
+        pass
+
     def _helper_measurement_to_command_mode(self, *args, **kwargs):
 
         # send soft break
@@ -3049,7 +3064,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             raise InstrumentProtocolException("Invalid what mode response. (%s)" % response.encode('hex'))
         log.debug("_parse_what_mode_response: response=%s", response.encode('hex'))
         return NortekProtocolParameterDict.convert_word_to_int(response[0:2])
-        
 
     def _parse_read_battery_voltage_response(self, response, prompt):
         """ Parse the response from the instrument for a read battery voltage command.
@@ -3121,7 +3135,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, INTVL_LEN])
 
         return NortekProtocolParameterDict.convert_word_to_int(response[0:INTVL_LEN-2])
-
 
     def _parse_read_hw_config(self, response, prompt):
         """ Parse the response from the instrument for a read hw config command.
