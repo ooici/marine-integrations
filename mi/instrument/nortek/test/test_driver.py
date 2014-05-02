@@ -41,7 +41,7 @@ from mi.core.instrument.protocol_cmd_dict import CommandDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictKey
 
 from mi.instrument.nortek.driver import NortekProtocolParameterDict, CLOCK_DATA_REGEX, CLOCK_DATA_PATTERN, \
-    EngineeringParameter
+    EngineeringParameter, TIMEOUT
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekUserConfigDataParticleKey
@@ -58,7 +58,8 @@ from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import ScheduledJob
 from mi.instrument.nortek.driver import NortekInstrumentDriver
-from mi.core.exceptions import NotImplementedException, InstrumentCommandException
+from mi.core.exceptions import NotImplementedException, InstrumentCommandException, InstrumentStateException, \
+    InstrumentParameterException
 
 from interface.objects import AgentCommand
 
@@ -782,7 +783,6 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         }
 
         driver = NortekInstrumentDriver(self._got_data_event_callback)
-        log.debug("GOT DRIVER")
         self.assert_capabilities(driver, capabilities)
 
 
@@ -841,7 +841,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         """
         @brief Test for reading what mode
         """
-        #TODO - DO WE NEED THIS TEST?  WHAT IS THIS COMMAND USED FOR?
         self.assert_initialize_driver()
 
         # command the instrument to read the mode.
@@ -976,65 +975,15 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assertEqual(cmds[Capability.ACQUIRE_SAMPLE][CommandDictKey.DISPLAY_NAME],
                          "acquire sample")
 
-
-
-
-        ###################
-        #RONS TESTS
-        #################
-
-
-        def test_commands(self):
-            """
-            Run instrument commands from command mode.
-            """
-            self.assert_initialize_driver(ProtocolState.COMMAND)
-
-        # #test commands, now that we are in command mode
-        # #$mnu
-        # self.assert_driver_command(ProtocolEvent.GET_MENU, regex=MNU_REGEX)
-        # #$met
-        # self.assert_driver_command(ProtocolEvent.GET_METADATA, regex=MET_REGEX)
-        #
-        # #$run - testing putting instrument into autosample
-        # self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        # #!!!!! - testing put instrument into command mode
-        # self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, regex=MNU_REGEX)
-        # #$mvs - test running wiper
-        # self.assert_driver_command(ProtocolEvent.RUN_WIPER, state=ProtocolState.COMMAND, regex=RUN_REGEX)
-        # #test syncing clock
-        # self.assert_driver_command(ProtocolEvent.CLOCK_SYNC, state=ProtocolState.COMMAND)
-
-
-
-        # self.assert_driver_command(ProtocolEvent.GET, state=ProtocolState.COMMAND)
-        # self.assert_driver_command(ProtocolEvent.SET, state=ProtocolState.COMMAND)
-        # self.assert_driver_command(ProtocolEvent.DISCOVER, state=ProtocolState.COMMAND)
-
-        # self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND)
-        # self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, state=ProtocolState.COMMAND)
-
-        # self.assert_driver_command(ProtocolEvent.START_DIRECT, state=ProtocolState.COMMAND)
-        # self.assert_driver_command(ProtocolEvent.STOP_DIRECT, state=ProtocolState.COMMAND)
-        # self.assert_driver_command(ProtocolEvent.EXECUTE_DIRECT, state=ProtocolState.COMMAND)
-        # self.assert_driver_command(ProtocolEvent.CLOCK_SYNC, state=ProtocolState.COMMAND)
-
-
-        ####
-        # Test a bad command
-        ####
-        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
-
     def test_command_acquire_status(self):
         """
         Test acquire status command and events.
 
         1. initialize the instrument to COMMAND state
-        2. command the instrument to ACQUIRESTATUS
+        2. command the instrument to ACQUIRE STATUS (BV, RC, GH, GP, GC, II)
         3. verify the particle coming in
         """
-        self.assert_initialize_driver(ProtocolState.COMMAND) # at some point, current state probably shouldn't matter
-        # self.assert_initialize_driver()
+        self.assert_initialize_driver(ProtocolState.COMMAND)
 
         # test acquire status
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=1)
@@ -1048,15 +997,11 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_async_particle_generation(NortekDataParticleType.HEAD_CONFIG, self.assert_particle_head)
         #GC
         self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
-        #
-        # # II/I are the same command for
-        #
-        # self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_user, timeout=10)
 
-        #A?
+        #TODO  MAY NOT NEED
+        #II
+        #self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_user, timeout=10)
 
-
-        #M?
 
     def test_parameters(self):
         """
@@ -1069,23 +1014,23 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
         #test read/write parameter
-        # self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 14)
+        self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 14)
 
         #test read/write parameter w/direct access only
-        # self.assert_set(Parameter.USER_NUMBER_BEAMS, 2)
-        #
-        # #test setting intervals for scheduled events
-        # # self.assert_set(Parameter.Run_wiper_interval, '05:00:23')
-        # # self.assert_set(Parameter.Run_clock_sync_interval, '12:12:12')
-        #
-        # #test setting date/time
-        # self.assert_set(Parameter.CLOCK_DEPLOY, get_timestamp_delayed("%m/%d/%y"))
-        #
-        # #test read only parameter - should not be set, value should not change
-        # self.assert_set(Parameter.SW_VERSION, 13700, no_get=True)
-        # reply = self.driver_client.cmd_dvr('get_resource', [Parameter.SW_VERSION])
-        # return_value = reply.get(Parameter.SW_VERSION)
-        # self.assertNotEqual(return_value, 13700)
+        self.assert_set(Parameter.USER_NUMBER_BEAMS, 2)
+
+        #test setting intervals for scheduled events
+        # self.assert_set(Parameter.Run_wiper_interval, '05:00:23')
+        # self.assert_set(Parameter.Run_clock_sync_interval, '12:12:12')
+
+        #test setting date/time
+        #self.assert_set(Parameter.CLOCK_DEPLOY, get_timestamp_delayed("%m/%d/%y"))
+
+        #test read only parameter - should not be set, value should not change
+        self.assert_set(Parameter.SW_VERSION, 13700, no_get=True)
+        reply = self.driver_client.cmd_dvr('get_resource', [Parameter.SW_VERSION])
+        return_value = reply.get(Parameter.SW_VERSION)
+        self.assertNotEqual(return_value, 13700)
 
 
     def test_direct_access(self):
@@ -1101,9 +1046,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         """
         Verify all device parameters exist and are correct type.
         """
-        self.assert_state_change()
-
-
         if all_params:
             self.assertEqual(set(pd1.keys()), set(pd2.keys()))
             for (key, type_val) in pd2.iteritems():
@@ -1115,63 +1057,60 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
                 self.assertTrue(isinstance(val, pd2[key]))
 
 
+    def test_errors(self):
+        """
+        Test response to erroneous commands and parameters.
+        """
+        self.assert_initialize_driver(ProtocolState.COMMAND)
 
-    #
-    # def test_instrument_start_stop_autosample(self):
-    #     """
-    #     @brief Test for putting instrument in 'auto-sample' state
-    #     """
-    #     self.put_driver_in_command_mode()
-    #
-    #     # command the instrument to auto-sample mode.
-    #     self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_AUTOSAMPLE)
-    #
-    #     self.assert_state_change(ProtocolState.AUTOSAMPLE)
-    #
-    #     # re-initialize the driver and re-discover instrument state (should be in autosample)
-    #     # Transition driver to disconnected.
-    #     self.driver_client.cmd_dvr('disconnect')
-    #
-    #     # Test the driver is disconnected.
-    #     self.assert_state_change(DriverConnectionState.DISCONNECTED)
-    #
-    #     # Transition driver to unconfigured.
-    #     self.driver_client.cmd_dvr('initialize')
-    #
-    #     # Test the driver is unconfigured.
-    #     self.assert_state_change(DriverConnectionState.UNCONFIGURED)
-    #
-    #     # Configure driver and transition to disconnected.
-    #     self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
-    #
-    #     # Test that the driver is in state disconnected.
-    #     self.assert_state_change(DriverConnectionState.DISCONNECTED)
-    #
-    #     # Setup the protocol state machine and the connection to port agent.
-    #     self.driver_client.cmd_dvr('connect')
-    #
-    #     # Test that the driver protocol is in state unknown.
-    #     self.assert_state_change(ProtocolState.UNKNOWN)
-    #
-    #     # Discover what state the instrument is in and set the protocol state accordingly.
-    #     self.driver_client.cmd_dvr('discover_state')
-    #
-    #     self.assert_state_change(ProtocolState.AUTOSAMPLE)
-    #
-    #     # wait for some samples to be generated
-    #     gevent.sleep(200)
-    #
-    #     # Verify we received at least 4 samples.
-    #     sample_events = [evt for evt in self.events if evt['type']==DriverAsyncEvent.SAMPLE]
-    #     log.debug('test_instrument_start_stop_autosample: # 0f samples = %d' %len(sample_events))
-    #     #log.debug('samples=%s' %sample_events)
-    #     self.assertTrue(len(sample_events) >= 4)
-    #
-    #     # stop autosample and return to command mode
-    #     self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_AUTOSAMPLE)
-    #
-    #     self.assert_state_change(ProtocolState.COMMAND)
-    #
+        #Assert an invalid command
+        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
+
+        # Assert for a known command, invalid state.
+        self.assert_driver_command_exception(ProtocolEvent.STOP_AUTOSAMPLE, exception_class=InstrumentCommandException)
+
+        #TODO
+        # Assert set fails with a bad parameter (not ALL or a list).
+        self.assert_set_exception('I am a bogus param.', exception_class=InstrumentParameterException)
+
+        #Assert set fails with bad parameter and bad value
+        self.assert_set_exception('I am a bogus param.', value='bogus value', exception_class=InstrumentParameterException)
+
+        # Assert set fails with legal parameter and invalid data
+        self.assert_set_exception(Parameter.ADJUSTMENT_SOUND_SPEED, value='bogus value', exception_class=InstrumentParameterException)
+
+        # Assert set fails with a read only parameter
+        self.assert_set_exception(Parameter.TIME_BETWEEN_BURST_SEQUENCES, value=0, exception_class=InstrumentParameterException)
+
+
+        # put driver in disconnected state.
+        self.driver_client.cmd_dvr('disconnect')
+
+        # Assert for a known command, invalid state.
+        self.assert_driver_command_exception(ProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
+
+        # Test that the driver is in state disconnected.
+        self.assert_state_change(DriverConnectionState.DISCONNECTED, timeout=TIMEOUT)
+
+        # Setup the protocol state machine and the connection to port agent.
+        self.driver_client.cmd_dvr('initialize')
+
+        # Test that the driver is in state unconfigured.
+        self.assert_state_change(DriverConnectionState.UNCONFIGURED, timeout=TIMEOUT)
+
+        # Assert we forgot the comms parameter.
+        self.assert_driver_command_exception('configure', exception_class=InstrumentParameterException)
+
+        # Configure driver and transition to disconnected.
+        self.driver_client.cmd_dvr('configure', self.port_agent_comm_config())
+
+        # Test that the driver is in state disconnected.
+        self.assert_state_change(DriverConnectionState.DISCONNECTED, timeout=TIMEOUT)
+
+
+
+
+
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
