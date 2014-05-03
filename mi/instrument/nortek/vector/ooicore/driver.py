@@ -514,17 +514,15 @@ class Protocol(NortekInstrumentProtocol):
 
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.NUMBER_SAMPLES_PER_BURST,
-                                    r'^.{%s}(.{2}).*' % str(452),
-                                    lambda match : NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
-                                    NortekProtocolParameterDict.word_to_string,
-                                    regex_flags=re.DOTALL,
-                                    type=ParameterDictType.INT,
-                                    expiration=None,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
-                                    display_name="number samples per burst",
-                                    default_value=9600,
-                                    startup_param=True,
-                                    direct_access=False))
+                                   r'^.{%s}(.{2}).*' % str(452),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   expiration=None,
+                                   visibility=ParameterDictVisibility.READ_ONLY,
+                                   display_name="number samples per burst"
+                                   ))
         self._param_dict.load_strings(RESOURCE_FILE)
 
     def _build_cmd_dict(self):
