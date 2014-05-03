@@ -2147,8 +2147,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug("%%% IN _handler_autosample_exit")
 
-        self.stop_scheduled_job(ScheduledJob.ACQUIRE_STATUS)
-        self.stop_scheduled_job(ScheduledJob.CLOCK_SYNC)
+        # self.stop_scheduled_job(ScheduledJob.ACQUIRE_STATUS)
+        # self.stop_scheduled_job(ScheduledJob.CLOCK_SYNC)
         pass
 
     def _helper_measurement_to_command_mode(self, *args, **kwargs):
