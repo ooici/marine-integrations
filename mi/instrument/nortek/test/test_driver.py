@@ -905,7 +905,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         # return_value = reply.get(Parameter.SW_VERSION)
         # self.assertNotEqual(return_value, 13700)
 
-    @unittest.skip('temp disable')
+    # @unittest.skip('temp disable')
     def test_direct_access(self):
         """
         Verify we can enter the direct access state
@@ -971,14 +971,14 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
             # Test that the driver protocol is in state command.
             self.check_state(ProtocolState.COMMAND)
 
-    @unittest.skip('temp disable')
+    # @unittest.skip('temp disable')
     def test_instrument_wakeup(self):
         """
         @brief Test for instrument wakeup, puts instrument in 'command' state
         """
         self.put_driver_in_command_mode()
 
-    @unittest.skip('temp disable')
+    # @unittest.skip('temp disable')
     def test_instrument_clock_sync(self):
         """
         @brief Test for syncing clock
@@ -1015,7 +1015,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         if lt - it > datetime.timedelta(seconds = 5):
             self.fail("time delta too large after clock sync")
 
-    @unittest.skip('temp disable')
+    # @unittest.skip('temp disable')
     def test_instrument_read_clock(self):
         """
         @brief Test for reading instrument clock
@@ -1028,7 +1028,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         log.debug("read clock returned: %s", response)
         self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
 
-    @unittest.skip('temp disable')
+    # @unittest.skip('temp disable')
     def test_instrument_read_mode(self):
         """
         @brief Test for reading what mode
@@ -1041,7 +1041,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         log.debug("what mode returned: %s", response)
         self.assertTrue(2, response[1])
 
-    @unittest.skip('temp disable')
+    # @unittest.skip('temp disable')
     def test_instrument_power_down(self):
         """
         @brief Test for power_down
@@ -1051,7 +1051,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         # command the instrument to power down.
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.POWER_DOWN)
 
-    @unittest.skip('temp disable')
+    # @unittest.skip('temp disable')
     def test_instrument_read_battery_voltage(self):
         """
         @brief Test for reading battery voltage
@@ -1064,7 +1064,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         log.debug("read battery voltage returned: %s", response)
         self.assertTrue(isinstance(response[1], int))
 
-    @unittest.skip('temp disable')
+    # @unittest.skip('temp disable')
     def test_instrument_read_id(self):
         """
         @brief Test for reading ID
@@ -1078,7 +1078,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assertTrue(re.search(r'VEC 8181.*', response[1]))
 
 
-    @unittest.skip('temp disable')
+    # @unittest.skip('temp disable')
     def test_instrument_read_hw_config(self):
         """
         @brief Test for reading HW config
@@ -1102,7 +1102,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         log.debug("read HW config returned: %s", response)
         self.assertEqual(hw_config, response[1])
 
-    @unittest.skip('temp disable')
+    # @unittest.skip('temp disable')
     def test_instrument_read_head_config(self):
         """
         @brief Test for reading HEAD config
