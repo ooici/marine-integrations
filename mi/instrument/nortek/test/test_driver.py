@@ -193,7 +193,7 @@ user_config_particle = [{DataParticleKey.VALUE_ID: NortekUserConfigDataParticleK
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.USE_DSP_FILTER, DataParticleKey.VALUE: False},
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FILTER_DATA_OUTPUT, DataParticleKey.VALUE: 0},
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR, DataParticleKey.VALUE: 0},
-                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SW_VER,DataParticleKey.VALUE: 13600},
+                        {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SW_VER, DataParticleKey.VALUE: 13600},
                         {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR, DataParticleKey.VALUE:
                           "Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8XPyw/QT9VP2k/fT+RP6Q/uD/KP90/"
                           "8D8CQBRAJkA3QElAWkBrQHxAjECcQKxAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20"
@@ -890,16 +890,16 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
         #test read/write parameter
-        self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 3)
+        self.assert_set(Parameter.BLANKING_DISTANCE, 3)
+        self.assert_set(Parameter.COMMENTS, "test comment1")
 
         #test read/write parameter w/direct access only
-        self.assert_set(Parameter.BIN_LENGTH, 7)
-
+        self.assert_set(Parameter.USER_NUMBER_BEAMS, 7)
 
         # #test setting date/time
         # self.assert_set(Parameter.CLOCK_DEPLOY, get_timestamp_delayed("%m/%d/%y"))
-        #
-        # #test read only parameter - should not be set, value should not change
+
+        #test read only parameter - should not be set, value should not change  # Note: change this test to confirm the exception
         # self.assert_set(Parameter.SW_VERSION, 13700, no_get=True)
         # reply = self.driver_client.cmd_dvr('get_resource', [Parameter.SW_VERSION])
         # return_value = reply.get(Parameter.SW_VERSION)
