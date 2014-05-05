@@ -247,7 +247,7 @@ def eng_id_sample():
     sample_as_hex = "41514420313231352020202020200606"
     return sample_as_hex.decode('hex')
 
-eng_id_particle = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID, DataParticleKey.VALUE: "AQD 1215      "}]
+eng_id_particle = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID, DataParticleKey.VALUE: "AQD 1215"}]
 
 
 def user_config1():
@@ -608,7 +608,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         self.assert_chunker_combined_sample(chunker, hw_config_sample())
         self.assert_chunker_combined_sample(chunker, head_config_sample())
         self.assert_chunker_combined_sample(chunker, user_config_sample())
-        #
+
         # # test data structures with noise
         self.assert_chunker_sample_with_noise(chunker, hw_config_sample())
         self.assert_chunker_sample_with_noise(chunker, head_config_sample())
@@ -788,9 +788,9 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
                                          ProtocolEvent.CLOCK_SYNC,
                                          ProtocolEvent.ACQUIRE_SAMPLE,
                                          ProtocolEvent.ACQUIRE_STATUS,
-                                         ProtocolEvent.SET_CONFIGURATION,
+                                         #ProtocolEvent.SET_CONFIGURATION,
                                          ProtocolEvent.SCHEDULED_CLOCK_SYNC,
-                                         ProtocolEvent.RESET],
+                                         ProtocolEvent.SCHEDULED_ACQUIRE_STATUS],
 
             ProtocolState.AUTOSAMPLE:   [ProtocolEvent.STOP_AUTOSAMPLE,
                                          ProtocolEvent.SCHEDULED_CLOCK_SYNC,
@@ -856,7 +856,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
     def test_instrument_clock_sync(self):
         """
-        @brief Test for reading and syncing the clock
+        Verify the driver can sync the clock
         """
         self.assert_initialize_driver()
         
@@ -895,7 +895,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
     def test_instrument_read_mode(self):
         """
-        @brief Test for reading what mode
+        Verify the driver can read the mode of the instrument
         """
         self.assert_initialize_driver()
 
@@ -905,19 +905,9 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         log.debug("what mode returned: %s", response)
         self.assertTrue(2, response[1])
 
-    # def test_instrument_power_down(self):
-    #     """
-    #     @brief Test for power_down
-    #     """
-    #     self.assert_initialize_driver()
-    #     self.assert_driver_command(ProtocolEvent.POWER_DOWN)
-    #
-    #     # command the instrument to power down.
-    #     #self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.POWER_DOWN)
-
     def test_instrument_read_battery_voltage(self):
         """
-        @brief Test for reading battery voltage
+        Verify the driver can read battery voltage of the instrument
         """
         self.assert_initialize_driver()
 
@@ -929,14 +919,14 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
     def test_instrument_read_id(self):
         """
-        Test for reading ID, need to be implemented int the child class because each ID is unique to the
+        Verify the driver can read ID, need to be implemented int the child class because each ID is unique to the
         instrument.
         """
         raise NotImplementedException('Implement in child class!')
 
     def test_acquire_sample(self):
         """
-        Test acquire sample command and events.
+        Verify the driver send the acquire sample command and receive the events.
         1. initialize the instrument to COMMAND state
         2. command the driver to ACQUIRESAMPLE
         3. verify the particle coming in
@@ -947,7 +937,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
     def test_command_autosample(self):
         """
-        Test autosample command and events.
+        Verify the driver can send the autosample command and receive the events.
         1. initialize the instrument to COMMAND state
         2. command the instrument to AUTOSAMPLE state
         3. verify the particle coming in
@@ -960,8 +950,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
     def test_metadata_generation(self):
         """
-        Test that we can generate metadata information for the driver,
-        commands, and parameters.
+        Verify the driver generates metadata information
         """
 
         self.assert_initialize_driver()
@@ -1013,65 +1002,18 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         #II
         #self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_user, timeout=10)
 
-
-    # def test_parameters(self):
-    #TODO
-    #     """
-    #     Verify that we can set the parameters
-    #
-    #     1. Cannot set read only parameters
-    #     2. Can set read/write parameters
-    #     3. Can set read/write parameters w/direct access only
-    #     """
-    #     self.assert_initialize_driver(ProtocolState.COMMAND)
-    #
-    #     #test read/write parameter
-    #     self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 14)
-    #
-    #     #test read/write parameter w/direct access only
-    #     self.assert_set(Parameter.USER_NUMBER_BEAMS, 2)
-    #
-    #     #test setting intervals for scheduled events
-    #     # self.assert_set(Parameter.Run_wiper_interval, '05:00:23')
-    #     # self.assert_set(Parameter.Run_clock_sync_interval, '12:12:12')
-    #
-    #     #test setting date/time
-    #     #self.assert_set(Parameter.CLOCK_DEPLOY, get_timestamp_delayed("%m/%d/%y"))
-    #
-    #     #test read only parameter - should not be set, value should not change
-    #     self.assert_set(Parameter.SW_VERSION, 13700, no_get=True)
-    #     reply = self.driver_client.cmd_dvr('get_resource', [Parameter.SW_VERSION])
-    #     return_value = reply.get(Parameter.SW_VERSION)
-    #     self.assertNotEqual(return_value, 13700)
-
     def test_direct_access(self):
         """
-        Verify we can enter the direct access state
+        Verify the driver can enter the direct access state
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
         self.assert_state_change(ProtocolState.COMMAND, 5)
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
         self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
 
-    # def assertParamDictionariesEqual(self, pd1, pd2, all_params=False):
-    #TODO - MAY NOT NEED
-    #     """
-    #     Verify all device parameters exist and are correct type.
-    #     """
-    #     if all_params:
-    #         self.assertEqual(set(pd1.keys()), set(pd2.keys()))
-    #         for (key, type_val) in pd2.iteritems():
-    #             log.debug("pd1 key: %s, value: %s, type: %s", key, pd1[key], type_val)
-    #             self.assertTrue(isinstance(pd1[key], type_val))
-    #     else:
-    #         for (key, val) in pd1.iteritems():
-    #             self.assertTrue(pd2.has_key(key))
-    #             self.assertTrue(isinstance(val, pd2[key]))
-
-
     def test_errors(self):
         """
-        Test response to erroneous commands and parameters.
+        Verify response to erroneous commands,  and setting bad parameters.
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
@@ -1081,7 +1023,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         # Assert for a known command, invalid state.
         self.assert_driver_command_exception(ProtocolEvent.STOP_AUTOSAMPLE, exception_class=InstrumentCommandException)
 
-        #TODO
         # Assert set fails with a bad parameter (not ALL or a list).
         self.assert_set_exception('I am a bogus param.', exception_class=InstrumentParameterException)
 
@@ -1093,7 +1034,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
         # Assert set fails with a read only parameter
         self.assert_set_exception(Parameter.TIME_BETWEEN_BURST_SEQUENCES, value=0, exception_class=InstrumentParameterException)
-
 
         # put driver in disconnected state.
         self.driver_client.cmd_dvr('disconnect')

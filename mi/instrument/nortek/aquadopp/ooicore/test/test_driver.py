@@ -24,31 +24,23 @@ __license__ = 'Apache 2.0'
 
 from gevent import monkey; monkey.patch_all()
 import gevent
-import unittest
 import re
-import time
-import datetime
 import base64
 
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger ; log = get_logger()
 
-# MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
 
-from mi.core.instrument.instrument_driver import DriverConnectionState, ResourceAgentEvent
+from mi.core.instrument.instrument_driver import ResourceAgentEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverEvent
-from mi.core.instrument.instrument_driver import DriverParameter
 
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.chunker import StringChunker
 
-from mi.core.exceptions import InstrumentParameterException
-from mi.core.exceptions import InstrumentStateException
-from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
 from mi.instrument.nortek.aquadopp.ooicore.driver import DataParticleType
@@ -205,8 +197,8 @@ def velocity_sample():
     sample_as_hex = "a5011500101926221211000000009300f83b810628017f01002d0000e3094c0122ff9afe1e1416006093"
     return sample_as_hex.decode('hex')
 
-velocity_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:10:19'}, 
-                     {'value_id': 'error', 'value': 0}, 
+velocity_particle = [{'value_id': 'date_time_string', 'value': '26/11/2012 22:10:19'},
+                     {'value_id': 'error_code', 'value': 0},
                      {'value_id': 'analog1', 'value': 0}, 
                      {'value_id': 'battery_voltage', 'value': 147}, 
                      {'value_id': 'sound_speed_analog2', 'value': 15352}, 
@@ -229,20 +221,20 @@ def diagnostic_header_sample():
     sample_as_hex = "a5061200140001000000000011192622121100000000000000000000000000000000a108"
     return sample_as_hex.decode('hex')
 
-diagnostic_header_particle = [{'value_id': 'records', 'value': 20}, 
-                              {'value_id': 'cell', 'value': 1}, 
-                              {'value_id': 'noise1', 'value': 0}, 
-                              {'value_id': 'noise2', 'value': 0}, 
-                              {'value_id': 'noise3', 'value': 0}, 
-                              {'value_id': 'noise4', 'value': 0}, 
+diagnostic_header_particle = [{'value_id': 'records_to_follow', 'value': 20},
+                              {'value_id': 'cell_number_diagnostics', 'value': 1},
+                              {'value_id': 'noise_amplitude_beam1', 'value': 0},
+                              {'value_id': 'noise_amplitude_beam2', 'value': 0},
+                              {'value_id': 'noise_amplitude_beam3', 'value': 0},
+                              {'value_id': 'noise_amplitude_beam4', 'value': 0},
                               {'value_id': 'processing_magnitude_beam1', 'value': 6417}, 
                               {'value_id': 'processing_magnitude_beam2', 'value': 8742}, 
                               {'value_id': 'processing_magnitude_beam3', 'value': 4370}, 
                               {'value_id': 'processing_magnitude_beam4', 'value': 0}, 
-                              {'value_id': 'distance1', 'value': 0}, 
-                              {'value_id': 'distance2', 'value': 0}, 
-                              {'value_id': 'distance3', 'value': 0}, 
-                              {'value_id': 'distance4', 'value': 0}]
+                              {'value_id': 'distance_beam1', 'value': 0},
+                              {'value_id': 'distance_beam2', 'value': 0},
+                              {'value_id': 'distance_beam3', 'value': 0},
+                              {'value_id': 'distance_beam4', 'value': 0}]
 
 
 # diagnostic data particle & sample 
@@ -250,8 +242,8 @@ def diagnostic_sample():
     sample_as_hex = "a5801500112026221211000000009300f83ba0065c0189fe002c0000e40904ffd8ffbdfa18131500490f"
     return sample_as_hex.decode('hex')
 
-diagnostic_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:11:20'}, 
-                       {'value_id': 'error', 'value': 0}, 
+diagnostic_particle = [{'value_id': 'date_time_string', 'value': '26/11/2012 22:11:20'},
+                       {'value_id': 'error_code', 'value': 0},
                        {'value_id': 'analog1', 'value': 0}, 
                        {'value_id': 'battery_voltage', 'value': 147}, 
                        {'value_id': 'sound_speed_analog2', 'value': 15352}, 
@@ -268,6 +260,7 @@ diagnostic_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:11:20'}
                        {'value_id': 'amplitude_beam2', 'value': 19}, 
                        {'value_id': 'amplitude_beam3', 'value': 21}]
 
+
 ###############################################################################
 #                           DRIVER TEST MIXIN        		                  #
 #     Defines a set of constants and assert methods used for data particle    #
@@ -280,7 +273,6 @@ diagnostic_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:11:20'}
 # This class defines a configuration structure for testing and common assert  #
 # methods for validating data particles.									  #
 ###############################################################################
-
 class AquadoppDriverTestMixinSub(DriverTestMixinSub):
     """
     Mixin class used for storing data particle constance and common data assertion methods.
@@ -345,7 +337,6 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
         self.assert_data_particle_header(data_particle, DataParticleType.VELOCITY)
         self.assert_data_particle_parameters(data_particle, self._sample_velocity_diagnostic, verify_values)
 
-
     def assert_particle_diagnostic_header(self, data_particle, verify_values=False):
         """
         Verify velpt_diagostics_header
@@ -357,7 +348,6 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
         self.assert_data_particle_header(data_particle, DataParticleType.DIAGNOSTIC_HEADER)
         self.assert_data_particle_parameters(data_particle, self._sample_diagnostic_header, verify_values)
 
-
     def assert_particle_diagnostic(self, data_particle, verify_values=False):
         """
         Verify velpt_diagonstics_data
@@ -368,6 +358,8 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
         self.assert_data_particle_keys(AquadoppDwDiagnosticDataParticle, self._sample_velocity_diagnostic)
         self.assert_data_particle_header(data_particle, DataParticleType.DIAGNOSTIC)
         self.assert_data_particle_parameters(data_particle, self._sample_velocity_diagnostic, verify_values)
+
+
 #################################### RULES ####################################
 #                                                                             #
 # Common capabilities in the base class                                       #
@@ -577,7 +569,7 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
 
     def test_instrument_read_id(self):
         """
-        Test for reading ID, need to be implemented int the child class because each ID is unique to the
+        Test for reading ID, need to be implemented in the child class because each ID is unique to the
         instrument.
         """
         self.assert_initialize_driver()
@@ -586,125 +578,161 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
 
         log.debug("read ID returned: %s", response)
-        self.assertTrue(re.search(r'AQD 8493.*', response[1]))
+        self.assertTrue(re.search(r'AQD .*', response[1]))
 
         self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
- 
-    # def test_set_init_params(self):
+
+    def test_set_init_params(self):
+        """
+        @brief Test for set_init_params()
+        """
+        self.assert_initialize_driver()
+
+        # values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        # log.debug("VALUES_BEFORE = %s", values_before)
+        #
+        # self.driver_client.cmd_dvr('set_init_params',
+        #                            {DriverConfigKey.PARAMETERS:
+        #                                {DriverParameter.ALL:
+        #                                 base64.b64encode(user_config1())}
+        #                            })
+        # self.driver_client.cmd_dvr("apply_startup_params")
+        #
+        # values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
+        # log.debug("VALUES_AFTER = %s", values_after)
+        #
+        # # check to see if startup config got set in instrument
+        # self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 500)
+        # self.assertEquals(values_after[Parameter.NUMBER_SAMPLES_PER_BURST], 20)
+        #
+        # self.driver_client.cmd_dvr('set_resource', values_before)
+        # values_after = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        # self.assertEquals(values_after, values_before)
+
+    def test_startup_configuration(self):
+        '''
+        Test that the startup configuration is applied correctly
+        '''
+        self.assert_initialize_driver()
+        value_before = self.driver_client.cmd_dvr('get_resource',
+                                                  [Parameter.AVG_INTERVAL])
+        log.debug("Value before applying startup parameters: %s", value_before)
+
+        self.driver_client.cmd_dvr('apply_startup_params')
+        reply = self.driver_client.cmd_dvr('get_resource',
+                                           [Parameter.AVG_INTERVAL])
+        self.assertEquals(reply, {Parameter.AVG_INTERVAL: 61})
+        reply = self.driver_client.cmd_dvr('set_resource', value_before)
+        reply = self.driver_client.cmd_dvr('get_resource',
+                                           [Parameter.AVG_INTERVAL])
+        self.assertEquals(reply, value_before)
+
+    def test_instrument_set_configuration(self):
+        """
+        @brief Test for setting instrument configuration
+        """
+
+        self.assert_initialize_driver()
+
+        # command the instrument to set the user configuration.
+        self.driver_client.cmd_dvr('execute_resource',
+                                   ProtocolEvent.SET_CONFIGURATION,
+                                   user_configuration=base64.b64encode(user_config2()))
+
+        values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
+        #print("va=%s" %values_after)
+
+        # check to see if config got set in instrument
+        self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 600)
+        self.assertEquals(values_after[Parameter.NUMBER_SAMPLES_PER_BURST], 10)
+
+    def test_instrument_set(self):
+        """
+        @brief Test for setting instrument parameter
+        """
+        self.assert_initialize_driver()
+
+        # Get all device parameters. Confirm all expected keys are retrieved
+        # and have correct type.
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assertParamDictionariesEqual(reply, params_dict, True)
+
+        # Grab a subset of parameters.
+        params = [
+            Parameter.WRAP_MODE
+            ]
+        reply = self.driver_client.cmd_dvr('get_resource', params)
+        #self.assertParamDict(reply)
+
+        # Remember the original subset.
+        orig_params = reply
+
+        # Construct new parameters to set.
+        new_wrap_mode = 1 if orig_params[Parameter.WRAP_MODE]==0 else 0
+        log.debug('old=%d, new=%d', orig_params[Parameter.WRAP_MODE], new_wrap_mode)
+        new_params = {
+            Parameter.WRAP_MODE : new_wrap_mode
+        }
+
+        # Set parameter and verify.
+        reply = self.driver_client.cmd_dvr('set_resource', new_params)
+
+        reply = self.driver_client.cmd_dvr('get_resource', params)
+        self.assertEqual(new_params[Parameter.WRAP_MODE],
+                         reply[Parameter.WRAP_MODE])
+
+        # Reset parameter to original value and verify.
+        reply = self.driver_client.cmd_dvr('set_resource', orig_params)
+
+        reply = self.driver_client.cmd_dvr('get_resource', params)
+        self.assertEqual(orig_params[Parameter.WRAP_MODE],
+                         reply[Parameter.WRAP_MODE])
+
+        # set wrap_mode to 1 to leave instrument with wrap mode enabled
+        new_params = {
+            Parameter.WRAP_MODE : 1,
+            Parameter.NUMBER_SAMPLES_PER_BURST : 10,
+            Parameter.MEASUREMENT_INTERVAL : 600
+        }
+
+        # Set parameter and verify.
+        reply = self.driver_client.cmd_dvr('set_resource', new_params)
+
+        reply = self.driver_client.cmd_dvr('get_resource',
+                                           [Parameter.WRAP_MODE,
+                                            Parameter.NUMBER_SAMPLES_PER_BURST,
+                                            Parameter.MEASUREMENT_INTERVAL])
+        self.assertEqual(new_params, reply)
+
+    # def test_parameters(self):
+    #TODO
     #     """
-    #     @brief Test for set_init_params()
+    #     Verify that we can set the parameters
+    #
+    #     1. Cannot set read only parameters
+    #     2. Can set read/write parameters
+    #     3. Can set read/write parameters w/direct access only
     #     """
-    #     self.assert_initialize_driver()
+    #     self.assert_initialize_driver(ProtocolState.COMMAND)
     #
-    #     values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-    #     #print("vb=%s" %values_before)
+    #     #test read/write parameter
+    #     self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 14)
     #
-    #     self.driver_client.cmd_dvr('set_init_params', {DriverParameter.ALL: base64.b64encode(user_config1())})
-    #     self.driver_client.cmd_dvr("apply_startup_params")
+    #     #test read/write parameter w/direct access only
+    #     self.assert_set(Parameter.USER_NUMBER_BEAMS, 2)
     #
-    #     values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
-    #     #print("va=%s" %values_after)
+    #     #test setting intervals for scheduled events
+    #     # self.assert_set(Parameter.Run_wiper_interval, '05:00:23')
+    #     # self.assert_set(Parameter.Run_clock_sync_interval, '12:12:12')
     #
-    #     # check to see if startup config got set in instrument
-    #     self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 600)
-    #     self.assertEquals(values_after[Parameter.COMPASS_UPDATE_RATE], 600)
+    #     #test setting date/time
+    #     #self.assert_set(Parameter.CLOCK_DEPLOY, get_timestamp_delayed("%m/%d/%y"))
     #
-    #     self.driver_client.cmd_dvr('set_resource', values_before)
-    #     values_reset = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-    #     self.assertEquals(values_reset, values_before)
-    #
-    # def test_startup_configuration(self):
-    #     """
-    #     Test that the startup configuration is applied correctly
-    #     """
-    #     # TODO - MOVE TO BASE CLASS
-    #     self.assert_initialize_driver()
-    #
-    #     value_before = self.driver_client.cmd_dvr('get_resource', [Parameter.TRANSMIT_PULSE_LENGTH])
-    #
-    #     self.driver_client.cmd_dvr('apply_startup_params')
-    #
-    #     reply = self.driver_client.cmd_dvr('get_resource', [Parameter.TRANSMIT_PULSE_LENGTH])
-    #
-    #     self.assertEquals(reply, {Parameter.TRANSMIT_PULSE_LENGTH: 0x7d})
-    #
-    #     reply = self.driver_client.cmd_dvr('set_resource', value_before)
-    #
-    #     reply = self.driver_client.cmd_dvr('get_resource', [Parameter.TRANSMIT_PULSE_LENGTH])
-    #
-    #     self.assertEquals(reply, value_before)
-    #
-    # def test_instrument_set_configuration(self):
-    #     """
-    #     @brief Test for setting instrument configuration
-    #     """
-    #     # TODO - MOVE TO BASE CLASS
-    #     self.assert_initialize_driver()
-    #
-    #     # command the instrument to set the user configuration.
-    #     self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.SET_CONFIGURATION, user_configuration=base64.b64encode(user_config2()))
-    #
-    #     values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
-    #     #print("va=%s" %values_after)
-    #
-    #     # check to see if config got set in instrument
-    #     self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 3600)
-    #     self.assertEquals(values_after[Parameter.COMPASS_UPDATE_RATE], 2)
-    #
-    # def test_instrument_set(self):
-    #     """
-    #     @brief Test for setting instrument parameter
-    #     """
-    #
-    #     # TODO - MOVE TO BASE CLASS
-    #     self.assert_initialize_driver()
-    #
-    #     # Get all device parameters. Confirm all expected keys are retrieved
-    #     # and have correct type.
-    #     reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-    #     self.assertParamDictionariesEqual(reply, params_dict, True)
-    #
-    #     # Grab a subset of parameters.
-    #     params = [
-    #         Parameter.WRAP_MODE
-    #         ]
-    #     reply = self.driver_client.cmd_dvr('get_resource', params)
-    #     #self.assertParamDict(reply)
-    #
-    #     # Remember the original subset.
-    #     orig_params = reply
-    #
-    #     # Construct new parameters to set.
-    #     new_wrap_mode = 1 if orig_params[Parameter.WRAP_MODE]==0 else 0
-    #     log.debug('old=%d, new=%d' %(orig_params[Parameter.WRAP_MODE], new_wrap_mode))
-    #     new_params = {
-    #         Parameter.WRAP_MODE : new_wrap_mode
-    #     }
-    #
-    #     # Set parameter and verify.
-    #     reply = self.driver_client.cmd_dvr('set_resource', new_params)
-    #
-    #     reply = self.driver_client.cmd_dvr('get_resource', params)
-    #     self.assertEqual(new_params[Parameter.WRAP_MODE], reply[Parameter.WRAP_MODE])
-    #
-    #     # Reset parameter to original value and verify.
-    #     reply = self.driver_client.cmd_dvr('set_resource', orig_params)
-    #
-    #     reply = self.driver_client.cmd_dvr('get_resource', params)
-    #     self.assertEqual(orig_params[Parameter.WRAP_MODE], reply[Parameter.WRAP_MODE])
-    #
-    #     # set wrap_mode to 1 to leave instrument with wrap mode enabled
-    #     new_params = {
-    #         Parameter.WRAP_MODE : 1,
-    #         Parameter.AVG_INTERVAL : 60,
-    #         Parameter.DIAGNOSTIC_INTERVAL : 43200
-    #     }
-    #
-    #     # Set parameter and verify.
-    #     reply = self.driver_client.cmd_dvr('set_resource', new_params)
-    #
-    #     reply = self.driver_client.cmd_dvr('get_resource', [Parameter.WRAP_MODE, Parameter.AVG_INTERVAL, Parameter.DIAGNOSTIC_INTERVAL])
-    #     self.assertEqual(new_params, reply)
+    #     #test read only parameter - should not be set, value should not change
+    #     self.assert_set(Parameter.SW_VERSION, 13700, no_get=True)
+    #     reply = self.driver_client.cmd_dvr('get_resource', [Parameter.SW_VERSION])
+    #     return_value = reply.get(Parameter.SW_VERSION)
+    #     self.assertNotEqual(return_value, 13700)
                
 
 ###############################################################################

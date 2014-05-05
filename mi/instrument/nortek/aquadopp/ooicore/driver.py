@@ -21,7 +21,7 @@ from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentProm
     USER_CONFIG_DATA_REGEX, HARDWARE_CONFIG_DATA_REGEX, HEAD_CONFIG_DATA_REGEX, NEWLINE, \
     BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, \
     NortekEngBatteryDataParticle, NortekEngClockDataParticle, NortekEngIdDataParticle, EngineeringParameter, \
-    INTERVAL_TIME_REGEX, TIMEOUT
+    INTERVAL_TIME_REGEX, TIMEOUT, InstrumentCmds
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
 from mi.instrument.nortek.driver import NortekUserConfigDataParticle, NortekParameterDictVal, Parameter, \
@@ -30,18 +30,18 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 
 VELOCITY_DATA_LEN = 42
-VELOCITY_DATA_SYNC_BYTES = '\xa5\x01\x15\x00'
+VELOCITY_HEADER_DATA_SYNC_BYTES = '\xa5\x01\x15\x00'
 DIAGNOSTIC_DATA_HEADER_LEN = 36
 DIAGNOSTIC_DATA_HEADER_SYNC_BYTES = '\xa5\x06\x12\x00'
 DIAGNOSTIC_DATA_LEN = 42
 DIAGNOSTIC_DATA_SYNC_BYTES = '\xa5\x80\x15\x00'
 
-VECTOR_SAMPLE_STRUCTURES = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
+VECTOR_SAMPLE_STRUCTURES = [[VELOCITY_HEADER_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
                             [DIAGNOSTIC_DATA_HEADER_SYNC_BYTES, DIAGNOSTIC_DATA_HEADER_LEN],
                             [DIAGNOSTIC_DATA_SYNC_BYTES, DIAGNOSTIC_DATA_LEN]]
 
 VELOCITY_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})' \
-                        r'(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % VELOCITY_DATA_SYNC_BYTES
+                        r'(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % VELOCITY_HEADER_DATA_SYNC_BYTES
 VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN, re.DOTALL)
 DIAGNOSTIC_DATA_HEADER_PATTERN = r'^%s(.{2})(.{2})(.{1})(.{1})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})' \
                                  r'(.{2})(.{2})(.{2})(.{8})' % DIAGNOSTIC_DATA_HEADER_SYNC_BYTES
@@ -52,9 +52,9 @@ DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN, re.DOTALL)
 
 
 class DataParticleType(BaseEnum):
-    VELOCITY = 'velocity'
-    DIAGNOSTIC = 'diagnostic'
-    DIAGNOSTIC_HEADER = 'diagnostic_header'
+    VELOCITY = 'velpt_velocity_data'
+    DIAGNOSTIC = 'velpt_diagonstics_data'
+    DIAGNOSTIC_HEADER = 'velpt_diagonstics_header'
         
 
 ###############################################################################
@@ -403,31 +403,25 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(NortekEngClockDataParticle, CLOCK_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekEngIdDataParticle, ID_DATA_REGEX, structure, timestamp)
 
-    # def _handler_unknown_discover(self, *args, **kwargs):
-    #     """
-    #     Discover current state of instrument; can be COMMAND or AUTOSAMPLE.
-    #     @retval (next_state, result)
-    #     """
-    #     next_state = None
-    #     result = None
-    #
-    #
-    #     #TODO - THIS DOES NOT DISCOVER CORRECTLY
-    #
-    #     # try to discover the device mode using timeout if passed.
-    #     timeout = kwargs.get('timeout', TIMEOUT)
-    #     prompt = self._get_mode(timeout)
-    #     if prompt == InstrumentPrompts.COMMAND_MODE:
-    #         next_state = ProtocolState.COMMAND
-    #         result = ResourceAgentState.IDLE
-    #     elif prompt == InstrumentPrompts.CONFIRMATION:
-    #         next_state = ProtocolState.AUTOSAMPLE
-    #         result = ResourceAgentState.STREAMING
-    #
-    #     log.debug('_handler_unknown_discover: state=%s', next_state)
-    #
-    #     return next_state, result
+    ########################################################################
+    # Command handlers.
+    ########################################################################
+    def _handler_command_acquire_sample(self, *args, **kwargs):
+        """
+        Acquire sample from vector.
+        @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+        next_state = None
+        next_agent_state = None
+        result = None
 
+        # the vector doesn't respond with ACKs for this command, so look for start of velocity data header structure
+        result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA,
+                                   expected_prompt = VELOCITY_HEADER_DATA_SYNC_BYTES, *args, **kwargs)
+
+        return (next_state, (next_agent_state, result))
 
 
     def _build_param_dict(self):
@@ -448,7 +442,6 @@ class Protocol(NortekInstrumentProtocol):
                                     expiration=None,
                                     visibility=ParameterDictVisibility.READ_ONLY,
                                     display_name="not used",
-                                    default_value=0,
                                     startup_param=False,
                                     direct_access=False))
 

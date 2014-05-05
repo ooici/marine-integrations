@@ -16,10 +16,12 @@ import re
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException
-from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, ParameterDictType
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
-from mi.instrument.nortek.driver import NortekParameterDictVal
+from mi.instrument.nortek.driver import NortekParameterDictVal, NortekEngBatteryDataParticle, NortekEngClockDataParticle, \
+    NortekEngIdDataParticle, BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, EngineeringParameter, \
+    INTERVAL_TIME_REGEX
 from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
@@ -62,28 +64,10 @@ class DataParticleType(NortekDataParticleType):
     VELOCITY_HEADER = 'vel3d_cd_data_header'
     SYSTEM = 'vel3d_cd_system_data'
 
-    
-###############################################################################
-# Driver
-###############################################################################
-
-class InstrumentDriver(NortekInstrumentDriver):
-
-    ########################################################################
-    # Protocol builder.
-    ########################################################################
-
-    def _build_protocol(self):
-        """
-        Construct the driver protocol state machine.
-        """
-        self._protocol = Protocol(InstrumentPrompts, NEWLINE, self._driver_event)
-        
 
 ###############################################################################
 # Data particles
 ###############################################################################
-
 class VectorHardwareConfigDataParticle(NortekHardwareConfigDataParticle):
     _data_particle_type = DataParticleType.HARDWARE_CONFIG
 
@@ -378,6 +362,32 @@ class VectorSystemDataParticle(DataParticle):
  
         return result
 
+###############################################################################
+# Driver
+###############################################################################
+
+class InstrumentDriver(NortekInstrumentDriver):
+    """
+    InstrumentDriver subclass
+    Subclasses SingleConnectionInstrumentDriver with connection state
+    machine.
+    """
+    def __init__(self, evt_callback):
+        """
+        Driver constructor.
+        @param evt_callback Driver process event callback.
+        """
+        #Construct superclass.
+        NortekInstrumentDriver.__init__(self, evt_callback)
+    ########################################################################
+    # Protocol builder.
+    ########################################################################
+
+    def _build_protocol(self):
+        """
+        Construct the driver protocol state machine.
+        """
+        self._protocol = Protocol(InstrumentPrompts, NEWLINE, self._driver_event)
 
 ###############################################################################
 # Protocol
@@ -389,59 +399,6 @@ class Protocol(NortekInstrumentProtocol):
     Subclasses CommandResponseInstrumentProtocol
     """
     
-    UserParameters = [
-        # user configuration
-        Parameter.TRANSMIT_PULSE_LENGTH,
-        Parameter.BLANKING_DISTANCE,
-        Parameter.RECEIVE_LENGTH,
-        Parameter.TIME_BETWEEN_PINGS,
-        Parameter.TIME_BETWEEN_BURST_SEQUENCES, 
-        Parameter.NUMBER_PINGS,
-        Parameter.AVG_INTERVAL,
-        Parameter.USER_NUMBER_BEAMS, 
-        Parameter.TIMING_CONTROL_REGISTER,
-        Parameter.POWER_CONTROL_REGISTER,
-        Parameter.A1_1_SPARE,
-        Parameter.B0_1_SPARE,
-        Parameter.B1_1_SPARE,
-        Parameter.COMPASS_UPDATE_RATE,  
-        Parameter.COORDINATE_SYSTEM,
-        Parameter.NUMBER_BINS,
-        Parameter.BIN_LENGTH,
-        Parameter.MEASUREMENT_INTERVAL,
-        Parameter.DEPLOYMENT_NAME,
-        Parameter.WRAP_MODE,
-        Parameter.CLOCK_DEPLOY,
-        Parameter.DIAGNOSTIC_INTERVAL,
-        Parameter.MODE,
-        Parameter.ADJUSTMENT_SOUND_SPEED,
-        Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
-        Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC,
-        Parameter.NUMBER_PINGS_DIAGNOSTIC,
-        Parameter.MODE_TEST,
-        Parameter.ANALOG_INPUT_ADDR,
-        Parameter.SW_VERSION,
-        Parameter.USER_1_SPARE,
-        Parameter.VELOCITY_ADJ_TABLE,
-        Parameter.COMMENTS,
-        Parameter.WAVE_MEASUREMENT_MODE,
-        Parameter.DYN_PERCENTAGE_POSITION,
-        Parameter.WAVE_TRANSMIT_PULSE,
-        Parameter.WAVE_BLANKING_DISTANCE,
-        Parameter.WAVE_CELL_SIZE,
-        Parameter.NUMBER_DIAG_SAMPLES,
-        Parameter.A1_2_SPARE,
-        Parameter.B0_2_SPARE,
-        Parameter.NUMBER_SAMPLES_PER_BURST,
-        Parameter.USER_2_SPARE,
-        Parameter.ANALOG_OUTPUT_SCALE,
-        Parameter.CORRELATION_THRESHOLD,
-        Parameter.USER_3_SPARE,
-        Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG,
-        Parameter.USER_4_SPARE,
-        Parameter.QUAL_CONSTANTS,
-        ]
-    
     
     def __init__(self, prompts, newline, driver_event):
         NortekInstrumentProtocol.__init__(self, prompts, newline, driver_event)
@@ -450,7 +407,7 @@ class Protocol(NortekInstrumentProtocol):
         self._chunker = StringChunker(Protocol.chunker_sieve_function)
         
     @staticmethod
-    def chunker_sieve_function(raw_data):
+    def chunker_sieve_function(raw_data, add_structs=[]):
         return NortekInstrumentProtocol.chunker_sieve_function(raw_data,
                                                                VECTOR_SAMPLE_STRUCTURES)
 
@@ -471,6 +428,9 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(NortekUserConfigDataParticle, USER_CONFIG_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekHardwareConfigDataParticle, HARDWARE_CONFIG_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekHeadConfigDataParticle, HEAD_CONFIG_DATA_REGEX, structure, timestamp)
+        self._extract_sample(NortekEngBatteryDataParticle, BATTERY_DATA_REGEX, structure, timestamp)
+        self._extract_sample(NortekEngClockDataParticle, CLOCK_DATA_REGEX, structure, timestamp)
+        self._extract_sample(NortekEngIdDataParticle, ID_DATA_REGEX, structure, timestamp)
 
             
     ########################################################################
@@ -513,6 +473,28 @@ class Protocol(NortekInstrumentProtocol):
                                     lambda string : string,
                                     visibility=ParameterDictVisibility.READ_ONLY,
                                     regex_flags=re.DOTALL))
+
+        self._param_dict.add_parameter(
+                                    NortekParameterDictVal(EngineeringParameter.CLOCK_SYNC_INTERVAL,
+                                    INTERVAL_TIME_REGEX,
+                                    lambda match: match.group(1),
+                                    str,
+                                    type=ParameterDictType.STRING,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
+                                    display_name="clock sync interval",
+                                    default_value='00:00:00',
+                                    startup_param=True))
+
+        self._param_dict.add_parameter(
+                                    NortekParameterDictVal(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
+                                    INTERVAL_TIME_REGEX,
+                                    lambda match: match.group(1),
+                                    str,
+                                    type=ParameterDictType.STRING,
+                                    visibility=ParameterDictVisibility.IMMUTABLE,
+                                    display_name="acquire status interval",
+                                    default_value='00:00:00',
+                                    startup_param=True))
 
         self._param_dict.load_strings(RESOURCE_FILE)
 
