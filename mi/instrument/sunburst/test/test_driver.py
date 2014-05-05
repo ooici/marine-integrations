@@ -529,6 +529,10 @@ class SamiQualificationTest(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
+    ## Not applicable to this driver
+    def test_discover(self):
+        pass
+
     def test_boot_prompt_escape(self):
 
         self.assert_direct_access_start_telnet()

@@ -686,6 +686,63 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, particle_count=2, timeout=460)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
+    def test_queued_command(self):
+        """
+        Verify commands are queued while samples are being taken
+        """
+        self.assert_initialize_driver()
+
+        ## Queue sample and status
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=180)
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
+
+        ## Queue blank sample and status
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=180)
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
+
+        self.assert_current_state(ProtocolState.COMMAND)
+
+    def test_queued_autosample(self):
+        """
+        Verify commands are queued while samples are being taken
+        """
+        self.assert_initialize_driver()
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
+
+        ## Queue sample and status
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=180)
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
+
+        ## Queue blank sample and status
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=180)
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
+
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #

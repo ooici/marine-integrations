@@ -51,8 +51,6 @@ from mi.instrument.sunburst.driver import NEWLINE
 #    Driver Constant Definitions
 ###
 
-# TODO: Add constants for stop and start times to base class
-
 # Imported from base class
 
 ###

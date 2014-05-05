@@ -1030,7 +1030,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                   'SamiProtocol._handler_queue_acquire_sample(): queueing ProtocolEvent.ACQUIRE_SAMPLE in state ' +
                   self.get_current_state())
 
-        self._queued_commands.status = ProtocolEvent.ACQUIRE_SAMPLE
+        self._queued_commands.sample = ProtocolEvent.ACQUIRE_SAMPLE
 
         next_state = None
         result = None
@@ -1045,7 +1045,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                   self.get_current_state())
 
 
-        self._queued_commands.status = ProtocolEvent.ACQUIRE_BLANK_SAMPLE
+        self._queued_commands.sample = ProtocolEvent.ACQUIRE_BLANK_SAMPLE
 
         next_state = None
         result = None
@@ -1199,13 +1199,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         if self._queued_commands.status is not None:
             command = self._queued_commands.status
             self._queued_commands.status = None
-            log.debug('herb: ' + 'SamiProtocol._handler_autosample_enter: Raising queued command event: ' + command)
-            self._async_raise_fsm_event(command)
+            log.debug('herb: ' + 'SamiProtocol._handler_command_enter: Raising queued command event: ' + command)
+            self._protocol_fsm.on_event(command)
 
         if self._queued_commands.sample is not None:
             command = self._queued_commands.sample
             self._queued_commands.sample = None
-            log.debug('herb: ' + 'SamiProtocol._handler_autosample_enter: Raising queued command event: ' + command)
+            log.debug('herb: ' + 'SamiProtocol._handler_command_enter: Raising queued command event: ' + command)
             self._async_agent_state_change(ResourceAgentState.BUSY)
             self._async_raise_fsm_event(command)
 
@@ -1437,7 +1437,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             command = self._queued_commands.status
             self._queued_commands.status = None
             log.debug('herb: ' + 'SamiProtocol._handler_autosample_enter: Raising queued command event: ' + command)
-            self._async_raise_fsm_event(command)
+            self._protocol_fsm.on_event(command)
 
         if self._queued_commands.sample is not None:
             command = self._queued_commands.sample
