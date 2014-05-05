@@ -54,9 +54,9 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 	self.particle_d = CtdmoParserDataParticle(b'51EF8B36\x37\x35\x8b\xe0\xc3T\xe5\n\xe1)\x82\x19\r')
 	# this is the start of packet 5 [6321:6511]
 	self.particle_e = CtdmoParserDataParticle(b'51EFC37677\x17\xd6\x8eI;\x10!b\x82\x19\r')
-	# start of packet 3 [6970-7160]
+	# start of packet 6 [6970-7160]
 	self.particle_f = CtdmoParserDataParticle(b'51EFDF96\x37\x36\xe7\xe6\x89W9\x10A~\x82\x19\r')
-	# packet 4 [7547-7737]
+	# packet 7 [7547-7737]
 	self.particle_g = CtdmoParserDataParticle(b'51EFFBB6\x37\x32\t6F\x0c\xd5\x0fa\x9a\x82\x19\r')
 	# in long file, starts at 13453
         self.particle_z = CtdmoParserDataParticle(b'51F0A47673\xb9\xa6]\x93\xf2\x0f!C\x83\x19\r')

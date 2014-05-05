@@ -87,7 +87,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.clear_async_data()
         self.assert_data(CtdmoParserDataParticle, 'test_data_1.txt.result.yml',
-                         count=2, timeout=10)
+                         count=4, timeout=10)
 
         # there is only one file we read from, this example 'appends' data to
         # the end of the node59p1.dat file, and the data from the new append
@@ -134,13 +134,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
-        self.memento = {DriverStateKey.FILE_SIZE: 6000,
-                        DriverStateKey.FILE_CHECKSUM: 'aa1cc1aa816e99e11d8e88fc56f887e7',
-                        DriverStateKey.FILE_MOD_DATE: mod_time,
-                        DriverStateKey.PARSER_STATE: {'in_process_data': [],
-                                                     'unprocessed_data':[[0, 12], [336, 394], [467, 2010], [5544, 6000]],
-                                                     'timestamp': 3583634401.0
-                                                     }
+        self.memento = {"node59p1.dat": {DriverStateKey.FILE_SIZE: 6000,
+                                        DriverStateKey.FILE_CHECKSUM: 'aa1cc1aa816e99e11d8e88fc56f887e7',
+                                        DriverStateKey.FILE_MOD_DATE: mod_time,
+                                        DriverStateKey.PARSER_STATE: {'in_process_data': [],
+                                                                      'unprocessed_data':[[0, 12], [336, 394], [5924,6000]],
+                                                                     }
+                                        }
                         }
         self.driver = MflmCTDMODataSetDriver(
             self._driver_config()['startup_config'],
@@ -162,9 +162,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
     def test_back_fill(self):
         """
-        Test new sequence flags are set correctly.  There is only one file
-        that just has data appended or inserted into it, so new sequences
-        can occur in both cases, or if there is missing data in between two sequences
+        Test refilled blocks are sent correctly.  There is only one file
+        that just has data appended or inserted into it, or if there is missing
+        data can be added back later
         """
 
         self.clean_file()
@@ -172,25 +172,25 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.driver.start_sampling()
 
-        # step 2 contains 2 blocks, start with this and get both since we used them
-        # separately in other tests (no new sequences)
+        # step 1 contains 4 blocks, start with this and get both since we used them
+        # separately in other tests
         self.clear_async_data()
         self.assert_data(CtdmoParserDataParticle, 'test_data_1.txt.result.yml',
-                         count=2, timeout=10)
+                         count=4, timeout=10)
 
         # This file has had a section of CT data replaced with 0s, this should start a new
         # sequence for the data following the missing CT data
         self.clear_async_data()
         self.create_sample_data('node59p1_step3.dat', "node59p1.dat")
         self.assert_data(CtdmoParserDataParticle, 'test_data_3.txt.result.yml',
-                         count=1, timeout=10)
+                         count=2, timeout=10)
 
         # Now fill in the zeroed section from step3, this should just return the new
-        # data with a new sequence flag
+        # data 
         self.clear_async_data()
         self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
         self.assert_data(CtdmoParserDataParticle, 'test_data_4.txt.result.yml',
-                         count=3, timeout=10)
+                         count=2, timeout=10)
     
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -222,7 +222,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         try:
             # Verify we get one sample
-            result = self.data_subscribers.get_samples(SAMPLE_STREAM, 2)
+            result = self.data_subscribers.get_samples(SAMPLE_STREAM, 4)
             log.info("RESULT: %s", result)
 
             # Verify values
@@ -238,7 +238,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,6,30)
+        result = self.get_samples(SAMPLE_STREAM,8,30)
 
     def test_stop_start(self):
         """
@@ -257,7 +257,7 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.get_samples(SAMPLE_STREAM, 2)
+            result = self.get_samples(SAMPLE_STREAM, 4)
             log.debug("RESULT: %s", result)
 
             # Verify values
