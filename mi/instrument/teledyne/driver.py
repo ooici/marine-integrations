@@ -140,6 +140,8 @@ class TeledyneInstrumentCmds(BaseEnum):
     RUN_TEST_200 = 'PT200'
     SET = ' '  # leading spaces are OK. set is just PARAM_NAME next to VALUE
     GET = '  '
+    OUTPUT_PT2 = 'PT2'
+    OUTPUT_PT4 = 'PT4'
 
 
 
@@ -196,8 +198,8 @@ class TeledyneProtocolEvent(BaseEnum):
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     RECOVER_AUTOSAMPLE = 'PROTOCOL_EVENT_RECOVER_AUTOSAMPLE'
     RESTORE_FACTORY_PARAMS = "PROTOCOL_EVENT_RESTORE_FACTORY_PARAMS"
-    #POWER_DOWN = "PROTOCOL_EVENT_POWER_DOWN"
 
+    ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
 
 class TeledyneCapability(BaseEnum):
     """
@@ -214,10 +216,15 @@ class TeledyneCapability(BaseEnum):
     CLEAR_ERROR_STATUS_WORD = TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD
     GET_FAULT_LOG = TeledyneProtocolEvent.GET_FAULT_LOG
     CLEAR_FAULT_LOG = TeledyneProtocolEvent.CLEAR_FAULT_LOG
-    GET_INSTRUMENT_TRANSFORM_MATRIX = TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX
+    #GET_INSTRUMENT_TRANSFORM_MATRIX = TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX
     RUN_TEST_200 = TeledyneProtocolEvent.RUN_TEST_200
     FACTORY_SETS = TeledyneProtocolEvent.FACTORY_SETS
     USER_SETS = TeledyneProtocolEvent.USER_SETS
+
+    ACQUIRE_STATUS = TeledyneProtocolEvent.ACQUIRE_STATUS
+    START_DIRECT_ACCESS = TeledyneProtocolEvent.START_DIRECT
+    STOP_DIRECT_ACCESS = TeledyneProtocolEvent.STOP_DIRECT
+    #ACQUIRE_SAMPLE = TeledyneProtocolEvent.ACQUIRE_SAMPLE
 
 class TeledyneScheduledJob(BaseEnum):
 
@@ -306,6 +313,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, self._handler_command_clear_error_status_word)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.CLEAR_FAULT_LOG, self._handler_command_clear_fault_log)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_FAULT_LOG, self._handler_command_display_fault_log)
+
+        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
+        #self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
 
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.EXIT, self._handler_autosample_exit)
@@ -1481,6 +1491,27 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._sent_cmds.append(data)
 
         return (next_state, (next_agent_state, result))
+
+    def _handler_command_acquire_status(self,*args, **kwargs ):
+        log.debug("IN _handler_command_acquire_status")
+        next_state = None
+
+        kwargs['timeout'] = 30
+        kwargs['expected_prompt'] = TeledynePrompt.COMMAND
+
+        output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA,*args, **kwargs)
+        result_AC = self._sanitize(base64.b64decode(output))
+        time.sleep(.05)
+        output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_PT2, *args, **kwargs)
+        result_PT2 = self._sanitize(base64.b64decode(output))
+        time.sleep(.05)
+        output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
+        result_PT4 = self._sanitize(base64.b64decode(output))
+        time.sleep(.05)
+
+        result_start = "4 beam status outputs:".join(result_AC)
+        result_4beam = ", ".join([result_start,result_PT2,result_PT4])
+        return (next_state, result_4beam)
 
     def _discover(self):
         """
