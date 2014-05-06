@@ -1,21 +1,21 @@
  comm:
- method: multi
+  method: multi
   configs:
     4Beam:
       comm:
-        command_port: 2003
-        data_port: 2004
+        command_port: 2002
+        data_port: 2001
         host: 10.180.80.178
-        device_port: 2001
+        device_port: 2003
         device_addr: localhost
         method: ethernet
         sniffer_port: 6003
     5thBeam:
       comm:
-        command_port: 2003
-        data_port: 2004
+        command_port: 2002
+        data_port: 2001
         device_addr: 10.180.80.177
-        device_port: 2001
+        device_port: 2003
         host: localhost
         method: ethernet
         sniffer_port: 6003
