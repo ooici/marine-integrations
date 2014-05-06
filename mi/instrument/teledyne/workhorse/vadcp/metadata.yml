@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Sung Ahn
+  driver_make: teledyne
+  driver_model: workhorse
+  driver_name: vadcp
+  email: locateSung@gmail.com
+  release_notes: VADCP driver
+  version: 0.0.1
