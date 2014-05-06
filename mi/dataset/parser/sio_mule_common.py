@@ -44,7 +44,7 @@ class StateKey(BaseEnum):
 class SioMuleParser(Parser):
 
     def __init__(self, config, stream_handle, state, sieve_fn,
-                 state_callback, publish_callback, exception_callback, instrument_id):
+                 state_callback, publish_callback, exception_callback):
         """
         @param config The configuration parameters to feed into the parser
         @param stream_handle An already open file-like filehandle
@@ -60,8 +60,6 @@ class SioMuleParser(Parser):
            be published into ION
         @param exception_callback The callback from the agent driver to
            send an exception to
-        @param instrument_id the text string indicating the instrument to
-           monitor, can be 'CT', 'AD', 'FL', 'DO', 'PH', 'WA', 'WC', or 'WE'
         """
         super(SioMuleParser, self).__init__(config,
                                          stream_handle,
@@ -70,10 +68,6 @@ class SioMuleParser(Parser):
                                          state_callback,
                                          publish_callback,
                                          exception_callback)
-
-        if instrument_id not in ['CT', 'AD', 'FL', 'DO', 'PH', 'WA', 'WC', 'WE']:
-            raise DatasetParserException('instrument id %s is not recognized', instrument_id)
-        self._instrument_id = instrument_id
 
         self._timestamp = 0.0
         self._position = [0,0] # store both the start and end point for this read of data within the file
@@ -346,8 +340,8 @@ class SioMuleParser(Parser):
 
             if data and len(self._record_buffer) < num_records:
                 # there is more data, add it to the chunker after escaping acoustic modem characters
-                data = data.replace(b'\x186b', b'\x2b')
-                data = data.replace(b'\x1858', b'\x18')
+                data = data.replace(b'\x18\x6b', b'\x2b')
+                data = data.replace(b'\x18\x58', b'\x18')
                 # there is more data, add it to the chunker
                 self._chunker.add_chunk(data, self._timestamp)
 
