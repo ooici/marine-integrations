@@ -18,6 +18,7 @@ USAGE:
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore -a INT
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore -a QUAL
 """
+import base64
 import re
 
 __author__ = 'Bill Bollenbacher'
@@ -27,7 +28,6 @@ from gevent import monkey;
 
 
 monkey.patch_all()
-import unittest
 import time
 import ntplib
 
@@ -42,7 +42,7 @@ from mi.idk.unit_test import ParameterTestConfigKey
 
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest, DriverTestMixinSub
 
-from mi.core.instrument.instrument_driver import DriverConfigKey
+from mi.core.instrument.instrument_driver import DriverConfigKey, DriverParameter
 
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.chunker import StringChunker
@@ -419,7 +419,6 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
         self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=TIMEOUT)
 
-    @unittest.skip('temp disable')
     def test_command_autosample(self):
         """
         Test autosample command and events.
@@ -439,21 +438,20 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=45)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
-    def test_instrument_read_id(self):
-        """
-        Test for reading ID, need to be implemented in the child class because each ID is unique to the
-        instrument.
-        """
-        self.assert_initialize_driver()
-
-        # command the instrument to read the ID.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
-
-        log.debug("read ID returned: %s", response)
-        self.assertTrue(re.search(r'VEL .*', response[1]))
-
-        self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
-
+    # def test_instrument_read_id(self):
+    #     """
+    #     Test for reading ID, need to be implemented in the child class because each ID is unique to the
+    #     instrument.
+    #     """
+    #     self.assert_initialize_driver()
+    #
+    #     # command the instrument to read the ID.
+    #     response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
+    #
+    #     log.debug("read ID returned: %s", response)
+    #     self.assertTrue(re.search(r'VEL .*', response[1]))
+    #
+    #     self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -462,7 +460,7 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualFromIDK(NortekQualTest):
-    def assertSampleDataParticle(self, sample):
+    def assert_sample_data_particle(self, sample):
         if not self.assertBaseSampleDataParticle(sample):  # Check the common types
             values = sample['values']
             value_ids = []
@@ -494,21 +492,21 @@ class QualFromIDK(NortekQualTest):
                         self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
 
     def test_poll(self):
-        '''
+        """
         poll for a single sample
-        '''
+        """
 
-        self.assert_sample_polled(self.assertSampleDataParticle,
+        self.assert_sample_polled(self.assert_sample_data_particle,
                                   [DataParticleType.VELOCITY,
                                    DataParticleType.VELOCITY_HEADER,
                                    DataParticleType.SYSTEM],
                                   timeout=100)
 
     def test_autosample(self):
-        '''
+        """
         start and stop autosample and verify data particle
-        '''
-        self.assert_sample_autosample(self.assertSampleDataParticle,
+        """
+        self.assert_sample_autosample(self.assert_sample_data_particle,
                                       [DataParticleType.VELOCITY,
                                        DataParticleType.VELOCITY_HEADER,
                                        DataParticleType.SYSTEM],

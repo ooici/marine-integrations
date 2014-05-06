@@ -13,7 +13,7 @@ __license__ = 'Apache 2.0'
 import re
 
 from mi.core.common import BaseEnum
-
+from mi.core.log import get_logger ; log = get_logger()
 from mi.core.exceptions import SampleException
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
@@ -21,7 +21,7 @@ from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentProm
     USER_CONFIG_DATA_REGEX, HARDWARE_CONFIG_DATA_REGEX, HEAD_CONFIG_DATA_REGEX, NEWLINE, \
     BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, \
     NortekEngBatteryDataParticle, NortekEngClockDataParticle, NortekEngIdDataParticle, EngineeringParameter, \
-    INTERVAL_TIME_REGEX, TIMEOUT, InstrumentCmds
+    INTERVAL_TIME_REGEX, TIMEOUT, InstrumentCmds, NortekDataParticleType
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
 from mi.instrument.nortek.driver import NortekUserConfigDataParticle, NortekParameterDictVal, Parameter, \
@@ -55,6 +55,12 @@ class DataParticleType(BaseEnum):
     VELOCITY = 'velpt_velocity_data'
     DIAGNOSTIC = 'velpt_diagonstics_data'
     DIAGNOSTIC_HEADER = 'velpt_diagonstics_header'
+    NortekDataParticleType.HARDWARE_CONFIG = 'velpt_hardware_configuration'
+    NortekDataParticleType.HEAD_CONFIG = 'velpt_head_configuration'
+    NortekDataParticleType.USER_CONFIG = 'velpt_user_configuration'
+    NortekDataParticleType.CLOCK = 'vept_clock_data'
+    NortekDataParticleType.BATTERY = 'velpt_battery_voltage'
+    NortekDataParticleType.ID_STRING = 'velpt_identification_string'
         
 
 ###############################################################################
@@ -344,6 +350,8 @@ class InstrumentDriver(NortekInstrumentDriver):
         @param evt_callback Driver process event callback.
         """
         #Construct superclass.
+
+
         NortekInstrumentDriver.__init__(self, evt_callback)
 
     ########################################################################
@@ -391,7 +399,13 @@ class Protocol(NortekInstrumentProtocol):
         """
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
+
+
         """
+
+        log.debug("STRUCT %r", structure)
+
+
         self._extract_sample(AquadoppDwVelocityDataParticle, VELOCITY_DATA_REGEX, structure, timestamp)
         self._extract_sample(AquadoppDwDiagnosticDataParticle, DIAGNOSTIC_DATA_REGEX, structure, timestamp)
         self._extract_sample(AquadoppDwDiagnosticHeaderDataParticle, DIAGNOSTIC_DATA_HEADER_REGEX, structure, timestamp)
@@ -415,7 +429,6 @@ class Protocol(NortekInstrumentProtocol):
         """
         next_state = None
         next_agent_state = None
-        result = None
 
         # the vector doesn't respond with ACKs for this command, so look for start of velocity data header structure
         result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA,
@@ -467,8 +480,7 @@ class Protocol(NortekInstrumentProtocol):
                                     default_value='00:00:00',
                                     startup_param=True))
 
-        self._param_dict.set_value(Parameter.NUMBER_SAMPLES_PER_BURST,
-                                   self._param_dict.get_default_value(Parameter.NUMBER_SAMPLES_PER_BURST))
+        self._param_dict.set_value(Parameter.NUMBER_SAMPLES_PER_BURST, 0)
         self._param_dict.set_value(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
                                    self._param_dict.get_default_value(EngineeringParameter.ACQUIRE_STATUS_INTERVAL))
         self._param_dict.set_value(EngineeringParameter.CLOCK_SYNC_INTERVAL,

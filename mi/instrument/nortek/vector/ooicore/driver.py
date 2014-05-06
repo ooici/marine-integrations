@@ -39,7 +39,7 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.log import get_logger ; log = get_logger()
 
-RESOURCE_FILE = 'mi/instrument/nortek/vector/ooicore/resource/strings.yml'
+#RESOURCE_FILE = 'mi/instrument/nortek/vector/ooicore/resource/strings.yml'
 VELOCITY_DATA_LEN = 24
 VELOCITY_DATA_SYNC_BYTES = '\xa5\x10'
 SYSTEM_DATA_LEN = 28
@@ -496,8 +496,13 @@ class Protocol(NortekInstrumentProtocol):
                                     default_value='00:00:00',
                                     startup_param=True))
 
-        self._param_dict.load_strings(RESOURCE_FILE)
+        self._param_dict.set_value(Parameter.NUMBER_SAMPLES_PER_BURST, 0)
+        self._param_dict.set_value(Parameter.USER_3_SPARE, 0)
+        self._param_dict.set_value(Parameter.CLOCK_SYNC_INTERVAL, '00:00:00')
+        self._param_dict.set_value(Parameter.ACQUIRE_STATUS_INTERVAL, '00:00:00')
+
+        #self._param_dict.load_strings(RESOURCE_FILE)
 
     def _build_cmd_dict(self):
         NortekInstrumentProtocol._build_cmd_dict(self)
-        self._cmd_dict.load_strings(RESOURCE_FILE)
+        #self._cmd_dict.load_strings(RESOURCE_FILE)

@@ -34,7 +34,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
 from mi.idk.unit_test import AgentCapabilityType
 
-from mi.core.instrument.instrument_driver import ResourceAgentEvent
+from mi.core.instrument.instrument_driver import ResourceAgentEvent, DriverConfigKey, DriverParameter
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverEvent
 
@@ -68,7 +68,8 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id='nortek_aquadopp_dw_ooicore',
     instrument_agent_name='nortek_aquadopp_dw_ooicore_agent',
     instrument_agent_packet_config=DataParticleType(),
-    driver_startup_config={Parameter.TRANSMIT_PULSE_LENGTH: 0x7d})
+    driver_startup_config={}
+)
 
 params_dict = {
     Parameter.TRANSMIT_PULSE_LENGTH: int,
@@ -112,44 +113,78 @@ params_dict = {
     Parameter.QUAL_CONSTANTS: str}
 
 
-def user_config1():
-    # CompassUpdateRate = 600, MeasurementInterval = 600
-    user_config_values = "A5 00 00 01 7D 00 37 00 20 00 B5 01 00 02 01 00 \
-                          3C 00 03 00 00 00 00 00 00 00 00 00 00 00 58 02 \
-                          00 00 01 00 20 00 58 02 00 00 00 00 00 00 00 00 \
-                          59 12 03 14 12 08 C0 A8 00 00 20 00 11 41 14 00 \
-                          01 00 14 00 04 00 00 00 00 00 5E 01 02 3D 1E 3D \
-                          39 3D 53 3D 6E 3D 88 3D A2 3D BB 3D D4 3D ED 3D \
-                          06 3E 1E 3E 36 3E 4E 3E 65 3E 7D 3E 93 3E AA 3E \
-                          C0 3E D6 3E EC 3E 02 3F 17 3F 2C 3F 41 3F 55 3F \
-                          69 3F 7D 3F 91 3F A4 3F B8 3F CA 3F DD 3F F0 3F \
-                          02 40 14 40 26 40 37 40 49 40 5A 40 6B 40 7C 40 \
-                          8C 40 9C 40 AC 40 BC 40 CC 40 DB 40 EA 40 F9 40 \
-                          08 41 17 41 25 41 33 41 42 41 4F 41 5D 41 6A 41 \
-                          78 41 85 41 92 41 9E 41 AB 41 B7 41 C3 41 CF 41 \
-                          DB 41 E7 41 F2 41 FD 41 08 42 13 42 1E 42 28 42 \
-                          33 42 3D 42 47 42 51 42 5B 42 64 42 6E 42 77 42 \
-                          80 42 89 42 91 42 9A 42 A2 42 AA 42 B2 42 BA 42 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 1E 00 5A 00 5A 00 BC 02 \
-                          32 00 00 00 00 00 00 00 07 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 1E 00 00 00 00 00 2A 00 00 00 \
-                          02 00 14 00 EA 01 14 00 EA 01 0A 00 05 00 00 00 \
-                          40 00 40 00 02 00 0F 00 5A 00 00 00 01 00 C8 00 \
-                          00 00 00 00 0F 00 EA 01 EA 01 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 06 00 \
-                          14 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-                          00 00 00 00 00 00 00 00 00 00 00 00 00 00 0A FF \
-                          CD FF 8B 00 E5 00 EE 00 0B 00 84 FF 3D FF 82 8E"
-    user_config = ''
-    for value in user_config_values.split():
-        user_config += chr(int(value, 16))
-    return user_config
+# def user_config1():
+#     # CompassUpdateRate = 600, MeasurementInterval = 600
+#     user_config_values = "A5 00 00 01 7D 00 37 00 20 00 B5 01 00 02 01 00 \
+#                           3C 00 03 00 00 00 00 00 00 00 00 00 00 00 58 02 \
+#                           00 00 01 00 20 00 58 02 00 00 00 00 00 00 00 00 \
+#                           59 12 03 14 12 08 C0 A8 00 00 20 00 11 41 14 00 \
+#                           01 00 14 00 04 00 00 00 00 00 5E 01 02 3D 1E 3D \
+#                           39 3D 53 3D 6E 3D 88 3D A2 3D BB 3D D4 3D ED 3D \
+#                           06 3E 1E 3E 36 3E 4E 3E 65 3E 7D 3E 93 3E AA 3E \
+#                           C0 3E D6 3E EC 3E 02 3F 17 3F 2C 3F 41 3F 55 3F \
+#                           69 3F 7D 3F 91 3F A4 3F B8 3F CA 3F DD 3F F0 3F \
+#                           02 40 14 40 26 40 37 40 49 40 5A 40 6B 40 7C 40 \
+#                           8C 40 9C 40 AC 40 BC 40 CC 40 DB 40 EA 40 F9 40 \
+#                           08 41 17 41 25 41 33 41 42 41 4F 41 5D 41 6A 41 \
+#                           78 41 85 41 92 41 9E 41 AB 41 B7 41 C3 41 CF 41 \
+#                           DB 41 E7 41 F2 41 FD 41 08 42 13 42 1E 42 28 42 \
+#                           33 42 3D 42 47 42 51 42 5B 42 64 42 6E 42 77 42 \
+#                           80 42 89 42 91 42 9A 42 A2 42 AA 42 B2 42 BA 42 \
+#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+#                           00 00 00 00 00 00 00 00 1E 00 5A 00 5A 00 BC 02 \
+#                           32 00 00 00 00 00 00 00 07 00 00 00 00 00 00 00 \
+#                           00 00 00 00 00 00 1E 00 00 00 00 00 2A 00 00 00 \
+#                           02 00 14 00 EA 01 14 00 EA 01 0A 00 05 00 00 00 \
+#                           40 00 40 00 02 00 0F 00 5A 00 00 00 01 00 C8 00 \
+#                           00 00 00 00 0F 00 EA 01 EA 01 00 00 00 00 00 00 \
+#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 06 00 \
+#                           14 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
+#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 0A FF \
+#                           CD FF 8B 00 E5 00 EE 00 0B 00 84 FF 3D FF 82 8E"
+#
+#     user_config_values2 = "A5 00 00 01 7D 00 31 00 20 00 B5 01 00 02 01 00 " \
+#                           "3C 00 03 00 40 00 00 00 00 00 00 00 00 00 02 00 " \
+#                           "00 00 01 00 20 00 58 02 00 00 00 00 00 00 00 00 " \
+#                           "40 43 05 15 14 05 C0 A8 00 00 22 00 11 41 14 00 " \
+#                           "01 00 14 00 04 00 00 00 4E 36 5E 01 02 3D 1E 3D " \
+#                           "39 3D 53 3D 6E 3D 88 3D A2 3D BB 3D D4 3D ED 3D " \
+#                           "06 3E 1E 3E 36 3E 4E 3E 65 3E 7D 3E 93 3E AA 3E " \
+#                           "C0 3E D6 3E EC 3E 02 3F 17 3F 2C 3F 41 3F 55 3F " \
+#                           "69 3F 7D 3F 91 3F A4 3F B8 3F CA 3F DD 3F F0 3F " \
+#                           "02 40 14 40 26 40 37 40 49 40 5A 40 6B 40 7C 40 " \
+#                           "8C 40 9C 40 AC 40 BC 40 CC 40 DB 40 EA 40 F9 40 " \
+#                           "08 41 17 41 25 41 33 41 42 41 4F 41 5D 41 6A 41 " \
+#                           "78 41 85 41 92 41 9E 41 AB 41 B7 41 C3 41 CF 41 " \
+#                           "DB 41 E7 41 F2 41 FD 41 08 42 13 42 1E 42 28 42 " \
+#                           "33 42 3D 42 47 42 51 42 5B 42 64 42 6E 42 77 42 " \
+#                           "80 42 89 42 91 42 9A 42 A2 42 AA 42 B2 42 BA 42 " \
+#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
+#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
+#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
+#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
+#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
+#                           "00 00 00 00 00 00 00 00 1E 00 5A 00 5A 00 BC 02 " \
+#                           "32 00 00 00 00 00 00 00 07 00 00 00 00 00 00 00 " \
+#                           "00 00 00 00 00 00 1E 00 00 00 00 00 2A 00 00 00 " \
+#                           "02 00 14 00 EA 01 14 00 EA 01 0A 00 05 00 00 00 " \
+#                           "40 00 40 00 02 00 0F 00 5A 00 00 00 01 00 C8 00 " \
+#                           "00 00 00 00 0F 00 EA 01 EA 01 00 00 00 00 00 00 " \
+#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
+#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 06 00 " \
+#                           "14 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
+#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 0A FF " \
+#                           "CD FF 8B 00 E5 00 EE 00 0B 00 84 FF 3D FF A1 F1"
+#
+#     user_config = ''
+#     for value in user_config_values2.split():
+#         user_config += chr(int(value, 16))
+#     return user_config
 
 
 def user_config2():
@@ -567,172 +602,20 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
-    def test_instrument_read_id(self):
-        """
-        Test for reading ID, need to be implemented in the child class because each ID is unique to the
-        instrument.
-        """
-        self.assert_initialize_driver()
-
-        # command the instrument to read the ID.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
-
-        log.debug("read ID returned: %s", response)
-        self.assertTrue(re.search(r'AQD .*', response[1]))
-
-        self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
-
-    def test_set_init_params(self):
-        """
-        @brief Test for set_init_params()
-        """
-        self.assert_initialize_driver()
-
-        # values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        # log.debug("VALUES_BEFORE = %s", values_before)
-        #
-        # self.driver_client.cmd_dvr('set_init_params',
-        #                            {DriverConfigKey.PARAMETERS:
-        #                                {DriverParameter.ALL:
-        #                                 base64.b64encode(user_config1())}
-        #                            })
-        # self.driver_client.cmd_dvr("apply_startup_params")
-        #
-        # values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
-        # log.debug("VALUES_AFTER = %s", values_after)
-        #
-        # # check to see if startup config got set in instrument
-        # self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 500)
-        # self.assertEquals(values_after[Parameter.NUMBER_SAMPLES_PER_BURST], 20)
-        #
-        # self.driver_client.cmd_dvr('set_resource', values_before)
-        # values_after = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        # self.assertEquals(values_after, values_before)
-
-    def test_startup_configuration(self):
-        '''
-        Test that the startup configuration is applied correctly
-        '''
-        self.assert_initialize_driver()
-        value_before = self.driver_client.cmd_dvr('get_resource',
-                                                  [Parameter.AVG_INTERVAL])
-        log.debug("Value before applying startup parameters: %s", value_before)
-
-        self.driver_client.cmd_dvr('apply_startup_params')
-        reply = self.driver_client.cmd_dvr('get_resource',
-                                           [Parameter.AVG_INTERVAL])
-        self.assertEquals(reply, {Parameter.AVG_INTERVAL: 61})
-        reply = self.driver_client.cmd_dvr('set_resource', value_before)
-        reply = self.driver_client.cmd_dvr('get_resource',
-                                           [Parameter.AVG_INTERVAL])
-        self.assertEquals(reply, value_before)
-
-    def test_instrument_set_configuration(self):
-        """
-        @brief Test for setting instrument configuration
-        """
-
-        self.assert_initialize_driver()
-
-        # command the instrument to set the user configuration.
-        self.driver_client.cmd_dvr('execute_resource',
-                                   ProtocolEvent.SET_CONFIGURATION,
-                                   user_configuration=base64.b64encode(user_config2()))
-
-        values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
-        #print("va=%s" %values_after)
-
-        # check to see if config got set in instrument
-        self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 600)
-        self.assertEquals(values_after[Parameter.NUMBER_SAMPLES_PER_BURST], 10)
-
-    def test_instrument_set(self):
-        """
-        @brief Test for setting instrument parameter
-        """
-        self.assert_initialize_driver()
-
-        # Get all device parameters. Confirm all expected keys are retrieved
-        # and have correct type.
-        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        self.assertParamDictionariesEqual(reply, params_dict, True)
-
-        # Grab a subset of parameters.
-        params = [
-            Parameter.WRAP_MODE
-            ]
-        reply = self.driver_client.cmd_dvr('get_resource', params)
-        #self.assertParamDict(reply)
-
-        # Remember the original subset.
-        orig_params = reply
-
-        # Construct new parameters to set.
-        new_wrap_mode = 1 if orig_params[Parameter.WRAP_MODE]==0 else 0
-        log.debug('old=%d, new=%d', orig_params[Parameter.WRAP_MODE], new_wrap_mode)
-        new_params = {
-            Parameter.WRAP_MODE : new_wrap_mode
-        }
-
-        # Set parameter and verify.
-        reply = self.driver_client.cmd_dvr('set_resource', new_params)
-
-        reply = self.driver_client.cmd_dvr('get_resource', params)
-        self.assertEqual(new_params[Parameter.WRAP_MODE],
-                         reply[Parameter.WRAP_MODE])
-
-        # Reset parameter to original value and verify.
-        reply = self.driver_client.cmd_dvr('set_resource', orig_params)
-
-        reply = self.driver_client.cmd_dvr('get_resource', params)
-        self.assertEqual(orig_params[Parameter.WRAP_MODE],
-                         reply[Parameter.WRAP_MODE])
-
-        # set wrap_mode to 1 to leave instrument with wrap mode enabled
-        new_params = {
-            Parameter.WRAP_MODE : 1,
-            Parameter.NUMBER_SAMPLES_PER_BURST : 10,
-            Parameter.MEASUREMENT_INTERVAL : 600
-        }
-
-        # Set parameter and verify.
-        reply = self.driver_client.cmd_dvr('set_resource', new_params)
-
-        reply = self.driver_client.cmd_dvr('get_resource',
-                                           [Parameter.WRAP_MODE,
-                                            Parameter.NUMBER_SAMPLES_PER_BURST,
-                                            Parameter.MEASUREMENT_INTERVAL])
-        self.assertEqual(new_params, reply)
-
-    # def test_parameters(self):
-    #TODO
+    # def test_instrument_read_id(self):
     #     """
-    #     Verify that we can set the parameters
-    #
-    #     1. Cannot set read only parameters
-    #     2. Can set read/write parameters
-    #     3. Can set read/write parameters w/direct access only
+    #     Test for reading ID, need to be implemented in the child class because each ID is unique to the
+    #     instrument.
     #     """
-    #     self.assert_initialize_driver(ProtocolState.COMMAND)
+    #     self.assert_initialize_driver()
     #
-    #     #test read/write parameter
-    #     self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 14)
+    #     # command the instrument to read the ID.
+    #     response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
     #
-    #     #test read/write parameter w/direct access only
-    #     self.assert_set(Parameter.USER_NUMBER_BEAMS, 2)
+    #     log.debug("read ID returned: %s", response)
+    #     self.assertTrue(re.search(r'AQD .*', response[1]))
     #
-    #     #test setting intervals for scheduled events
-    #     # self.assert_set(Parameter.Run_wiper_interval, '05:00:23')
-    #     # self.assert_set(Parameter.Run_clock_sync_interval, '12:12:12')
-    #
-    #     #test setting date/time
-    #     #self.assert_set(Parameter.CLOCK_DEPLOY, get_timestamp_delayed("%m/%d/%y"))
-    #
-    #     #test read only parameter - should not be set, value should not change
-    #     self.assert_set(Parameter.SW_VERSION, 13700, no_get=True)
-    #     reply = self.driver_client.cmd_dvr('get_resource', [Parameter.SW_VERSION])
-    #     return_value = reply.get(Parameter.SW_VERSION)
-    #     self.assertNotEqual(return_value, 13700)
+    #     self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
                
 
 ###############################################################################
@@ -744,91 +627,8 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
 class QualFromIDK(NortekQualTest):
     def setUp(self):
         NortekQualTest.setUp(self)
-    
-    def assert_execute_resource(self, command):
-        """
-        @brief send an execute_resource command and ensure no exceptions are raised
-        """
-        
-        # send command to the instrument 
-        cmd = AgentCommand(command=ResourceAgentEvent.EXECUTE_RESOURCE,
-                           args=[command])
-        try:            
-            return self.instrument_agent_client.execute_agent(cmd)
-        except:
-            self.fail('assert_execute_resource: execute_resource command failed for %s' %command)
 
-    def assert_resource_capabilities(self, capabilities):
-
-        def sort_capabilities(caps_list):
-            '''
-            sort a return value into capability buckets.
-            @return res_cmds, res_pars
-            '''
-            res_cmds = []
-            res_pars = []
-
-            if(not capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)):
-                capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
-            if(not capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)):
-                capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
-
-            res_cmds = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_CMD]
-            res_pars = [x.name for x in caps_list if x.cap_type==CapabilityType.RES_PAR]
-
-            return res_cmds, res_pars
-
-        retval = self.instrument_agent_client.get_capabilities()
-        res_cmds, res_pars = sort_capabilities(retval)
-
-        log.debug("Resource Commands: %s " % sorted(res_cmds))
-        log.debug("Expected Resource Commands: %s " % sorted(capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)))
-        
-        log.debug("Resource Parameters: %s " % sorted(res_pars))
-        log.debug("Expected Resource Parameters: %s " % sorted(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)))
-
-        self.assertEqual(sorted(capabilities.get(AgentCapabilityType.RESOURCE_COMMAND)), sorted(res_cmds), "commands don't match")
-        self.assertEqual(sorted(capabilities.get(AgentCapabilityType.RESOURCE_PARAMETER)), sorted(res_pars), "parameters don't match")
-
-    def assert_sample_polled(self, sampleDataAssert, sampleQueue, timeout = 10):
-        """
-        Test observatory polling function.
-
-        Verifies the acquire_status command.
-        """
-        # Set up all data subscriptions.  Stream names are defined
-        # in the driver PACKET_CONFIG dictionary
-        self.data_subscribers.start_data_subscribers()
-        self.addCleanup(self.data_subscribers.stop_data_subscribers)
-
-        self.assert_enter_command_mode()
-
-        ###
-        # Poll for a sample
-        ###
-
-        # make sure there aren't any junk samples in the parsed
-        # data queue.
-        log.debug("Acquire Sample")
-        self.data_subscribers.clear_sample_queue(sampleQueue)
-
-        cmd = AgentCommand(command=DriverEvent.ACQUIRE_SAMPLE)
-        self.instrument_agent_client.execute_resource(cmd, timeout=timeout)
-
-        # Watch the parsed data queue and return once a sample
-        # has been read or the default timeout has been reached.
-        samples = self.data_subscribers.get_samples(sampleQueue, 4, timeout = timeout)
-        self.assertGreaterEqual(len(samples), 4)
-        log.error("SAMPLE: %s" % samples)
-
-        # Verify
-        for sample in samples:
-            sampleDataAssert(sample)
-
-        self.assert_reset()
-        self.doCleanups()
-
-    def assertSampleDataParticle(self, sample):
+    def assert_sample_data_particle(self, sample):
         log.debug('assertSampleDataParticle: sample=%s' %sample)
         self.assertTrue(sample[DataParticleKey.STREAM_NAME],
             DataParticleType.PARSED)
@@ -860,8 +660,6 @@ class QualFromIDK(NortekQualTest):
         else:
             self.fail('Unknown data particle')
 
-
-
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
@@ -876,26 +674,30 @@ class QualFromIDK(NortekQualTest):
         self.assert_direct_access_stop_telnet()
 
     def test_poll(self):
-        '''
+        """
         poll for a single sample
-        '''
+        """
 
-        self.assert_sample_polled(self.assertSampleDataParticle,
-                                  DataParticleValue.PARSED,
+        self.assert_sample_polled(self.assert_sample_data_particle,
+                                  [DataParticleType.VELOCITY,
+                                   DataParticleType.DIAGNOSTIC,
+                                   DataParticleType.DIAGNOSTIC_HEADER],
                                   timeout = 100)
 
     def test_autosample(self):
-        '''
+        """
         start and stop autosample and verify data particle
-        '''
-        self.assert_sample_autosample(self.assertSampleDataParticle,
-                                  DataParticleValue.PARSED,
+        """
+        self.assert_sample_autosample(self.assert_sample_data_particle,
+                                  [DataParticleType.VELOCITY,
+                                   DataParticleType.DIAGNOSTIC,
+                                   DataParticleType.DIAGNOSTIC_HEADER],
                                   timeout = 100)
 
     def test_get_set_parameters(self):
-        '''
+        """
         verify that parameters can be get set properly
-        '''
+        """
         self.assert_enter_command_mode()
         
         value_before_set = self.get_parameter(Parameter.BLANKING_DISTANCE)
@@ -907,4 +709,3 @@ class QualFromIDK(NortekQualTest):
         self.assert_set_parameter(Parameter.AVG_INTERVAL, value_before_set)
 
         self.assert_reset()
-
