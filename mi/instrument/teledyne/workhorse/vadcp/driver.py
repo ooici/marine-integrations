@@ -78,6 +78,11 @@ class Parameter(WorkhorseParameter):
     #
     # set-able parameters
     #
+    SYNC_PING_ENSEMBLE = 'SA'
+    RDS3_MODE_SEL = 'SM'  # 0=off, 1=master, 2=slave
+    SLAVE_TIMEOUT = 'ST'
+    SYNCH_DELAY = 'SW'
+
 
 
 class ProtocolEvent(TeledyneProtocolEvent):
@@ -1746,47 +1751,50 @@ class Protocol(WorkhorseProtocol):
             direct_access=True,
             default_value=0)
 
-        #sel
-        #SA, SM ST SW
-        self._param_dict.add(Parameter.SALINITY,
-            r'SA = (\d+) \-+ Salinity ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="salinity",
+        self._param_dict.add(Parameter.SYNC_PING_ENSEMBLE,
+            r'SA = (\d+) \-+ Synch Before',
+            lambda match: int(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="Synch ping ensemble",
+            visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
-            default_value=35)
+            default_value='001')
 
-        self._param_dict.add(Parameter.SALINITY,
-            r'SM = (\d+) \-+ Salinity ',
+        self._param_dict.add(Parameter.RDS3_MODE_SEL,
+            r'SM = (\d+) \-+ Mode Select',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="salinity",
+            display_name="RDS3 mode selection",
+            visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
-            default_value=35)
+            default_value=1)
 
-        self._param_dict.add(Parameter.SALINITY,
-            r'ST = (\d+) \-+ Salinity ',
-            lambda match: int(match.group(1), base=10),
-            self._int_to_string,
-            type=ParameterDictType.INT,
-            display_name="salinity",
-            startup_param=True,
-            direct_access=True,
-            default_value=35)
+        # Not used for Master
+        #self._param_dict.add(Parameter.SLAVE_TIMEOUT,
+        #    r'ST = (\d+) \-+ Slave Timeout',
+        #    lambda match: int(match.group(1), base=10),
+        #    self._int_to_string,
+        #    type=ParameterDictType.INT,
+        #    display_name="Slave timeout",
+        #    visibility=ParameterDictVisibility.IMMUTABLE,
+        #    startup_param=True,
+        #    direct_access=True,
+        #    default_value=0)
 
-        self._param_dict.add(Parameter.SALINITY,
-            r'ST = (\d+) \-+ Salinity ',
+        self._param_dict.add(Parameter.SYNCH_DELAY,
+            r'SW = (\d+) \-+ Synch Delay',
             lambda match: int(match.group(1), base=10),
             self._int_to_string,
             type=ParameterDictType.INT,
-            display_name="salinity",
+            display_name="Synch delay",
+            visibility=ParameterDictVisibility.IMMUTABLE,
             startup_param=True,
             direct_access=True,
-            default_value=35)
+            default_value=100)
 
 
         self._param_dict.add(Parameter.ENSEMBLE_PER_BURST,
@@ -2171,7 +2179,7 @@ class Protocol(WorkhorseProtocol):
             display_name="Transducer Depth",
             startup_param=True,
             direct_access=True,
-            default_value=8000)
+            default_value=2000)
 
         self._param_dict2.add(Parameter.PITCH,
             r'EP = ([\+\-\d]+) \-+ Tilt 1 Sensor ',
@@ -2235,6 +2243,51 @@ class Protocol(WorkhorseProtocol):
             direct_access=True,
             default_value=0)
 
+        self._param_dict.add(Parameter.SYNC_PING_ENSEMBLE,
+            r'SA = (\d+) \-+ Synch Before',
+            lambda match: int(match.group(1)),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="Synch ping ensemble",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value='001')
+
+        self._param_dict.add(Parameter.RDS3_MODE_SEL,
+            r'SM = (\d+) \-+ Mode Select',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="RDS3 mode selection",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value=2)
+
+        self._param_dict.add(Parameter.SLAVE_TIMEOUT,
+            r'ST = (\d+) \-+ Slave Timeout',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Slave timeout",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value=0)
+
+        self._param_dict.add(Parameter.SYNCH_DELAY,
+            r'SW = (\d+) \-+ Synch Delay',
+            lambda match: int(match.group(1), base=10),
+            self._int_to_string,
+            type=ParameterDictType.INT,
+            display_name="Synch delay",
+            visibility=ParameterDictVisibility.IMMUTABLE,
+            startup_param=True,
+            direct_access=True,
+            default_value=0)
+
+
         self._param_dict2.add(Parameter.ENSEMBLE_PER_BURST,
             r'TC (\d+) \-+ Ensembles Per Burst',
             lambda match: int(match.group(1), base=10),
@@ -2266,15 +2319,15 @@ class Protocol(WorkhorseProtocol):
             direct_access=False,
             visibility=ParameterDictVisibility.READ_ONLY)
 
-        self._param_dict2.add(Parameter.TIME_PER_PING,
-            r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping',
-            lambda match: str(match.group(1)),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="time per ping",
-            startup_param=True,
-            direct_access=True,
-            default_value='00:01.00')
+        #self._param_dict2.add(Parameter.TIME_PER_PING,
+        #    r'TP (\d\d:\d\d.\d\d) \-+ Time per Ping',
+        #    lambda match: str(match.group(1)),
+        #    str,
+        #    type=ParameterDictType.STRING,
+        #    display_name="time per ping",
+        #    startup_param=True,
+        #    direct_access=True,
+        #    default_value='00:01.00')
 
         self._param_dict2.add(Parameter.TIME,
             r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
@@ -2358,7 +2411,7 @@ class Protocol(WorkhorseProtocol):
             display_name="blank after transmit",
             startup_param=True,
             direct_access=True,
-            default_value=704)
+            default_value=83)
 
         self._param_dict2.add(Parameter.CLIP_DATA_PAST_BOTTOM,
             r'WI (\d) \-+ Clip Data Past Bottom',
@@ -2409,7 +2462,7 @@ class Protocol(WorkhorseProtocol):
             display_name="number of depth cells",
             startup_param=True,
             direct_access=True,
-            default_value=100)
+            default_value=22)
 
         self._param_dict2.add(Parameter.PINGS_PER_ENSEMBLE,
             r'WP (\d+) \-+ Pings per Ensemble ',
@@ -2440,7 +2493,7 @@ class Protocol(WorkhorseProtocol):
             display_name="depth cell size",
             startup_param=True,
             direct_access=True,
-            default_value=800)
+            default_value=94)
 
         self._param_dict2.add(Parameter.TRANSMIT_LENGTH,
             r'WT (\d+) \-+ Transmit Length ',
