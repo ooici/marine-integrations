@@ -1,0 +1,74 @@
+# Expected Results
+
+header:
+  particle_object: "MULTIPLE"
+  particle_type: "MULTIPLE"
+
+data:
+  - _index: 1
+    particle_object: EngineeringMetadataDataParticle
+    particle_type: glider_eng_metadata
+    glider_eng_filename: 'unit_247-2012-051-0-0-dbd(01840000)'
+    glider_mission_name: 'ENDUR1.MI'
+    glider_eng_fileopen_time: 'Tue_Feb_21_18:39:39_2012'
+    internal_timestamp: '2012-02-21T18:39:39.0Z'
+  - _index: 2
+    particle_object: EngineeringTelemeteredDataParticle
+    particle_type: glider_eng_telemetered
+    internal_timestamp: '2012-02-21T18:39:29.262940Z' 
+    m_present_time: 1329849569.26294
+    m_present_secs_into_mission: 0
+    m_gps_lat:
+      value: 43.47114
+      round: 5
+    m_gps_lon:
+      value: -125.39661
+      round: 5
+    m_lat:
+      value: 43.47114
+      round: 5
+    m_lon:
+      value: -125.39661
+      round: 5
+    c_battpos: 0.7
+    c_ballast_pumped: 260
+    c_de_oil_vol: 260
+    c_dvl_on: -1
+    c_heading: 4.96727
+    c_pitch: 0.4528
+    c_wpt_lat:
+      value: 43.50000
+      round: 5
+    c_wpt_lon:
+      value: -126.00000
+      round: 5
+    m_air_pump: 1
+    m_altitude: 12.9695
+    m_ballast_pumped: 0
+    m_battery: 10.6873
+    m_battpos: 0.703717
+    m_coulomb_amphr: 40.9937
+    m_coulomb_amphr_total: 303.803
+    m_coulomb_current: 0.485094
+    m_depth: 0.258982
+    m_de_oil_vol: 259.77
+    m_fin: 0
+    m_heading: 5.05447
+    m_lithium_battery_relative_charge: 57.8052
+    m_pitch: 0.518363
+    m_pressure: 0.0258982
+    m_speed: 0.348396
+    m_raw_altitude: 16.967
+    m_roll: -0.10821
+    m_vacuum: 10.0444
+    m_water_depth: -1
+    m_water_vx: -0.0616963
+    m_water_vy: -0.144984
+  - _index: 3
+    particle_object: EngineeringScienceTelemeteredDataParticle
+    particle_type: glider_eng_sci_telemetered
+    internal_timestamp: '2012-02-21T18:39:29.262940Z'
+    sci_m_present_time: 1329849569.26294
+    sci_m_present_secs_into_mission: 0
+    sci_m_disk_free: 1000.1
+    sci_m_disk_usage: 1000.1

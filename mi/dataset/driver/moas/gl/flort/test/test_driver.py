@@ -1,8 +1,8 @@
 """
-@package mi.dataset.driver.moas.gl.flord.test.test_driver
-@file marine-integrations/mi/dataset/driver/moas/gl/flord/test/test_driver.py
-@author Bill French
-@brief Test cases for glider ctd data
+@package mi.dataset.driver.moas.gl.flort.test.test_driver
+@file marine-integrations/mi/dataset/driver/moas/gl/flort/test/test_driver.py
+@author Nick Almonte
+@brief Test cases for glider flort data
 
 USAGE:
  Make tests verbose and provide stdout
@@ -12,7 +12,7 @@ USAGE:
        $ bin/dsa/test_driver -q [-t testname]
 """
 
-__author__ = 'Bill French'
+__author__ = 'Nick Almonte'
 __license__ = 'Apache 2.0'
 
 import unittest
@@ -31,30 +31,26 @@ from mi.idk.exceptions import SampleTimeout
 
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
-from mi.dataset.driver.moas.gl.flord.driver import FLORDDataSetDriver
 
-from mi.dataset.parser.glider import FlordDataParticle
+from mi.dataset.driver.moas.gl.flort.driver import FLORTDataSetDriver
+
+from mi.dataset.parser.glider import FlortTelemeteredDataParticle
 from pyon.agent.agent import ResourceAgentState
 
 from interface.objects import ResourceAgentErrorEvent
 
-DATADIR='/tmp/dsatest'
-STORAGEDIR='/tmp/stored_dsatest'
-RESOURCE_ID='flord'
-
 DataSetTestCase.initialize(
-    driver_module='mi.dataset.driver.moas.gl.flord.driver',
-    driver_class="FLORDDataSetDriver",
+    driver_module='mi.dataset.driver.moas.gl.flort.driver',
+    driver_class="FLORTDataSetDriver",
 
     agent_resource_id = '123xyz',
     agent_name = 'Agent007',
-    agent_packet_config = FLORDDataSetDriver.stream_config(),
+    agent_packet_config = FLORTDataSetDriver.stream_config(),
     startup_config = {
-        DataSourceConfigKey.RESOURCE_ID: RESOURCE_ID,
         DataSourceConfigKey.HARVESTER:
         {
-            DataSetDriverConfigKeys.DIRECTORY: DATADIR,
-            DataSetDriverConfigKeys.STORAGE_DIRECTORY: STORAGEDIR,
+            DataSetDriverConfigKeys.DIRECTORY: '/tmp/florttest',
+            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_florttest',
             DataSetDriverConfigKeys.PATTERN: '*.mrg',
             DataSetDriverConfigKeys.FREQUENCY: 1,
         },
@@ -62,7 +58,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM='flord_m_glider_instrument'
+SAMPLE_STREAM = 'flort_m_glider_instrument'
     
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -71,7 +67,6 @@ SAMPLE_STREAM='flord_m_glider_instrument'
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
-
     def test_get(self):
         """
         Test that we can get data from files.  Verify that the driver sampling
@@ -85,17 +80,17 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data('single_glider_record.mrg', "CopyOf-single_glider_record.mrg")
         # Results file, Number of Particles (rows) expected to compare, timeout
-        self.assert_data(FlordDataParticle, 'single_flord_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_data(FlortTelemeteredDataParticle, 'single_flort_record.mrg.result.yml', count=1, timeout=10)
 
         self.clear_async_data()
         self.create_sample_data('multiple_glider_record.mrg', "CopyOf-multiple_glider_record.mrg")
         # Results file, Number of Particles (rows) expected to compare, timeout
-        self.assert_data(FlordDataParticle, 'multiple_flord_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_data(FlortTelemeteredDataParticle, 'multiple_flort_record.mrg.result.yml', count=4, timeout=10)
 
         log.debug("IntegrationTest.test_get(): Start second file ingestion")
         self.clear_async_data()
         self.create_sample_data('unit_247_2012_051_0_0-sciDataOnly.mrg', "CopyOf-unit_247_2012_051_0_0-sciDataOnly.mrg")
-        self.assert_data(FlordDataParticle, count=115, timeout=30)
+        self.assert_data(FlortTelemeteredDataParticle, count=115, timeout=30)
 
     def test_stop_resume(self):
         """
@@ -117,7 +112,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(FlordDataParticle, 'merged_flord_record.mrg.result.yml', count=3, timeout=10)
+        self.assert_data(FlortTelemeteredDataParticle, 'merged_flort_record.mrg.result.yml', count=3, timeout=10)
 
     def test_stop_start_ingest(self):
         """
@@ -130,14 +125,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         self.create_sample_data('single_glider_record.mrg', "CopyOf-single_glider_record.mrg")
         self.create_sample_data('multiple_glider_record.mrg', "xCopyOf-multiple_glider_record.mrg")
-        self.assert_data(FlordDataParticle, 'single_flord_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_data(FlortTelemeteredDataParticle, 'single_flort_record.mrg.result.yml', count=1, timeout=10)
         self.assert_file_ingested("CopyOf-single_glider_record.mrg")
         self.assert_file_not_ingested("xCopyOf-multiple_glider_record.mrg")
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
 
-        self.assert_data(FlordDataParticle, 'multiple_flord_record.mrg.result.yml', count=4, timeout=10)
+        self.assert_data(FlortTelemeteredDataParticle, 'multiple_flort_record.mrg.result.yml', count=4, timeout=10)
         self.assert_file_ingested("xCopyOf-multiple_glider_record.mrg")
 
     def test_bad_sample(self):
@@ -158,7 +153,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         # verify data is produced
-        self.assert_data(FlordDataParticle, 'bad_sample_flord_record.mrg.result.yml', count=1, timeout=10)
+        self.assert_data(FlortTelemeteredDataParticle, 'bad_sample_flort_record.mrg.result.yml', count=1, timeout=10)
         self.assert_file_ingested("CopyOf-multiple_glider_record.mrg")
 
     def test_sample_exception(self):
@@ -201,7 +196,7 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'single_flord_record.mrg.result.yml')
+            self.assert_data_values(result, 'single_flort_record.mrg.result.yml')
         except Exception as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
@@ -239,7 +234,7 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'single_flord_record.mrg.result.yml')
+            self.assert_data_values(result, 'single_flort_record.mrg.result.yml')
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
             self.create_sample_data('multiple_glider_record.mrg', "CopyOf-multiple_glider_record.mrg")
@@ -253,7 +248,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_start_sampling()
             result = self.get_samples(SAMPLE_STREAM, 3)
             log.debug("got result 2 %s", result)
-            self.assert_data_values(result, 'merged_flord_record.mrg.result.yml')
+            self.assert_data_values(result, 'merged_flort_record.mrg.result.yml')
 
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
         except SampleTimeout as e:
@@ -281,7 +276,7 @@ class QualificationTest(DataSetQualificationTestCase):
             log.debug("RESULT: %s", result)
 
             # Verify values
-            self.assert_data_values(result, 'single_flord_record.mrg.result.yml')
+            self.assert_data_values(result, 'single_flort_record.mrg.result.yml')
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
             self.create_sample_data('multiple_glider_record.mrg', "CopyOf-multiple_glider_record.mrg")
@@ -300,28 +295,26 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_start_sampling()
             result = self.get_samples(SAMPLE_STREAM, 3)
             log.debug("got result 2 %s", result)
-            self.assert_data_values(result, 'merged_flord_record.mrg.result.yml')
+            self.assert_data_values(result, 'merged_flort_record.mrg.result.yml')
 
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
 
-    @unittest.skip('foo')
     def test_parser_exception(self):
         """
         Test an exception raised after the driver is started during
         record parsing.
         """
         self.clear_sample_data()
-        self.create_sample_data('test_data_2.txt', 'DATA002.txt')
+        self.create_sample_data('unit_363_2013_245_7_7.mrg')
 
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 9)
         self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
         # Verify an event was raised and we are in our retry state
-        self.assert_event_received(ResourceAgentErrorEvent, 10)
+        self.assert_event_received(ResourceAgentErrorEvent, 40)
         self.assert_state_change(ResourceAgentState.STREAMING, 10)

@@ -1891,7 +1891,6 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
 
         while True:
             samples = self.get_sample_events(particle_type)
-            log.debug("Found %d samples, looking for %d", len(samples), particle_count)
             if len(samples) >= particle_count:
                 for sample in samples:
                     self.assertIsNotNone(sample)
@@ -1907,6 +1906,7 @@ class InstrumentDriverIntegrationTestCase(InstrumentDriverTestCase):   # Must in
                 log.debug('Found %d particles and all particles verified', len(samples))
                 return
 
+            log.error("Only found %d samples, looking for %d", len(samples), particle_count)
             self.assertGreater(end_time, time.time(), msg="Timeout waiting for sample")
             time.sleep(.3)
 
