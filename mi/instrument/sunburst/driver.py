@@ -109,7 +109,7 @@ REGULAR_STATUS_REGEX = (
     '([0-9A-Fa-f]{6})' +  # number of data records recorded
     '([0-9A-Fa-f]{6})' +  # number of errors
     '([0-9A-Fa-f]{6})' +  # number of bytes stored
-    '([0-9A-Fa-f]{2})' +  # checksum
+    '([0-9A-Fa-f]{2})' +  # unique id
     NEWLINE)
 REGULAR_STATUS_REGEX_MATCHER = re.compile(REGULAR_STATUS_REGEX)
 
@@ -379,7 +379,7 @@ class SamiRegularStatusDataParticleKey(BaseEnum):
     NUM_DATA_RECORDS = 'num_data_records'
     NUM_ERROR_RECORDS = 'num_error_records'
     NUM_BYTES_STORED = 'num_bytes_stored'
-    CHECKSUM = 'checksum'  # Particle key misnamed, checksum matches driver page
+    UNIQUE_ID = 'unique_id'
 
 
 class SamiRegularStatusDataParticle(DataParticle):
@@ -434,7 +434,7 @@ class SamiRegularStatusDataParticle(DataParticle):
                          SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS,
                          SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS,
                          SamiRegularStatusDataParticleKey.NUM_BYTES_STORED,
-                         SamiRegularStatusDataParticleKey.CHECKSUM]
+                         SamiRegularStatusDataParticleKey.UNIQUE_ID]
 
         result = []
         grp_index = 1  # used to index through match groups, starting at 1
@@ -1172,7 +1172,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                 log.debug("_handler_waiting_discover: next agent state: %s", next_agent_state)
                 return (next_state, (next_agent_state, result))
             else:
-                log.debug("_handler_waiting_discover: discover failed, attempt %d of 3", count)
+                log.debug("_handler_waiting_discover: discover failed, attempt %d of 6", count)
                 count += 1
                 time.sleep(20)
 

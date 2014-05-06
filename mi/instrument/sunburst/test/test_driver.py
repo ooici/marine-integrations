@@ -170,7 +170,7 @@ class SamiMixin(DriverTestMixin):
         SamiRegularStatusDataParticleKey.NUM_DATA_RECORDS:        {TYPE: int, VALUE: 0x000003, REQUIRED: True},
         SamiRegularStatusDataParticleKey.NUM_ERROR_RECORDS:       {TYPE: int, VALUE: 0x000000, REQUIRED: True},
         SamiRegularStatusDataParticleKey.NUM_BYTES_STORED:        {TYPE: int, VALUE: 0x000236, REQUIRED: True},
-        SamiRegularStatusDataParticleKey.CHECKSUM:                {TYPE: int, VALUE: 0xF8, REQUIRED: True}
+        SamiRegularStatusDataParticleKey.UNIQUE_ID:                {TYPE: int, VALUE: 0xF8, REQUIRED: True}
     }
 
     _control_record_parameters = {
@@ -413,26 +413,6 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
         if(require_instrument_timestamp):
             self.assertIsNotNone(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP))
             self.assertIsInstance(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP), float)
-
-
-    def test_acquire_status(self):
-        self.assert_initialize_driver()
-        self.clear_events()
-        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, SamiDataParticleType.REGULAR_STATUS, self.assert_particle_regular_status)
-        self.assert_async_particle_generation(SamiDataParticleType.CONFIGURATION, self.assert_particle_configuration)
-        self.assert_async_particle_generation(SamiDataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
-        self.assert_async_particle_generation(SamiDataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
-
-    def test_scheduled_device_status_command(self):
-        """
-        Verify the device status command can be triggered and run in command
-        """
-        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, delay=120)
-        self.clear_events()
-        self.assert_async_particle_generation(SamiDataParticleType.CONFIGURATION, self.assert_particle_configuration, timeout=180)
-        self.assert_async_particle_generation(SamiDataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
-        self.assert_async_particle_generation(SamiDataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
-        self.assert_current_state(ProtocolState.COMMAND)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

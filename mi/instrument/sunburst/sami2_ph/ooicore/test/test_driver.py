@@ -57,6 +57,9 @@ from mi.instrument.sunburst.sami2_ph.ooicore.driver import ProtocolEvent
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import Protocol
 from mi.instrument.sunburst.test.test_driver import SamiMixin
 from mi.instrument.sunburst.test.test_driver import SamiUnitTest
+from mi.instrument.sunburst.test.test_driver import SamiIntegrationTest
+from mi.instrument.sunburst.test.test_driver import SamiQualificationTest
+from mi.instrument.sunburst.driver import ScheduledJob
 
 ###
 #   Driver parameters for the tests
@@ -155,74 +158,76 @@ class DriverTestMixinSub(SamiMixin):
     _driver_parameters = {
         # Parameters defined in the PHSEN IOS. NOTE:these test values are
         # different than the PCO2's:/NOTE
-        Parameter.LAUNCH_TIME:              {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.LAUNCH_TIME:              {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x00000000, VALUE: 0xCDDD731D},
-        Parameter.START_TIME_FROM_LAUNCH:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.START_TIME_FROM_LAUNCH:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x00000000, VALUE: 0x01E13380},
-        Parameter.STOP_TIME_FROM_START:     {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.STOP_TIME_FROM_START:     {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x01E13380, VALUE: 0x01E13380},
-        Parameter.MODE_BITS:                {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.MODE_BITS:                {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x02, VALUE: 0x02},
-        Parameter.SAMI_SAMPLE_INTERVAL:     {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.SAMI_SAMPLE_INTERVAL:     {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x000E10, VALUE: 0x000E10},
-        Parameter.SAMI_DRIVER_VERSION:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.SAMI_DRIVER_VERSION:      {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x0A, VALUE: 0x0A},
-        Parameter.SAMI_PARAMS_POINTER:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.SAMI_PARAMS_POINTER:      {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x02, VALUE: 0x02},
-        Parameter.DEVICE1_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE1_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x000000, VALUE: 0x000000},
-        Parameter.DEVICE1_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE1_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00},
-        Parameter.DEVICE1_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE1_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x11, VALUE: 0x11},
-        Parameter.DEVICE2_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE2_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x000000, VALUE: 0x000000},
-        Parameter.DEVICE2_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE2_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00},
-        Parameter.DEVICE2_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE2_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x11, VALUE: 0x11},
-        Parameter.DEVICE3_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE3_SAMPLE_INTERVAL:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x000000, VALUE: 0x000000},
-        Parameter.DEVICE3_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE3_DRIVER_VERSION:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00},
-        Parameter.DEVICE3_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.DEVICE3_PARAMS_POINTER:   {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x11, VALUE: 0x11},
-        Parameter.PRESTART_SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PRESTART_SAMPLE_INTERVAL: {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x000000, VALUE: 0x000000},
-        Parameter.PRESTART_DRIVER_VERSION:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PRESTART_DRIVER_VERSION:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x00, VALUE: 0x00},
-        Parameter.PRESTART_PARAMS_POINTER:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PRESTART_PARAMS_POINTER:  {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x11, VALUE: 0x11},
-        Parameter.GLOBAL_CONFIGURATION:     {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.GLOBAL_CONFIGURATION:     {TYPE: int, READONLY: True, DA: True, STARTUP: False,
                                              DEFAULT: 0x07, VALUE: 0x07},
-        Parameter.NUMBER_SAMPLES_AVERAGED:  {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.NUMBER_SAMPLES_AVERAGED:  {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x01, VALUE: 0x01},
-        Parameter.NUMBER_FLUSHES:           {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.NUMBER_FLUSHES:           {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x37, VALUE: 0x37},
-        Parameter.PUMP_ON_FLUSH:            {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PUMP_ON_FLUSH:            {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x04, VALUE: 0x04},
-        Parameter.PUMP_OFF_FLUSH:           {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PUMP_OFF_FLUSH:           {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x20, VALUE: 0x20},
-        Parameter.NUMBER_REAGENT_PUMPS:     {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.NUMBER_REAGENT_PUMPS:     {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x01, VALUE: 0x01},
-        Parameter.VALVE_DELAY:              {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.VALVE_DELAY:              {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x08, VALUE: 0x08},
-        Parameter.PUMP_ON_IND:              {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PUMP_ON_IND:              {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x08, VALUE: 0x08},
-        Parameter.PV_OFF_IND:               {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PV_OFF_IND:               {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x10, VALUE: 0x10},
-        Parameter.NUMBER_BLANKS:            {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.NUMBER_BLANKS:            {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x04, VALUE: 0x04},
-        Parameter.PUMP_MEASURE_T:           {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PUMP_MEASURE_T:           {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x08, VALUE: 0x08},
-        Parameter.PUMP_OFF_TO_MEASURE:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.PUMP_OFF_TO_MEASURE:      {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x10, VALUE: 0x10},
-        Parameter.MEASURE_TO_PUMP_ON:       {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.MEASURE_TO_PUMP_ON:       {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x08, VALUE: 0x08},
-        Parameter.NUMBER_MEASUREMENTS:      {TYPE: int, READONLY: True, DA: False, STARTUP: False,
+        Parameter.NUMBER_MEASUREMENTS:      {TYPE: int, READONLY: False, DA: True, STARTUP: False,
                                              DEFAULT: 0x17, VALUE: 0x17},
-        Parameter.SALINITY_DELAY:           {TYPE: int, READONLY: True, DA: False, STARTUP: False,
-                                             DEFAULT: 0x00, VALUE: 0x00}
+        Parameter.SALINITY_DELAY:           {TYPE: int, READONLY: False, DA: True, STARTUP: False,
+                                             DEFAULT: 0x00, VALUE: 0x00},
+        Parameter.AUTO_SAMPLE_INTERVAL:     {TYPE: int, READONLY: False, DA: False, STARTUP: False,
+                                             DEFAULT: 0x38, VALUE: 3600},
     }
 
     _sami_data_sample_parameters = {
@@ -470,10 +475,201 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
-    def setUp(self):
-        InstrumentDriverIntegrationTestCase.setUp(self)
+class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 
+    def test_set(self):
+        self.assert_initialize_driver()
+        self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 77)
+
+        self.assert_set(Parameter.NUMBER_SAMPLES_AVERAGED, 0x02)
+        self.assert_set(Parameter.NUMBER_FLUSHES, 0x30)
+        self.assert_set(Parameter.PUMP_ON_FLUSH, 0x05)
+        self.assert_set(Parameter.PUMP_OFF_FLUSH, 0x25)
+        self.assert_set(Parameter.NUMBER_REAGENT_PUMPS, 0x02)
+        self.assert_set(Parameter.VALVE_DELAY, 0x0A)
+        self.assert_set(Parameter.PUMP_ON_IND, 0x0A)
+        self.assert_set(Parameter.PV_OFF_IND, 0x15)
+        self.assert_set(Parameter.NUMBER_BLANKS, 0x07)
+        self.assert_set(Parameter.PUMP_MEASURE_T, 0x0A)
+        self.assert_set(Parameter.PUMP_OFF_TO_MEASURE, 0x05)
+        self.assert_set(Parameter.MEASURE_TO_PUMP_ON, 0x07)
+        self.assert_set(Parameter.NUMBER_MEASUREMENTS, 0xA0)
+        self.assert_set(Parameter.SALINITY_DELAY, 0x05)
+
+        self.assert_set_readonly(Parameter.START_TIME_FROM_LAUNCH, 84600)
+        self.assert_set_readonly(Parameter.STOP_TIME_FROM_START, 84600)
+        self.assert_set_readonly(Parameter.MODE_BITS, 10)
+        self.assert_set_readonly(Parameter.SAMI_SAMPLE_INTERVAL, 1800)
+
+    def test_bulk_set(self):
+        self.assert_initialize_driver()
+
+        new_values = {
+            Parameter.AUTO_SAMPLE_INTERVAL: 77,
+            Parameter.NUMBER_SAMPLES_AVERAGED: 0x02,
+            Parameter.NUMBER_FLUSHES: 0x30,
+            Parameter.PUMP_ON_FLUSH: 0x05,
+            Parameter.PUMP_OFF_FLUSH: 0x25,
+            Parameter.NUMBER_REAGENT_PUMPS: 0x02,
+            Parameter.VALVE_DELAY: 0x0A,
+            Parameter.PUMP_ON_IND: 0x0A,
+            Parameter.PV_OFF_IND: 0x15,
+            Parameter.NUMBER_BLANKS: 0x07,
+            Parameter.PUMP_MEASURE_T: 0x0A,
+            Parameter.PUMP_OFF_TO_MEASURE: 0x05,
+            Parameter.MEASURE_TO_PUMP_ON: 0x07,
+            Parameter.NUMBER_MEASUREMENTS: 0xA0,
+            Parameter.SALINITY_DELAY: 0x05
+        }
+        self.assert_set_bulk(new_values)
+
+    def test_acquire_sample(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+
+    def test_acquire_blank_sample(self):
+        self.assert_initialize_driver()
+        # Will always take a blank sample first after initialization.
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+
+    def test_auto_sample(self):
+        self.assert_initialize_driver()
+        self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 320)
+        ## A blank sample is taken immediately upon entering autosample state
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=3, timeout=1280)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
+
+    def test_polled_sample_state(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.POLLED_SAMPLE, delay=5)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+
+    def test_polled_blank_sample_state(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, state=ProtocolState.POLLED_BLANK_SAMPLE, delay=5)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+
+    def test_scheduled_sample_state(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
+
+    def test_scheduled_blank_sample_state(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, state=ProtocolState.SCHEDULED_BLANK_SAMPLE, delay=5)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
+
+    def test_scheduled_blank_sample_command(self):
+        """
+        Verify the blank sample command can be triggered and run in command
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, delay=120)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=400)
+        self.assert_current_state(ProtocolState.COMMAND)
+
+    def test_scheduled_device_status_auto_sample(self):
+        """
+        Verify the device status command can be triggered and run in autosample
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, delay=160)
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
+        self.assert_async_particle_generation(DataParticleType.CONFIGURATION, self.assert_particle_configuration, timeout=280)
+        self.assert_async_particle_generation(DataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
+        self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+
+    def test_scheduled_blank_sample_auto_sample(self):
+        """
+        Verify the blank sample command can be triggered and run in autosample
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, delay=180)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=2, timeout=660)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+
+    def test_queued_command(self):
+        """
+        Verify commands are queued while samples are being taken
+        """
+        self.assert_initialize_driver()
+
+        ## Queue sample and status
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=240)
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+
+        ## Queue blank sample and status
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=240)
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+
+        self.assert_current_state(ProtocolState.COMMAND)
+
+    def test_queued_autosample(self):
+        """
+        Verify commands are queued while samples are being taken
+        """
+        self.assert_initialize_driver()
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
+
+        ## Queue sample and status
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=240)
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+
+        ## Queue blank sample and status
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=240)
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
+
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+
+    def test_acquire_status(self):
+        self.assert_initialize_driver()
+        self.clear_events()
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status)
+        self.assert_async_particle_generation(DataParticleType.CONFIGURATION, self.assert_particle_configuration)
+        self.assert_async_particle_generation(DataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
+        self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
+
+    def test_scheduled_device_status_command(self):
+        """
+        Verify the device status command can be triggered and run in command
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, delay=120)
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.CONFIGURATION, self.assert_particle_configuration, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
+        self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
+        self.assert_current_state(ProtocolState.COMMAND)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -482,7 +678,7 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class DriverQualificationTest(InstrumentDriverQualificationTestCase):
+class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 

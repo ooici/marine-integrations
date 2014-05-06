@@ -66,7 +66,7 @@ from mi.instrument.sunburst.driver import SAMI_TO_NTP
 #    Driver Constant Definitions
 ###
 
-SAMPLE_DELAY = 180
+SAMPLE_DELAY = 240
 
 ###
 #    Driver RegEx Definitions
@@ -138,6 +138,7 @@ class DataParticleType(SamiDataParticleType):
     """
     Data particle types produced by this driver
     """
+    CONFIGURATION = 'phsen_configuration'
     SAMI_SAMPLE = 'phsen_sami_data_record'
 
 
@@ -499,7 +500,7 @@ class Protocol(SamiProtocol):
         and value formatting function for set commands.
         """
         # Add parameter handlers to parameter dict.
-        self._param_dict = ProtocolParameterDict()
+        SamiProtocol._build_param_dict(self)
 
         configuration_string_regex = self._get_configuration_string_regex()
 
@@ -508,7 +509,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(4), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x02,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -519,7 +520,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(6), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x0A,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -529,7 +530,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(8), 16),
                              lambda x: self._int_to_hexstring(x, 6),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x000000,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -539,7 +540,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(9), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -549,7 +550,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(10), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
                              visibility=ParameterDictVisibility.IMMUTABLE,
@@ -559,7 +560,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(21), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x01,
                              visibility=ParameterDictVisibility.READ_WRITE,
@@ -569,7 +570,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(22), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x37,
                              visibility=ParameterDictVisibility.READ_WRITE,
@@ -579,7 +580,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(23), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x04,
                              visibility=ParameterDictVisibility.READ_WRITE,
@@ -589,7 +590,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(24), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x20,
                              visibility=ParameterDictVisibility.READ_WRITE,
@@ -599,7 +600,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(25), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x01,
                              visibility=ParameterDictVisibility.READ_WRITE,
@@ -609,7 +610,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(26), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x08,
                              visibility=ParameterDictVisibility.READ_WRITE,
@@ -619,7 +620,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(27), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x08,
                              visibility=ParameterDictVisibility.READ_WRITE,
@@ -629,7 +630,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(28), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x10,
                              visibility=ParameterDictVisibility.READ_WRITE,
@@ -639,7 +640,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(29), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x04,
                              visibility=ParameterDictVisibility.READ_WRITE,
@@ -649,7 +650,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(30), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x08,
                              visibility=ParameterDictVisibility.READ_WRITE,
@@ -659,7 +660,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(31), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x10,
                              visibility=ParameterDictVisibility.READ_WRITE,
@@ -669,7 +670,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(32), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x08,
                              visibility=ParameterDictVisibility.READ_WRITE,
@@ -679,7 +680,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(33), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x17,
                              visibility=ParameterDictVisibility.READ_WRITE,
@@ -689,7 +690,7 @@ class Protocol(SamiProtocol):
                              lambda match: int(match.group(34), 16),
                              lambda x: self._int_to_hexstring(x, 2),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=True,
                              default_value=0x00,
                              visibility=ParameterDictVisibility.READ_WRITE,

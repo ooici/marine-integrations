@@ -775,6 +775,25 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
+    def test_acquire_status(self):
+        self.assert_initialize_driver()
+        self.clear_events()
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status)
+        self.assert_async_particle_generation(DataParticleType.CONFIGURATION, self.assert_particle_configuration)
+        self.assert_async_particle_generation(DataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
+        self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
+
+    def test_scheduled_device_status_command(self):
+        """
+        Verify the device status command can be triggered and run in command
+        """
+        self.assert_scheduled_event(ScheduledJob.ACQUIRE_STATUS, delay=120)
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.CONFIGURATION, self.assert_particle_configuration, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
+        self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
+        self.assert_current_state(ProtocolState.COMMAND)
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #
