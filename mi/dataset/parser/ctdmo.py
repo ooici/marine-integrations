@@ -67,8 +67,8 @@ class CtdmoParserDataParticle(DataParticle):
                                                       new_sequence=None)
         self._data_match = DATA_MATCHER.match(self.raw_data[8:])
         if not self._data_match:
-            raise RecoverableSampleException("CtdmoParserDataParticle: No regex match of \
-                                              parsed sample data: [%s]", self.raw_data[8:])
+            raise RecoverableSampleException("CtdmoParserDataParticle: No regex match of "\
+                                              "parsed sample data: [%s]" % self.raw_data[8:])
         asciihextime = binascii.b2a_hex(self._data_match.group(1))
         # reverse byte order in time hex string
         timehex_reverse = asciihextime[6:8] + asciihextime[4:6] + \
