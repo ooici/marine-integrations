@@ -35,7 +35,10 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.instrument_protocol import MenuInstrumentProtocol
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+from mi.core.log import get_logging_metaclass
+
+log = get_logger()
 
 Directions = MenuInstrumentProtocol.MenuTree.Directions
 
@@ -150,15 +153,15 @@ class Parameter(DriverParameter):
     """
     Device parameters
     """
-    CYCLE_TIME = "CYCLE_TIME"
-    VERBOSE = "VERBOSE"
-    METADATA_POWERUP = "METADATA_POWERUP"
-    METADATA_RESTART = "METADATA_RESTART"
-    RES_SENSOR_POWER = "RES_SENSOR_POWER"
-    INST_AMP_POWER = "INST_AMP_POWER"
-    EH_ISOLATION_AMP_POWER = "EH_ISOLATION_AMP_POWER"
-    HYDROGEN_POWER = "HYDROGEN_POWER"
-    REFERENCE_TEMP_POWER = "REFERENCE_TEMP_POWER"
+    CYCLE_TIME = "trhph_cycle_time"
+    VERBOSE = "verbose"
+    METADATA_POWERUP = "trhph_metadata_on_powerup"
+    METADATA_RESTART = "trhph_metadata_on_restart"
+    RES_SENSOR_POWER = "trhph_res_power_status"
+    INST_AMP_POWER = "trhph_thermo_hydro_amp_power_status"
+    EH_ISOLATION_AMP_POWER = "trhph_eh_amp_power_status"
+    HYDROGEN_POWER = "trhph_hydro_sensor_power_status"
+    REFERENCE_TEMP_POWER = "trhph_ref_temp_power_status"
 
 class VisibleParameters(DriverParameter):
     """
@@ -261,7 +264,7 @@ class BarsDataParticle(DataParticle):
         
         @throw SampleException If there is a problem with sample creation
         """
-        log.debug(">>>_build_parsed_values")
+        #log.debug("_build_parsed_values")
 
         match = SAMPLE_REGEX.match(self.raw_data)
         
@@ -332,17 +335,7 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         #Construct superclass.
         SingleConnectionInstrumentDriver.__init__(self, evt_callback)
-        
-        self._connection_fsm.add_handler(DriverConnectionState.CONNECTED,
-                                         DriverEvent.DISCOVER,
-                                         self._handler_connected_discover)
 
-    def _handler_connected_discover(self, event, *args, **kwargs):
-        # Redefine discover handler so that we can apply startup params
-        # when we discover. Gotta get into command mode first though.
-        result = SingleConnectionInstrumentDriver._handler_connected_protocol_event(self, event, *args, **kwargs)
-        #self.apply_startup_params()   ?????????????? rhan 4/23
-        return result
     
     ########################################################################
     # Superclass overrides for resource query.
@@ -376,13 +369,12 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         the configuration.
         @raise InstrumentParameterException If the config cannot be applied
         """
-        log.debug('>>>apply_startup_params')
+        #log.debug('>>>apply_startup_params')
         config = self._protocol.get_startup_config()
         
         if not isinstance(config, dict):
-            log.debug('>>>Config is not an instance of dictionary')
-            log.infog('>>>Config is not an instance of dict')
-            raise InstrumentParameterException(">>>Incompatible initialization parameters")
+            log.info('Config is not an instance of dict')
+            raise InstrumentParameterException("Incompatible initialization parameters")
         
         log.debug("BARS driver applying config: %s", config)
         self._protocol.set_readonly_values()
@@ -397,6 +389,8 @@ class Protocol(MenuInstrumentProtocol):
     Instrument protocol class
     Subclasses MenuInstrumentProtocol
     """
+    __metaclass__ = get_logging_metaclass(log_level='debug')
+
     def __init__(self, menu, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -496,7 +490,7 @@ class Protocol(MenuInstrumentProtocol):
         Getting to command mode should be done before this method is called.
         A discover will get there.
         """
-        log.debug(">>>Returning to root menu...")
+        #log.debug(">>>Returning to root menu...")
         # Issue an enter or two off the bat to get out of any display screens
         # and confirm command mode
         try:
@@ -514,7 +508,6 @@ class Protocol(MenuInstrumentProtocol):
         while not str(response).lstrip().endswith(Prompt.MAIN_MENU):
             response = self._do_cmd_resp(Command.BACK_MENU,
                                          expected_prompt=MENU_PROMPTS)
-        log.debug("_go_to_root_menu exit")
 
             
     def _filter_capabilities(self, events):
@@ -526,15 +519,6 @@ class Protocol(MenuInstrumentProtocol):
         events_out = [x for x in events if Capability.has(x)]
         return events_out
 
-    def get_resource_capabilities(self, current_state=True):
-        """
-        """
-
-        res_cmds = self._protocol_fsm.get_events(current_state)
-        res_cmds = self._filter_capabilities(res_cmds)        
-        res_params = VisibleParameters.list()
-        
-        return [res_cmds, res_params]
         
     ########################################################################
     # Unknown handlers.
@@ -554,7 +538,7 @@ class Protocol(MenuInstrumentProtocol):
         Discover current state by going to the root menu 
         @retval (next_state, result)
         """
-        log.debug('>>>_handler_discover')
+
         next_state = None
         next_agent_state = None
         
@@ -593,7 +577,7 @@ class Protocol(MenuInstrumentProtocol):
             agent state changes happening with Get, so no next_agent_state
         @throw InstrumentParameterException for invalid parameter
         """
-        log.debug('>>>_handler_command_get')
+
         next_state = None
         result = None
         result_vals = {}
@@ -607,7 +591,7 @@ class Protocol(MenuInstrumentProtocol):
                       Parameter.METADATA_POWERUP, Parameter.METADATA_RESTART,
                       Parameter.REFERENCE_TEMP_POWER, Parameter.RES_SENSOR_POWER,
                       Parameter.VERBOSE]
-            log.debug("_handler_command_get: params == ALL")
+
             
         if not isinstance(params, list):
             raise InstrumentParameterException("GET parameter list not a list!")
@@ -622,7 +606,7 @@ class Protocol(MenuInstrumentProtocol):
             result_vals[param] = self._param_dict.get(param) 
         result = result_vals
 
-        log.debug(">>>Get finished, next: %s, result: %s", next_state, result)
+        #log.debug("Get finished, next: %s, result: %s", next_state, result)
         return (next_state, result)
 
 
@@ -630,7 +614,6 @@ class Protocol(MenuInstrumentProtocol):
         """
         Issue commands to the instrument to set various parameters
         """
-        log.debug('>>>_set_trhph_params')
 
         self._go_to_root_menu()
         for (key, val) in params.iteritems():
@@ -655,7 +638,7 @@ class Protocol(MenuInstrumentProtocol):
                     log.debug("Could not set cycle time. InstrumentParameterException!")
                     self._go_to_root_menu()
                     raise InstrumentProtocolException("Could not set cycle time")
-                log.debug(">>>finished setting CYCLE_TIME go to root menu")
+
                 self._go_to_root_menu()
 
             elif (key == Parameter.METADATA_POWERUP):
