@@ -163,11 +163,6 @@ class Parameter(DriverParameter):
     HYDROGEN_POWER = "trhph_hydro_sensor_power_status"
     REFERENCE_TEMP_POWER = "trhph_ref_temp_power_status"
 
-class VisibleParameters(DriverParameter):
-    """
-    Just the parameters that can be edited by the user
-    """
-    CYCLE_TIME = "CYCLE_TIME"
 
 # Device prompts.
 class Prompt(BaseEnum):
@@ -357,28 +352,6 @@ class InstrumentDriver(SingleConnectionInstrumentDriver):
         """
         self._protocol = Protocol(MENU, Prompt, NEWLINE, self._driver_event)
 
-    def apply_startup_params(self):
-        """
-        Apply the startup values previously stored in the protocol to
-        the running config of the live instrument. The startup values are the
-        values that are (1) marked as startup parameters and are (2) the "best"
-        value to use at startup. Preference is given to the previously-set init
-        value, then the default value, then the currently used value.
-        
-        This default method assumes a dict of parameter name and value for
-        the configuration.
-        @raise InstrumentParameterException If the config cannot be applied
-        """
-        #log.debug('>>>apply_startup_params')
-        config = self._protocol.get_startup_config()
-        
-        if not isinstance(config, dict):
-            log.info('Config is not an instance of dict')
-            raise InstrumentParameterException("Incompatible initialization parameters")
-        
-        log.debug("BARS driver applying config: %s", config)
-        self._protocol.set_readonly_values()
-        self.set_resource(config)
 
 ###############################################################################
 # Protocol
@@ -408,8 +381,8 @@ class Protocol(MenuInstrumentProtocol):
         # Add event handlers for protocol state machine.
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_discover)
-        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
 
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.DISCOVER, self._handler_discover)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET, self._handler_command_get)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.SET, self._handler_command_set)
@@ -418,6 +391,7 @@ class Protocol(MenuInstrumentProtocol):
         
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.DISCOVER, self._handler_discover)
+
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
@@ -490,7 +464,7 @@ class Protocol(MenuInstrumentProtocol):
         Getting to command mode should be done before this method is called.
         A discover will get there.
         """
-        #log.debug(">>>Returning to root menu...")
+        #log.debug("Returning to root menu...")
         # Issue an enter or two off the bat to get out of any display screens
         # and confirm command mode
         try:
@@ -577,7 +551,6 @@ class Protocol(MenuInstrumentProtocol):
             agent state changes happening with Get, so no next_agent_state
         @throw InstrumentParameterException for invalid parameter
         """
-
         next_state = None
         result = None
         result_vals = {}
@@ -585,20 +558,17 @@ class Protocol(MenuInstrumentProtocol):
         if (params == None):
             raise InstrumentParameterException("GET parameter list empty!")
             
-        if (params == Parameter.ALL):
-            params = [Parameter.CYCLE_TIME, Parameter.EH_ISOLATION_AMP_POWER,
-                      Parameter.HYDROGEN_POWER, Parameter.INST_AMP_POWER,
-                      Parameter.METADATA_POWERUP, Parameter.METADATA_RESTART,
-                      Parameter.REFERENCE_TEMP_POWER, Parameter.RES_SENSOR_POWER,
-                      Parameter.VERBOSE]
 
-            
+        if Parameter.ALL in params:
+            params = Parameter.list()
+            params.remove(Parameter.ALL)
+
         if not isinstance(params, list):
             raise InstrumentParameterException("GET parameter list not a list!")
 
         # Do a bulk update from the instrument since they are all on one page
         self._update_params()
-        
+
         # fill the return values from the update
         for param in params:
             if not Parameter.has(param):
@@ -617,7 +587,7 @@ class Protocol(MenuInstrumentProtocol):
 
         self._go_to_root_menu()
         for (key, val) in params.iteritems():
-            log.debug(">>> KEY = %s VALUE = %s", key, val)
+            #log.debug(" KEY = %s VALUE = %s", key, val)
             if not Parameter.has(key):
                 log.debug("Param %s not in Parameter keys", key)
                 raise InstrumentParameterException()
@@ -648,7 +618,6 @@ class Protocol(MenuInstrumentProtocol):
                 if not result:
                     raise InstrumentParameterException("Could not set param %s" % key)
 
-                log.debug(">>>finished setting METADATA_POWERUP")
                 self._go_to_root_menu()
 
             elif (key == Parameter.METADATA_RESTART):
@@ -659,7 +628,6 @@ class Protocol(MenuInstrumentProtocol):
                 if not result:
                     raise InstrumentParameterException("Could not set param %s" % key)
 
-                log.debug(">>>finished setting METADATA_RESTART")
                 self._go_to_root_menu()
 
             elif (key == Parameter.VERBOSE):
@@ -670,7 +638,6 @@ class Protocol(MenuInstrumentProtocol):
                 if not result:
                     raise InstrumentParameterException("Could not set param %s" % key)
 
-                log.debug(">>>finished setting VERBOSE")
                 self._go_to_root_menu()
 
             elif (key == Parameter.EH_ISOLATION_AMP_POWER):
@@ -679,10 +646,8 @@ class Protocol(MenuInstrumentProtocol):
                 while not result:
                     result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
 
-                log.debug(">>>finished setting EH_ISOLATION_AMP_POWER")
             elif (key == Parameter.HYDROGEN_POWER):
 
-                log.debug(">>>Trying to set HYDROGEN_POWER ")
                 result = self._navigate(SubMenu.HYDROGEN_POWER)
                 while not result:
                     result = self._navigate(SubMenu.HYDROGEN_POWER)
@@ -705,9 +670,10 @@ class Protocol(MenuInstrumentProtocol):
 
     def _set_params(self, *args, **kwargs):
         """
-        Issue commands to the instrument to set various parameters
+        Verify not readonly params and call set_trhph_params to issue commands to the instrument
+        to set various parameters
         """
-        log.debug('>>>_set_params')
+        #log.debug('_set_params')
 
         next_state = None
         result = None
@@ -722,7 +688,6 @@ class Protocol(MenuInstrumentProtocol):
 
         self._verify_not_readonly(*args, **kwargs)
 
-        #self._go_to_root_menu()
         self._set_trhph_params(params)
 
         # re-sync with param dict
@@ -741,7 +706,7 @@ class Protocol(MenuInstrumentProtocol):
         next_state = None
         result = None
 
-        log.debug('>>>_handler_command_set')
+        #log.debug('_handler_command_set')
         # Retrieve required parameter.
         # Raise if no parameter provided, or not a dict.
         try:
@@ -769,7 +734,7 @@ class Protocol(MenuInstrumentProtocol):
     def _handler_command_autosample(self, *args, **kwargs):
         """ Start autosample mode """
 
-        log.debug(">>>_handler_command_autosample")
+        #log.debug("_handler_command_autosample")
         next_state = None
         next_agent_state = None
         result = None
@@ -868,7 +833,7 @@ class Protocol(MenuInstrumentProtocol):
     ########################################################################    
     def _build_solo_command(self, cmd):
         """ Issue a simple command that does NOT require a newline at the end to
-        execute. Likly used for control characters or special characters """
+        execute. Likely used for control characters or special characters """
         return COMMAND_CHAR[cmd]
     
     def _build_menu_command(self, cmd):
@@ -916,7 +881,7 @@ class Protocol(MenuInstrumentProtocol):
         extract samples from a chunk of data
         @param chunk: bytes to parse into a sample.
         '''
-        log.debug(">>>_got_chunk")
+        #log.debug("_got_chunk")
         if not (self._extract_sample(BarsDataParticle, SAMPLE_REGEX, chunk, timestamp)):
              raise InstrumentProtocolException("Unhandled chunk")
         
@@ -928,7 +893,7 @@ class Protocol(MenuInstrumentProtocol):
         @throw InstrumentProtocolException
         @throw InstrumentTimeoutException
         """
-        log.debug(">>>Updating parameter dict")
+        #log.debug("Updating parameter dict")
         old_config = self._param_dict.get_config()
         self._get_config()
         new_config = self._param_dict.get_config()            
@@ -981,96 +946,7 @@ class Protocol(MenuInstrumentProtocol):
 
         log.trace("_send_break failing after several attempts")
         return False   
- 
-    def set_readonly_values(self, *args, **kwargs):
-        """Set read-only values to the instrument. This is usually (only?)
-        done at initialization.
-        
-        @throw InstrumentProtocolException When in the wrong state or something
-        really bad prevents the setting of all values.
-        """
-        log.debug('>>>set_readonly_values')
-        # Let's give it a try in unknown state
-        if (self.get_current_state() != ProtocolState.COMMAND):
-            raise InstrumentProtocolException("Not in command state. Unable to set read-only params")
 
-        self._go_to_root_menu()
-        self._update_params()
-
-        for param in self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY):
-            if not Parameter.has(param):
-                raise InstrumentParameterException()
-
-            self._go_to_root_menu()
-            # Only try to change them if they arent set right as it is
-            log.debug("Setting read-only parameter: %s, current paramdict value: %s, init val: %s",
-                      param, self._param_dict.get(param),
-                      self._param_dict.get_init_value(param))
-            if (self._param_dict.get(param) != self._param_dict.get_init_value(param)):
-                if (param == Parameter.METADATA_POWERUP):
-                    self._navigate(SubMenu.METADATA_POWERUP)
-                    result = self._do_cmd_resp(Command.DIRECT_SET, (1+ int(self._param_dict.get_init_value(param))),
-                                               expected_prompt=Prompt.CHANGE_PARAM_MENU)
-                    if not result:
-                        raise InstrumentParameterException("Could not set param %s" % param)
-                    
-                    self._go_to_root_menu()                
-                
-                elif (param == Parameter.METADATA_RESTART):
-                    self._navigate(SubMenu.METADATA_RESTART)
-                    result = self._do_cmd_resp(Command.DIRECT_SET, (1 + int(self._param_dict.get_init_value(param))),
-                                               expected_prompt=Prompt.CHANGE_PARAM_MENU)
-                    if not result:
-                        raise InstrumentParameterException("Could not set param %s" % param)
-                    
-                    self._go_to_root_menu()
-                    
-                elif (param == Parameter.VERBOSE):
-                    self._navigate(SubMenu.VERBOSE)
-                    result = self._do_cmd_resp(Command.DIRECT_SET, self._param_dict.get_init_value(param),
-                                               expected_prompt=Prompt.CHANGE_PARAM_MENU)
-                    if not result:
-                        raise InstrumentParameterException("Could not set param %s" % param)
-                    
-                    self._go_to_root_menu()    
-                    
-                elif (param == Parameter.EH_ISOLATION_AMP_POWER):
-                    result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
-                    while not result:
-                        result = self._navigate(SubMenu.EH_ISOLATION_AMP_POWER)
-                        
-                elif (param == Parameter.HYDROGEN_POWER):
-                    result = self._navigate(SubMenu.HYDROGEN_POWER)
-                    while not result:
-                        result = self._navigate(SubMenu.HYDROGEN_POWER)
-        
-                elif (param == Parameter.INST_AMP_POWER):
-                    result = self._navigate(SubMenu.INST_AMP_POWER)
-                    while not result:
-                        result = self._navigate(SubMenu.INST_AMP_POWER)
-                    
-                elif (param == Parameter.REFERENCE_TEMP_POWER):
-                    result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
-                    while not result:
-                        result = self._navigate(SubMenu.REFERENCE_TEMP_POWER)
-                    
-                elif (param == Parameter.RES_SENSOR_POWER):
-                    result = self._navigate(SubMenu.RES_SENSOR_POWER)
-                    while not result:
-                        result = self._navigate(SubMenu.RES_SENSOR_POWER)
-                
-        # re-sync with param dict?
-        self._go_to_root_menu()
-        self._update_params()
-        
-        # Should be good by now, but let's double check just to be safe
-        for param in self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY):
-            if (param == Parameter.VERBOSE):
-                continue
-            if (self._param_dict.get(param) != self._param_dict.get_init_value(param)):
-                log.debug(">>>>param = %s, param_dict param = %s, param_dict int val = %s", param,
-                    self._param_dict.get(param), self._param_dict.get_init_value(param))
-                raise InstrumentProtocolException("Could not set default values!")
 
 
     def _build_driver_dict(self):
@@ -1263,7 +1139,7 @@ class Protocol(MenuInstrumentProtocol):
             a number of minutes where the seconds are rounded down to the
             nearest minute.
         """
-        log.debug('>>>_from_seconds')
+        #log.debug('_from_seconds')
         if (value < 15) or (value > 3600):
             raise InstrumentParameterException("Invalid seconds value: %s" % value)
         
