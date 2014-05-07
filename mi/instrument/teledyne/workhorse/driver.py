@@ -130,8 +130,8 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._cmd_dict.add(TeledyneCapability.GET_CONFIGURATION,
                            timeout=300,
                            display_name="get configuration")
-        self._cmd_dict.add(TeledyneCapability.GET_INSTRUMENT_TRANSFORM_MATRIX,
-                           display_name="get instrument transform matrix")
+        #self._cmd_dict.add(TeledyneCapability.GET_INSTRUMENT_TRANSFORM_MATRIX,
+        #                   display_name="get instrument transform matrix")
         self._cmd_dict.add(TeledyneCapability.SAVE_SETUP_TO_RAM,
                            display_name="save setup to ram")
         self._cmd_dict.add(TeledyneCapability.SEND_LAST_SAMPLE,
