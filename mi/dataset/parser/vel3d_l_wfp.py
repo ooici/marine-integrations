@@ -17,7 +17,6 @@ __license__ = 'Apache 2.0'
 
 import copy
 import ntplib
-#import re
 import struct
 import time
 
@@ -188,7 +187,6 @@ class Vel3dLWfpInstrumentParticle(DataParticle):
                 elapsed_seconds = time.mktime(timestamp)
                 ntp_time = ntplib.system_to_ntp_time(elapsed_seconds)
                 self.set_internal_timestamp(timestamp=ntp_time)
-                log.info("INST ntp_time %f", ntp_time)
 
                 #
                 # Generate the date time array to be stored in the particle.
@@ -241,7 +239,6 @@ class Vel3dLWfpMetadataParticle(DataParticle):
         seconds = fields[FIELD_METADATA_TIMESTAMP]
         ntp_time = ntplib.system_to_ntp_time(seconds)
         self.set_internal_timestamp(timestamp=ntp_time)
-        log.info("META ntp_time %f", ntp_time)
 
         #
         # Extract the metadata particle fields from the parsed values.
@@ -282,8 +279,6 @@ class Vel3dLParser(Parser):
         if len(fields) > 0:
             for x in range(0, len(fields)):
                 particle_type = fields[x][0]
-                #log.info("XXX Particle %d", particle_type)
-                #log.info("%s", str(fields[x][1]))
 
                 if particle_type == PARTICLE_TYPE_INSTRUMENT:
                     particle_class = Vel3dLWfpInstrumentParticle
@@ -450,7 +445,6 @@ class Vel3dLParser(Parser):
 #class Vel3dLWfpParser(BufferLoadingFilenameParser, Vel3dLParser):
 class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
 
-
     _state = None
     _read_state = None
 
@@ -520,7 +514,6 @@ class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
         while chunk is not None:
             fields = self.parse_recovered_data(chunk)
             self._increment_position(len(chunk))
-            #log.info('FIELDS %s', fields)
 
             #
             # Generate the particles for this chunk.
@@ -530,14 +523,12 @@ class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
             for x in range(0,len(particles)):
                 result_particles.append((particles[x], copy.copy(self._read_state)))
 
-            #log.info("COUNT %d", samples)
             self._increment_position(len(chunk))
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
             self.handle_non_data(non_data, non_end, start)
 
-        #log.info("PARSE CHUNKS %d", len(result_particles))
         return result_particles
 
     def parse_recovered_data(self, chunk):
@@ -564,7 +555,6 @@ class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
             raise DatasetParserException("Invalid state structure")
 
         if not (Vel3dLWfpStateKey.POSITION in state_obj):
-
             raise DatasetParserException("Invalid state keys")
 
         self._record_buffer = []
