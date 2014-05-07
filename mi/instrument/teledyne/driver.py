@@ -76,7 +76,7 @@ class TeledyneParameter(DriverParameter):
     TIME_PER_ENSEMBLE = 'TE'            # 01:00:00.00 (hrs:min:sec.sec/100)
     TIME_OF_FIRST_PING = 'TG'           # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
     TIME_PER_PING = 'TP'                # 00:00.20  (min:sec.sec/100)
-    TIME = 'TT'                         # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
+    #TIME = 'TT'                         # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
     FALSE_TARGET_THRESHOLD = 'WA'       # 255,001 (Max)(0-255),Start Bin # <--------- TRICKY.... COMPLEX TYPE
     BANDWIDTH_CONTROL = 'WB'            # Bandwidth Control (0=Wid,1=Nar)
     CORRELATION_THRESHOLD = 'WC'        # 064  Correlation Threshold
@@ -85,8 +85,8 @@ class TeledyneParameter(DriverParameter):
     BLANK_AFTER_TRANSMIT = 'WF'         # 0088  Blank After Transmit (cm)
     CLIP_DATA_PAST_BOTTOM = 'WI'        # 0 Clip Data Past Bottom (0=OFF,1=ON)
     RECEIVER_GAIN_SELECT = 'WJ'         # 1  Rcvr Gain Select (0=Low,1=High)
-    WATER_REFERENCE_LAYER = 'WL'        # 001,005  Water Reference Layer: Begin Cell (0=OFF), End Cell
-    WATER_PROFILING_MODE = 'WM'         # Profiling Mode (1-15)
+    #WATER_REFERENCE_LAYER = 'WL'        # 001,005  Water Reference Layer: Begin Cell (0=OFF), End Cell
+    #WATER_PROFILING_MODE = 'WM'         # Profiling Mode (1-15)
     NUMBER_OF_DEPTH_CELLS = 'WN'        # Number of depth cells (1-255)
     PINGS_PER_ENSEMBLE = 'WP'           # Pings per Ensemble (0-16384)
     DEPTH_CELL_SIZE = 'WS'              # 0800  Depth Cell Size (cm)
@@ -136,7 +136,6 @@ class TeledyneInstrumentCmds(BaseEnum):
     GET_FAULT_LOG = 'FD'
 
     GET_SYSTEM_CONFIGURATION = 'PS0'
-    GET_INSTRUMENT_TRANSFORM_MATRIX = 'PS3'
     RUN_TEST_200 = 'PT200'
     SET = ' '  # leading spaces are OK. set is just PARAM_NAME next to VALUE
     GET = '  '
@@ -216,7 +215,6 @@ class TeledyneCapability(BaseEnum):
     CLEAR_ERROR_STATUS_WORD = TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD
     GET_FAULT_LOG = TeledyneProtocolEvent.GET_FAULT_LOG
     CLEAR_FAULT_LOG = TeledyneProtocolEvent.CLEAR_FAULT_LOG
-    #GET_INSTRUMENT_TRANSFORM_MATRIX = TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX
     RUN_TEST_200 = TeledyneProtocolEvent.RUN_TEST_200
     FACTORY_SETS = TeledyneProtocolEvent.FACTORY_SETS
     USER_SETS = TeledyneProtocolEvent.USER_SETS
@@ -224,7 +222,7 @@ class TeledyneCapability(BaseEnum):
     ACQUIRE_STATUS = TeledyneProtocolEvent.ACQUIRE_STATUS
     START_DIRECT_ACCESS = TeledyneProtocolEvent.START_DIRECT
     STOP_DIRECT_ACCESS = TeledyneProtocolEvent.STOP_DIRECT
-    #ACQUIRE_SAMPLE = TeledyneProtocolEvent.ACQUIRE_SAMPLE
+
 
 class TeledyneScheduledJob(BaseEnum):
 
@@ -303,7 +301,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SEND_LAST_SAMPLE, self._handler_command_send_last_sample)
 
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.START_DIRECT, self._handler_command_start_direct)
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX, self._handler_command_get_instrument_transform_matrix)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.RUN_TEST_200, self._handler_command_run_test_200)
         #//
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.FACTORY_SETS, self._handler_command_factory_sets)
@@ -315,7 +312,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_FAULT_LOG, self._handler_command_display_fault_log)
 
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.ACQUIRE_STATUS, self._handler_command_acquire_status)
-        #self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.ACQUIRE_SAMPLE, self._handler_command_acquire_sample)
 
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.EXIT, self._handler_autosample_exit)
@@ -331,9 +327,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(TeledyneProtocolState.AUTOSAMPLE, TeledyneProtocolEvent.DISCOVER, self._handler_unknown_discover) 
 
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.RECOVER_AUTOSAMPLE, self._handler_recover_autosample)
-
-
-
 
         self._protocol_fsm.add_handler(TeledyneProtocolState.DIRECT_ACCESS, TeledyneProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(TeledyneProtocolState.DIRECT_ACCESS, TeledyneProtocolEvent.EXIT, self._handler_direct_access_exit)
@@ -355,12 +348,15 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(TeledyneInstrumentCmds.CLEAR_FAULT_LOG, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.GET_FAULT_LOG, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, self._build_simple_command)
-        self._add_build_handler(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.RUN_TEST_200, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.FACTORY_SETS, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.USER_SETS, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.SET, self._build_set_command)
         self._add_build_handler(TeledyneInstrumentCmds.GET, self._build_get_command)
+        self._add_build_handler(TeledyneInstrumentCmds.OUTPUT_PT2, self._build_get_command)
+        self._add_build_handler(TeledyneInstrumentCmds.OUTPUT_PT4, self._build_get_command)
+
+
         #
         # Response handlers
         #
@@ -375,8 +371,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(TeledyneInstrumentCmds.CLEAR_FAULT_LOG, self._parse_clear_fault_log_response)
         self._add_response_handler(TeledyneInstrumentCmds.GET_FAULT_LOG, self._parse_fault_log_response)
         self._add_response_handler(TeledyneInstrumentCmds.GET_SYSTEM_CONFIGURATION, self._parse_get_system_configuration)
-
-        self._add_response_handler(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, self._parse_instrument_transform_matrix_response)
         self._add_response_handler(TeledyneInstrumentCmds.RUN_TEST_200, self._parse_test_response)
 
         self._add_response_handler(TeledyneInstrumentCmds.FACTORY_SETS, self._parse_factory_set_response)
