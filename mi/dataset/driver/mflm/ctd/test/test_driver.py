@@ -37,7 +37,7 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 from mi.dataset.driver.mflm.ctd.driver import MflmCTDMODataSetDriver
-from mi.dataset.parser.ctdmo import CtdmoParserDataParticle
+from mi.dataset.parser.ctdmo import CtdmoParserDataParticle, DataParticleType
 
 
 DataSetTestCase.initialize(
@@ -59,7 +59,6 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM='ctdmo_parsed'
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -222,12 +221,12 @@ class QualificationTest(DataSetQualificationTestCase):
 
         try:
             # Verify we get one sample
-            result = self.data_subscribers.get_samples(SAMPLE_STREAM, 4)
+            result = self.data_subscribers.get_samples(DataParticleType.CT, 4)
             log.info("RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
-        except Exception as e:
+        except SampleTimeout as e:
             log.error("Exception trapped: %s", e)
             self.fail("Sample timeout.")
 
@@ -238,7 +237,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,8,30)
+        result = self.get_samples(DataParticleType.CT,8,30)
 
     def test_stop_start(self):
         """
@@ -257,30 +256,30 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.get_samples(SAMPLE_STREAM, 4)
+            result = self.get_samples(DataParticleType.CT, 4)
             log.debug("RESULT: %s", result)
 
             # Verify values
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(DataParticleType.CT, 0)
 
             self.create_sample_data('node59p1_step2.dat', "node59p1.dat")
             # Now read the first record of the second file then stop
-            result1 = self.get_samples(SAMPLE_STREAM, 1)
+            result1 = self.get_samples(DataParticleType.CT, 1)
             log.debug("RESULT 1: %s", result1)
             self.assert_stop_sampling()
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(DataParticleType.CT, 0)
 
             # Restart sampling and ensure we get the last record of the file
             self.assert_start_sampling()
-            result2 = self.get_samples(SAMPLE_STREAM, 1)
+            result2 = self.get_samples(DataParticleType.CT, 1)
             log.debug("RESULT 2: %s", result2)
             result = result1
             result.extend(result2)
             log.debug("RESULT: %s", result)
             self.assert_data_values(result, 'test_data_2.txt.result.yml')
 
-            self.assert_sample_queue_size(SAMPLE_STREAM, 0)
+            self.assert_sample_queue_size(DataParticleType.CT, 0)
         except SampleTimeout as e:
             log.error("Exception trapped: %s", e, exc_info=True)
             self.fail("Sample timeout.")
