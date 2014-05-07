@@ -406,7 +406,7 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
     def setUp(self):
         NortekIntTest.setUp(self)
 
-    def test_command_acquire_sample(self):
+    def test_acquire_sample(self):
         """
         Test acquire sample command and events.
 
@@ -429,29 +429,14 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         4. command the instrument back to COMMAND state
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
-        # test autosample
+
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
 
-        self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
         self.assert_async_particle_generation(DataParticleType.VELOCITY_HEADER, self.assert_particle_velocity)
         self.assert_async_particle_generation(DataParticleType.SYSTEM, self.assert_particle_system)
         self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=45)
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
-    # def test_instrument_read_id(self):
-    #     """
-    #     Test for reading ID, need to be implemented in the child class because each ID is unique to the
-    #     instrument.
-    #     """
-    #     self.assert_initialize_driver()
-    #
-    #     # command the instrument to read the ID.
-    #     response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
-    #
-    #     log.debug("read ID returned: %s", response)
-    #     self.assertTrue(re.search(r'VEL .*', response[1]))
-    #
-    #     self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

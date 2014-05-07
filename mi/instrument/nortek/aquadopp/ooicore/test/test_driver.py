@@ -24,19 +24,15 @@ __license__ = 'Apache 2.0'
 
 from gevent import monkey; monkey.patch_all()
 import gevent
-import re
-import base64
+
 
 from nose.plugins.attrib import attr
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger; log = get_logger()
 
 from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
-from mi.idk.unit_test import AgentCapabilityType
 
-from mi.core.instrument.instrument_driver import ResourceAgentEvent, DriverConfigKey, DriverParameter
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverEvent
 
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.chunker import StringChunker
@@ -51,12 +47,8 @@ from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataP
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticleKey
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticDataParticle
 
-from interface.objects import AgentCommand
-from interface.objects import CapabilityType
-
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest
-from mi.instrument.nortek.driver import Parameter, ProtocolState, ProtocolEvent, ID_DATA_PATTERN, NortekDataParticleType, \
-    TIMEOUT
+from mi.instrument.nortek.driver import Parameter, ProtocolState, ProtocolEvent, NortekDataParticleType, TIMEOUT
 
 ###
 #   Driver parameters for the tests
@@ -70,121 +62,6 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={}
 )
-
-params_dict = {
-    Parameter.TRANSMIT_PULSE_LENGTH: int,
-    Parameter.BLANKING_DISTANCE: int,
-    Parameter.RECEIVE_LENGTH: int,
-    Parameter.TIME_BETWEEN_PINGS: int,
-    Parameter.TIME_BETWEEN_BURST_SEQUENCES: int,
-    Parameter.NUMBER_PINGS: int,
-    Parameter.AVG_INTERVAL: int,
-    Parameter.USER_NUMBER_BEAMS: int,
-    Parameter.TIMING_CONTROL_REGISTER: int,
-    Parameter.POWER_CONTROL_REGISTER: int,
-    Parameter.COMPASS_UPDATE_RATE: int,
-    Parameter.COORDINATE_SYSTEM: int,
-    Parameter.NUMBER_BINS: int,
-    Parameter.BIN_LENGTH: int,
-    Parameter.MEASUREMENT_INTERVAL: int,
-    Parameter.DEPLOYMENT_NAME: str,
-    Parameter.WRAP_MODE: int,
-    Parameter.CLOCK_DEPLOY: str,
-    Parameter.DIAGNOSTIC_INTERVAL: int,
-    Parameter.MODE: int,
-    Parameter.ADJUSTMENT_SOUND_SPEED: int,
-    Parameter.NUMBER_SAMPLES_DIAGNOSTIC: int,
-    Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC: int,
-    Parameter.NUMBER_PINGS_DIAGNOSTIC: int,
-    Parameter.MODE_TEST: int,
-    Parameter.ANALOG_INPUT_ADDR: int,
-    Parameter.SW_VERSION: int,
-    Parameter.VELOCITY_ADJ_TABLE: str,
-    Parameter.COMMENTS: str,
-    Parameter.WAVE_MEASUREMENT_MODE: int,
-    Parameter.DYN_PERCENTAGE_POSITION: int,
-    Parameter.WAVE_TRANSMIT_PULSE: int,
-    Parameter.WAVE_BLANKING_DISTANCE: int,
-    Parameter.WAVE_CELL_SIZE: int,
-    Parameter.NUMBER_DIAG_SAMPLES: int,
-    Parameter.ANALOG_OUTPUT_SCALE: int,
-    Parameter.CORRELATION_THRESHOLD: int,
-    Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG: int,
-    Parameter.QUAL_CONSTANTS: str}
-
-
-# def user_config1():
-#     # CompassUpdateRate = 600, MeasurementInterval = 600
-#     user_config_values = "A5 00 00 01 7D 00 37 00 20 00 B5 01 00 02 01 00 \
-#                           3C 00 03 00 00 00 00 00 00 00 00 00 00 00 58 02 \
-#                           00 00 01 00 20 00 58 02 00 00 00 00 00 00 00 00 \
-#                           59 12 03 14 12 08 C0 A8 00 00 20 00 11 41 14 00 \
-#                           01 00 14 00 04 00 00 00 00 00 5E 01 02 3D 1E 3D \
-#                           39 3D 53 3D 6E 3D 88 3D A2 3D BB 3D D4 3D ED 3D \
-#                           06 3E 1E 3E 36 3E 4E 3E 65 3E 7D 3E 93 3E AA 3E \
-#                           C0 3E D6 3E EC 3E 02 3F 17 3F 2C 3F 41 3F 55 3F \
-#                           69 3F 7D 3F 91 3F A4 3F B8 3F CA 3F DD 3F F0 3F \
-#                           02 40 14 40 26 40 37 40 49 40 5A 40 6B 40 7C 40 \
-#                           8C 40 9C 40 AC 40 BC 40 CC 40 DB 40 EA 40 F9 40 \
-#                           08 41 17 41 25 41 33 41 42 41 4F 41 5D 41 6A 41 \
-#                           78 41 85 41 92 41 9E 41 AB 41 B7 41 C3 41 CF 41 \
-#                           DB 41 E7 41 F2 41 FD 41 08 42 13 42 1E 42 28 42 \
-#                           33 42 3D 42 47 42 51 42 5B 42 64 42 6E 42 77 42 \
-#                           80 42 89 42 91 42 9A 42 A2 42 AA 42 B2 42 BA 42 \
-#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-#                           00 00 00 00 00 00 00 00 1E 00 5A 00 5A 00 BC 02 \
-#                           32 00 00 00 00 00 00 00 07 00 00 00 00 00 00 00 \
-#                           00 00 00 00 00 00 1E 00 00 00 00 00 2A 00 00 00 \
-#                           02 00 14 00 EA 01 14 00 EA 01 0A 00 05 00 00 00 \
-#                           40 00 40 00 02 00 0F 00 5A 00 00 00 01 00 C8 00 \
-#                           00 00 00 00 0F 00 EA 01 EA 01 00 00 00 00 00 00 \
-#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 06 00 \
-#                           14 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 \
-#                           00 00 00 00 00 00 00 00 00 00 00 00 00 00 0A FF \
-#                           CD FF 8B 00 E5 00 EE 00 0B 00 84 FF 3D FF 82 8E"
-#
-#     user_config_values2 = "A5 00 00 01 7D 00 31 00 20 00 B5 01 00 02 01 00 " \
-#                           "3C 00 03 00 40 00 00 00 00 00 00 00 00 00 02 00 " \
-#                           "00 00 01 00 20 00 58 02 00 00 00 00 00 00 00 00 " \
-#                           "40 43 05 15 14 05 C0 A8 00 00 22 00 11 41 14 00 " \
-#                           "01 00 14 00 04 00 00 00 4E 36 5E 01 02 3D 1E 3D " \
-#                           "39 3D 53 3D 6E 3D 88 3D A2 3D BB 3D D4 3D ED 3D " \
-#                           "06 3E 1E 3E 36 3E 4E 3E 65 3E 7D 3E 93 3E AA 3E " \
-#                           "C0 3E D6 3E EC 3E 02 3F 17 3F 2C 3F 41 3F 55 3F " \
-#                           "69 3F 7D 3F 91 3F A4 3F B8 3F CA 3F DD 3F F0 3F " \
-#                           "02 40 14 40 26 40 37 40 49 40 5A 40 6B 40 7C 40 " \
-#                           "8C 40 9C 40 AC 40 BC 40 CC 40 DB 40 EA 40 F9 40 " \
-#                           "08 41 17 41 25 41 33 41 42 41 4F 41 5D 41 6A 41 " \
-#                           "78 41 85 41 92 41 9E 41 AB 41 B7 41 C3 41 CF 41 " \
-#                           "DB 41 E7 41 F2 41 FD 41 08 42 13 42 1E 42 28 42 " \
-#                           "33 42 3D 42 47 42 51 42 5B 42 64 42 6E 42 77 42 " \
-#                           "80 42 89 42 91 42 9A 42 A2 42 AA 42 B2 42 BA 42 " \
-#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
-#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
-#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
-#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
-#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
-#                           "00 00 00 00 00 00 00 00 1E 00 5A 00 5A 00 BC 02 " \
-#                           "32 00 00 00 00 00 00 00 07 00 00 00 00 00 00 00 " \
-#                           "00 00 00 00 00 00 1E 00 00 00 00 00 2A 00 00 00 " \
-#                           "02 00 14 00 EA 01 14 00 EA 01 0A 00 05 00 00 00 " \
-#                           "40 00 40 00 02 00 0F 00 5A 00 00 00 01 00 C8 00 " \
-#                           "00 00 00 00 0F 00 EA 01 EA 01 00 00 00 00 00 00 " \
-#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
-#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 06 00 " \
-#                           "14 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 " \
-#                           "00 00 00 00 00 00 00 00 00 00 00 00 00 00 0A FF " \
-#                           "CD FF 8B 00 E5 00 EE 00 0B 00 84 FF 3D FF A1 F1"
-#
-#     user_config = ''
-#     for value in user_config_values2.split():
-#         user_config += chr(int(value, 16))
-#     return user_config
 
 
 def user_config2():
@@ -601,21 +478,6 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         self.assertTrue(len(sample_events) >= 4)
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
-
-    # def test_instrument_read_id(self):
-    #     """
-    #     Test for reading ID, need to be implemented in the child class because each ID is unique to the
-    #     instrument.
-    #     """
-    #     self.assert_initialize_driver()
-    #
-    #     # command the instrument to read the ID.
-    #     response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
-    #
-    #     log.debug("read ID returned: %s", response)
-    #     self.assertTrue(re.search(r'AQD .*', response[1]))
-    #
-    #     self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
                
 
 ###############################################################################

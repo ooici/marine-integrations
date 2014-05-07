@@ -13,19 +13,24 @@ __license__ = 'Apache 2.0'
 import re
 
 from mi.core.common import BaseEnum
+
 from mi.core.log import get_logger ; log = get_logger()
+
 from mi.core.exceptions import SampleException
+
 from mi.core.instrument.chunker import StringChunker
+
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+
 from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentPrompts, NortekProtocolParameterDict, \
     USER_CONFIG_DATA_REGEX, HARDWARE_CONFIG_DATA_REGEX, HEAD_CONFIG_DATA_REGEX, NEWLINE, \
-    BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, \
-    NortekEngBatteryDataParticle, NortekEngClockDataParticle, NortekEngIdDataParticle, EngineeringParameter, \
-    INTERVAL_TIME_REGEX, TIMEOUT, InstrumentCmds, NortekDataParticleType
+    BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, NortekEngBatteryDataParticle, NortekEngClockDataParticle, \
+    NortekEngIdDataParticle, InstrumentCmds, NortekDataParticleType
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
 from mi.instrument.nortek.driver import NortekUserConfigDataParticle, NortekParameterDictVal, Parameter, \
     NortekInstrumentDriver
+
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 
@@ -219,6 +224,8 @@ class AquadoppDwVelocityDataParticle(DataParticle):
         return result
             
     def _build_particle(self, match):
+        """
+        """
         timestamp = NortekProtocolParameterDict.convert_time(match.group(1))
         error = NortekProtocolParameterDict.convert_word_to_int(match.group(2))
         analog1 = NortekProtocolParameterDict.convert_word_to_int(match.group(3))
@@ -349,9 +356,6 @@ class InstrumentDriver(NortekInstrumentDriver):
         Driver constructor.
         @param evt_callback Driver process event callback.
         """
-        #Construct superclass.
-
-
         NortekInstrumentDriver.__init__(self, evt_callback)
 
     ########################################################################
@@ -399,12 +403,7 @@ class Protocol(NortekInstrumentProtocol):
         """
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
-
-
         """
-
-        log.debug("STRUCT %r", structure)
-
 
         self._extract_sample(AquadoppDwVelocityDataParticle, VELOCITY_DATA_REGEX, structure, timestamp)
         self._extract_sample(AquadoppDwDiagnosticDataParticle, DIAGNOSTIC_DATA_REGEX, structure, timestamp)
@@ -432,21 +431,20 @@ class Protocol(NortekInstrumentProtocol):
 
         # the vector doesn't respond with ACKs for this command, so look for start of velocity data header structure
         result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA,
-                                   expected_prompt = VELOCITY_HEADER_DATA_SYNC_BYTES, *args, **kwargs)
+                                   expected_prompt=VELOCITY_HEADER_DATA_SYNC_BYTES, *args, **kwargs)
 
-        return (next_state, (next_agent_state, result))
-
+        return next_state, (next_agent_state, result)
 
     def _build_param_dict(self):
         """
         Overwrite base classes method.
         Creates base class's param dictionary, then sets parameter values for those specific to this instrument.
         """
-
+        #TODO - THIS WILL NEED TO BE UPDATED ONCE THE IOS IS FINISHED!
         NortekInstrumentProtocol._build_param_dict(self)
 
         self._param_dict.add_parameter(
-                                    NortekParameterDictVal(Parameter.NUMBER_SAMPLES_PER_BURST,
+            NortekParameterDictVal(Parameter.NUMBER_SAMPLES_PER_BURST,
                                     r'^.{%s}(.{2}).*' % str(452),
                                     lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
                                     NortekProtocolParameterDict.word_to_string,
@@ -458,30 +456,4 @@ class Protocol(NortekInstrumentProtocol):
                                     startup_param=False,
                                     direct_access=False))
 
-        self._param_dict.add_parameter(
-                                    NortekParameterDictVal(EngineeringParameter.CLOCK_SYNC_INTERVAL,
-                                    INTERVAL_TIME_REGEX,
-                                    lambda match: match.group(1),
-                                    str,
-                                    type=ParameterDictType.STRING,
-                                    visibility=ParameterDictVisibility.IMMUTABLE,
-                                    display_name="clock sync interval",
-                                    default_value='00:00:00',
-                                    startup_param=True))
-
-        self._param_dict.add_parameter(
-                                    NortekParameterDictVal(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
-                                    INTERVAL_TIME_REGEX,
-                                    lambda match: match.group(1),
-                                    str,
-                                    type=ParameterDictType.STRING,
-                                    visibility=ParameterDictVisibility.IMMUTABLE,
-                                    display_name="acquire status interval",
-                                    default_value='00:00:00',
-                                    startup_param=True))
-
         self._param_dict.set_value(Parameter.NUMBER_SAMPLES_PER_BURST, 0)
-        self._param_dict.set_value(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
-                                   self._param_dict.get_default_value(EngineeringParameter.ACQUIRE_STATUS_INTERVAL))
-        self._param_dict.set_value(EngineeringParameter.CLOCK_SYNC_INTERVAL,
-                                   self._param_dict.get_default_value(EngineeringParameter.CLOCK_SYNC_INTERVAL))

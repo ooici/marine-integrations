@@ -34,14 +34,13 @@ from mi.idk.unit_test import DriverTestMixin
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 
-from mi.core.instrument.instrument_driver import DriverAsyncEvent, DriverConnectionState, DriverParameter, \
-    DriverConfigKey
+from mi.core.instrument.instrument_driver import  DriverConnectionState, DriverParameter, DriverConfigKey
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.core.instrument.protocol_cmd_dict import CommandDictKey
-from mi.core.instrument.protocol_param_dict import ParameterDictKey, ParameterDictType, ParameterDictVisibility
+from mi.core.instrument.protocol_param_dict import ParameterDictKey, ParameterDictType
 
-from mi.instrument.nortek.driver import NortekProtocolParameterDict, CLOCK_DATA_REGEX, CLOCK_DATA_PATTERN, \
+from mi.instrument.nortek.driver import NortekProtocolParameterDict, CLOCK_DATA_PATTERN, \
     EngineeringParameter, TIMEOUT, NortekParameterDictVal, INTERVAL_TIME_REGEX
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticleKey
@@ -59,8 +58,7 @@ from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import ScheduledJob
 from mi.instrument.nortek.driver import NortekInstrumentDriver
-from mi.core.exceptions import NotImplementedException, InstrumentCommandException, InstrumentStateException, \
-    InstrumentParameterException
+from mi.core.exceptions import NotImplementedException, InstrumentCommandException, InstrumentParameterException
 
 from interface.objects import AgentCommand
 
@@ -788,7 +786,6 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
                                          ProtocolEvent.CLOCK_SYNC,
                                          ProtocolEvent.ACQUIRE_SAMPLE,
                                          ProtocolEvent.ACQUIRE_STATUS,
-                                         #ProtocolEvent.SET_CONFIGURATION,
                                          ProtocolEvent.SCHEDULED_CLOCK_SYNC,
                                          ProtocolEvent.SCHEDULED_ACQUIRE_STATUS],
 
@@ -854,75 +851,70 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
+    def test_set_init_params(self):
+        """
+        Verify the instrument will set the init params from a config file
+        """
+        self.assert_initialize_driver()
+        log.debug("FINISHED INIT DRIVER")
+
+        values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        log.debug("VALUES_BEFORE = %s", values_before)
+        self.assertEquals(values_before[Parameter.MEASUREMENT_INTERVAL], 3600)
+        self.assertEquals(values_before[Parameter.NUMBER_SAMPLES_PER_BURST], 0)
+
+        self.driver_client.cmd_dvr('set_init_params',
+                                   {DriverConfigKey.PARAMETERS:
+                                       {DriverParameter.ALL:
+                                        base64.b64encode(user_config1())}
+                                   })
+
+        values_after = self.driver_client.cmd_dvr("get_resource", Parameter.ALL)
+        log.debug("VALUES_AFTER = %s", values_after)
+
+        # check to see if startup config got set in instrument
+        self.assertEquals(values_after[Parameter.MEASUREMENT_INTERVAL], 500)
+        self.assertEquals(values_after[Parameter.NUMBER_SAMPLES_PER_BURST], 20)
+
+    def test_set_get_parameters(self):
+        """
+        Verify that we can set the parameters
+
+        1. Cannot set read only parameters
+        2. Can set read/write parameters
+        3. Can set direct access
+        """
+        #TODO
+        self.assert_initialize_driver(ProtocolState.COMMAND)
+
+        #test parameter w/direct access only
+        self.assert_set(Parameter.COMPASS_UPDATE_RATE, 1, no_get=True)
+
+        #test start parameter
+        before = self.driver_client.cmd_dvr('get_resource', [EngineeringParameter.ACQUIRE_STATUS_INTERVAL])
+        log.debug('BEFORE = %r', before)
+        self.assert_set(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:20:00', no_get=True)
+        after = self.driver_client.cmd_dvr('get_resource', [EngineeringParameter.ACQUIRE_STATUS_INTERVAL])
+        log.debug('AFTER = %r', after)
+        self.assertEqual(before, after, 'ACQUIRE_STATUS_INTERVAL should not have been set!')
+
+        #test read only parameter
+        before = self.driver_client.cmd_dvr('get_resource', [Parameter.USER_4_SPARE])
+        log.debug('BEFORE = %r', before)
+        self.assert_set(Parameter.USER_4_SPARE, 'blah', no_get=True)
+        after = self.driver_client.cmd_dvr('get_resource', [Parameter.USER_4_SPARE])
+        log.debug('AFTER = %r', after)
+        self.assertEqual(before, after, 'USER_4_SPARE should not have been set!')
+
+        #test read/write parameter
+        self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 14)
+
     def test_instrument_clock_sync(self):
         """
         Verify the driver can sync the clock
         """
         self.assert_initialize_driver()
-        
-        # command the instrument to read the clock.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
-
-        log.debug("read clock returned: %s", response)
-        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
-
-        time.sleep(5)
-
-        # command the instrument to sync the clck.
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.CLOCK_SYNC)
-
-        # command the instrument to read the clock.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_CLOCK)
-        
-        log.debug("read clock returned: %s", response)
-        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response[1]))
-        
-        # verify that the dates match 
-        local_time = time.gmtime(time.mktime(time.localtime()))
-        local_time_str = time.strftime("%d/%m/%Y %H:%M:%S", local_time)
-        log.debug("assert time: %s", local_time_str)
-        self.assertTrue(local_time_str[:12].upper() in response[1].upper())
-        
-        # verify that the times match closely
-        instrument_time = time.strptime(response[1], '%d/%m/%Y %H:%M:%S')
-        it = datetime.datetime(*instrument_time[:6])
-        lt = datetime.datetime(*local_time[:6])
-        if lt - it > datetime.timedelta(seconds=5):
-            self.fail("time delta too large after clock sync")
-
-        #test regex
-        self.assert_driver_command(ProtocolEvent.READ_CLOCK, regex=CLOCK_DATA_PATTERN)
-
-    def test_instrument_read_mode(self):
-        """
-        Verify the driver can read the mode of the instrument
-        """
-        self.assert_initialize_driver()
-
-        # command the instrument to read the mode.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_MODE)
-
-        log.debug("what mode returned: %s", response)
-        self.assertTrue(2, response[1])
-
-    def test_instrument_read_battery_voltage(self):
-        """
-        Verify the driver can read battery voltage of the instrument
-        """
-        self.assert_initialize_driver()
-
-        # command the instrument to read the battery voltage.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_BATTERY_VOLTAGE)
-
-        log.debug("read battery voltage returned: %s", response)
-        self.assertTrue(isinstance(response[1], int))
-
-    def test_instrument_read_id(self):
-        """
-        Verify the driver can read ID, need to be implemented int the child class because each ID is unique to the
-        instrument.
-        """
-        raise NotImplementedException('Implement in child class!')
 
     def test_acquire_sample(self):
         """
@@ -984,9 +976,11 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         3. verify the particle coming in
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
+        log.debug('FINISHED IN COMMAND STATE')
 
         # test acquire status
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=1)
+        log.debug('FINISHED ACQUIRE STATUS')
         #BV
         self.assert_async_particle_generation(NortekDataParticleType.BATTERY, self.assert_particle_battery)
         #RC
@@ -998,10 +992,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         #GC
         self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
 
-        #TODO  MAY NOT NEED
-        #II
-        #self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_user, timeout=10)
-
     def test_direct_access(self):
         """
         Verify the driver can enter the direct access state
@@ -1010,6 +1000,9 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_state_change(ProtocolState.COMMAND, 5)
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
         self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
+
+        self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_DIRECT)
+        self.assert_state_change(ProtocolState.COMMAND, 5)
 
     def test_errors(self):
         """
@@ -1028,12 +1021,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
         #Assert set fails with bad parameter and bad value
         self.assert_set_exception('I am a bogus param.', value='bogus value', exception_class=InstrumentParameterException)
-
-        # Assert set fails with legal parameter and invalid data
-        self.assert_set_exception(Parameter.ADJUSTMENT_SOUND_SPEED, value='bogus value', exception_class=InstrumentParameterException)
-
-        # Assert set fails with a read only parameter
-        self.assert_set_exception(Parameter.TIME_BETWEEN_BURST_SEQUENCES, value=0, exception_class=InstrumentParameterException)
 
         # put driver in disconnected state.
         self.driver_client.cmd_dvr('disconnect')
@@ -1060,10 +1047,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_state_change(DriverConnectionState.DISCONNECTED, timeout=TIMEOUT)
 
 
-
-
-
-
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -1074,159 +1057,89 @@ class NortekQualTest(InstrumentDriverQualificationTestCase):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
-    def get_parameter(self, name):
-        '''
-        get parameter, assumes we are in command mode.
-        '''
-        getParams = [ name ]
-
-        result = self.instrument_agent_client.get_resource(getParams)
-
-        return result[name]
-
-
-    def assertBaseSampleDataParticle(self, sample):
-        """
-	    Assert the base class particle types in one place
-	    @param sample The sample to test
-	    @retval True if it matched something, False if it didnt
-	    """
-        log.debug('assertBaseSampleDataParticle: sample=%s', sample)
-        self.assertTrue(sample[DataParticleKey.PKT_FORMAT_ID],
-            DataParticleValue.JSON_DATA)
-        self.assertTrue(sample[DataParticleKey.PKT_VERSION], 1)
-        self.assertTrue(isinstance(sample[DataParticleKey.VALUES],
-            list))
-        self.assertTrue(isinstance(sample.get(DataParticleKey.DRIVER_TIMESTAMP),
-				   float))
-        self.assertTrue(sample.get(DataParticleKey.PREFERRED_TIMESTAMP))
-        
-        values = sample['values']
-        value_ids = []
-        for value in values:
-            value_ids.append(value[DataParticleKey.VALUE_ID])
-        if sample[DataParticleKey.STREAM_NAME] == NortekDataParticleType.HARDWARE_CONFIG:
-            log.debug('assertSampleDataParticle: NortekHardwareConfigDataParticleKey detected')
-            self.assertEqual(sorted(value_ids), sorted(NortekHardwareConfigDataParticleKey.list()))
-            for value in values:
-                if value[DataParticleKey.VALUE_ID] in \
-			(NortekHardwareConfigDataParticleKey.SERIAL_NUM,
-			 NortekHardwareConfigDataParticleKey.RECORDER_INSTALLED,
-			 NortekHardwareConfigDataParticleKey.COMPASS_INSTALLED,
-			 NortekHardwareConfigDataParticleKey.FW_VERSION):
-                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
-        
-                else:
-                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-            return True
-        elif sample[DataParticleKey.STREAM_NAME] == NortekDataParticleType.HEAD_CONFIG:
-            log.debug('assertSampleDataParticle: NortekHeadConfigDataParticleKey detected')
-            self.assertEqual(sorted(value_ids), sorted(NortekHeadConfigDataParticleKey.list()))
-            for value in values:
-                if value[DataParticleKey.VALUE_ID] in \
-		       (NortekHeadConfigDataParticleKey.PRESSURE_SENSOR,
-			NortekHeadConfigDataParticleKey.MAG_SENSOR,
-			NortekHeadConfigDataParticleKey.TILT_SENSOR,
-			NortekHeadConfigDataParticleKey.HEAD_TYPE,
-			NortekHeadConfigDataParticleKey.HEAD_SERIAL,
-			NortekHeadConfigDataParticleKey.SYSTEM_DATA):
-                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
-        
-                else:
-                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-            return True
-        elif sample[DataParticleKey.STREAM_NAME] == NortekDataParticleType.USER_CONFIG:
-            log.debug('assertSampleDataParticle: NortekUserConfigDataParticleKey detected')
-            self.assertEqual(sorted(value_ids), sorted(NortekUserConfigDataParticleKey.list()))
-            for value in values:
-                if value[DataParticleKey.VALUE_ID] in \
-		       (NortekUserConfigDataParticleKey.USE_SPEC_SOUND_SPEED,
-			NortekUserConfigDataParticleKey.DIAG_MODE_ON,
-			NortekUserConfigDataParticleKey.ANALOG_OUTPUT_ON,
-			NortekUserConfigDataParticleKey.OUTPUT_FORMAT,
-			NortekUserConfigDataParticleKey.SCALING,
-			NortekUserConfigDataParticleKey.SERIAL_OUT_ON,
-			NortekUserConfigDataParticleKey.STAGE_ON,
-			NortekUserConfigDataParticleKey.ANALOG_POWER_OUTPUT,
-			NortekUserConfigDataParticleKey.USE_DSP_FILTER):
-                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
-        
-                else:
-                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-            return True
-        elif sample[DataParticleKey.STREAM_NAME] == NortekDataParticleType.CLOCK:
-            log.debug('assertSampleDataParticle: NortekEngClockDataParticleKey detected')
-            self.assertEqual(sorted(value_ids),
-			     sorted(NortekEngClockDataParticleKey.list()))
-            for value in values:
-                self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-            return True
-        elif sample[DataParticleKey.STREAM_NAME] == NortekDataParticleType.BATTERY:
-            log.debug('assertSampleDataParticle: NortekEngBatteryDataParticleKey detected')
-            self.assertEqual(sorted(value_ids),
-			     sorted(NortekEngBatteryDataParticleKey.list()))
-            for value in values:
-                self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-            return True
-        elif sample[DataParticleKey.STREAM_NAME] == NortekDataParticleType.ID_STRING:
-            log.debug('assertSampleDataParticle: NortekEngIdDataParticleKey detected')
-            self.assertEqual(sorted(value_ids),
-			     sorted(NortekEngIdDataParticleKey.list()))
-            for value in values:
-                self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
-            return True
-        else:
-            return False
-
-    @unittest.skip("skip for automatic tests")
-    def test_direct_access_telnet_mode_manually(self):
-        """
-        @brief This test manually tests that the Instrument Driver properly
-	supports direct access to the physical instrument. (telnet mode)
-        """
-        self.assert_enter_command_mode()
-
-        log.debug("test_direct_access_telnet_mode_manually: starting DA mode")
-        # go direct access
-        # cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-        #                    kwargs={#'session_type': DirectAccessTypes.telnet,
-        #                            'session_type': DirectAccessTypes.vsp,
-        #                            'session_timeout':600,
-        #                            'inactivity_timeout':600})
-        #retval = self.instrument_agent_client.execute_agent(cmd)
-        #log.warn("go_direct_access retval=" + str(retval.result))
-        
-        gevent.sleep(600)  # wait for manual telnet session to be run
-
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly
-	supports direct access to the physical instrument. (telnet mode)
+        Verify while in Direct Access, we can manually set DA parameters.  After stopping DA, the instrument
+        will enter Command State and any parameters set during DA are reset to previous values.  Also verifying
+        timeouts with inactivity, with activity, and without activity.
         """
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
-        self.tcp_client.send_data("K1W%!Q")
-        self.tcp_client.expect("VECTOR")
+        # log.debug("DA Server Started.  Adjust DA Parameter.")
+        # self.tcp_client.send_data("$pkt 128" + NEWLINE)
+        # self.tcp_client.expect("Pkt 128")
+        # log.debug("DA Parameter Measurements_per_packet_value Updated")
 
         self.assert_direct_access_stop_telnet()
 
-    def test_get_set_parameters(self):
-        '''
-        verify that parameters can be get set properly
-        '''
+        # verify the setting got restored.
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
+        #self.assert_get_parameter(Parameter.MEASUREMENTS_PER_PACKET, 0)
+
+        ###
+        # Test direct access inactivity timeout
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+
+        ###
+        # Test session timeout without activity
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=120, session_timeout=30)
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+
+        ###
+        # Test direct access session timeout with activity
+        ###
+        self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=60)
+        # Send some activity every 30 seconds to keep DA alive.
+        for i in range(1, 2, 3):
+            self.tcp_client.send_data(NEWLINE)
+            log.debug("Sending a little keep alive communication, sleeping for 15 seconds")
+            gevent.sleep(15)
+
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 45)
+
+        ###
+        # Test direct access disconnect
+        ###
+        self.assert_direct_access_start_telnet()
+        self.tcp_client.disconnect()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
+
+    def test_direct_access_telnet_mode_autosample(self):
+        """
+        Verify Direct Access can start autosampling for the instrument, and if stopping DA, the
+        driver will resort to Autosample State. Also, testing disconnect
+        """
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+
+        log.debug("DA Server Started.  Adjust DA Parameter.")
+        self.tcp_client.send_data("$run" + NEWLINE)
+        self.tcp_client.expect("mvs 1")
+        log.debug("DA autosample started")
+
+        #Assert if stopping DA while autosampling, discover will put driver into Autosample state
+        self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, timeout=10)
+
+        ###
+        # Test direct access disconnect
+        ###
+        self.assert_direct_access_start_telnet()
+        self.tcp_client.disconnect()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
+
+    def test_autosample(self):
+        """
+        start and stop autosample
+        """
         self.assert_enter_command_mode()
-        
-        value_before_set = self.get_parameter(Parameter.BLANKING_DISTANCE)
-        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, 40)
-        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, value_before_set)
 
-        value_before_set = self.get_parameter(Parameter.NUMBER_SAMPLES_PER_BURST)
-        self.assert_set_parameter(Parameter.NUMBER_SAMPLES_PER_BURST, 60)
-        self.assert_set_parameter(Parameter.NUMBER_SAMPLES_PER_BURST,
-				  value_before_set)
-
-        self.assert_reset()
+        self.assert_start_autosample()
+        self.assert_stop_autosample()
         
     def test_get_capabilities(self):
         """
@@ -1254,9 +1167,6 @@ class NortekQualTest(InstrumentDriverQualificationTestCase):
                 ProtocolEvent.READ_CLOCK, 
                 ProtocolEvent.READ_ID,
                 ProtocolEvent.READ_MODE,
-                # RECORDER
-		#ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME,
-                #ProtocolEvent.START_MEASUREMENT_IMMEDIATE,
                 ProtocolEvent.SET_CONFIGURATION
             ],
             AgentCapabilityType.RESOURCE_PARAMETER: [
@@ -1342,38 +1252,4 @@ class NortekQualTest(InstrumentDriverQualificationTestCase):
         except:
             self.fail('test of set_configuration command failed')
         
-    def test_instrument_clock_sync(self):
-        """
-        @brief Test for syncing clock
-        """
-        
-        self.assert_enter_command_mode()
-        
-        # command the instrument to read the clock.
-        response = self.assert_execute_resource(ProtocolEvent.READ_CLOCK)
-        
-        log.debug("read clock returned: %s", response)
-        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response.result))
 
-        # command the instrument to sync the clck.
-        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
-
-        # command the instrument to read the clock.
-        response = self.assert_execute_resource(ProtocolEvent.READ_CLOCK)
-        
-        log.debug("read clock returned: %s", response)
-        self.assertTrue(re.search(r'.*/.*/.*:.*:.*', response.result))
-        
-        # verify that the dates match 
-        local_time = time.gmtime(time.mktime(time.localtime()))
-        local_time_str = time.strftime("%d/%m/%Y %H:%M:%S", local_time)
-        self.assertTrue(local_time_str[:12].upper() in response.result.upper())
-        
-        # verify that the times match closely
-        instrument_time = time.strptime(response.result, '%d/%m/%Y %H:%M:%S')
-        #log.debug("it=%s, lt=%s", instrument_time, local_time)
-        it = datetime.datetime(*instrument_time[:6])
-        lt = datetime.datetime(*local_time[:6])
-        #log.debug("it=%s, lt=%s, lt-it=%s", it, lt, lt-it)
-        if lt - it > datetime.timedelta(seconds = 5):
-            self.fail("time delta too large after clock sync")      

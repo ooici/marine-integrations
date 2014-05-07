@@ -16,12 +16,10 @@ import re
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException
-from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, ParameterDictType
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
-from mi.instrument.nortek.driver import NortekParameterDictVal, NortekEngBatteryDataParticle, NortekEngClockDataParticle, \
-    NortekEngIdDataParticle, BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, EngineeringParameter, \
-    INTERVAL_TIME_REGEX
+from mi.instrument.nortek.driver import NortekEngBatteryDataParticle, NortekEngClockDataParticle, \
+    NortekEngIdDataParticle, BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX
 from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
@@ -29,7 +27,7 @@ from mi.instrument.nortek.driver import NortekUserConfigDataParticle
 from mi.instrument.nortek.driver import NortekInstrumentDriver
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import NortekProtocolParameterDict
-from mi.instrument.nortek.driver import Parameter, InstrumentCmds, InstrumentPrompts
+from mi.instrument.nortek.driver import InstrumentCmds, InstrumentPrompts
 from mi.instrument.nortek.driver import NEWLINE
 from mi.instrument.nortek.driver import HARDWARE_CONFIG_DATA_REGEX
 from mi.instrument.nortek.driver import HEAD_CONFIG_DATA_REGEX
@@ -49,8 +47,7 @@ VELOCITY_HEADER_DATA_SYNC_BYTES = '\xa5\x12\x15\x00'
 
 VECTOR_SAMPLE_STRUCTURES = [[VELOCITY_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
                             [SYSTEM_DATA_SYNC_BYTES, SYSTEM_DATA_LEN],
-                            [VELOCITY_HEADER_DATA_SYNC_BYTES, VELOCITY_HEADER_DATA_LEN]
-                           ]
+                            [VELOCITY_HEADER_DATA_SYNC_BYTES, VELOCITY_HEADER_DATA_LEN]]
 
 VELOCITY_DATA_PATTERN = r'^%s(.{1})(.{1})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{1})(.{1})(.{1}).{2}' % VELOCITY_DATA_SYNC_BYTES
 VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN, re.DOTALL)
@@ -58,6 +55,7 @@ SYSTEM_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1}
 SYSTEM_DATA_REGEX = re.compile(SYSTEM_DATA_PATTERN, re.DOTALL)
 VELOCITY_HEADER_DATA_PATTERN = r'^%s(.{6})(.{2})(.{1})(.{1})(.{1}).{1}(.{1})(.{1})(.{1}).{23}' % VELOCITY_HEADER_DATA_SYNC_BYTES
 VELOCITY_HEADER_DATA_REGEX = re.compile(VELOCITY_HEADER_DATA_PATTERN, re.DOTALL)
+
 
 class DataParticleType(NortekDataParticleType):
     VELOCITY = 'vel3d_cd_velocity_data'
@@ -68,23 +66,25 @@ class DataParticleType(NortekDataParticleType):
 ###############################################################################
 # Data particles
 ###############################################################################
-class VectorHardwareConfigDataParticle(NortekHardwareConfigDataParticle):
-    _data_particle_type = DataParticleType.HARDWARE_CONFIG
-
-    def _build_parsed_values(self):
-        return NortekHardwareConfigDataParticle._build_parsed_values(self)
-
-class VectorUserConfigDataParticle(NortekUserConfigDataParticle):
-    _data_particle_type = DataParticleType.USER_CONFIG
-
-    def _build_parsed_values(self):
-        return NortekUserConfigDataParticle._build_parsed_values(self)
-
-class VectorHeadConfigDataParticle(NortekHeadConfigDataParticle):
-    _data_particle_type = DataParticleType.HEAD_CONFIG
-
-    def _build_parsed_values(self):
-        return NortekHeadConfigDataParticle._build_parsed_values(self)
+# class VectorHardwareConfigDataParticle(NortekHardwareConfigDataParticle):
+#     _data_particle_type = DataParticleType.HARDWARE_CONFIG
+#
+#     def _build_parsed_values(self):
+#         return NortekHardwareConfigDataParticle._build_parsed_values(self)
+#
+#
+# class VectorUserConfigDataParticle(NortekUserConfigDataParticle):
+#     _data_particle_type = DataParticleType.USER_CONFIG
+#
+#     def _build_parsed_values(self):
+#         return NortekUserConfigDataParticle._build_parsed_values(self)
+#
+#
+# class VectorHeadConfigDataParticle(NortekHeadConfigDataParticle):
+#     _data_particle_type = DataParticleType.HEAD_CONFIG
+#
+#     def _build_parsed_values(self):
+#         return NortekHeadConfigDataParticle._build_parsed_values(self)
 
 class VectorVelocityDataParticleKey(BaseEnum):
     ANALOG_INPUT2 = "analog_input2"
@@ -189,9 +189,10 @@ class VectorVelocityDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.CORRELATION_BEAM3,
                    DataParticleKey.VALUE: correlation_beam3}]
  
-        log.debug('VectorVelocityDataParticle: particle=%s' %result)
+        log.debug('VectorVelocityDataParticle: particle=%s', result)
         return result
-    
+
+
 class VectorVelocityHeaderDataParticleKey(BaseEnum):
     TIMESTAMP = "date_time_string"
     NUMBER_OF_RECORDS = "number_velocity_records"
@@ -201,7 +202,8 @@ class VectorVelocityHeaderDataParticleKey(BaseEnum):
     CORRELATION1 = "noise_correlation_beam1"
     CORRELATION2 = "noise_correlation_beam2"
     CORRELATION3 = "noise_correlation_beam3"
-        
+
+
 class VectorVelocityHeaderDataParticle(DataParticle):
     """
     Routine for parsing velocity header data into a data particle structure for the Vector sensor. 
@@ -220,7 +222,7 @@ class VectorVelocityHeaderDataParticle(DataParticle):
             raise SampleException("VectorVelocityHeaderDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
         
         result = self._build_particle(match)
-        log.debug('VectorVelocityHeaderDataParticle: particle=%s' %result)
+        log.debug('VectorVelocityHeaderDataParticle: particle=%s', result)
         return result
             
     def _build_particle(self, match):
@@ -271,6 +273,7 @@ class VectorVelocityHeaderDataParticle(DataParticle):
  
         return result
 
+
 class VectorSystemDataParticleKey(BaseEnum):
     TIMESTAMP = "date_time_string"
     BATTERY = "battery_voltage"
@@ -282,7 +285,8 @@ class VectorSystemDataParticleKey(BaseEnum):
     ERROR = "error_code"
     STATUS = "status_code"
     ANALOG_INPUT = "analog_input"
-        
+
+
 class VectorSystemDataParticle(DataParticle):
     """
     Routine for parsing system data into a data particle structure for the Vector sensor. 
@@ -301,7 +305,7 @@ class VectorSystemDataParticle(DataParticle):
             raise SampleException("VectorSystemDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
         
         result = self._build_particle(match)
-        log.debug('VectorSystemDataParticle: particle=%s' %result)
+        log.debug('VectorSystemDataParticle: particle=%s', result)
         return result
             
     def _build_particle(self, match):
@@ -362,10 +366,10 @@ class VectorSystemDataParticle(DataParticle):
  
         return result
 
+
 ###############################################################################
 # Driver
 ###############################################################################
-
 class InstrumentDriver(NortekInstrumentDriver):
     """
     InstrumentDriver subclass
@@ -389,19 +393,19 @@ class InstrumentDriver(NortekInstrumentDriver):
         """
         self._protocol = Protocol(InstrumentPrompts, NEWLINE, self._driver_event)
 
+
 ###############################################################################
 # Protocol
 ################################################################################
-
 class Protocol(NortekInstrumentProtocol):
     """
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
-    
-    
     def __init__(self, prompts, newline, driver_event):
         NortekInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+
+        InstrumentPrompts.Z_NACK  = '\x15\x15\x15'
         
         # create chunker for processing instrument samples.
         self._chunker = StringChunker(Protocol.chunker_sieve_function)
@@ -413,9 +417,7 @@ class Protocol(NortekInstrumentProtocol):
 
     ########################################################################
     # overridden superclass methods
-    ########################################################################    
-                
-    
+    ########################################################################
     def _got_chunk(self, structure, timestamp):
         """
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
@@ -432,7 +434,6 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(NortekEngClockDataParticle, CLOCK_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekEngIdDataParticle, ID_DATA_REGEX, structure, timestamp)
 
-            
     ########################################################################
     # Command handlers.
     ########################################################################
@@ -445,64 +446,22 @@ class Protocol(NortekInstrumentProtocol):
         """
         next_state = None
         next_agent_state = None
-        result = None
 
         # the vector doesn't respond with ACKs for this command, so look for start of velocity data header structure
         result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, 
-                                   expected_prompt = VELOCITY_HEADER_DATA_SYNC_BYTES, *args, **kwargs)
+                                   expected_prompt=VELOCITY_HEADER_DATA_SYNC_BYTES, *args, **kwargs)
         
-        return (next_state, (next_agent_state, result))
-
+        return next_state, (next_agent_state, result)
 
     ########################################################################
     # Private helpers.
     ########################################################################
     def _build_param_dict(self):
         NortekInstrumentProtocol._build_param_dict(self)
-
-        self._param_dict.add_parameter(
-            NortekParameterDictVal(Parameter.NUMBER_SAMPLES_PER_BURST,
-                                    r'^.{%s}(.{2}).*' % str(452),
-                                    lambda match : NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
-                                    NortekProtocolParameterDict.word_to_string,
-                                    regex_flags=re.DOTALL))
-        self._param_dict.add_parameter(
-            NortekParameterDictVal(Parameter.USER_3_SPARE,
-                                    r'^.{%s}(.{2}).*' % str(460),
-                                    lambda match : match.group(1),
-                                    lambda string : string,
-                                    visibility=ParameterDictVisibility.READ_ONLY,
-                                    regex_flags=re.DOTALL))
-
-        self._param_dict.add_parameter(
-                                    NortekParameterDictVal(EngineeringParameter.CLOCK_SYNC_INTERVAL,
-                                    INTERVAL_TIME_REGEX,
-                                    lambda match: match.group(1),
-                                    str,
-                                    type=ParameterDictType.STRING,
-                                    visibility=ParameterDictVisibility.IMMUTABLE,
-                                    display_name="clock sync interval",
-                                    default_value='00:00:00',
-                                    startup_param=True))
-
-        self._param_dict.add_parameter(
-                                    NortekParameterDictVal(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
-                                    INTERVAL_TIME_REGEX,
-                                    lambda match: match.group(1),
-                                    str,
-                                    type=ParameterDictType.STRING,
-                                    visibility=ParameterDictVisibility.IMMUTABLE,
-                                    display_name="acquire status interval",
-                                    default_value='00:00:00',
-                                    startup_param=True))
-
-        self._param_dict.set_value(Parameter.NUMBER_SAMPLES_PER_BURST, 0)
-        self._param_dict.set_value(Parameter.USER_3_SPARE, 0)
-        self._param_dict.set_value(Parameter.CLOCK_SYNC_INTERVAL, '00:00:00')
-        self._param_dict.set_value(Parameter.ACQUIRE_STATUS_INTERVAL, '00:00:00')
+        #TODO - THIS WILL NEED TO BE UPDATED ONCE THE IOS IS FINISHED!
 
         #self._param_dict.load_strings(RESOURCE_FILE)
 
-    def _build_cmd_dict(self):
-        NortekInstrumentProtocol._build_cmd_dict(self)
+    # def _build_cmd_dict(self):
+    #     NortekInstrumentProtocol._build_cmd_dict(self)
         #self._cmd_dict.load_strings(RESOURCE_FILE)
