@@ -130,8 +130,6 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._cmd_dict.add(TeledyneCapability.GET_CONFIGURATION,
                            timeout=300,
                            display_name="get configuration")
-        #self._cmd_dict.add(TeledyneCapability.GET_INSTRUMENT_TRANSFORM_MATRIX,
-        #                   display_name="get instrument transform matrix")
         self._cmd_dict.add(TeledyneCapability.SAVE_SETUP_TO_RAM,
                            display_name="save setup to ram")
         self._cmd_dict.add(TeledyneCapability.SEND_LAST_SAMPLE,
@@ -146,11 +144,17 @@ class WorkhorseProtocol(TeledyneProtocol):
                            display_name="clear fault log")
         self._cmd_dict.add(TeledyneCapability.RUN_TEST_200,
                            display_name="run test 200")
-
         self._cmd_dict.add(TeledyneCapability.USER_SETS,
                            display_name="set user sets")
         self._cmd_dict.add(TeledyneCapability.FACTORY_SETS,
                            display_name="set factory sets")
+        self._cmd_dict.add(TeledyneCapability.ACQUIRE_STATUS,
+                           display_name="acquire status")
+        self._cmd_dict.add(TeledyneCapability.START_DIRECT,
+                           display_name="start direct access")
+        self._cmd_dict.add(TeledyneCapability.STOP_DIRECT,
+                           display_name="stop direct access")
+
 
     ########################################################################
     # Private helpers.
