@@ -58,17 +58,6 @@ class TcpClient():
             c = None
         return c
 
-    def peek_at_buffer(self):
-        if len(self.buf) == 0:
-            try:
-                self.buf = self.s.recv(BUFFER_SIZE)
-                log.debug("RAW READ GOT '" + str(repr(self.buf)) + "'")
-            except:
-                """
-                Ignore this exception, its harmless
-                """
-        return self.buf
-
     def remove_from_buffer(self, remove):
         '''
         Remove the first instance of the string specified in remove from the buffer.  Also removes all bytes before
@@ -107,19 +96,26 @@ class TcpClient():
         @return: True if the string was seen, False otherwise
         '''
         try_count = 0
-
-        while self.peek_at_buffer().find(target) == -1:
-            log.debug("WANT '%s:' READ (%d): '%s' HEX: %s" %
-                     (target, len(self.peek_at_buffer()), str(self.peek_at_buffer()), self.to_hex(self.peek_at_buffer())))
+        while True:
+            # Grab a chunk of data from the socket, if available
+            try:
+                self.buf += self.s.recv(BUFFER_SIZE)
+            except:
+                # Ignore this exception
+                pass
+            if self.buf.find(target) != -1:
+                # found it, exit the loop
+                break
+            log.debug("WANT '%s:' BUF (%d): '%s' HEX: %s" %
+                      (target, len(self.buf), str(self.buf), self.to_hex(self.buf)))
             gevent.sleep(sleep_time)
             try_count += 1
             if try_count > max_retries:
                 log.error("EXPECT Timeout. target not found '%s'" % target)
                 return False
-
+        log.debug('EXPECT found target: %s', target)
         self.remove_from_buffer(target)
         return True
-
 
     def get_data(self):
         data = ""

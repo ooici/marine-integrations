@@ -113,7 +113,6 @@ class CtdmoParser(SioMuleParser):
                                           state_callback,
                                           publish_callback,
                                           exception_callback,
-                                          'CT',
                                           *args,
                                           **kwargs)
         if not 'inductive_id' in config:
@@ -158,7 +157,7 @@ class CtdmoParser(SioMuleParser):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
             prev_sample = None
-            if header_match.group(1) == self._instrument_id:
+            if header_match.group(1) == 'CT':
                 log.debug("matched chunk header %s", chunk[1:32])
 
                 for data_match in DATA_MATCHER.finditer(chunk):
@@ -190,6 +189,8 @@ class CtdmoParser(SioMuleParser):
                             # create particle
                             result_particles.append(sample)
                             sample_count += 1
+            elif header_match.group(1) == 'CO':
+                log.debug("matched CO chunk header %s", chunk[1:32])
             # keep track of how many samples were found in this chunk
             self._chunk_sample_count.append(sample_count)
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)

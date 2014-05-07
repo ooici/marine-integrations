@@ -142,7 +142,6 @@ class PhsenParser(SioMuleParser):
                                           state_callback,
                                           publish_callback,
                                           exception_callback,
-                                          'PH',
                                           *args,
                                           **kwargs)
 
@@ -164,11 +163,11 @@ class PhsenParser(SioMuleParser):
         while (chunk != None):
             header_match = SIO_HEADER_MATCHER.match(chunk)
             sample_count = 0
-            log.debug('parsing header %s', header_match.group(0)[1:32])
-            if header_match.group(1) == self._instrument_id:
+            #log.debug('parsing header %s', header_match.group(0)[1:32])
+            if header_match.group(1) == 'PH':
 
                 for data_match in DATA_MATCHER.finditer(chunk):
-                    log.debug('Found data match in chunk %s', chunk[1:32])
+                    #log.debug('Found data match in chunk %s', chunk[1:32])
                     self._timestamp = self.hex_time_to_ntp(data_match.group(0)[11:19])
                     # particle-ize the data block received, return the record
                     sample = self._extract_sample(PhsenParserDataParticle,
@@ -196,12 +195,12 @@ class PhsenParser(SioMuleParser):
         sec_since_1904 = int(hex_time, 16)
         local_dt_1904 = parser.parse("1904-01-01T00:00:00.00Z")
         elapse_1904 = float(local_dt_1904.strftime("%s.%f"))
-        log.debug('seconds since 1904 %d, elapsed 1904 %d', sec_since_1904, elapse_1904)
+        #log.debug('seconds since 1904 %d, elapsed 1904 %d', sec_since_1904, elapse_1904)
         sec_since_1970 = sec_since_1904 + elapse_1904 - time.timezone
-        log.debug("Got time %s", datetime.utcfromtimestamp(sec_since_1970))
+        #log.debug("Got time %s", datetime.utcfromtimestamp(sec_since_1970))
         ntptime = ntplib.system_to_ntp_time(sec_since_1970)
-        log.debug("Converted time \"%s\" (unix: %s) into %s", hex_time,
-                              sec_since_1970, ntptime)
+        #log.debug("Converted time \"%s\" (unix: %s) into %s", hex_time,
+        #                      sec_since_1970, ntptime)
         return ntptime
 
 

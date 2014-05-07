@@ -76,7 +76,6 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
                                                      'DofstKWfpMetadataParserDataParticle']
             }
         self.start_state = {StateKey.POSITION: 0,
-                            StateKey.TIMESTAMP: 0.0,
                             StateKey.RECORDS_READ: 0,
                             StateKey.METADATA_SENT: False}
         # Define test data particles and their associated timestamps which will be 
@@ -268,7 +267,6 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
         """
         # set the state after the metadata and first record
         new_state = {StateKey.POSITION: 11,
-                     StateKey.TIMESTAMP: self.start_timestamp,
                      StateKey.RECORDS_READ: 1,
                      StateKey.METADATA_SENT: True}
         self.stream_handle = StringIO(DofstKWfpParserUnitTestCase.TEST_DATA)
@@ -288,7 +286,6 @@ class DofstKWfpParserUnitTestCase(ParserUnitTestCase):
         changed
         """
         new_state = {StateKey.POSITION: 11,
-                     StateKey.TIMESTAMP: self.start_timestamp,
                      StateKey.RECORDS_READ: 1,
                      StateKey.METADATA_SENT: True}
         stream_handle = StringIO(DofstKWfpParserUnitTestCase.TEST_DATA)

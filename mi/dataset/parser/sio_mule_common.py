@@ -27,7 +27,7 @@ from mi.dataset.dataset_parser import Parser
 # groups: ID, Number of Data Bytes, POSIX timestamp, block number, data
 # some instruments have \x03 within the data, need to check if header is
 # followed by another header or not or zeros for blank data
-SIO_HEADER_REGEX = b'\x01(CT|AD|FL|DO|PH|PS|CS|WA|WC|WE)[0-9]{7}_([0-9A-Fa-f]{4})[a-zA-Z]' \
+SIO_HEADER_REGEX = b'\x01(CT|AD|FL|DO|PH|PS|CS|WA|WC|WE|CO|PS|CS)[0-9]{7}_([0-9A-Fa-f]{4})[a-zA-Z]' \
                '([0-9A-Fa-f]{8})_([0-9A-Fa-f]{2})_([0-9A-Fa-f]{4})\x02'
 SIO_HEADER_MATCHER = re.compile(SIO_HEADER_REGEX)
 
@@ -60,6 +60,8 @@ class SioMuleParser(Parser):
            be published into ION
         @param exception_callback The callback from the agent driver to
            send an exception to
+        @param instrument_id the text string indicating the instrument to
+           monitor, can be 'CT', 'AD', 'FL', 'DO', 'PH', 'WA', 'WC', or 'WE'
         """
         super(SioMuleParser, self).__init__(config,
                                          stream_handle,
@@ -340,8 +342,8 @@ class SioMuleParser(Parser):
 
             if data and len(self._record_buffer) < num_records:
                 # there is more data, add it to the chunker after escaping acoustic modem characters
-                data = data.replace(b'\x18\x6b', b'\x2b')
-                data = data.replace(b'\x18\x58', b'\x18')
+                data = data.replace(b'\x186b', b'\x2b')
+                data = data.replace(b'\x1858', b'\x18')
                 # there is more data, add it to the chunker
                 self._chunker.add_chunk(data, self._timestamp)
 
