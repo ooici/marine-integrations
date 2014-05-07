@@ -111,6 +111,8 @@ class InstrumentCmds(TeledyneInstrumentCmds):
     """
     GET2 = '  '
 
+class RawDataParticle_5thbeam(RawDataParticle):
+    _data_particle_type = "raw_5thbeam"
 
 class ProtocolState(TeledyneProtocolState):
     """
@@ -818,19 +820,19 @@ class Protocol(WorkhorseProtocol):
         objects and REGEXes.
         """
 
-        if (self._extract_sample(VADCP_5thBeam_COMPASS_CALIBRATION_DataParticle,
+        if (self._extract_sample(ADCP_COMPASS_CALIBRATION_DataParticle,
                                  ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_COMPASS_CALIBRATION_DataParticle")
 
-        if (self._extract_sample(VADCP_5thBeam_PD0_PARSED_DataParticle,
+        if (self._extract_sample(ADCP_PD0_PARSED_DataParticle,
                                  ADCP_PD0_PARSED_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_PD0_PARSED_DataParticle")
 
-        if (self._extract_sample(VADCP_5thBeam_SYSTEM_CONFIGURATION_DataParticle,
+        if (self._extract_sample(ADCP_SYSTEM_CONFIGURATION_DataParticle,
                                  ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
@@ -1838,17 +1840,17 @@ class Protocol(WorkhorseProtocol):
             direct_access=True,
             default_value='00:01.00')
 
-        self._param_dict.add(Parameter.TIME,
-            r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
-            lambda match: str(match.group(1) + " UTC"),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="time",
-            startup_param=True,
-            expiration=86400, # expire once per day 60 * 60 * 24
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value='2014/04/21,20:03:01')
+        #self._param_dict.add(Parameter.TIME,
+        #    r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
+        #    lambda match: str(match.group(1) + " UTC"),
+        #    str,
+        #    type=ParameterDictType.STRING,
+        #    display_name="time",
+        #    startup_param=True,
+        #    expiration=86400, # expire once per day 60 * 60 * 24
+        #    direct_access=True,
+        #    visibility=ParameterDictVisibility.IMMUTABLE,
+        #    default_value='2014/04/21,20:03:01')
 
         self._param_dict.add(Parameter.BUFFERED_OUTPUT_PERIOD,
             r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period:',
@@ -2329,17 +2331,17 @@ class Protocol(WorkhorseProtocol):
         #    direct_access=True,
         #    default_value='00:01.00')
 
-        self._param_dict2.add(Parameter.TIME,
-            r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
-            lambda match: str(match.group(1) + " UTC"),
-            str,
-            type=ParameterDictType.STRING,
-            display_name="time",
-            startup_param=True,
-            expiration=86400, # expire once per day 60 * 60 * 24
-            direct_access=True,
-            visibility=ParameterDictVisibility.IMMUTABLE,
-            default_value='2014/04/21,20:03:01')
+        #self._param_dict2.add(Parameter.TIME,
+        #    r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
+        #    lambda match: str(match.group(1) + " UTC"),
+        #    str,
+        #    type=ParameterDictType.STRING,
+        #    display_name="time",
+        #    startup_param=True,
+        #    expiration=86400, # expire once per day 60 * 60 * 24
+        #    direct_access=True,
+        #    visibility=ParameterDictVisibility.IMMUTABLE,
+        #    default_value='2014/04/21,20:03:01')
 
         self._param_dict2.add(Parameter.BUFFERED_OUTPUT_PERIOD,
             r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period:',
