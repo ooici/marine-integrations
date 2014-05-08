@@ -106,6 +106,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         """
         self.assert_initialize_driver()
         reply = self.driver_client.cmd_dvr('get_resource', WorkhorseParameter.ALL)
+        log.error("Sung %s", repr(reply))
         self.assert_driver_parameters(reply, True)
 
 
@@ -125,25 +126,23 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION)
         self.assert_driver_command(TeledyneProtocolEvent.CLOCK_SYNC)
         self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
-        self.assert_driver_command(TeledyneProtocolEvent.SEND_LAST_SAMPLE, regex='^\x7f\x7f.*')
         self.assert_driver_command(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM, expected="Parameters saved as USER defaults")
         self.assert_driver_command(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD, regex='^........')
         self.assert_driver_command(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, regex='^Error Status Word Cleared')
         self.assert_driver_command(TeledyneProtocolEvent.GET_FAULT_LOG, regex='^Total Unique Faults   =.*')
         self.assert_driver_command(TeledyneProtocolEvent.CLEAR_FAULT_LOG, expected='FC ..........\r\n Fault Log Cleared.\r\nClearing buffer @0x00801000\r\nDone [i=2048].\r\n')
-        self.assert_driver_command(TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX, regex='^Beam Width:')
         self.assert_driver_command(TeledyneProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
 
         self.assert_driver_command(TeledyneProtocolEvent.USER_SETS)
         self.assert_driver_command(TeledyneProtocolEvent.FACTORY_SETS)
 
+        self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS, regex='^4 beam status outputs')
 
         ####
         # Test in streaming mode
         ####
         # Put us in streaming
         self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE, delay=1)
-        self.assert_driver_command_exception(TeledyneProtocolEvent.SEND_LAST_SAMPLE, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(TeledyneProtocolEvent.SAVE_SETUP_TO_RAM, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(TeledyneProtocolEvent.GET_ERROR_STATUS_WORD, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, exception_class=InstrumentCommandException)
@@ -151,6 +150,8 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_FAULT_LOG, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(TeledyneProtocolEvent.RUN_TEST_200, exception_class=InstrumentCommandException)
+        self.assert_driver_command_exception(TeledyneProtocolEvent.ACQUIRE_STATUS, exception_class=InstrumentCommandException)
+
         self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
         self.assert_driver_command_exception(TeledyneProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
         self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
@@ -193,8 +194,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
             WorkhorseParameter.BLANK_AFTER_TRANSMIT: 704,
             WorkhorseParameter.CLIP_DATA_PAST_BOTTOM: 0,
             WorkhorseParameter.RECEIVER_GAIN_SELECT: 1,
-            WorkhorseParameter.WATER_REFERENCE_LAYER: '001,005',
-            WorkhorseParameter.WATER_PROFILING_MODE: 1,
             WorkhorseParameter.NUMBER_OF_DEPTH_CELLS: 100,
             WorkhorseParameter.PINGS_PER_ENSEMBLE: 1,
             WorkhorseParameter.DEPTH_CELL_SIZE: 800,
@@ -300,7 +299,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=90)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
-    def _test_scheduled_clock_sync_autosample(self):
+    def test_scheduled_clock_sync_autosample(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
@@ -315,7 +314,7 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         ###
         log.debug("====== Testing ranges for SERIAL_FLOW_CONTROL ======")
         # Test read only raise exceptions on set.
-        #self.assert_set_exception(WorkhorseParameter.SERIAL_FLOW_CONTROL, '10110')
+        self.assert_set_exception(WorkhorseParameter.SERIAL_FLOW_CONTROL, '10110')
         self._tested[WorkhorseParameter.SERIAL_FLOW_CONTROL] = True
 
     def _test_set_save_nvram_to_recorder_readonly(self):
@@ -448,7 +447,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         #
         # Reset to good value.
         #
-        #self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, self._driver_parameter_defaults[WorkhorseParameter.COORDINATE_TRANSFORMATION])
         self.assert_set(WorkhorseParameter.COORDINATE_TRANSFORMATION, self._driver_parameters[WorkhorseParameter.COORDINATE_TRANSFORMATION][self.VALUE])
         self._tested[WorkhorseParameter.COORDINATE_TRANSFORMATION] = True
 
@@ -544,7 +542,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
 
         instrument_time = time.mktime(time.strptime(check_new_params.get(WorkhorseParameter.TIME).lower(), "%Y/%m/%d,%H:%M:%S %Z"))
 
-        self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 450)
+        self.assertLessEqual(abs(instrument_time - time.mktime(time.gmtime())), 45)
 
     def test_get_capabilities(self):
         """
