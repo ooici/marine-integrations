@@ -76,7 +76,7 @@ class TeledyneParameter(DriverParameter):
     TIME_PER_ENSEMBLE = 'TE'            # 01:00:00.00 (hrs:min:sec.sec/100)
     TIME_OF_FIRST_PING = 'TG'           # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
     TIME_PER_PING = 'TP'                # 00:00.20  (min:sec.sec/100)
-    #TIME = 'TT'                         # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
+    TIME = 'TT'                         # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
     FALSE_TARGET_THRESHOLD = 'WA'       # 255,001 (Max)(0-255),Start Bin # <--------- TRICKY.... COMPLEX TYPE
     BANDWIDTH_CONTROL = 'WB'            # Bandwidth Control (0=Wid,1=Nar)
     CORRELATION_THRESHOLD = 'WC'        # 064  Correlation Threshold
@@ -125,7 +125,6 @@ class TeledyneInstrumentCmds(BaseEnum):
 
     OUTPUT_CALIBRATION_DATA = 'AC'
     BREAK = 'break' # < case sensitive!!!!
-    SEND_LAST_SAMPLE = 'CE'
     SAVE_SETUP_TO_RAM = 'CK'
     FACTORY_SETS = 'CR1' #Factory default set
     USER_SETS = 'CR0'  #User default set
@@ -165,7 +164,6 @@ class TeledyneProtocolEvent(BaseEnum):
 
     GET_CALIBRATION = "PROTOCOL_EVENT_GET_CALIBRATION"
     GET_CONFIGURATION = "PROTOCOL_EVENT_GET_CONFIGURATION"
-    SEND_LAST_SAMPLE = "PROTOCOL_EVENT_SEND_LAST_SAMPLE"
 
     SAVE_SETUP_TO_RAM = "PROTOCOL_EVENT_SAVE_SETUP_TO_RAM"
 
@@ -210,7 +208,6 @@ class TeledyneCapability(BaseEnum):
     GET_CALIBRATION = TeledyneProtocolEvent.GET_CALIBRATION
     GET_CONFIGURATION = TeledyneProtocolEvent.GET_CONFIGURATION
     SAVE_SETUP_TO_RAM = TeledyneProtocolEvent.SAVE_SETUP_TO_RAM
-    SEND_LAST_SAMPLE = TeledyneProtocolEvent.SEND_LAST_SAMPLE
     GET_ERROR_STATUS_WORD = TeledyneProtocolEvent.GET_ERROR_STATUS_WORD
     CLEAR_ERROR_STATUS_WORD = TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD
     GET_FAULT_LOG = TeledyneProtocolEvent.GET_FAULT_LOG
@@ -220,8 +217,8 @@ class TeledyneCapability(BaseEnum):
     USER_SETS = TeledyneProtocolEvent.USER_SETS
 
     ACQUIRE_STATUS = TeledyneProtocolEvent.ACQUIRE_STATUS
-    START_DIRECT_ACCESS = TeledyneProtocolEvent.START_DIRECT
-    STOP_DIRECT_ACCESS = TeledyneProtocolEvent.STOP_DIRECT
+    START_DIRECT = TeledyneProtocolEvent.START_DIRECT
+    STOP_DIRECT = TeledyneProtocolEvent.STOP_DIRECT
 
 
 class TeledyneScheduledJob(BaseEnum):
@@ -298,8 +295,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SAVE_SETUP_TO_RAM, self._handler_command_save_setup_to_ram)
 
-        self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SEND_LAST_SAMPLE, self._handler_command_send_last_sample)
-
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.START_DIRECT, self._handler_command_start_direct)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.RUN_TEST_200, self._handler_command_run_test_200)
         #//
@@ -340,7 +335,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         # Add build handlers for device commands.
         self._add_build_handler(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, self._build_simple_command)
-        self._add_build_handler(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, self._build_simple_command)
+        #self._add_build_handler(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.START_LOGGING, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.DISPLAY_ERROR_STATUS_WORD, self._build_simple_command)
@@ -353,8 +348,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(TeledyneInstrumentCmds.USER_SETS, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.SET, self._build_set_command)
         self._add_build_handler(TeledyneInstrumentCmds.GET, self._build_get_command)
-        self._add_build_handler(TeledyneInstrumentCmds.OUTPUT_PT2, self._build_get_command)
-        self._add_build_handler(TeledyneInstrumentCmds.OUTPUT_PT4, self._build_get_command)
+        self._add_build_handler(TeledyneInstrumentCmds.OUTPUT_PT2, self._build_simple_command)
+        self._add_build_handler(TeledyneInstrumentCmds.OUTPUT_PT4, self._build_simple_command)
 
 
         #
@@ -364,7 +359,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # Response handlers
         #
         self._add_response_handler(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, self._parse_output_calibration_data_response)
-        self._add_response_handler(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, self._parse_send_last_sample_response)
         self._add_response_handler(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, self._parse_save_setup_to_ram_response)
         self._add_response_handler(TeledyneInstrumentCmds.CLEAR_ERROR_STATUS_WORD, self._parse_clear_error_status_response)
         self._add_response_handler(TeledyneInstrumentCmds.DISPLAY_ERROR_STATUS_WORD, self._parse_error_status_response)
@@ -378,6 +372,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         self._add_response_handler(TeledyneInstrumentCmds.SET, self._parse_set_response)
         self._add_response_handler(TeledyneInstrumentCmds.GET, self._parse_get_response)
+
+        self._add_response_handler(TeledyneInstrumentCmds.OUTPUT_PT2, self._parse_output_calibration_data_response)
+        self._add_response_handler(TeledyneInstrumentCmds.OUTPUT_PT4, self._parse_output_calibration_data_response)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(TeledyneProtocolState.UNKNOWN)
@@ -395,6 +392,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self.disable_autosample_recover = False
 
     def _build_param_dict(self):
+        """
+        It will be implemented in its child
+        """
         pass
 
     def _build_driver_dict(self):
@@ -1374,6 +1374,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_get_calibration(self, *args, **kwargs):
         """
+        execute output_calibration_data command(AC)
         @param args:
         @param kwargs:
         @return:
@@ -1391,6 +1392,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_get_configuration(self, *args, **kwargs):
         """
+        Get raw format of system configuration data
         @param args:
         @param kwargs:
         @return:
@@ -1421,25 +1423,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         prompt = self._wakeup(timeout=3)
         self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
         return (next_state, (next_agent_state, result))
-
-    def _handler_command_send_last_sample(self, *args, **kwargs):
-        log.debug("IN _handler_command_send_last_sample")
-
-        next_state = None
-        next_agent_state = None
-        kwargs['timeout'] = 30
-        kwargs['expected_prompt'] = '>\r\n>' # special one off prompt.
-        prompt = self._wakeup(timeout=3)
-
-        # Disable autosample recover, so it isnt faked out....
-        self.disable_autosample_recover = True
-        (result, last_sample) = self._do_cmd_resp(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, *args, **kwargs)
-        # re-enable it.
-        self.disable_autosample_recover = False
-
-        decoded_last_sample = base64.b64decode(last_sample)
-
-        return (next_state, (next_agent_state, decoded_last_sample))
 
     def _handler_command_start_direct(self, *args, **kwargs):
         next_state = None
@@ -1487,6 +1470,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         return (next_state, (next_agent_state, result))
 
     def _handler_command_acquire_status(self,*args, **kwargs ):
+        """
+        Get the raw format outputs of the following commands, AC, PT2, PT4
+        """
         log.debug("IN _handler_command_acquire_status")
         next_state = None
 
@@ -1502,10 +1488,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         output = self._do_cmd_resp(TeledyneInstrumentCmds.OUTPUT_PT4, *args, **kwargs)
         result_PT4 = self._sanitize(base64.b64decode(output))
         time.sleep(.05)
-
-        result_start = "4 beam status outputs:".join(result_AC)
-        result_4beam = ", ".join([result_start,result_PT2,result_PT4])
-        return (next_state, result_4beam)
+        result_4beam = "4 beam status outputs : " + result_AC + result_PT2 + result_PT4
+        return (next_state, (None, result_4beam))
 
     def _discover(self):
         """
@@ -1638,14 +1622,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         return base64.b64encode(response)
 
-    def _parse_send_last_sample_response(self, response, prompt):
-        """
-        get the response from the CE command.
-        Remove the >\n> from the end of it.
-        return it base64 encoded
-        """
-        response = re.sub("CE\r\n", "", response)
-        return (True, base64.b64encode(response))
 
     def _parse_save_setup_to_ram_response(self, response, prompt):
         """
