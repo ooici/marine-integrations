@@ -116,6 +116,9 @@ class WorkhorseProtocol(TeledyneProtocol):
         self._chunker = StringChunker(WorkhorseProtocol.sieve_function)
 
     def _build_command_dict(self):
+        """
+        Build command dictionary
+        """
         self._cmd_dict.add(TeledyneCapability.START_AUTOSAMPLE,
                            timeout=300,
                            display_name="start autosample",
@@ -132,8 +135,6 @@ class WorkhorseProtocol(TeledyneProtocol):
                            display_name="get configuration")
         self._cmd_dict.add(TeledyneCapability.SAVE_SETUP_TO_RAM,
                            display_name="save setup to ram")
-        self._cmd_dict.add(TeledyneCapability.SEND_LAST_SAMPLE,
-                           display_name="send last sample")
         self._cmd_dict.add(TeledyneCapability.GET_ERROR_STATUS_WORD,
                            display_name="get error status word")
         self._cmd_dict.add(TeledyneCapability.CLEAR_ERROR_STATUS_WORD,
