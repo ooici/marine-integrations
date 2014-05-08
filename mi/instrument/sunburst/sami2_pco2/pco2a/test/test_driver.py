@@ -51,10 +51,10 @@ from pyon.agent.agent import ResourceAgentState
 
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import InstrumentDriver
 from mi.instrument.sunburst.driver import SamiInstrumentCommand
-from mi.instrument.sunburst.driver import ScheduledJob
+from mi.instrument.sunburst.sami2_pco2.driver import ScheduledJob
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import ProtocolState
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import ProtocolEvent
-from mi.instrument.sunburst.driver import Capability
+from mi.instrument.sunburst.sami2_pco2.driver import Capability
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import Parameter
 from mi.instrument.sunburst.sami2_pco2.pco2a.driver import Protocol
 from mi.instrument.sunburst.driver import Prompt
@@ -571,6 +571,9 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         ACQUIRE_STATUS
         ACQUIRE_BLANK_SAMPLE
     """
+
+    def test_initialize_driver(self):
+        self.assert_initialize_driver()
 
     def test_startup_params(self):
 

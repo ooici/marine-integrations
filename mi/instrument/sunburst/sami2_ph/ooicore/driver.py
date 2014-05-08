@@ -30,20 +30,11 @@ from mi.core.common import BaseEnum
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
-#from mi.core.instrument.data_particle import CommonDataParticleType
-#from mi.core.instrument.instrument_driver import DriverEvent
-#from mi.core.instrument.instrument_driver import DriverAsyncEvent
-#from mi.core.instrument.instrument_driver import DriverProtocolState
-#from mi.core.instrument.instrument_driver import ResourceAgentState
-#from mi.core.instrument.protocol_param_dict import FunctionParameter
+from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-
-from mi.instrument.sunburst.driver import Capability
 from mi.instrument.sunburst.driver import Prompt
-from mi.instrument.sunburst.driver import ProtocolState
-from mi.instrument.sunburst.driver import ProtocolEvent
 from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiParameter
 from mi.instrument.sunburst.driver import SamiInstrumentCommand
@@ -52,6 +43,7 @@ from mi.instrument.sunburst.driver import SamiControlRecordDataParticle
 from mi.instrument.sunburst.driver import SamiConfigDataParticleKey
 from mi.instrument.sunburst.driver import SamiInstrumentDriver
 from mi.instrument.sunburst.driver import SamiProtocol
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 
 from mi.instrument.sunburst.driver import CONTROL_RECORD_REGEX_MATCHER
 from mi.instrument.sunburst.driver import ERROR_REGEX_MATCHER
@@ -61,6 +53,10 @@ from mi.instrument.sunburst.driver import NEWLINE
 from mi.instrument.sunburst.driver import TIMEOUT
 from mi.instrument.sunburst.driver import SAMI_TO_UNIX
 from mi.instrument.sunburst.driver import SAMI_TO_NTP
+from mi.instrument.sunburst.driver import SamiScheduledJob
+from mi.instrument.sunburst.driver import SamiProtocolState
+from mi.instrument.sunburst.driver import SamiProtocolEvent
+from mi.instrument.sunburst.driver import SamiCapability
 
 ###
 #    Driver Constant Definitions
@@ -133,6 +129,17 @@ CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 #    Begin Classes
 ###
 
+class ScheduledJob(SamiScheduledJob):
+    pass
+
+class ProtocolState(SamiProtocolState):
+    pass
+
+class ProtocolEvent(SamiProtocolEvent):
+    pass
+
+class Capability(SamiCapability):
+    pass
 
 class DataParticleType(SamiDataParticleType):
     """
@@ -444,6 +451,15 @@ class Protocol(SamiProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
+
+        # Construct protocol superclass.
+        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+
+        # Build protocol state machine.
+        self._protocol_fsm = InstrumentFSM(
+            ProtocolState, ProtocolEvent,
+            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+
         # Construct protocol superclass.
         SamiProtocol.__init__(self, prompts, newline, driver_event)
 
@@ -452,6 +468,13 @@ class Protocol(SamiProtocol):
 
         # build the chunker bot
         self._chunker = StringChunker(Protocol.sieve_function)
+
+    def _filter_capabilities(self, events):
+        """
+        Return a list of currently available capabilities.
+        """
+
+        return [x for x in events if Capability.has(x)]
 
     @staticmethod
     def sieve_function(raw_data):

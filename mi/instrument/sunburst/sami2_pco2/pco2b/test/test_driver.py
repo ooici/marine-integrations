@@ -50,10 +50,10 @@ from pyon.agent.agent import ResourceAgentState
 
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import InstrumentDriver
 from mi.instrument.sunburst.driver import SamiInstrumentCommand
-from mi.instrument.sunburst.driver import ScheduledJob
+from mi.instrument.sunburst.sami2_pco2.driver import ScheduledJob
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import ProtocolState
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import ProtocolEvent
-from mi.instrument.sunburst.driver import Capability
+from mi.instrument.sunburst.sami2_pco2.driver import Capability
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Parameter
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Protocol
 from mi.instrument.sunburst.driver import Prompt

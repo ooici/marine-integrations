@@ -14,25 +14,27 @@ __author__ = 'Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
 import re
+import time
 
 from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.exceptions import SampleException
 from mi.core.exceptions import InstrumentProtocolException
+from mi.core.exceptions import InstrumentTimeoutException
+from mi.core.exceptions import NotImplementedException
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
+from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.instrument.sunburst.driver import SamiDataParticleType
-from mi.instrument.sunburst.driver import ProtocolState
-from mi.instrument.sunburst.driver import ProtocolEvent
-from mi.instrument.sunburst.driver import Capability
 from mi.instrument.sunburst.driver import SamiParameter
+from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import SamiInstrumentCommand
 from mi.instrument.sunburst.driver import SamiRegularStatusDataParticle
@@ -45,7 +47,13 @@ from mi.instrument.sunburst.driver import SamiProtocol
 from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX_MATCHER
 from mi.instrument.sunburst.driver import CONTROL_RECORD_REGEX_MATCHER
 from mi.instrument.sunburst.driver import ERROR_REGEX_MATCHER
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.instrument.sunburst.driver import NEWLINE
+from mi.instrument.sunburst.driver import SamiScheduledJob
+from mi.instrument.sunburst.driver import SamiProtocolState
+from mi.instrument.sunburst.driver import SamiProtocolEvent
+from mi.instrument.sunburst.driver import SamiCapability
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 
 ###
 #    Driver Constant Definitions
@@ -78,6 +86,19 @@ SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
 #    Begin Classes
 ###
 
+class ScheduledJob(SamiScheduledJob):
+    ACQUIRE_BLANK_SAMPLE = 'acquire_blank_sample'
+
+class ProtocolState(SamiProtocolState):
+    POLLED_BLANK_SAMPLE = 'PROTOCOL_STATE_POLLED_BLANK_SAMPLE'
+    SCHEDULED_BLANK_SAMPLE = 'PROTOCOL_STATE_SCHEDULED_BLANK_SAMPLE'
+
+class ProtocolEvent(SamiProtocolEvent):
+    ACQUIRE_BLANK_SAMPLE = 'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'
+
+class Capability(SamiCapability):
+    ACQUIRE_BLANK_SAMPLE = ProtocolEvent.ACQUIRE_BLANK_SAMPLE
+
 class Pco2wSamiDataParticleType(SamiDataParticleType):
     SAMI_SAMPLE = 'pco2w_sami_data_record'
 
@@ -96,6 +117,9 @@ class Pco2wSamiParameter(SamiParameter):
     FLUSH_PUMP_INTERVAL = 'flush_pump_interval'
     BIT_SWITCHES = 'bit_switches'
     NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
+
+class Pco2wInstrumentCommand(SamiInstrumentCommand):
+    ACQUIRE_BLANK_SAMPLE_SAMI = 'C'
 
 ###############################################################################
 # Data Particles
@@ -220,11 +244,335 @@ class Pco2wProtocol(SamiProtocol):
         log.debug('herb: ' + 'Pco2wProtocol.__init__()')
 
         # Construct protocol superclass.
+        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+
+        # Build protocol state machine.
+        self._protocol_fsm = InstrumentFSM(
+            ProtocolState, ProtocolEvent,
+            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+
+        # Construct protocol superclass.
         SamiProtocol.__init__(self, prompts, newline, driver_event)
+
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
+            self._handler_command_acquire_blank_sample)
+
+        self._protocol_fsm.add_handler(
+            ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
+            self._handler_autosample_acquire_blank_sample)
+
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
+            self._handler_queue_acquire_blank_sample)
+
+        # this state would be entered whenever an ACQUIRE_BLANK_SAMPLE event
+        # occurred while in either the COMMAND state
+        # and will last anywhere from a few seconds to 3
+        # minutes depending on instrument and sample type.
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_BLANK_SAMPLE, ProtocolEvent.ENTER,
+            self._handler_polled_blank_sample_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_BLANK_SAMPLE, ProtocolEvent.EXIT,
+            self._handler_polled_blank_sample_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_BLANK_SAMPLE, ProtocolEvent.TAKE_SAMPLE,
+            self._handler_take_blank_sample)
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_BLANK_SAMPLE, ProtocolEvent.SUCCESS,
+            self._handler_polled_blank_sample_success)
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_BLANK_SAMPLE, ProtocolEvent.TIMEOUT,
+            self._handler_polled_blank_sample_timeout)
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_STATUS,
+            self._handler_queue_acquire_status)
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE,
+            self._handler_queue_acquire_sample)
+        self._protocol_fsm.add_handler(
+            ProtocolState.POLLED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
+            self._handler_queue_acquire_blank_sample)
+
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
+            self._handler_queue_acquire_blank_sample)
+
+        # this state would be entered whenever an ACQUIRE_BLANK_SAMPLE event
+        # occurred while in either the COMMAND state
+        # and will last anywhere from a few seconds to 3
+        # minutes depending on instrument and sample type.
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_BLANK_SAMPLE, ProtocolEvent.ENTER,
+            self._handler_scheduled_blank_sample_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_BLANK_SAMPLE, ProtocolEvent.EXIT,
+            self._handler_scheduled_blank_sample_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_BLANK_SAMPLE, ProtocolEvent.TAKE_SAMPLE,
+            self._handler_take_blank_sample)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_BLANK_SAMPLE, ProtocolEvent.SUCCESS,
+            self._handler_scheduled_blank_sample_success)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_BLANK_SAMPLE, ProtocolEvent.TIMEOUT,
+            self._handler_scheduled_blank_sample_timeout)
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_STATUS,
+            self._handler_queue_acquire_status)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_SAMPLE,
+            self._handler_queue_acquire_sample)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
+            self._handler_queue_acquire_blank_sample)
+
+        # engineering parameters can be added in sub classes
+        self._add_build_handler(Pco2wInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, self._build_simple_command)
+
+        # Add response handlers for device commands.
+        self._add_response_handler(Pco2wInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, self._parse_response_blank_sample_sami)
+
+        self._add_scheduler_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
+
+    def _filter_capabilities(self, events):
+        """
+        Return a list of currently available capabilities.
+        """
+
+        return [x for x in events if Capability.has(x)]
+
+    ########################################################################
+    # Events to queue handlers.
+    ########################################################################
+    def _handler_queue_acquire_blank_sample(self, *args, **kwargs):
+
+        log.debug('herb: ' +
+                  'SamiProtocol._handler_queue_acquire_blank_sample():' +
+                  ' queueing ProtocolEvent.ACQUIRE_BLANK_SAMPLE in state ' +
+                  self.get_current_state())
+
+        self._queued_commands.sample = ProtocolEvent.ACQUIRE_BLANK_SAMPLE
+
+        next_state = None
+        result = None
+
+        return (next_state, result)
+
+    ########################################################################
+    # Command handlers.
+    ########################################################################
+
+    def _handler_command_acquire_blank_sample(self):
+        """
+        Acquire a blank sample
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._handler_command_acquire_blank_sample()')
+
+        next_state = ProtocolState.POLLED_BLANK_SAMPLE
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+
+        return (next_state, (next_agent_state, result))
+
+    ########################################################################
+    # Autosample handlers.
+    ########################################################################
+
+    def _handler_autosample_acquire_blank_sample(self, *args, **kwargs):
+        """
+        While in autosample mode, poll for blank samples
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._handler_autosample_acquire_blank_sample')
+
+        next_state = ProtocolState.SCHEDULED_BLANK_SAMPLE
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+
+        return (next_state, (next_agent_state, result))
+
+    ########################################################################
+    # Take Blank Sample handler used in sample states
+    ########################################################################
+
+    def _handler_take_blank_sample(self, *args, **kwargs):
+        """
+        Acquire the instrument's status
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._handler_take_blank_sample() ENTER')
+        log.debug('herb: ' + 'SamiProtocol._handler_take_blank_sample(): CURRENT_STATE == ' + self.get_current_state())
+
+        try:
+            self._take_blank_sample()
+            log.debug('herb: ' + 'SamiProtocol._handler_take_blank_sample(): SUCCESS')
+            self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
+        except InstrumentTimeoutException:
+            log.error('SamiProtocol._handler_take_blank_sample(): TIMEOUT')
+            self._async_raise_fsm_event(ProtocolEvent.TIMEOUT)
+
+        log.debug('herb: ' + 'SamiProtocol._handler_take_blank_sample() EXIT')
+
+        return None, None
+
+    ########################################################################
+    # Polled Blank Sample handlers.
+    ########################################################################
+
+    def _handler_polled_blank_sample_enter(self, *args, **kwargs):
+        """
+        Enter state.
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_enter')
+
+        self._async_raise_fsm_event(ProtocolEvent.TAKE_SAMPLE)
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_polled_blank_sample_exit(self, *args, **kwargs):
+        """
+        Exit state.
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_exit')
+
+        pass
+
+    def _handler_polled_blank_sample_success(self, *args, **kwargs):
+        """
+        Successfully received a sample from SAMI
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_success')
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    def _handler_polled_blank_sample_timeout(self, *args, **kwargs):
+        """
+        Sample timeout occurred.
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_timeout')
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    ########################################################################
+    # Scheduled Blank Sample handlers.
+    ########################################################################
+
+    def _handler_scheduled_blank_sample_enter(self, *args, **kwargs):
+        """
+        Enter state.
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._handler_scheduled_blank_sample_enter')
+
+        self._async_raise_fsm_event(ProtocolEvent.TAKE_SAMPLE)
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_scheduled_blank_sample_exit(self, *args, **kwargs):
+        """
+        Exit state.
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._handler_scheduled_blank_sample_exit')
+
+        pass
+
+    def _handler_scheduled_blank_sample_success(self, *args, **kwargs):
+        """
+        Successfully received a sample from SAMI
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._handler_scheduled_blank_sample_success')
+
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    def _handler_scheduled_blank_sample_timeout(self, *args, **kwargs):
+        """
+        Sample timeout occurred.
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._handler_scheduled_blank_sample_timeout')
+
+        next_state = ProtocolState.AUTOSAMPLE
+        next_agent_state = ResourceAgentState.STREAMING
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    ########################################################################
+    # Response handlers.
+    ########################################################################
+
+    def _parse_response_blank_sample_sami(self, response, prompt):
+        log.debug('herb: ' + 'SamiProtocol._parse_response_blank_sample_sami')
+        pass
+
+    ########################################################################
+    # Private Methods
+    ########################################################################
+
+    def _take_blank_sample(self):
+
+        log.debug('herb: ' + 'Pco2wProtocol._take_blank_sample(): _take_blank_sample() START')
+
+        self._pre_sample_processing()
+
+        start_time = time.time()
+
+        ## An exception is raised if timeout is hit.
+        self._do_cmd_resp(Pco2wInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, timeout = self._get_blank_sample_timeout(), response_regex=self._get_sample_regex())
+
+        sample_time = time.time() - start_time
+
+        log.debug('herb: ' + 'Pco2wProtocol._take_blank_sample(): Blank Sample took ' + str(sample_time) + ' to FINISH')
+
+        pass
 
     ########################################################################
     # Build Command, Driver and Parameter dictionaries
     ########################################################################
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+
+        log.debug('herb: ' + 'SamiProtocol._build_command_dict')
+
+        SamiProtocol._build_command_dict(self)
+
+        self._cmd_dict.add(Capability.ACQUIRE_BLANK_SAMPLE, display_name="acquire blank sample")
 
     def _build_param_dict(self):
         """
@@ -342,6 +690,14 @@ class Pco2wProtocol(SamiProtocol):
     ########################################################################
     # Overridden base class methods
     ########################################################################
+
+
+    def _get_blank_sample_timeout(self):
+        """
+        Overridden by device specific subclasses.
+        """
+
+        raise NotImplementedException()
 
     def _get_sample_regex(self):
         log.debug('herb: ' + 'Protocol._get_sample_regex()')

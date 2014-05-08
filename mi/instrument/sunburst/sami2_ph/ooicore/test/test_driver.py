@@ -48,9 +48,9 @@ from ion.agents.instrument.direct_access.direct_access_server import DirectAcces
 from pyon.agent.agent import ResourceAgentEvent
 from pyon.agent.agent import ResourceAgentState
 
-from mi.instrument.sunburst.driver import Capability
 from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import NEWLINE
+from mi.instrument.sunburst.sami2_ph.ooicore.driver import Capability
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import DataParticleType
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import InstrumentCommand
 from mi.instrument.sunburst.sami2_ph.ooicore.driver import InstrumentDriver
@@ -64,7 +64,7 @@ from mi.instrument.sunburst.test.test_driver import SamiMixin
 from mi.instrument.sunburst.test.test_driver import SamiUnitTest
 from mi.instrument.sunburst.test.test_driver import SamiIntegrationTest
 from mi.instrument.sunburst.test.test_driver import SamiQualificationTest
-from mi.instrument.sunburst.driver import ScheduledJob
+from mi.instrument.sunburst.sami2_ph.ooicore.driver import ScheduledJob
 
 ###
 #   Driver parameters for the tests
@@ -160,6 +160,19 @@ class DriverTestMixinSub(SamiMixin):
     ###
     #  Parameter and Type Definitions
     ###
+
+
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        Capability.ACQUIRE_STATUS:      {STATES: [ProtocolState.COMMAND,
+                                                  ProtocolState.AUTOSAMPLE]},
+        Capability.ACQUIRE_SAMPLE:      {STATES: [ProtocolState.COMMAND]},
+        Capability.START_AUTOSAMPLE:    {STATES: [ProtocolState.COMMAND,
+                                                  ProtocolState.AUTOSAMPLE]},
+        Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
+                                                  ProtocolState.COMMAND]}
+    }
+
     _driver_parameters = {
         # Parameters defined in the PHSEN IOS. NOTE:these test values are
         # different than the PCO2's:/NOTE
@@ -375,6 +388,51 @@ class DriverTestMixinSub(SamiMixin):
 @attr('UNIT', group='mi')
 class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
 
+    capabilities_test_dict = {
+        ProtocolState.UNKNOWN:          ['DRIVER_EVENT_DISCOVER'],
+        ProtocolState.WAITING:          ['DRIVER_EVENT_DISCOVER'],
+        ProtocolState.COMMAND:          ['DRIVER_EVENT_GET',
+                                         'DRIVER_EVENT_SET',
+                                         'DRIVER_EVENT_START_DIRECT',
+                                         'DRIVER_EVENT_ACQUIRE_STATUS',
+                                         'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                         'DRIVER_EVENT_START_AUTOSAMPLE'],
+        ProtocolState.AUTOSAMPLE:       ['DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                         'DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                         'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.DIRECT_ACCESS:    ['EXECUTE_DIRECT',
+                                         'DRIVER_EVENT_STOP_DIRECT'],
+        ProtocolState.POLLED_SAMPLE:     ['PROTOCOL_EVENT_TAKE_SAMPLE',
+                                          'PROTOCOL_EVENT_SUCCESS',
+                                          'PROTOCOL_EVENT_TIMEOUT',
+                                          'DRIVER_EVENT_ACQUIRE_STATUS',
+                                          'DRIVER_EVENT_ACQUIRE_SAMPLE'],
+        ProtocolState.SCHEDULED_SAMPLE:   ['PROTOCOL_EVENT_TAKE_SAMPLE',
+                                           'PROTOCOL_EVENT_SUCCESS',
+                                           'PROTOCOL_EVENT_TIMEOUT',
+                                           'DRIVER_EVENT_ACQUIRE_STATUS',
+                                           'DRIVER_EVENT_ACQUIRE_SAMPLE'],
+    }
+
+    def test_base_driver_enums(self):
+        """
+        Verify that all the SAMI Instrument driver enumerations have no
+        duplicate values that might cause confusion. Also do a little
+        extra validation for the Capabilites
+
+        Extra enumeration tests are done in a specific subclass
+        """
+
+        # Test Enums defined in the base SAMI driver
+        self.assert_enum_has_no_duplicates(ProtocolState())
+        self.assert_enum_has_no_duplicates(ProtocolEvent())
+
+        # Test capabilites for duplicates, then verify that capabilities
+        # is a subset of proto events
+
+        self.assert_enum_has_no_duplicates(Capability())
+        self.assert_enum_complete(Capability(), ProtocolEvent())
+
     def test_driver_schema(self):
         """
         get the driver schema and verify it is configured properly
@@ -583,12 +641,6 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
         self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
 
-    def test_acquire_blank_sample(self):
-        self.assert_initialize_driver()
-        # Will always take a blank sample first after initialization.
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
-
     def test_auto_sample(self):
         self.assert_initialize_driver()
         self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 320)
@@ -602,33 +654,11 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.POLLED_SAMPLE, delay=5)
         self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
 
-    def test_polled_blank_sample_state(self):
-        self.assert_initialize_driver()
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, state=ProtocolState.POLLED_BLANK_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
-
     def test_scheduled_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
         self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
-
-    def test_scheduled_blank_sample_state(self):
-        self.assert_initialize_driver()
-        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
-        self.clear_events()
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, state=ProtocolState.SCHEDULED_BLANK_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
-        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
-
-    def test_scheduled_blank_sample_command(self):
-        """
-        Verify the blank sample command can be triggered and run in command
-        """
-        self.assert_scheduled_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, delay=120)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=400)
-        self.assert_current_state(ProtocolState.COMMAND)
 
     def test_scheduled_device_status_auto_sample(self):
         """
@@ -640,15 +670,6 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         self.assert_async_particle_generation(DataParticleType.CONFIGURATION, self.assert_particle_configuration, timeout=280)
         self.assert_async_particle_generation(DataParticleType.BATTERY_VOLTAGE, self.assert_particle_battery_voltage)
         self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
-        self.assert_current_state(ProtocolState.AUTOSAMPLE)
-
-    def test_scheduled_blank_sample_auto_sample(self):
-        """
-        Verify the blank sample command can be triggered and run in autosample
-        """
-        self.assert_scheduled_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, delay=180)
-        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=2, timeout=660)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
     def test_queued_command(self):
@@ -667,16 +688,6 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         self.clear_events()
         self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
 
-        ## Queue blank sample and status
-        self.clear_events()
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
-        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=240)
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
-
         self.assert_current_state(ProtocolState.COMMAND)
 
     def test_queued_autosample(self):
@@ -689,16 +700,6 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 
         ## Queue sample and status
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
-        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=240)
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
-
-        ## Queue blank sample and status
-        self.clear_events()
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
         self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=240)
         self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=240)
@@ -790,8 +791,6 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=240)
 
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=240)
-
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_regular_status, DataParticleType.REGULAR_STATUS, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.CONFIGURATION, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage, DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
@@ -804,8 +803,6 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
         self.assert_start_autosample(timeout=240)
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=240)
-
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=240)
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_regular_status, DataParticleType.REGULAR_STATUS, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.CONFIGURATION, sample_count=1, timeout=10)
@@ -840,8 +837,7 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
             AgentCapabilityType.RESOURCE_COMMAND: [
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.ACQUIRE_STATUS,
-                ProtocolEvent.ACQUIRE_SAMPLE,
-                ProtocolEvent.ACQUIRE_BLANK_SAMPLE
+                ProtocolEvent.ACQUIRE_SAMPLE
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
@@ -888,8 +884,7 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
         st_capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
             ProtocolEvent.STOP_AUTOSAMPLE,
             ProtocolEvent.ACQUIRE_STATUS,
-            ProtocolEvent.ACQUIRE_SAMPLE,
-            ProtocolEvent.ACQUIRE_BLANK_SAMPLE
+            ProtocolEvent.ACQUIRE_SAMPLE
         ]
 
         self.assert_start_autosample(timeout=240)

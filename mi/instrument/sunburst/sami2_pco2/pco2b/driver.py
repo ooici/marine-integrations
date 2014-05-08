@@ -52,6 +52,7 @@ from mi.instrument.sunburst.sami2_pco2.driver import NEWLINE
 from mi.instrument.sunburst.sami2_pco2.driver import SAMI_SAMPLE_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticle
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentCommand
 ###
 #    Driver Constant Definitions
 ###
@@ -135,7 +136,7 @@ class Parameter(Pco2wSamiParameter):
     EXTERNAL_PUMP_SETTINGS = 'external_pump_setting'
     EXTERNAL_PUMP_DELAY = 'external_pump_delay'
 
-class InstrumentCommand(SamiInstrumentCommand):
+class InstrumentCommand(Pco2wInstrumentCommand):
     """
     Device specfic Instrument command strings. Extends superclass
     SamiInstrumentCommand
@@ -378,7 +379,6 @@ class InstrumentDriver(Pco2wInstrumentDriver):
 
         self._protocol = Protocol(Prompt, NEWLINE, self._driver_event)
 
-
 ###########################################################################
 # Protocol
 ###########################################################################
@@ -429,8 +429,12 @@ class Protocol(Pco2wProtocol):
 
         start_time = time.time()
 
+        dev1_timeout = self._param_dict.get(Parameter.EXTERNAL_PUMP_SETTINGS)
+
+        log.debug('herb: ' + 'Protocol._pre_sample_processing(): Dev1 Timeout = ' + dev1_timeout)
+
         ## An exception is raised if timeout is hit.
-        self._do_cmd_resp(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, timeout = self._get_sample_timeout(), response_regex=DEV1_SAMPLE_REGEX_MATCHER)
+        self._do_cmd_resp(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, timeout = dev1_timeout, response_regex=DEV1_SAMPLE_REGEX_MATCHER)
 
         sample_time = time.time() - start_time
 

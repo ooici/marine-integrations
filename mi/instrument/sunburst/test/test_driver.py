@@ -53,18 +53,15 @@ from mi.core.instrument.logger_client import LoggerClient
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 
-from mi.instrument.sunburst.driver import Capability
+
 from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import NEWLINE
-from mi.instrument.sunburst.driver import ProtocolEvent
-from mi.instrument.sunburst.driver import ProtocolState
 from mi.instrument.sunburst.driver import SamiControlRecordDataParticleKey
 from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiRegularStatusDataParticleKey
 from mi.instrument.sunburst.driver import SamiBatteryVoltageDataParticleKey
 from mi.instrument.sunburst.driver import SamiThermistorVoltageDataParticleKey
-from mi.instrument.sunburst.driver import ScheduledJob
-
+from mi.instrument.sunburst.driver import SamiProtocolState
 ###
 #   Driver parameters for the tests
 ###
@@ -135,18 +132,6 @@ class SamiMixin(DriverTestMixin):
     ###
     #  Parameter and Type Definitions
     ###
-
-    _driver_capabilities = {
-        # capabilities defined in the IOS
-        Capability.ACQUIRE_STATUS:      {STATES: [ProtocolState.COMMAND,
-                                                  ProtocolState.AUTOSAMPLE]},
-        Capability.ACQUIRE_SAMPLE:      {STATES: [ProtocolState.COMMAND]},
-        Capability.ACQUIRE_BLANK_SAMPLE:{STATES: [ProtocolState.COMMAND]},
-        Capability.START_AUTOSAMPLE:    {STATES: [ProtocolState.COMMAND,
-                                                  ProtocolState.AUTOSAMPLE]},
-        Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
-                                                  ProtocolState.COMMAND]}
-    }
 
     _regular_status_parameters = {
         # SAMI Regular Status Messages (S0)
@@ -293,68 +278,7 @@ class SamiMixin(DriverTestMixin):
 ###############################################################################
 @attr('UNIT', group='mi')
 class SamiUnitTest(InstrumentDriverUnitTestCase, SamiMixin):
-
-    def test_base_driver_enums(self):
-        """
-        Verify that all the SAMI Instrument driver enumerations have no
-        duplicate values that might cause confusion. Also do a little
-        extra validation for the Capabilites
-
-        Extra enumeration tests are done in a specific subclass
-        """
-
-        # Test Enums defined in the base SAMI driver
-        self.assert_enum_has_no_duplicates(ProtocolState())
-        self.assert_enum_has_no_duplicates(ProtocolEvent())
-
-        # Test capabilites for duplicates, then verify that capabilities
-        # is a subset of proto events
-
-        self.assert_enum_has_no_duplicates(Capability())
-        self.assert_enum_complete(Capability(), ProtocolEvent())
-
-    capabilities_test_dict = {
-        ProtocolState.UNKNOWN:          ['DRIVER_EVENT_DISCOVER'],
-        ProtocolState.WAITING:          ['DRIVER_EVENT_DISCOVER'],
-        ProtocolState.COMMAND:          ['DRIVER_EVENT_GET',
-                                         'DRIVER_EVENT_SET',
-                                         'DRIVER_EVENT_START_DIRECT',
-                                         'DRIVER_EVENT_ACQUIRE_STATUS',
-                                         'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                         'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE',
-                                         'DRIVER_EVENT_START_AUTOSAMPLE'],
-        ProtocolState.AUTOSAMPLE:       ['DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                         'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE',
-                                         'DRIVER_EVENT_STOP_AUTOSAMPLE',
-                                         'DRIVER_EVENT_ACQUIRE_STATUS'],
-        ProtocolState.DIRECT_ACCESS:    ['EXECUTE_DIRECT',
-                                         'DRIVER_EVENT_STOP_DIRECT'],
-        ProtocolState.POLLED_SAMPLE:     ['PROTOCOL_EVENT_TAKE_SAMPLE',
-                                          'PROTOCOL_EVENT_SUCCESS',
-                                          'PROTOCOL_EVENT_TIMEOUT',
-                                          'DRIVER_EVENT_ACQUIRE_STATUS',
-                                          'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                          'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'],
-        ProtocolState.POLLED_BLANK_SAMPLE: ['PROTOCOL_EVENT_TAKE_SAMPLE',
-                                            'PROTOCOL_EVENT_SUCCESS',
-                                            'PROTOCOL_EVENT_TIMEOUT',
-                                            'DRIVER_EVENT_ACQUIRE_STATUS',
-                                            'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                            'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'],
-        ProtocolState.SCHEDULED_SAMPLE:   ['PROTOCOL_EVENT_TAKE_SAMPLE',
-                                           'PROTOCOL_EVENT_SUCCESS',
-                                           'PROTOCOL_EVENT_TIMEOUT',
-                                           'DRIVER_EVENT_ACQUIRE_STATUS',
-                                           'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                           'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'],
-        ProtocolState.SCHEDULED_BLANK_SAMPLE: ['PROTOCOL_EVENT_TAKE_SAMPLE',
-                                               'PROTOCOL_EVENT_SUCCESS',
-                                               'PROTOCOL_EVENT_TIMEOUT',
-                                               'DRIVER_EVENT_ACQUIRE_STATUS',
-                                               'DRIVER_EVENT_ACQUIRE_SAMPLE',
-                                               'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE']
-    }
-
+    pass
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -468,7 +392,7 @@ class SamiQualificationTest(InstrumentDriverQualificationTestCase):
         # state = self.instrument_agent_client.get_agent_state()
         # self.assertEqual(state, ResourceAgentState.STREAMING)
 
-        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, timeout=timeout)
+        self.assert_state_change(ResourceAgentState.STREAMING, SamiProtocolState.AUTOSAMPLE, timeout=timeout)
 
     ## Have to override because the driver enters a sample state as soon as autosample mode is entered by design.
     def assert_sample_autosample(self, sample_data_assert, sample_queue,
@@ -535,5 +459,5 @@ class SamiQualificationTest(InstrumentDriverQualificationTestCase):
 
         self.assert_direct_access_stop_telnet()
 
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+        self.assert_state_change(ResourceAgentState.COMMAND, SamiProtocolState.COMMAND, 60)
 
