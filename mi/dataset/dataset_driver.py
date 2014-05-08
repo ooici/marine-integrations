@@ -1095,7 +1095,7 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
                 self._state_callback(self._driver_state)
 
             # pre_parse can be overloaded if there is anything needed to be done prior to parsing
-            self.pre_parse(filename=file_name, data_key=data_key)
+            self.pre_parse_single(filename=file_name, data_key=data_key)
 
             self._get_parser_results(file_name, data_key)
             self._save_single_file_state(file_name, data_key)
@@ -1142,6 +1142,16 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
     def pre_parse(self, filename=None, data_key=None):
         """
         This can be overloaded if something needs to be done just before parsing
+        a file found with the directory harvester
+        @param file_name name of the file to parse
+        @param data_key The key to index into the harvester and parser
+        """
+        pass
+
+    def pre_parse_single(self, filename=None, data_key=None):
+        """
+        This can be overloaded if something needs to be done just before parsing
+        a single file
         @param file_name name of the file to parse
         @param data_key The key to index into the harvester and parser
         """

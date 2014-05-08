@@ -50,7 +50,7 @@ SAMPLES_RETURNED = 3
 
 class SioMuleParser(Parser):
 
-    def __init__(self, config, stream_handle, state, sieve_fn,
+    def __init__(self, config, stream_handle, file_name, state, sieve_fn,
                  state_callback, publish_callback, exception_callback, recovered_flag=False):
         """
         @param config The configuration parameters to feed into the parser
@@ -77,7 +77,7 @@ class SioMuleParser(Parser):
                                          state_callback,
                                          publish_callback,
                                          exception_callback)
-
+        self._file_name = file_name
         self._position = [0,0] # store both the start and end point for this read of data within the file
         self._record_buffer = [] # holds list of records
         self._recovered_flag = recovered_flag
@@ -491,7 +491,7 @@ class SioMuleParser(Parser):
             self._increment_state(num_to_fetch)
             self._state = self._read_state
             log.debug("Sending parser state [%s] to driver", self._state)
-            self._state_callback(self._state) # push new state to driver
+            self._state_callback(self._state, self._file_name) # push new state to driver
 
         return return_list
 

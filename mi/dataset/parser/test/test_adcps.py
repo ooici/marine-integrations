@@ -32,7 +32,7 @@ D_UN_PROC = [[0,32],[607,678],[2406,2475],[2665,3050],[3240,3627],[3817,4271],[4
 @attr('UNIT', group='mi')
 class AdcpsParserUnitTestCase(ParserUnitTestCase):
 
-    def state_callback(self, state):
+    def state_callback(self, state, filename):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
 
@@ -186,7 +186,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         # 5000
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
             StateKey.IN_PROCESS_DATA:[]}
-        self.parser = AdcpsParser(self.config, self.state, self.stream_handle,
+        self.parser = AdcpsParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
@@ -210,7 +210,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
             StateKey.IN_PROCESS_DATA:[]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = AdcpsParser(self.config, self.state, self.stream_handle,
+        self.parser = AdcpsParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback) 
 
         result = self.parser.get_records(5)
@@ -236,7 +236,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         self.stream_handle.seek(0)
         self.state = {StateKey.UNPROCESSED_DATA:[[0, data_len]],
             StateKey.IN_PROCESS_DATA:[]}
-        self.parser = AdcpsParser(self.config, self.state, self.stream_handle,
+        self.parser = AdcpsParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(29)
@@ -263,7 +263,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
             StateKey.UNPROCESSED_DATA:[[0,32], [607, 678], [1444,5000]]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = AdcpsParser(self.config, new_state, self.stream_handle,
+        self.parser = AdcpsParser(self.config, new_state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, C_IN_PROC, C_UN_PROC, self.particle_c)
@@ -284,7 +284,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
                 [2020,2475],[2665,3050],[3240,3627],[3817,4271],[4461,5000]]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = AdcpsParser(self.config, new_state, self.stream_handle,
+        self.parser = AdcpsParser(self.config, new_state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
         
@@ -309,7 +309,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = AdcpsParser(self.config, self.state, self.stream_handle,
+        self.parser = AdcpsParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
         # there should only be 6 records, make sure we stop there
         result = self.parser.get_records(6)
@@ -341,7 +341,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         # this file has a block of AD data replaced by 0s
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_replaced.dat'))
-        self.parser = AdcpsParser(self.config, self.state, self.stream_handle,
+        self.parser = AdcpsParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
@@ -358,7 +358,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         # this file has the block of CT data that was missing in the previous file
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = AdcpsParser(self.config, next_state, self.stream_handle,
+        self.parser = AdcpsParser(self.config, next_state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         # first get the old 'in process' records

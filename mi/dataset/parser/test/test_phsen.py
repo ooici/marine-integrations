@@ -27,7 +27,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
     """
     Phsen Parser unit test suite
     """
-    def state_callback(self, state):
+    def state_callback(self, state, filename):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
 
@@ -126,7 +126,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
                                                'node59p1_shorter.dat'))
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 9000]],
             StateKey.IN_PROCESS_DATA:[]}
-        self.parser = PhsenParser(self.config, self.state, self.stream_handle,
+        self.parser = PhsenParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
@@ -150,7 +150,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
             StateKey.IN_PROCESS_DATA:[]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = PhsenParser(self.config, self.state, self.stream_handle,
+        self.parser = PhsenParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(6)
@@ -178,7 +178,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
                 [7697, 7764], [8636, 16000]]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = PhsenParser(self.config, new_state, self.stream_handle,
+        self.parser = PhsenParser(self.config, new_state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, [[14142, 14646, 1, 0], [14839, 15343, 1, 0]],
@@ -201,7 +201,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
                                        [7697, 7764], [8636, 16000]]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = PhsenParser(self.config, new_state, self.stream_handle,
+        self.parser = PhsenParser(self.config, new_state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, [],
@@ -227,7 +227,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = PhsenParser(self.config, self.state, self.stream_handle,
+        self.parser = PhsenParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
         # there should only be 3 records, make sure we stop there
         result = self.parser.get_records(3)
@@ -255,7 +255,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         # this file has a block of FL data replaced by 0s
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_replaced.dat'))
-        self.parser = PhsenParser(self.config, self.state, self.stream_handle,
+        self.parser = PhsenParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(3)
@@ -270,7 +270,7 @@ class PhsenParserUnitTestCase(ParserUnitTestCase):
         # this file has the block of data that was missing in the previous file
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = PhsenParser(self.config, next_state, self.stream_handle,
+        self.parser = PhsenParser(self.config, next_state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
         
         # get last in process record

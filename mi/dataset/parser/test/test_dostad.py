@@ -21,7 +21,7 @@ RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
 @attr('UNIT', group='mi')
 class DostadParserUnitTestCase(ParserUnitTestCase):
 
-    def state_callback(self, state):
+    def state_callback(self, state, filename):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
 
@@ -93,7 +93,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # 6300
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 6300]],
             StateKey.IN_PROCESS_DATA:[]}
-	self.parser = DostadParser(self.config, self.state, self.stream_handle,
+	self.parser = DostadParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
 				  self.state_callback, self.pub_callback, self.exception_callback)
 
 	result = self.parser.get_records(1)
@@ -129,7 +129,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
             StateKey.IN_PROCESS_DATA:[]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = DostadParser(self.config, self.state, self.stream_handle,
+        self.parser = DostadParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(3)
@@ -146,7 +146,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
     def test_long_stream(self):
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = DostadParser(self.config, None, self.stream_handle,
+        self.parser = DostadParser(self.config, None, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(6)
@@ -171,7 +171,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
             StateKey.UNPROCESSED_DATA:[[0,69], [314,1000]]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = DostadParser(self.config, new_state, self.stream_handle,
+        self.parser = DostadParser(self.config, new_state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, [[637, 754, 1, 0],],
@@ -192,7 +192,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
             StateKey.UNPROCESSED_DATA:[[0,69], [390,507], [637,754], [944,6300]]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = DostadParser(self.config, new_state, self.stream_handle,
+        self.parser = DostadParser(self.config, new_state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
 
@@ -221,7 +221,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = DostadParser(self.config, self.state, self.stream_handle,
+        self.parser = DostadParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
         # there should only be 3 records, make sure we stop there
         result = self.parser.get_records(3)
@@ -249,7 +249,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # this file has a block of DO data replaced by 0s
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_replaced.dat'))
-        self.parser = DostadParser(self.config, self.state, self.stream_handle,
+        self.parser = DostadParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
@@ -268,7 +268,7 @@ class DostadParserUnitTestCase(ParserUnitTestCase):
         # this file has the block of data that was missing in the previous file
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = DostadParser(self.config, next_state, self.stream_handle,
+        self.parser = DostadParser(self.config, next_state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         # first get the old 'in process' records

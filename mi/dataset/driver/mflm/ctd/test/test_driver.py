@@ -25,6 +25,7 @@ from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentErrorEvent
 from interface.objects import ResourceAgentConnectionLostErrorEvent
 
+from mi.idk.util import remove_all_files
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.exceptions import ConfigurationException
@@ -36,7 +37,7 @@ from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
-from mi.dataset.driver.mflm.ctd.driver import MflmCTDMODataSetDriver
+from mi.dataset.driver.mflm.ctd.driver import MflmCTDMODataSetDriver, DataTypeKey
 from mi.dataset.parser.ctdmo import CtdmoParserDataParticle, DataParticleType
 
 
@@ -49,11 +50,13 @@ DataSetTestCase.initialize(
     startup_config = {
         DataSourceConfigKey.HARVESTER:
         {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
-            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dsatest',
-            DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
-            DataSetDriverConfigKeys.FREQUENCY: 1,
-            DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 30,
+            DataTypeKey.CTDMO_GHQR_SIO_MULE:
+            {
+                DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
+                DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+                DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 30,
+            }
         },
         DataSourceConfigKey.PARSER: {'inductive_id': 55}
     }
@@ -68,18 +71,19 @@ DataSetTestCase.initialize(
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
 
-    def clean_file(self):
-        # remove just the file we are using
-        driver_config = self._driver_config()['startup_config']
-        log.debug('startup config %s', driver_config)
-        fullfile = os.path.join(driver_config['harvester']['directory'],
-                            driver_config['harvester']['pattern'])
-        if os.path.exists(fullfile):
-            os.remove(fullfile)
+    def clear_sample_data(self):
+        """
+        Clear all the data out of the test directories
+        """
+        if os.path.exists('/tmp/dsatest'):
+            log.debug("Clean all data from /tmp/dsatest")
+            remove_all_files('/tmp/dsatest')
+        else:
+            os.makedirs('/tmp/dsatest')
 
     def test_get(self):
-        self.clean_file()
-        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
+
+        self.create_sample_data_set_dir("node59p1_step1.dat", '/tmp/dsatest', "node59p1.dat")
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
@@ -92,13 +96,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # the end of the node59p1.dat file, and the data from the new append
         # is returned (not including the original data from _step1)
         self.clear_async_data()
-        self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
+        self.create_sample_data_set_dir("node59p1_step2.dat", '/tmp/dsatest', "node59p1.dat")
         self.assert_data(CtdmoParserDataParticle, 'test_data_2.txt.result.yml',
                          count=2, timeout=10)
 
         # now 'appends' the rest of the data and just check if we get the right number
         self.clear_async_data()
-        self.create_sample_data("node59p1_step4.dat", "node59p1.dat")
+        self.create_sample_data_set_dir("node59p1_step4.dat", '/tmp/dsatest', "node59p1.dat")
         self.assert_data(CtdmoParserDataParticle, count=2, timeout=10)
 
         self.driver.stop_sampling()
@@ -108,10 +112,9 @@ class IntegrationTest(DataSetIntegrationTestCase):
         Test an exception raised after the driver is started during
         the file read.  Should call the exception callback.
         """
-        self.clean_file()
 
         # create the file so that it is unreadable
-        self.create_sample_data("node59p1_step1.dat", "node59p1.dat", mode=000)
+        self.create_sample_data_set_dir("node59p1_step1.dat", '/tmp/dsatest', "node59p1.dat", mode=000)
 
         # Start sampling and watch for an exception
         self.driver.start_sampling()
@@ -125,11 +128,10 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         Test the ability to stop and restart the process
         """
-        self.clean_file()
-        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
+        self.create_sample_data_set_dir("node59p1_step1.dat", '/tmp/dsatest', "node59p1.dat")
         driver_config = self._driver_config()['startup_config']
-        fullfile = os.path.join(driver_config['harvester']['directory'],
-                            driver_config['harvester']['pattern'])
+        fullfile = os.path.join(driver_config['harvester'][DataTypeKey.CTDMO_GHQR_SIO_MULE]['directory'],
+                            driver_config['harvester'][DataTypeKey.CTDMO_GHQR_SIO_MULE]['pattern'])
         mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
@@ -151,7 +153,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # create some data to parse
         self.clear_async_data()
-        self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
+        self.create_sample_data_set_dir("node59p1_step2.dat", '/tmp/dsatest', "node59p1.dat")
 
         self.driver.start_sampling()
 
@@ -166,8 +168,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         data can be added back later
         """
 
-        self.clean_file()
-        self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
+        self.create_sample_data_set_dir("node59p1_step1.dat", '/tmp/dsatest', "node59p1.dat")
 
         self.driver.start_sampling()
 
@@ -180,14 +181,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # This file has had a section of CT data replaced with 0s, this should start a new
         # sequence for the data following the missing CT data
         self.clear_async_data()
-        self.create_sample_data('node59p1_step3.dat', "node59p1.dat")
+        self.create_sample_data_set_dir('node59p1_step3.dat', '/tmp/dsatest', "node59p1.dat")
         self.assert_data(CtdmoParserDataParticle, 'test_data_3.txt.result.yml',
                          count=2, timeout=10)
 
         # Now fill in the zeroed section from step3, this should just return the new
         # data 
         self.clear_async_data()
-        self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
+        self.create_sample_data_set_dir('node59p1_step4.dat', '/tmp/dsatest', "node59p1.dat")
         self.assert_data(CtdmoParserDataParticle, 'test_data_4.txt.result.yml',
                          count=2, timeout=10)
     
@@ -199,23 +200,65 @@ class IntegrationTest(DataSetIntegrationTestCase):
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
 
-    def clean_file(self):
-        # remove just the file we are using
-        driver_config = self._driver_config()['startup_config']
-        log.debug('startup config %s', driver_config)
-        fullfile = os.path.join(driver_config['harvester']['directory'],
-                            driver_config['harvester']['pattern'])
-        if os.path.exists(fullfile):
-            os.remove(fullfile)
+    def clear_sample_data(self):
+        """
+        Clear all the data out of the test directories
+        """
+        if os.path.exists('/tmp/dsatest'):
+            log.debug("Clean all data from /tmp/dsatest")
+            remove_all_files('/tmp/dsatest')
+        else:
+            os.makedirs('/tmp/dsatest')
+
+    def create_data_dir(self):
+        """
+        Verify the test data directory is created and exists.  Return the path to
+        the directory.
+        @return: path to data directory
+        @raise: IDKConfigMissing no harvester config
+        @raise: IDKException if data_dir exists, but not a directory
+        """
+        startup_config = self._driver_config().get('startup_config')
+        if not startup_config:
+            raise IDKConfigMissing("Driver config missing 'startup_config'")
+
+        harvester_config = startup_config.get('harvester')
+        if not harvester_config:
+            raise IDKConfigMissing("Startup config missing 'harvester' config")
+
+        data_dir = []
+
+        for key in harvester_config:
+            data_dir_key = harvester_config[key].get("directory")
+            if not data_dir_key:
+                raise IDKConfigMissing("Harvester config missing 'directory'")
+
+            if not os.path.exists(data_dir_key):
+                log.debug("Creating data dir: %s", data_dir_key)
+                os.makedirs(data_dir_key)
+
+            elif not os.path.isdir(data_dir_key):
+                raise IDKException("%s is not a directory" % data_dir_key)
+            data_dir.append(data_dir_key)
+
+        return data_dir
+
+    def remove_sample_dir(self):
+        """
+        Remove the sample dir and all files
+        """
+        data_dirs = self.create_data_dir()
+        self.clear_sample_data()
+        for data_dir in data_dirs:
+            os.rmdir(data_dir)
 
     def test_publish_path(self):
         """
         Setup an agent/driver/harvester/parser and verify that data is
         published out the agent
         """
-        self.clean_file()
 
-        self.create_sample_data('node59p1_step1.dat', "node59p1.dat")
+        self.create_sample_data_set_dir('node59p1_step1.dat', '/tmp/dsatest', "node59p1.dat")
 
         self.assert_initialize()
 
@@ -234,7 +277,7 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         Test a large import
         """
-        self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
+        self.create_sample_data_set_dir('node59p1_step4.dat', '/tmp/dsatest', "node59p1.dat")
         self.assert_initialize()
 
         result = self.get_samples(DataParticleType.CT,8,30)
@@ -245,7 +288,7 @@ class QualificationTest(DataSetQualificationTestCase):
         at the correct spot.
         """
         log.error("CONFIG: %s", self._agent_config())
-        self.create_sample_data('node59p1_step1.dat', "node59p1.dat")
+        self.create_sample_data_set_dir('node59p1_step1.dat', '/tmp/dsatest', "node59p1.dat")
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -263,7 +306,7 @@ class QualificationTest(DataSetQualificationTestCase):
             self.assert_data_values(result, 'test_data_1.txt.result.yml')
             self.assert_sample_queue_size(DataParticleType.CT, 0)
 
-            self.create_sample_data('node59p1_step2.dat', "node59p1.dat")
+            self.create_sample_data_set_dir('node59p1_step2.dat', '/tmp/dsatest', "node59p1.dat")
             # Now read the first record of the second file then stop
             result1 = self.get_samples(DataParticleType.CT, 1)
             log.debug("RESULT 1: %s", result1)
@@ -291,8 +334,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         exception callback called.
         """
-        self.clean_file()
-        self.create_sample_data('node59p1_step4.dat', "node59p1.dat", mode=000)
+        self.create_sample_data_set_dir('node59p1_step4.dat', '/tmp/dsatest', "node59p1.dat", mode=000)
 
         self.assert_initialize(final_state=ResourceAgentState.COMMAND)
 
@@ -301,8 +343,8 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_state_change(ResourceAgentState.LOST_CONNECTION, 90)
         self.assert_event_received(ResourceAgentConnectionLostErrorEvent, 10)
 
-        self.clean_file()
-        self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
+        self.clear_sample_data()
+        self.create_sample_data_set_dir('node59p1_step4.dat', '/tmp/dsatest', "node59p1.dat")
 
         # Should automatically retry connect and transition to streaming
         self.assert_state_change(ResourceAgentState.STREAMING, 90)

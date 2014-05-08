@@ -23,7 +23,7 @@ RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
 @attr('UNIT', group='mi')
 class CtdmoParserUnitTestCase(ParserUnitTestCase):
 
-    def state_callback(self, state):
+    def state_callback(self, state, filename):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
 
@@ -43,22 +43,22 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             'inductive_id': 55
             }
 
-	# all indices give in the comments are in actual file position, not escape sequence replace indices
-	# packets have the same timestamp, the first has 3 data samples [394-467]
-	self.particle_a = CtdmoParserDataParticle(b'51EF36D6\x37\x39\x4c\xe0\xc3\x54\xe6\x0a\x81\xd5\x81\x19\x0d')
-	# this is the start of packet 2 [855:1045]
-	self.particle_b = CtdmoParserDataParticle(b'51EF52F677\xf0\x00\xc3T\xe5\n\xa1\xf1\x81\x19\r')
-	# this is the start of packet 3 [1433:1623]
-	self.particle_c = CtdmoParserDataParticle(b'51EF6F1676$p\xc3T\xe4\n\xc1\r\x82\x19\r')
-	# this is the start of packet 4 [5354:5544]
-	self.particle_d = CtdmoParserDataParticle(b'51EF8B36\x37\x35\x8b\xe0\xc3T\xe5\n\xe1)\x82\x19\r')
-	# this is the start of packet 5 [6321:6511]
-	self.particle_e = CtdmoParserDataParticle(b'51EFC37677\x17\xd6\x8eI;\x10!b\x82\x19\r')
-	# start of packet 6 [6970-7160]
-	self.particle_f = CtdmoParserDataParticle(b'51EFDF96\x37\x36\xe7\xe6\x89W9\x10A~\x82\x19\r')
-	# packet 7 [7547-7737]
-	self.particle_g = CtdmoParserDataParticle(b'51EFFBB6\x37\x32\t6F\x0c\xd5\x0fa\x9a\x82\x19\r')
-	# in long file, starts at 13453
+        # all indices give in the comments are in actual file position, not escape sequence replace indices
+        # packets have the same timestamp, the first has 3 data samples [394-467]
+        self.particle_a = CtdmoParserDataParticle(b'51EF36D6\x37\x39\x4c\xe0\xc3\x54\xe6\x0a\x81\xd5\x81\x19\x0d')
+        # this is the start of packet 2 [855:1045]
+        self.particle_b = CtdmoParserDataParticle(b'51EF52F677\xf0\x00\xc3T\xe5\n\xa1\xf1\x81\x19\r')
+        # this is the start of packet 3 [1433:1623]
+        self.particle_c = CtdmoParserDataParticle(b'51EF6F1676$p\xc3T\xe4\n\xc1\r\x82\x19\r')
+        # this is the start of packet 4 [5354:5544]
+        self.particle_d = CtdmoParserDataParticle(b'51EF8B36\x37\x35\x8b\xe0\xc3T\xe5\n\xe1)\x82\x19\r')
+        # this is the start of packet 5 [6321:6511]
+        self.particle_e = CtdmoParserDataParticle(b'51EFC37677\x17\xd6\x8eI;\x10!b\x82\x19\r')
+        # start of packet 6 [6970-7160]
+        self.particle_f = CtdmoParserDataParticle(b'51EFDF96\x37\x36\xe7\xe6\x89W9\x10A~\x82\x19\r')
+        # packet 7 [7547-7737]
+        self.particle_g = CtdmoParserDataParticle(b'51EFFBB6\x37\x32\t6F\x0c\xd5\x0fa\x9a\x82\x19\r')
+        # in long file, starts at 13453
         self.particle_z = CtdmoParserDataParticle(b'51F0A47673\xb9\xa6]\x93\xf2\x0f!C\x83\x19\r')
 
         self.state_callback_value = None
@@ -84,7 +84,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         """
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                   'node59p1_shorter.dat'))
-        self.parser = CtdmoParser(self.config, None, self.stream_handle,
+        self.parser = CtdmoParser(self.config, None, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
 	result = self.parser.get_records(1)
@@ -119,7 +119,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'CtdmoParserDataParticle',
             }
         with self.assertRaises(DatasetParserException):
-            self.parser = CtdmoParser(bad_config, self.state, self.stream_handle,
+            self.parser = CtdmoParser(bad_config, self.state, self.stream_handle, 'node59p1.dat',
                                       self.state_callback, self.pub_callback, self.exception_callback)
 
     def test_get_many(self):
@@ -131,7 +131,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             StateKey.IN_PROCESS_DATA:[]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoParser(self.config, self.state, self.stream_handle,
+        self.parser = CtdmoParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback) 
 
         result = self.parser.get_records(5)
@@ -151,7 +151,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             StateKey.IN_PROCESS_DATA:[]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_longer.dat'))
-        self.parser = CtdmoParser(self.config, self.state, self.stream_handle,
+        self.parser = CtdmoParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback) 
 
         result = self.parser.get_records(13)
@@ -175,7 +175,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [1429,7500]]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoParser(self.config, new_state, self.stream_handle,
+        self.parser = CtdmoParser(self.config, new_state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback) 
         result = self.parser.get_records(1)
         self.stream_handle.close()
@@ -192,7 +192,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [5349,5539], [5924,5927], [6313,6503], [6889,7148], [7534,7985]]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoParser(self.config, new_state, self.stream_handle,
+        self.parser = CtdmoParser(self.config, new_state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback) 
 
         result = self.parser.get_records(2)
@@ -213,7 +213,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoParser(self.config, self.state, self.stream_handle,
+        self.parser = CtdmoParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback) 
         # there should only be 1 records, make sure we stop there
         result = self.parser.get_records(1)
@@ -237,7 +237,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         # this file has a block of CT data replaced by 0s
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_replace.dat'))
-        self.parser = CtdmoParser(self.config, None, self.stream_handle,
+        self.parser = CtdmoParser(self.config, None, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(4)
@@ -256,7 +256,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         # this file has the block of CT data that was missing in the previous file
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoParser(self.config, next_state, self.stream_handle,
+        self.parser = CtdmoParser(self.config, next_state, self.stream_handle, 'node59p1.dat',
                                   self.state_callback, self.pub_callback, self.exception_callback) 
 
         # first get the old 'in process' records from [6970-7160]
