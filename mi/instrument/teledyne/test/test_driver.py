@@ -111,7 +111,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         Verify the device configuration command can be triggered and run in command
         """
-        log.error("IN test_scheduled_compass_calibration_command")
+        log.debug("IN test_scheduled_compass_calibration_command")
         self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100) #250
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
@@ -119,7 +119,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         Verify the device configuration command can be triggered and run in autosample
         """
-        log.error("IN test_scheduled_compass_calibration_autosample")
+        log.debug("IN test_scheduled_compass_calibration_autosample")
         self.assert_scheduled_event(TeledyneScheduledJob.GET_CALIBRATION, self.assert_compass_calibration, delay=100, # 250
             autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE)
         self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
@@ -135,7 +135,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         Verify the device status command can be triggered and run in command
         """
-        log.error("IN test_scheduled_device_configuration_command")
+        log.debug("IN test_scheduled_device_configuration_command")
         self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status, delay=120)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
@@ -144,7 +144,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         Verify the device status command can be triggered and run in autosample
         """
-        log.error("IN test_scheduled_device_configuration_autosample")
+        log.debug("IN test_scheduled_device_configuration_autosample")
         self.assert_scheduled_event(TeledyneScheduledJob.GET_CONFIGURATION, self.assert_acquire_status,
                                     autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=100)
         self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
@@ -159,11 +159,11 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         lt = time.strftime("%Y/%m/%d,%H:%M:%S", time.gmtime(time.mktime(time.localtime())))
         self.assertTrue(lt[:13].upper() in dt.upper())
 
-    def _test_scheduled_clock_sync_command(self):
+    def test_scheduled_clock_sync_command(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
         """
-        log.error("IN test_scheduled_clock_sync_command")
+        log.debug("IN test_scheduled_clock_sync_command")
         self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=350)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
@@ -172,7 +172,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         Verify the scheduled clock sync is triggered and functions as expected
         """
 
-        log.error("IN test_scheduled_clock_sync_autosample")
+        log.debug("IN test_scheduled_clock_sync_autosample")
         self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync, 
                                     autosample_command=TeledyneProtocolEvent.START_AUTOSAMPLE, delay=350)
         self.assert_current_state(TeledyneProtocolState.AUTOSAMPLE)
@@ -561,38 +561,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set_exception(TeledyneParameter.RECEIVER_GAIN_SELECT, 0)
         self._tested[TeledyneParameter.RECEIVER_GAIN_SELECT] = True
 
-    def _test_set_water_reference_layer(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for WATER_REFERENCE_LAYER ======")
-
-        # WATER_REFERENCE_LAYER:  -- int Begin Cell (0=OFF), End Cell  (0-100)
-        #self.assert_set(TeledyneParameter.WATER_REFERENCE_LAYER, "000,001")
-        #self.assert_set(TeledyneParameter.WATER_REFERENCE_LAYER, "001,002")
-        #self.assert_set(TeledyneParameter.WATER_REFERENCE_LAYER, "002,003")
-        #self.assert_set(TeledyneParameter.WATER_REFERENCE_LAYER, "001,030")
-
-        #self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "001,031")
-        #self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "001,100")
-        #self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "255,000")
-        #self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "000,000")
-        #self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "001,000")
-        #self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "100,000")
-        #self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "000,101")
-        #self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "100,101")
-        #self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, -1)
-        #self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, 2)
-        #self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, "LEROY JENKINS")
-        #self.assert_set_exception(TeledyneParameter.WATER_REFERENCE_LAYER, 3.1415926)
-
-        #
-        # Reset to good value.
-        #
-        #self.assert_set(TeledyneParameter.WATER_REFERENCE_LAYER, self._driver_parameter_defaults[TeledyneParameter.WATER_REFERENCE_LAYER])
-        self.assert_set(TeledyneParameter.WATER_REFERENCE_LAYER, self._driver_parameters[TeledyneParameter.WATER_REFERENCE_LAYER][self.VALUE])
-        self._tested[TeledyneParameter.WATER_REFERENCE_LAYER] = True
-
     def _test_set_number_of_depth_cells(self):
         ###
         #   test get set of a variety of parameter ranges
@@ -809,19 +777,6 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_set(TeledyneParameter.SAMPLE_AMBIENT_SOUND, 1)
         self._tested[TeledyneParameter.SAMPLE_AMBIENT_SOUND] = True
 
-    def _test_set_water_profiling_mode(self):
-        ###
-        #   test get set of a variety of parameter ranges
-        ###
-        log.debug("====== Testing ranges for WATER_PROFILING_MODE ======")
-
-
-        self._tested[TeledyneParameter.WATER_PROFILING_MODE] = False
-        self._tested[TeledyneParameter.WATER_PROFILING_MODE] = True
-        # Test read only raise exceptions on set.
-
-        self.assert_set(TeledyneParameter.WATER_PROFILING_MODE, 0)
-        self._tested[TeledyneParameter.WATER_PROFILING_MODE] = True
 
     def _test_set_coordinate_transformation(self):
         ###
