@@ -86,8 +86,6 @@ InstrumentDriverTestCase.initialize(
             Parameter.BLANK_AFTER_TRANSMIT: 704,
             Parameter.CLIP_DATA_PAST_BOTTOM: 0,
             Parameter.RECEIVER_GAIN_SELECT: 1,
-            Parameter.WATER_REFERENCE_LAYER: '001,005',
-            Parameter.WATER_PROFILING_MODE: 1,
             Parameter.NUMBER_OF_DEPTH_CELLS: 100,
             Parameter.PINGS_PER_ENSEMBLE: 1,
             Parameter.DEPTH_CELL_SIZE: 800,
@@ -151,10 +149,8 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.SERIAL_DATA_OUT: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '000 000 000', VALUE:'000 000 000'},
         Parameter.SERIAL_FLOW_CONTROL: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '11110', VALUE: '11110'},
         Parameter.SAVE_NVRAM_TO_RECORDER: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
-        Parameter.TIME: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: False},
+        Parameter.TIME: {TYPE: str, READONLY: False, DA: False, STARTUP: False, DEFAULT: False},
         Parameter.SERIAL_OUT_FW_SWITCHES: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '111100000', VALUE: '111100000'},
-        Parameter.WATER_PROFILING_MODE: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-
         Parameter.BANNER: {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.INSTRUMENT_ID: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.SLEEP_ENABLE: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
@@ -176,7 +172,6 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.BLANK_AFTER_TRANSMIT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 704, VALUE: 704},
         Parameter.CLIP_DATA_PAST_BOTTOM: {TYPE: bool, READONLY: False, DA: True, STARTUP: True, DEFAULT: False, VALUE: 0},
         Parameter.RECEIVER_GAIN_SELECT: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
-        Parameter.WATER_REFERENCE_LAYER: {TYPE: str, READONLY: False, DA: True, STARTUP: True, DEFAULT: '001,005', VALUE: '001,005'},
         Parameter.NUMBER_OF_DEPTH_CELLS: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 100, VALUE: 100},
         Parameter.PINGS_PER_ENSEMBLE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.DEPTH_CELL_SIZE: {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 800, VALUE: 800},
@@ -207,10 +202,14 @@ class ADCPTMixin(DriverTestMixin):
         Capability.CLEAR_ERROR_STATUS_WORD: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_FAULT_LOG: { STATES: [ProtocolState.COMMAND]},
         Capability.CLEAR_FAULT_LOG: { STATES: [ProtocolState.COMMAND]},
-        Capability.GET_INSTRUMENT_TRANSFORM_MATRIX: { STATES: [ProtocolState.COMMAND]},
         Capability.RUN_TEST_200: { STATES: [ProtocolState.COMMAND]},
         Capability.FACTORY_SETS: { STATES: [ProtocolState.COMMAND]},
         Capability.USER_SETS: { STATES: [ProtocolState.COMMAND]},
+
+        Capability.ACQUIRE_STATUS: { STATES: [ProtocolState.COMMAND]},
+        Capability.START_DIRECT: { STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_DIRECT: { STATES: [ProtocolState.COMMAND]},
+
 
     }
 
@@ -528,8 +527,8 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
         expected_parameters = sorted(self._driver_parameters.keys())
         reported_parameters = sorted(driver.get_resource(Parameter.ALL))
 
-        log.error("*** Expected Parameters: %s" % expected_parameters)
-        log.error("*** Reported Parameters: %s" % reported_parameters)
+        log.debug("*** Expected Parameters: %s" % expected_parameters)
+        log.debug("*** Reported Parameters: %s" % reported_parameters)
 
         self.assertEqual(reported_parameters, expected_parameters)
 
@@ -550,20 +549,19 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
                                     'DRIVER_EVENT_SET',
                                     'DRIVER_EVENT_START_AUTOSAMPLE',
                                     'DRIVER_EVENT_START_DIRECT',
+                                    'DRIVER_EVENT_ACQUIRE_STATUS',
                                     'PROTOCOL_EVENT_CLEAR_ERROR_STATUS_WORD',
                                     'PROTOCOL_EVENT_CLEAR_FAULT_LOG',
                                     'PROTOCOL_EVENT_GET_CALIBRATION',
                                     'PROTOCOL_EVENT_GET_CONFIGURATION',
                                     'PROTOCOL_EVENT_GET_ERROR_STATUS_WORD',
                                     'PROTOCOL_EVENT_GET_FAULT_LOG',
-                                    'PROTOCOL_EVENT_GET_INSTRUMENT_TRANSFORM_MATRIX',
                                     'PROTOCOL_EVENT_RECOVER_AUTOSAMPLE',
                                     'FACTORY_DEFAULT_SETTINGS',
                                     'USER_DEFAULT_SETTINGS',
                                     'PROTOCOL_EVENT_RUN_TEST_200',
                                     'PROTOCOL_EVENT_SAVE_SETUP_TO_RAM',
-                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC',
-                                    'PROTOCOL_EVENT_SEND_LAST_SAMPLE'],
+                                    'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'],
             ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_DISCOVER',
                                        'DRIVER_EVENT_STOP_AUTOSAMPLE',
                                        'DRIVER_EVENT_GET',
@@ -641,7 +639,7 @@ class UnitFromIDK(WorkhorseDriverUnitTest, ADCPTMixin):
 ###############################################################################
 @attr('INT', group='mi')
 class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
-    def _test_autosample_particle_generation(self):
+    def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample
         """
@@ -665,7 +663,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
             Parameter.BLANK_AFTER_TRANSMIT: 704,
             Parameter.CLIP_DATA_PAST_BOTTOM: 0,
             Parameter.RECEIVER_GAIN_SELECT: 1,
-            Parameter.WATER_REFERENCE_LAYER: '001,005',
             Parameter.NUMBER_OF_DEPTH_CELLS: 100,
             Parameter.PINGS_PER_ENSEMBLE: 1,
             Parameter.DEPTH_CELL_SIZE: 800,
@@ -683,7 +680,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
             Parameter.SAMPLE_AMBIENT_SOUND:0,
 
         }
-        self.assert_set_bulk(params)
 
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
         self.assert_async_particle_generation(DataParticleType.ADCP_PD0_PARSED_BEAM, self.assert_particle_pd0_data, timeout=40)
@@ -761,10 +757,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
     def _test_test_set_receiver_gain_select(self):
         self.assert_initialize_driver()
         self._test_set_receiver_gain_select()
-
-    def _test_test_set_water_reference_layer(self):
-        self.assert_initialize_driver()
-        self._test_set_water_reference_layer()
 
     def _test_test_set_number_of_depth_cells(self):
         self.assert_initialize_driver()
@@ -857,7 +849,6 @@ class IntFromIDK(WorkhorseDriverIntegrationTest, ADCPTMixin):
         self._test_set_blank_after_transmit()
         self._test_set_clip_data_past_bottom()
         self._test_set_receiver_gain_select()
-        self._test_set_water_reference_layer()
         self._test_set_number_of_depth_cells()
         self._test_set_pings_per_ensemble()
         self._test_set_depth_cell_size()
