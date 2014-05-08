@@ -1252,7 +1252,7 @@ class SBE19Protocol(SBE16Protocol):
             raise InstrumentProtocolException('_handler_unknown_discover - unable to to determine state')
         elif(logging == True):
             # We want to sync the clock upon initialization
-            self._autosample_clock_sync(*args, **kwargs)
+            #self._autosample_clock_sync(*args, **kwargs)
 
             next_state = ProtocolState.AUTOSAMPLE
             next_agent_state = ResourceAgentState.STREAMING
@@ -1274,6 +1274,7 @@ class SBE19Protocol(SBE16Protocol):
         @throws InstrumentTimeoutException if the device cannot be woken.
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
+        self._init_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1363,6 +1364,24 @@ class SBE19Protocol(SBE16Protocol):
         self._do_cmd_resp(Command.SEND_OPTODE, start_command, timeout=TIMEOUT)
 
         return (next_state, (next_agent_state, result))
+
+
+    def _handler_autosample_enter(self, *args, **kwargs):
+        """
+        Enter autosample state.
+        """
+        #stop logging before initializing parameters
+        #can't set parameters in autosample mode
+        self._stop_logging(*args, **kwargs)
+
+        self._init_params()
+
+        #start logging again
+        self._start_logging(*args, **kwargs)
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_autosample_acquire_status(self, *args, **kwargs):
         """
@@ -1458,6 +1477,20 @@ class SBE19Protocol(SBE16Protocol):
 
         return (next_state, (next_agent_state, result))
 
+
+    def _handler_direct_access_stop_direct(self):
+        """
+        @throw InstrumentProtocolException on invalid command
+        """
+        next_state = None
+        next_agent_state = None
+
+        #discover the state to go to next
+        next_state, next_agent_state = self._handler_unknown_discover()
+
+        return (next_state, (next_agent_state, None))
+
+
     #need to override this method as our Command set is different
     def _start_logging(self, *args, **kwargs):
         """
@@ -1477,6 +1510,7 @@ class SBE19Protocol(SBE16Protocol):
             raise InstrumentProtocolException("failed to start logging")
 
         return True
+
 
     #can't override this method as our Command set is different
     def _stop_logging(self, *args, **kwargs):
