@@ -351,17 +351,14 @@ class Protocol(WorkhorseProtocol):
             direct_access=True,
             default_value='00:01.00')
 
-        #self._param_dict.add(Parameter.TIME,
-        #    r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
-        #    lambda match: str(match.group(1) + " UTC"),
-        #    str,
-        #    type=ParameterDictType.STRING,
-        #    display_name="time",
-        #    startup_param=True,
-        #    expiration=86400, # expire once per day 60 * 60 * 24
-        #    direct_access=True,
-        #    visibility=ParameterDictVisibility.IMMUTABLE,
-        #    default_value='2014/04/21,20:03:01')
+        self._param_dict.add(Parameter.TIME,
+            r'TT (\d\d\d\d/\d\d/\d\d,\d\d:\d\d:\d\d) \- Time Set ',
+            lambda match: str(match.group(1) + " UTC"),
+            str,
+            type=ParameterDictType.STRING,
+            display_name="time",
+            expiration=86400) # expire once per day 60 * 60 * 24
+
 
         self._param_dict.add(Parameter.BUFFERED_OUTPUT_PERIOD,
             r'TX (\d\d:\d\d:\d\d) \-+ Buffer Output Period:',
@@ -454,27 +451,6 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             direct_access=True,
             default_value=1)
-
-        #self._param_dict.add(Parameter.WATER_REFERENCE_LAYER,
-        #    r'WL (\d+,\d+) \-+ Water Reference Layer:  ',
-        #    lambda match: str(match.group(1)),
-        #    str,
-        #    type=ParameterDictType.STRING,
-        #    display_name="water reference layer",
-        #    startup_param=True,
-        #    direct_access=True,
-        #    default_value='001,005')
-
-        #self._param_dict.add(Parameter.WATER_PROFILING_MODE,
-        #    r'WM (\d+) \-+ Profiling Mode ',
-        #    lambda match: int(match.group(1), base=10),
-        #    self._int_to_string,
-        #    type=ParameterDictType.INT,
-        #    display_name="water profiling mode",
-        #    visibility=ParameterDictVisibility.IMMUTABLE,
-        #    startup_param=True,
-        #    direct_access=True,
-        #    default_value=1)
 
         self._param_dict.add(Parameter.NUMBER_OF_DEPTH_CELLS,
             r'WN (\d+) \-+ Number of depth cells',
