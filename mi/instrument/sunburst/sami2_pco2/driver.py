@@ -10,7 +10,7 @@ Release notes:
     and PHSEN instrument classes.
 """
 
-__author__ = 'Christopher Wingard & Kevin Stiemke'
+__author__ = 'Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
 import re
@@ -246,7 +246,7 @@ class Pco2wProtocol(SamiProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x04,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='sami driver version')
 
         self._param_dict.add(Pco2wSamiParameter.PUMP_PULSE, configuration_string_regex,

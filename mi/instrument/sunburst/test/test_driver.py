@@ -13,7 +13,7 @@ USAGE:
        $ bin/test_driver -q [-t testname]
 """
 
-__author__ = 'Stuart Pearce & Chris Wingard'
+__author__ = 'Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
 import unittest

@@ -397,7 +397,7 @@ class Protocol(Pco2wProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x02,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='mode bits (set to 00000010)')
 
         ## Changed from 0x000E10 to 0x000000 to indicate there is not external device
@@ -408,7 +408,7 @@ class Protocol(Pco2wProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x000000,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 1 sample interval')
 
         ## Changed from 0x01 to 0x00 to indicate there is not external device
@@ -419,7 +419,7 @@ class Protocol(Pco2wProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 1 driver version')
 
         ## Changed from 0x0B to 0x00 to indicate there is not external device
@@ -430,7 +430,7 @@ class Protocol(Pco2wProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 1 parameter pointer')
 
     ########################################################################

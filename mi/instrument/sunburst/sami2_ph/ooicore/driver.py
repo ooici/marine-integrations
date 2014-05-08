@@ -512,7 +512,7 @@ class Protocol(SamiProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x02,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='mode bits (set to 00000010)')
 
         # PCO2 0x04, PHSEN 0x0A
@@ -523,7 +523,7 @@ class Protocol(SamiProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x0A,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='sami driver version')
 
         self._param_dict.add(Parameter.DEVICE1_SAMPLE_INTERVAL, configuration_string_regex,
@@ -533,7 +533,7 @@ class Protocol(SamiProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x000000,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 1 sample interval')
 
         self._param_dict.add(Parameter.DEVICE1_DRIVER_VERSION, configuration_string_regex,
@@ -543,7 +543,7 @@ class Protocol(SamiProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 1 driver version')
 
         self._param_dict.add(Parameter.DEVICE1_PARAMS_POINTER, configuration_string_regex,
@@ -553,7 +553,7 @@ class Protocol(SamiProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 1 parameter pointer')
 
         self._param_dict.add(Parameter.NUMBER_SAMPLES_AVERAGED, configuration_string_regex,

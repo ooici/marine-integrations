@@ -521,7 +521,7 @@ class Protocol(Pco2wProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x0A,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='mode bits (set to 00001010)')
 
         self._param_dict.add(Parameter.DEVICE1_SAMPLE_INTERVAL, configuration_string_regex,
@@ -531,7 +531,7 @@ class Protocol(Pco2wProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x000E10,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 1 sample interval')
 
         self._param_dict.add(Parameter.DEVICE1_DRIVER_VERSION, configuration_string_regex,
@@ -541,7 +541,7 @@ class Protocol(Pco2wProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x01,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 1 driver version')
 
         self._param_dict.add(Parameter.DEVICE1_PARAMS_POINTER, configuration_string_regex,
@@ -551,7 +551,7 @@ class Protocol(Pco2wProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x0B,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 1 parameter pointer')
 
         self._param_dict.add(Parameter.EXTERNAL_PUMP_SETTINGS, configuration_string_regex,
@@ -564,12 +564,13 @@ class Protocol(Pco2wProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='external pump settings')
 
-        ## Engineering parameter to set delay after running external pump to take a sample
+        ## Engineering parameter to set delay after running external pump to take a sample, set as startup parameter
+        ##   because it is configurable by the user and should be reapplied on application of startup parameters.
         self._param_dict.add(Parameter.EXTERNAL_PUMP_DELAY, r'External pump delay = ([0-9]+)',
                              lambda match: match.group(1),
                              lambda x: int(x),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=False,
                              default_value=600,
                              visibility=ParameterDictVisibility.READ_WRITE,

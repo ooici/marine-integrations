@@ -13,7 +13,7 @@ USAGE:
        $ bin/test_driver -q [-t testname]
 """
 
-__author__ = 'Christopher Wingard & Kevin Stiemke'
+__author__ = 'Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
 import unittest
@@ -542,6 +542,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
     """
     Integration Tests:
 
+    test_startup_params: Verify that driver startup parameters are set properly.
+
     test_set:  In command state, test configuration particle generation.
         Parameter.PUMP_PULSE
         Parameter.PUMP_DURATION
@@ -572,6 +574,50 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         ACQUIRE_STATUS
         ACQUIRE_BLANK_SAMPLE
     """
+
+    def test_startup_params(self):
+
+        startup_values = {
+           Parameter.PUMP_PULSE: 0x10,
+           Parameter.PUMP_DURATION: 0x20,
+           Parameter.SAMPLES_PER_MEASUREMENT: 0xFF,
+           Parameter.CYCLES_BETWEEN_BLANKS: 0xA8,
+           Parameter.NUMBER_REAGENT_CYCLES: 0x18,
+           Parameter.NUMBER_BLANK_CYCLES: 0x1C,
+           Parameter.FLUSH_PUMP_INTERVAL: 0x01,
+           Parameter.BIT_SWITCHES: 0x00,
+           Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x38,
+           Parameter.EXTERNAL_PUMP_SETTINGS: 0x14,
+           Parameter.EXTERNAL_PUMP_DELAY: 10,
+           Parameter.AUTO_SAMPLE_INTERVAL: 3600
+        }
+
+        new_values = {
+           Parameter.PUMP_PULSE: 0x11,
+           Parameter.PUMP_DURATION: 0x21,
+           Parameter.SAMPLES_PER_MEASUREMENT: 0xFA,
+           Parameter.CYCLES_BETWEEN_BLANKS: 0xA9,
+           Parameter.NUMBER_REAGENT_CYCLES: 0x19,
+           Parameter.NUMBER_BLANK_CYCLES: 0x1D,
+           Parameter.FLUSH_PUMP_INTERVAL: 0x02,
+           Parameter.BIT_SWITCHES: 0x01,
+           Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x39,
+           Parameter.EXTERNAL_PUMP_SETTINGS: 0x40,
+           Parameter.EXTERNAL_PUMP_DELAY: 300,
+           Parameter.AUTO_SAMPLE_INTERVAL: 600
+        }
+
+        self.assert_initialize_driver()
+
+        for (key, val) in startup_values.iteritems():
+            self.assert_get(key, val)
+
+        self.assert_set_bulk(new_values)
+
+        reply = self.driver_client.cmd_dvr('apply_startup_params')
+
+        for (key, val) in startup_values.iteritems():
+            self.assert_get(key, val)
 
     def test_set(self):
         self.assert_initialize_driver()

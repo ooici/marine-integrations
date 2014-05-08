@@ -13,10 +13,12 @@ USAGE:
        $ bin/test_driver -q [-t testname]
 """
 
-__author__ = 'Stuart Pearce'
+__author__ = 'Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
 import unittest
+import time
+import copy
 
 from nose.plugins.attrib import attr
 from mock import Mock
@@ -32,6 +34,7 @@ from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import ParameterTestConfigKey
 
 from interface.objects import AgentCommand
+from mi.idk.unit_test import AgentCapabilityType
 
 from mi.core.instrument.logger_client import LoggerClient
 
@@ -42,6 +45,8 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
+from pyon.agent.agent import ResourceAgentEvent
+from pyon.agent.agent import ResourceAgentState
 
 from mi.instrument.sunburst.driver import Capability
 from mi.instrument.sunburst.driver import Prompt
@@ -477,6 +482,56 @@ class DriverUnitTest(SamiUnitTest, DriverTestMixinSub):
 @attr('INT', group='mi')
 class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 
+    def test_startup_params(self):
+
+        startup_values = {
+           Parameter.NUMBER_SAMPLES_AVERAGED: 0x01,
+           Parameter.NUMBER_FLUSHES: 0x37,
+           Parameter.PUMP_ON_FLUSH: 0x04,
+           Parameter.PUMP_OFF_FLUSH: 0x20,
+           Parameter.NUMBER_REAGENT_PUMPS: 0x01,
+           Parameter.VALVE_DELAY: 0x08,
+           Parameter.PUMP_ON_IND: 0x08,
+           Parameter.PV_OFF_IND: 0x10,
+           Parameter.NUMBER_BLANKS: 0x04,
+           Parameter.PUMP_MEASURE_T: 0x08,
+           Parameter.PUMP_OFF_TO_MEASURE: 0x10,
+           Parameter.MEASURE_TO_PUMP_ON: 0x08,
+           Parameter.NUMBER_MEASUREMENTS: 0x17,
+           Parameter.SALINITY_DELAY: 0x00,
+           Parameter.AUTO_SAMPLE_INTERVAL: 3600
+        }
+
+        new_values = {
+           Parameter.NUMBER_SAMPLES_AVERAGED: 0x02,
+           Parameter.NUMBER_FLUSHES: 0x38,
+           Parameter.PUMP_ON_FLUSH: 0x05,
+           Parameter.PUMP_OFF_FLUSH: 0x21,
+           Parameter.NUMBER_REAGENT_PUMPS: 0x02,
+           Parameter.VALVE_DELAY: 0x09,
+           Parameter.PUMP_ON_IND: 0x09,
+           Parameter.PV_OFF_IND: 0x11,
+           Parameter.NUMBER_BLANKS: 0x05,
+           Parameter.PUMP_MEASURE_T: 0x09,
+           Parameter.PUMP_OFF_TO_MEASURE: 0x11,
+           Parameter.MEASURE_TO_PUMP_ON: 0x09,
+           Parameter.NUMBER_MEASUREMENTS: 0x18,
+           Parameter.SALINITY_DELAY: 0x01,
+           Parameter.AUTO_SAMPLE_INTERVAL: 600
+        }
+
+        self.assert_initialize_driver()
+
+        for (key, val) in startup_values.iteritems():
+            self.assert_get(key, val)
+
+        self.assert_set_bulk(new_values)
+
+        reply = self.driver_client.cmd_dvr('apply_startup_params')
+
+        for (key, val) in startup_values.iteritems():
+            self.assert_get(key, val)
+
     def test_set(self):
         self.assert_initialize_driver()
         self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 77)
@@ -679,42 +734,184 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 ###############################################################################
 @attr('QUAL', group='mi')
 class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
-    def setUp(self):
-        InstrumentDriverQualificationTestCase.setUp(self)
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test manually tests that the Instrument Driver properly
+        supports direct access to the physical instrument. (telnet mode)
         """
+
+        self.assert_enter_command_mode()
+
+        self.assert_set_parameter(Parameter.NUMBER_FLUSHES, 0x30)
+
+        configuration_string =  'CF8F17F902C7EA0001E1338002000E100A0200000000000000000000000000000000000000000' + \
+                                '70137042001080810040810081700000000000000000000000000000000000000000000000000' + \
+                                '00000000000000000000000000000000000000000000000000000000000000000000000000000' + \
+                                '0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+                                'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+                                'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' + \
+                                'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF'
+
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
+
+        # Erase memory
+        self.tcp_client.send_data("E5A%s" % NEWLINE)
+
+        time.sleep(1)
+
+        # Load a new configuration string changing X to X
+        self.tcp_client.send_data("L5A%s" % NEWLINE)
+
+        time.sleep(1)
+
+        self.tcp_client.send_data("%s00%s" % (configuration_string, NEWLINE))
+
+        time.sleep(1)
+
+        # Check that configuration was changed
+        self.tcp_client.send_data("L%s" % NEWLINE)
+        return_value = self.tcp_client.expect(configuration_string)
+        self.assertTrue(return_value)
 
         ###
         #   Add instrument specific code here.
         ###
 
         self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
 
-    def test_poll(self):
-        '''
-        No polling for a single sample
-        '''
+        self.assert_get_parameter(Parameter.NUMBER_FLUSHES, 0x30)
+
+    def test_command_poll(self):
+
+        self.assert_enter_command_mode()
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=240)
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=240)
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_regular_status, DataParticleType.REGULAR_STATUS, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.CONFIGURATION, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage, DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage, DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
+
+    def test_autosample_poll(self):
+
+        self.assert_enter_command_mode()
+
+        self.assert_start_autosample(timeout=240)
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=240)
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=240)
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_regular_status, DataParticleType.REGULAR_STATUS, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.CONFIGURATION, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage, DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage, DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
+
+        self.assert_stop_autosample()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
 
     def test_autosample(self):
-        '''
-        start and stop autosample and verify data particle
-        '''
-
-    def test_get_set_parameters(self):
-        '''
-        verify that all parameters can be get set properly, this includes
-        ensuring that read only parameters fail on set.
-        '''
+        """
+        Verify autosample works and data particles are created
+        """
         self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.AUTO_SAMPLE_INTERVAL, 320)
+
+        self.assert_sample_autosample(self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE)
 
     def test_get_capabilities(self):
         """
-        @brief Walk through all driver protocol states and verify capabilities
-        returned by get_current_capabilities
+        @brief Verify that the correct capabilities are returned from get_capabilities
+        at various driver/agent states.
         """
         self.assert_enter_command_mode()
+
+        ##################
+        #  Command Mode
+        ##################
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: [
+                ProtocolEvent.START_AUTOSAMPLE,
+                ProtocolEvent.ACQUIRE_STATUS,
+                ProtocolEvent.ACQUIRE_SAMPLE,
+                ProtocolEvent.ACQUIRE_BLANK_SAMPLE
+            ],
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
+        }
+
+        self.assert_capabilities(capabilities)
+
+        ##################
+        #  DA Mode
+        ##################
+
+        da_capabilities = copy.deepcopy(capabilities)
+        da_capabilities[AgentCapabilityType.AGENT_COMMAND] = [ResourceAgentEvent.GO_COMMAND]
+        da_capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+
+        # Test direct access disconnect
+        self.assert_direct_access_start_telnet(timeout=10)
+        self.assertTrue(self.tcp_client)
+
+        self.assert_capabilities(da_capabilities)
+        self.tcp_client.disconnect()
+
+        # Now do it again, but use the event to stop DA
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+        self.assert_direct_access_start_telnet(timeout=10)
+        self.assert_capabilities(da_capabilities)
+        self.assert_direct_access_stop_telnet()
+
+
+        ##################
+        #  Command Mode
+        ##################
+
+        # We should be back in command mode from DA.
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+        self.assert_capabilities(capabilities)
+
+        ##################
+        #  Streaming Mode
+        ##################
+
+        st_capabilities = copy.deepcopy(capabilities)
+        st_capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        st_capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+            ProtocolEvent.STOP_AUTOSAMPLE,
+            ProtocolEvent.ACQUIRE_STATUS,
+            ProtocolEvent.ACQUIRE_SAMPLE,
+            ProtocolEvent.ACQUIRE_BLANK_SAMPLE
+        ]
+
+        self.assert_start_autosample(timeout=240)
+        self.assert_capabilities(st_capabilities)
+        self.assert_stop_autosample()
+
+        ##################
+        #  Command Mode
+        ##################
+
+        # We should be back in command mode from DA.
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+        self.assert_capabilities(capabilities)
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_capabilities(capabilities)

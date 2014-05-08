@@ -1272,15 +1272,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
-        else:
 
-            self._check_for_engineering_parameters(params)
-
-            if len(params) > 0:
-                self._set_params(params, startup)
-            else:
-                log.debug('herb: ' + 'SamiProtocol._handler_command_set(): No parameters to reconfigure instrument.')
-
+        self._set_params(params, startup)
 
         return next_state, result
 
@@ -1648,9 +1641,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_timeout')
 
-##        next_state = ProtocolState.WAITING
-##        next_agent_state = ResourceAgentState.BUSY
-
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
 
@@ -1860,9 +1850,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('herb: ' + 'SamiProtocol._parse_response_sample_sami')
         pass
 
-    ########################################################################
-    # Private helpers.
-    ########################################################################
     def _wakeup(self, timeout=0, delay=1):
 
         # Send 2 newlines to wake up SAMI.
@@ -1871,6 +1858,47 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         time.sleep(delay)
         log.debug('herb: ' + 'SamiProtocol._wakeup: Send second newline to wake up')
         self._do_cmd_direct(NEWLINE)
+
+    def apply_startup_params(self):
+
+        """
+        Apply the startup values previously stored in the protocol to
+        the running config of the live instrument.
+        @raise InstrumentParameterException If attempt to set init value in any state but command
+        """
+
+        log.debug('herb: ' + 'SamiProtocol.apply_startup_params: CURRENT STATE: %s' % self.get_current_state())
+        if (self.get_current_state() != ProtocolState.COMMAND):
+            raise InstrumentProtocolException("Not in command. Unable to apply startup params")
+
+        startup_config = self.get_startup_config()
+
+        log.debug('herb: ' + 'SamiProtocol.apply_startup_params: startup_config = ' + str(startup_config))
+
+        self._set_params(startup_config)
+
+    def set_init_params(self, config):
+        """
+        Overridden to throw an exception if there is an attempt to set a read only parameter
+        Set the initialization parameters to the given values in the protocol
+        parameter dictionary.
+        @param config The parameter_name/value to set in the initialization
+            fields of the parameter dictionary
+        @raise InstrumentParameterException If the config cannot be set
+        """
+        if not isinstance(config, dict):
+            raise InstrumentParameterException("Invalid init config format")
+
+        self._startup_config = config
+
+        param_config = config.get(DriverConfigKey.PARAMETERS)
+
+        self._verify_not_readonly(param_config, startup=True)
+
+        if param_config:
+            for name in param_config.keys():
+                log.debug("Setting init value for %s to %s", name, param_config[name])
+                self._param_dict.set_init_value(name, param_config[name])
 
     def _discover(self):
         """
@@ -1884,17 +1912,16 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         ## Clear command queue
         self._queued_commands.reset()
 
-        ## Set default and startup config values in param_dict
+        ## Set default and startup config values in param_dict to establish a baseline
         if self._startup:
 
-            old_config_params = self._param_dict.get_config()
+            old_config_params = self._param_dict.get_all()
             log.debug('herb: ' + 'SamiProtocol._discover: old_config_params = ' + str(old_config_params))
 
             for (key, val) in old_config_params.iteritems():
                 self._param_dict.set_value(key, self._param_dict.get_config_value(key))
-                pass
 
-            new_config_params = self._param_dict.get_config()
+            new_config_params = self._param_dict.get_all()
             log.debug('herb: ' + 'SamiProtocol._discover: new_config_params = ' + str(new_config_params))
 
             self._startup = False
@@ -1951,9 +1978,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._set_params(): params = ' + str(params))
 
-        self._set_configuration(override_params_dict=params)
+        self._check_for_engineering_parameters(params)
 
-        pass
+        if len(params) > 0:
+            self._set_configuration(override_params_dict=params)
+        else:
+            log.debug('herb: ' + 'SamiProtocol._set_params(): No parameters to reconfigure instrument.')
 
     def _set_configuration(self, override_params_dict = {}):
         # Make sure automatic-status updates are off. This will stop the
@@ -2122,13 +2152,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             log.error('herb: ' + 'Protocol._verify_and_update_configuration(): CONFIGURATION IS INVALID')
             raise InstrumentProtocolException("Invalid Configuration String")
 
-        old_config = self._param_dict.get_config()
+        old_config = self._param_dict.get_all()
 
         log.debug('herb: ' + 'SamiProtocol._verify_and_update_configuration: old_config = ' + str(old_config))
 
         self._param_dict.update(instrument_configuration_string + NEWLINE)
 
-        new_config = self._param_dict.get_config()
+        new_config = self._param_dict.get_all()
 
         log.debug('herb: ' + 'SamiProtocol._verify_and_update_configuration: new_config = ' + str(new_config))
 
@@ -2277,7 +2307,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x00000000,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='launch time')
 
         self._param_dict.add(SamiParameter.START_TIME_FROM_LAUNCH, configuration_string_regex,
@@ -2287,7 +2317,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x02C7EA00,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='start time after launch time')
 
         self._param_dict.add(SamiParameter.STOP_TIME_FROM_START, configuration_string_regex,
@@ -2297,7 +2327,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x01E13380,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='stop time after start time')
 
         self._param_dict.add(SamiParameter.SAMI_SAMPLE_INTERVAL, configuration_string_regex,
@@ -2307,7 +2337,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x000E10,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='sami sample interval')
 
         self._param_dict.add(SamiParameter.SAMI_PARAMS_POINTER, configuration_string_regex,
@@ -2317,7 +2347,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x02,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='sami parameter pointer')
 
         self._param_dict.add(SamiParameter.DEVICE2_SAMPLE_INTERVAL, configuration_string_regex,
@@ -2327,7 +2357,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x000000,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 2 sample interval')
 
         self._param_dict.add(SamiParameter.DEVICE2_DRIVER_VERSION, configuration_string_regex,
@@ -2337,7 +2367,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 2 driver version')
 
         self._param_dict.add(SamiParameter.DEVICE2_PARAMS_POINTER, configuration_string_regex,
@@ -2347,7 +2377,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 2 parameter pointer')
 
         self._param_dict.add(SamiParameter.DEVICE3_SAMPLE_INTERVAL, configuration_string_regex,
@@ -2357,7 +2387,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x000000,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 3 sample interval')
 
         self._param_dict.add(SamiParameter.DEVICE3_DRIVER_VERSION, configuration_string_regex,
@@ -2367,7 +2397,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 3 driver version')
 
         self._param_dict.add(SamiParameter.DEVICE3_PARAMS_POINTER, configuration_string_regex,
@@ -2377,7 +2407,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='device 3 parameter pointer')
 
         self._param_dict.add(SamiParameter.PRESTART_SAMPLE_INTERVAL, configuration_string_regex,
@@ -2387,7 +2417,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x000000,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='prestart sample interval')
 
         self._param_dict.add(SamiParameter.PRESTART_DRIVER_VERSION, configuration_string_regex,
@@ -2397,7 +2427,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='prestart driver version')
 
         ## Changed from 0x0D to 0x00 since there is not external device
@@ -2408,7 +2438,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x00,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='prestart parameter pointer')
 
         # Changed from invalid value 0x00 to 0x07 setting bits, (2) Send live records, (1) Send ^(record type),
@@ -2420,15 +2450,16 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              startup_param=True,
                              direct_access=True,
                              default_value=0x07,
-                             visibility=ParameterDictVisibility.IMMUTABLE,
+                             visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='global bits (set to 00000111)')
 
-        ## Engineering parameter to set pseudo auto sample rate
+        ## Engineering parameter to set pseudo auto sample rate, set as startup parameter because it is configurable
+        ##   by the user and should be reapplied on application of startup parameters.
         self._param_dict.add(SamiParameter.AUTO_SAMPLE_INTERVAL, r'Auto sample rate = ([0-9]+)',
                              lambda match: match.group(1),
                              lambda x: int(x),
                              type=ParameterDictType.INT,
-                             startup_param=False,
+                             startup_param=True,
                              direct_access=False,
                              default_value=3600,
                              visibility=ParameterDictVisibility.READ_WRITE,

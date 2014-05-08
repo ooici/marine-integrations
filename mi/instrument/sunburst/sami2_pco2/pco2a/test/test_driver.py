@@ -13,7 +13,7 @@ USAGE:
        $ bin/test_driver -q [-t testname]
 """
 
-__author__ = 'Christopher Wingard & Kevin Stiemke'
+__author__ = 'Kevin Stiemke'
 __license__ = 'Apache 2.0'
 
 import unittest
@@ -42,6 +42,7 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverConnectionState
 from mi.core.instrument.instrument_driver import DriverProtocolState
+from mi.core.instrument.instrument_driver import DriverParameter
 
 from ion.agents.instrument.instrument_agent import InstrumentAgentState
 from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
@@ -81,11 +82,11 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config=DataParticleType(),
 
     driver_startup_config={}
-#    driver_startup_config={
-#            DriverStartupConfigKey.PARAMETERS: {
-#            Parameter.STOP_TIME_FROM_START: 7,
-#        },
-#    }
+#     driver_startup_config={
+#             DriverStartupConfigKey.PARAMETERS: {
+#             Parameter.STOP_TIME_FROM_START: 7,
+#         },
+#     }
 )
 
 
@@ -538,6 +539,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
     """
     Integration Tests:
 
+    test_startup_params: Verify that driver startup parameters are set properly.
+
     test_set:  In command state, test configuration particle generation.
         Parameter.PUMP_PULSE
         Parameter.PUMP_DURATION
@@ -568,6 +571,46 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         ACQUIRE_STATUS
         ACQUIRE_BLANK_SAMPLE
     """
+
+    def test_startup_params(self):
+
+        startup_values = {
+           Parameter.PUMP_PULSE: 0x10,
+           Parameter.PUMP_DURATION: 0x20,
+           Parameter.SAMPLES_PER_MEASUREMENT: 0xFF,
+           Parameter.CYCLES_BETWEEN_BLANKS: 0xA8,
+           Parameter.NUMBER_REAGENT_CYCLES: 0x18,
+           Parameter.NUMBER_BLANK_CYCLES: 0x1C,
+           Parameter.FLUSH_PUMP_INTERVAL: 0x01,
+           Parameter.BIT_SWITCHES: 0x00,
+           Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x38,
+           Parameter.AUTO_SAMPLE_INTERVAL: 3600
+        }
+
+        new_values = {
+           Parameter.PUMP_PULSE: 0x11,
+           Parameter.PUMP_DURATION: 0x21,
+           Parameter.SAMPLES_PER_MEASUREMENT: 0xFA,
+           Parameter.CYCLES_BETWEEN_BLANKS: 0xA9,
+           Parameter.NUMBER_REAGENT_CYCLES: 0x19,
+           Parameter.NUMBER_BLANK_CYCLES: 0x1D,
+           Parameter.FLUSH_PUMP_INTERVAL: 0x02,
+           Parameter.BIT_SWITCHES: 0x01,
+           Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x39,
+           Parameter.AUTO_SAMPLE_INTERVAL: 600
+        }
+
+        self.assert_initialize_driver()
+
+        for (key, val) in startup_values.iteritems():
+            self.assert_get(key, val)
+
+        self.assert_set_bulk(new_values)
+
+        reply = self.driver_client.cmd_dvr('apply_startup_params')
+
+        for (key, val) in startup_values.iteritems():
+            self.assert_get(key, val)
 
     def test_set(self):
         self.assert_initialize_driver()
