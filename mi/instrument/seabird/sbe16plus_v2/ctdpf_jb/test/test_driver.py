@@ -865,9 +865,28 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SeaBird19plusMixin):
         self.assert_set_exception(Parameter.NUM_AVG_SAMPLES, 32768)
         self.assert_set_exception(Parameter.NUM_AVG_SAMPLES, 'bad')
 
-        #Set params back to their default values
+        # Set params back to their default values
         self.assert_set(Parameter.PUMP_DELAY, 60)
         self.assert_set(Parameter.NUM_AVG_SAMPLES, 4)
+
+        # Attempt to set Read only params
+        self.assert_set_readonly(Parameter.PTYPE, 1)
+        self.assert_set_readonly(Parameter.VOLT0, False)
+        self.assert_set_readonly(Parameter.VOLT1, False)
+        self.assert_set_readonly(Parameter.VOLT2, True)
+        self.assert_set_readonly(Parameter.VOLT3, True)
+        self.assert_set_readonly(Parameter.VOLT4, True)
+        self.assert_set_readonly(Parameter.VOLT5, True)
+        self.assert_set_readonly(Parameter.SBE38, True)
+        self.assert_set_readonly(Parameter.WETLABS, True)
+        self.assert_set_readonly(Parameter.GTD, True)
+        self.assert_set_readonly(Parameter.DUAL_GTD, True)
+        self.assert_set_readonly(Parameter.OPTODE, False)
+        self.assert_set_readonly(Parameter.MIN_COND_FREQ, 400)
+        self.assert_set_readonly(Parameter.OUTPUT_FORMAT, 1)
+        self.assert_set_readonly(Parameter.LOGGING, True)
+        self.assert_set_readonly(Parameter.AUTO_RUN, True)
+        self.assert_set_readonly(Parameter.IGNORE_SWITCH, False)
 
     def test_commands(self):
         """
@@ -1079,6 +1098,7 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
     def setUp(self):
         SeaBirdQualificationTest.setUp(self)
 
+
     def test_direct_access_telnet_mode(self):
         """
         @brief This test verifies that the Instrument Driver
@@ -1091,29 +1111,62 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         # parameters are restored on DA exit.
         ###
         self.assert_enter_command_mode()
-        self.assert_set_parameter(Parameter.NUM_AVG_SAMPLES, 4)
+        self.assert_get_parameter(Parameter.OUTPUT_FORMAT, 0)
 
         # go into direct access, and muck up a setting.
         self.assert_direct_access_start_telnet()
-
-        # we don't have any direct access parameters that are not read-only
-        # we modify one that's not read only, but it's not direct access either
-        self.tcp_client.send_data("%snavg=15%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.send_data("%soutputformat=1%s" % (NEWLINE, NEWLINE))
 
         #need to sleep as the instrument needs time to apply the new param value
         time.sleep(5)
 
+        # Verfy the param value got changed on the instrument
         self.tcp_client.send_data("%sGetCD%s" % (NEWLINE, NEWLINE))
-        self.tcp_client.expect("<ScansToAverage>15</ScansToAverage>")
+        self.tcp_client.expect("<OutputFormat>converted HEX</OutputFormat>")
         self.assert_direct_access_stop_telnet()
 
         # verify the setting remained unchanged in the param dict
         self.assert_enter_command_mode()
-        self.assert_get_parameter(Parameter.NUM_AVG_SAMPLES, 4)
+        self.assert_get_parameter(Parameter.OUTPUT_FORMAT, 0)
+
+
+    def test_direct_access_telnet_mode_autosample(self):
+        """
+        @brief Same as the previous DA test except in this test
+               we force the instrument into streaming when in
+               DA.  Then we need to verify the transition back
+               to the driver works as expected.
+        """
+        ###
+        # First test direct access and exit with a go command
+        # call.  Also add a parameter change to verify DA
+        # parameters are restored on DA exit.
+        ###
+        self.assert_enter_command_mode()
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+
+        #start logging
+        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
+        time.sleep(2)
+
+        #verify we're logging
+        self.tcp_client.send_data("%sGetSD%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.expect("<LoggingState>logging</LoggingState>")
+
+        #Assert if stopping DA while autosampling, discover will put driver into Autosample state
+        self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, timeout=10)
+
+        #now stop autosampling
+        self.assert_stop_autosample()
+
 
     def test_direct_access_telnet_timeout(self):
         """
-        Verify that DA timesout as expected and transistions back to command mode.
+        Verify that direct access times out as expected and the agent transitions back to command mode.
         """
         self.assert_enter_command_mode()
 
@@ -1121,7 +1174,8 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         self.assert_direct_access_start_telnet(timeout=30)
         self.assertTrue(self.tcp_client)
 
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 90)
+        self.assert_state_change(ResourceAgentState.IDLE, ProtocolState.COMMAND, 180)
+
 
     def test_direct_access_telnet_disconnect(self):
         """
@@ -1135,7 +1189,8 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         self.assertTrue(self.tcp_client)
         self.tcp_client.disconnect()
 
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
+        self.assert_state_change(ResourceAgentState.IDLE, ProtocolState.COMMAND, 120)
+
 
     def test_poll(self):
         '''
@@ -1187,6 +1242,7 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         # Restart autosample and gather a couple samples
         self.assert_sample_autosample(self.assert_particle_sample, DataParticleType.CTD_PARSED)
 
+
     def test_execute_clock_sync(self):
         """
         Verify we can synchronize the instrument internal clock
@@ -1209,7 +1265,6 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         # Now verify that the time matches to within 15 seconds
         self.assertLessEqual(abs(instrument_time - local_time), 15)
 
-    #TODO:test_commands, startup_params(?), test_get_set
 
     def test_get_set_parameters(self):
         '''
@@ -1217,6 +1272,14 @@ class SBE19QualificationTest(SeaBirdQualificationTest, SeaBird19plusMixin):
         ensuring that read only parameters fail on set.
         '''
         self.assert_enter_command_mode()
+
+        #attempt to change some parameters
+        self.assert_set_parameter(Parameter.NUM_AVG_SAMPLES, 2)
+        self.assert_set_parameter(Parameter.PUMP_DELAY, 55)
+
+        #set parameters back to their default values
+        self.assert_set_parameter(Parameter.NUM_AVG_SAMPLES, 4)
+        self.assert_set_parameter(Parameter.PUMP_DELAY, 60)
 
 
     def test_get_capabilities(self):
