@@ -277,14 +277,16 @@ class SingleFilePoller(ConditionPoller):
         if not isinstance(self.file_mod_wait, int) or self.file_mod_wait < 0:
             raise TypeError("File modification wait time must be an integer 0 or greater")
         if self._filename in memento and DriverStateKey.FILE_SIZE in memento[self._filename]:
-            self._driver_state = {self._filename:
-                {DriverStateKey.FILE_SIZE: memento[self._filename].get(DriverStateKey.FILE_SIZE),
+            # since _found_file_state is internal to harvester, don't need to match driver state
+            # with indexing by filename
+            self._found_file_state = {
+                DriverStateKey.FILE_SIZE: memento[self._filename].get(DriverStateKey.FILE_SIZE),
                 DriverStateKey.FILE_MOD_DATE: memento[self._filename].get(DriverStateKey.FILE_MOD_DATE),
-                DriverStateKey.FILE_CHECKSUM: memento[self._filename].get(DriverStateKey.FILE_CHECKSUM)}
+                DriverStateKey.FILE_CHECKSUM: memento[self._filename].get(DriverStateKey.FILE_CHECKSUM)
             }
         else:
-            self._driver_state = {}
-        log.debug("Start file poller path: %s, initial state: %s", self._path, self._driver_state)
+            self._found_file_state = {}
+        log.debug("Start file poller path: %s, initial state: %s", self._path, self._found_file_state)
         super(SingleFilePoller,self).__init__(self._check_for_changes, callback,
                                                    exception_callback, interval)
 
@@ -298,41 +300,42 @@ class SingleFilePoller(ConditionPoller):
             file_size = os.path.getsize(self._path)
             # check if the file has not been modified in the last X seconds
             if (mod_time + self.file_mod_wait) < time.time():
-                if self._filename in self._driver_state and DriverStateKey.FILE_SIZE in self._driver_state[self._filename]:
+                if DriverStateKey.FILE_SIZE in self._found_file_state:
                     # this file has been found previously, compare the state
-                    log.trace('Comparing driver state to %s', self._driver_state)
-                    if self._driver_state[self._filename][DriverStateKey.FILE_SIZE] != file_size or \
-                        self._driver_state[self._filename][DriverStateKey.FILE_MOD_DATE] != mod_time:
+                    log.trace('Comparing driver state to %s', self._found_file_state)
+                    if self._found_file_state[DriverStateKey.FILE_SIZE] != file_size or \
+                        self._found_file_state[DriverStateKey.FILE_MOD_DATE] != mod_time:
                         # size or time is different, confirm with checksum
                         with open(self._path, 'rb') as filehandle:
                             md5_checksum = hashlib.md5(filehandle.read()).hexdigest()
-                        if self._driver_state[self._filename][DriverStateKey.FILE_CHECKSUM] != md5_checksum:
+                        if self._found_file_state[DriverStateKey.FILE_CHECKSUM] != md5_checksum:
                             # file is different, update the state
-                            self._driver_state[self._filename][DriverStateKey.FILE_SIZE] = file_size
-                            self._driver_state[self._filename][DriverStateKey.FILE_MOD_DATE] = mod_time
-                            self._driver_state[self._filename][DriverStateKey.FILE_CHECKSUM] = md5_checksum
+                            self._found_file_state[DriverStateKey.FILE_SIZE] = file_size
+                            self._found_file_state[DriverStateKey.FILE_MOD_DATE] = mod_time
+                            self._found_file_state[DriverStateKey.FILE_CHECKSUM] = md5_checksum
 
-                            new_driver_state = {self._filename: {DriverStateKey.FILE_SIZE: file_size,
-                                                                DriverStateKey.FILE_MOD_DATE: mod_time,
-                                                                DriverStateKey.FILE_CHECKSUM: md5_checksum}
+                            new_driver_state = {
+                                self._filename: {
+                                    DriverStateKey.FILE_SIZE: file_size,
+                                    DriverStateKey.FILE_MOD_DATE: mod_time,
+                                    DriverStateKey.FILE_CHECKSUM: md5_checksum
+                                }
                             }
                 else:
                     # no driver state yet, first time opening this file
                     with open(self._path, 'rb') as filehandle:
                         md5_checksum = hashlib.md5(filehandle.read()).hexdigest()
-                    if not self._filename in self._driver_state:
-                        self._driver_state = {self._filename: {DriverStateKey.FILE_SIZE: file_size,
-                                                               DriverStateKey.FILE_MOD_DATE: mod_time,
-                                                               DriverStateKey.FILE_CHECKSUM: md5_checksum,
-                                                               DriverStateKey.PARSER_STATE: None}}
-                    else:
-                        self._driver_state[self._filename][DriverStateKey.FILE_SIZE] = file_size
-                        self._driver_state[self._filename][DriverStateKey.FILE_MOD_DATE] = mod_time
-                        self._driver_state[self._filename][DriverStateKey.FILE_CHECKSUM] = md5_checksum
 
-                    new_driver_state = {self._filename: {DriverStateKey.FILE_SIZE: file_size,
-                                                        DriverStateKey.FILE_MOD_DATE: mod_time,
-                                                        DriverStateKey.FILE_CHECKSUM: md5_checksum}
+                    self._found_file_state[DriverStateKey.FILE_SIZE] = file_size
+                    self._found_file_state[DriverStateKey.FILE_MOD_DATE] = mod_time
+                    self._found_file_state[DriverStateKey.FILE_CHECKSUM] = md5_checksum
+
+                    new_driver_state = {
+                        self._filename: {
+                            DriverStateKey.FILE_SIZE: file_size,
+                            DriverStateKey.FILE_MOD_DATE: mod_time,
+                            DriverStateKey.FILE_CHECKSUM: md5_checksum
+                        }
                     }
         return new_driver_state
     
