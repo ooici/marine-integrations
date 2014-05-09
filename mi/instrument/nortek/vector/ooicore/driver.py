@@ -59,12 +59,18 @@ VELOCITY_HEADER_DATA_REGEX = re.compile(VELOCITY_HEADER_DATA_PATTERN, re.DOTALL)
 
 
 class DataParticleType(NortekDataParticleType):
+    """
+    List of data particles to collect
+    """
     VELOCITY = 'vel3d_cd_velocity_data'
     VELOCITY_HEADER = 'vel3d_cd_data_header'
     SYSTEM = 'vel3d_cd_system_data'
 
 
 class VectorVelocityDataParticleKey(BaseEnum):
+    """
+    Velocity Data Paticles
+    """
     ANALOG_INPUT2 = "analog_input2"
     COUNT = "ensemble_counter"
     PRESSURE = "seawater_pressure"
@@ -132,6 +138,9 @@ class VectorVelocityDataParticle(DataParticle):
 
 
 class VectorVelocityHeaderDataParticleKey(BaseEnum):
+    """
+    Velocity Header data particles
+    """
     TIMESTAMP = "date_time_string"
     NUMBER_OF_RECORDS = "number_velocity_records"
     NOISE1 = "noise_amp_beam1"
@@ -188,6 +197,9 @@ class VectorVelocityHeaderDataParticle(DataParticle):
 
 
 class VectorSystemDataParticleKey(BaseEnum):
+    """
+    System data particles
+    """
     TIMESTAMP = "date_time_string"
     BATTERY = "battery_voltage"
     SOUND_SPEED = "speed_of_sound"

@@ -58,6 +58,9 @@ DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN, re.DOTALL)
 
 
 class DataParticleType(BaseEnum):
+    """
+    List of data particles.  Names match those in the IOS, so need to overwrite definition in base class
+    """
     VELOCITY = 'velpt_velocity_data'
     DIAGNOSTIC = 'velpt_diagonstics_data'
     DIAGNOSTIC_HEADER = 'velpt_diagonstics_header'
@@ -73,6 +76,9 @@ class DataParticleType(BaseEnum):
 # Data particles
 ###############################################################################
 class AquadoppDwDiagnosticHeaderDataParticleKey(BaseEnum):
+    """
+    Diagnostic Header data particles
+    """
     RECORDS = "records_to_follow"
     CELL = "cell_number_diagnostics"
     NOISE1 = "noise_amplitude_beam1"
@@ -141,6 +147,9 @@ class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
 
     
 class AquadoppDwVelocityDataParticleKey(BaseEnum):
+    """
+    Velocity Data particle
+    """
     TIMESTAMP = "date_time_string"
     ERROR = "error_code"
     ANALOG1 = "analog1"
