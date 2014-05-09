@@ -1,14 +1,14 @@
 """
 @package mi.instrument.nortek.vector.ooicore.driver
 @file mi/instrument/nortek/vector/ooicore/driver.py
-@author Bill Bollenbacher
+@author Rachel Manoni
 @brief Driver for the ooicore
 Release notes:
 
 Driver for vector
 """
 
-__author__ = 'Bill Bollenbacher'
+__author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
 
 import time
@@ -35,7 +35,8 @@ from mi.instrument.nortek.driver import USER_CONFIG_DATA_REGEX
 
 from mi.core.instrument.chunker import StringChunker
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
 #RESOURCE_FILE = 'mi/instrument/nortek/vector/ooicore/resource/strings.yml'
 VELOCITY_DATA_LEN = 24
@@ -63,29 +64,6 @@ class DataParticleType(NortekDataParticleType):
     SYSTEM = 'vel3d_cd_system_data'
 
 
-###############################################################################
-# Data particles
-###############################################################################
-# class VectorHardwareConfigDataParticle(NortekHardwareConfigDataParticle):
-#     _data_particle_type = DataParticleType.HARDWARE_CONFIG
-#
-#     def _build_parsed_values(self):
-#         return NortekHardwareConfigDataParticle._build_parsed_values(self)
-#
-#
-# class VectorUserConfigDataParticle(NortekUserConfigDataParticle):
-#     _data_particle_type = DataParticleType.USER_CONFIG
-#
-#     def _build_parsed_values(self):
-#         return NortekUserConfigDataParticle._build_parsed_values(self)
-#
-#
-# class VectorHeadConfigDataParticle(NortekHeadConfigDataParticle):
-#     _data_particle_type = DataParticleType.HEAD_CONFIG
-#
-#     def _build_parsed_values(self):
-#         return NortekHeadConfigDataParticle._build_parsed_values(self)
-
 class VectorVelocityDataParticleKey(BaseEnum):
     ANALOG_INPUT2 = "analog_input2"
     COUNT = "ensemble_counter"
@@ -110,7 +88,7 @@ class VectorVelocityDataParticle(DataParticle):
 
     def _build_parsed_values(self):
         """
-        Take something in the velocity data sample format and parse it into
+        Take the velocity data sample format and parse it into
         values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
@@ -135,59 +113,19 @@ class VectorVelocityDataParticle(DataParticle):
         correlation_beam2 = ord(match.group(14))
         correlation_beam3 = ord(match.group(15))
         
-        if None == analog_input2:
-            raise SampleException("No analog_input2 value parsed")
-        if None == count:
-            raise SampleException("No count value parsed")
-        if None == pressure:
-            raise SampleException("No pressure value parsed")
-        if None == analog_input1:
-            raise SampleException("No analog_input1 value parsed")
-        if None == velocity_beam1:
-            raise SampleException("No velocity_beam1 value parsed")
-        if None == velocity_beam2:
-            raise SampleException("No velocity_beam2 value parsed")
-        if None == velocity_beam3:
-            raise SampleException("No velocity_beam3 value parsed")
-        if None == amplitude_beam1:
-            raise SampleException("No amplitude_beam1 value parsed")
-        if None == amplitude_beam2:
-            raise SampleException("No amplitude_beam2 value parsed")
-        if None == amplitude_beam3:
-            raise SampleException("No amplitude_beam3 value parsed")
-        if None == correlation_beam1:
-            raise SampleException("No correlation_beam1 value parsed")
-        if None == correlation_beam2:
-            raise SampleException("No correlation_beam2 value parsed")
-        if None == correlation_beam3:
-            raise SampleException("No correlation_beam3 value parsed")
-        
-        result = [{DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.ANALOG_INPUT2,
-                   DataParticleKey.VALUE: analog_input2},
-                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.COUNT,
-                   DataParticleKey.VALUE: count},
-                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.PRESSURE,
-                   DataParticleKey.VALUE: pressure},
-                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.ANALOG_INPUT1,
-                   DataParticleKey.VALUE: analog_input1},
-                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.VELOCITY_BEAM1,
-                   DataParticleKey.VALUE: velocity_beam1},
-                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.VELOCITY_BEAM2,
-                   DataParticleKey.VALUE: velocity_beam2},
-                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.VELOCITY_BEAM3,
-                   DataParticleKey.VALUE: velocity_beam3},
-                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.AMPLITUDE_BEAM1,
-                   DataParticleKey.VALUE: amplitude_beam1},
-                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.AMPLITUDE_BEAM2,
-                   DataParticleKey.VALUE: amplitude_beam2},
-                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.AMPLITUDE_BEAM3,
-                   DataParticleKey.VALUE: amplitude_beam3},
-                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.CORRELATION_BEAM1,
-                   DataParticleKey.VALUE: correlation_beam1},
-                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.CORRELATION_BEAM2,
-                   DataParticleKey.VALUE: correlation_beam2},
-                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.CORRELATION_BEAM3,
-                   DataParticleKey.VALUE: correlation_beam3}]
+        result = [{DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.ANALOG_INPUT2, DataParticleKey.VALUE: analog_input2},
+                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.COUNT, DataParticleKey.VALUE: count},
+                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.PRESSURE, DataParticleKey.VALUE: pressure},
+                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.ANALOG_INPUT1, DataParticleKey.VALUE: analog_input1},
+                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.VELOCITY_BEAM1, DataParticleKey.VALUE: velocity_beam1},
+                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.VELOCITY_BEAM2, DataParticleKey.VALUE: velocity_beam2},
+                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.VELOCITY_BEAM3, DataParticleKey.VALUE: velocity_beam3},
+                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.AMPLITUDE_BEAM1, DataParticleKey.VALUE: amplitude_beam1},
+                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.AMPLITUDE_BEAM2, DataParticleKey.VALUE: amplitude_beam2},
+                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.AMPLITUDE_BEAM3, DataParticleKey.VALUE: amplitude_beam3},
+                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.CORRELATION_BEAM1, DataParticleKey.VALUE: correlation_beam1},
+                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.CORRELATION_BEAM2, DataParticleKey.VALUE: correlation_beam2},
+                  {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.CORRELATION_BEAM3, DataParticleKey.VALUE: correlation_beam3}]
  
         log.debug('VectorVelocityDataParticle: particle=%s', result)
         return result
@@ -212,7 +150,7 @@ class VectorVelocityHeaderDataParticle(DataParticle):
 
     def _build_parsed_values(self):
         """
-        Take something in the velocity header data sample format and parse it into
+        Take the velocity header data sample format and parse it into
         values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
@@ -237,39 +175,14 @@ class VectorVelocityHeaderDataParticle(DataParticle):
         correlation2 = ord(match.group(7))
         correlation3 = ord(match.group(8))
         
-        if None == timestamp:
-            raise SampleException("No timestamp parsed")
-        if None == number_of_records:
-            raise SampleException("No number_of_records value parsed")
-        if None == noise1:
-            raise SampleException("No noise1 value parsed")
-        if None == noise2:
-            raise SampleException("No noise2 value parsed")
-        if None == noise3:
-            raise SampleException("No noise3 value parsed")
-        if None == correlation1:
-            raise SampleException("No correlation1 value parsed")
-        if None == correlation2:
-            raise SampleException("No correlation2 value parsed")
-        if None == correlation3:
-            raise SampleException("No correlation3 value parsed")
-        
-        result = [{DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: timestamp},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.NUMBER_OF_RECORDS,
-                   DataParticleKey.VALUE: number_of_records},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.NOISE1,
-                   DataParticleKey.VALUE: noise1},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.NOISE2,
-                   DataParticleKey.VALUE: noise2},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.NOISE3,
-                   DataParticleKey.VALUE: noise3},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.CORRELATION1,
-                   DataParticleKey.VALUE: correlation1},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.CORRELATION2,
-                   DataParticleKey.VALUE: correlation2},
-                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.CORRELATION3,
-                   DataParticleKey.VALUE: correlation3}]
+        result = [{DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.TIMESTAMP, DataParticleKey.VALUE: timestamp},
+                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.NUMBER_OF_RECORDS, DataParticleKey.VALUE: number_of_records},
+                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.NOISE1, DataParticleKey.VALUE: noise1},
+                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.NOISE2, DataParticleKey.VALUE: noise2},
+                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.NOISE3, DataParticleKey.VALUE: noise3},
+                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.CORRELATION1, DataParticleKey.VALUE: correlation1},
+                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.CORRELATION2, DataParticleKey.VALUE: correlation2},
+                  {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.CORRELATION3, DataParticleKey.VALUE: correlation3}]
  
         return result
 
@@ -295,7 +208,7 @@ class VectorSystemDataParticle(DataParticle):
 
     def _build_parsed_values(self):
         """
-        Take something in the system data sample format and parse it into
+        Take the system data sample format and parse it into
         values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
@@ -322,47 +235,16 @@ class VectorSystemDataParticle(DataParticle):
         status = ord(match.group(9))
         analog_input = NortekProtocolParameterDict.convert_word_to_int(match.group(10))
         
-        if None == timestamp:
-            raise SampleException("No timestamp parsed")
-        if None == battery:
-            raise SampleException("No battery value parsed")
-        if None == sound_speed:
-            raise SampleException("No sound_speed value parsed")
-        if None == heading:
-            raise SampleException("No heading value parsed")
-        if None == pitch:
-            raise SampleException("No pitch value parsed")
-        if None == roll:
-            raise SampleException("No roll value parsed")
-        if None == temperature:
-            raise SampleException("No temperature value parsed")
-        if None == error:
-            raise SampleException("No error value parsed")
-        if None == status:
-            raise SampleException("No status value parsed")
-        if None == analog_input:
-            raise SampleException("No analog_input value parsed")
-        
-        result = [{DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: timestamp},
-                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.BATTERY,
-                   DataParticleKey.VALUE: battery},
-                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.SOUND_SPEED,
-                   DataParticleKey.VALUE: sound_speed},
-                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.HEADING,
-                   DataParticleKey.VALUE: heading},
-                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.PITCH,
-                   DataParticleKey.VALUE: pitch},
-                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ROLL,
-                   DataParticleKey.VALUE: roll},
-                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TEMPERATURE,
-                   DataParticleKey.VALUE: temperature},
-                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ERROR,
-                   DataParticleKey.VALUE: error},                   
-                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.STATUS,
-                   DataParticleKey.VALUE: status},
-                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ANALOG_INPUT,
-                   DataParticleKey.VALUE: analog_input}]
+        result = [{DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TIMESTAMP, DataParticleKey.VALUE: timestamp},
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.BATTERY, DataParticleKey.VALUE: battery},
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.SOUND_SPEED, DataParticleKey.VALUE: sound_speed},
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.HEADING, DataParticleKey.VALUE: heading},
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.PITCH, DataParticleKey.VALUE: pitch},
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ROLL, DataParticleKey.VALUE: roll},
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TEMPERATURE, DataParticleKey.VALUE: temperature},
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ERROR, DataParticleKey.VALUE: error},
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.STATUS, DataParticleKey.VALUE: status},
+                  {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ANALOG_INPUT, DataParticleKey.VALUE: analog_input}]
  
         return result
 
@@ -405,7 +287,7 @@ class Protocol(NortekInstrumentProtocol):
     def __init__(self, prompts, newline, driver_event):
         NortekInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
-        InstrumentPrompts.Z_NACK  = '\x15\x15\x15'
+        #InstrumentPrompts.Z_NACK  = '\x15\x15\x15'
         
         # create chunker for processing instrument samples.
         self._chunker = StringChunker(Protocol.chunker_sieve_function)
@@ -459,9 +341,3 @@ class Protocol(NortekInstrumentProtocol):
     def _build_param_dict(self):
         NortekInstrumentProtocol._build_param_dict(self)
         #TODO - THIS WILL NEED TO BE UPDATED ONCE THE IOS IS FINISHED!
-
-        #self._param_dict.load_strings(RESOURCE_FILE)
-
-    # def _build_cmd_dict(self):
-    #     NortekInstrumentProtocol._build_cmd_dict(self)
-        #self._cmd_dict.load_strings(RESOURCE_FILE)

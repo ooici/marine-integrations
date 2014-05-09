@@ -14,7 +14,8 @@ import re
 
 from mi.core.common import BaseEnum
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
 from mi.core.exceptions import SampleException
 
@@ -120,64 +121,21 @@ class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
         distance2 = NortekProtocolParameterDict.convert_word_to_int(match.group(12))
         distance3 = NortekProtocolParameterDict.convert_word_to_int(match.group(13))
         distance4 = NortekProtocolParameterDict.convert_word_to_int(match.group(14))
-        
-        if None == records:
-            raise SampleException("No records value parsed")
-        if None == cell:
-            raise SampleException("No cell value parsed")
-        if None == noise1:
-            raise SampleException("No noise1 value parsed")
-        if None == noise2:
-            raise SampleException("No noise2 value parsed")
-        if None == noise3:
-            raise SampleException("No noise3 value parsed")
-        if None == noise4:
-            raise SampleException("No noise4 value parsed")
-        if None == proc_magn_beam1:
-            raise SampleException("No proc_magn_beam1 value parsed")
-        if None == proc_magn_beam2:
-            raise SampleException("No proc_magn_beam2 value parsed")
-        if None == proc_magn_beam3:
-            raise SampleException("No proc_magn_beam3 value parsed")
-        if None == proc_magn_beam4:
-            raise SampleException("No proc_magn_beam4 value parsed")
-        if None == distance1:
-            raise SampleException("No distance1 value parsed")
-        if None == distance2:
-            raise SampleException("No distance2 value parsed")
-        if None == distance3:
-            raise SampleException("No distance3 value parsed")
-        if None == distance4:
-            raise SampleException("No distance4 value parsed")
-        
-        result = [{DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS,
-                   DataParticleKey.VALUE: records},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CELL,
-                   DataParticleKey.VALUE: cell},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE1,
-                   DataParticleKey.VALUE: noise1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE2,
-                   DataParticleKey.VALUE: noise2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE3,
-                   DataParticleKey.VALUE: noise3},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE4,
-                   DataParticleKey.VALUE: noise4},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM1,
-                   DataParticleKey.VALUE: proc_magn_beam1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM2,
-                   DataParticleKey.VALUE: proc_magn_beam2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM3,
-                   DataParticleKey.VALUE: proc_magn_beam3},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM4,
-                   DataParticleKey.VALUE: proc_magn_beam4},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE1,
-                   DataParticleKey.VALUE: distance1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE2,
-                   DataParticleKey.VALUE: distance2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE3,
-                   DataParticleKey.VALUE: distance3},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4,
-                   DataParticleKey.VALUE: distance4}]
+
+        result = [{DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS, DataParticleKey.VALUE: records},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CELL, DataParticleKey.VALUE: cell},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE1, DataParticleKey.VALUE: noise1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE2, DataParticleKey.VALUE: noise2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE3, DataParticleKey.VALUE: noise3},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE4, DataParticleKey.VALUE: noise4},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM1, DataParticleKey.VALUE: proc_magn_beam1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM2, DataParticleKey.VALUE: proc_magn_beam2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM3, DataParticleKey.VALUE: proc_magn_beam3},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM4, DataParticleKey.VALUE: proc_magn_beam4},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE1, DataParticleKey.VALUE: distance1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE2, DataParticleKey.VALUE: distance2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE3, DataParticleKey.VALUE: distance3},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4, DataParticleKey.VALUE: distance4}]
 
         return result
 
@@ -210,21 +168,21 @@ class AquadoppDwVelocityDataParticle(DataParticle):
 
     def _build_parsed_values(self):
         """
-        Take something in the velocity data sample format and parse it into
+        Take the diagnostic data sample and parse it into
         values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
         match = VELOCITY_DATA_REGEX.match(self.raw_data)
-        
+
         if not match:
-            raise SampleException("AquadoppDwVelocityDataParticle: No regex match of parsed sample data: [%s]",
-                                  self.raw_data)
-        
+            raise SampleException("AquadoppDwVelocityDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
+
         result = self._build_particle(match)
         return result
-            
+
     def _build_particle(self, match):
         """
+        Build a particle.  Used for parsing Velocity and Diagnostic data
         """
         timestamp = NortekProtocolParameterDict.convert_time(match.group(1))
         error = NortekProtocolParameterDict.convert_word_to_int(match.group(2))
@@ -244,77 +202,25 @@ class AquadoppDwVelocityDataParticle(DataParticle):
         amplitude_beam1 = ord(match.group(16))
         amplitude_beam2 = ord(match.group(17))
         amplitude_beam3 = ord(match.group(18))
-        
-        if None == timestamp:
-            raise SampleException("No timestamp parsed")
-        if None == error:
-            raise SampleException("No error value parsed")
-        if None == analog1:
-            raise SampleException("No analog1 value parsed")
-        if None == battery_voltage:
-            raise SampleException("No battery_voltage value parsed")
-        if None == sound_speed:
-            raise SampleException("No sound_speed value parsed")
-        if None == heading:
-            raise SampleException("No heading value parsed")
-        if None == pitch:
-            raise SampleException("No pitch value parsed")
-        if None == roll:
-            raise SampleException("No roll value parsed")
-        if None == status:
-            raise SampleException("No status value parsed")
-        if None == pressure:
-            raise SampleException("No pressure value parsed")
-        if None == temperature:
-            raise SampleException("No temperature value parsed")
-        if None == velocity_beam1:
-            raise SampleException("No velocity_beam1 value parsed")
-        if None == velocity_beam2:
-            raise SampleException("No velocity_beam2 value parsed")
-        if None == velocity_beam3:
-            raise SampleException("No velocity_beam3 value parsed")
-        if None == amplitude_beam1:
-            raise SampleException("No amplitude_beam1 value parsed")
-        if None == amplitude_beam2:
-            raise SampleException("No amplitude_beam2 value parsed")
-        if None == amplitude_beam3:
-            raise SampleException("No amplitude_beam3 value parsed")
-        
-        result = [{DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: timestamp},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.ERROR,
-                   DataParticleKey.VALUE: error},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.ANALOG1,
-                   DataParticleKey.VALUE: analog1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.BATTERY_VOLTAGE,
-                   DataParticleKey.VALUE: battery_voltage},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.SOUND_SPEED_ANALOG2,
-                   DataParticleKey.VALUE: sound_speed},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.HEADING,
-                   DataParticleKey.VALUE: heading},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.PITCH,
-                   DataParticleKey.VALUE: pitch},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.ROLL,
-                   DataParticleKey.VALUE: roll},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.STATUS,
-                   DataParticleKey.VALUE: status},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.PRESSURE,
-                   DataParticleKey.VALUE: pressure},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.TEMPERATURE,
-                   DataParticleKey.VALUE: temperature},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.VELOCITY_BEAM1,
-                   DataParticleKey.VALUE: velocity_beam1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.VELOCITY_BEAM2,
-                   DataParticleKey.VALUE: velocity_beam2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.VELOCITY_BEAM3,
-                   DataParticleKey.VALUE: velocity_beam3},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM1,
-                   DataParticleKey.VALUE: amplitude_beam1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM2,
-                   DataParticleKey.VALUE: amplitude_beam2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM3,
-                   DataParticleKey.VALUE: amplitude_beam3}]
- 
+
+        result = [{DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.TIMESTAMP, DataParticleKey.VALUE: timestamp},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.ERROR, DataParticleKey.VALUE: error},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.ANALOG1, DataParticleKey.VALUE: analog1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.BATTERY_VOLTAGE, DataParticleKey.VALUE: battery_voltage},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.SOUND_SPEED_ANALOG2, DataParticleKey.VALUE: sound_speed},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.HEADING, DataParticleKey.VALUE: heading},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.PITCH, DataParticleKey.VALUE: pitch},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.ROLL, DataParticleKey.VALUE: roll},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.STATUS, DataParticleKey.VALUE: status},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.PRESSURE, DataParticleKey.VALUE: pressure},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.TEMPERATURE, DataParticleKey.VALUE: temperature},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.VELOCITY_BEAM1, DataParticleKey.VALUE: velocity_beam1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.VELOCITY_BEAM2, DataParticleKey.VALUE: velocity_beam2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.VELOCITY_BEAM3, DataParticleKey.VALUE: velocity_beam3},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM1, DataParticleKey.VALUE: amplitude_beam1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM2, DataParticleKey.VALUE: amplitude_beam2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM3, DataParticleKey.VALUE: amplitude_beam3}]
+
         return result
 
 
@@ -327,7 +233,7 @@ class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
 
     def _build_parsed_values(self):
         """
-        Take something in the diagnostic data sample format and parse it into
+        Take the diagnostic data sample and parse it into
         values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
@@ -416,6 +322,8 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(NortekEngClockDataParticle, CLOCK_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekEngIdDataParticle, ID_DATA_REGEX, structure, timestamp)
 
+    #def _parse_read_velocity(self, response, prompt):
+
     ########################################################################
     # Command handlers.
     ########################################################################
@@ -429,7 +337,7 @@ class Protocol(NortekInstrumentProtocol):
         next_state = None
         next_agent_state = None
 
-        # the vector doesn't respond with ACKs for this command, so look for start of velocity data header structure
+        # the instrument doesn't respond with ACKs for this command, so look for start of velocity data header structure
         result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA,
                                    expected_prompt=VELOCITY_HEADER_DATA_SYNC_BYTES, *args, **kwargs)
 

@@ -17,6 +17,7 @@ USAGE:
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/aquadopp/ooicore -a INT
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/aquadopp/ooicore -a QUAL
 """
+import re
 from mi.instrument.ooici.mi.test_driver.test.test_driver import DriverTestMixinSub
 
 __author__ = 'Rachel Manoni'
@@ -48,7 +49,7 @@ from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataP
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticDataParticle
 
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest
-from mi.instrument.nortek.driver import Parameter, ProtocolState, ProtocolEvent, NortekDataParticleType, TIMEOUT
+from mi.instrument.nortek.driver import ProtocolState, ProtocolEvent, NortekDataParticleType, TIMEOUT, ID_DATA_PATTERN
 
 ###
 #   Driver parameters for the tests
@@ -479,6 +480,20 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
                
+    def test_instrument_read_id(self):
+        """
+        Test for reading ID, need to be implemented in the child class because each ID is unique to the
+        instrument.
+        """
+        self.assert_initialize_driver()
+
+        # command the instrument to read the ID.
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
+
+        log.debug("read ID returned: %s", response)
+        self.assertTrue(re.search(r'AQD .*', response[1]))
+
+        self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -491,7 +506,7 @@ class QualFromIDK(NortekQualTest):
         NortekQualTest.setUp(self)
 
     def assert_sample_data_particle(self, sample):
-        log.debug('assertSampleDataParticle: sample=%s' %sample)
+        log.debug('assertSampleDataParticle: sample=%s', sample)
         self.assertTrue(sample[DataParticleKey.STREAM_NAME],
             DataParticleType.PARSED)
         self.assertTrue(sample[DataParticleKey.PKT_FORMAT_ID],
@@ -524,9 +539,9 @@ class QualFromIDK(NortekQualTest):
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        This test manually tests that the Instrument Driver properly supports direct access to the
+        physical instrument. (telnet mode)
         """
-        #OVERRIDEN THE BASE CLASSES BECAUSE EXCPET IS DIFFERENT!!!!
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
@@ -538,36 +553,22 @@ class QualFromIDK(NortekQualTest):
     def test_poll(self):
         """
         poll for a single sample
+        Verify execute_acquire_sample
         """
-
         self.assert_sample_polled(self.assert_sample_data_particle,
                                   [DataParticleType.VELOCITY,
                                    DataParticleType.DIAGNOSTIC,
                                    DataParticleType.DIAGNOSTIC_HEADER],
-                                  timeout = 100)
+                                  timeout=100)
 
     def test_autosample(self):
         """
         start and stop autosample and verify data particle
+        Verify execute_start_autosample and execute_stop_autosample
         """
         self.assert_sample_autosample(self.assert_sample_data_particle,
                                   [DataParticleType.VELOCITY,
                                    DataParticleType.DIAGNOSTIC,
                                    DataParticleType.DIAGNOSTIC_HEADER],
-                                  timeout = 100)
+                                  timeout=100)
 
-    def test_get_set_parameters(self):
-        """
-        verify that parameters can be get set properly
-        """
-        self.assert_enter_command_mode()
-        
-        value_before_set = self.get_parameter(Parameter.BLANKING_DISTANCE)
-        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, 40)
-        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, value_before_set)
-
-        value_before_set = self.get_parameter(Parameter.AVG_INTERVAL)
-        self.assert_set_parameter(Parameter.AVG_INTERVAL, 4)
-        self.assert_set_parameter(Parameter.AVG_INTERVAL, value_before_set)
-
-        self.assert_reset()

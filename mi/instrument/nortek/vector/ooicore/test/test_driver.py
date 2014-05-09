@@ -18,13 +18,12 @@ USAGE:
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore -a INT
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/vector/ooicore -a QUAL
 """
-import base64
 import re
 
 __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
-from gevent import monkey;
+from gevent import monkey
 
 
 monkey.patch_all()
@@ -33,8 +32,7 @@ import ntplib
 
 from nose.plugins.attrib import attr
 
-from mi.core.log import get_logger;
-
+from mi.core.log import get_logger
 log = get_logger()
 
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -42,7 +40,7 @@ from mi.idk.unit_test import ParameterTestConfigKey
 
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest, DriverTestMixinSub
 
-from mi.core.instrument.instrument_driver import DriverConfigKey, DriverParameter
+from mi.core.instrument.instrument_driver import DriverConfigKey
 
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.chunker import StringChunker
@@ -52,7 +50,6 @@ from mi.core.exceptions import SampleException
 from mi.instrument.nortek.driver import ProtocolState, TIMEOUT, ID_DATA_PATTERN
 from mi.instrument.nortek.driver import ProtocolEvent
 from mi.instrument.nortek.driver import Parameter
-from mi.instrument.nortek.driver import NortekDataParticleType
 
 from mi.instrument.nortek.vector.ooicore.driver import DataParticleType
 from mi.instrument.nortek.vector.ooicore.driver import Protocol
@@ -217,8 +214,8 @@ class VectorDriverTestMixinSub(DriverTestMixinSub):
 
     def assert_particle_sample(self, data_particle, verify_values=False):
         """
-        Verify [flortd]_sample particle
-        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        Verify vel3d_cd_sample particle
+        @param data_particle:  VectorVelocityDataParticleKey data particle
         @param verify_values:  bool, should we verify parameter values
         """
 
@@ -228,8 +225,8 @@ class VectorDriverTestMixinSub(DriverTestMixinSub):
 
     def assert_particle_velocity(self, data_particle, verify_values=False):
         """
-        Verify [flortd]_sample particle
-        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        Verify veld3d_cd_velocity particle
+        @param data_particle:  VectorVelocityHeaderDataParticleKey data particle
         @param verify_values:  bool, should we verify parameter values
         """
 
@@ -239,8 +236,8 @@ class VectorDriverTestMixinSub(DriverTestMixinSub):
 
     def assert_particle_system(self, data_particle, verify_values=False):
         """
-        Verify [flortd]_sample particle
-        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        Verify vel3d_cd_system particle
+        @param data_particle:  VectorSystemDataParticleKeydata particle
         @param verify_values:  bool, should we verify parameter values
         """
 
@@ -438,6 +435,22 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
+    def test_instrument_read_id(self):
+        """
+        Test for reading ID, need to be implemented in the child class because each ID is unique to the
+        instrument.
+        """
+        self.assert_initialize_driver()
+
+        # command the instrument to read the ID.
+        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
+
+        log.debug("read ID returned: %s", response)
+        self.assertTrue(re.search(r'VEL .*', response[1]))
+
+        self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
+
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -475,6 +488,19 @@ class QualFromIDK(NortekQualTest):
                         self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
                     else:
                         self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
+
+    def test_direct_access_telnet_mode(self):
+        """
+        This test manually tests that the Instrument Driver properly supports direct access to the
+        physical instrument. (telnet mode)
+        """
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+
+        self.tcp_client.send_data("K1W%!Q")
+        self.tcp_client.expect("VECTOR")
+
+        self.assert_direct_access_stop_telnet()
 
     def test_poll(self):
         """

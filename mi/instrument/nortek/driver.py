@@ -13,9 +13,7 @@ __license__ = 'Apache 2.0'
 
 import re
 import time
-import copy
 import base64
-import datetime
 
 from mi.core.log import get_logger, get_logging_metaclass
 
@@ -41,7 +39,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 
-from mi.core.exceptions import ReadOnlyException, InstrumentDataException, InstrumentCommandException
+from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
@@ -100,11 +98,17 @@ INTERVAL_TIME_REGEX = r"([0-9][0-9]:[0-9][0-9]:[0-9][0-9])"
 
 
 class ScheduledJob(BaseEnum):
+    """
+    List of schedulable events
+    """
     CLOCK_SYNC = 'clock_sync'
     ACQUIRE_STATUS = 'acquire_status'
 
 
 class NortekDataParticleType(BaseEnum):
+    """
+    List of particles
+    """
     RAW = CommonDataParticleType.RAW
     HARDWARE_CONFIG = 'vel3d_cd_hardware_configuration'
     HEAD_CONFIG = 'vel3d_cd_head_configuration'
@@ -125,16 +129,17 @@ class InstrumentPrompts(BaseEnum):
 
 
 class InstrumentCmds(BaseEnum):
+    """
+    List of instrument commands
+    """
     CONFIGURE_INSTRUMENT               = 'CC'        # sets the user configuration
     SOFT_BREAK_FIRST_HALF              = '@@@@@@'
     SOFT_BREAK_SECOND_HALF             = 'K1W%!Q'
     READ_REAL_TIME_CLOCK               = 'RC'
     SET_REAL_TIME_CLOCK                = 'SC'
-    CMD_WHAT_MODE                      = 'II'        # to determine the mode of the instrument
     READ_USER_CONFIGURATION            = 'GC'
     READ_HW_CONFIGURATION              = 'GP'
     READ_HEAD_CONFIGURATION            = 'GH'
-    POWER_DOWN                         = 'PD'
     READ_BATTERY_VOLTAGE               = 'BV'
     READ_ID                            = 'ID'
     START_MEASUREMENT_WITHOUT_RECORDER = 'ST'
@@ -142,20 +147,9 @@ class InstrumentCmds(BaseEnum):
     CONFIRMATION                       = 'MC'        # confirm a break request
 
 
-class InstrumentModes(BaseEnum):
-    """
-    List of possible modes the instrument can be in
-    """
-    FIRMWARE_UPGRADE = '\x00\x00\x06\x06'
-    MEASUREMENT      = '\x01\x00\x06\x06'
-    COMMAND          = '\x02\x00\x06\x06'
-    DATA_RETRIEVAL   = '\x04\x00\x06\x06'
-    CONFIRMATION     = '\x05\x00\x06\x06'
-
-
 class ProtocolState(BaseEnum):
     """
-    Protocol states enum.
+    List of protocol states
     """
     UNKNOWN = DriverProtocolState.UNKNOWN
     COMMAND = DriverProtocolState.COMMAND
@@ -165,7 +159,7 @@ class ProtocolState(BaseEnum):
 
 class ProtocolEvent(BaseEnum):
     """
-    Protocol events
+    List of protocol events
     """
     # common events from base class
     ENTER = DriverEvent.ENTER
@@ -207,83 +201,9 @@ class Capability(BaseEnum):
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
-    # SET_CONFIGURATION = ProtocolEvent.SET_CONFIGURATION
-    # READ_CLOCK = ProtocolEvent.READ_CLOCK
-    # READ_MODE = ProtocolEvent.READ_MODE
-    # POWER_DOWN = ProtocolEvent.POWER_DOWN
-    # READ_BATTERY_VOLTAGE = ProtocolEvent.READ_BATTERY_VOLTAGE
-    # READ_ID = ProtocolEvent.READ_ID
-    # GET_HW_CONFIGURATION = ProtocolEvent.GET_HW_CONFIGURATION
-    # GET_HEAD_CONFIGURATION = ProtocolEvent.GET_HEAD_CONFIGURATION
-    # GET_USER_CONFIGURATION = ProtocolEvent.GET_USER_CONFIGURATION
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
-
-
-# Device specific parameters.
-class Parameter(DriverParameter):
-    """
-    Device parameters
-    """
-    # user configuration
-    TRANSMIT_PULSE_LENGTH = "TransmitPulseLength"                # T1
-    BLANKING_DISTANCE = "BlankingDistance"                       # T2
-    RECEIVE_LENGTH = "ReceiveLength"                             # T3
-    TIME_BETWEEN_PINGS = "TimeBetweenPings"                      # T4
-    TIME_BETWEEN_BURST_SEQUENCES = "TimeBetweenBurstSequences"   # T5
-    NUMBER_PINGS = "NumberPings"     # number of beam sequences per burst
-    AVG_INTERVAL = "AvgInterval"
-    USER_NUMBER_BEAMS = "UserNumberOfBeams"
-    TIMING_CONTROL_REGISTER = "TimingControlRegister"
-    POWER_CONTROL_REGISTER = "PowerControlRegister"
-    A1_1_SPARE = 'A1_1Spare'
-    B0_1_SPARE = 'B0_1Spare'
-    B1_1_SPARE = 'B1_1Spare'
-    COMPASS_UPDATE_RATE = "CompassUpdateRate"
-    COORDINATE_SYSTEM = "CoordinateSystem"
-    NUMBER_BINS = "NumberOfBins"      # number of cells
-    BIN_LENGTH = "BinLength"          # cell size
-    MEASUREMENT_INTERVAL = "MeasurementInterval"
-    DEPLOYMENT_NAME = "DeploymentName"
-    WRAP_MODE = "WrapMode"
-    CLOCK_DEPLOY = "ClockDeploy"      # deployment start time
-    DIAGNOSTIC_INTERVAL = "DiagnosticInterval"
-    MODE = "Mode"
-    ADJUSTMENT_SOUND_SPEED = 'AdjustmentSoundSpeed'
-    NUMBER_SAMPLES_DIAGNOSTIC = 'NumberSamplesInDiagMode'
-    NUMBER_BEAMS_CELL_DIAGNOSTIC = 'NumberBeamsPerCellInDiagMode'
-    NUMBER_PINGS_DIAGNOSTIC = 'NumberPingsInDiagMode'
-    MODE_TEST = 'ModeTest'
-    ANALOG_INPUT_ADDR = 'AnalogInputAddress'
-    SW_VERSION = 'SwVersion'
-    USER_1_SPARE = 'User1Spare'
-    VELOCITY_ADJ_TABLE = 'VelocityAdjTable'
-    COMMENTS = 'Comments'
-    WAVE_MEASUREMENT_MODE = 'WaveMeasurementMode'
-    DYN_PERCENTAGE_POSITION = 'PercentageForCellPositioning'
-    WAVE_TRANSMIT_PULSE = 'WaveTransmitPulse'
-    WAVE_BLANKING_DISTANCE = 'WaveBlankingDistance'
-    WAVE_CELL_SIZE = 'WaveCellSize'
-    NUMBER_DIAG_SAMPLES = 'NumberDiagnosticSamples'
-    A1_2_SPARE = 'A1_2Spare'
-    B0_2_SPARE = 'B0_2Spare'
-    USER_2_SPARE = 'User2Spare'
-    ANALOG_OUTPUT_SCALE = 'AnalogOutputScale'
-    CORRELATION_THRESHOLD = 'CorrelationThreshold'
-    TRANSMIT_PULSE_LENGTH_SECOND_LAG = 'TransmitPulseLengthSecondLag'
-    USER_4_SPARE = 'User4Spare'
-    QUAL_CONSTANTS = 'StageMatchFilterConstants'
-    NUMBER_SAMPLES_PER_BURST = 'NumberSamplesPerBurst'
-    USER_3_SPARE = 'User3Spare'
-
-
-class EngineeringParameter(DriverParameter):
-    """
-    Driver Paramters (aka, engineering parameters)
-    """
-    CLOCK_SYNC_INTERVAL = 'ClockSyncInterval'
-    ACQUIRE_STATUS_INTERVAL = 'AcquireStatusInterval'
 
 
 def hw_config_to_dict(input):
@@ -335,14 +255,14 @@ class NortekHardwareConfigDataParticleKey(BaseEnum):
 
 class NortekHardwareConfigDataParticle(DataParticle):
     """
-    Routine for parsing hardware config data into a data particle structure for the Vector sensor.
+    Routine for parsing hardware config data into a data particle structure for the Nortek sensor.
     """
 
     _data_particle_type = NortekDataParticleType.HARDWARE_CONFIG
 
     def _build_parsed_values(self):
         """
-        Take something in the hardware config data sample format and parse it into
+        Take the hardware config data and parse it into
         values with appropriate tags.
         """
         working_value = hw_config_to_dict(self.raw_data)
@@ -356,24 +276,15 @@ class NortekHardwareConfigDataParticle(DataParticle):
         working_value[NortekHardwareConfigDataParticleKey.VELOCITY_RANGE] = working_value[NortekHardwareConfigDataParticleKey.STATUS][-1]
 
         # report values
-        result = [{DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.SERIAL_NUM,
-                   DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.SERIAL_NUM]},
-                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.RECORDER_INSTALLED,
-                   DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.RECORDER_INSTALLED]},
-                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.COMPASS_INSTALLED,
-                   DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.COMPASS_INSTALLED]},
-                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.BOARD_FREQUENCY,
-                   DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.BOARD_FREQUENCY]},
-                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.PIC_VERSION,
-                   DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.PIC_VERSION]},
-                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.HW_REVISION,
-                   DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.HW_REVISION]},
-                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.RECORDER_SIZE,
-                   DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.RECORDER_SIZE]},
-                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.VELOCITY_RANGE,
-                   DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.VELOCITY_RANGE]},
-                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.FW_VERSION,
-                   DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.FW_VERSION]}]
+        result = [{DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.SERIAL_NUM, DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.SERIAL_NUM]},
+                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.RECORDER_INSTALLED, DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.RECORDER_INSTALLED]},
+                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.COMPASS_INSTALLED, DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.COMPASS_INSTALLED]},
+                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.BOARD_FREQUENCY, DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.BOARD_FREQUENCY]},
+                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.PIC_VERSION, DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.PIC_VERSION]},
+                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.HW_REVISION, DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.HW_REVISION]},
+                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.RECORDER_SIZE, DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.RECORDER_SIZE]},
+                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.VELOCITY_RANGE, DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.VELOCITY_RANGE]},
+                  {DataParticleKey.VALUE_ID: NortekHardwareConfigDataParticleKey.FW_VERSION, DataParticleKey.VALUE: working_value[NortekHardwareConfigDataParticleKey.FW_VERSION]}]
 
         calculated_checksum = NortekProtocolParameterDict.calculate_checksum(self.raw_data)
         if working_value[NortekHardwareConfigDataParticleKey.CHECKSUM] != calculated_checksum:
@@ -381,7 +292,7 @@ class NortekHardwareConfigDataParticle(DataParticle):
                      calculated_checksum, working_value[NortekHardwareConfigDataParticleKey.CHECKSUM])
             self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
 
-        log.debug('VectorHardwareConfigDataParticle: particle=%s', result)
+        log.debug('NortekHardwareConfigDataParticle: particle=%s', result)
         return result
 
 
@@ -432,20 +343,16 @@ class NortekHeadConfigDataParticleKey(BaseEnum):
 
 class NortekHeadConfigDataParticle(DataParticle):
     """
-    Routine for parsing head config data into a data particle structure for the Vector sensor.
+    Routine for parsing head config data into a data particle structure for the Nortek sensor.
     """
     _data_particle_type = NortekDataParticleType.HEAD_CONFIG
 
     def _build_parsed_values(self):
         """
-        Take something in the probe check data sample format and parse it into
+        Take the head config data and parse it into
         values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
-        #match = HEAD_CONFIG_DATA_REGEX.match(self.raw_data)
-
-        #if not match:
-        #    raise SampleException("VectorHeadConfigDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
 
         working_value = head_config_to_dict(self.raw_data)
         for key in working_value.keys():
@@ -458,25 +365,16 @@ class NortekHeadConfigDataParticle(DataParticle):
         working_value[NortekHeadConfigDataParticleKey.TILT_SENSOR_MOUNT] = working_value[NortekHeadConfigDataParticleKey.CONFIG][-4]
 
         # report values
-        result = [{DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.PRESSURE_SENSOR,
-                   DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.PRESSURE_SENSOR]},
-                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.MAG_SENSOR,
-                   DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.MAG_SENSOR]},
-                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.TILT_SENSOR,
-                   DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.TILT_SENSOR]},
-                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.TILT_SENSOR_MOUNT,
-                   DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.TILT_SENSOR_MOUNT]},
-                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.HEAD_FREQ,
-                   DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.HEAD_FREQ]},
-                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.HEAD_TYPE,
-                   DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.HEAD_TYPE]},
-                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.HEAD_SERIAL,
-                   DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.HEAD_SERIAL]},
-                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.SYSTEM_DATA,
-                   DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.SYSTEM_DATA],
-                   DataParticleKey.BINARY: True},
-                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.NUM_BEAMS,
-                   DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.NUM_BEAMS]}]
+        result = [{DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.PRESSURE_SENSOR, DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.PRESSURE_SENSOR]},
+                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.MAG_SENSOR, DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.MAG_SENSOR]},
+                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.TILT_SENSOR, DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.TILT_SENSOR]},
+                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.TILT_SENSOR_MOUNT, DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.TILT_SENSOR_MOUNT]},
+                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.HEAD_FREQ, DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.HEAD_FREQ]},
+                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.HEAD_TYPE, DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.HEAD_TYPE]},
+                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.HEAD_SERIAL, DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.HEAD_SERIAL]},
+                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.SYSTEM_DATA, DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.SYSTEM_DATA],
+                        DataParticleKey.BINARY: True},
+                  {DataParticleKey.VALUE_ID: NortekHeadConfigDataParticleKey.NUM_BEAMS, DataParticleKey.VALUE: working_value[NortekHeadConfigDataParticleKey.NUM_BEAMS]}]
 
         calculated_checksum = NortekProtocolParameterDict.calculate_checksum(self.raw_data)
         if working_value[NortekHeadConfigDataParticleKey.CHECKSUM] != calculated_checksum:
@@ -484,7 +382,7 @@ class NortekHeadConfigDataParticle(DataParticle):
                      calculated_checksum, working_value[NortekHeadConfigDataParticleKey.CHECKSUM])
             self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
 
-        log.debug('VectorHeadConfigDataParticle: particle=%s', result)
+        log.debug('NortekHeadConfigDataParticle: particle=%s', result)
         return result
 
 
@@ -497,7 +395,7 @@ def user_config_to_dict(input):
     @retval A dictionary with the translated values
     @throws SampleException If there is a problem with sample creation
     """
-    # Trim an ACK off the end if we care
+    #check for the ACK and the response is the correct length
     if str(input[-2:]) == InstrumentPrompts.Z_ACK:
         if len(input) != USER_CONFIG_LEN + 2:
             raise SampleException("Invalid input when parsing user config. Got input of size %s with an ACK" % len(input))
@@ -620,16 +518,78 @@ class NortekUserConfigDataParticleKey(BaseEnum):
     CHECKSUM = 'checksum'
 
 
+class Parameter(DriverParameter):
+    """
+    Device parameters
+    """
+    # user configuration
+    TRANSMIT_PULSE_LENGTH = NortekUserConfigDataParticleKey.TX_LENGTH
+    BLANKING_DISTANCE = NortekUserConfigDataParticleKey.BLANK_DIST
+    RECEIVE_LENGTH = NortekUserConfigDataParticleKey.RX_LENGTH
+    TIME_BETWEEN_PINGS = NortekUserConfigDataParticleKey.TIME_BETWEEN_PINGS
+    TIME_BETWEEN_BURST_SEQUENCES = NortekUserConfigDataParticleKey.TIME_BETWEEN_BURSTS
+    NUMBER_PINGS = NortekUserConfigDataParticleKey.NUM_PINGS
+    AVG_INTERVAL = NortekUserConfigDataParticleKey.AVG_INTERVAL
+    USER_NUMBER_BEAMS = NortekUserConfigDataParticleKey.NUM_BEAMS
+    TIMING_CONTROL_REGISTER = NortekUserConfigDataParticleKey.TCR
+    POWER_CONTROL_REGISTER = NortekUserConfigDataParticleKey.PCR
+    A1_1_SPARE = 'a1_1spare'
+    B0_1_SPARE = 'b0_1spare'
+    B1_1_SPARE = 'b1_1spare'
+    COMPASS_UPDATE_RATE = NortekUserConfigDataParticleKey.COMPASS_UPDATE_RATE
+    COORDINATE_SYSTEM = NortekUserConfigDataParticleKey.COORDINATE_SYSTEM
+    NUMBER_BINS = NortekUserConfigDataParticleKey.NUM_CELLS
+    BIN_LENGTH = NortekUserConfigDataParticleKey.CELL_SIZE
+    MEASUREMENT_INTERVAL = NortekUserConfigDataParticleKey.MEASUREMENT_INTERVAL
+    DEPLOYMENT_NAME = NortekUserConfigDataParticleKey.DEPLOYMENT_NAME
+    WRAP_MODE = NortekUserConfigDataParticleKey.WRAP_MODE
+    CLOCK_DEPLOY = NortekUserConfigDataParticleKey.DEPLOY_START_TIME
+    DIAGNOSTIC_INTERVAL = NortekUserConfigDataParticleKey.DIAG_INTERVAL
+    MODE = NortekUserConfigDataParticleKey.MODE
+    ADJUSTMENT_SOUND_SPEED = NortekUserConfigDataParticleKey.SOUND_SPEED_ADJUST
+    NUMBER_SAMPLES_DIAGNOSTIC = NortekUserConfigDataParticleKey.NUM_DIAG_SAMPLES
+    NUMBER_BEAMS_CELL_DIAGNOSTIC = NortekUserConfigDataParticleKey.NUM_BEAMS_PER_CELL
+    NUMBER_PINGS_DIAGNOSTIC = NortekUserConfigDataParticleKey.NUM_PINGS_DIAG
+    MODE_TEST = NortekUserConfigDataParticleKey.MODE_TEST
+    ANALOG_INPUT_ADDR = NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR
+    SW_VERSION = NortekUserConfigDataParticleKey.SW_VER
+    USER_1_SPARE = 'spare_1'
+    VELOCITY_ADJ_TABLE = NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR
+    COMMENTS = NortekUserConfigDataParticleKey.FILE_COMMENTS
+    WAVE_MEASUREMENT_MODE = NortekUserConfigDataParticleKey.WAVE_MODE
+    DYN_PERCENTAGE_POSITION = NortekUserConfigDataParticleKey.PERCENT_WAVE_CELL_POS
+    WAVE_TRANSMIT_PULSE = NortekUserConfigDataParticleKey.WAVE_TX_PULSE
+    WAVE_BLANKING_DISTANCE = NortekUserConfigDataParticleKey.FIX_WAVE_BLANK_DIST
+    WAVE_CELL_SIZE = NortekUserConfigDataParticleKey.WAVE_CELL_SIZE
+    NUMBER_DIAG_SAMPLES = NortekUserConfigDataParticleKey.NUM_DIAG_PER_WAVE
+    A1_2_SPARE = 'a1_2spare'
+    B0_2_SPARE = 'b0_2spare'
+    NUMBER_SAMPLES_PER_BURST = NortekUserConfigDataParticleKey.NUM_SAMPLE_PER_BURST
+    USER_2_SPARE = 'spare_2'
+    ANALOG_OUTPUT_SCALE = NortekUserConfigDataParticleKey.ANALOG_SCALE_FACTOR
+    CORRELATION_THRESHOLD = NortekUserConfigDataParticleKey.CORRELATION_THRS
+    USER_3_SPARE = 'spare_3'
+    TRANSMIT_PULSE_LENGTH_SECOND_LAG = NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND
+    USER_4_SPARE = 'spare_4'
+    QUAL_CONSTANTS = NortekUserConfigDataParticleKey.FILTER_CONSTANTS
+
+class EngineeringParameter(DriverParameter):
+    """
+    Driver Parameters (aka, engineering parameters)
+    """
+    CLOCK_SYNC_INTERVAL = 'ClockSyncInterval'
+    ACQUIRE_STATUS_INTERVAL = 'AcquireStatusInterval'
+
 class NortekUserConfigDataParticle(DataParticle):
     """
-    Routine for parsing head config data into a data particle structure for the Vector sensor.
+    Routine for parsing user config data into a data particle structure for the Nortek sensor.
     """
 
     _data_particle_type = NortekDataParticleType.USER_CONFIG
 
     def _build_parsed_values(self):
         """
-        Take something in the probe check data sample format and parse it into
+        Take the user config data and parse it into
         values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
@@ -638,7 +598,7 @@ class NortekUserConfigDataParticle(DataParticle):
             if None == working_value[key]:
                 raise SampleException("No %s value parsed", key)
 
-        # Fill in the bitfields
+        # Break down the byte data to its bits and apply to particle keys
         working_value[NortekUserConfigDataParticleKey.PROFILE_TYPE] = working_value[NortekUserConfigDataParticleKey.TCR][-2]
         working_value[NortekUserConfigDataParticleKey.MODE_TYPE] = working_value[NortekUserConfigDataParticleKey.TCR][-3]
         working_value[NortekUserConfigDataParticleKey.POWER_TCM1] = working_value[NortekUserConfigDataParticleKey.TCR][-6]
@@ -671,121 +631,63 @@ class NortekUserConfigDataParticle(DataParticle):
                 raise SampleException("No %s value parsed", key)
 
         # report values
-        result = [{DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.TX_LENGTH,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.TX_LENGTH]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.BLANK_DIST,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.BLANK_DIST]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.RX_LENGTH,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.RX_LENGTH]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.TIME_BETWEEN_PINGS,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.TIME_BETWEEN_PINGS]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.TIME_BETWEEN_BURSTS,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.TIME_BETWEEN_BURSTS]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_PINGS,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_PINGS]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.AVG_INTERVAL,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.AVG_INTERVAL]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_BEAMS,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_BEAMS]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.PROFILE_TYPE,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.PROFILE_TYPE]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.MODE_TYPE,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.MODE_TYPE]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.POWER_TCM1,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.POWER_TCM1]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.POWER_TCM2,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.POWER_TCM2]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SYNC_OUT_POSITION,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.SYNC_OUT_POSITION]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SAMPLE_ON_SYNC,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.SAMPLE_ON_SYNC]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.START_ON_SYNC,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.START_ON_SYNC]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.POWER_PCR1,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.POWER_PCR1]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.POWER_PCR2,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.POWER_PCR2]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.COMPASS_UPDATE_RATE,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.COMPASS_UPDATE_RATE]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.COORDINATE_SYSTEM,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.COORDINATE_SYSTEM]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_CELLS,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_CELLS]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.CELL_SIZE,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.CELL_SIZE]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.MEASUREMENT_INTERVAL,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.MEASUREMENT_INTERVAL]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DEPLOYMENT_NAME,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.DEPLOYMENT_NAME]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WRAP_MODE,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.WRAP_MODE]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DEPLOY_START_TIME,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.DEPLOY_START_TIME]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DIAG_INTERVAL,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.DIAG_INTERVAL]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.USE_SPEC_SOUND_SPEED,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.USE_SPEC_SOUND_SPEED]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DIAG_MODE_ON,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.DIAG_MODE_ON]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_OUTPUT_ON,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.ANALOG_OUTPUT_ON]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.OUTPUT_FORMAT,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.OUTPUT_FORMAT]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SCALING,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.SCALING]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SERIAL_OUT_ON,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.SERIAL_OUT_ON]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.STAGE_ON,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.STAGE_ON]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_POWER_OUTPUT,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.ANALOG_POWER_OUTPUT]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SOUND_SPEED_ADJUST,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.SOUND_SPEED_ADJUST]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_DIAG_SAMPLES,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_DIAG_SAMPLES]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_BEAMS_PER_CELL,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_BEAMS_PER_CELL]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_PINGS_DIAG,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_PINGS_DIAG]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.USE_DSP_FILTER,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.USE_DSP_FILTER]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FILTER_DATA_OUTPUT,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.FILTER_DATA_OUTPUT]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SW_VER,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.SW_VER]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FILE_COMMENTS,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.FILE_COMMENTS]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_DATA_RATE,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.WAVE_DATA_RATE]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_CELL_POS,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.WAVE_CELL_POS]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DYNAMIC_POS_TYPE,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.DYNAMIC_POS_TYPE]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.PERCENT_WAVE_CELL_POS,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.PERCENT_WAVE_CELL_POS]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_TX_PULSE,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.WAVE_TX_PULSE]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FIX_WAVE_BLANK_DIST,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.FIX_WAVE_BLANK_DIST]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_CELL_SIZE,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.WAVE_CELL_SIZE]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_DIAG_PER_WAVE,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_DIAG_PER_WAVE]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_SAMPLE_PER_BURST,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_SAMPLE_PER_BURST]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_SCALE_FACTOR,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.ANALOG_SCALE_FACTOR]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.CORRELATION_THRS,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.CORRELATION_THRS]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND]},
-                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FILTER_CONSTANTS,
-                   DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.FILTER_CONSTANTS]},
-                  ]
+        result = [{DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.TX_LENGTH, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.TX_LENGTH]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.BLANK_DIST, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.BLANK_DIST]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.RX_LENGTH, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.RX_LENGTH]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.TIME_BETWEEN_PINGS, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.TIME_BETWEEN_PINGS]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.TIME_BETWEEN_BURSTS, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.TIME_BETWEEN_BURSTS]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_PINGS, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_PINGS]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.AVG_INTERVAL, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.AVG_INTERVAL]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_BEAMS, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_BEAMS]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.PROFILE_TYPE, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.PROFILE_TYPE]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.MODE_TYPE, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.MODE_TYPE]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.POWER_TCM1, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.POWER_TCM1]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.POWER_TCM2, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.POWER_TCM2]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SYNC_OUT_POSITION, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.SYNC_OUT_POSITION]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SAMPLE_ON_SYNC, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.SAMPLE_ON_SYNC]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.START_ON_SYNC, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.START_ON_SYNC]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.POWER_PCR1, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.POWER_PCR1]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.POWER_PCR2, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.POWER_PCR2]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.COMPASS_UPDATE_RATE, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.COMPASS_UPDATE_RATE]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.COORDINATE_SYSTEM, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.COORDINATE_SYSTEM]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_CELLS, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_CELLS]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.CELL_SIZE, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.CELL_SIZE]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.MEASUREMENT_INTERVAL, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.MEASUREMENT_INTERVAL]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DEPLOYMENT_NAME, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.DEPLOYMENT_NAME]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WRAP_MODE, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.WRAP_MODE]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DEPLOY_START_TIME, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.DEPLOY_START_TIME]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DIAG_INTERVAL, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.DIAG_INTERVAL]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.USE_SPEC_SOUND_SPEED, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.USE_SPEC_SOUND_SPEED]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DIAG_MODE_ON, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.DIAG_MODE_ON]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_OUTPUT_ON, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.ANALOG_OUTPUT_ON]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.OUTPUT_FORMAT, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.OUTPUT_FORMAT]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SCALING, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.SCALING]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SERIAL_OUT_ON, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.SERIAL_OUT_ON]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.STAGE_ON, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.STAGE_ON]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_POWER_OUTPUT, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.ANALOG_POWER_OUTPUT]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SOUND_SPEED_ADJUST, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.SOUND_SPEED_ADJUST]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_DIAG_SAMPLES, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_DIAG_SAMPLES]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_BEAMS_PER_CELL, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_BEAMS_PER_CELL]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_PINGS_DIAG, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_PINGS_DIAG]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.USE_DSP_FILTER, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.USE_DSP_FILTER]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FILTER_DATA_OUTPUT, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.FILTER_DATA_OUTPUT]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.ANALOG_INPUT_ADDR]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.SW_VER, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.SW_VER]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.VELOCITY_ADJ_FACTOR]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FILE_COMMENTS, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.FILE_COMMENTS]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_DATA_RATE, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.WAVE_DATA_RATE]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_CELL_POS, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.WAVE_CELL_POS]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.DYNAMIC_POS_TYPE, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.DYNAMIC_POS_TYPE]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.PERCENT_WAVE_CELL_POS, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.PERCENT_WAVE_CELL_POS]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_TX_PULSE, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.WAVE_TX_PULSE]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FIX_WAVE_BLANK_DIST, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.FIX_WAVE_BLANK_DIST]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.WAVE_CELL_SIZE, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.WAVE_CELL_SIZE]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_DIAG_PER_WAVE, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_DIAG_PER_WAVE]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.NUM_SAMPLE_PER_BURST, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.NUM_SAMPLE_PER_BURST]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.ANALOG_SCALE_FACTOR, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.ANALOG_SCALE_FACTOR]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.CORRELATION_THRS, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.CORRELATION_THRS]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.TX_PULSE_LEN_2ND]},
+                  {DataParticleKey.VALUE_ID: NortekUserConfigDataParticleKey.FILTER_CONSTANTS, DataParticleKey.VALUE: working_value[NortekUserConfigDataParticleKey.FILTER_CONSTANTS]}]
 
         calculated_checksum = NortekProtocolParameterDict.calculate_checksum(self.raw_data)
         if working_value[NortekUserConfigDataParticleKey.CHECKSUM] != calculated_checksum:
@@ -793,7 +695,7 @@ class NortekUserConfigDataParticle(DataParticle):
                      calculated_checksum, working_value[NortekUserConfigDataParticleKey.CHECKSUM])
             self.contents[DataParticleKey.QUALITY_FLAG] = DataParticleValue.CHECKSUM_FAILED
 
-        log.debug('VectorUserConfigDataParticle: particle=%s', result)
+        log.debug('NortekUserConfigDataParticle: particle=%s', result)
         return result
 
 
@@ -808,14 +710,14 @@ class NortekEngClockDataParticleKey(BaseEnum):
 class NortekEngClockDataParticle(DataParticle):
     """
     Routine for parsing clock engineering data into a data particle structure
-    for the Vector sensor.
+    for the Nortek sensor.
     """
     _data_particle_type = NortekDataParticleType.CLOCK
 
     def _build_parsed_values(self):
         """
-        Take something in the clock engineering data sample format and parse it
-        into values with appropriate tags.
+        Take the clock data and parse it into
+        values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
         match = CLOCK_DATA_REGEX.match(self.raw_data)
@@ -835,8 +737,7 @@ class NortekEngClockDataParticle(DataParticle):
             raise SampleException("No date/time array value parsed")
 
         # report values
-        result = [{DataParticleKey.VALUE_ID: NortekEngClockDataParticleKey.DATE_TIME_ARRAY,
-                   DataParticleKey.VALUE: date_time_array}]
+        result = [{DataParticleKey.VALUE_ID: NortekEngClockDataParticleKey.DATE_TIME_ARRAY, DataParticleKey.VALUE: date_time_array}]
 
         log.debug('NortekEngClockDataParticle: particle=%s', result)
         return result
@@ -852,31 +753,27 @@ class NortekEngBatteryDataParticleKey(BaseEnum):
 class NortekEngBatteryDataParticle(DataParticle):
     """
     Routine for parsing battery engineering data into a data particle
-    structure for the Vector sensor.
+    structure for the Nortek sensor.
     """
     _data_particle_type = NortekDataParticleType.BATTERY
 
     def _build_parsed_values(self):
         """
-        Take something in the battery engineering data sample format and parse
-        it into values with appropriate tags.
+        Take the battery data and parse it into
+        values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
         match = BATTERY_DATA_REGEX.match(self.raw_data)
-
         if not match:
             raise SampleException("NortekEngBatteryDataParticle: No regex match of parsed sample data: [%s]" % self.raw_data)
 
         # Calculate value
         battery_voltage = NortekProtocolParameterDict.convert_word_to_int(match.group(1))
-
         if None == battery_voltage:
             raise SampleException("No battery_voltage value parsed")
 
         # report values
-        result = [{DataParticleKey.VALUE_ID: NortekEngBatteryDataParticleKey.BATTERY_VOLTAGE,
-                   DataParticleKey.VALUE: battery_voltage}]
-
+        result = [{DataParticleKey.VALUE_ID: NortekEngBatteryDataParticleKey.BATTERY_VOLTAGE, DataParticleKey.VALUE: battery_voltage}]
         log.debug('NortekEngBatteryDataParticle: particle=%r', result)
         return result
 
@@ -888,30 +785,26 @@ class NortekEngIdDataParticleKey(BaseEnum):
 class NortekEngIdDataParticle(DataParticle):
     """
     Routine for parsing id engineering data into a data particle
-    structure for the Vector sensor.
+    structure for the Nortek sensor.
     """
     _data_particle_type = NortekDataParticleType.ID_STRING
 
     def _build_parsed_values(self):
         """
-        Take something in the battery engineering data sample format and parse
-        it into values with appropriate tags.
+        Take the id data and parse it into
+        values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
         match = ID_DATA_REGEX.match(self.raw_data)
-
         if not match:
             raise SampleException("NortekEngIdDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
 
         id_str = NortekProtocolParameterDict.convert_bytes_to_string(match.group(1)).encode('hex')
-
         if None == id_str:
             raise SampleException("No ID value parsed")
 
         # report values
-        result = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID,
-                   DataParticleKey.VALUE: id_str}]
-
+        result = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID, DataParticleKey.VALUE: id_str}]
         log.debug('NortekEngIdDataParticle: particle=%r', result)
         return result
 
@@ -952,63 +845,63 @@ class NortekParameterDictVal(RegexParameter):
 
 class NortekProtocolParameterDict(ProtocolParameterDict):
 
-    def update(self, input, target_params=None, **kwargs):
-        """
-        Update the dictionary with a line input. Iterate through all objects
-        and attempt to match and update a parameter. Only updates the first
-        match encountered. If we pass in a target params list then we will
-        only iterate through those allowing us to limit upstate to only specific
-        parameters.
-        @param input A string to match to a dictionary object.
-        @param target_params a name, or list of names to limit the scope of
-        the update.
-        @retval The name that was successfully updated, None if not updated
-        @raise InstrumentParameterException on invalid target prams
-        @raise KeyError on invalid parameter name
-        """
-        log.debug("update input: %s", input)
-        found = False
+    # def update(self, input, target_params=None, **kwargs):
+    #     """
+    #     Update the dictionary with a line input. Iterate through all objects
+    #     and attempt to match and update a parameter. Only updates the first
+    #     match encountered. If we pass in a target params list then we will
+    #     only iterate through those allowing us to limit upstate to only specific
+    #     parameters.
+    #     @param input A string to match to a dictionary object.
+    #     @param target_params a name, or list of names to limit the scope of
+    #     the update.
+    #     @retval The name that was successfully updated, None if not updated
+    #     @raise InstrumentParameterException on invalid target prams
+    #     @raise KeyError on invalid parameter name
+    #     """
+    #     log.debug("update input: %s", input)
+    #     found = False
+    #
+    #     if target_params and isinstance(target_params, str):
+    #         params = [target_params]
+    #     elif target_params and isinstance(target_params, list):
+    #         params = target_params
+    #     elif target_params is None:
+    #         params = self._param_dict.keys()
+    #     else:
+    #         raise InstrumentParameterException("invalid target_params, must be name or list")
+    #
+    #     for name in params:
+    #         log.debug("update param dict name: %s", name)
+    #         val = self._param_dict[name]
+    #         if val.update(input, **kwargs):
+    #             found = True
+    #     return found
 
-        if target_params and isinstance(target_params, str):
-            params = [target_params]
-        elif target_params and isinstance(target_params, list):
-            params = target_params
-        elif target_params is None:
-            params = self._param_dict.keys()
-        else:
-            raise InstrumentParameterException("invalid target_params, must be name or list")
-
-        for name in params:
-            log.debug("update param dict name: %s", name)
-            val = self._param_dict[name]
-            if val.update(input, **kwargs):
-                found = True
-        return found
-
-    @staticmethod
-    def convert_to_raw_value(param_name, initial_value):
-        """
-        Convert COMMENTS, DEPLOYMENT_NAME, QUAL_CONSTANTS, VELOCITY_ADJ_TABLE,
-        and CLOCK_DEPLOY back to their instrument-ready binary representation
-        despite them being stored in an ION-friendly not-raw-binary format.
-        @param initial_value The value that is being converted
-        @retval The raw, instrument-binary value for that name. If the value would
-        already be instrument-level coming  out of the param dict, there is
-        no change
-        """
-        if param_name == Parameter.COMMENTS:
-            return initial_value.ljust(180, "\x00")
-        if param_name == Parameter.DEPLOYMENT_NAME:
-            return initial_value.ljust(6, "\x00")
-        if param_name == Parameter.QUAL_CONSTANTS:
-            return base64.b64decode(initial_value.get_value())
-        if param_name == Parameter.VELOCITY_ADJ_TABLE:
-            log.debug("TABLE = %r", base64.b64decode(initial_value.get_value()))
-            return base64.b64decode(initial_value.get_value())
-        if param_name == Parameter.CLOCK_DEPLOY:
-            return NortekProtocolParameterDict.convert_datetime_to_words(initial_value.get_value())
-
-        return initial_value
+    # @staticmethod
+    # def convert_to_raw_value(param_name, initial_value):
+    #     """
+    #     Convert COMMENTS, DEPLOYMENT_NAME, QUAL_CONSTANTS, VELOCITY_ADJ_TABLE,
+    #     and CLOCK_DEPLOY back to their instrument-ready binary representation
+    #     despite them being stored in an ION-friendly not-raw-binary format.
+    #     @param initial_value The value that is being converted
+    #     @retval The raw, instrument-binary value for that name. If the value would
+    #     already be instrument-level coming  out of the param dict, there is
+    #     no change
+    #     """
+    #     if param_name == Parameter.COMMENTS:
+    #         return initial_value.ljust(180, "\x00")
+    #     if param_name == Parameter.DEPLOYMENT_NAME:
+    #         return initial_value.ljust(6, "\x00")
+    #     if param_name == Parameter.QUAL_CONSTANTS:
+    #         return base64.b64decode(initial_value.get_value())
+    #     if param_name == Parameter.VELOCITY_ADJ_TABLE:
+    #         log.debug("TABLE = %r", base64.b64decode(initial_value.get_value()))
+    #         return base64.b64decode(initial_value.get_value())
+    #     if param_name == Parameter.CLOCK_DEPLOY:
+    #         return NortekProtocolParameterDict.convert_datetime_to_words(initial_value.get_value())
+    #
+    #     return initial_value
 
     def get_config(self):
         """
@@ -1021,44 +914,79 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
                 config[key] = val.get_value()
         return config
 
-    def set_from_value(self, name, value):
+    # def set_from_value(self, name, value):
+    #     """
+    #     Set a parameter value in the dictionary.
+    #     @param name The parameter name.
+    #     @param value The parameter value.
+    #     @raises KeyError if the name is invalid.
+    #     """
+    #     log.debug("NortekProtocolParameterDict.set_from_value(): name=%s, value=%s", name, value)
+    #
+    #     retval = False
+    #
+    #     if not name in self._param_dict:
+    #         raise InstrumentParameterException('Unable to set parameter %s to %s: parameter %s not an dictionary' % (name, value, name))
+    #
+    #     if ((self._param_dict[name].value.f_format == NortekProtocolParameterDict.word_to_string) or
+    #          (self._param_dict[name].value.f_format == NortekProtocolParameterDict.double_word_to_string)):
+    #         if not isinstance(value, int):
+    #             raise InstrumentParameterException('Unable to set parameter %s to %s: value not an integer' % (name, value))
+    #     # else:
+    #     #    if not isinstance(value, str):
+    #     #        raise InstrumentParameterException('Unable to set parameter %s to %s: value not a string' %(name, value))
+    #
+    #     if self._param_dict[name].description.visibility == ParameterDictVisibility.READ_ONLY:
+    #         raise ReadOnlyException('Unable to set parameter %s to %s: parameter %s is read only' % (name, value, name))
+    #
+    #     if value != self._param_dict[name].value.get_value():
+    #         log.debug("old value: %s, new value: %s", self._param_dict[name].value.get_value(), value)
+    #         retval = True
+    #     self._param_dict[name].value.set_value(value)
+    #
+    #     return retval
+
+    @staticmethod
+    def bits_to_bytes(bits):
         """
-        Set a parameter value in the dictionary.
-        @param name The parameter name.
-        @param value The parameter value.
-        @raises KeyError if the name is invalid.
+        bits is an array
+        Convert bit field to bytes, reversing bits in the process.
+        ie [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1] becomes '\x05\x01'
         """
-        log.debug("NortekProtocolParameterDict.set_from_value(): name=%s, value=%s", name, value)
+        low_byte = bits[8:]
+        high_byte = bits[:8]
 
-        retval = False
+        low_byte_str = "".join([str(x) for x in low_byte])
 
-        if not name in self._param_dict:
-            raise InstrumentParameterException('Unable to set parameter %s to %s: parameter %s not an dictionary' % (name, value, name))
+        low_byte_str = chr(int(low_byte_str, 2))
 
-        if ((self._param_dict[name].value.f_format == NortekProtocolParameterDict.word_to_string) or
-             (self._param_dict[name].value.f_format == NortekProtocolParameterDict.double_word_to_string)):
-            if not isinstance(value, int):
-                raise InstrumentParameterException('Unable to set parameter %s to %s: value not an integer' % (name, value))
-        # else:
-        #    if not isinstance(value, str):
-        #        raise InstrumentParameterException('Unable to set parameter %s to %s: value not a string' %(name, value))
+        high_byte_str = "".join([str(x) for x in high_byte])
+        high_byte_str = chr(int(high_byte_str, 2))
 
-        if self._param_dict[name].description.visibility == ParameterDictVisibility.READ_ONLY:
-            raise ReadOnlyException('Unable to set parameter %s to %s: parameter %s is read only' % (name, value, name))
+        return high_byte_str + low_byte_str
 
-        if value != self._param_dict[name].value.get_value():
-            log.debug("old value: %s, new value: %s", self._param_dict[name].value.get_value(), value)
-            retval = True
-        self._param_dict[name].value.set_value(value)
-
-        return retval
+    @staticmethod
+    def convert_bytes_to_bit_field(bytes):
+        """
+        Convert bytes to a bit field, reversing bytes in the process.
+        ie ['\x05', '\x01'] becomes [0, 0, 0, 1, 0, 1, 0, 1]
+        @param bytes an array of string literal bytes.
+        @retval an list of 1 or 0 in order
+        """
+        byte_list = list(bytes)
+        byte_list.reverse()
+        result = []
+        for byte in byte_list:
+            bin_string = bin(ord(byte))[2:].rjust(8, '0')
+            result.extend([int(x) for x in list(bin_string)])
+        #log.debug("Returning a bitfield of %s for input string: [%s]", result, bytes)
+        return result
 
     @staticmethod
     def word_to_string(value):
         """
         Converts a word into a string field
         """
-        #log.debug("CONVERTEING word_to_string")
         low_byte = value & 0xff
         high_byte = (value & 0xff00) >> 8
         return chr(low_byte) + chr(high_byte)
@@ -1068,7 +996,6 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
         """
         Converts a word into an integer field
         """
-        #log.debug("CONVERTING convert_word_to_int")
         if len(word) != 2:
             raise SampleException("Invalid number of bytes in word input! Found %s with input %s" % len(word))
 
@@ -1077,7 +1004,6 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
 
         low_byte = ord(word[0])
         high_byte = 0x100 * ord(word[1])
-        #log.debug('low = %s, high=%s, combined = %s', low_byte, high_byte, low_byte+high_byte)
         return low_byte + high_byte
 
     @staticmethod
@@ -1098,25 +1024,8 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
             raise SampleException("Invalid number of bytes in double word input! Found %s" % len(dword))
         low_word = NortekProtocolParameterDict.convert_word_to_int(dword[0:2])
         high_word = NortekProtocolParameterDict.convert_word_to_int(dword[2:4])
-        #log.debug('dw=%s, lw=%d, hw=%d, v=%d' %(dword.encode('hex'), low_word, high_word, low_word + (0x10000 * high_word)))
-        return low_word + (0x10000 * high_word)
 
-    @staticmethod
-    def convert_bytes_to_bit_field(bytes):
-        """
-        Convert bytes to a bit field, reversing bytes in the process.
-        ie ['\x05', '\x01'] becomes [0, 0, 0, 1, 0, 1, 0, 1]
-        @param bytes an array of string literal bytes.
-        @retval an list of 1 or 0 in order
-        """
-        byte_list = list(bytes)
-        byte_list.reverse()
-        result = []
-        for byte in byte_list:
-            bin_string = bin(ord(byte))[2:].rjust(8, '0')
-            result.extend([int(x) for x in list(bin_string)])
-        #log.debug("Returning a bitfield of %s for input string: [%s]", result, bytes)
-        return result
+        return low_word + (0x10000 * high_word)
 
     @staticmethod
     def convert_words_to_datetime(bytes):
@@ -1184,12 +1093,9 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
             length = len(input)
 
         for word_index in range(0, length - 2, 2):
-
             word_value = NortekProtocolParameterDict.convert_word_to_int(input[word_index:word_index + 2])
-
             calculated_checksum = (calculated_checksum + word_value) % 0x10000
-            #log.debug('word_index = %s, word_value = %r, checksum = %r', word_index, hex(word_value), hex(calculated_checksum + word_value))
-            #log.debug('w_i=%d, c_c=%d', word_index, calculated_checksum)
+
         return calculated_checksum
 
     @staticmethod
@@ -1253,10 +1159,12 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
     Instrument protocol class for seabird driver.
     Subclasses CommandResponseInstrumentProtocol
     """
+    #logging level
+    __metaclass__ = get_logging_metaclass(log_level='debug')
+    #used for storing parameter values before they are changed during DA, used for restoring system
+    da_param_restore = []
 
-    __metaclass__=get_logging_metaclass(log_level='debug')
-
-    UserParameters = [
+    order_of_user_config = [
         # user configuration
         Parameter.TRANSMIT_PULSE_LENGTH,
         Parameter.BLANKING_DISTANCE,
@@ -1359,9 +1267,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.SET_REAL_TIME_CLOCK, self._build_set_real_time_clock_command)
 
         # Add response handlers for device commands.
-        #TODO - RAISE EXCEPTION IF RECEIVED Z_NACK
         self._add_response_handler(InstrumentCmds.READ_REAL_TIME_CLOCK, self._parse_read_clock_response)
         self._add_response_handler(InstrumentCmds.READ_BATTERY_VOLTAGE, self._parse_read_battery_voltage_response)
+        self._add_response_handler(InstrumentCmds.READ_ID, self._parse_read_id)
         self._add_response_handler(InstrumentCmds.READ_HW_CONFIGURATION, self._parse_read_hw_config)
         self._add_response_handler(InstrumentCmds.READ_HEAD_CONFIGURATION, self._parse_read_head_config)
         self._add_response_handler(InstrumentCmds.READ_USER_CONFIGURATION, self._parse_read_user_config)
@@ -1371,13 +1279,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._build_param_dict()
         self._build_cmd_dict()
         self._build_driver_dict()
-
-    @staticmethod
-    def checksum(s):
-
-        size = len(s) / 2
-        words = struct.unpack('<%dH' % size, s)
-        return struct.pack('<H', (sum(words) + 0xb58c) & 0xffff)
 
     @staticmethod
     def chunker_sieve_function(raw_data, add_structs=[]):
@@ -1408,11 +1309,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                         log.debug('chunker_sieve_function: calculated checksum = %r vs sent_checksum = %s', hex(calculated_checksum), hex(sent_checksum))
 
                         if sent_checksum == calculated_checksum:
-
                             return_list.append((start, start + structure_len))
                             #slice raw data off
                             log.debug("chunker_sieve_function: found %r", raw_data[start: start + structure_len])
-                            #TODO - RAISE ERROR IF CHECKSUM IS NOT GOOD
+                            #TODO - RAISE ERROR IF CHECKSUM IS NOT GOOD, why checksum? already do this with the response...do i need to check it again?
                     index = start + structure_len
 
         # by this point, all the particles with headers have been parsed from the raw data
@@ -1440,8 +1340,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
     def set_init_params(self, config):
         """
         over-ridden to handle binary block configuration
-        Set the initialization parameters to the given values in the protocol
-        parameter dictionary.
+        Set the initialization parameters to the given values in the protocol parameter dictionary.
         @param config A driver configuration dict that should contain an
         enclosed dict with key DriverConfigKey.PARAMETERS. This should include
         either param_name/value pairs or
@@ -1505,23 +1404,21 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             if not isinstance(params_to_set, dict):
                 raise InstrumentParameterException('Set parameters not a dict.')
 
-            parameters = copy.copy(self._param_dict)    # get copy of parameters to modify
+            # get copy of parameters to modify
+            parameters = self._param_dict.get_all()
 
             # For each key, value in the params_to_set list set the value in parameters copy.
             name = None
             value = None
             try:
-                new_value = False
-                for (name, value) in params_to_set.iteritems():
+                for name, value in params_to_set.iteritems():
+                    parameters[name] = value
                     log.debug('_set_params: setting %s to %s', name, value)
-                    if parameters.set_from_value(name, value):
-                        log.debug('_set_params: a value was updated: %s', value)
-                        new_value = True
             except Exception as ex:
                 raise InstrumentParameterException('Unable to set parameter %s to %s: %s' % (name, value, ex))
 
             output = self._create_set_output(parameters)
-            log.debug("Sending to instrument = %r", output)
+            log.debug("Sending to instrument = %r, LENGTH = %s", output, len(output))
 
             self._promptbuf = ''
             self._linebuf = ''
@@ -1531,16 +1428,12 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             self._connection.send(output)
 
             # Clear the prompt buffer.
-            #TODO
-            #self._get_response(timeout=TIMEOUT, expected_prompt=InstrumentPrompts.Z_ACK)
+            #TODO - still get a NACK response, why is that?
             self._get_response(timeout=TIMEOUT, expected_prompt=InstrumentPrompts.Z_NACK)
-            ret_val = self._update_params()
 
-            if new_value:
-                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-            elif ret_val is True:
-                self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-                log.debug('_handler_command_set: sending config change event!')
+            self._update_params()
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+            log.debug('_handler_command_set: sending config change event!')
 
         except IndexError:
             raise InstrumentParameterException('Set params requires a parameter dict.')
@@ -1674,9 +1567,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         log.debug('%% IN _handler_command_enter')
         # Command device to update parameters and send a config change event.
 
-        #TODO
-        #self._update_params()
-        #self._init_params()
+        self._update_params()
+        self._init_params()
+
+        self._clock_sync()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1711,31 +1605,30 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         return None, (None, result)
 
     def _handler_command_acquire_status(self, *args, **kwargs):
+        """
+        High level command for the operator to get all of the status from the instrument:
+        Battery voltage, clock, hw configuration, head configuration, user configuration, and identification string
+        """
         log.debug('%% IN _handler_command_acquire_status')
 
-        #result = self._do_cmd_resp(InstrumentCmds.READ_BATTERY_VOLTAGE)
+        #BV
         self._handler_command_read_battery_voltage()
 
         #RC
         self._handler_command_read_clock()
-        #self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK)
 
         #GP
         self._handler_command_get_hw_config()
-        # self._do_cmd_resp(InstrumentCmds.READ_HW_CONFIGURATION)
 
         #GH
         self._handler_command_get_head_config()
-        # self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION)
 
         #GC
         self._handler_command_get_user_config()
-        # self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION)
 
-        #todo
-        #II - No data particle for this data, don't think this is needed
-        # self._handler_command_read_mode()
-        #self._do_cmd_resp(InstrumentCmds.READ_ID)
+        #ID
+        self._handler_command_read_id()
+        # self._do_cmd_resp(InstrumentCmds.READ_ID)
 
         return None, (None, None)
 
@@ -1788,10 +1681,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # RECORDER
         result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, *args, **kwargs)
 
-        next_state = ProtocolState.AUTOSAMPLE
-        next_agent_state = ResourceAgentState.STREAMING
-
-        return next_state, (next_agent_state, result)
+        return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, result)
 
     def _handler_command_start_direct(self):
         """
@@ -1799,68 +1689,56 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug('%% IN _handler_start_direct: entering DA mode')
 
-        next_agent_state = ResourceAgentState.DIRECT_ACCESS
-        next_state = ProtocolState.DIRECT_ACCESS
-
-        return next_state, (next_agent_state, None)
+        return ResourceAgentState.DIRECT_ACCESS, (ProtocolState.DIRECT_ACCESS, None)
 
     def _handler_command_read_clock(self):
         """
+        Issue read clock command.
         """
-        next_state = None
-        next_agent_state = None
-
-        # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK, timeout=TIMEOUT)
 
-        return next_state, (next_agent_state, result)
+        return None, (None, result)
 
     def _handler_command_read_battery_voltage(self):
         """
+        Issue read battery command.
         """
-
         log.debug('%% IN _handler_command_read_battery_voltage')
 
-        next_state = None
-        next_agent_state = None
-
-        # Issue read battery command.
         result = self._do_cmd_resp(InstrumentCmds.READ_BATTERY_VOLTAGE)
 
-        return next_state, (next_agent_state, result)
+        return None, (None, result)
 
     def _handler_command_read_id(self):
         """
+        Issue read clock command.
         """
-        # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_ID)
 
         return None, (None, result)
 
     def _handler_command_get_hw_config(self):
         """
+        Issue read hw config command.
         """
         log.debug('%% IN _handler_command_get_hw_config')
-        # Issue read hw config command.
         result = self._do_cmd_resp(InstrumentCmds.READ_HW_CONFIGURATION)
         return None, (None, result)
 
     def _handler_command_get_head_config(self):
         """
+        Issue read clock command.
         """
         log.debug('%% IN _handler_command_get_head_config')
-
-        # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION)
 
         return None, (None, result)
 
     def _handler_command_get_user_config(self):
         """
+        Issue read user configuration command.
         """
         log.debug('%% IN _handler_command_get_user_config')
-
-        # Issue read clock command.
         result = self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION)
 
         return None, (None, result)
@@ -1868,7 +1746,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
     def _clock_sync(self, *args, **kwargs):
         """
         The mechanics of synchronizing a clock
-        @throws InstrumentCommandException if the clock was not syncronized
+        @throws InstrumentCommandException if the clock was not synchronized
         """
         log.debug('%% IN _clock_sync')
         str_time = get_timestamp_delayed("%M %S %d %H %y %m")
@@ -1893,12 +1771,12 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         hours = int(date_str[11:12])
         minutes = int(date_str[14:15])
         seconds = int(date_str[17:18])
-        total_time = (hours *3600) + (minutes * 60) + seconds
+        total_time = (hours * 3600) + (minutes * 60) + seconds
 
         hours = int(response[11:12])
         minutes = int(response[14:15])
         seconds = int(response[17:18])
-        total_time2 = (hours *3600) + (minutes * 60) + seconds
+        total_time2 = (hours * 3600) + (minutes * 60) + seconds
 
         if total_time - total_time2 > 10:
             raise InstrumentCommandException("Syncing the clock did not work!")
@@ -1913,12 +1791,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
         log.debug('%% IN _handler_command_clock_sync')
-
-        next_state = None
-        next_agent_state = None
-        result = None
-        self._clock_sync()
-        return next_state, (next_agent_state, result)
+        result = self._clock_sync()
+        return None, (None, result)
 
     ########################################################################
     # Autosample handlers.
@@ -2062,6 +1936,13 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         Enter direct access state.
         """
         log.debug('%% IN _handler_direct_access_enter')
+
+        #get the DA params and store their values for future use in restoring the state after leaving DA
+        da_params = self.get_direct_access_params()
+        self.da_param_restore = []
+        for param in da_params:
+            self.da_param_restore[param] = self._param_dict.get(param)
+
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
@@ -2097,42 +1978,21 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug("%% IN _handler_direct_access_stop_direct")
 
-        #TODO
         #discover the state to go to next
         next_state, next_agent_state = self._handler_unknown_discover()
         if next_state == DriverProtocolState.COMMAND:
             next_agent_state = ResourceAgentState.COMMAND
 
-        # if next_state == DriverProtocolState.AUTOSAMPLE:
-        #     #go into command mode
-        #     self._do_cmd_no_resp(InstrumentCmds.)
+        if next_state == DriverProtocolState.AUTOSAMPLE:
+            #go into command mode
+            self._helper_measurement_to_command_mode()
 
-        da_params = self.get_direct_access_params()
-        log.debug("DA params to reset: %s", da_params)
-        for param in da_params:
+        #restore parameters
+        self._set_params(self.da_param_restore)
 
-            log.debug('Trying to reset param %s', param)
-
-            old_val = self._param_dict.get(param)
-            new_val = self._param_dict.get_default_value(param)
-
-            log.debug('Comparing %s == %s', old_val, new_val)
-        #
-        #     #if setting the mvs interval or clock sync interval, do not send a command
-        #     if param == Parameter.RUN_WIPER_INTERVAL or param == Parameter.RUN_CLOCK_SYNC_INTERVAL or param == Parameter.RUN_ACQUIRE_STATUS_INTERVAL:
-        #         self._param_dict.set_value(param, new_val)
-        #     #else if setting the clock or date, run clock sync command
-        #     elif param == Parameter.TIME or param == Parameter.DATE:
-        #         self._sync_clock()
-        #     #else perform regular command
-        #     else:
-        #         #if old_val != new_val:
-        #         self._param_dict.set_value(param, new_val)
-        #         self._do_cmd_resp(InstrumentCommand.SET, param, new_val, response_regex=MNU_REGEX_MATCHER)
-        #
-        # if next_state == DriverProtocolState.AUTOSAMPLE:
-        #     #go into autosample mode
-        #     self._do_cmd_no_resp(InstrumentCommand.RUN_SETTINGS)
+        if next_state == DriverProtocolState.AUTOSAMPLE:
+            #go into autosample mode
+            self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER)
 
         log.debug("Next_state = %s, Next_agent_state = %s", next_state, next_agent_state)
         return next_state, (next_agent_state, None)
@@ -2201,6 +2061,252 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._cmd_dict.add(Capability.STOP_DIRECT, display_name='stop direct access')
         self._cmd_dict.add(Capability.ACQUIRE_STATUS, display_name='acquire status')
 
+    def _dump_config(self, input):
+        # dump config block
+        dump = ''
+        for byte_index in range(0, len(input)):
+            if byte_index % 0x10 == 0:
+                if byte_index != 0:
+                    dump += '\n'   # no linefeed on first line
+                dump += '{:03x}  '.format(byte_index)
+            dump += '{:02x} '.format(ord(input[byte_index]))
+        return dump
+
+    def _check_configuration(self, input, sync, length):
+        log.debug('_check_configuration: config=%s', self._dump_config(input))
+
+        if len(input) != length + 2:
+            log.debug('_check_configuration: wrong length, expected length %d != %d' % (length + 2, len(input)))
+            return False
+
+        # check for ACK bytes
+        if input[length:length + 2] != InstrumentPrompts.Z_ACK:
+            log.debug('_check_configuration: ACK bytes in error %s != %s',
+                      input[length:length + 2].encode('hex'),
+                      InstrumentPrompts.Z_ACK.encode('hex'))
+            return False
+
+        # check the sync bytes
+        if input[0:4] != sync:
+            log.debug('_check_configuration: sync bytes in error %s != %s',
+                      input[0:4], sync)
+            return False
+
+        # check checksum
+        calculated_checksum = NortekProtocolParameterDict.calculate_checksum(input, length)
+        log.debug('_check_configuration: user c_c = %s', calculated_checksum)
+        sent_checksum = NortekProtocolParameterDict.convert_word_to_int(input[length - 2:length])
+        if sent_checksum != calculated_checksum:
+            log.debug('_check_configuration: user checksum in error %s != %s',
+                      calculated_checksum, sent_checksum)
+            return False
+
+        return True
+
+    def _update_params(self, *args, **kwargs):
+        """
+        Update the parameter dictionary. Issue the read config command. The response
+        needs to be iterated through a line at a time and values saved to param dictionary.
+        @throws InstrumentTimeoutException if device cannot be timely woken.
+        @throws InstrumentProtocolException if ds/dc misunderstood.
+        """
+        if self.get_current_state() != ProtocolState.COMMAND:
+            raise InstrumentStateException('Can not perform update of parameters when not in command state')
+
+        log.debug('Sending get_user_configuration command to the instrument.')
+        response = self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION) 
+
+        log.debug("RESPONSE = %r", response)
+
+        for param in response:
+            #get each param's value and update the equivalent in the dictionary
+            #some params only exist in the user header and are not needed in the param dict, these we can skip
+            log.debug('parameter in driver = %s, %s', param, response[param])
+            try:
+                self._param_dict.set_value(param, response[param])
+            except Exception:
+                log.debug('parameter %s does not exist, skipping!', param)
+
+    def _create_set_output(self, parameters):
+        # load buffer with sync byte (A5), ID byte (01), and size word (# of words in little-endian form)
+        # 'user' configuration is 512 bytes = 256 words long = size 0x100
+        output = '\xa5\x00\x00\x01'
+
+        for param in self.order_of_user_config:
+            log.debug('TRYING TO ADD %s %s', param, self._param_dict.get(param))
+            if param == Parameter.COMMENTS:
+                output += self._param_dict.format(param).ljust(180, "\x00")
+            elif param == Parameter.USER_4_SPARE:
+                output += self._param_dict.format(param).ljust(30, "\x00")
+            elif param == Parameter.DEPLOYMENT_NAME:
+                output += self._param_dict.format(param).ljust(6, "\x00")
+            elif param == Parameter.QUAL_CONSTANTS:
+                output += base64.b64decode(self._param_dict.format(param))
+            elif param == Parameter.VELOCITY_ADJ_TABLE:
+                output += base64.b64decode(self._param_dict.format(param))
+            elif param == Parameter.CLOCK_DEPLOY:
+                output += NortekProtocolParameterDict.convert_datetime_to_words(self._param_dict.format(param))
+            else:
+                output += self._param_dict.format(param)
+            log.debug('_create_set_output: ADDED %s output size = %s', param, len(output))
+
+        checksum = CHECK_SUM_SEED
+        for word_index in range(0, len(output), 2):
+            word_value = NortekProtocolParameterDict.convert_word_to_int(output[word_index:word_index + 2])
+            checksum = (checksum + word_value) % 0x10000
+
+        output += NortekProtocolParameterDict.word_to_string(checksum)
+        self._dump_config(output)
+
+        return output
+
+    def _build_set_configuration_command(self, cmd, *args, **kwargs):
+        user_configuration = kwargs.get('user_configuration', None)
+        if not user_configuration:
+            raise InstrumentParameterException('set_configuration command missing user_configuration parameter.')
+        if not isinstance(user_configuration, str):
+            raise InstrumentParameterException('set_configuration command requires a string user_configuration parameter.')
+        user_configuration = base64.b64decode(user_configuration)
+        self._dump_config(user_configuration)
+
+        cmd_line = cmd + user_configuration
+        return cmd_line
+
+    def _build_set_real_time_clock_command(self, cmd, time, **kwargs):
+        return cmd + time
+
+    def _parse_read_clock_response(self, response, prompt):
+        """
+        Parse the response from the instrument for a read clock command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        # packed BCD format, so convert binary to hex to get value
+        # should be the 6 byte response ending with two ACKs
+        if len(response) != 8:
+            log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Bad response from read clock command. (%s)" % response.encode('hex'))
+
+        length = len(self._promptbuf)
+        if self._promptbuf[length-2:length] == InstrumentPrompts.Z_NACK:
+            log.warn("_parse_read_clock_response: Bad response from read clock command. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Bad response from read clock command. (%s)" % response.encode('hex'))
+
+        log.debug("_parse_read_clock_response: response=%s", response.encode('hex'))
+
+        # Workaround for not so unique data particle chunking
+        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, CLK_LEN])
+
+        time = NortekProtocolParameterDict.convert_time(response)
+        return time
+
+    def _parse_read_battery_voltage_response(self, response, prompt):
+        """
+        Parse the response from the instrument for a read battery voltage command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if len(response) != BV_LEN:
+            log.warn("_parse_read_battery_voltage_response: Bad read battery voltage response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Bad response from read battery voltage command. (%s)" % response.encode('hex'))
+
+        length = len(self._promptbuf)
+        if self._promptbuf[length-2:length] == InstrumentPrompts.Z_NACK:
+            log.warn("_parse_read_clock_response: Bad response from read battery voltage command. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Bad response from read battery voltage command. (%s)" % response.encode('hex'))
+
+        log.debug("_parse_read_battery_voltage_response: response=%s", response.encode('hex'))
+
+        # Workaround for not so unique data particle chunking
+        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, BV_LEN])
+
+        return NortekProtocolParameterDict.convert_word_to_int(response[0:BV_LEN - 2])
+
+    def _parse_read_id(self, response, prompt):
+        """ Parse the response from the instrument for a read ID command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if (len(response) != 10):
+            log.warn("_handler_command_read_id: Bad read ID response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read ID response. (%s)", response.encode('hex'))
+
+        length = len(self._promptbuf)
+        if self._promptbuf[length-2:length] == InstrumentPrompts.Z_NACK:
+            log.warn("_parse_read_clock_response: Bad response from read id command. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Bad response from read id command. (%s)" % response.encode('hex'))
+
+        log.debug("_handler_command_read_id: response=%s", response.encode('hex'))
+
+        # Workaround for not so unique data particle chunking
+        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, ID_LEN])
+
+        return response[0:8]
+
+    def _parse_read_hw_config(self, response, prompt):
+        """
+        Parse the response from the instrument for a read hw config command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The hardware configuration parse into a dict. Names
+        include SerialNo (string), Config (int), Frequency(int),
+        PICversion (int), HWrevision (int), RecSize (int), Status (int), and
+        FWversion (binary)
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if not self._check_configuration(self._promptbuf, HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN):
+            log.warn("_parse_read_hw_config: Bad read hw response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read hw response. (%s)" % response.encode('hex'))
+        log.debug("_parse_read_hw_config: response=%s", response.encode('hex'))
+
+        return hw_config_to_dict(response)
+
+    def _parse_read_head_config(self, response, prompt):
+        """
+        Parse the response from the instrument for a read head command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The head configuration parsed into a dict. Names include
+        Config (int), Frequency (int), Type (int), SerialNo (string)
+        System (binary), NBeams (int)
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if not self._check_configuration(self._promptbuf, HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN):
+            log.warn("_parse_read_head_config: Bad read head response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read head response. (%s)" % response.encode('hex'))
+        log.debug("_parse_read_head_config: response=%s", response.encode('hex'))
+
+        return head_config_to_dict(response)
+
+    def _parse_read_user_config(self, response, prompt):
+        """
+        Parse the response from the instrument for a read user command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The user configuration parsed into a dict. Names include:
+
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        log.debug("%% IN _parse_read_user_config")
+        if not self._check_configuration(self._promptbuf, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):
+            log.warn("_parse_read_user_config: Bad read user response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read user response. (%s)" % response.encode('hex'))
+        log.debug("_parse_read_user_config: response=%s", response.encode('hex'))
+
+        return user_config_to_dict(response)
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with parameters.
@@ -2210,6 +2316,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         log.debug("%%% IN _build_param_dict")
 
         self._param_dict = NortekProtocolParameterDict()
+        #TODO - THIS WILL NEED MASSIVE CLEANUP ONCE IOS IS FINALIZED, DEFAULT & INIT VALUES, STARTUP PARAMS, AND VISIBILITY
 
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.TRANSMIT_PULSE_LENGTH,
@@ -2256,7 +2363,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                 type=ParameterDictType.INT,
                                 visibility=ParameterDictVisibility.READ_WRITE,
                                 display_name="time between pings",
-                                default_value=None,
+                                default_value=44,
                                 init_value=44,
                                 startup_param=True))
         self._param_dict.add_parameter(
@@ -2304,7 +2411,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                 type=ParameterDictType.INT,
                                 visibility=ParameterDictVisibility.IMMUTABLE,
                                 display_name="user number beams",
-                                #TODO IF THIS IS A FIXED VALUE WHY ALLOW TO CHANGE?
                                 default_value=3,
                                 init_value=3,
                                 startup_param=True,
@@ -2313,7 +2419,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             NortekParameterDictVal(Parameter.TIMING_CONTROL_REGISTER,
                                 r'^.{%s}(.{2}).*' % str(20),
                                 lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
-                                NortekProtocolParameterDict.word_to_string,
+                                NortekProtocolParameterDict.bits_to_bytes,
                                 regex_flags=re.DOTALL,
                                 type=ParameterDictType.INT,
                                 visibility=ParameterDictVisibility.READ_ONLY,
@@ -2322,7 +2428,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             NortekParameterDictVal(Parameter.POWER_CONTROL_REGISTER,
                                 r'^.{%s}(.{2}).*' % str(22),
                                 lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
-                                NortekProtocolParameterDict.word_to_string,
+                                NortekProtocolParameterDict.bits_to_bytes,
                                 regex_flags=re.DOTALL,
                                 type=ParameterDictType.INT,
                                 visibility=ParameterDictVisibility.READ_ONLY,
@@ -2455,22 +2561,22 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                 type=ParameterDictType.INT,
                                 visibility=ParameterDictVisibility.IMMUTABLE,
                                 display_name="diagnostic interval",
-                                default_value=10800,
-                                init_value=10800,
+                                default_value=2,
+                                init_value=2,
                                 startup_param=True,
                                 direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.MODE,
                                 r'^.{%s}(.{2}).*' % str(58),
                                 lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
-                                NortekProtocolParameterDict.word_to_string,
+                                NortekProtocolParameterDict.bits_to_bytes,
                                 regex_flags=re.DOTALL,
                                 type=ParameterDictType.INT,
                                 visibility=ParameterDictVisibility.READ_WRITE,
                                 display_name="mode",
                                 default_value=48,
                                 init_value=48,   #0000000000110000
-                                startup_param=False,  # True, TODO find correct initial value
+                                startup_param=True,
                                 direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.ADJUSTMENT_SOUND_SPEED,
@@ -2527,14 +2633,14 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             NortekParameterDictVal(Parameter.MODE_TEST,
                                 r'^.{%s}(.{2}).*' % str(68),
                                 lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
-                                NortekProtocolParameterDict.word_to_string,
+                                NortekProtocolParameterDict.bits_to_bytes,
                                 regex_flags=re.DOTALL,
                                 type=ParameterDictType.STRING,
                                 visibility=ParameterDictVisibility.READ_WRITE,
                                 display_name="mode test",
                                 default_value=4,
-                                #init_value=4,   #00000000 00000100
-                                startup_param=False,  # True, TODO find correct initial value
+                                init_value=4,   #00000000 00000100
+                                startup_param=True,
                                 direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.ANALOG_INPUT_ADDR,
@@ -2581,23 +2687,16 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                 regex_flags=re.DOTALL,
                                 type=ParameterDictType.STRING,
                                 visibility=ParameterDictVisibility.IMMUTABLE,
-                                display_name='Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WP'
-                                                                 'uw+Aj8XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAW'
-                                                                 'kBrQHxAjECcQKxAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4'
-                                                                 'QYVBkkGeQatBt0HDQc9B20HnQfJB/UEIQhNCHkIoQjNCPUJHQl'
-                                                                 'FCW0JkQm5Cd0K',
-                                init_value='Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WP'
-                                                                 'uw+Aj8XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAW'
-                                                                 'kBrQHxAjECcQKxAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4'
-                                                                 'QYVBkkGeQatBt0HDQc9B20HnQfJB/UEIQhNCHkIoQjNCPUJHQl'
-                                                                 'FCW0JkQm5Cd0K',
+                                display_name='comments',
+                                init_value='2',
+                                default_value='2',
                                 startup_param=True,
                                 direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.WAVE_MEASUREMENT_MODE,
                                 r'^.{%s}(.{2}).*' % str(436),
                                 lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
-                                NortekProtocolParameterDict.word_to_string,
+                                NortekProtocolParameterDict.bits_to_bytes,
                                 regex_flags=re.DOTALL,
                                 type=ParameterDictType.STRING,
                                 visibility=ParameterDictVisibility.READ_ONLY,
@@ -2646,7 +2745,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                 regex_flags=re.DOTALL,
                                 type=ParameterDictType.INT,
                                 visibility=ParameterDictVisibility.READ_ONLY,
-                                display_name="number diag samples"))     # Does this control diagnostic output?
+                                display_name="number diag samples"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.A1_2_SPARE,
                                     r'^.{%s}(.{2}).*' % str(448),
@@ -2664,7 +2763,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.STRING,
                                     visibility=ParameterDictVisibility.READ_ONLY,
-                                   display_name="b0 2 spare"))
+                                    display_name="b0 2 spare"))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.NUMBER_SAMPLES_PER_BURST,
                                     r'^.{%s}(.{2}).*' % str(452),
@@ -2683,7 +2782,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                     r'^.{%s}(.{2}).*' % str(454),
                                     lambda match: match.group(1),
                                     lambda string: string,
-                                    # init_value=,
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.STRING,
                                     visibility=ParameterDictVisibility.READ_ONLY,
@@ -2783,275 +2881,34 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         for param in self._param_dict.get_keys():
             self._param_dict.set_value(param, self._param_dict.get_default_value(param))
 
+        #set the read only params so we can send them to the instrument, uses the default value listed in the IOS
         self._param_dict.set_value(Parameter.TIMING_CONTROL_REGISTER, 36)
         self._param_dict.set_value(Parameter.POWER_CONTROL_REGISTER, 0)
-        self._param_dict.set_value(Parameter.A1_1_SPARE, "0")
-        self._param_dict.set_value(Parameter.B0_1_SPARE, "0")
-        self._param_dict.set_value(Parameter.B1_1_SPARE, "0")
         self._param_dict.set_value(Parameter.WRAP_MODE, 0)
-        self._param_dict.set_value(Parameter.USER_1_SPARE, "0")
         self._param_dict.set_value(Parameter.DYN_PERCENTAGE_POSITION, 0)
         self._param_dict.set_value(Parameter.WAVE_TRANSMIT_PULSE, 0)
         self._param_dict.set_value(Parameter.WAVE_BLANKING_DISTANCE, 0)
         self._param_dict.set_value(Parameter.WAVE_CELL_SIZE, 0)
         self._param_dict.set_value(Parameter.NUMBER_DIAG_SAMPLES, 0)
         self._param_dict.set_value(Parameter.ANALOG_OUTPUT_SCALE, 0)
-        #self._param_dict.set_value(Parameter.VELOCITY_ADJ_TABLE, #'01 02 3d 1e 3d 39 3d 53 3d 6e 3d 88 3d a2 3d bb 3d d4 3d ed 3d 06 3e 1e 3e 36 3e 4e 3e 65 3e 7d 3e 93 3e aa 3e c0 3e d6 3e ec 3e 02 3f 17 3f 2c 3f 41 3f 55 3f 69 3f 7d 3f 91 3f a4 3f b8 3f ca 3f dd 3f f0 3f 02 40 14 40 26 40 37 40 49 40 5a 40 6b 40 7c 40 8c 40 9c 40 ac 40 bc 40 cc 40 db 40 ea 40 f9 40 08 41 17 41 25 41 33 41 42 41 4f 41 5d 41 6a 41 78 41 85 41 92 41 9e 41 ab 41 b7 41 c3 41 cf 41 db 41 e7 41 f2 41 fd 41 08 42 13 42 1e 42 28 42 33 42 3d 42 47 42 51 42 5b 42 64 42 6e 42 77 42 80 42 89 42 91 42 9a 42 a2 42 aa 42 b2 42 ba 42 ')
         self._param_dict.set_value(Parameter.VELOCITY_ADJ_TABLE, 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WP'
                                                                  'uw+Aj8XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAW'
                                                                  'kBrQHxAjECcQKxAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4'
                                                                  'QYVBkkGeQatBt0HDQc9B20HnQfJB/UEIQhNCHkIoQjNCPUJHQl'
                                                                  'FCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC')
-                                   #"0000000000000000000000000000000000000000000000000000")
-
-        self._param_dict.set_value(Parameter.DEPLOYMENT_NAME, "0")
+        self._param_dict.set_value(Parameter.DEPLOYMENT_NAME, "00")
         self._param_dict.set_value(Parameter.CLOCK_DEPLOY, "010214")
         self._param_dict.set_value(Parameter.ANALOG_INPUT_ADDR, 0)
         self._param_dict.set_value(Parameter.SW_VERSION, 0)
         self._param_dict.set_value(Parameter.WAVE_MEASUREMENT_MODE, 0)
-        self._param_dict.set_value(Parameter.A1_2_SPARE, "0")
-        self._param_dict.set_value(Parameter.B0_2_SPARE, "0")
-        self._param_dict.set_value(Parameter.USER_2_SPARE, "0")
-        self._param_dict.set_value(Parameter.USER_3_SPARE, "0")
-        self._param_dict.set_value(Parameter.USER_4_SPARE, "0")
+        #spares (except for user 4 spare) are all two bytes, so use a 2 byte value!
+        self._param_dict.set_value(Parameter.A1_2_SPARE, "00")
+        self._param_dict.set_value(Parameter.USER_2_SPARE, "00")
+        self._param_dict.set_value(Parameter.USER_3_SPARE, "00")
+        self._param_dict.set_value(Parameter.USER_4_SPARE, "00000000000000000")
+        self._param_dict.set_value(Parameter.B0_2_SPARE, '00')
+        self._param_dict.set_value(Parameter.A1_1_SPARE, "00")
+        self._param_dict.set_value(Parameter.B0_1_SPARE, "00")
+        self._param_dict.set_value(Parameter.B1_1_SPARE, "00")
+        self._param_dict.set_value(Parameter.USER_1_SPARE, "00")
 
-    def _dump_config(self, input):
-        # dump config block
-        dump = ''
-        for byte_index in range(0, len(input)):
-            if byte_index % 0x10 == 0:
-                if byte_index != 0:
-                    dump += '\n'   # no linefeed on first line
-                dump += '{:03x}  '.format(byte_index)
-            #dump += '0x{:02x}, '.format(ord(input[byte_index]))
-            dump += '{:02x} '.format(ord(input[byte_index]))
-        return dump
-
-    def _check_configuration(self, input, sync, length):
-        log.debug('_check_configuration: config=%s', self._dump_config(input))
-        #print self._dump_config(input)
-        if len(input) != length + 2:
-            log.debug('_check_configuration: wrong length, expected length %d != %d' % (length + 2, len(input)))
-            return False
-
-        # check for ACK bytes
-        if input[length:length + 2] != InstrumentPrompts.Z_ACK:
-            log.debug('_check_configuration: ACK bytes in error %s != %s',
-                      input[length:length + 2].encode('hex'),
-                      InstrumentPrompts.Z_ACK.encode('hex'))
-            return False
-
-        # check the sync bytes
-        if input[0:4] != sync:
-            log.debug('_check_configuration: sync bytes in error %s != %s',
-                      input[0:4], sync)
-            return False
-
-        # check checksum
-        calculated_checksum = NortekProtocolParameterDict.calculate_checksum(input, length)
-        log.debug('_check_configuration: user c_c = %s', calculated_checksum)
-        sent_checksum = NortekProtocolParameterDict.convert_word_to_int(input[length - 2:length])
-        if sent_checksum != calculated_checksum:
-            log.debug('_check_configuration: user checksum in error %s != %s',
-                      calculated_checksum, sent_checksum)
-            return False
-
-        return True
-
-    def _update_params(self, *args, **kwargs):
-        """
-        Update the parameter dictionary. Issue the read config command. The response
-        needs to be iterated through a line at a time and values saved to param dictionary.
-        @throws InstrumentTimeoutException if device cannot be timely woken.
-        @throws InstrumentProtocolException if ds/dc misunderstood.
-        """
-        if self.get_current_state() != ProtocolState.COMMAND:
-            raise InstrumentStateException('Can not perform update of parameters when not in command state')
-
-        log.debug('Sending get_user_configuration command to the instrument.')
-        self._handler_command_get_user_config()
-
-    def _get_mode(self, timeout, delay=1):
-        """
-        _wakeup is replaced by this method for this instrument to search for
-        prompt strings at other than just the end of the line.
-        @param timeout The timeout to wake the device.
-        @param delay The time to wait between consecutive wakeups.
-        @throw InstrumentTimeoutException if the device could not be woken.
-        """
-        # Clear the prompt buffer.
-        self._promptbuf = ''
-
-        # Grab time for timeout.
-        starttime = time.time()
-
-        log.debug("_get_mode: timeout = %d", timeout)
-
-        while True:
-            log.debug('Sending what_mode command to get a response from the instrument.')
-            # Send what_mode command to attempt to get a response.
-            self._connection.send(InstrumentCmds.SOFT_BREAK_SECOND_HALF)
-            self._connection.send(InstrumentCmds.SOFT_BREAK_SECOND_HALF)
-            time.sleep(delay)
-
-            for item in self._prompts.list():
-                if item in self._promptbuf:
-                    if item != InstrumentPrompts.Z_NACK:
-                        log.debug('get_mode got prompt: %s' % repr(item))
-                        return item
-
-            if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException()
-
-    def _create_set_output(self, parameters):
-        # load buffer with sync byte (A5), ID byte (0), and size word (# of words in little-endian form)
-        # 'user' configuration is 512 bytes, 256 words long, so size is 0x100
-        output = '\xa5\x00\x00\x01'
-        for name in self.UserParameters:
-            log.debug('_create_set_output: adding %s to list', name)
-            if name == Parameter.COMMENTS:
-                output += parameters.format(name).ljust(180, "\x00")
-            elif name == Parameter.DEPLOYMENT_NAME:
-                output += parameters.format(name).ljust(6, "\x00")
-            elif name == Parameter.QUAL_CONSTANTS:
-                output += base64.b64decode(parameters.format(name))
-            elif name == Parameter.VELOCITY_ADJ_TABLE:
-                output += base64.b64decode(parameters.format(name))
-            elif name == Parameter.CLOCK_DEPLOY:
-                output += NortekProtocolParameterDict.convert_datetime_to_words(parameters.format(name))
-            else:
-                output += parameters.format(name)
-            log.debug('_create_set_output: ADDED %s to list', name)
-        log.debug("Created set output: %r with length: %s", output, len(output))
-
-        checksum = CHECK_SUM_SEED
-        for word_index in range(0, len(output), 2):
-            word_value = NortekProtocolParameterDict.convert_word_to_int(output[word_index:word_index + 2])
-            checksum = (checksum + word_value) % 0x10000
-            #log.debug('word_index = %s, word_value = %r', word_index, output[word_index:word_index+2])
-
-        output += NortekProtocolParameterDict.word_to_string(checksum)
-        self._dump_config(output)
-
-        return output
-
-    def _build_set_configuration_command(self, cmd, *args, **kwargs):
-        user_configuration = kwargs.get('user_configuration', None)
-        if not user_configuration:
-            raise InstrumentParameterException('set_configuration command missing user_configuration parameter.')
-        if not isinstance(user_configuration, str):
-            raise InstrumentParameterException('set_configuration command requires a string user_configuration parameter.')
-        user_configuration = base64.b64decode(user_configuration)
-        self._dump_config(user_configuration)
-
-        cmd_line = cmd + user_configuration
-        return cmd_line
-
-    def _build_set_real_time_clock_command(self, cmd, time, **kwargs):
-        return cmd + time
-
-    def _parse_read_clock_response(self, response, prompt):
-        """ Parse the response from the instrument for a read clock command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The time as a string
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        # packed BCD format, so convert binary to hex to get value
-        # should be the 6 byte response ending with two ACKs
-        if len(response) != 8:
-            log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read clock response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_clock_response: response=%s", response.encode('hex'))
-
-        # Workaround for not so unique data particle chunking
-        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, CLK_LEN])
-
-        time = NortekProtocolParameterDict.convert_time(response)
-        return time
-
-    def _parse_read_battery_voltage_response(self, response, prompt):
-        """ Parse the response from the instrument for a read battery voltage command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The time as a string
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        if len(response) != BV_LEN:
-            log.warn("_parse_read_battery_voltage_response: Bad read battery voltage response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read battery voltage response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_battery_voltage_response: response=%s", response.encode('hex'))
-
-        # Workaround for not so unique data particle chunking
-        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, BV_LEN])
-
-        return NortekProtocolParameterDict.convert_word_to_int(response[0:BV_LEN - 2])
-
-    def _parse_read_id(self, response, prompt):
-        """ Parse the response from the instrument for a read ID command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The time as a string
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        if len(response) != ID_LEN:
-            log.warn("_handler_command_read_id: Bad read ID response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read ID response. (%s)", response.encode('hex'))
-        log.debug("_handler_command_read_id: response=%s", response.encode('hex'))
-        return response[0:8]
-
-    def _parse_read_hw_config(self, response, prompt):
-        """ Parse the response from the instrument for a read hw config command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The hardware configuration parse into a dict. Names
-        include SerialNo (string), Config (int), Frequency(int),
-        PICversion (int), HWrevision (int), RecSize (int), Status (int), and
-        FWversion (binary)
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        if not self._check_configuration(self._promptbuf, HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN):
-            log.warn("_parse_read_hw_config: Bad read hw response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read hw response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_hw_config: response=%s", response.encode('hex'))
-
-        return hw_config_to_dict(response)
-
-    def _parse_read_head_config(self, response, prompt):
-        """ Parse the response from the instrument for a read head command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The head configuration parsed into a dict. Names include
-        Config (int), Frequency (int), Type (int), SerialNo (string)
-        System (binary), NBeams (int)
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        if not self._check_configuration(self._promptbuf, HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN):
-            log.warn("_parse_read_head_config: Bad read head response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read head response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_head_config: response=%s", response.encode('hex'))
-
-        return head_config_to_dict(response)
-
-    def _parse_read_user_config(self, response, prompt):
-        """ Parse the response from the instrument for a read user command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The user configuration parsed into a dict. Names include:
-
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        log.debug("%% IN _parse_read_user_config")
-        if not self._check_configuration(self._promptbuf, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):
-            log.warn("_parse_read_user_config: Bad read user response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read user response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_user_config: response=%s", response.encode('hex'))
-
-        #return response
-        return user_config_to_dict(response)
