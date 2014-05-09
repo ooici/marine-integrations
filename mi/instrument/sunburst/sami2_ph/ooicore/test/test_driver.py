@@ -736,6 +736,15 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
 @attr('QUAL', group='mi')
 class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
 
+    @unittest.skip("Runs for several hours to test default autosample rate of 60 minutes")
+    def test_overnight(self):
+        """
+        Verify autosample at default rate
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_sample_autosample(self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, timeout=14400)
+
     def test_direct_access_telnet_mode(self):
         """
         @brief This test manually tests that the Instrument Driver properly

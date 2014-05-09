@@ -62,6 +62,8 @@ from mi.instrument.sunburst.driver import SamiRegularStatusDataParticleKey
 from mi.instrument.sunburst.driver import SamiBatteryVoltageDataParticleKey
 from mi.instrument.sunburst.driver import SamiThermistorVoltageDataParticleKey
 from mi.instrument.sunburst.driver import SamiProtocolState
+from mi.instrument.sunburst.driver import SamiDataParticleType
+from mi.instrument.sunburst.driver import SamiProtocolEvent
 ###
 #   Driver parameters for the tests
 ###
@@ -337,6 +339,19 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
         if(require_instrument_timestamp):
             self.assertIsNotNone(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP))
             self.assertIsInstance(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP), float)
+
+    def assert_time_sync(self, status_particle):
+        log.debug("status_particle = " + str(status_particle))
+        status_dict = self.get_data_particle_values_as_dict(status_particle)
+        elapsed_time_config = status_dict.get(SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG)
+        log.debug("elapsed_time_config = " + str(elapsed_time_config))
+        pass
+
+    def test_time_sync(self):
+        self.assert_initialize_driver()
+        time.sleep(10)
+        self.assert_particle_generation(SamiProtocolEvent.ACQUIRE_STATUS, SamiDataParticleType.REGULAR_STATUS, self.assert_time_sync)
+        pass
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

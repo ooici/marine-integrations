@@ -431,7 +431,7 @@ class Protocol(Pco2wProtocol):
 
         dev1_timeout = self._param_dict.get(Parameter.EXTERNAL_PUMP_SETTINGS)
 
-        log.debug('herb: ' + 'Protocol._pre_sample_processing(): Dev1 Timeout = ' + dev1_timeout)
+        log.debug('herb: ' + 'Protocol._pre_sample_processing(): Dev1 Timeout = ' + str(dev1_timeout))
 
         ## An exception is raised if timeout is hit.
         self._do_cmd_resp(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, timeout = dev1_timeout, response_regex=DEV1_SAMPLE_REGEX_MATCHER)

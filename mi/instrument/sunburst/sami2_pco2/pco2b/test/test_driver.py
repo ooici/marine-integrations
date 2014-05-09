@@ -84,6 +84,7 @@ InstrumentDriverTestCase.initialize(
     driver_startup_config={
             DriverStartupConfigKey.PARAMETERS: {
             Parameter.EXTERNAL_PUMP_DELAY: 10,
+            Parameter.BIT_SWITCHES: 0x01
         },
     }
 )
@@ -585,7 +586,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
            Parameter.NUMBER_REAGENT_CYCLES: 0x18,
            Parameter.NUMBER_BLANK_CYCLES: 0x1C,
            Parameter.FLUSH_PUMP_INTERVAL: 0x01,
-           Parameter.BIT_SWITCHES: 0x00,
+           Parameter.BIT_SWITCHES: 0x01,
            Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x38,
            Parameter.EXTERNAL_PUMP_SETTINGS: 0x14,
            Parameter.EXTERNAL_PUMP_DELAY: 10,
@@ -600,7 +601,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
            Parameter.NUMBER_REAGENT_CYCLES: 0x19,
            Parameter.NUMBER_BLANK_CYCLES: 0x1D,
            Parameter.FLUSH_PUMP_INTERVAL: 0x02,
-           Parameter.BIT_SWITCHES: 0x01,
+           Parameter.BIT_SWITCHES: 0x02,
            Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x39,
            Parameter.EXTERNAL_PUMP_SETTINGS: 0x40,
            Parameter.EXTERNAL_PUMP_DELAY: 300,
@@ -660,36 +661,21 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 
     def test_acquire_sample(self):
         self.assert_initialize_driver()
-        # Will always take a blank sample first after initialization.
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
-        self.clear_events()
-        # Take a regular sample
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
         self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
         self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
 
     def test_acquire_blank_sample(self):
         self.assert_initialize_driver()
-        # Will always take a blank sample first after initialization.
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
-        self.clear_events()
-        # Take a blank sample
         self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
         self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
         self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
 
     def test_auto_sample(self):
         self.assert_initialize_driver()
-        self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 180)
-        ## A blank sample is taken immediately upon entering autosample state
+        self.assert_set(Parameter.AUTO_SAMPLE_INTERVAL, 80)
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=4, timeout=840)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=4, timeout=400)
         self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, particle_count=4)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
@@ -697,7 +683,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.POLLED_SAMPLE, delay=5)
         self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
 
     def test_polled_blank_sample_state(self):
         self.assert_initialize_driver()
@@ -709,14 +695,14 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
         self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=5)
 
     def test_scheduled_blank_sample_state(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
         self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
         self.clear_events()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, state=ProtocolState.SCHEDULED_BLANK_SAMPLE, delay=5)
         self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
@@ -753,8 +739,11 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 
         self.assert_scheduled_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, delay=200)
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.SCHEDULED_SAMPLE, delay=5)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, particle_count=2, timeout=500)
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, particle_count=2)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=500)
+        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample)
+        self.clear_events()
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=500)
+        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample)
         self.assert_current_state(ProtocolState.AUTOSAMPLE)
 
     def test_queued_command(self):
@@ -768,12 +757,10 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
+
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=2, timeout=220)
+        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, particle_count=2, timeout=60)
         self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=180)
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
 
         ## Queue blank sample and status
         self.clear_events()
@@ -800,12 +787,9 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         ## Queue sample and status
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, particle_count=2, timeout=220)
+        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, particle_count=2, timeout=60)
         self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=180)
-        self.clear_events()
-        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
-        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
 
         ## Queue blank sample and status
         self.clear_events()
@@ -848,6 +832,27 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 ###############################################################################
 @attr('QUAL', group='mi')
 class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
+
+    @unittest.skip("Runs for several hours to test default autosample rate of 60 minutes")
+    def test_overnight(self):
+        """
+        Verify autosample at default rate
+        """
+        self.assert_enter_command_mode()
+        self.assert_set_parameter(Parameter.BIT_SWITCHES, 0x00)
+        self.assert_set_parameter(Parameter.EXTERNAL_PUMP_DELAY, 600)
+        request_sample = time.time()
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_dev1_sample, DataParticleType.DEV1_SAMPLE, sample_count=1, timeout=120)
+        receive_dev1_sample = time.time()
+        dev1_sample_time = receive_dev1_sample - request_sample
+        self.assert_sample_async(self.assert_particle_sami_blank_sample, DataParticleType.SAMI_SAMPLE, timeout=800)
+        receive_sample = time.time()
+        sample_time = receive_sample - request_sample
+
+        log.debug("dev1_sample_time = " + str(dev1_sample_time))
+        log.debug("sample_time = " + str(sample_time))
+
+        self.assert_sample_autosample(self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, timeout=14400)
 
     def test_direct_access_telnet_mode(self):
         """
@@ -903,9 +908,6 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assert_enter_command_mode()
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_dev1_sample, DataParticleType.DEV1_SAMPLE, sample_count=1, timeout=200)
-        self.assert_sample_async(self.assert_particle_sami_blank_sample, DataParticleType.SAMI_SAMPLE, timeout=200)
-
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_dev1_sample, DataParticleType.DEV1_SAMPLE, sample_count=1, timeout=200)
         self.assert_sample_async(self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE, timeout=200)
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_BLANK_SAMPLE, self.assert_particle_dev1_sample, DataParticleType.DEV1_SAMPLE, sample_count=1, timeout=200)
@@ -941,10 +943,7 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         Verify autosample works and data particles are created
         """
         self.assert_enter_command_mode()
-        self.assert_set_parameter(Parameter.AUTO_SAMPLE_INTERVAL, 180)
-
-        ## Get the blank sample out of the way
-        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_blank_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
+        self.assert_set_parameter(Parameter.AUTO_SAMPLE_INTERVAL, 80)
 
         self.assert_sample_autosample(self.assert_particle_sami_data_sample, DataParticleType.SAMI_SAMPLE)
 

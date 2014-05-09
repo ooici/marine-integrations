@@ -80,6 +80,10 @@ SAMI_TO_UNIX = 2082844800
 # SAMI, and add for the reverse.
 SAMI_TO_NTP =  126144000
 
+FIVE_YEARS_IN_SECONDS = 0x0968A480
+
+ONE_YEAR_IN_SECONDS = 0x01E13380
+
 # Acceptable time difference as specified in the IOS
 TIME_THRESHOLD = 1
 
@@ -2017,7 +2021,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=True,
-                             default_value=0x02C7EA00,
+                             default_value=FIVE_YEARS_IN_SECONDS,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='start time after launch time')
 
@@ -2027,7 +2031,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                              type=ParameterDictType.INT,
                              startup_param=True,
                              direct_access=True,
-                             default_value=0x01E13380,
+                             default_value=ONE_YEAR_IN_SECONDS,
                              visibility=ParameterDictVisibility.READ_ONLY,
                              display_name='stop time after start time')
 
