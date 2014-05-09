@@ -1292,7 +1292,7 @@ class CgStcEngStcParser(Parser):
             self._publish_sample(record)
         # set the state to None since there is no state, and the file ingested flag to True
         # if no record was returned still set it to True because we have processed the whole file
-        self._state_callback(None, True, self._filename)
+        self._state_callback(None, self._filename, True)
         return record
 
     def set_state(self, state):

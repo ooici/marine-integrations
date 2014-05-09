@@ -338,6 +338,6 @@ class BufferLoadingFilenameParser(BufferLoadingParser):
             if self.file_complete and len(self._record_buffer) == 0:
                 # file has been read completely and all records pulled out of the record buffer
                 file_ingested = True
-            self._state_callback(self._state, file_ingested, self._file_name) # push new state to driver
+            self._state_callback(self._state, self._file_name, file_ingested) # push new state to driver
 
         return return_list
