@@ -16,10 +16,8 @@ USAGE:
 __author__ = 'Dan Mergens'
 __license__ = 'Apache 2.0'
 
-import unittest
 import time
 
-import gevent
 from mock import Mock
 from nose.plugins.attrib import attr
 from mi.core.log import get_logger
@@ -54,10 +52,8 @@ from mi.instrument.mclane.ras.d1000.driver import \
     D1000TemperatureDataParticle
 
 from mi.core.exceptions import SampleException
-from interface.objects import AgentCommand
 
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-from pyon.agent.agent import ResourceAgentEvent, ResourceAgentState
+from pyon.agent.agent import ResourceAgentState
 
 # Globals
 raw_stream_received = False
@@ -154,38 +150,38 @@ class UtilMixin(DriverTestMixin):
     _driver_parameters = {
         Parameter.SAMPLE_INTERVAL:
             {TYPE: int, READONLY: False, DA: False, STARTUP: True, VALUE: 15, REQUIRED: False},
-        # Parameter.CHANNEL_ADDRESS:
-        #     {TYPE: chr, READONLY: True, DA: False, STARTUP: True, VALUE: 0x31, REQUIRED: False},
-        # Parameter.LINEFEED:
-        #     {TYPE: bool, READONLY: True, DA: False, STARTUP: True, VALUE: False, REQUIRED: False},
-        # Parameter.PARITY_TYPE:
-        #     {TYPE: bool, READONLY: True, DA: False, STARTUP: True, VALUE: False, REQUIRED: False},
-        # Parameter.PARITY_ENABLE:
-        #     {TYPE: bool, READONLY: True, DA: False, STARTUP: True, VALUE: False, REQUIRED: False},
-        # Parameter.EXTENDED_ADDRESSING:
-        #     {TYPE: bool, READONLY: True, DA: False, STARTUP: False, VALUE: False, REQUIRED: False},
-        # Parameter.BAUD_RATE:
-        #     {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 9600, REQUIRED: False},
-        # Parameter.ALARM_ENABLE:
-        #     {TYPE: bool, READONLY: True, DA: False, STARTUP: True, VALUE: False, REQUIRED: False},
-        # Parameter.LOW_ALARM_LATCH:
-        #     {TYPE: bool, READONLY: True, DA: False, STARTUP: True, VALUE: False, REQUIRED: False},
-        # Parameter.HIGH_ALARM_LATCH:
-        #     {TYPE: bool, READONLY: True, DA: False, STARTUP: True, VALUE: False, REQUIRED: False},
-        # Parameter.RTD_4_WIRE:
-        #     {TYPE: bool, READONLY: True, DA: False, STARTUP: True, VALUE: False, REQUIRED: False},
-        # Parameter.TEMP_UNITS:
-        #     {TYPE: bool, READONLY: True, DA: False, STARTUP: True, VALUE: False, REQUIRED: False},
-        # Parameter.ECHO:
-        #     {TYPE: bool, READONLY: True, DA: False, STARTUP: True, VALUE: False, REQUIRED: False},
-        # Parameter.COMMUNICATION_DELAY:
-        #     {TYPE: bool, READONLY: True, DA: False, STARTUP: True, VALUE: False, REQUIRED: False},
-        # Parameter.PRECISION:
-        #     {TYPE: int, READONLY: True, DA: False, STARTUP: True, VALUE: 7, REQUIRED: False},
-        # Parameter.LARGE_SIGNAL_FILTER_C:
-        #     {TYPE: float, READONLY: True, DA: False, STARTUP: True, VALUE: 0, REQUIRED: False},
-        # Parameter.SMALL_SIGNAL_FILTER_C:
-        #     {TYPE: float, READONLY: True, DA: False, STARTUP: True, VALUE: 0.5, REQUIRED: False},
+        Parameter.CHANNEL_ADDRESS:
+            {TYPE: int, READONLY: True, DA: True, STARTUP: False, VALUE: 0x31, REQUIRED: False},
+        Parameter.LINEFEED:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: False, VALUE: False, REQUIRED: False},
+        Parameter.PARITY_TYPE:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: False, VALUE: False, REQUIRED: False},
+        Parameter.PARITY_ENABLE:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: False, VALUE: False, REQUIRED: False},
+        Parameter.EXTENDED_ADDRESSING:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: False, VALUE: False, REQUIRED: False},
+        Parameter.BAUD_RATE:
+            {TYPE: int, READONLY: True, DA: True, STARTUP: False, VALUE: 9600, REQUIRED: False},
+        Parameter.ALARM_ENABLE:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: False, VALUE: False, REQUIRED: False},
+        Parameter.LOW_ALARM_LATCH:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: False, VALUE: False, REQUIRED: False},
+        Parameter.HIGH_ALARM_LATCH:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: False, VALUE: False, REQUIRED: False},
+        Parameter.RTD_4_WIRE:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: False, VALUE: True, REQUIRED: False},
+        Parameter.TEMP_UNITS:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: False, VALUE: False, REQUIRED: False},
+        Parameter.ECHO:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: False, VALUE: True, REQUIRED: False},
+        Parameter.COMMUNICATION_DELAY:
+            {TYPE: int, READONLY: True, DA: True, STARTUP: False, VALUE: 0, REQUIRED: False},
+        Parameter.PRECISION:
+            {TYPE: int, READONLY: True, DA: True, STARTUP: False, VALUE: 6, REQUIRED: False},
+        Parameter.LARGE_SIGNAL_FILTER_C:
+            {TYPE: float, READONLY: True, DA: True, STARTUP: False, VALUE: 0.0, REQUIRED: False},
+        Parameter.SMALL_SIGNAL_FILTER_C:
+            {TYPE: float, READONLY: True, DA: True, STARTUP: False, VALUE: 0.50, REQUIRED: False},
     }
 
     ###
@@ -237,15 +233,6 @@ class UtilMixin(DriverTestMixin):
         """
         self.assert_data_particle_header(data_particle, DataParticleType.D1000_PARSED)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
-
-        # def assert_data_particle_status(self, data_particle, verify_values=False):
-        #     """
-        #     Verify an optaa status data particle
-        #     @param data_particle: OPTAAA_StatusDataParticle data particle
-        #     @param verify_values: bool, should we verify parameter values
-        #     """
-        #     self.assert_data_particle_header(data_particle, DataParticleType.D1000_PARSED)
-        #     self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
 
 
 ###############################################################################
@@ -432,13 +419,36 @@ class TestINT(InstrumentDriverIntegrationTestCase, UtilMixin):
 
     def test_parameters(self):
         """
-        Test driver parameters and verify their type.  Startup parameters also verify the parameter
-        value.  This test confirms that parameters are being read/converted properly and that
-        the startup has been applied.
+        Verify that we can set the parameters
+
+        1. Cannot set read only parameters
+        2. Can set read/write parameters
+        3. Can set read/write parameters w/direct access only
         """
         self.assert_initialize_driver()
-        #reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
-        #self.assert_driver_parameters(reply, verify_sample_interval=True)
+
+        # verify we cannot set readonly parameters
+        self.assert_set_exception(Parameter.CHANNEL_ADDRESS, 0x31)
+        self.assert_set_exception(Parameter.LINEFEED, False)
+        self.assert_set_exception(Parameter.PARITY_TYPE, 0)
+        self.assert_set_exception(Parameter.PARITY_ENABLE, 0)
+        self.assert_set_exception(Parameter.EXTENDED_ADDRESSING, False)
+        self.assert_set_exception(Parameter.BAUD_RATE, 9600)
+        self.assert_set_exception(Parameter.ALARM_ENABLE, False)
+        self.assert_set_exception(Parameter.LOW_ALARM_LATCH, False)
+        self.assert_set_exception(Parameter.HIGH_ALARM_LATCH, False)
+        self.assert_set_exception(Parameter.RTD_4_WIRE, True)
+        self.assert_set_exception(Parameter.TEMP_UNITS, False)
+        self.assert_set_exception(Parameter.ECHO, True)
+        self.assert_set_exception(Parameter.COMMUNICATION_DELAY, 0)
+        self.assert_set_exception(Parameter.PRECISION, 6)
+        self.assert_set_exception(Parameter.LARGE_SIGNAL_FILTER_C, 0)
+        self.assert_set_exception(Parameter.SMALL_SIGNAL_FILTER_C, 0.25)
+
+        # verify setting parameters out of range throws exception
+        self.assert_set_exception(Parameter.SAMPLE_INTERVAL, -1)
+        self.assert_set_exception(Parameter.SAMPLE_INTERVAL, 3601)
+
 
     def test_acquire_sample(self):
         """
@@ -559,34 +569,6 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
             self.fail("test_direct_access_telnet_mode: setup was not restored")
         self.assert_direct_access_stop_telnet()
 
-    @unittest.skip('Only enabled and used for manual testing of vendor SW')
-    def test_direct_access_telnet_mode_manual(self):
-        """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical
-        instrument. (virtual serial port mode)
-        """
-        self.assert_enter_command_mode()
-
-        # go direct access
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_DIRECT_ACCESS,
-                           kwargs={'session_type': DirectAccessTypes.vsp,
-                                   'session_timeout': 600,
-                                   'inactivity_timeout': 600})
-        retval = self.instrument_agent_client.execute_agent(cmd, timeout=600)
-        log.warn("go_direct_access retval=" + str(retval.result))
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.DIRECT_ACCESS)
-
-        print("test_direct_access_telnet_mode: waiting 120 seconds for manual testing")
-        gevent.sleep(120)
-
-        cmd = AgentCommand(command=ResourceAgentEvent.GO_COMMAND)
-        self.instrument_agent_client.execute_agent(cmd)
-
-        state = self.instrument_agent_client.get_agent_state()
-        self.assertEqual(state, ResourceAgentState.COMMAND)
-
     def test_get_capabilities(self):
         """
         @brief Walk through all driver protocol states and verify capabilities
@@ -663,23 +645,29 @@ class TestQUAL(InstrumentDriverQualificationTestCase, UtilMixin):
 
     def test_parameters(self):
         """
-        Verify that we can set the parameters
-
-        1. Cannot set read only parameters
-        2. Can set read/write parameters
-        3. Can set read/write parameters w/direct access only
+        @brief Check ability to set and get parameters.
         """
-
         self.assert_enter_command_mode()
 
-        # test read only parameter - should not be set, value should not change
-        # note, the serial number is the one from the instrument being used in testing, may change if run with
-        # different instrument
-        # self.assert_set_parameter(Parameter.SAMPLE_INTERVAL, 10, verify=False)
-        # self.assert_get_parameter(Parameter.SAMPLE_INTERVAL, 6)
+        # verify access of parameters - default values
+        self.assert_get_parameter(Parameter.SAMPLE_INTERVAL, 15)
+        self.assert_get_parameter(Parameter.CHANNEL_ADDRESS, 0x31)
+        self.assert_get_parameter(Parameter.LINEFEED, False)
+        self.assert_get_parameter(Parameter.PARITY_TYPE, 0)
+        self.assert_get_parameter(Parameter.PARITY_ENABLE, 0)
+        self.assert_get_parameter(Parameter.EXTENDED_ADDRESSING, False)
+        self.assert_get_parameter(Parameter.BAUD_RATE, 9600)
+        self.assert_get_parameter(Parameter.ALARM_ENABLE, False)
+        self.assert_get_parameter(Parameter.LOW_ALARM_LATCH, False)
+        self.assert_get_parameter(Parameter.HIGH_ALARM_LATCH, False)
+        self.assert_get_parameter(Parameter.RTD_4_WIRE, True)
+        self.assert_get_parameter(Parameter.TEMP_UNITS, False)
+        self.assert_get_parameter(Parameter.ECHO, True)
+        self.assert_get_parameter(Parameter.COMMUNICATION_DELAY, 0)
+        self.assert_get_parameter(Parameter.PRECISION, 6)
+        self.assert_get_parameter(Parameter.LARGE_SIGNAL_FILTER_C, 0)
+        self.assert_get_parameter(Parameter.SMALL_SIGNAL_FILTER_C, 0.50)
 
-        # test read/write parameter - should set the value
+        # verify we can set read/write parameters
         self.assert_set_parameter(Parameter.SAMPLE_INTERVAL, 2)
 
-        # test read/write parameter w/direct access only - should set the value
-        # self.assert_set(Parameter.SAMPLE_INTERVAL, 10)

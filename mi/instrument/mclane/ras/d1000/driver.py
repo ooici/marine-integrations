@@ -8,6 +8,7 @@ Release notes:
 initial version
 """
 import functools
+import math
 from types import FunctionType
 
 from mi.core.driver_scheduler import \
@@ -28,7 +29,7 @@ log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, \
-    InstrumentParameterException, InstrumentProtocolException
+    InstrumentParameterException, InstrumentProtocolException, InstrumentTimeoutException
 
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.instrument_fsm import ThreadSafeFSM
@@ -45,7 +46,6 @@ from mi.core.instrument.instrument_driver import \
 
 from mi.core.instrument.data_particle import \
     DataParticle, \
-    DataParticleKey, \
     CommonDataParticleType
 
 from mi.core.instrument.driver_dict import DriverDictKey
@@ -55,7 +55,7 @@ from mi.core.instrument.protocol_param_dict import ProtocolParameterDict, \
     ParameterDictVisibility
 
 
-NEWLINE = '\r\n'
+NEWLINE = '\r'
 
 # default timeout.
 INTER_CHARACTER_DELAY = .2
@@ -64,9 +64,9 @@ INTER_CHARACTER_DELAY = .2
 #    Driver Constant Definitions
 ####
 
-DEFAULT_SAMPLE_RATE = 15  # once every 6 seconds
-MIN_SAMPLE_RATE = 1  # 1 second
-MAX_SAMPLE_RATE = 3600  # 1 hour
+DEFAULT_SAMPLE_RATE = 15  # sample periodicity in seconds
+MIN_SAMPLE_RATE = 1  # in seconds
+MAX_SAMPLE_RATE = 3600  # in seconds (1 hour)
 
 
 class LoggingMetaClass(type):
@@ -154,6 +154,57 @@ class Capability(BaseEnum):
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
 
 
+    # baud rate (9- 57600, 8- 115200, 7- 300, 6- 600, 5- 1200, 4- 2400, 3- 4800, 2-9600, 1- 19200, 0-38400)
+
+
+class BaudRate(BaseEnum):
+    BAUD_38400 = 0
+    BAUD_19200 = 1
+    BAUD_9600 = 2
+    BAUD_4800 = 3
+    BAUD_2400 = 4
+    BAUD_1200 = 5
+    BAUD_600 = 6
+    BAUD_300 = 7
+    BAUD_115200 = 8
+    BAUD_57600 = 9
+
+
+class AlarmType(BaseEnum):
+    MOMENTARY = 0
+    LATCHING = 1
+
+
+class RTDSelect(BaseEnum):
+    RTD_3_WIRE = 0
+    RTD_4_WIRE = 1
+
+
+class UnitPrecision(BaseEnum):
+    """
+    Data output precision (0- 4 digits, 1- 5, 2- 6, 3- 7)
+    """
+    DIGITS_4 = 0
+    DIGITS_5 = 1
+    DIGITS_6 = 2
+    DIGITS_7 = 3
+
+
+    # (0- no filter, 1- .25, 2- .5, 3- 1, 4- 2, 5- 4, 6- 8, 7- 16)
+
+
+def filter_enum(value):
+    if value == 0:
+        return 0
+    return math.log(value) / math.log(2) + 3
+
+
+def filter_value(enum_value):
+    if enum_value == 0:
+        return 0
+    return 2 ** (enum_value - 3)
+
+
 class Parameter(DriverParameter):
     """
     Device specific parameters.
@@ -161,83 +212,74 @@ class Parameter(DriverParameter):
     # rate at which to stream temperature reports
     SAMPLE_INTERVAL = 'output_period'
 
-    # # Factory default: 0x31070182
-    # # Lab default:     0x310214C2
-    # # Byte 1 - identifies the module channel address
-    # # default: 0x31 ('1')
-    # CHANNEL_ADDRESS = 'channel_address'
-    #
-    # # Byte 2
-    # # Bit 7 - when true, the D1000 will generate line feeds, should be false for driver
-    # # default: 0
-    # LINEFEED = 'linefeed'
-    # # Bit 6 - parity type (0 - even, 1 - odd)
-    # # default: 0
-    # PARITY_TYPE = 'parity_type'
-    # # Bit 5 - parity enabled flag
-    # # default: 0
-    # PARITY_ENABLE = 'parity_enable'
-    # # Bit 4 - addressing mode (0- normal, 1- extended)
-    # # default: 0
-    # EXTENDED_ADDRESSING = 'addressing_mode'
-    # # Bits 3-0 - baud rate (9- 57600, 8- 115200, 7- 300, 6- 600, 5- 1200, 4- 2400, 3- 4800, 2-9600, 1- 19200, 0-38400)
-    # # default: 2 (9600)
-    # BAUD_RATE = 'baud_rate'
-    #
-    # # Byte 3
-    # # Bit 7 - enable alarm
-    # # default: 0
-    # ALARM_ENABLE = 'alarm_enable'
-    # # Bit 6 - low alarm latch (0- momentary, 1- latching) see also $LO
-    # # default: 0
-    # LOW_ALARM_LATCH = 'low_alarm_latching'
-    # # Bit 5 - high alarm latch (0- momentary, 1- latching) see also $HI
-    # # default: 0
-    # HIGH_ALARM_LATCH = 'high_alarm_latching'
-    # # Bit 4 - 3/4 wire select - must match RTD configuration (0- 3 wire, 1- 4 wire)
-    # # default: 1
-    # RTD_4_WIRE = 'rtd_34_wire'
-    # # Bit 3 - temperature output scaling (0- celsius, 1- fahrenheit) - must change HI/LO to match after
-    # # default: 0
-    # TEMP_UNITS = 'fahrenheit_select'
-    # # Bit 2 - echo for daisy-chained configuration
-    # # default: 1
-    # ECHO = 'echo_commands'
-    # # Bits 1-0 - units of delay in the response (based on baud rate)
-    # # default: 0
-    # COMMUNICATION_DELAY = 'delay'
-    #
-    # # Byte 4
-    # # Bits 7-6 - data output precision (0- 4 digits, 1- 5, 2- 6, 3- 7)
-    # # default: 3 (7)
-    # PRECISION = 'output_precision'
-    # # Bits 5-3 - (0- no filter, 1- .25, 2- .5, 3- 1, 4- 2, 5- 4, 6- 8, 7- 16)
-    # # default: 0 (no filter)
-    # LARGE_SIGNAL_FILTER_C = 'large_filter_signal_constant'
-    # # Bits 2-0 - (0- no filter, 1- .25, 2- .5, 3- 1, 4- 2, 5- 4, 6- 8, 7- 16)
-    # # Should be larger than the large signal filter constant value
-    # # default: 2 (0.5)
-    # SMALL_SIGNAL_FILTER_C = 'small_filter_signal_constant'
-    # # HI_ALARM_1 = "hi_alarm_1"
-    # # HI_ALARM_2 = "hi_alarm_2"
-    # # HI_ALARM_3 = "hi_alarm_3"
-    # # LO_ALARM_1 = "lo_alarm_1"
-    # # LO_ALARM_2 = "lo_alarm_2"
-    # # LO_ALARM_3 = "lo_alarm_3"
+    # Factory default: 0x31070182
+    # Lab default:     0x310214C2
+    # Byte 1 - identifies the module channel address
+    # default: 0x31 ('1')
+    CHANNEL_ADDRESS = 'channel_address'
+
+    # Byte 2
+    # Bit 7 - when true, the D1000 will generate line feeds, should be false for driver
+    # default: 0
+    LINEFEED = 'linefeed'
+    # Bit 6 - parity type (0 - even, 1 - odd)
+    # default: 0
+    PARITY_TYPE = 'parity_type'
+    # Bit 5 - parity enabled flag
+    # default: 0
+    PARITY_ENABLE = 'parity_enable'
+    # Bit 4 - addressing mode (0- normal, 1- extended)
+    # default: 0
+    EXTENDED_ADDRESSING = 'addressing_mode'
+    # Bits 3-0 - baud rate (9- 57600, 8- 115200, 7- 300, 6- 600, 5- 1200, 4- 2400, 3- 4800, 2-9600, 1- 19200, 0-38400)
+    # default: 2 (9600)
+    BAUD_RATE = 'baud_rate'
+
+    # Byte 3
+    # Bit 7 - enable alarm
+    # default: 0
+    ALARM_ENABLE = 'alarm_enable'
+    # Bit 6 - low alarm latch (0- momentary, 1- latching) see also $LO
+    # default: 0
+    LOW_ALARM_LATCH = 'low_alarm_latching'
+    # Bit 5 - high alarm latch (0- momentary, 1- latching) see also $HI
+    # default: 0
+    HIGH_ALARM_LATCH = 'high_alarm_latching'
+    # Bit 4 - 3/4 wire select - must match RTD configuration (0- 3 wire, 1- 4 wire)
+    # default: 1
+    RTD_4_WIRE = 'rtd_34_wire'
+    # Bit 3 - temperature output scaling (0- celsius, 1- fahrenheit) - must change HI/LO to match after
+    # default: 0
+    TEMP_UNITS = 'fahrenheit_select'
+    # Bit 2 - echo for daisy-chained configuration
+    # default: 1
+    ECHO = 'echo_commands'
+    # Bits 1-0 - units of delay in the response (based on baud rate)
+    # default: 0
+    COMMUNICATION_DELAY = 'delay'
+
+    # Byte 4
+    # Bits 7-6 - data output precision (0- 4 digits, 1- 5, 2- 6, 3- 7)
+    # default: 3 (7)
+    PRECISION = 'output_precision'
+    # Bits 5-3 - (0- no filter, 1- .25, 2- .5, 3- 1, 4- 2, 5- 4, 6- 8, 7- 16)
+    # default: 0 (no filter)
+    LARGE_SIGNAL_FILTER_C = 'large_filter_signal_constant'
+    # Bits 2-0 - (0- no filter, 1- .25, 2- .5, 3- 1, 4- 2, 5- 4, 6- 8, 7- 16)
+    # Should be larger than the large signal filter constant value
+    # default: 2 (0.5)
+    SMALL_SIGNAL_FILTER_C = 'small_filter_signal_constant'
 
 
 class Command(BaseEnum):
     """
     Instrument command strings - case sensitive
     """
-    DEFAULT_SETUP_1 = '#1SU310214C2'
-    DEFAULT_SETUP_2 = '#2SU320214C2'
-    DEFAULT_SETUP_3 = '#3SU330214C2'
-    READ = "RD"
-    ENABLE_WRITE = "WE"
-    SETUP = "SU"
-    CLEAR_ALARM = "CA"
-    CLEAR_ZERO = "CZ"
+    READ = 'RD'
+    ENABLE_WRITE = 'WE'
+    SETUP = 'SU'
+    READ_SETUP = 'RS'
+    CLEAR_ZERO = 'CZ'
 
 
 class Prompt(BaseEnum):
@@ -245,6 +287,7 @@ class Prompt(BaseEnum):
     Device i/o prompts.
     """
     CR_NL = '\r\n'
+    CR = '\r'
 
 
 class ScheduledJob(BaseEnum):
@@ -256,10 +299,11 @@ class Response(BaseEnum):
     Expected device response strings
     """
     # *1RD+00019.16AB
-    TEMP = re.compile(r'\*[123]RD')
-    DEFAULT_SETUP_1 = re.compile(r'\*1SU310214C2A3')
-    DEFAULT_SETUP_2 = re.compile(r'\*2SU320214C2A5')
-    DEFAULT_SETUP_3 = re.compile(r'\*3SU330214C2A7')
+    READ = re.compile(r'\*[123]RD')
+    ENABLE_WRITE = re.compile(r'\*[123]WE')
+    SETUP = re.compile(r'\*[123]SU')
+    READ_SETUP = re.compile(r'\*[123]RS')
+    CLEAR_ZERO = re.compile(r'\*[123]CZ')
 
 
 class DataParticleType(BaseEnum):
@@ -267,7 +311,7 @@ class DataParticleType(BaseEnum):
     Data particle types produced by this driver
     """
     RAW = CommonDataParticleType.RAW
-    D1000_PARSED = 'D1000_parsed'
+    D1000_PARSED = 'D1000_sample'
 
 
 ###############################################################################
@@ -309,12 +353,9 @@ class D1000TemperatureDataParticle(DataParticle):
                     raise SampleException('Checksum failed - temperature sample is corrupt: %s', self.raw_data)
 
         result = [
-            {DataParticleKey.VALUE_ID: D1000TemperatureDataParticleKey.TEMP1,
-             DataParticleKey.VALUE: float(match.group(1))},
-            {DataParticleKey.VALUE_ID: D1000TemperatureDataParticleKey.TEMP2,
-             DataParticleKey.VALUE: float(match.group(3))},
-            {DataParticleKey.VALUE_ID: D1000TemperatureDataParticleKey.TEMP3,
-             DataParticleKey.VALUE: float(match.group(5))},
+            self._encode_value(D1000TemperatureDataParticleKey.TEMP1, match.group(1), float),
+            self._encode_value(D1000TemperatureDataParticleKey.TEMP2, match.group(3), float),
+            self._encode_value(D1000TemperatureDataParticleKey.TEMP3, match.group(5), float),
         ]
 
         return result
@@ -425,6 +466,7 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._add_build_handler(cmd, self._build_command)
             self._add_response_handler(cmd, self._check_command)
         self._add_build_handler(Command.SETUP, self._build_setup_command)
+        self._add_response_handler(Command.READ_SETUP, self._read_setup_response_handler)
 
         # Add response handlers for device commands.
         # self._add_response_handler(Command.xyz, self._parse_xyz_response)
@@ -445,6 +487,8 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # unit identifiers - must match the setup command (SU31 - '1')
         self._units = ['1', '2', '3']
+
+        self._setup = None  # set by the read setup command handler for comparison to see if the config needs reset
 
     @staticmethod
     def sieve_function(raw_data):
@@ -493,7 +537,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         must be overloaded in derived classes
 
         @param params dictionary containing parameter name and value pairs
-        @param startup flag - true indicates initializing, false otherwise
+        @param startup - a flag, true indicates initializing, false otherwise
         """
 
         params = args[0]
@@ -535,7 +579,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         pass
 
-    def _do_command(self, cmd, unit):
+    def _do_command(self, cmd, unit, **kwargs):
         """
         Send command and ensure it matches appropriate response. Simply enforces sending the unit identifier as a
         required argument.
@@ -543,7 +587,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         @param unit - unit identifier
         @retval - response from instrument
         """
-        self._do_cmd_resp(cmd, unit, write_delay=INTER_CHARACTER_DELAY)
+        self._do_cmd_resp(cmd, unit, write_delay=INTER_CHARACTER_DELAY, **kwargs)
 
     def _build_command(self, cmd, unit):
         """
@@ -561,34 +605,40 @@ class Protocol(CommandResponseInstrumentProtocol):
         # byte 0
         channel_address = unit
         # byte 1
-        line_feed = False
-        parity_type = 0
-        parity_enable = False
-        extended_addressing = False
-        baud_rate = BAUD_RATE_9600 = 2
+        line_feed = self._param_dict.format(Parameter.LINEFEED)
+        parity_type = self._param_dict.format(Parameter.PARITY_TYPE)
+        parity_enable = self._param_dict.format(Parameter.PARITY_ENABLE)
+        extended_addressing = self._param_dict.format(Parameter.EXTENDED_ADDRESSING)
+        baud_rate = self._param_dict.format(Parameter.BAUD_RATE)
+        baud_rate = getattr(BaudRate, 'BAUD_%d' % baud_rate, BaudRate.BAUD_9600)
         # byte 2
-        alarm_enable = False
-        low_alarm_latch = ALARM_MOMENTARY = False
-        high_alarm_latch = ALARM_MOMENTARY = False
-        rtd_wire = RTD_4_WIRE = 1
-        temp_units = TEMP_CELSIUS = 0
-        echo = DAISY_CHAIN = True
-        delay_units = 0
+        alarm_enable = self._param_dict.format(Parameter.ALARM_ENABLE)
+        low_alarm_latch = self._param_dict.format(Parameter.LOW_ALARM_LATCH)
+        high_alarm_latch = self._param_dict.format(Parameter.HIGH_ALARM_LATCH)
+        rtd_wire = self._param_dict.format(Parameter.RTD_4_WIRE)
+        temp_units = self._param_dict.format(Parameter.TEMP_UNITS)
+        echo = self._param_dict.format(Parameter.ECHO)
+        delay_units = self._param_dict.format(Parameter.COMMUNICATION_DELAY)
         #byte 3
-        precision = PRECISION_6 = 2
-        large_signal_filter_constant = FILTER_ZERO = 0
-        small_signal_filter_constant = FILTER_0_5 = 2
+        precision = self._param_dict.format(Parameter.PRECISION)
+        precision = getattr(UnitPrecision, 'DIGITS_%d' % precision, UnitPrecision.DIGITS_6)
+        large_signal_filter_constant = self._param_dict.format(Parameter.LARGE_SIGNAL_FILTER_C)
+        large_signal_filter_constant = filter_enum(large_signal_filter_constant)
+        small_signal_filter_constant = self._param_dict.format(Parameter.SMALL_SIGNAL_FILTER_C)
+        small_signal_filter_constant = filter_enum(small_signal_filter_constant)
 
         # # Factory default: 0x31070182
         # # Lab default:     0x310214C2
 
         byte_0 = int(channel_address.encode("hex"), 16)
+        log.debug('byte 0: %s', byte_0)
         byte_1 = \
             (line_feed << 7) + \
             (parity_type << 6) + \
             (parity_enable << 5) + \
             (extended_addressing << 4) + \
             baud_rate
+        log.debug('byte 1: %s', byte_1)
         byte_2 = \
             (alarm_enable << 7) + \
             (low_alarm_latch << 6) + \
@@ -597,12 +647,16 @@ class Protocol(CommandResponseInstrumentProtocol):
             (temp_units << 3) + \
             (echo << 2) + \
             delay_units
+        log.debug('byte 2: %s', byte_2)
         byte_3 = \
             (precision << 6) + \
             (large_signal_filter_constant << 3) + \
             small_signal_filter_constant
+        log.debug('byte 3: %s', byte_3)
 
-        return '#%sSU%02x%02x%02x%02x' % (unit[0], byte_0, byte_1, byte_2, byte_3) + NEWLINE
+        setup_command = '#%sSU%02x%02x%02x%02x' % (unit[0], byte_0, byte_1, byte_2, byte_3) + NEWLINE
+        log.debug('default setup command (%r) for unit %02x (%s)' % (setup_command, byte_0, unit[0]))
+        return setup_command
 
     def _check_command(self, resp, prompt):
         """
@@ -619,6 +673,15 @@ class Protocol(CommandResponseInstrumentProtocol):
                 if not valid_response(line):
                     raise InstrumentProtocolException('checksum failed (%r)', line)
 
+    def _read_setup_response_handler(self, resp, prompt):
+        """
+        Save the setup.
+        @param resp - response from the instrument to the command
+        @param prompt - expected prompt (or the joined groups from a regex match)
+        """
+        self._check_command(resp, prompt)
+        self._setup = resp
+
     def _build_driver_dict(self):
         """
         Populate the driver dictionary with options
@@ -631,6 +694,17 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         self._cmd_dict = ProtocolCommandDict()
 
+    def _add_setup_param(self, name, fmt, **kwargs):
+        """
+        Add setup command to the parameter dictionary. All 'SU' parameters are not startup parameter, but should be
+        restored upon return from direct access. These parameters are all part of the instrument command 'SU'.
+        """
+        self._param_dict.add(name, '', None, fmt,
+                             startup_param=False,
+                             direct_access=True,
+                             visibility=ParameterDictVisibility.READ_ONLY,
+                             **kwargs)
+
     def _build_param_dict(self):
         """
         Populate the parameter dictionary with XR-420 parameters.
@@ -641,21 +715,124 @@ class Protocol(CommandResponseInstrumentProtocol):
 
         # Add parameter handlers to parameter dictionary for instrument configuration parameters.
         self._param_dict.add(Parameter.SAMPLE_INTERVAL,
-                             r'Output Periodicity: (.*) sec',
+                             '',  # this is a driver only parameter
                              None,
-                             self._int_to_string,
+                             int,
                              type=ParameterDictType.INT,
                              default_value=DEFAULT_SAMPLE_RATE,
                              startup_param=True,
                              display_name='D1000 sample periodicity (sec)',
                              visibility=ParameterDictVisibility.READ_WRITE)
-        self._param_dict.set_value(Parameter.SAMPLE_INTERVAL, DEFAULT_SAMPLE_RATE)
+        self._add_setup_param(Parameter.CHANNEL_ADDRESS,
+                              int,
+                              display_name='base channel address',
+                              type=ParameterDictType.INT,
+                              default_value=0x31)
+        self._add_setup_param(Parameter.LINEFEED,
+                              bool,
+                              display_name='line feed flag',
+                              type=ParameterDictType.BOOL,
+                              default_value=False)
+        self._add_setup_param(Parameter.PARITY_TYPE,
+                              bool,
+                              display_name='parity type',
+                              type=ParameterDictType.BOOL,
+                              default_value=False)
+        self._add_setup_param(Parameter.PARITY_ENABLE,
+                              bool,
+                              display_name='parity flag',
+                              type=ParameterDictType.BOOL,
+                              default_value=False)
+        self._add_setup_param(Parameter.EXTENDED_ADDRESSING,
+                              bool,
+                              display_name='extended addressing',
+                              type=ParameterDictType.BOOL,
+                              default_value=False)
+        self._add_setup_param(Parameter.BAUD_RATE,
+                              int,
+                              display_name='baud rate',
+                              type=ParameterDictType.INT,
+                              default_value=9600)
+        self._add_setup_param(Parameter.ALARM_ENABLE,
+                              bool,
+                              display_name='enable alarms',
+                              type=ParameterDictType.BOOL,
+                              default_value=False)
+        self._add_setup_param(Parameter.LOW_ALARM_LATCH,
+                              bool,
+                              display_name='low alarm latching',
+                              type=ParameterDictType.BOOL,
+                              default_value=False)
+        self._add_setup_param(Parameter.HIGH_ALARM_LATCH,
+                              bool,
+                              display_name='high alarm latching',
+                              type=ParameterDictType.BOOL,
+                              default_value=False)
+        self._add_setup_param(Parameter.RTD_4_WIRE,
+                              bool,
+                              display_name='4 wire RTD flag',
+                              type=ParameterDictType.BOOL,
+                              default_value=True)
+        self._add_setup_param(Parameter.TEMP_UNITS,
+                              bool,
+                              display_name='Fahrenheit flag',
+                              type=ParameterDictType.BOOL,
+                              default_value=False)
+        self._add_setup_param(Parameter.ECHO,
+                              bool,
+                              display_name='daisy chain',
+                              type=ParameterDictType.BOOL,
+                              default_value=True)
+        self._add_setup_param(Parameter.COMMUNICATION_DELAY,
+                              int,
+                              display_name='communication delay',
+                              type=ParameterDictType.INT,
+                              default_value=0)
+        self._add_setup_param(Parameter.PRECISION,
+                              int,
+                              display_name='precision',
+                              type=ParameterDictType.INT,
+                              default_value=6)
+        self._add_setup_param(Parameter.LARGE_SIGNAL_FILTER_C,
+                              float,
+                              display_name='large signal filter constant',
+                              type=ParameterDictType.FLOAT,
+                              default_value=0.0)
+        self._add_setup_param(Parameter.SMALL_SIGNAL_FILTER_C,
+                              float,
+                              display_name='small signal filter constant',
+                              type=ParameterDictType.FLOAT,
+                              default_value=0.50)
+
+        for key in self._param_dict.get_keys():
+            self._param_dict.set_default(key)
 
     def _update_params(self):
         """
         Update the parameter dictionary. 
         """
         pass
+
+    def _restore_params(self):
+        """
+        Restore D1000, clearing any alarms and set-point.
+        """
+        # make sure the alarms are disabled - preferred over doing setup, then clear alarms commands
+        self._param_dict.set_value(Parameter.ALARM_ENABLE, False)
+        for i in self._units:
+            current_setup = None  # set in READ_SETUP response handler
+            try:
+                self._do_command(Command.READ_SETUP, i, response_regex=Response.READ_SETUP)
+                current_setup = self._setup[4:][:-2]  # strip off the leader and checksum
+            except InstrumentTimeoutException:
+                log.error('D1000 unit %s has been readdressed, unable to restore settings' % i[0])
+            new_setup = self._build_setup_command(Command.SETUP, i)[4:]  # strip leader (no checksum)
+            if not current_setup == new_setup:
+                log.debug('restoring setup to default state (%s) from current state (%s)', new_setup, current_setup)
+                self._do_command(Command.ENABLE_WRITE, i)
+                self._do_command(Command.SETUP, i)
+            self._do_command(Command.ENABLE_WRITE, i)
+            self._do_command(Command.CLEAR_ZERO, i)
 
     ########################################################################
     # Event handlers for UNKNOWN state.
@@ -696,7 +873,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         Enter command state.
         """
         # Command device to update parameters and send a config change event if needed.
-        self._update_params()
+        self._restore_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -817,14 +994,6 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         Exit direct access state.
         """
-        # restore D1000 to default state
-        for i in self._units:
-            self._do_command(Command.ENABLE_WRITE, i)
-            self._do_command(Command.SETUP, i)
-            self._do_command(Command.ENABLE_WRITE, i)
-            self._do_command(Command.CLEAR_ALARM, i)
-            self._do_command(Command.ENABLE_WRITE, i)
-            self._do_command(Command.CLEAR_ZERO, i)
 
     def _handler_direct_access_execute_direct(self, data):
         self._do_cmd_direct(data)
