@@ -54,7 +54,6 @@ from mi.instrument.sunburst.sami2_pco2.driver import ProtocolEvent
 from mi.instrument.sunburst.sami2_pco2.driver import Capability
 from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import NEWLINE
-from mi.instrument.sunburst.driver import SAMI_TO_UNIX
 
 # Added Imports (Note, these pick up some of the base classes not directly imported above)
 from mi.instrument.sunburst.test.test_driver import SamiMixin

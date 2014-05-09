@@ -51,8 +51,6 @@ from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX_MATCHER
 
 from mi.instrument.sunburst.driver import NEWLINE
 from mi.instrument.sunburst.driver import TIMEOUT
-from mi.instrument.sunburst.driver import SAMI_TO_UNIX
-from mi.instrument.sunburst.driver import SAMI_TO_NTP
 from mi.instrument.sunburst.driver import SamiScheduledJob
 from mi.instrument.sunburst.driver import SamiProtocolState
 from mi.instrument.sunburst.driver import SamiProtocolEvent

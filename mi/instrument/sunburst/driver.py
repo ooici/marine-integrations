@@ -20,6 +20,7 @@ __license__ = 'Apache 2.0'
 
 import re
 import time
+import datetime
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -71,21 +72,15 @@ NEWLINE = '\r'
 # default command timeout.
 TIMEOUT = 10
 
-# Conversion from SAMI time (seconds since 1904-01-01) to POSIX or Unix
-# timestamps (seconds since 1970-01-01). Add this value to convert POSIX
-# timestamps to SAMI, and subtract for the reverse.
-SAMI_TO_UNIX = 2082844800
-# Conversion from SAMI time (seconds since 1904-01-01) to NTP timestamps
-# (seconds since 1900-01-01). Subtract this value to convert NTP timestamps to
-# SAMI, and add for the reverse.
-SAMI_TO_NTP =  126144000
+UNIX_EPOCH = datetime.datetime(1970, 1, 1)
+SAMI_EPOCH = datetime.datetime(1904, 1, 1)
+SAMI_UNIX_OFFSET = UNIX_EPOCH - SAMI_EPOCH
 
 FIVE_YEARS_IN_SECONDS = 0x0968A480
 
 ONE_YEAR_IN_SECONDS = 0x01E13380
 
-# Acceptable time difference as specified in the IOS
-TIME_THRESHOLD = 1
+TIME_WAKEUP_DELAY = 6
 
 # Length of configuration string with '0' padding
 # used to calculate number of '0' padding
@@ -1768,7 +1763,8 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             hexstr = format(val, 'X')
             return hexstr.zfill(slen)
 
-    def _current_sami_time(self):
+    @staticmethod
+    def _current_sami_time():
         """
         Create a GMT timestamp in seconds using January 1, 1904 as the Epoch
         @retval an integer value representing the number of seconds since
@@ -1777,12 +1773,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
         log.debug('herb: ' + 'SamiProtocol._current_sami_time')
 
-        gmt_time_tuple = time.gmtime()
-        gmt_seconds_since_epoch = time.mktime(gmt_time_tuple)
-        sami_seconds_since_epoch = gmt_seconds_since_epoch + SAMI_TO_UNIX
+        utcnow = datetime.datetime.utcnow()
+        time.sleep((1e6 - utcnow.microsecond) / 1e6)
+        utcnow = datetime.datetime.utcnow()
 
-        ## Add 1 second to account for wake up time
-        sami_seconds_since_epoch += 1
+        delt = (utcnow - SAMI_EPOCH)
+        sami_seconds_since_epoch = delt.total_seconds()
 
         return sami_seconds_since_epoch
 
@@ -1794,9 +1790,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug('herb: ' + 'SamiProtocol._current_sami_time_hex_str')
 
-        sami_seconds_since_epoch = self._current_sami_time()
+        sami_seconds_since_epoch = self._current_sami_time() + TIME_WAKEUP_DELAY
         sami_seconds_hex_string = format(int(sami_seconds_since_epoch), 'X')
         sami_seconds_hex_string = sami_seconds_hex_string.zfill(8)
+
+        log.debug('herb: ' + 'SamiProtocol._current_sami_time_hex_str: sami_seconds_hex_string = ' + sami_seconds_hex_string)
 
         return sami_seconds_hex_string
 

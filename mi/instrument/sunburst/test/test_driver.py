@@ -18,6 +18,7 @@ __license__ = 'Apache 2.0'
 
 import unittest
 import time
+import datetime
 import copy
 
 from nose.plugins.attrib import attr
@@ -53,7 +54,6 @@ from mi.core.instrument.logger_client import LoggerClient
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
 
-
 from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import NEWLINE
 from mi.instrument.sunburst.driver import SamiControlRecordDataParticleKey
@@ -64,6 +64,11 @@ from mi.instrument.sunburst.driver import SamiThermistorVoltageDataParticleKey
 from mi.instrument.sunburst.driver import SamiProtocolState
 from mi.instrument.sunburst.driver import SamiDataParticleType
 from mi.instrument.sunburst.driver import SamiProtocolEvent
+from mi.instrument.sunburst.driver import SamiProtocol
+from mi.instrument.sunburst.driver import SAMI_UNIX_OFFSET
+
+TIME_THRESHOLD = 2
+
 ###
 #   Driver parameters for the tests
 ###
@@ -341,17 +346,32 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
             self.assertIsInstance(sample_dict.get(DataParticleKey.INTERNAL_TIMESTAMP), float)
 
     def assert_time_sync(self, status_particle):
-        log.debug("status_particle = " + str(status_particle))
         status_dict = self.get_data_particle_values_as_dict(status_particle)
         elapsed_time_config = status_dict.get(SamiRegularStatusDataParticleKey.ELAPSED_TIME_CONFIG)
+        current_sami_time = SamiProtocol._current_sami_time()
         log.debug("elapsed_time_config = " + str(elapsed_time_config))
-        pass
+        log.debug("current_sami_time = " + str(current_sami_time))
+        time_difference = current_sami_time - elapsed_time_config
+        log.debug("time difference = %s" % time_difference)
+        sami_now_seconds = current_sami_time - SAMI_UNIX_OFFSET.total_seconds()
+        sami_now = datetime.datetime.utcfromtimestamp(sami_now_seconds)
+        log.debug('utc time = %s' % datetime.datetime.utcnow())
+        log.debug('sami_now = %s' % sami_now)
+
+        self.assertTrue(time_difference <= TIME_THRESHOLD,
+                        "Time threshold exceeded, time_difference = %s, time_threshold = %s" % (time_difference, TIME_THRESHOLD))
 
     def test_time_sync(self):
         self.assert_initialize_driver()
         time.sleep(10)
-        self.assert_particle_generation(SamiProtocolEvent.ACQUIRE_STATUS, SamiDataParticleType.REGULAR_STATUS, self.assert_time_sync)
-        pass
+
+        self.clear_events()
+        request_status_time = time.time()
+        self.assert_driver_command(SamiProtocolEvent.ACQUIRE_STATUS)
+        self.assert_async_particle_generation(SamiDataParticleType.REGULAR_STATUS, self.assert_time_sync, timeout=10)
+        receive_status_time = time.time()
+        status_time = receive_status_time - request_status_time
+        log.debug("status_time = " + str(status_time))
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
