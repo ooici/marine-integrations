@@ -4,7 +4,7 @@ USAGE = """
 
 GP- This has been modified to make it a generic raw socket connection, with <CR><LF>
 
-This program allows direct user iteraction with the RASPPS instrument via a socket.
+This program allows direct user interaction with the RAS_PPS instrument via a socket.
 
 
 USAGE:
@@ -20,7 +20,7 @@ To save output to screen and to a log file:
 
 It establishes a TCP connection with the provided service, starts a thread to
 print all incoming data from the associated socket, and goes into a loop to
-dispach commands from the user.
+dispatch commands from the user.
 
 The commands are:
     - an empty string --> sends a '\r\n' (<CR><LF>)
@@ -99,7 +99,7 @@ class _Direct(object):
 
     def run(self):
         #        """
-        #         Dispaches user commands.
+        #         Dispatches user commands.
         #         """
         while True:
 
@@ -126,6 +126,12 @@ class _Direct(object):
 
             elif cmd == "autoPPS":
                 self.automatic_control_PPS()
+
+            elif cmd == "scan":
+                self.scan_addresses()
+
+            elif cmd == "reset":
+                self.reset_all()
 
             else:
                 print "### sending '%s'" % cmd
@@ -166,13 +172,10 @@ class _Direct(object):
             if second == 1:
                 print "Timestamp:", time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
                 self.send('$1RD')
-                self.send('\r\n')
             if second == 1.25:
                 self.send('$2RD')
-                self.send('\r\n')
             if second == 1.50:
                 self.send('$3RD')
-                self.send('\r\n')
             time.sleep(.25)
             second += .25
             if second == 60:  # loop counter, was set to 10, now set to minute data for burn-in
@@ -185,10 +188,9 @@ class _Direct(object):
         """
         print "### 200 hr burn-in simulation of RAS started"
         print "### To exit: input any key followed by enter"
-        """
-        The following two while loops do the same thing, however the exit strategy of the the second one, 
-        utilizing a timer, is cleaner than the first, which utilizes a  hard break (thanks to Eric McRae)
-        """
+
+        # The following two while loops do the same thing, however the exit strategy of the the second one,
+        # utilizing a timer, is cleaner than the first, which utilizes a  hard break (thanks to Eric McRae)
         second = 0
         RASport = 10
         while True:
@@ -201,38 +203,21 @@ class _Direct(object):
                 break
             if second == 1:
                 print "Timestamp:", time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
-                print "### attempting to wake"
-                self.send_control('c')
-                time.sleep(1)
-                self.send_control('c')
-                time.sleep(1)
-                self.send_control('c')
-                time.sleep(1)
-                self.send_control('c')
-                time.sleep(1)
-                self.send_control('c')
-                print "### five ^C sent"
+                self.wake()
             if second == 20:  # actual is ~7s
                 self.send('HOME')
-                self.send('\r\n')
             if second == 60:  # actual is ~15s
                 self.send('FORWARD 150 100 25')
-                self.send('\r\n')
             if second == 260:  # actual is ~100s
                 self.send('PORT ' + str(RASport))
-                self.send('\r\n')
             if second == 300:  # actual is ~15s
                 self.send('FORWARD 425 75 25')
-                self.send('\r\n')
             if second == 750:  # actual is ~350s
                 self.send('HOME')
-                self.send('\r\n')
             if second == 800:  # actual is ~15s
                 self.send('REVERSE 75 100 25')
-                self.send('\r\n')
             if second == 900:  # actual is ~50s
                 self.send('SLEEP')
-                self.send('\r\n')
             time.sleep(1)
             second += 1
             if second == 30000:  # this is to get 24 samples in 200hrs, half yearly duty cycle
@@ -247,10 +232,9 @@ class _Direct(object):
         """
         print "### 200 hr burn-in simulation of PPS started"
         print "### To exit: input any key followed by enter"
-        """
-        The following two while loops do the same thing, however the exit strategy of the the second one, 
-        utilizing a timer, is cleaner than the first, which utilizes a  hard break (thanks to Eric McRae)
-        """
+
+        # The following two while loops do the same thing, however the exit strategy of the the second one,
+        # utilizing a timer, is cleaner than the first, which utilizes a  hard break (thanks to Eric McRae)
         second = 0
         PPSport = 6
         while True:
@@ -263,52 +247,87 @@ class _Direct(object):
                 break
             if second == 1:
                 print "Timestamp:", time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
-                print "### attempting to wake"
-                self.send_control('c')
-                time.sleep(1)
-                self.send_control('c')
-                time.sleep(1)
-                self.send_control('c')
-                time.sleep(1)
-                self.send_control('c')
-                time.sleep(1)
-                self.send_control('c')
-                print "### five ^C sent"
+                self.wake()
             if second == 20:  # actual is ~7s
                 self.send('HOME')
-                self.send('\r\n')
             if second == 60:  # actual is ~20s
                 self.send('FORWARD 150 100 75')
-                self.send('\r\n')
             if second == 260:  # actual is ~100s
                 self.send('PORT ' + str(PPSport))
-                self.send('\r\n')
             if second == 300:  # actual is ~15s
                 self.send('FORWARD 4000 100 75')
-                self.send('\r\n')
             if second == 3500:  # actual is ~3000s
                 self.send('HOME')
-                self.send('\r\n')
             if second == 3540:  # actual is ~15s
                 self.send('REVERSE 75 100 75')
-                self.send('\r\n')
             if second == 3640:  # actual is ~60s
                 self.send('SLEEP')
-                self.send('\r\n')
             time.sleep(1)
             second += 1
             if second == 60000:  # this is to get 12 samples in 200 hrs, half yearly duty cycle
                 second = 0  # reset second counter
                 PPSport += 1
 
+    def scan_addresses(self):
+        exclude = (0, 0x0D, 0x24, 0x23, 0x7B, 0x7D)
+        # for i in range(0x0, 0x7F):
+        for i in range(0x31, 0x39):
+            if i in exclude:
+                continue
+            address = chr(i)
+            print '0x%02x' % i
+            command = str('$%sRS\r' % address)
+            # command = str('$%sSUXXX\r' % address)
+            self.send(command)
+            print
+
+    def reset_all(self):
+        exclude = (0, 0x0D, 0x24, 0x23, 0x7B, 0x7D)
+        # for i in range(0x0, 0x7F):
+        for i in range(0x31, 0x39):
+            if i in exclude:
+                continue
+            address = chr(i)
+            print '0x%02x' % i
+            # command = str('$%sRS\r' % address)
+            unit = str('#%s' % address)
+            old_send = self.send
+            self.send(unit + 'RS')
+            self.send(unit + 'WE')
+            self.send(unit + 'SU%02X021482' % i)
+            self.send(unit + 'RS')
+
+    def reset(self):
+        self.send('#1RS', True)
+        self.send('#1WE', True)
+        self.send('#1SU31021482', True)
+        self.send('#1RS', True)
+        time.sleep(0.2)
+
+        self.send('#2RS', True)
+        self.send('#2WE', True)
+        self.send('#2SU32021482', True)
+        self.send('#2RS', True)
+        time.sleep(0.2)
+
+        self.send('#3RS', True)
+        self.send('#3WE', True)
+        self.send('#3SU33021482', True)
+        self.send('#3RS', True)
+
     def stop(self):
         self._sock.close()
 
-    def send(self, s):
+    def send(self, cmd, echo=False):
         """
         Sends a string. Returns the number of bytes written.
         """
-        c = os.write(self._sock.fileno(), s)
+        time.sleep(0.1)
+        cmd += '\r\n'
+        if echo:
+            print "### sending '%r'" % cmd
+        c = os.write(self._sock.fileno(), cmd)
+        time.sleep(0.2)
         return c
 
     def send_control(self, char):
