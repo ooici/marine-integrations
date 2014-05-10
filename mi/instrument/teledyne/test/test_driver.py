@@ -167,6 +167,19 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_scheduled_event(TeledyneScheduledJob.CLOCK_SYNC, self.assert_clock_sync, delay=350)
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
+    def _test_scheduled_absolute_clock_sync_command(self):
+        """
+        Verify the scheduled clock sync is triggered and functions as expected
+        """
+        log.debug("IN test_scheduled_clock_sync_command")
+        self.assert_initialize_driver()
+        self.assert_set(TeledyneParameter.CLOCK_SYNCH_INTERVAL,'00:00:04')
+        time.sleep(10)
+
+        self.assert_set(TeledyneParameter.CLOCK_SYNCH_INTERVAL,'00:00:00')
+        self.assert_current_state(TeledyneProtocolState.COMMAND)
+
+
     def test_scheduled_clock_sync_autosample(self):
         """
         Verify the scheduled clock sync is triggered and functions as expected
