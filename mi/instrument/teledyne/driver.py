@@ -32,6 +32,9 @@ from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.instrument_driver import DriverConfigKey
+from mi.core.driver_scheduler import DriverSchedulerConfigKey
+from mi.core.driver_scheduler import TriggerType
 
 from mi.core.instrument.driver_dict import DriverDictKey
 
@@ -46,7 +49,6 @@ TIMEOUT = 20
 # newline.
 NEWLINE = '\r\n'
 
-# TODO: do i keep below two defines for _do_cmd_resp
 DEFAULT_CMD_TIMEOUT=20
 DEFAULT_WRITE_DELAY=0
 
@@ -85,8 +87,6 @@ class TeledyneParameter(DriverParameter):
     BLANK_AFTER_TRANSMIT = 'WF'         # 0088  Blank After Transmit (cm)
     CLIP_DATA_PAST_BOTTOM = 'WI'        # 0 Clip Data Past Bottom (0=OFF,1=ON)
     RECEIVER_GAIN_SELECT = 'WJ'         # 1  Rcvr Gain Select (0=Low,1=High)
-    #WATER_REFERENCE_LAYER = 'WL'        # 001,005  Water Reference Layer: Begin Cell (0=OFF), End Cell
-    #WATER_PROFILING_MODE = 'WM'         # Profiling Mode (1-15)
     NUMBER_OF_DEPTH_CELLS = 'WN'        # Number of depth cells (1-255)
     PINGS_PER_ENSEMBLE = 'WP'           # Pings per Ensemble (0-16384)
     DEPTH_CELL_SIZE = 'WS'              # 0800  Depth Cell Size (cm)
@@ -113,6 +113,10 @@ class TeledyneParameter(DriverParameter):
     BUFFERED_OUTPUT_PERIOD ='TX'        # Buffered Output Period
     SAMPLE_AMBIENT_SOUND ='WQ'          # Sample Ambient sound
     TRANSDUCER_DEPTH ='ED'              # Transducer Depth
+
+    CLOCK_SYNCH_INTERVAL ='clock_synch_interval'
+    GET_STATUS_INTERVAL ='get_status_interval'
+
 
 
 
@@ -173,7 +177,6 @@ class TeledyneProtocolEvent(BaseEnum):
     GET_FAULT_LOG = "PROTOCOL_EVENT_GET_FAULT_LOG"
     CLEAR_FAULT_LOG = "PROTOCOL_EVENT_CLEAR_FAULT_LOG"
 
-    GET_INSTRUMENT_TRANSFORM_MATRIX = "PROTOCOL_EVENT_GET_INSTRUMENT_TRANSFORM_MATRIX"
     RUN_TEST_200 = "PROTOCOL_EVENT_RUN_TEST_200"
 
     FACTORY_SETS = "FACTORY_DEFAULT_SETTINGS"
@@ -189,6 +192,7 @@ class TeledyneProtocolEvent(BaseEnum):
 
     # Different event because we don't want to expose this as a capability
     SCHEDULED_CLOCK_SYNC = 'PROTOCOL_EVENT_SCHEDULED_CLOCK_SYNC'
+    SCHEDULED_GET_STATUS = 'PROTOCOL_EVENT_SCHEDULED_GET_STATUS'
     CLOCK_SYNC = DriverEvent.CLOCK_SYNC
 
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
@@ -289,6 +293,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SET, self._handler_command_set)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.CLOCK_SYNC, self._handler_command_clock_sync)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_command_clock_sync)
+        #self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.SCHEDULED_GET_STATUS, self._handler_command_get_status)
 
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_CALIBRATION, self._handler_command_get_calibration)
         self._protocol_fsm.add_handler(TeledyneProtocolState.COMMAND, TeledyneProtocolEvent.GET_CONFIGURATION, self._handler_command_get_configuration)
@@ -335,7 +340,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         # Add build handlers for device commands.
         self._add_build_handler(TeledyneInstrumentCmds.OUTPUT_CALIBRATION_DATA, self._build_simple_command)
-        #self._add_build_handler(TeledyneInstrumentCmds.SEND_LAST_SAMPLE, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.SAVE_SETUP_TO_RAM, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.START_LOGGING, self._build_simple_command)
         self._add_build_handler(TeledyneInstrumentCmds.DISPLAY_ERROR_STATUS_WORD, self._build_simple_command)
@@ -383,13 +387,55 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # filtered in responses for telnet DA
         self._sent_cmds = []
 
-        self._add_scheduler_event(TeledyneScheduledJob.GET_CONFIGURATION, TeledyneProtocolEvent.GET_CONFIGURATION)
-        self._add_scheduler_event(TeledyneScheduledJob.GET_CALIBRATION, TeledyneProtocolEvent.GET_CALIBRATION)
-        self._add_scheduler_event(TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        #self._add_scheduler_event(TeledyneScheduledJob.GET_CONFIGURATION, TeledyneProtocolEvent.GET_CONFIGURATION)
+        #self._add_scheduler_event(TeledyneScheduledJob.GET_CALIBRATION, TeledyneProtocolEvent.GET_CALIBRATION)
+        #self._add_scheduler_event(TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
         # Workaround for problem where send last sample makes the driver 
         # believe it is in autosample mode...
         self.disable_autosample_recover = False
+
+    def stop_scheduled_job(self, schedule_job):
+        """
+        Remove the scheduled job
+        """
+        log.debug("Attempting to remove the scheduler")
+        if self._scheduler is not None:
+            try:
+                self._remove_scheduler(schedule_job)
+                log.debug("successfully removed scheduler")
+            except KeyError:
+                log.debug("_remove_scheduler could not find %s", schedule_job)
+
+    def  start_scheduled_job(self, param, schedule_job, protocol_event):
+        """
+        Add a scheduled job
+        """
+        self.stop_scheduled_job(schedule_job)
+
+        interval = self._param_dict.get(param).split(':')
+        hours = interval[0]
+        minutes = interval[1]
+        seconds = interval[2]
+        log.debug("Setting scheduled interval to: %s %s %s", hours, minutes, seconds)
+
+        if(hours == '00' and minutes=='00' and seconds=='00'):
+            log.error("Sung stop scheduling %s")
+            self.stop_scheduled_job(schedule_job)
+        else:
+            config = {DriverConfigKey.SCHEDULER: {
+                schedule_job: {
+                    DriverSchedulerConfigKey.TRIGGER: {
+                        DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                        DriverSchedulerConfigKey.HOURS: int(hours),
+                        DriverSchedulerConfigKey.MINUTES: int(minutes),
+                        DriverSchedulerConfigKey.SECONDS: int(seconds)
+                    }
+                }
+                }
+            }
+            self.set_init_params(config)
+            self._add_scheduler_event(schedule_job, protocol_event)
 
     def _build_param_dict(self):
         """
@@ -519,62 +565,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
     def _has_parameter(self, param):
         return TeledyneParameter.has(param)
 
-    def _do_cmd_resp(self, cmd, *args, **kwargs):
-        """
-        Perform a command-response on the device.
-        @param cmd The command to execute.
-        @param args positional arguments to pass to the build handler.
-        @param timeout=timeout optional wakeup and command timeout.
-        @retval resp_result The (possibly parsed) response result.
-        @raises InstrumentTimeoutException if the response did not occur in time.
-        @raises InstrumentProtocolException if command could not be built or if response
-        was not recognized.
-        """
-        # Get timeout and initialize response.
-        timeout = kwargs.get('timeout', DEFAULT_CMD_TIMEOUT)
-        expected_prompt = kwargs.get('expected_prompt', None)
-        write_delay = kwargs.get('write_delay', DEFAULT_WRITE_DELAY)
-        retval = None
-
-        # Get the build handler.
-        build_handler = self._build_handlers.get(cmd, None)
-        if not build_handler:
-            raise InstrumentProtocolException('Cannot build command: %s' % cmd)
-
-        cmd_line = build_handler(cmd, *args)
-        # Wakeup the device, pass up exception if timeout
-
-        if (self.last_wakeup + 30) > time.time():
-            self.last_wakeup = time.time()
-        else:
-            prompt = self._wakeup(timeout=3)
-        # Clear line and prompt buffers for result.
-
-
-        self._linebuf = ''
-        self._promptbuf = ''
-
-        # Send command.
-        log.debug('_do_cmd_resp: %s' % repr(cmd_line))
-
-        if (write_delay == 0):
-            self._connection.send(cmd_line)
-        else:
-            for char in cmd_line:
-                self._connection.send(char)
-                time.sleep(write_delay)
-
-        # Wait for the prompt, prepare result and return, timeout exception
-        (prompt, result) = self._get_response(timeout,
-                                              expected_prompt=expected_prompt)
-        resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
-            self._response_handlers.get(cmd, None)
-        resp_result = None
-        if resp_handler:
-            resp_result = resp_handler(result, prompt)
-
-        return resp_result
-
     def _update_params(self, *args, **kwargs):
         """
         Update the parameter dictionary. 
@@ -591,22 +581,18 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             # Get old param dict config.
             old_config = self._param_dict.get_config()
             kwargs['expected_prompt'] = TeledynePrompt.COMMAND
-
             cmds = self._get_params()
+
             results = ""
             for attr in sorted(cmds):
-                if attr not in ['dict', 'has', 'list', 'ALL']:
+                if attr not in ['dict', 'has', 'list', 'ALL', 'GET_STATUS_INTERVAL', 'CLOCK_SYNCH_INTERVAL']:
                     if not attr.startswith("_"):
                         key = self._getattr_key(attr)
                         result = self._do_cmd_resp(TeledyneInstrumentCmds.GET, key, **kwargs)
                         results += result + NEWLINE
 
             new_config = self._param_dict.get_config()
-
-            del old_config['TT']
-            del new_config['TT']
-
-            if not dict_equal(new_config, old_config):
+            if not dict_equal(new_config, old_config, ['TT']):
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
         # Catch all error so we can put ourself back into
@@ -649,7 +635,8 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.trace("_set_params calling _verify_not_readonly ARGS = " + repr(args))
         self._verify_not_readonly(*args, **kwargs)
         for (key, val) in params.iteritems():
-            result = self._do_cmd_resp(TeledyneInstrumentCmds.SET, key, val, **kwargs)
+            if key not in ['get_status_interval', 'clock_synch_interval']:
+                result = self._do_cmd_resp(TeledyneInstrumentCmds.SET, key, val, **kwargs)
         log.trace("_set_params calling _update_params")
         self._update_params()
         return result
@@ -893,17 +880,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         return (next_state, result)
 
-    def _handler_command_get_instrument_transform_matrix(self, *args, **kwargs):
-        """
-        get instrument transform matrix.
-        """
-        next_state = None
-        kwargs['timeout'] = 30
-        kwargs['expected_prompt'] = TeledynePrompt.COMMAND
-        result = self._do_cmd_resp(TeledyneInstrumentCmds.GET_INSTRUMENT_TRANSFORM_MATRIX, *args, **kwargs)
-
-        return (next_state, result)
-
     def _handler_command_save_setup_to_ram(self, *args, **kwargs):
         """
         save setup to ram.
@@ -975,6 +951,13 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+        # start scheduled event for clock synch
+        clock_interval = self._param_dict.get(self._getattr_key('CLOCK_SYNCH_INTERVAL'))
+        if clock_interval != '00:00:00':
+            log.error("Sung start schedule")
+            self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+
 
     def _handler_command_exit(self, *args, **kwargs):
         """
@@ -1368,7 +1351,13 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         # For each key, val in the dict, issue set command to device.
         # Raise if the command not understood.
         else:
-            result = self._set_params(params, startup)
+            if(TeledyneParameter.CLOCK_SYNCH_INTERVAL in params):
+                if(params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(TeledyneParameter.CLOCK_SYNCH_INTERVAL)) :
+                    self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL, params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] )
+                    log.error("Sung start schedule")
+                    self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
+                    result = self._set_params(params, startup)
+                    self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
         return (next_state, result)
 
@@ -1422,6 +1411,23 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         timeout = kwargs.get('timeout', TIMEOUT)
         prompt = self._wakeup(timeout=3)
         self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_get_status(self, *args, **kwargs):
+        """
+        execute a get status on the leading edge of a second change
+        @retval (next_state, result) tuple, (None, (None, )) if successful.
+        @throws InstrumentTimeoutException if device cannot be woken for command.
+        @throws InstrumentProtocolException if command could not be built or misunderstood.
+        """
+
+        next_state = None
+        next_agent_state = None
+        result = None
+
+        #timeout = kwargs.get('timeout', TIMEOUT)
+        #prompt = self._wakeup(timeout=3)
+        #self._sync_clock(TeledyneInstrumentCmds.SET, TeledyneParameter.TIME, timeout, time_format="%Y/%m/%d,%H:%M:%S")
         return (next_state, (next_agent_state, result))
 
     def _handler_command_start_direct(self, *args, **kwargs):
@@ -1627,7 +1633,6 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         """
         save settings to nv ram. return response.
         """
-
         # Cleanup the results
         response = re.sub("CK\r\n", "", response)
         response = re.sub("\[", "", response)
