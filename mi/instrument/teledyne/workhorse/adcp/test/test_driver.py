@@ -186,7 +186,11 @@ class ADCPTMixin(DriverTestMixin):
         Parameter.DATA_STREAM_SELECTION: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.ENSEMBLE_PER_BURST: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
         Parameter.BUFFERED_OUTPUT_PERIOD: {TYPE: str, READONLY: True, DA: True, STARTUP: True, DEFAULT: '00:00:00', VALUE:'00:00:00'},
-        Parameter.SAMPLE_AMBIENT_SOUND: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE:0}
+        Parameter.SAMPLE_AMBIENT_SOUND: {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE:0},
+
+        #Engineering parameter
+        Parameter.CLOCK_SYNCH_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:01:00'},
+        Parameter.GET_STATUS_INTERVAL: {TYPE: str, READONLY: False, DA: False, STARTUP: True, DEFAULT: '00:00:00', VALUE: '00:01:00'}
     }
 
     _driver_capabilities = {
@@ -197,7 +201,6 @@ class ADCPTMixin(DriverTestMixin):
         Capability.GET_CALIBRATION: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_CONFIGURATION: { STATES: [ProtocolState.COMMAND]},
         Capability.SAVE_SETUP_TO_RAM: { STATES: [ProtocolState.COMMAND]},
-        Capability.SEND_LAST_SAMPLE: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_ERROR_STATUS_WORD: { STATES: [ProtocolState.COMMAND]},
         Capability.CLEAR_ERROR_STATUS_WORD: { STATES: [ProtocolState.COMMAND]},
         Capability.GET_FAULT_LOG: { STATES: [ProtocolState.COMMAND]},
