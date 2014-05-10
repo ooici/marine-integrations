@@ -100,6 +100,7 @@ class Protocol(WorkhorseProtocol):
     def __init__(self, prompts, newline, driver_event):
         log.debug("IN Protocol.__init__")
         WorkhorseProtocol.__init__(self, prompts, newline, driver_event)
+        self.initialize_scheduler()
 
     def _build_param_dict(self):
         """
@@ -522,5 +523,30 @@ class Protocol(WorkhorseProtocol):
             startup_param=True,
             direct_access=True,
             default_value=175)
+
+        # Engineering parameters
+        self._param_dict.add(Parameter.CLOCK_SYNCH_INTERVAL,
+            r'BOGUS',
+            None,
+            str,
+            type=ParameterDictType.STRING,
+            display_name="clock synch interval",
+            startup_param=True,
+            direct_access=False,
+            default_value="00:00:00")
+
+        self._param_dict.add(Parameter.GET_STATUS_INTERVAL,
+            r'BOGUS',
+            None,
+            str,
+            type=ParameterDictType.STRING,
+            display_name="get status interval",
+            startup_param=True,
+            direct_access=False,
+            default_value="00:00:00")
+
+        self._param_dict.set_default(Parameter.CLOCK_SYNCH_INTERVAL)
+        self._param_dict.set_default(Parameter.GET_STATUS_INTERVAL)
+
 
 
