@@ -121,7 +121,6 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
 
         self.assert_driver_command(TeledyneProtocolEvent.START_AUTOSAMPLE, state=TeledyneProtocolState.AUTOSAMPLE, delay=1)
         self.assert_driver_command(TeledyneProtocolEvent.STOP_AUTOSAMPLE, state=TeledyneProtocolState.COMMAND, delay=1)
-
         self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION)
         self.assert_driver_command(TeledyneProtocolEvent.GET_CONFIGURATION)
         self.assert_driver_command(TeledyneProtocolEvent.CLOCK_SYNC)
@@ -132,10 +131,8 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_driver_command(TeledyneProtocolEvent.GET_FAULT_LOG, regex='^Total Unique Faults   =.*')
         self.assert_driver_command(TeledyneProtocolEvent.CLEAR_FAULT_LOG, expected='FC ..........\r\n Fault Log Cleared.\r\nClearing buffer @0x00801000\r\nDone [i=2048].\r\n')
         self.assert_driver_command(TeledyneProtocolEvent.RUN_TEST_200, regex='^  Ambient  Temperature =')
-
         self.assert_driver_command(TeledyneProtocolEvent.USER_SETS)
         self.assert_driver_command(TeledyneProtocolEvent.FACTORY_SETS)
-
         self.assert_driver_command(TeledyneProtocolEvent.ACQUIRE_STATUS, regex='^4 beam status outputs')
 
         ####
@@ -148,10 +145,8 @@ class WorkhorseDriverIntegrationTest(TeledyneIntegrationTest):
         self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_ERROR_STATUS_WORD, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(TeledyneProtocolEvent.GET_FAULT_LOG, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(TeledyneProtocolEvent.CLEAR_FAULT_LOG, exception_class=InstrumentCommandException)
-        self.assert_driver_command_exception(TeledyneProtocolEvent.GET_INSTRUMENT_TRANSFORM_MATRIX, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(TeledyneProtocolEvent.RUN_TEST_200, exception_class=InstrumentCommandException)
         self.assert_driver_command_exception(TeledyneProtocolEvent.ACQUIRE_STATUS, exception_class=InstrumentCommandException)
-
         self.assert_driver_command(TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
         self.assert_driver_command_exception(TeledyneProtocolEvent.CLOCK_SYNC, exception_class=InstrumentCommandException)
         self.assert_driver_command(TeledyneProtocolEvent.GET_CALIBRATION, regex=r'Calibration date and time:')
@@ -706,9 +701,7 @@ class WorkhorseDriverQualificationTest(TeledyneQualificationTest):
                     log.error("VERIFYING %s is set to %s appropriately ", k, str(self._driver_parameters[k][self.VALUE]))
 
         # Change these values anyway just in case it ran first.
-        #self.assert_set_parameter(WorkhorseParameter.INSTRUMENT_ID, 1)
-        #self.assert_set_parameter(WorkhorseParameter.SLEEP_ENABLE, 1)
-        #self.assert_set_parameter(WorkhorseParameter.POLLED_MODE, True)
+
         self.assert_set_parameter(WorkhorseParameter.XMIT_POWER, 250)
         self.assert_set_parameter(WorkhorseParameter.SPEED_OF_SOUND, 1480)
         self.assert_set_parameter(WorkhorseParameter.SPEED_OF_SOUND, 1500)
