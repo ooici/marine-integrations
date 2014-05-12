@@ -419,6 +419,9 @@ class Protocol(Pco2wProtocol):
         self._engineering_parameters.append(Parameter.EXTERNAL_PUMP_DELAY)
 
     def _parse_response_sample_dev1(self, response, prompt):
+        """
+        Parse response to take dev1 sample from instrument
+        """
         pass
 
     def _pre_sample_processing(self):
@@ -624,10 +627,26 @@ class Protocol(Pco2wProtocol):
         return parameter_list
 
     def _get_configuration_string_regex(self):
+        """
+        Get configuration string regex.
+        @retval configuration string regex.
+        """
         return CONFIGURATION_REGEX
     def _get_configuration_string_regex_matcher(self):
+        """
+        Get config string regex matcher.
+        @retval configuration string regex matcher
+        """
         return CONFIGURATION_REGEX_MATCHER
     def _get_blank_sample_timeout(self):
+        """
+        Get blank sample timeout.
+        @retval blank sample timeout in seconds.
+        """
         return SAMPLE_DELAY
     def _get_sample_timeout(self):
+        """
+        Get sample timeout.
+        @retval sample timeout in seconds.
+        """
         return SAMPLE_DELAY

@@ -203,9 +203,13 @@ class SamiProtocolEvent(BaseEnum):
     STOP_DIRECT = DriverEvent.STOP_DIRECT
     ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     ACQUIRE_STATUS = DriverEvent.ACQUIRE_STATUS
+
     TAKE_SAMPLE = 'PROTOCOL_EVENT_TAKE_SAMPLE'
     SUCCESS = 'PROTOCOL_EVENT_SUCCESS'  # success getting a sample
     TIMEOUT = 'PROTOCOL_EVENT_TIMEOUT'  # timeout while getting a sample
+
+    ### ACQUIRE_SCHEDULABLE_SAMPLE = 'PROTOCOL_EVENT_ACQUIRE_SCHEDULABLE_SAMPLE'
+    ### ACQUIRE_SCHEDULABLE_STATUS = 'PROTOCOL_EVENT_ACQUIRE_SCHEDULABLE_STATUS'
 
 class SamiCapability(BaseEnum):
     """
@@ -628,12 +632,21 @@ class SamiConfigDataParticleKey(BaseEnum):
     # the portions of the configuration that is unique to each.
 
 class QueuedCommands():
+    """
+    Structure to buffer commands which are received when a sample is being taken
+    """
 
     def __init__(self):
+        """
+        Initialize
+        """
         self.sample = None  ## Can be None, ProtocolEvent.ACQUIRE_SAMPLE, or ProtocolEvent.ACQUIRE_BLANK_SAMPLE
         self.status = None  ## Can be None or ProtocolEvent.ACQUIRE_STATUS
 
     def reset(self):
+        """
+        Reset buffers
+        """
         self.sample = None
         self.status = None
 
@@ -865,7 +878,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         # continue __init__ in the sub-class in the specific driver
 
     def _setup_scheduler_config(self):
-
+        """
+        Setup autosample scheduler
+        """
         auto_sample_interval = self._param_dict.get(SamiParameter.AUTO_SAMPLE_INTERVAL)
 
         log.debug('herb: ' + 'SamiProtocol._setup_scheduler_config(): auto_sample_interval = ' + str(auto_sample_interval))
@@ -900,7 +915,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     # Events to queue handlers.
     ########################################################################
     def _handler_queue_acquire_status(self, *args, **kwargs):
-
+        """
+        Buffer acquire status command
+        """
         log.debug('herb: ' +
                   'SamiProtocol._handler_queue_acquire_status(): queueing SamiProtocolEvent.ACQUIRE_STATUS in state ' +
                   self.get_current_state())
@@ -908,12 +925,15 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._queued_commands.status = SamiProtocolEvent.ACQUIRE_STATUS
 
         next_state = None
+        next_agent_state = None
         result = None
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     def _handler_queue_acquire_sample(self, *args, **kwargs):
-
+        """
+        Buffer acquire sample command
+        """
         log.debug('herb: ' +
                   'SamiProtocol._handler_queue_acquire_sample(): queueing SamiProtocolEvent.ACQUIRE_SAMPLE in state ' +
                   self.get_current_state())
@@ -921,12 +941,13 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         self._queued_commands.sample = SamiProtocolEvent.ACQUIRE_SAMPLE
 
         next_state = None
+        next_agent_state = None
         result = None
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
-    # Acquire statue handler.
+    # Acquire status handler.
     ########################################################################
     def _handler_acquire_status(self, *args, **kwargs):
         """
@@ -1515,6 +1536,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     ########################################################################
 
     def _parse_response_get_battery_voltage(self, response, prompt):
+        """
+        Parse get battery voltage instrument command response
+        """
         log.debug('herb: ' + 'SamiProtocol._parse_response_get_battery_voltage')
 
         try:
@@ -1525,6 +1549,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         return response
 
     def _parse_response_get_thermistor_voltage(self, response, prompt):
+        """
+        Parse get thermistor voltage instrument command response
+        """
         log.debug('herb: ' + 'SamiProtocol._parse_response_get_thermistor_voltage')
 
         try:
@@ -1535,32 +1562,54 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         return response
 
     def _parse_response_get_status(self, response, prompt):
+        """
+        Parse get status instrument command response
+        """
         log.debug('herb: ' + 'SamiProtocol._parse_response_get_status: response = ' + repr(response))
         return response
 
     def _parse_response_stop_status(self, response, prompt):
+        """
+        Parse stop status instrument command response
+        """
         log.debug('herb: ' + 'SamiProtocol._parse_response_stop_status: response = ' + repr(response))
         log.debug('herb: ' + 'SamiProtocol._parse_response_stop_status: prompt   = ' + repr(prompt))
         return response
 
     def _parse_response_get_config(self, response, prompt):
+        """
+        Parse get config instrument command response
+        """
         log.debug('herb: ' + 'SamiProtocol._parse_response_get_config')
         return response
 
     def _parse_response_set_config(self, response, prompt):
+        """
+        Parse set config instrument command response
+        """
         log.debug('herb: ' + 'SamiProtocol._parse_response_set_config')
         pass
 
     def _parse_response_erase_all(self, response, prompt):
+        """
+        Parse erase all instrument command response
+        """
         log.debug('herb: ' + 'SamiProtocol._parse_response_erase_all')
         pass
 
     def _parse_response_sample_sami(self, response, prompt):
+        """
+        Parse take sample instrument command response
+        """
         log.debug('herb: ' + 'SamiProtocol._parse_response_sample_sami')
         pass
 
     def _wakeup(self, timeout=0, delay=1):
-
+        """
+        Override wakeup instrument processing
+        @param timeout not used
+        @param delay seconds to sleep between wakeup attempts
+        """
         # Send 2 newlines to wake up SAMI.
         log.debug('herb: ' + 'SamiProtocol._wakeup: Send first newline to wake up')
         self._do_cmd_direct(NEWLINE)
@@ -1577,7 +1626,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
 
         log.debug('herb: ' + 'SamiProtocol.apply_startup_params: CURRENT STATE: %s' % self.get_current_state())
-        if (self.get_current_state() != SamiProtocolState.COMMAND):
+        if self.get_current_state() != SamiProtocolState.COMMAND:
             raise InstrumentProtocolException("Not in command. Unable to apply startup params")
 
         startup_config = self.get_startup_config()
@@ -1676,7 +1725,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         return (next_state, next_agent_state)
 
     def _set_params(self, *args, **kwargs):
-
+        """
+        Override set_params
+        @param params parameters to set
+        @raise InstrumentParameterException params not provided as dict
+        """
         log.debug('herb: ' + 'SamiProtocol._set_params')
 
         try:
@@ -1696,6 +1749,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
     def _set_configuration(self, override_params_dict = {}):
         """
         Set configuration on the instrument.
+        @param override_params_dict parameters to override in config string
         """
 
         # Make sure automatic-status updates are off. This will stop the
@@ -1799,6 +1853,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         return sami_seconds_hex_string
 
     def _get_config_value_str(self, param):
+        """
+        Get parameter value from param dictionary
+        @param param parameter value to get
+        @retval parameter value string
+        """
         value = self._param_dict.get(param)
         log.debug('herb: ' + 'SamiProtocol._get_config_value_str(): self._param_dict.get_config_value(param) = ' + param + ' = ' + str(value))
         value_str = self._param_dict.format(param, value)
@@ -1808,7 +1867,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
     @staticmethod
     def _add_config_str_padding(configuration_string):
-
+        """
+        Add padding to configuration string
+        @param configuration_string
+        @retval configuration_string
+        """
         config_string_length_no_padding = len(configuration_string)
         log.debug('herb: ' + 'Protocol._add_config_str_padding(): config_string_length_no_padding = ' + str(config_string_length_no_padding))
 
@@ -1827,7 +1890,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         return configuration_string
 
     def _build_configuration_string_base(self, parameter_list, override_params_dict):
-
+        """
+        Build configuration string
+        @param parameter_list list of parameters to set in string
+        @param override_params_dict parameters to override in config string
+        @retval configuration_string
+        """
         configuration_string = ''
 
         # LAUNCH_TIME always set to current GMT sami time
@@ -1856,7 +1924,11 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
     ## Verify configuration and update parameter dictionary if the configuration string is set correctly
     def _verify_and_update_configuration(self, configuration_string):
-
+        """
+        Verify config string set correctly on instrument and update param dict
+        @param configuration_string
+        @raise InstrumentProtocolException Invalid configuration string
+        """
         log.debug('herb: ' + 'Protocol._verify_and_update_configuration()')
 
         configuration_string_regex = self._get_configuration_string_regex_matcher()
@@ -1892,7 +1964,9 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
             log.debug("Configuration has not changed.")
 
     def _take_regular_sample(self):
-
+        """
+        Take a regular sample from instrument
+        """
         log.debug('herb: ' + 'SamiProtocol._take_regular_sample(): _take_regular_sample() START')
 
         self._pre_sample_processing()
@@ -1912,6 +1986,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         """
         Remove engineering parameters from param dict and check if they have changed.  If there is a change,
         raise a CONFIG_CHANGE event.
+        @param dict of parameters to check for engineering
         """
         for engineering_parameter in self._engineering_parameters:
             if engineering_parameter in params:
@@ -1937,25 +2012,30 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
                           (engineering_parameter, str(params)))
 
     def _verify_checksum(self, chunk, matcher):
+        """
+        Verify checksum of sample returned from instrument
+        @param chunk returned from instrument
+        @param matcher regular expression to match sample
+        @raise SampleException check sum is invalid
+        """
+        matched = matcher.match(chunk)
+        record_type = matched.group(3)
+        log.debug('herb: ' + 'Protocol.verify_checksum(): sample record_type = ' + record_type)
+        log.debug('herb: ' + 'Protocol.verify_checksum(): sample chunk = ' + chunk)
 
-            matched = matcher.match(chunk)
-            record_type = matched.group(3)
-            log.debug('herb: ' + 'Protocol.verify_checksum(): sample record_type = ' + record_type)
-            log.debug('herb: ' + 'Protocol.verify_checksum(): sample chunk = ' + chunk)
+        ## Remove any whitespace
+        sample_string = chunk.rstrip()
+        checksum = sample_string[-2:]
+        checksum_int = int(checksum, 16)
+        log.debug('Checksum = %s hex, %d dec' % (checksum, checksum_int))
+        calculated_checksum_string = sample_string[3:-2]
+        log.debug('Checksum String = %s' % calculated_checksum_string)
+        calculated_checksum = self.calc_crc(calculated_checksum_string)
+        log.debug('Checksum/Calculated Checksum = %d/%d' % (checksum_int,calculated_checksum))
 
-            ## Remove any whitespace
-            sample_string = chunk.rstrip()
-            checksum = sample_string[-2:]
-            checksum_int = int(checksum, 16)
-            log.debug('Checksum = %s hex, %d dec' % (checksum, checksum_int))
-            calculated_checksum_string = sample_string[3:-2]
-            log.debug('Checksum String = %s' % calculated_checksum_string)
-            calculated_checksum = self.calc_crc(calculated_checksum_string)
-            log.debug('Checksum/Calculated Checksum = %d/%d' % (checksum_int,calculated_checksum))
-
-            if checksum_int != calculated_checksum:
-                log.error("Sample Check Sum Invalid %d/%d, throwing exception." % (checksum_int,calculated_checksum))
-                raise SampleException("Sample Check Sum Invalid %d/%d" % (checksum_int,calculated_checksum))
+        if checksum_int != calculated_checksum:
+            log.error("Sample Check Sum Invalid %d/%d, throwing exception." % (checksum_int,calculated_checksum))
+            raise SampleException("Sample Check Sum Invalid %d/%d" % (checksum_int,calculated_checksum))
 
     @staticmethod
     def calc_crc(s):
@@ -1992,7 +2072,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
     def _build_param_dict(self):
         """
-        Overridden by device specific subclasses.
+        Build the parameter dictionary.  Overridden by device specific subclasses.
         """
 
         log.debug('herb: ' + 'SamiProtocol._build_param_dict()')
@@ -2170,7 +2250,7 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
     def _pre_sample_processing(self):
         """
-        Override in sub class if needed
+        Processing before taking a sample.  Override in sub class if needed
         """
 
         log.debug('herb: ' + 'Protocol._pre_sample_processing(): None')
@@ -2179,42 +2259,42 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
 
     def _got_chunk(self, chunk, timestamp):
         """
-        Overridden by device specific subclasses.
+        Received matched data from chunker. Overridden by device specific subclasses.
         """
 
         raise NotImplementedException()
 
     def _get_specific_configuration_string_parameters(self):
         """
-        Overridden by device specific subclasses.
+        Get list of instrument specific parameters.  Overridden by device specific subclasses.
         """
 
         raise NotImplementedException()
 
     def _get_configuration_string_regex(self):
         """
-        Overridden by device specific subclasses.
+        Get config string regular expression.  Overridden by device specific subclasses.
         """
 
         raise NotImplementedException()
 
     def _get_configuration_string_regex_matcher(self):
         """
-        Overridden by device specific subclasses.
+        Get config string regular expression matcher.  Overridden by device specific subclasses.
         """
 
         raise NotImplementedException()
 
     def _get_sample_regex(self):
         """
-        Overridden by device specific subclasses.
+        Get sample regular expression.  Overridden by device specific subclasses.
         """
 
         raise NotImplementedException()
 
     def _get_sample_timeout(self):
         """
-        Overridden by device specific subclasses.
+        Get timeout for sample.  Overridden by device specific subclasses.
         """
 
         raise NotImplementedException()

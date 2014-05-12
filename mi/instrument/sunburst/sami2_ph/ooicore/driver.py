@@ -128,15 +128,27 @@ CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 ###
 
 class ScheduledJob(SamiScheduledJob):
+    """
+    Extend base class with instrument specific functionality.
+    """
     pass
 
 class ProtocolState(SamiProtocolState):
+    """
+    Extend base class with instrument specific functionality.
+    """
     pass
 
 class ProtocolEvent(SamiProtocolEvent):
+    """
+    Extend base class with instrument specific functionality.
+    """
     pass
 
 class Capability(SamiCapability):
+    """
+    Extend base class with instrument specific functionality.
+    """
     pass
 
 class DataParticleType(SamiDataParticleType):
@@ -167,16 +179,9 @@ class Parameter(SamiParameter):
     NUMBER_MEASUREMENTS = 'number_measurements'
     SALINITY_DELAY = 'salinity_delay'
 
-
-#class Prompt(BaseEnum):
-#    """
-#    Device i/o prompts..
-#    """
-
-
 class InstrumentCommand(SamiInstrumentCommand):
     """
-    Device specfic Instrument command strings. Extends superclass
+    Device specific Instrument command strings. Extends superclass
     SamiInstrumentCommand
     """
     pass
@@ -758,17 +763,35 @@ class Protocol(SamiProtocol):
 
         return parameter_list
 
-    def _get_configuration_string_regex_matcher(self):
-        return CONFIGURATION_REGEX_MATCHER
     def _get_configuration_string_regex(self):
+        """
+        Get configuration string regex.
+        @retval configuration string regex.
+        """
         return CONFIGURATION_REGEX
     def _get_configuration_string_regex_matcher(self):
+        """
+        Get config string regex matcher.
+        @retval configuration string regex matcher
+        """
         return CONFIGURATION_REGEX_MATCHER
     def _get_blank_sample_timeout(self):
+        """
+        Get blank sample timeout.
+        @retval blank sample timeout in seconds.
+        """
         return SAMPLE_DELAY
     def _get_sample_timeout(self):
+        """
+        Get sample timeout.
+        @retval sample timeout in seconds.
+        """
         return SAMPLE_DELAY
     def _get_sample_regex(self):
+        """
+        Get sample regex
+        @retval sample regex
+        """
         return SAMI_SAMPLE_REGEX_MATCHER
 
 # End of File driver.py

@@ -87,19 +87,35 @@ SAMI_SAMPLE_REGEX_MATCHER = re.compile(SAMI_SAMPLE_REGEX)
 ###
 
 class ScheduledJob(SamiScheduledJob):
+    """
+    Extend base class with instrument specific functionality.
+    """
     ACQUIRE_BLANK_SAMPLE = 'acquire_blank_sample'
 
 class ProtocolState(SamiProtocolState):
+    """
+    Extend base class with instrument specific functionality.
+    """
     POLLED_BLANK_SAMPLE = 'PROTOCOL_STATE_POLLED_BLANK_SAMPLE'
     SCHEDULED_BLANK_SAMPLE = 'PROTOCOL_STATE_SCHEDULED_BLANK_SAMPLE'
 
 class ProtocolEvent(SamiProtocolEvent):
+    """
+    Extend base class with instrument specific functionality.
+    """
     ACQUIRE_BLANK_SAMPLE = 'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'
+    ### ACQUIRE_SCHEDULABLE_BLANK_SAMPLE = 'PROTOCOL_EVENT_ACQUIRE_SCHEDULABLE_BLANK_SAMPLE'
 
 class Capability(SamiCapability):
+    """
+    Extend base class with instrument specific functionality.
+    """
     ACQUIRE_BLANK_SAMPLE = ProtocolEvent.ACQUIRE_BLANK_SAMPLE
 
 class Pco2wSamiDataParticleType(SamiDataParticleType):
+    """
+    Extend base class with instrument specific functionality.
+    """
     SAMI_SAMPLE = 'pco2w_sami_data_record'
 
 class Pco2wSamiParameter(SamiParameter):
@@ -119,6 +135,9 @@ class Pco2wSamiParameter(SamiParameter):
     NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
 
 class Pco2wInstrumentCommand(SamiInstrumentCommand):
+    """
+    Extend base class with instrument specific functionality.
+    """
     ACQUIRE_BLANK_SAMPLE_SAMI = 'C'
 
 ###############################################################################
@@ -351,7 +370,9 @@ class Pco2wProtocol(SamiProtocol):
     # Events to queue handlers.
     ########################################################################
     def _handler_queue_acquire_blank_sample(self, *args, **kwargs):
-
+        """
+        Buffer blank sample command received during taking a sample
+        """
         log.debug('herb: ' +
                   'SamiProtocol._handler_queue_acquire_blank_sample():' +
                   ' queueing ProtocolEvent.ACQUIRE_BLANK_SAMPLE in state ' +
@@ -360,9 +381,10 @@ class Pco2wProtocol(SamiProtocol):
         self._queued_commands.sample = ProtocolEvent.ACQUIRE_BLANK_SAMPLE
 
         next_state = None
+        next_agent_state = None
         result = None
 
-        return (next_state, result)
+        return (next_state, (next_agent_state, result))
 
     ########################################################################
     # Command handlers.
@@ -535,6 +557,9 @@ class Pco2wProtocol(SamiProtocol):
     ########################################################################
 
     def _parse_response_blank_sample_sami(self, response, prompt):
+        """
+        Parse response to take blank sample instrument command
+        """
         log.debug('herb: ' + 'SamiProtocol._parse_response_blank_sample_sami')
         pass
 
@@ -543,6 +568,9 @@ class Pco2wProtocol(SamiProtocol):
     ########################################################################
 
     def _take_blank_sample(self):
+        """
+        Take blank sample instrument command
+        """
 
         log.debug('herb: ' + 'Pco2wProtocol._take_blank_sample(): _take_blank_sample() START')
 
@@ -700,5 +728,9 @@ class Pco2wProtocol(SamiProtocol):
         raise NotImplementedException()
 
     def _get_sample_regex(self):
+        """
+        Get sample regex
+        @retval sample regex
+        """
         log.debug('herb: ' + 'Protocol._get_sample_regex()')
         return SAMI_SAMPLE_REGEX_MATCHER

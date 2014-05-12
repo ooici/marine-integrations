@@ -801,12 +801,24 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 @attr('QUAL', group='mi')
 class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
 
-    @unittest.skip("Runs for several hours to test default autosample rate of 60 minutes")
+
+    def test_queued_command(self):
+
+        self.assert_enter_command_mode()
+
+        self.assert_resource_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=4, resource_state=ProtocolState.POLLED_SAMPLE)
+        self.assert_resource_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_resource_command(ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
+
+        self.assert_particle_async(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=60)
+        self.assert_particle_async(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
+
     def test_overnight(self):
         """
         Verify autosample at default rate
         """
         self.assert_enter_command_mode()
+
         self.assert_set_parameter(Parameter.BIT_SWITCHES, 0x00)
 
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sami_blank_sample, DataParticleType.SAMI_SAMPLE, sample_count=1, timeout=200)
