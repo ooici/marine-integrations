@@ -13,116 +13,161 @@ USAGE:
        $ bin/test_driver -q
 
 """
-__author__ = 'Bill Bollenbacher'
+__author__ = 'Tapana Gupta'
 __license__ = 'Apache 2.0'
 
-# MI logger
-import logging
+import unittest
+import time
+
+from nose.plugins.attrib import attr
+from mock import Mock
+
 from mi.core.log import get_logger ; log = get_logger()
 
-import unittest
-from nose.plugins.attrib import attr
+# MI imports.
+from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import DriverTestMixin
+from mi.idk.unit_test import ParameterTestConfigKey
+from mi.idk.unit_test import AgentCapabilityType
 
+from mi.core.exceptions import InstrumentParameterException
+from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentCommandException
-
-from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEUnitTestCase
-from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEIntTestCase
-from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEQualTestCase
-from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SBEPubTestCase
-from mi.instrument.seabird.sbe16plus_v2.test.test_driver import SeaBird16plusMixin
-
-from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import SBE16HardwareDataParticleKey, \
-                                                          SBE16CalibrationDataParticleKey, \
-                                                          SBE16NoDataParticleKey, \
-                                                          SBE16StatusDataParticleKey, \
-                                                          SBE16ConfigurationDataParticleKey, \
-                                                          SBE16_NO_Protocol, \
-                                                          InstrumentDriver, \
-                                                          DataParticleType, \
-                                                          InstrumentDriver
-
-from mi.instrument.seabird.sbe16plus_v2.driver import ProtocolEvent, \
-                                                      Parameter, \
-                                                      ProtocolState, \
-                                                      NEWLINE, \
-                                                      ScheduledJob
-                                                      
-
-from mi.idk.unit_test import InstrumentDriverTestCase, \
-                             DriverStartupConfigKey
 
 from mi.core.instrument.chunker import StringChunker
 
+from mi.instrument.seabird.test.test_driver import SeaBirdUnitTest
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.test.test_driver import SBE19UnitTestCase
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.test.test_driver import SBE19IntegrationTest
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.test.test_driver import SBE19QualificationTest
+from mi.instrument.seabird.test.test_driver import SeaBirdPublicationTest
+
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import DataParticleType
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ProtocolState
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ProtocolEvent
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Capability
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Command
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SendOptodeCommand
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ScheduledJob
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19DataParticleKey
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19StatusParticleKey
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import OptodeSettingsParticleKey
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Prompt
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import NEWLINE
+
+from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import SBE16NOConfigurationParticleKey
+from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import SBE16NOHardwareParticleKey
+from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import SBE16NOCalibrationParticleKey
+from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import Parameter
+from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import ConfirmedParameter
+from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import SBE16NOProtocol
+from mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver import InstrumentDriver
+
+from pyon.agent.agent import ResourceAgentEvent
+from pyon.agent.agent import ResourceAgentState
+
+###
+#   Driver parameters for the tests
+###
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.seabird.sbe16plus_v2.ctdbp_no.driver',
+    driver_module='mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver',
     driver_class="InstrumentDriver",
 
-    instrument_agent_preload_id = 'IA5',
-    instrument_agent_resource_id = '123xyz',
-    instrument_agent_name = 'Agent007',
+    instrument_agent_resource_id = 'JI22B5',
+    instrument_agent_name = 'seabird_sbe16plus_v2_ctdpf_jb',
     instrument_agent_packet_config = DataParticleType(),
-    
-    driver_startup_config = {
-        DriverStartupConfigKey.PARAMETERS: {
-            Parameter.NCYCLES: 1,
-        },
-    }
+
+    driver_startup_config = {}
 )
 
+#################################### RULES ####################################
+#                                                                             #
+# Common capabilities in the base class                                       #
+#                                                                             #
+# Instrument specific stuff in the derived class                              #
+#                                                                             #
+# Generator spits out either stubs or comments describing test this here,     #
+# test that there.                                                            #
+#                                                                             #
+# Qualification tests are driven through the instrument_agent                 #
+#                                                                             #
 ###############################################################################
-#                   Driver Version Specific Structures                        #
+
+###
+#   Driver constant definitions
+###
+
 ###############################################################################
-###
-# Test Inputs
-###
+#                           DRIVER TEST MIXIN        		                  #
+#     Defines a set of constants and assert methods used for data particle    #
+#     verification 														      #
+#                                                                             #
+#  In python mixin classes are classes designed such that they wouldn't be    #
+#  able to stand on their own, but are inherited by other classes generally   #
+#  using multiple inheritance.                                                #
+#                                                                             #
+# This class defines a configuration structure for testing and common assert  #
+# methods for validating data particles.									  #
+###############################################################################
+#class DriverTestMixinSub(DriverTestMixin):
+#    def assertSampleDataParticle(self, data_particle):
+#        '''
+#        Verify a particle is a know particle to this driver and verify the particle is
+#        correct
+#        @param data_particle: Data particle of unkown type produced by the driver
+#        '''
+#        if (isinstance(data_particle, RawDataParticle)):
+#            self.assert_particle_raw(data_particle)
+#        else:
+#            log.error("Unknown Particle Detected: %s" % data_particle)
+#            self.assertFalse(True)
+class SBE16NOMixin(DriverTestMixin):
 
-SeaBird16plusMixin.InstrumentDriver = InstrumentDriver
+    InstrumentDriver = InstrumentDriver
 
-SeaBird16plusMixin.VALID_SAMPLE = "#03DC380A738581732F87B10012000C2B950819119C9A" + NEWLINE
-SeaBird16plusMixin.VALID_SAMPLE2 = "0409DB0A738C81747A84AC0006000A2E541E18BE6ED9" + NEWLINE
+    '''
+    Mixin class used for storing data particle constants and common data assertion methods.
+    '''
 
-# replace DS response with one that includes the 'Paros integration time' for the quartz pressure sensor
-SeaBird16plusMixin.VALID_DS_RESPONSE =  'SBE 16plus V 2.5  SERIAL NO. 6841    28 Feb 2013 16:39:31' + NEWLINE + \
-    'vbatt = 23.4, vlith =  8.0, ioper =  61.4 ma, ipump =   0.3 ma,' + NEWLINE + \
-    'status = not logging' + NEWLINE + \
-    'samples = 0, free = 4386542' + NEWLINE + \
-    'sample interval = 10 seconds, number of measurements per sample = 4' + NEWLINE + \
-    'Paros integration time = 1.0 seconds' + NEWLINE + \
-    'pump = run pump during sample, delay before sampling = 0.0 seconds, delay after sampling = 0.0 seconds' + NEWLINE + \
-    'transmit real-time = yes' + NEWLINE + \
-    'battery cutoff =  7.5 volts' + NEWLINE + \
-    'pressure sensor = quartz with temp comp, range = 160.0' + NEWLINE + \
-    'SBE 38 = no, SBE 50 = no, WETLABS = no, OPTODE = yes, SBE63 = no, Gas Tension Device = no' + NEWLINE + \
-    'Ext Volt 0 = yes, Ext Volt 1 = yes' + NEWLINE + \
-    'Ext Volt 2 = no, Ext Volt 3 = no' + NEWLINE + \
-    'Ext Volt 4 = no, Ext Volt 5 = no' + NEWLINE + \
-    'echo characters = yes' + NEWLINE + \
-    'output format = raw HEX' + NEWLINE + \
-    'serial sync mode disabled' + NEWLINE
+    # Create some short names for the parameter test config
+    TYPE      = ParameterTestConfigKey.TYPE
+    READONLY  = ParameterTestConfigKey.READONLY
+    STARTUP   = ParameterTestConfigKey.STARTUP
+    DA        = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE     = ParameterTestConfigKey.VALUE
+    REQUIRED  = ParameterTestConfigKey.REQUIRED
+    DEFAULT   = ParameterTestConfigKey.DEFAULT
+    STATES    = ParameterTestConfigKey.STATES
 
-SeaBird16plusMixin.VALID_GETHD_RESPONSE =  "" + \
-"<HardwareData DeviceType = 'SBE16plus' SerialNumber = '01607231'>" + NEWLINE + \
+
+    ###
+    #  Instrument output (driver input) Definitions
+    ###
+    VALID_SAMPLE = "04570F0A1E910828FC47BC59F199952C64C9" + NEWLINE
+
+    VALID_GETHD_RESPONSE =  "" + \
+"<HardwareData DeviceType = 'SBE19plus' SerialNumber = '01907230'>" + NEWLINE + \
 "   <Manufacturer>Sea-Bird Electronics, Inc.</Manufacturer>" + NEWLINE + \
 "   <FirmwareVersion>2.5.2</FirmwareVersion>" + NEWLINE + \
 "   <FirmwareDate>12 Mar 2013 11:50</FirmwareDate>" + NEWLINE + \
-"   <CommandSetVersion>2.3</CommandSetVersion>" + NEWLINE + \
-"   <PCBAssembly PCBSerialNum = '49577' AssemblyNum = '41054H'/>" + NEWLINE + \
-"   <PCBAssembly PCBSerialNum = '46750' AssemblyNum = '41580B'/>" + NEWLINE + \
-"   <PCBAssembly PCBSerialNum = '49374' AssemblyNum = '41606'/>" + NEWLINE + \
-"   <PCBAssembly PCBSerialNum = '38071' AssemblyNum = '41057A'/>" + NEWLINE + \
+"   <CommandSetVersion>1.3</CommandSetVersion>" + NEWLINE + \
+"   <PCBAssembly PCBSerialNum = '49565' AssemblyNum = '41054H'/>" + NEWLINE + \
+"   <PCBAssembly PCBSerialNum = '43360' AssemblyNum = '41580B'/>" + NEWLINE + \
+"   <PCBAssembly PCBSerialNum = '49357' AssemblyNum = '41606'/>" + NEWLINE + \
+"   <PCBAssembly PCBSerialNum = '38072' AssemblyNum = '41057A'/>" + NEWLINE + \
 "   <MfgDate>29-Oct-2012</MfgDate>" + NEWLINE + \
 "   <InternalSensors>" + NEWLINE + \
 "      <Sensor id = 'Main Temperature'>" + NEWLINE + \
 "         <type>temperature0</type>" + NEWLINE + \
-"         <SerialNumber>01607231</SerialNumber>" + NEWLINE + \
+"         <SerialNumber>01907230</SerialNumber>" + NEWLINE + \
 "      </Sensor>" + NEWLINE + \
 "      <Sensor id = 'Main Conductivity'>" + NEWLINE + \
 "         <type>conductivity-0</type>" + NEWLINE + \
-"         <SerialNumber>01607231</SerialNumber>" + NEWLINE + \
+"         <SerialNumber>01907230</SerialNumber>" + NEWLINE + \
 "      </Sensor>" + NEWLINE + \
 "      <Sensor id = 'Main Pressure'>" + NEWLINE + \
 "         <type>quartzTC-0</type>" + NEWLINE + \
-"         <SerialNumber>125270</SerialNumber>" + NEWLINE + \
+"         <SerialNumber>124969</SerialNumber>" + NEWLINE + \
 "      </Sensor>" + NEWLINE + \
 "   </InternalSensors>" + NEWLINE + \
 "   <ExternalSensors>" + NEWLINE + \
@@ -157,107 +202,86 @@ SeaBird16plusMixin.VALID_GETHD_RESPONSE =  "" + \
 "   </ExternalSensors>" + NEWLINE + \
 "</HardwareData>" + NEWLINE
 
-SeaBird16plusMixin.VALID_GETCC_RESPONSE =  "" + \
-"<CalibrationCoefficients DeviceType = 'SBE16plus' SerialNumber = '01607231'>" + NEWLINE + \
+
+    VALID_GETCC_RESPONSE =  "" + \
+"<CalibrationCoefficients DeviceType = 'SBE19plus' SerialNumber = '01907230'>" + NEWLINE + \
 "   <Calibration format = 'TEMP1' id = 'Main Temperature'>" + NEWLINE + \
-"      <SerialNum>01607231</SerialNum>" + NEWLINE + \
-"      <CalDate>07-Nov-12</CalDate>" + NEWLINE + \
-"      <TA0>1.254755e-03</TA0>" + NEWLINE + \
-"      <TA1>2.758871e-04</TA1>" + NEWLINE + \
-"      <TA2>-1.368268e-06</TA2>" + NEWLINE + \
-"      <TA3>1.910795e-07</TA3>" + NEWLINE + \
+"      <SerialNum>01907230</SerialNum>" + NEWLINE + \
+"      <CalDate>07-Dec-13</CalDate>" + NEWLINE + \
+"      <TA0>1.272723e-03</TA0>" + NEWLINE + \
+"      <TA1>2.687218e-04</TA1>" + NEWLINE + \
+"      <TA2>-4.735777e-07</TA2>" + NEWLINE + \
+"      <TA3>1.522571e-07</TA3>" + NEWLINE + \
 "      <TOFFSET>0.000000e+00</TOFFSET>" + NEWLINE + \
 "   </Calibration>" + NEWLINE + \
 "   <Calibration format = 'WBCOND0' id = 'Main Conductivity'>" + NEWLINE + \
-"      <SerialNum>01607231</SerialNum>" + NEWLINE + \
-"      <CalDate>07-Nov-12</CalDate>" + NEWLINE + \
-"      <G>-9.761799e-01</G>" + NEWLINE + \
-"      <H>1.369994e-01</H>" + NEWLINE + \
-"      <I>-3.523860e-04</I>" + NEWLINE + \
-"      <J>4.404252e-05</J>" + NEWLINE + \
+"      <SerialNum>01907230</SerialNum>" + NEWLINE + \
+"      <CalDate>07-Dec-13</CalDate>" + NEWLINE + \
+"      <G>-9.931677e-01</G>" + NEWLINE + \
+"      <H>1.391189e-01</H>" + NEWLINE + \
+"      <I>-4.457962e-04</I>" + NEWLINE + \
+"      <J>5.145191e-05</J>" + NEWLINE + \
 "      <CPCOR>-9.570000e-08</CPCOR>" + NEWLINE + \
 "      <CTCOR>3.250000e-06</CTCOR>" + NEWLINE + \
 "      <CSLOPE>1.000000e+00</CSLOPE>" + NEWLINE + \
 "   </Calibration>" + NEWLINE + \
 "   <Calibration format = 'QUARTZ0' id = 'Main Pressure'>" + NEWLINE + \
-"      <SerialNum>125270</SerialNum>" + NEWLINE + \
-"      <CalDate>02-nov-12</CalDate>" + NEWLINE + \
-"      <PC1>-4.642673e+03</PC1>" + NEWLINE + \
-"      <PC2>-4.611640e-03</PC2>" + NEWLINE + \
-"      <PC3>8.921190e-04</PC3>" + NEWLINE + \
-"      <PD1>7.024800e-02</PD1>" + NEWLINE + \
+"      <SerialNum>124969</SerialNum>" + NEWLINE + \
+"      <CalDate>05-Dec-13</CalDate>" + NEWLINE + \
+"      <PC1>9.913353e+02</PC1>" + NEWLINE + \
+"      <PC2>1.013600e-05</PC2>" + NEWLINE + \
+"      <PC3>-1.182100e-04</PC3>" + NEWLINE + \
+"      <PD1>3.107200e-02</PD1>" + NEWLINE + \
 "      <PD2>0.000000e+00</PD2>" + NEWLINE + \
-"      <PT1>3.022595e+01</PT1>" + NEWLINE + \
-"      <PT2>-1.549720e-04</PT2>" + NEWLINE + \
-"      <PT3>2.677750e-06</PT3>" + NEWLINE + \
-"      <PT4>1.705490e-09</PT4>" + NEWLINE + \
+"      <PT1>2.767451e+01</PT1>" + NEWLINE + \
+"      <PT2>-1.080330e-04</PT2>" + NEWLINE + \
+"      <PT3>1.036700e-06</PT3>" + NEWLINE + \
+"      <PT4>1.687490e-09</PT4>" + NEWLINE + \
 "      <PSLOPE>1.000000e+00</PSLOPE>" + NEWLINE + \
 "      <POFFSET>0.000000e+00</POFFSET>" + NEWLINE + \
-"      <PRANGE>1.000000e+03</PRANGE>" + NEWLINE + \
+"      <PRANGE>2.000000e+02</PRANGE>" + NEWLINE + \
 "   </Calibration>" + NEWLINE + \
 "   <Calibration format = 'VOLT0' id = 'Volt 0'>" + NEWLINE + \
-"      <OFFSET>-4.650526e-02</OFFSET>" + NEWLINE + \
-"      <SLOPE>1.246381e+00</SLOPE>" + NEWLINE + \
+"      <OFFSET>-4.719895e-02</OFFSET>" + NEWLINE + \
+"      <SLOPE>1.248055e+00</SLOPE>" + NEWLINE + \
 "   </Calibration>" + NEWLINE + \
 "   <Calibration format = 'VOLT0' id = 'Volt 1'>" + NEWLINE + \
-"      <OFFSET>-4.618105e-02</OFFSET>" + NEWLINE + \
-"      <SLOPE>1.247197e+00</SLOPE>" + NEWLINE + \
+"      <OFFSET>-4.677263e-02</OFFSET>" + NEWLINE + \
+"      <SLOPE>1.249706e+00</SLOPE>" + NEWLINE + \
 "   </Calibration>" + NEWLINE + \
 "   <Calibration format = 'VOLT0' id = 'Volt 2'>" + NEWLINE + \
-"      <OFFSET>-4.659790e-02</OFFSET>" + NEWLINE + \
-"      <SLOPE>1.247601e+00</SLOPE>" + NEWLINE + \
+"      <OFFSET>-4.673579e-02</OFFSET>" + NEWLINE + \
+"      <SLOPE>1.247281e+00</SLOPE>" + NEWLINE + \
 "   </Calibration>" + NEWLINE + \
 "   <Calibration format = 'VOLT0' id = 'Volt 3'>" + NEWLINE + \
-"      <OFFSET>-4.502421e-02</OFFSET>" + NEWLINE + \
-"      <SLOPE>1.246911e+00</SLOPE>" + NEWLINE + \
+"      <OFFSET>-4.665053e-02</OFFSET>" + NEWLINE + \
+"      <SLOPE>1.248687e+00</SLOPE>" + NEWLINE + \
 "   </Calibration>" + NEWLINE + \
 "   <Calibration format = 'VOLT0' id = 'Volt 4'>" + NEWLINE + \
-"      <OFFSET>-4.589158e-02</OFFSET>" + NEWLINE + \
-"      <SLOPE>1.246346e+00</SLOPE>" + NEWLINE + \
+"      <OFFSET>-4.620527e-02</OFFSET>" + NEWLINE + \
+"      <SLOPE>1.248225e+00</SLOPE>" + NEWLINE + \
 "   </Calibration>" + NEWLINE + \
 "   <Calibration format = 'VOLT0' id = 'Volt 5'>" + NEWLINE + \
-"      <OFFSET>-4.609895e-02</OFFSET>" + NEWLINE + \
-"      <SLOPE>1.247868e+00</SLOPE>" + NEWLINE + \
+"      <OFFSET>-4.645263e-02</OFFSET>" + NEWLINE + \
+"      <SLOPE>1.249040e+00</SLOPE>" + NEWLINE + \
 "   </Calibration>" + NEWLINE + \
 "   <Calibration format = 'FREQ0' id = 'external frequency channel'>" + NEWLINE + \
-"      <EXTFREQSF>9.999949e-01</EXTFREQSF>" + NEWLINE + \
+"      <EXTFREQSF>9.999944e-01</EXTFREQSF>" + NEWLINE + \
 "   </Calibration>" + NEWLINE + \
 "</CalibrationCoefficients>" + NEWLINE
 
-SeaBird16plusMixin.VALID_GETSD_RESPONSE =  "" + \
-"<StatusData DeviceType = 'SBE16plus' SerialNumber = '01607231'>" + NEWLINE + \
-"   <DateTime>2013-04-26T22:20:21</DateTime>" + NEWLINE + \
-"   <LoggingState>not logging</LoggingState>" + NEWLINE + \
-"   <EventSummary numEvents = '317'/>" + NEWLINE + \
-"   <Power>" + NEWLINE + \
-"      <vMain>13.0</vMain>" + NEWLINE + \
-"      <vLith>8.6</vLith>" + NEWLINE + \
-"      <iMain>51.1</iMain>" + NEWLINE + \
-"      <iPump> 0.5</iPump>" + NEWLINE + \
-"      <iExt01> 0.5</iExt01>" + NEWLINE + \
-"      <iSerial>45.1</iSerial>" + NEWLINE + \
-"   </Power>" + NEWLINE + \
-"   <MemorySummary>" + NEWLINE + \
-"      <Bytes>330</Bytes>" + NEWLINE + \
-"      <Samples>15</Samples>" + NEWLINE + \
-"      <SamplesFree>2990809</SamplesFree>" + NEWLINE + \
-"      <SampleLength>22</SampleLength>" + NEWLINE + \
-"      <Headers>3</Headers>" + NEWLINE + \
-"   </MemorySummary>" + NEWLINE + \
-"</StatusData>" + NEWLINE
 
-SeaBird16plusMixin.VALID_GETCD_RESPONSE =  "" + \
-"<ConfigurationData DeviceType = 'SBE16plus' SerialNumber = '01607231'>" + NEWLINE + \
-"   <SamplingParameters>" + NEWLINE + \
-"      <SampleInterval>10</SampleInterval>" + NEWLINE + \
-"      <MeasurementsPerSample>4</MeasurementsPerSample>" + NEWLINE + \
-"      <ParosIntegrationTime>1.0</ParosIntegrationTime>" + NEWLINE + \
-"      <Pump>run pump during sample</Pump>" + NEWLINE + \
-"      <DelayBeforeSampling>0.0</DelayBeforeSampling>" + NEWLINE + \
-"      <DelayAfterSampling>0.0</DelayAfterSampling>" + NEWLINE + \
-"      <TransmitRealTime>yes</TransmitRealTime>" + NEWLINE + \
-"   </SamplingParameters>" + NEWLINE + \
+    VALID_GETCD_RESPONSE =  "" + \
+"<ConfigurationData DeviceType = 'SBE19plus' SerialNumber = '01907230'>" + NEWLINE + \
+"   <ProfileMode>" + NEWLINE + \
+"      <ScansToAverage>4</ScansToAverage>" + NEWLINE + \
+"      <MinimumCondFreq>500</MinimumCondFreq>" + NEWLINE + \
+"      <PumpDelay>60</PumpDelay>" + NEWLINE + \
+"      <AutoRun>no</AutoRun>" + NEWLINE + \
+"      <IgnoreSwitch>yes</IgnoreSwitch>" + NEWLINE + \
+"   </ProfileMode>" + NEWLINE + \
 "   <Battery>" + NEWLINE + \
+"      <Type>alkaline</Type>" + NEWLINE + \
 "      <CutOff>7.5</CutOff>" + NEWLINE + \
 "   </Battery>" + NEWLINE + \
 "   <DataChannels>" + NEWLINE + \
@@ -268,229 +292,367 @@ SeaBird16plusMixin.VALID_GETCD_RESPONSE =  "" + \
 "      <ExtVolt4>no</ExtVolt4>" + NEWLINE + \
 "      <ExtVolt5>no</ExtVolt5>" + NEWLINE + \
 "      <SBE38>no</SBE38>" + NEWLINE + \
-"      <SBE50>no</SBE50>" + NEWLINE + \
 "      <WETLABS>no</WETLABS>" + NEWLINE + \
 "      <OPTODE>yes</OPTODE>" + NEWLINE + \
 "      <SBE63>no</SBE63>" + NEWLINE + \
 "      <GTD>no</GTD>" + NEWLINE + \
 "   </DataChannels>" + NEWLINE + \
 "   <EchoCharacters>yes</EchoCharacters>" + NEWLINE + \
-"   <OutputExecutedTag>yes</OutputExecutedTag>" + NEWLINE + \
-"   <OutputFormat>raw decimal</OutputFormat>" + NEWLINE + \
-"   <SerialLineSync>no</SerialLineSync>" + NEWLINE + \
+"   <OutputExecutedTag>no</OutputExecutedTag>" + NEWLINE + \
+"   <OutputFormat>raw HEX</OutputFormat>" + NEWLINE + \
 "</ConfigurationData>" + NEWLINE
 
-SeaBird16plusMixin._driver_parameters[Parameter.PAROS_INTEGRATION] = {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: 1.0, SeaBird16plusMixin.VALUE: 1.0}
-SeaBird16plusMixin._driver_parameters[Parameter.PTYPE] = {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: 3, SeaBird16plusMixin.VALUE: 3}
-SeaBird16plusMixin._driver_parameters[Parameter.VOLT2] = {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: False, SeaBird16plusMixin.VALUE: False}
-SeaBird16plusMixin._driver_parameters[Parameter.VOLT3] = {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: False, SeaBird16plusMixin.VALUE: False}
-SeaBird16plusMixin._driver_parameters[Parameter.VOLT4] = {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: False, SeaBird16plusMixin.VALUE: False}
-SeaBird16plusMixin._driver_parameters[Parameter.VOLT5] = {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: False, SeaBird16plusMixin.VALUE: False}
-SeaBird16plusMixin._driver_parameters[Parameter.NCYCLES] = {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.READONLY: False, SeaBird16plusMixin.DA: False, SeaBird16plusMixin.STARTUP: True}
-SeaBird16plusMixin._driver_parameters[Parameter.OPTODE] = {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.READONLY: True, SeaBird16plusMixin.DA: True, SeaBird16plusMixin.STARTUP: True, SeaBird16plusMixin.DEFAULT: True, SeaBird16plusMixin.VALUE: True}
 
-SeaBird16plusMixin._configuration_parameters = {
-        SBE16ConfigurationDataParticleKey.SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 1607231, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.SAMPLE_INTERVAL: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 10, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.MEASUREMENTS_PER_SAMPLE: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 4, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.PAROS_INTEGRATION_TIME: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 1.0, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.PUMP_MODE: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: "run pump during sample", SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.DELAY_BEFORE_SAMPLING: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 0.0, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.DELAY_AFTER_SAMPLING: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 0.0, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.TRANSMIT_REAL_TIME: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: True, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.BATTERY_CUTOFF: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 7.5, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.EXT_VOLT_0: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: True, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.EXT_VOLT_1: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: True, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.EXT_VOLT_2: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: False, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.EXT_VOLT_3: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: False, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.EXT_VOLT_4: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: False, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.EXT_VOLT_5: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: False, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.SBE38: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: False, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.SBE50: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: False, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.WETLABS: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: False, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.OPTODE: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: True, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.GAS_TENSION_DEVICE: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: False, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.ECHO_CHARACTERS: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: True, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.OUTPUT_EXECUTED_TAG: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: True, SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.OUTPUT_FORMAT: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: "raw decimal", SeaBird16plusMixin.REQUIRED: True},
-        SBE16ConfigurationDataParticleKey.SERIAL_SYNC_MODE: {SeaBird16plusMixin.TYPE: bool, SeaBird16plusMixin.VALUE: False, SeaBird16plusMixin.REQUIRED: True},
+    VALID_GETSD_RESPONSE =  "" + \
+"<StatusData DeviceType = 'SBE19plus' SerialNumber = '01907230'>" + NEWLINE + \
+"   <DateTime>2014-05-08T21:58:38</DateTime>" + NEWLINE + \
+"   <LoggingState>not logging</LoggingState>" + NEWLINE + \
+"   <EventSummary numEvents = '3'/>" + NEWLINE + \
+"   <Power>" + NEWLINE + \
+"      <vMain>12.9</vMain>" + NEWLINE + \
+"      <vLith>8.5</vLith>" + NEWLINE + \
+"      <iMain>51.1</iMain>" + NEWLINE + \
+"      <iPump> 0.4</iPump>" + NEWLINE + \
+"      <iExt01> 0.4</iExt01>" + NEWLINE + \
+"      <iSerial>46.9</iSerial>" + NEWLINE + \
+"   </Power>" + NEWLINE + \
+"   <MemorySummary>" + NEWLINE + \
+"      <Bytes>1224</Bytes>" + NEWLINE + \
+"      <Samples>68</Samples>" + NEWLINE + \
+"      <SamplesFree>3655384</SamplesFree>" + NEWLINE + \
+"      <SampleLength>18</SampleLength>" + NEWLINE + \
+"      <Profiles>4</Profiles>" + NEWLINE + \
+"   </MemorySummary>" + NEWLINE + \
+"</StatusData>" + NEWLINE
+
+    VALID_SEND_OPTODE_RESPONSE = "" + \
+'Optode RX = CalPhase[Deg]	4831	134	30.050' + NEWLINE + \
+'S>sendoptode=get enable temperature' + NEWLINE + \
+'Sending Optode: get enable temperature' + NEWLINE + NEWLINE + \
+'Optode RX = Enable Temperature	4831	134	No' + NEWLINE + \
+'S>sendoptode=get enable text' + NEWLINE + \
+'Sending Optode: get enable text' + NEWLINE + NEWLINE + \
+'Optode RX = Enable Text 	4831	134	No' + NEWLINE + \
+'S>sendoptode=get enable humiditycomp' + NEWLINE + \
+'Sending Optode: get enable humiditycomp' + NEWLINE + NEWLINE + \
+'Optode RX = Enable HumidityComp	 4831	134	Yes' + NEWLINE + \
+'S>sendoptode=get enable airsaturation' + NEWLINE + \
+'Sending Optode: get enable airsaturation' + NEWLINE + NEWLINE + \
+'Optode RX = Enable AirSaturation	4831	134	No' + NEWLINE + \
+'S>sendoptode=get enable rawdata' + NEWLINE + \
+'Sending Optode: get enable rawdata' + NEWLINE + NEWLINE + \
+'Optode RX = Enable Rawdata	4831	134	No' + NEWLINE + \
+'S>sendoptode=get analog output' + NEWLINE + \
+'Sending Optode: get analog output' + NEWLINE + NEWLINE + \
+'Optode RX = Analog Output	4831	134	CalPhase' + NEWLINE + \
+'S>sendoptode=get interval' + NEWLINE + \
+'Sending Optode: get interval' + NEWLINE + NEWLINE + \
+'Optode RX = Interval	4831	134	5.000' + NEWLINE + \
+'S>sendoptode=get mode' + NEWLINE + \
+'Sending Optode: get mode' + NEWLINE + NEWLINE + \
+'Optode RX = Mode	4831	134	Smart Sensor Terminal' + NEWLINE
+
+
+    VALID_DS_RESPONSE = 'SBE 19plus V 2.3  SERIAL NO. 6914    18 Apr 2014 19:14:13' + NEWLINE + \
+        'vbatt = 23.3, vlith =  8.5, ioper =  62.1 ma, ipump =  71.7 ma, ' + NEWLINE + \
+        'iext01 =   0.2 ma, iserial =  26.0 ma' + NEWLINE + \
+        'status = not logging' + NEWLINE + \
+        'number of scans to average = 4' + NEWLINE + \
+        'samples = 1861, free = 3653591, casts = 7' + NEWLINE + \
+        'mode = profile, minimum cond freq = 500, pump delay = 60 sec' + NEWLINE + \
+        'autorun = no, ignore magnetic switch = yes' + NEWLINE + \
+        'battery type = alkaline, battery cutoff =  7.5 volts' + NEWLINE + \
+        'pressure sensor = quartz with temp comp, range = 508.0' + NEWLINE + \
+        'SBE 38 = no, WETLABS = no, OPTODE = yes, SBE 63 = no, Gas Tension Device = no' + NEWLINE + \
+        'Ext Volt 0 = yes, Ext Volt 1 = yes' + NEWLINE + \
+        'Ext Volt 2 = no, Ext Volt 3 = no' + NEWLINE + \
+        'Ext Volt 4 = no, Ext Volt 5 = no' + NEWLINE + \
+        'echo characters = no' + NEWLINE + \
+        'output format = raw HEX' + NEWLINE
+
+    ###
+    #  Parameter and Type Definitions
+    ###
+
+    _sample_parameters = {
+        SBE19DataParticleKey.TEMP: {TYPE: int, VALUE: 284431, REQUIRED: True },
+        SBE19DataParticleKey.CONDUCTIVITY: {TYPE: int, VALUE: 663185, REQUIRED: True },
+        SBE19DataParticleKey.PRESSURE: {TYPE: int, VALUE: 534780, REQUIRED: True },
+        SBE19DataParticleKey.PRESSURE_TEMP: {TYPE: int, VALUE: 18364, REQUIRED: True },
+        SBE19DataParticleKey.VOLT0: {TYPE: int, VALUE: 23025, REQUIRED: True },
+        SBE19DataParticleKey.VOLT1: {TYPE: int, VALUE: 39317, REQUIRED: True },
+        SBE19DataParticleKey.OXYGEN: {TYPE: int, VALUE: 2909385, REQUIRED: True },
+
     }
 
-SeaBird16plusMixin._status_parameters = {
-        SBE16StatusDataParticleKey.SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 1607231, SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.DATE_TIME: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: "2013-04-26T22:20:21", SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.LOGGING_STATUS: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: "not logging", SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.NUMBER_OF_EVENTS: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 317, SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.BATTERY_VOLTAGE_MAIN: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 13.0, SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.BATTERY_VOLTAGE_LITHIUM: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 8.6, SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.OPERATIONAL_CURRENT: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 51.1, SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.PUMP_CURRENT: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 0.5, SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.EXT_V01_CURRENT: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 0.5, SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.SERIAL_CURRENT: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 45.1, SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.MEMMORY_FREE: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 330, SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.NUMBER_OF_SAMPLES: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 15, SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.SAMPLES_FREE: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 2990809, SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.SAMPLE_LENGTH: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 22, SeaBird16plusMixin.REQUIRED: True},
-        SBE16StatusDataParticleKey.HEADERS: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 3, SeaBird16plusMixin.REQUIRED: True},
+    _configuration_parameters = {
+        SBE16NOConfigurationParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 1907230, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.SCANS_TO_AVERAGE: {TYPE: int, VALUE: 4, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.MIN_COND_FREQ: {TYPE: int, VALUE: 500, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.PUMP_DELAY: {TYPE: int, VALUE: 60, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.AUTO_RUN: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.IGNORE_SWITCH: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.BATTERY_TYPE: {TYPE: unicode, VALUE: "alkaline", REQUIRED: True},
+        SBE16NOConfigurationParticleKey.BATTERY_CUTOFF: {TYPE: float, VALUE: 7.5, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.EXT_VOLT_0: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.EXT_VOLT_1: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.EXT_VOLT_2: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.EXT_VOLT_3: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.EXT_VOLT_4: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.EXT_VOLT_5: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.SBE38: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.WETLABS: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.OPTODE: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.SBE63: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.GAS_TENSION_DEVICE: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.ECHO_CHARACTERS: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.OUTPUT_EXECUTED_TAG: {TYPE: bool, VALUE: False, REQUIRED: True},
+        SBE16NOConfigurationParticleKey.OUTPUT_FORMAT: {TYPE: unicode, VALUE: "raw HEX", REQUIRED: True},
     }
 
-SeaBird16plusMixin._hardware_parameters = {
-        SBE16HardwareDataParticleKey.SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 1607231, SeaBird16plusMixin.REQUIRED: True},
-        SBE16HardwareDataParticleKey.FIRMWARE_VERSION: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: '2.5.2', SeaBird16plusMixin.REQUIRED: True},
-        SBE16HardwareDataParticleKey.FIRMWARE_DATE: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: '12 Mar 2013 11:50', SeaBird16plusMixin.REQUIRED: True},
-        SBE16HardwareDataParticleKey.COMMAND_SET_VERSION: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: '2.3', SeaBird16plusMixin.REQUIRED: True},
-        SBE16HardwareDataParticleKey.MANUFATURE_DATE: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: '29-Oct-2012', SeaBird16plusMixin.REQUIRED: True},
-        SBE16HardwareDataParticleKey.PCB_SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: list, SeaBird16plusMixin.VALUE: ['49577', '46750', '49374', '38071'], SeaBird16plusMixin.REQUIRED: True},
-        SBE16HardwareDataParticleKey.ASSEMBLY_NUMBER: {SeaBird16plusMixin.TYPE: list, SeaBird16plusMixin.VALUE: ['41054H', '41580B', '41606', '41057A'], SeaBird16plusMixin.REQUIRED: True},
-        SBE16HardwareDataParticleKey.TEMPERATURE_SENSOR_SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 1607231, SeaBird16plusMixin.REQUIRED: True},
-        SBE16HardwareDataParticleKey.CONDUCTIVITY_SENSOR_SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 1607231, SeaBird16plusMixin.REQUIRED: True},
-        SBE16HardwareDataParticleKey.QUARTZ_PRESSURE_SENSOR_SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 125270, SeaBird16plusMixin.REQUIRED: True},
-        SBE16HardwareDataParticleKey.PRESSURE_SENSOR_TYPE: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: 'quartzTC-0', SeaBird16plusMixin.REQUIRED: True},
+    _status_parameters = {
+        SBE19StatusParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 1907230, REQUIRED: True},
+        SBE19StatusParticleKey.DATE_TIME: {TYPE: unicode, VALUE: "2014-05-08T21:58:38", REQUIRED: True},
+        SBE19StatusParticleKey.LOGGING_STATE: {TYPE: unicode, VALUE: "not logging", REQUIRED: True},
+        SBE19StatusParticleKey.NUMBER_OF_EVENTS: {TYPE: int, VALUE: 3, REQUIRED: True},
+        SBE19StatusParticleKey.BATTERY_VOLTAGE_MAIN: {TYPE: float, VALUE: 12.9, REQUIRED: True},
+        SBE19StatusParticleKey.BATTERY_VOLTAGE_LITHIUM: {TYPE: float, VALUE: 8.5, REQUIRED: True},
+        SBE19StatusParticleKey.OPERATIONAL_CURRENT: {TYPE: float, VALUE: 51.1, REQUIRED: True},
+        SBE19StatusParticleKey.PUMP_CURRENT: {TYPE: float, VALUE: 0.4, REQUIRED: True},
+        SBE19StatusParticleKey.EXT_V01_CURRENT: {TYPE: float, VALUE: 0.4, REQUIRED: True},
+        SBE19StatusParticleKey.SERIAL_CURRENT: {TYPE: float, VALUE: 46.9, REQUIRED: True},
+        SBE19StatusParticleKey.MEMORY_FREE: {TYPE: int, VALUE: 1224, REQUIRED: True},
+        SBE19StatusParticleKey.NUMBER_OF_SAMPLES: {TYPE: int, VALUE: 68, REQUIRED: True},
+        SBE19StatusParticleKey.SAMPLES_FREE: {TYPE: int, VALUE: 3655384, REQUIRED: True},
+        SBE19StatusParticleKey.SAMPLE_LENGTH: {TYPE: int, VALUE: 18, REQUIRED: True},
+        SBE19StatusParticleKey.PROFILES: {TYPE: int, VALUE: 4, REQUIRED: True},
     }
 
-SeaBird16plusMixin._calibration_parameters = {
-        SBE16CalibrationDataParticleKey.SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 1607231, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.TEMP_SENSOR_SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 1607231, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.TEMP_CAL_DATE: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: "07-Nov-12", SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.TA0: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 1.254755e-03, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.TA1: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 2.758871e-04, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.TA2: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: -1.368268e-06, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.TA3: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 1.910795e-07, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.TOFFSET: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 0.0, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.COND_SENSOR_SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 1607231, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.COND_CAL_DATE: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: '07-Nov-12', SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.CONDG: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: -9.761799e-01, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.CONDH: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 1.369994e-01, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.CONDI: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: -3.523860e-04, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.CONDJ: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 4.404252e-05, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.CPCOR: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: -9.570000e-08, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.CTCOR: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 3.250000e-06, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.CSLOPE: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 1.0, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.PRES_SERIAL_NUMBER: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 125270, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.PRES_CAL_DATE: {SeaBird16plusMixin.TYPE: unicode, SeaBird16plusMixin.VALUE: '02-nov-12', SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.PC1: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: -4.642673e+03, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.PC2: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: -4.611640e-03, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.PC3: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 8.921190e-04, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.PD1: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 7.024800e-02, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.PD2: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 0.000000e+00, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.PT1: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 3.022595e+01, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.PT2: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: -1.549720e-04, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.PT3: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 2.677750e-06, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.PT4: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 1.705490e-09, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.PSLOPE: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 1.000000e+00, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.POFFSET: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 0.000000e+00, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.PRES_RANGE: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 1000, SeaBird16plusMixin.REQUIRED: True },
-        SBE16CalibrationDataParticleKey.EXT_VOLT0_OFFSET: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: -4.650526e-02, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.EXT_VOLT0_SLOPE: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 1.246381e+00, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.EXT_VOLT1_OFFSET: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: -4.618105e-02, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.EXT_VOLT1_SLOPE: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 1.247197e+00, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.EXT_VOLT2_OFFSET: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: -4.659790e-02, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.EXT_VOLT2_SLOPE: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 1.247601e+00, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.EXT_VOLT3_OFFSET: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: -4.502421e-02, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.EXT_VOLT3_SLOPE: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 1.246911e+00, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.EXT_VOLT4_OFFSET: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: -4.589158e-02, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.EXT_VOLT4_SLOPE: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 1.246346e+00, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.EXT_VOLT5_OFFSET: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: -4.609895e-02, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.EXT_VOLT5_SLOPE: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 1.247868e+00, SeaBird16plusMixin.REQUIRED: True},
-        SBE16CalibrationDataParticleKey.EXT_FREQ: {SeaBird16plusMixin.TYPE: float, SeaBird16plusMixin.VALUE: 9.999949e-01, SeaBird16plusMixin.REQUIRED: True},
+    _hardware_parameters = {
+        SBE16NOHardwareParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 1907230, REQUIRED: True},
+        SBE16NOHardwareParticleKey.MANUFACTURER: {TYPE: unicode, VALUE: "Sea-Bird Electronics, Inc.", REQUIRED: True},
+        SBE16NOHardwareParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: '2.5.2', REQUIRED: True},
+        SBE16NOHardwareParticleKey.FIRMWARE_DATE: {TYPE: unicode, VALUE: '12 Mar 2013 11:50', REQUIRED: True},
+        SBE16NOHardwareParticleKey.COMMAND_SET_VERSION: {TYPE: unicode, VALUE: '1.3', REQUIRED: True},
+        SBE16NOHardwareParticleKey.PCB_SERIAL_NUMBER: {TYPE: list, VALUE: ['49565', '43360', '49357', '38072'], REQUIRED: True},
+        SBE16NOHardwareParticleKey.ASSEMBLY_NUMBER: {TYPE: list, VALUE: ['41054H', '41580B', '41606', '41057A'], REQUIRED: True},
+        SBE16NOHardwareParticleKey.MANUFACTURE_DATE: {TYPE: unicode, VALUE: '29-Oct-2012', REQUIRED: True},
+        SBE16NOHardwareParticleKey.TEMPERATURE_SENSOR_SERIAL_NUMBER: {TYPE: int, VALUE: 1907230, REQUIRED: True},
+        SBE16NOHardwareParticleKey.TEMPERATURE_SENSOR_TYPE: {TYPE: unicode, VALUE: 'temperature0', REQUIRED: True},
+        SBE16NOHardwareParticleKey.CONDUCTIVITY_SENSOR_SERIAL_NUMBER: {TYPE: int, VALUE: 1907230, REQUIRED: True},
+        SBE16NOHardwareParticleKey.CONDUCTIVITY_SENSOR_TYPE: {TYPE: unicode, VALUE: 'conductivity-0', REQUIRED: True},
+        SBE16NOHardwareParticleKey.PRESSURE_SENSOR_SERIAL_NUMBER: {TYPE: unicode, VALUE: '124969', REQUIRED: True},
+        SBE16NOHardwareParticleKey.PRESSURE_SENSOR_TYPE: {TYPE: unicode, VALUE: 'quartzTC-0', REQUIRED: True},
+        SBE16NOHardwareParticleKey.VOLT0_TYPE: {TYPE: unicode, VALUE: 'not assigned', REQUIRED: True},
+        SBE16NOHardwareParticleKey.VOLT0_SERIAL_NUMBER: {TYPE: unicode, VALUE: 'not assigned', REQUIRED: True},
+        SBE16NOHardwareParticleKey.VOLT1_TYPE: {TYPE: unicode, VALUE: 'not assigned', REQUIRED: True},
+        SBE16NOHardwareParticleKey.VOLT1_SERIAL_NUMBER: {TYPE: unicode, VALUE: 'not assigned', REQUIRED: True},
     }
 
-SeaBird16plusMixin._sample_parameters = {
-        SBE16NoDataParticleKey.TEMP: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 252984, SeaBird16plusMixin.REQUIRED: True },
-        SBE16NoDataParticleKey.CONDUCTIVITY: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 684933, SeaBird16plusMixin.REQUIRED: True },
-        SBE16NoDataParticleKey.PRESSURE: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 8483631, SeaBird16plusMixin.REQUIRED: True },
-        SBE16NoDataParticleKey.PRESSURE_TEMP: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 34737, SeaBird16plusMixin.REQUIRED: True },
-        SBE16NoDataParticleKey.TIME: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 420584602, SeaBird16plusMixin.REQUIRED: True },
-        SBE16NoDataParticleKey.OXY_CALPHASE: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 18, SeaBird16plusMixin.REQUIRED: True },
-        SBE16NoDataParticleKey.OXYGEN: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 2856200, SeaBird16plusMixin.REQUIRED: True },
-        SBE16NoDataParticleKey.OXY_TEMP: {SeaBird16plusMixin.TYPE: int, SeaBird16plusMixin.VALUE: 12, SeaBird16plusMixin.REQUIRED: True },
+    _calibration_parameters = {
+        SBE16NOCalibrationParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 1907230, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.TEMP_SENSOR_SERIAL_NUMBER: {TYPE: int, VALUE: 1907230, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.TEMP_CAL_DATE: {TYPE: unicode, VALUE: "07-Dec-13", REQUIRED: True},
+        SBE16NOCalibrationParticleKey.TA0: {TYPE: float, VALUE: 1.272723e-03, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.TA1: {TYPE: float, VALUE: 2.687218e-04, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.TA2: {TYPE: float, VALUE: -4.735777e-07, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.TA3: {TYPE: float, VALUE: 1.522571e-07, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.TOFFSET: {TYPE: float, VALUE: 0.0, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.COND_SENSOR_SERIAL_NUMBER: {TYPE: int, VALUE: 1907230, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.COND_CAL_DATE: {TYPE: unicode, VALUE: '07-Dec-13', REQUIRED: True},
+        SBE16NOCalibrationParticleKey.CONDG: {TYPE: float, VALUE: -9.931677e-01, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.CONDH: {TYPE: float, VALUE: 1.391189e-01, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.CONDI: {TYPE: float, VALUE: -4.457962e-04, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.CONDJ: {TYPE: float, VALUE: 5.145191e-05, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.CPCOR: {TYPE: float, VALUE: -9.570000e-08, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.CTCOR: {TYPE: float, VALUE: 3.250000e-06, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.CSLOPE: {TYPE: float, VALUE: 1.0, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.PRES_SERIAL_NUMBER: {TYPE: int, VALUE: 124969, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.PRES_CAL_DATE: {TYPE: unicode, VALUE: '05-Dec-13', REQUIRED: True },
+        SBE16NOCalibrationParticleKey.PC1: {TYPE: float, VALUE: 9.913353e+02, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.PC2: {TYPE: float, VALUE:1.013600e-05, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.PC3: {TYPE: float, VALUE: -1.182100e-04, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.PD1: {TYPE: float, VALUE: 3.107200e-02, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.PD2: {TYPE: float, VALUE: 0.000000e+00, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.PT1: {TYPE: float, VALUE: 2.767451e+01, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.PT2: {TYPE: float, VALUE: -1.080330e-04, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.PT3: {TYPE: float, VALUE: 1.036700e-06, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.PT4: {TYPE: float, VALUE: 1.687490e-09, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.PSLOPE: {TYPE: float, VALUE: 1.000000e+00, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.POFFSET: {TYPE: float, VALUE: 0.000000e+00, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.PRES_RANGE: {TYPE: int, VALUE: 2.000000e+02, REQUIRED: True },
+        SBE16NOCalibrationParticleKey.EXT_VOLT0_OFFSET: {TYPE: float, VALUE: -4.719895e-02, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.EXT_VOLT0_SLOPE: {TYPE: float, VALUE: 1.248055e+00, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.EXT_VOLT1_OFFSET: {TYPE: float, VALUE: -4.677263e-02, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.EXT_VOLT1_SLOPE: {TYPE: float, VALUE: 1.249706e+00, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.EXT_VOLT2_OFFSET: {TYPE: float, VALUE: -4.673579e-02, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.EXT_VOLT2_SLOPE: {TYPE: float, VALUE: 1.247281e+00, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.EXT_VOLT3_OFFSET: {TYPE: float, VALUE: -4.665053e-02, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.EXT_VOLT3_SLOPE: {TYPE: float, VALUE: 1.248687e+00, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.EXT_VOLT4_OFFSET: {TYPE: float, VALUE: -4.620527e-02, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.EXT_VOLT4_SLOPE: {TYPE: float, VALUE: 1.248225e+00, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.EXT_VOLT5_OFFSET: {TYPE: float, VALUE: -4.645263e-02, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.EXT_VOLT5_SLOPE: {TYPE: float, VALUE: 1.249040e+00, REQUIRED: True},
+        SBE16NOCalibrationParticleKey.EXT_FREQ: {TYPE: float, VALUE: 9.999944e-01, REQUIRED: True},
     }
 
-def assert_particle_hardware(self, data_particle, verify_values = False):
-    '''
-    Verify hardware particle
-    @param data_particle:  SBE16HardwareDataParticle data particle
-    @param verify_values:  bool, should we verify parameter values
-    '''
-    self.assert_data_particle_keys(SBE16HardwareDataParticleKey, self._hardware_parameters)
-    self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_HARDWARE)
-    self.assert_data_particle_parameters(data_particle, self._hardware_parameters, verify_values)
+    _send_optode_parameters = {
+        OptodeSettingsParticleKey.ANALOG_OUTPUT: {TYPE: unicode, VALUE: 'CalPhase', REQUIRED: True},
+        OptodeSettingsParticleKey.CALPHASE: {TYPE: float, VALUE: 30.050, REQUIRED: True},
+        OptodeSettingsParticleKey.ENABLE_AIR_SAT: {TYPE: bool, VALUE: False, REQUIRED: True},
+        OptodeSettingsParticleKey.ENABLE_RAW_DATA: {TYPE: bool, VALUE: False, REQUIRED: True},
+        OptodeSettingsParticleKey.ENABLE_HUM_COMP: {TYPE: bool, VALUE: True, REQUIRED: True},
+        OptodeSettingsParticleKey.ENABLE_TEMP: {TYPE: bool, VALUE: False, REQUIRED: True},
+        OptodeSettingsParticleKey.ENABLE_TEXT: {TYPE: bool, VALUE: False, REQUIRED: True},
+        OptodeSettingsParticleKey.INTERVAL: {TYPE: float, VALUE: 5.000, REQUIRED: True},
+        OptodeSettingsParticleKey.MODE: {TYPE: unicode, VALUE: 'Smart Sensor Terminal', REQUIRED: True},
 
-def assert_particle_sample(self, data_particle, verify_values = False):
-    '''
-    Verify sample particle
-    @param data_particle:  SBE16DataParticle data particle
-    @param verify_values:  bool, should we verify parameter values
-    '''
-    self.assert_data_particle_keys(SBE16NoDataParticleKey, self._sample_parameters)
-    self.assert_data_particle_header(data_particle, DataParticleType.CTD_PARSED, require_instrument_timestamp=True)
-    self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
+    }
 
-def assert_particle_calibration(self, data_particle, verify_values = False):
-    '''
-    Verify sample particle
-    @param data_particle:  SBE16CalibrationDataParticle calibration particle
-    @param verify_values:  bool, should we verify parameter values
-    '''
-    self.assert_data_particle_keys(SBE16CalibrationDataParticleKey, self._calibration_parameters)
-    self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CALIBRATION)
-    self.assert_data_particle_parameters(data_particle, self._calibration_parameters, verify_values)
+    ###
+    #  Parameter and Type Definitions
+    ###
+    _driver_parameters = {
+        # Parameters defined in the IOS
+        Parameter.DATE_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
+        Parameter.PTYPE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 3, VALUE: 3},
+        Parameter.VOLT0 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
+        Parameter.VOLT1 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
+        Parameter.VOLT2 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.VOLT3 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.VOLT4 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.VOLT5 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.SBE38 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.WETLABS : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.GTD : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.DUAL_GTD : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.SBE63 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.OPTODE : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
+        Parameter.OUTPUT_FORMAT : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 0, VALUE: 0},
+        Parameter.NUM_AVG_SAMPLES : {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 4, VALUE: 4},
+        Parameter.MIN_COND_FREQ : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 500, VALUE: 500},
+        Parameter.PUMP_DELAY : {TYPE: int, READONLY: False, DA: True, STARTUP: True, DEFAULT: 60, VALUE: 60},
+        Parameter.AUTO_RUN : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
+        Parameter.IGNORE_SWITCH : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
+        Parameter.LOGGING : {TYPE: bool, READONLY: True, DA: False, STARTUP: False},
+    }
 
-def assert_particle_status(self, data_particle, verify_values = False):
-    '''
-    Verify status particle
-    @param data_particle:  SBE16StatusDataParticle status particle
-    @param verify_values:  bool, should we verify parameter values
-    '''
-    self.assert_data_particle_keys(SBE16StatusDataParticleKey, self._status_parameters)
-    self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_STATUS)
-    self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        Capability.START_AUTOSAMPLE : {STATES: [ProtocolState.COMMAND]},
+        Capability.STOP_AUTOSAMPLE : {STATES: [ProtocolState.AUTOSAMPLE]},
+        Capability.CLOCK_SYNC : {STATES: [ProtocolState.COMMAND]},
+        Capability.ACQUIRE_STATUS : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.GET_CONFIGURATION : {STATES: [ProtocolState.COMMAND, ProtocolState.AUTOSAMPLE]},
+        Capability.RESET_EC : {STATES: [ProtocolState.COMMAND]},
 
-def assert_particle_configuration(self, data_particle, verify_values = False):
-    '''
-    Verify configuration particle
-    @param data_particle:  SBE16ConfigurationDataParticle configuration particle
-    @param verify_values:  bool, should we verify parameter values
-    '''
-    self.assert_data_particle_keys(SBE16ConfigurationDataParticleKey, self._configuration_parameters)
-    self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CONFIGURATION)
-    self.assert_data_particle_parameters(data_particle, self._configuration_parameters, verify_values)
+    }
 
-def assert_driver_parameters(self, current_parameters, verify_values = False):
-    """
-    Verify that all driver parameters are correct and potentially verify values.
-    @param current_parameters: driver parameters read from the driver instance
-    @param verify_values: should we verify values against definition?
-    """
-    self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
+    def assert_driver_parameters(self, current_parameters, verify_values = False):
+        """
+        Verify that all driver parameters are correct and potentially verify values.
+        @param current_parameters: driver parameters read from the driver instance
+        @param verify_values: should we verify values against definition?
+        """
+        self.assert_parameters(current_parameters, self._driver_parameters, verify_values)
 
-setattr(SeaBird16plusMixin, 'assert_particle_hardware', assert_particle_hardware)
-setattr(SeaBird16plusMixin, 'assert_particle_sample', assert_particle_sample)
-setattr(SeaBird16plusMixin, 'assert_particle_calibration', assert_particle_calibration)
-setattr(SeaBird16plusMixin, 'assert_particle_status', assert_particle_status)
-setattr(SeaBird16plusMixin, 'assert_particle_configuration', assert_particle_configuration)
-setattr(SeaBird16plusMixin, 'assert_driver_parameters', assert_driver_parameters)
+    def assert_particle_sample(self, data_particle, verify_values = False):
+        '''
+        Verify sample particle
+        @param data_particle:  SBE19DataParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(SBE19DataParticleKey, self._sample_parameters)
+        self.assert_data_particle_header(data_particle, DataParticleType.CTD_PARSED, require_instrument_timestamp=False)
+        self.assert_data_particle_parameters(data_particle, self._sample_parameters, verify_values)
+
+    def assert_particle_hardware(self, data_particle, verify_values = False):
+        '''
+        Verify hardware particle
+        @param data_particle:  SBE19HardwareParticle data particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(SBE16NOHardwareParticleKey, self._hardware_parameters)
+        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_HARDWARE)
+        self.assert_data_particle_parameters(data_particle, self._hardware_parameters, verify_values)
+
+    def assert_particle_calibration(self, data_particle, verify_values = False):
+        '''
+        Verify sample particle
+        @param data_particle:  SBE19CalibrationParticle calibration particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(SBE16NOCalibrationParticleKey, self._calibration_parameters)
+        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CALIBRATION)
+        self.assert_data_particle_parameters(data_particle, self._calibration_parameters, verify_values)
+
+    def assert_particle_status(self, data_particle, verify_values = False):
+        '''
+        Verify status particle
+        @param data_particle:  SBE19StatusParticle status particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(SBE19StatusParticleKey, self._status_parameters)
+        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_STATUS)
+        self.assert_data_particle_parameters(data_particle, self._status_parameters, verify_values)
+
+    def assert_particle_configuration(self, data_particle, verify_values = False):
+        '''
+        Verify configuration particle
+        @param data_particle:  SBE19ConfigurationParticle configuration particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(SBE16NOConfigurationParticleKey, self._configuration_parameters)
+        self.assert_data_particle_header(data_particle, DataParticleType.DEVICE_CONFIGURATION)
+        self.assert_data_particle_parameters(data_particle, self._configuration_parameters, verify_values)
+
+    def assert_particle_send_optode(self, data_particle, verify_values = False):
+        '''
+        Verify send optode particle
+        @param data_particle:  SBE19EventCounterParticle event counter particle
+        @param verify_values:  bool, should we verify parameter values
+        '''
+        self.assert_data_particle_keys(OptodeSettingsParticleKey, self._send_optode_parameters)
+        self.assert_data_particle_header(data_particle, DataParticleType.OPTODE_SETTINGS)
+        self.assert_data_particle_parameters(data_particle, self._send_optode_parameters, verify_values)
 
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
 ###############################################################################
 @attr('UNIT', group='mi')
-class UnitFromIDK(SBEUnitTestCase):
-    
-    def setUp(self):
-        SBEUnitTestCase.setUp(self)
-        if log.getEffectiveLevel() == logging.DEBUG:
-            # output a newline if logging level is set to debug so the stupid output from startTest() in
-            # /Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/unittest/runtest.py
-            # doesn't mess up the logging output alignment
-            print("")
+class SBE16NOUnitTestCase(SeaBirdUnitTest, SBE16NOMixin):
+    def test_driver_enums(self):
+        """
+        Verify that all driver enumeration has no duplicate values that might cause confusion.  Also
+        do a little extra validation for the Capabilites
+        """
+        self.assert_enum_has_no_duplicates(ScheduledJob())
+        self.assert_enum_has_no_duplicates(Command())
+        self.assert_enum_has_no_duplicates(SendOptodeCommand())
+        self.assert_enum_has_no_duplicates(DataParticleType())
+        self.assert_enum_has_no_duplicates(ProtocolState())
+        self.assert_enum_has_no_duplicates(ProtocolEvent())
+
+        self.assert_enum_has_no_duplicates(Parameter())
+        self.assert_enum_complete(ConfirmedParameter(), Parameter())
+
+        # Test capabilites for duplicates, then verify that capabilities is a subset of proto events
+        self.assert_enum_has_no_duplicates(Capability())
+        self.assert_enum_complete(Capability(), ProtocolEvent())
+
+    def test_driver_schema(self):
+        """
+        get the driver schema and verify it is configured properly
+        """
+        driver = self.InstrumentDriver(self._got_data_event_callback)
+        self.assert_driver_schema(driver, self._driver_parameters, self._driver_capabilities)
 
     def test_chunker(self):
         """
-        Test the chunker for NO version and verify the particles created.
+        Test the chunker and verify the particles created.
         """
-        chunker = StringChunker(SBE16_NO_Protocol.sieve_function)
+        chunker = StringChunker(SBE16NOProtocol.sieve_function)
 
         self.assert_chunker_sample(chunker, self.VALID_SAMPLE)
         self.assert_chunker_sample_with_noise(chunker, self.VALID_SAMPLE)
@@ -517,24 +679,77 @@ class UnitFromIDK(SBEUnitTestCase):
         self.assert_chunker_fragmented_sample(chunker, self.VALID_GETCD_RESPONSE)
         self.assert_chunker_combined_sample(chunker, self.VALID_GETCD_RESPONSE)
 
+        self.assert_chunker_sample(chunker, self.VALID_SEND_OPTODE_RESPONSE)
+        self.assert_chunker_sample_with_noise(chunker, self.VALID_SEND_OPTODE_RESPONSE)
+        self.assert_chunker_fragmented_sample(chunker, self.VALID_SEND_OPTODE_RESPONSE)
+        self.assert_chunker_combined_sample(chunker, self.VALID_SEND_OPTODE_RESPONSE)
+
     def test_got_data(self):
         """
-        Verify sample data passed through the got data method produces the correct data particles for NO version 
+        Verify sample data passed through the got data method produces the correct data particles
         """
         # Create and initialize the instrument driver with a mock port agent
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
-        
+
+        self.assert_raw_particle_published(driver, True)
+
         # Start validating data particles
-        self.assert_particle_published(driver, self.VALID_GETHD_RESPONSE, self.assert_particle_hardware, True)
         self.assert_particle_published(driver, self.VALID_SAMPLE, self.assert_particle_sample, True)
+        self.assert_particle_published(driver, self.VALID_GETHD_RESPONSE, self.assert_particle_hardware, True)
         self.assert_particle_published(driver, self.VALID_GETCC_RESPONSE, self.assert_particle_calibration, True)
         self.assert_particle_published(driver, self.VALID_GETSD_RESPONSE, self.assert_particle_status, True)
         self.assert_particle_published(driver, self.VALID_GETCD_RESPONSE, self.assert_particle_configuration, True)
-        
+        self.assert_particle_published(driver, self.VALID_SEND_OPTODE_RESPONSE, self.assert_particle_send_optode, True)
+
+    def test_protocol_filter_capabilities(self):
+        """
+        This tests driver filter_capabilities.
+        Iterate through available capabilities, and verify that they can pass successfully through the filter.
+        Test silly made up capabilities to verify they are blocked by filter.
+        """
+        my_event_callback = Mock(spec="UNKNOWN WHAT SHOULD GO HERE FOR evt_callback")
+        protocol = SBE16NOProtocol(Prompt, NEWLINE, my_event_callback)
+        driver_capabilities = Capability().list()
+        test_capabilities = Capability().list()
+
+        # Add a bogus capability that will be filtered out.
+        test_capabilities.append("BOGUS_CAPABILITY")
+
+        # Verify "BOGUS_CAPABILITY was filtered out
+        self.assertEquals(driver_capabilities, protocol._filter_capabilities(test_capabilities))
+
+    def test_capabilities(self):
+        """
+        Verify the FSM reports capabilities as expected.  All states defined in this dict must
+        also be defined in the protocol FSM.
+        """
+        capabilities = {
+            ProtocolState.UNKNOWN: ['DRIVER_EVENT_DISCOVER'],
+            ProtocolState.COMMAND: ['DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                    'DRIVER_EVENT_ACQUIRE_STATUS',
+                                    'DRIVER_EVENT_CLOCK_SYNC',
+                                    'DRIVER_EVENT_GET',
+                                    'DRIVER_EVENT_SET',
+                                    'DRIVER_EVENT_START_AUTOSAMPLE',
+                                    'DRIVER_EVENT_START_DIRECT',
+                                    'PROTOCOL_EVENT_GET_CONFIGURATION',
+                                    'PROTOCOL_EVENT_RESET_EC',
+                                    'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC'],
+            ProtocolState.AUTOSAMPLE: ['DRIVER_EVENT_GET',
+                                       'DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                       'PROTOCOL_EVENT_GET_CONFIGURATION',
+                                       'DRIVER_EVENT_SCHEDULED_CLOCK_SYNC',
+                                       'DRIVER_EVENT_ACQUIRE_STATUS'],
+            ProtocolState.DIRECT_ACCESS: ['DRIVER_EVENT_STOP_DIRECT', 'EXECUTE_DIRECT']
+        }
+
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_capabilities(driver, capabilities)
+
     def test_parse_ds(self):
         """
-        Create a mock port agent
+        Verify that the DS command gets parsed correctly and check that the param dict gets updated
         """
         driver = self.InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver, ProtocolState.COMMAND)
@@ -543,7 +758,7 @@ class UnitFromIDK(SBEUnitTestCase):
         baseline = driver._protocol._param_dict.get_current_timestamp()
 
         # First verify that parse ds sets all know parameters.
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        driver._protocol._parse_dsdc_response(source, Prompt.COMMAND)
         pd = driver._protocol._param_dict.get_all(baseline)
         log.debug("Param Dict Values: %s" % pd)
         log.debug("Param Sample: %s" % source)
@@ -555,44 +770,41 @@ class UnitFromIDK(SBEUnitTestCase):
         # Logging
         source = source.replace("= not logging", "= logging")
         log.debug("Param Sample: %s" % source)
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        driver._protocol._parse_dsdc_response(source, Prompt.COMMAND)
         pd = driver._protocol._param_dict.get_all(baseline)
         self.assertTrue(pd.get(Parameter.LOGGING))
 
-        # Sync Mode
-        source = source.replace("serial sync mode disabled", "serial sync mode enabled")
+        # NAvg
+        source = source.replace("scans to average = 4", "scans to average = 2")
         log.debug("Param Sample: %s" % source)
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        driver._protocol._parse_dsdc_response(source, Prompt.COMMAND)
         pd = driver._protocol._param_dict.get_all(baseline)
-        self.assertTrue(pd.get(Parameter.SYNCMODE))
+        self.assertEqual(pd.get(Parameter.NUM_AVG_SAMPLES), 2)
 
-        # Pump Mode 0
-        source = source.replace("run pump during sample", "no pump")
+        # Optode
+        source = source.replace("OPTODE = yes", "OPTODE = no")
         log.debug("Param Sample: %s" % source)
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
+        driver._protocol._parse_dsdc_response(source, Prompt.COMMAND)
         pd = driver._protocol._param_dict.get_all(baseline)
-        self.assertEqual(pd.get(Parameter.PUMP_MODE), 0)
+        self.assertFalse(pd.get(Parameter.OPTODE))
 
-        # Pump Mode 1
-        source = source.replace("no pump", "run pump for 0.5 sec")
-        log.debug("Param Sample: %s" % source)
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_all(baseline)
-        self.assertEqual(pd.get(Parameter.PUMP_MODE), 1)
+    def test_parse_set_response(self):
+        """
+        Test response from set commands.
+        """
+        driver = self.InstrumentDriver(self._got_data_event_callback)
+        self.assert_initialize_driver(driver, ProtocolState.COMMAND)
 
-        # Pressure Sensor type 2
-        source = source.replace("quartz with temp comp", "quartz without temp comp")
-        log.debug("Param Sample: %s" % source)
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_all(baseline)
-        self.assertEqual(pd.get(Parameter.PTYPE), 2)
+        response = "Not an error"
+        driver._protocol._parse_set_response(response, Prompt.EXECUTED)
+        driver._protocol._parse_set_response(response, Prompt.COMMAND)
 
-        # Pressure Sensor type 3
-        source = source.replace("quartz without temp comp", "strain gauge")
-        log.debug("Param Sample: %s" % source)
-        driver._protocol._parse_dsdc_response(source, '<Executed/>')
-        pd = driver._protocol._param_dict.get_all(baseline)
-        self.assertEqual(pd.get(Parameter.PTYPE), 1)
+        with self.assertRaises(InstrumentProtocolException):
+            driver._protocol._parse_set_response(response, Prompt.BAD_COMMAND)
+
+        response = "<ERROR type='INVALID ARGUMENT' msg='out of range'/>"
+        with self.assertRaises(InstrumentParameterException):
+            driver._protocol._parse_set_response(response, Prompt.EXECUTED)
 
 
 ###############################################################################
@@ -603,7 +815,7 @@ class UnitFromIDK(SBEUnitTestCase):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class IntFromIDK(SBEIntTestCase):
+class IntFromIDK(SBE19IntegrationTest, SBE16NOMixin):
 
     def assert_calibration_coefficients(self):
         """
@@ -774,7 +986,7 @@ class IntFromIDK(SBEIntTestCase):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class QualFromIDK(SBEQualTestCase):
+class QualFromIDK(SBE19QualificationTest):
 
     def test_autosample(self):
         """
@@ -856,5 +1068,5 @@ class QualFromIDK(SBEQualTestCase):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('PUB', group='mi')
-class PubFromIDK(SBEPubTestCase):
+class PubFromIDK():
     pass
