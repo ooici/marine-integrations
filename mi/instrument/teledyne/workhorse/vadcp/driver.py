@@ -114,6 +114,17 @@ class InstrumentCmds(TeledyneInstrumentCmds):
 class RawDataParticle_5thbeam(RawDataParticle):
     _data_particle_type = "raw_5thbeam"
 
+class VADCP_COMPASS_CALIBRATION_DataParticle(ADCP_COMPASS_CALIBRATION_DataParticle):
+    _data_particle_type = "vadcp_5thbeam_compass_calibration"
+
+class VADCP_SYSTEM_CONFIGURATION_DataParticle(ADCP_SYSTEM_CONFIGURATION_DataParticle):
+    _data_particle_type = "adcp_5thbean_system_configuration"
+
+class VADCP_PD0_PARSED_DataParticle(ADCP_PD0_PARSED_DataParticle):
+    _data_particle_type = "VADCP"
+    _slave = True
+
+
 class ProtocolState(TeledyneProtocolState):
     """
     Instrument protocol states
@@ -820,19 +831,19 @@ class Protocol(WorkhorseProtocol):
         objects and REGEXes.
         """
 
-        if (self._extract_sample(ADCP_COMPASS_CALIBRATION_DataParticle,
+        if (self._extract_sample(VADCP_COMPASS_CALIBRATION_DataParticle,
                                  ADCP_COMPASS_CALIBRATION_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_COMPASS_CALIBRATION_DataParticle")
 
-        if (self._extract_sample(ADCP_PD0_PARSED_DataParticle,
+        if (self._extract_sample(VADCP_PD0_PARSED_DataParticle,
                                  ADCP_PD0_PARSED_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
             log.debug("_got_chunk - successful match for ADCP_PD0_PARSED_DataParticle")
 
-        if (self._extract_sample(ADCP_SYSTEM_CONFIGURATION_DataParticle,
+        if (self._extract_sample(VADCP_SYSTEM_CONFIGURATION_DataParticle,
                                  ADCP_SYSTEM_CONFIGURATION_REGEX_MATCHER,
                                  chunk,
                                  timestamp)):
