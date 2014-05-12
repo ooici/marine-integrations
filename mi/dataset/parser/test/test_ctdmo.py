@@ -23,7 +23,7 @@ RESOURCE_PATH = os.path.join(Config().base_dir(), 'mi',
 @attr('UNIT', group='mi')
 class CtdmoParserUnitTestCase(ParserUnitTestCase):
 
-    def state_callback(self, state, filename):
+    def state_callback(self, state):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
 
@@ -84,7 +84,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         """
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                   'node59p1_shorter.dat'))
-        self.parser = CtdmoParser(self.config, None, self.stream_handle, 'node59p1.dat',
+        self.parser = CtdmoParser(self.config, None, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
 	result = self.parser.get_records(1)
@@ -119,7 +119,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             DataSetDriverConfigKeys.PARTICLE_CLASS: 'CtdmoParserDataParticle',
             }
         with self.assertRaises(DatasetParserException):
-            self.parser = CtdmoParser(bad_config, self.state, self.stream_handle, 'node59p1.dat',
+            self.parser = CtdmoParser(bad_config, self.state, self.stream_handle,
                                       self.state_callback, self.pub_callback, self.exception_callback)
 
     def test_get_many(self):
@@ -131,7 +131,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             StateKey.IN_PROCESS_DATA:[]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
+        self.parser = CtdmoParser(self.config, self.state, self.stream_handle, 
                                   self.state_callback, self.pub_callback, self.exception_callback) 
 
         result = self.parser.get_records(5)
@@ -151,7 +151,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             StateKey.IN_PROCESS_DATA:[]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_longer.dat'))
-        self.parser = CtdmoParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
+        self.parser = CtdmoParser(self.config, self.state, self.stream_handle, 
                                   self.state_callback, self.pub_callback, self.exception_callback) 
 
         result = self.parser.get_records(13)
@@ -175,7 +175,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [1429,7500]]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoParser(self.config, new_state, self.stream_handle, 'node59p1.dat',
+        self.parser = CtdmoParser(self.config, new_state, self.stream_handle, 
                                   self.state_callback, self.pub_callback, self.exception_callback) 
         result = self.parser.get_records(1)
         self.stream_handle.close()
@@ -192,7 +192,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
             StateKey.UNPROCESSED_DATA:[[0, 12], [336, 394], [5349,5539], [5924,5927], [6313,6503], [6889,7148], [7534,7985]]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoParser(self.config, new_state, self.stream_handle, 'node59p1.dat',
+        self.parser = CtdmoParser(self.config, new_state, self.stream_handle, 
                                   self.state_callback, self.pub_callback, self.exception_callback) 
 
         result = self.parser.get_records(2)
@@ -213,7 +213,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoParser(self.config, self.state, self.stream_handle, 'node59p1.dat',
+        self.parser = CtdmoParser(self.config, self.state, self.stream_handle, 
                                   self.state_callback, self.pub_callback, self.exception_callback) 
         # there should only be 1 records, make sure we stop there
         result = self.parser.get_records(1)
@@ -237,7 +237,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         # this file has a block of CT data replaced by 0s
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_replace.dat'))
-        self.parser = CtdmoParser(self.config, None, self.stream_handle, 'node59p1.dat',
+        self.parser = CtdmoParser(self.config, None, self.stream_handle, 
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(4)
@@ -256,7 +256,7 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         # this file has the block of CT data that was missing in the previous file
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = CtdmoParser(self.config, next_state, self.stream_handle, 'node59p1.dat',
+        self.parser = CtdmoParser(self.config, next_state, self.stream_handle, 
                                   self.state_callback, self.pub_callback, self.exception_callback) 
 
         # first get the old 'in process' records from [6970-7160]

@@ -135,14 +135,19 @@ class IntegrationTest(DataSetIntegrationTestCase):
         mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
-        self.memento = {"node59p1.dat": {DriverStateKey.FILE_SIZE: 6000,
-                                        DriverStateKey.FILE_CHECKSUM: 'aa1cc1aa816e99e11d8e88fc56f887e7',
-                                        DriverStateKey.FILE_MOD_DATE: mod_time,
-                                        DriverStateKey.PARSER_STATE: {'in_process_data': [],
-                                                                      'unprocessed_data':[[0, 12], [336, 394], [5924,6000]],
-                                                                     }
-                                        }
-                        }
+        self.memento = {
+            DataTypeKey.CTDMO_GHQR_SIO_MULE: {
+                "node59p1.dat": {
+                    DriverStateKey.FILE_SIZE: 6000,
+                    DriverStateKey.FILE_CHECKSUM: 'aa1cc1aa816e99e11d8e88fc56f887e7',
+                    DriverStateKey.FILE_MOD_DATE: mod_time,
+                    DriverStateKey.PARSER_STATE: {
+                        'in_process_data': [],
+                        'unprocessed_data':[[0, 12], [336, 394], [5924,6000]],                         
+                    }
+                }
+            }
+        }
         self.driver = MflmCTDMODataSetDriver(
             self._driver_config()['startup_config'],
             self.memento,

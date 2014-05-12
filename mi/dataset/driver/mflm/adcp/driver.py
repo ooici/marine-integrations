@@ -36,7 +36,6 @@ class MflmADCPSDataSetDriver(SioMuleDataSetDriver):
             config,
             parser_state,
             infile,
-            self._filename,
             self._save_parser_state,
             self._data_callback,
             self._sample_exception_callback

@@ -73,7 +73,7 @@ class SioMuleDataSetDriver(SingleFileDataSetDriver):
                           self._next_driver_state[self._filename][DriverStateKey.FILE_SIZE])
                 new_parser_state[StateKey.UNPROCESSED_DATA].append([last_size,
                                                                     self._next_driver_state[self._filename][DriverStateKey.FILE_SIZE]])
-            self._save_parser_state(new_parser_state, self._filename)
+            self._save_parser_state(new_parser_state)
 
 
 

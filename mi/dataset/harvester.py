@@ -72,8 +72,8 @@ class SingleDirectoryPoller(ConditionPoller):
         if not isinstance(self.file_mod_wait, int) or self.file_mod_wait < 0:
             raise TypeError("File modification wait time must be an integer 0 or greater")
         log.debug("Start directory poller path: %s, pattern: %s", directory, wildcard)
+        self._found_file_state = memento
         # driver state is not a new instance of memento, it is the same here as in the driver
-        self._driver_state = memento
         self._path = directory + '/' + wildcard
         log.debug("Starting harvester with directory pattern: %s", self._path)
 
@@ -101,7 +101,7 @@ class SingleDirectoryPoller(ConditionPoller):
                 filenames.sort()
 
         new_files = []
-        modified_files = False
+        modified_state = {}
         # loop over all files in the directory and compare their state to that in the harvester state dictionary
         for i_file in filenames:
             mod_time = os.path.getmtime(i_file)
@@ -109,41 +109,37 @@ class SingleDirectoryPoller(ConditionPoller):
             if (mod_time + self.file_mod_wait) < time.time():
                 file_name = os.path.basename(i_file)
                 # find if this file already exists in the found files
-                if file_name in self._driver_state and self._driver_state[file_name][DriverStateKey.INGESTED]:
+                if file_name in self._found_file_state and self._found_file_state[file_name][DriverStateKey.INGESTED]:
                     # this file has been ingested (file size and date will only be available for ingested files)
                     file_size = os.path.getsize(i_file)
-                    if self._driver_state[file_name][DriverStateKey.FILE_SIZE] != file_size or \
-                    self._driver_state[file_name][DriverStateKey.FILE_MOD_DATE] != mod_time:
+                    if self._found_file_state[file_name][DriverStateKey.FILE_SIZE] != file_size or \
+                    self._found_file_state[file_name][DriverStateKey.FILE_MOD_DATE] != mod_time:
                        # this file has been ingested, but the file size and times don't match, confirm that
                        # the checksum is different
                         with open(i_file, 'rb') as filehandle:
                             md5_checksum = hashlib.md5(filehandle.read()).hexdigest()
-                        if self._driver_state[file_name][DriverStateKey.FILE_CHECKSUM] != md5_checksum:
+                        if self._found_file_state[file_name][DriverStateKey.FILE_CHECKSUM] != md5_checksum:
                             # ingested file has been modified!
-                            if DriverStateKey.MODIFIED_STATE in self._driver_state[file_name]:
+                            if DriverStateKey.MODIFIED_STATE in self._found_file_state[file_name]:
                                 # this file has been modified before
-                                old_state = self._driver_state[file_name][DriverStateKey.MODIFIED_STATE]
+                                old_state = self._found_file_state[file_name][DriverStateKey.MODIFIED_STATE]
                                 if old_state[DriverStateKey.FILE_SIZE] != file_size or \
                                 old_state[DriverStateKey.FILE_MOD_DATE] != mod_time or \
                                 old_state[DriverStateKey.FILE_CHECKSUM] != md5_checksum:
                                     # this file has changed since its previous modification, update the
                                     # modified state
-                                    self._driver_state[file_name][DriverStateKey.MODIFIED_STATE] = {
+                                    modified_state[filename] = {
                                         DriverStateKey.FILE_SIZE: file_size,
                                         DriverStateKey.FILE_MOD_DATE: mod_time,
                                         DriverStateKey.FILE_CHECKSUM: md5_checksum,
-                                        }
-                                    # set the flag for the callback that we need to store the driver state
-                                    modified_files = True
+                                    }
                             else:
                                 # this is the first time this file has been modified
-                                self._driver_state[file_name][DriverStateKey.MODIFIED_STATE] = {
+                                modified_state[filename] = {
                                     DriverStateKey.FILE_SIZE: file_size,
                                     DriverStateKey.FILE_MOD_DATE: mod_time,
                                     DriverStateKey.FILE_CHECKSUM: md5_checksum,
-                                    }
-                                # set the flag for the callback that we need to store the driver state
-                                modified_files = True
+                                }
                 else:
                     # send all files that have not been ingested yet, but keep track in a queue so
                     # duplicates are not sent
@@ -151,23 +147,9 @@ class SingleDirectoryPoller(ConditionPoller):
                         # only send this file once
                         self.sent_to_driver_queue.append(file_name)
                         new_files.append(file_name)
-                    if file_name not in self._driver_state:
-                        # initialize the driver state
-                        # Note: because the memento came from the driver state from the dataset driver,
-                        # updating the driver state here also updates it in the dataset driver
-                        file_size = os.path.getsize(i_file)
-                        with open(i_file, 'rb') as filehandle:
-                            md5_checksum = hashlib.md5(filehandle.read()).hexdigest()
-                        self._driver_state[file_name] = {
-                            DriverStateKey.FILE_SIZE: file_size,
-                            DriverStateKey.FILE_MOD_DATE: mod_time,
-                            DriverStateKey.FILE_CHECKSUM: md5_checksum,
-                            DriverStateKey.INGESTED: False,
-                            DriverStateKey.PARSER_STATE: None
-                            }
 
-        log.debug('found new files: %r, modified_files: %r', new_files, modified_files)
-        return (new_files, modified_files)
+        log.debug('found new files: %r, modified_files: %r', new_files, modified_state)
+        return (new_files, modified_state)
 
     def sort_files(self, filenames):
         """
@@ -213,7 +195,7 @@ class SingleDirectoryPoller(ConditionPoller):
         # append the full filename to the end where it shouldn't interfere with the sorting
         split_name.append(filename)
         return split_name
-    
+
 class SingleDirectoryHarvester(SingleDirectoryPoller, Harvester):
     """
     Poll a single directory looking for new files with the single directory poller.
@@ -247,10 +229,10 @@ class SingleDirectoryHarvester(SingleDirectoryPoller, Harvester):
         have not been ingested, so duplicates may be passed back.  Filter this in the
         dataset driver. 
         """
-        (new_files, modified_files) = file_tuple
-        if modified_files:
+        (new_files, modified_state) = file_tuple
+        if modified_state != {}:
             # if there are modified files, need to update the driver state
-            self.modified_callback()
+            self.modified_callback(modified_state)
         # update the new files    
         for this_file in new_files:
             self.callback(this_file)

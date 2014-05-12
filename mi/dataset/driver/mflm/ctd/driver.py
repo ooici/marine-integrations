@@ -42,7 +42,7 @@ class MflmCTDMODataSetDriver(MultipleHarvesterDataSetDriver):
         super(MflmCTDMODataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
                                                      exception_callback, data_keys, harvester_type=harvester_type)
 
-    def _build_parser(self, parser_state, stream_in, file_in, data_key):
+    def _build_parser(self, parser_state, stream_in, data_key):
         """
         Build the requested parser based on the data key
         @param parser_state starting parser state to pass to parser
@@ -52,12 +52,12 @@ class MflmCTDMODataSetDriver(MultipleHarvesterDataSetDriver):
         """
         parser = None
         if data_key == DataTypeKey.CTDMO_GHQR_SIO_MULE:
-            parser = self._build_ctdmo_ghqr_sio_mule_parser(parser_state, stream_in, file_in)
+            parser = self._build_ctdmo_ghqr_sio_mule_parser(parser_state, stream_in)
         elif data_key == DataTypeKey.CTDMO_GHQR:
-            parser = self._build_ctdmo_ghqr_parser(parser_state, stream_in, file_in)
+            parser = self._build_ctdmo_ghqr_parser(parser_state, stream_in)
         return parser
 
-    def _build_ctdmo_ghqr_sio_mule_parser(self, parser_state, stream_in, file_in):
+    def _build_ctdmo_ghqr_sio_mule_parser(self, parser_state, stream_in):
         """
         Build and return the ctdmo ghqr sio mule parser (telemetered)
         @param parser_state starting parser state 
@@ -74,8 +74,7 @@ class MflmCTDMODataSetDriver(MultipleHarvesterDataSetDriver):
             config,
             parser_state,
             stream_in,
-            file_in,
-            self._save_parser_state,
+            self._save_ctdmo_ghqr_sio_mule_parser_state,
             self._data_callback,
             self._sample_exception_callback
         )
@@ -104,7 +103,7 @@ class MflmCTDMODataSetDriver(MultipleHarvesterDataSetDriver):
         if DataTypeKey.CTDMO_GHQR_SIO_MULE in self._harvester_config:
             self._ctdmo_ghqr_sio_mule_harvester = SingleFileHarvester(
                 self._harvester_config.get(DataTypeKey.CTDMO_GHQR_SIO_MULE),
-                driver_state,
+                driver_state[DataTypeKey.CTDMO_GHQR_SIO_MULE],
                 self._ctdmo_ghqr_sio_mule_file_changed_callback,
                 self._exception_callback
             )
@@ -134,14 +133,15 @@ class MflmCTDMODataSetDriver(MultipleHarvesterDataSetDriver):
         # need to check if the file has grown larger, if it has update the last
         # unprocessed data index
         parser_state = None
-        if DriverStateKey.PARSER_STATE in self._driver_state[filename]:
-            parser_state = self._driver_state[filename].get(DriverStateKey.PARSER_STATE)
+        if DriverStateKey.PARSER_STATE in self._driver_state[data_key][filename]:
+            parser_state = self._driver_state[data_key][filename].get(DriverStateKey.PARSER_STATE)
         if parser_state != None and \
             data_key in self._new_file_queue and filename in self._new_file_queue[data_key] and \
             DriverStateKey.FILE_SIZE in self._new_file_queue[data_key][filename] and \
-            DriverStateKey.FILE_SIZE in self._driver_state[filename] and \
+            filename in self._driver_state[data_key] and \
+            DriverStateKey.FILE_SIZE in self._driver_state[data_key][filename] and \
             parser_state[StateKey.UNPROCESSED_DATA][-1][1] < self._new_file_queue[data_key][filename][DriverStateKey.FILE_SIZE]:
-            last_size = self._driver_state[filename][DriverStateKey.FILE_SIZE]
+            last_size = self._driver_state[data_key][filename][DriverStateKey.FILE_SIZE]
             new_parser_state = parser_state
             # the file is larger, need to update last unprocessed index
             # set the new parser unprocessed data state
@@ -157,7 +157,7 @@ class MflmCTDMODataSetDriver(MultipleHarvesterDataSetDriver):
                           self._new_file_queue[data_key][filename][DriverStateKey.FILE_SIZE])
                 new_parser_state[StateKey.UNPROCESSED_DATA].append([last_size,
                                                                     self._new_file_queue[data_key][filename][DriverStateKey.FILE_SIZE]])
-            self._save_parser_state(new_parser_state, filename)
+            self._save_parser_state(new_parser_state, data_key)
 
     def _ctdmo_ghqr_sio_mule_file_changed_callback(self, new_state):
         """
@@ -174,3 +174,15 @@ class MflmCTDMODataSetDriver(MultipleHarvesterDataSetDriver):
         @param file_name: file name of the found file.
         """
         self._new_file_callback(file_name, DataTypeKey.CTDMO_GHQR)
+
+    def _save_ctdmo_ghqr_sio_mule_parser_state(self, state):
+        """
+        Callback used by ctdmo ghqr sio mule parser to save the parser state
+        """
+        self._save_parser_state(state, DataTypeKey.CTDMO_GHQR_SIO_MULE)
+
+    def _save_ctdmo_ghqr_parser_state(self, state):
+        """
+        Callback used by ctdmo ghqr parser to save the parser state
+        """
+        self._save_parser_state(state, DataTypeKey.CTDMO_GHQR)

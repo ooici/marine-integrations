@@ -39,7 +39,6 @@ class MflmDOSTADDataSetDriver(SioMuleDataSetDriver):
             config,
             parser_state,
             stream_in,
-            self._filename,
             self._save_parser_state,
             self._data_callback,
             self._sample_exception_callback
