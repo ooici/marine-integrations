@@ -321,12 +321,11 @@ class SBE19ConfigurationParticle(SeaBirdParticle):
         return result
 
 
-
 class SBE19StatusParticleKey(BaseEnum):
     SERIAL_NUMBER = "serial_number"
 
     DATE_TIME = "date_time_string"
-    LOGGING_STATE = "logging_state"
+    LOGGING_STATE = "logging_status"
     NUMBER_OF_EVENTS = "num_events"
 
     BATTERY_VOLTAGE_MAIN = "battery_voltage_main"
