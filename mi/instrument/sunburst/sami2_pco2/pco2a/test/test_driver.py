@@ -813,6 +813,7 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assert_particle_async(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=60)
         self.assert_particle_async(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
 
+    @unittest.skip("Runs for several hours to test default autosample rate of 60 minutes")
     def test_overnight(self):
         """
         Verify autosample at default rate
