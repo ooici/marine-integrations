@@ -867,11 +867,8 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         
         if expected_prompt and response_regex:
             raise InstrumentProtocolException('Cannot supply both regex and expected prompt!')
-
-        if response_regex:
-            prompt_list = []
             
-        if expected_prompt == None:
+        if expected_prompt is None:
             prompt_list = self._get_prompts()
         else:
             if isinstance(expected_prompt, str):
@@ -886,16 +883,14 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
                 match = response_regex.search(self._linebuf)
                 if match:
                     return match.groups()
-                else:
-                    time.sleep(.1)
             else:
                 for item in prompt_list:
                     index = self._promptbuf.find(item)
                     if index >= 0:
                         result = self._promptbuf[0:index+len(item)]
-                        return (item, result)
-                    else:
-                        time.sleep(.1)
+                        return item, result
+
+            time.sleep(.1)
 
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException("in InstrumentProtocol._get_response()")

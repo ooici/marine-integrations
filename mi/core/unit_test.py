@@ -11,7 +11,8 @@ integrate with the common ION test case.
 """
 
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
 import unittest
 import json 
@@ -22,6 +23,7 @@ from pyon.util.int_test  import IonIntegrationTestCase
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.data_particle import DataParticleValue
+from mi.idk.exceptions import IDKException
 
 
 class MiUnitTest(unittest.TestCase):
