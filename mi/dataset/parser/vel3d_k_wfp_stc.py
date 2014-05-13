@@ -40,7 +40,7 @@ FLAG_RECORD_SIZE = 26                   # bytes
 FLAG_RECORD_REGEX = b'(\x00|\x01){26}'  # 26 bytes of zeroes or ones
 FLAG_FORMAT = '<26?'                    # 26 booleans
 FLAG_RECORD_MATCHER = re.compile(FLAG_RECORD_REGEX)
-INDEX_FLAG_Time = 0                     # Index into the flags for time field
+INDEX_FLAG_TIME = 0                     # Index into the flags for time field
 OUTPUT_TIME_SIZE = 6                    # 6 bytes for the output time field
 
 TIME_RECORD_SIZE = 8                    # bytes
@@ -184,7 +184,7 @@ class Vel3dKWfpStcVelocityDataParticle(DataParticle):
             #
             key = VEL3D_PARAMETERS[flag][INDEX_KEY]
             if flags[flag]:
-                if flag == INDEX_FLAG_Time:
+                if flag == INDEX_FLAG_TIME:
                     #
                     # This returns a tuple, but particle wants a list.
                     #

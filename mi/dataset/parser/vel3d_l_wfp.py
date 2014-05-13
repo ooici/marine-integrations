@@ -205,6 +205,7 @@ class Vel3dLWfpInstrumentParticle(DataParticle):
 
             particle.append(particle_value)
 
+        log.info('@@@@@@@@@@@@@@@@@@@    INST PART %s', particle)
         return particle
 
 
@@ -261,6 +262,7 @@ class Vel3dLWfpMetadataParticle(DataParticle):
                 particle.append(particle_value)
             field_index += 1
 
+        log.info('@@@@@@@@@@@@@@@@@@@    META PART %s', particle)
         return particle
 
 

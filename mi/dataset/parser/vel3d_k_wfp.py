@@ -86,7 +86,7 @@ INSTRUMENT_PARTICLE_KEYS = \
     'vel3d_k_serial',
     'vel3d_k_configuration',
     'date_time_array',         # year, month, day, hour, minute, seconds
-    'vel3d_k_micro_seconds',
+    'vel3d_k_micro_second',
     'vel3d_k_speed_sound',
     'vel3d_k_temp_c',
     'vel3d_k_pressure',
@@ -125,6 +125,7 @@ INSTRUMENT_PARTICLE_KEYS = \
 ]
 DATE_TIME_ARRAY = 'date_time_array'    # This one needs to be special-cased
 DATE_TIME_SIZE = 6                     # 6 bytes for the output date time field
+DATA_SET_DESCRIPTION = 'vel3d_k_data_set_description'    # special case
 
 INDEX_STRING_ID = 0   # field number within a string record
 INDEX_STRING = 1      # field number within a string record
@@ -171,7 +172,7 @@ class Vel3dKWfpInstrumentParticle(DataParticle):
         @throws SampleException If there is a problem with sample creation
         """
         #
-        # Generate a Instrument data particle.
+        # Generate an Instrument data particle.
         # Note that raw_data already contains the individual fields
         # extracted and unpacked from the data record.
         #
@@ -183,8 +184,26 @@ class Vel3dKWfpInstrumentParticle(DataParticle):
                 if key == DATE_TIME_ARRAY:
                     time_array = self.raw_data[field : field + DATE_TIME_SIZE]
                     particle.append({DataParticleKey.VALUE_ID: key,
-                         DataParticleKey.VALUE: list(time_array)})
+                        DataParticleKey.VALUE: list(time_array)})
                     field += DATE_TIME_SIZE
+
+                elif key == DATA_SET_DESCRIPTION:
+                    #
+                    # The data set description field contains 5 3-bit values.
+                    # We extract each 3-bit value and put them in the particle
+                    # as an array.
+                    #
+                    value = self.raw_data[field]
+
+                    particle.append({DataParticleKey.VALUE_ID: key,
+                        DataParticleKey.VALUE: [value & 0x7,
+                            (value >> 3) & 0x7,
+                            (value >> 6) & 0x7,
+                            (value >> 9) & 0x7,
+                            (value >> 12) & 0x7]})
+
+                    field += 1
+
                 else:
                     key_value = self._encode_value(key, self.raw_data[field], int)
                     particle.append(key_value)
@@ -253,8 +272,6 @@ class Vel3dKWfpStringParticle(DataParticle):
 
 class Vel3dKWfpParser(BufferLoadingFilenameParser):
 
-    _timestamp = None
-    _state = None
     _read_state = None
 
     def __init__(self, config, state, file_handle, file_name,
@@ -678,8 +695,8 @@ class Vel3dKWfpParser(BufferLoadingFilenameParser):
                             search_index += 1
 
                     #
-                    # If there aren't enough bytes left in the buffer for the entire
-                    # payload, we're done searching for now.
+                    # If there aren't enough bytes left in the buffer for the
+                    # entire payload, we're done searching for now.
                     #
                     else:
                         break
@@ -723,13 +740,13 @@ class Vel3dKWfpParser(BufferLoadingFilenameParser):
           checksum matches (True) or doesn't match (False)
         """
 
-        header_checksum = struct.unpack('<H',
+        expected_checksum = struct.unpack('<H',
             header.group(GROUP_HEADER_CHECKSUM))[0]
 
-        checksum = self.calculate_checksum(input_buffer,
+        actual_checksum = self.calculate_checksum(input_buffer,
             DATA_HEADER_CHECKSUM_LENGTH)
 
-        if checksum == header_checksum:
+        if actual_checksum == expected_checksum:
             checksum_matches = True
         else:
             checksum_matches = False
@@ -737,7 +754,7 @@ class Vel3dKWfpParser(BufferLoadingFilenameParser):
                 self.report_error(RecoverableSampleException,
                     'Invalid Data Header checksum. '
                     'Actual 0x%04X. Expected 0x%04X.' %
-                    (checksum, header_checksum))
+                    (actual_checksum, expected_checksum))
 
         return checksum_matches
 
@@ -752,18 +769,17 @@ class Vel3dKWfpParser(BufferLoadingFilenameParser):
           checksum matches (True) or doesn't match (False)
         """
 
-        payload_checksum = struct.unpack('<H',
-          header.group(GROUP_HEADER_DATA_CHECKSUM))[0]
-
-        payload_size = struct.unpack('<H',
-          header.group(GROUP_HEADER_DATA_SIZE))[0]
+        expected_checksum = struct.unpack('<H',
+            header.group(GROUP_HEADER_DATA_CHECKSUM))[0]
 
         #
         # Payload size is in bytes.  Checksum sums 16-bit values.
         #
-        checksum = self.calculate_checksum(input_buffer, payload_size / 2)
+        payload_size = struct.unpack('<H',
+            header.group(GROUP_HEADER_DATA_SIZE))[0]
+        actual_checksum = self.calculate_checksum(input_buffer, payload_size / 2)
 
-        if checksum == payload_checksum:
+        if actual_checksum == expected_checksum:
             checksum_matches = True
         else:
             checksum_matches = False
@@ -771,7 +787,7 @@ class Vel3dKWfpParser(BufferLoadingFilenameParser):
                 self.report_error(RecoverableSampleException,
                     'Invalid Data Payload checksum. '
                     'Actual 0x%04X. Expected 0x%04X.' %
-                    (checksum, payload_checksum))
+                    (actual_checksum, expected_checksum))
 
         return checksum_matches
 
@@ -826,4 +842,3 @@ class Vel3dKWfpParser(BufferLoadingFilenameParser):
                 DATA_HEADER_ID_CP_DATA, DATA_HEADER_ID_STRING))
 
         return header_is_valid
-
