@@ -805,6 +805,8 @@ class DriverQualificationTest(SamiQualificationTest, DriverTestMixinSub):
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage, DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage, DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
 
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+
     def test_autosample_poll(self):
 
         self.assert_enter_command_mode()

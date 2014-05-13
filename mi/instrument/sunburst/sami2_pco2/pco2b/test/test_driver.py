@@ -757,6 +757,50 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
 
     ## EXTERNAL_PUMP_DELAY is set to 10 seconds in the startup_config.  It defaults to 10 minutes
 
+    def test_external_pump_delay(self):
+        """
+        Test delay between running of external pump and taking a sample
+        """
+
+        max_sample_time = 15  # Maximum observed sample time with current configuration.
+
+        global dev1_sample
+        global data_sample
+
+        def get_dev1_sample(particle):
+            global dev1_sample
+            dev1_sample = particle
+
+        def get_data_sample(particle):
+            global data_sample
+            data_sample = particle
+
+        self.assert_initialize_driver()
+
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+
+        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, get_dev1_sample, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, get_data_sample, timeout=180)
+
+        dev1_dict = self.get_data_particle_values_as_dict(dev1_sample)
+        sample_dict = self.get_data_particle_values_as_dict(data_sample)
+        dev1_time = dev1_dict.get(Pco2wDev1SampleDataParticleKey.RECORD_TIME)
+        sample_time = sample_dict.get(Pco2wSamiSampleDataParticleKey.RECORD_TIME)
+        time_diff = sample_time - dev1_time
+        self.assertTrue((time_diff > 10) and (time_diff < (10 + max_sample_time)), "External pump delay %s is invalid" % time_diff)
+
+        self.assert_set(Parameter.EXTERNAL_PUMP_DELAY, 60)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, get_dev1_sample, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.SAMI_SAMPLE, get_data_sample, timeout=180)
+
+        dev1_dict = self.get_data_particle_values_as_dict(dev1_sample)
+        sample_dict = self.get_data_particle_values_as_dict(data_sample)
+        dev1_time = dev1_dict.get(Pco2wDev1SampleDataParticleKey.RECORD_TIME)
+        sample_time = sample_dict.get(Pco2wSamiSampleDataParticleKey.RECORD_TIME)
+        time_diff = sample_time - dev1_time
+        self.assertTrue((time_diff > 60) and (time_diff < (60 + max_sample_time)), "External pump delay %s is invalid" % time_diff)
+
     def test_acquire_sample(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
@@ -903,6 +947,17 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=5.0)
         self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH, delay=5.0)
 
+    def test_run_external_pump(self):
+        """
+        Test running external pump and queueing status
+        """
+        self.assert_initialize_driver()
+        self.clear_events()
+        self.assert_driver_command(ProtocolEvent.RUN_EXTERNAL_PUMP)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_async_particle_generation(DataParticleType.DEV1_SAMPLE, self.assert_particle_dev1_sample, timeout=60)
+        self.assert_async_particle_generation(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=60)
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #
@@ -997,8 +1052,12 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage, DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage, DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
 
+        self.assert_particle_polled(ProtocolEvent.RUN_EXTERNAL_PUMP, self.assert_particle_dev1_sample, DataParticleType.DEV1_SAMPLE, sample_count=1, timeout=200)
+
         self.assert_resource_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=5, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
         self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH, delay=5, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
+
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
 
     def test_autosample_poll(self):
 
@@ -1046,7 +1105,10 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.ACQUIRE_STATUS,
                 ProtocolEvent.ACQUIRE_SAMPLE,
-                ProtocolEvent.ACQUIRE_BLANK_SAMPLE
+                ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
+                ProtocolEvent.DEIONIZED_WATER_FLUSH,
+                ProtocolEvent.REAGENT_FLUSH,
+                ProtocolEvent.RUN_EXTERNAL_PUMP
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()

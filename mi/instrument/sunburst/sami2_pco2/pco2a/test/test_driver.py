@@ -864,6 +864,20 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assert_particle_async(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=60)
         self.assert_particle_async(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_blank_sample, timeout=180)
 
+    def test_queued_autosample(self):
+        self.assert_enter_command_mode()
+
+        self.assert_start_autosample(timeout=200)
+        self.assert_resource_command(ProtocolEvent.ACQUIRE_SAMPLE, delay=4, resource_state=ProtocolState.SCHEDULED_SAMPLE)
+        self.assert_resource_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_resource_command(ProtocolEvent.ACQUIRE_SAMPLE)
+
+        self.assert_particle_async(DataParticleType.REGULAR_STATUS, self.assert_particle_regular_status, timeout=60)
+        self.assert_particle_async(DataParticleType.SAMI_SAMPLE, self.assert_particle_sami_data_sample, timeout=180)
+
+        self.assert_stop_autosample()
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+
     @unittest.skip("Runs for several hours to test default autosample rate of 60 minutes")
     def test_overnight(self):
         """
@@ -942,6 +956,8 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assert_resource_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=5, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
         self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH, delay=5, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
 
+        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
+
     def test_autosample_poll(self):
 
         self.assert_enter_command_mode()
@@ -986,7 +1002,9 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
                 ProtocolEvent.START_AUTOSAMPLE,
                 ProtocolEvent.ACQUIRE_STATUS,
                 ProtocolEvent.ACQUIRE_SAMPLE,
-                ProtocolEvent.ACQUIRE_BLANK_SAMPLE
+                ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
+                ProtocolEvent.DEIONIZED_WATER_FLUSH,
+                ProtocolEvent.REAGENT_FLUSH
             ],
             AgentCapabilityType.RESOURCE_INTERFACE: None,
             AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
