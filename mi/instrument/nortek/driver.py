@@ -55,7 +55,7 @@ from mi.core.instrument.chunker import StringChunker
 NEWLINE = '\n\r'
 
 # default timeout.
-TIMEOUT = 60
+TIMEOUT = 30
 # set up the 'structure' lengths (in bytes) and sync/id/size constants
 USER_CONFIG_LEN = 512
 USER_CONFIG_SYNC_BYTES = '\xa5\x00\x00\x01'
@@ -63,6 +63,7 @@ HW_CONFIG_LEN = 48
 HW_CONFIG_SYNC_BYTES   = '\xa5\x05\x18\x00'
 HEAD_CONFIG_LEN = 224
 HEAD_CONFIG_SYNC_BYTES = '\xa5\x04\x70\x00'
+VELOCITY_DATA_SYNC_BYTES = '\xa5\x10'
 
 BV_LEN = 4
 CLK_LEN = 8
@@ -86,6 +87,8 @@ CLOCK_DATA_PATTERN = r'(.{1})(.{1})(.{1})(.{1})(.{1})(.{1})\x06\x06'
 CLOCK_DATA_REGEX = re.compile(CLOCK_DATA_PATTERN, re.DOTALL)
 BATTERY_DATA_PATTERN = r'(.{2})\x06\x06'
 BATTERY_DATA_REGEX = re.compile(BATTERY_DATA_PATTERN, re.DOTALL)
+MODE_DATA_PATTERN = r'(.{1})\x00\x06\x06'
+MODE_DATA_REGEX = re.compile(MODE_DATA_PATTERN, re.DOTALL)
 ID_DATA_PATTERN = r'(.{14})\x06\x06'
 ID_DATA_REGEX = re.compile(ID_DATA_PATTERN, re.DOTALL)
 
@@ -126,6 +129,7 @@ class InstrumentCmds(BaseEnum):
     CONFIGURE_INSTRUMENT               = 'CC'        # sets the user configuration
     SOFT_BREAK_FIRST_HALF              = '@@@@@@'
     SOFT_BREAK_SECOND_HALF             = 'K1W%!Q'
+    AUTOSAMPLE_BREAK                   = '@'
     READ_REAL_TIME_CLOCK               = 'RC'
     SET_REAL_TIME_CLOCK                = 'SC'
     CMD_WHAT_MODE                      = 'II'        # to determine the mode of the instrument
@@ -858,7 +862,7 @@ class NortekEngClockDataParticle(DataParticle):
         match = CLOCK_DATA_REGEX.match(self.raw_data)
 
         if not match:
-            raise SampleException("NortekEngClockDataParticle: No regex match of parsed sample data: [%s]",
+            raise SampleException("NortekEngClockDataParticle: No regex match of parsed sample data: [%r]",
                                   self.raw_data)
 
         date_time_array = [int((match.group(1)).encode("hex")),
@@ -902,7 +906,7 @@ class NortekEngBatteryDataParticle(DataParticle):
         match = BATTERY_DATA_REGEX.match(self.raw_data)
 
         if not match:
-            raise SampleException("NortekEngBatteryDataParticle: No regex match of parsed sample data: [%s]",
+            raise SampleException("NortekEngBatteryDataParticle: No regex match of parsed sample data: [%r]",
                                   self.raw_data)
 
         # Calculate value
@@ -939,7 +943,7 @@ class NortekEngIdDataParticle(DataParticle):
         match = ID_DATA_REGEX.match(self.raw_data)
 
         if not match:
-            raise SampleException("NortekEngIdDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
+            raise SampleException("NortekEngIdDataParticle: No regex match of parsed sample data: [%r]", self.raw_data)
 
         id = NortekProtocolParameterDict.convert_bytes_to_string(match.group(1))
 
@@ -1004,7 +1008,7 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
         @raise InstrumentParameterException on invalid target prams
         @raise KeyError on invalid parameter name
         """
-        log.debug("update input: %s", input)
+        log.debug("update input: %r", input)
         found = False
 
         if(target_params and isinstance(target_params, str)):
@@ -1387,6 +1391,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.READ_MODE, self._handler_autosample_read_mode)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_autosample_clock_sync)
 
@@ -1404,6 +1409,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.READ_REAL_TIME_CLOCK, self._parse_read_clock_response)
         self._add_response_handler(InstrumentCmds.CMD_WHAT_MODE, self._parse_what_mode_response)
+        self._add_response_handler(InstrumentCmds.SAMPLE_WHAT_MODE, self._parse_what_mode_response)
         self._add_response_handler(InstrumentCmds.READ_BATTERY_VOLTAGE, self._parse_read_battery_voltage_response)
         self._add_response_handler(InstrumentCmds.READ_ID, self._parse_read_id)
         self._add_response_handler(InstrumentCmds.READ_HW_CONFIGURATION, self._parse_read_hw_config)
@@ -1711,17 +1717,36 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
+        # reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_MODE, )
+        # # log.debug("Reply type: %s", type(reply))
+        #
+        # time.sleep(1)
+        #
+        # # Get the value to check in the reply
+        # if(reply != None):
+        #     value = reply[1]
+        #
+        # log.debug('_handler_unknown_discover: value=%s', value)
+
 
         # try to discover the device mode using timeout if passed.
         timeout = kwargs.get('timeout', TIMEOUT)
         prompt = self._get_mode(timeout)
+        log.debug('_handler_unknown_discover: prompt=%s', prompt)
         if prompt == InstrumentPrompts.COMMAND_MODE:
+            log.debug('_handler_unknown_discover: COMMAND_MODE')
             next_state = ProtocolState.COMMAND
             result = ResourceAgentState.IDLE
+        elif prompt == VELOCITY_DATA_SYNC_BYTES:
+            log.debug('_handler_unknown_discover: VELOCITY_DATA_SYNC_BYTES')
+            next_state = ProtocolState.AUTOSAMPLE
+            result = ResourceAgentState.STREAMING
         elif prompt == InstrumentPrompts.CONFIRMATION:
+            log.debug('_handler_unknown_discover: CONFIRMATION')
             next_state = ProtocolState.AUTOSAMPLE
             result = ResourceAgentState.STREAMING
         elif prompt == InstrumentPrompts.Z_ACK:
+            log.debug('_handler_unknown_discover: Z_ACK')
             log.debug('_handler_unknown_discover: promptbuf=%s (%s)', self._promptbuf, self._promptbuf.encode("hex"))
             if InstrumentModes.COMMAND in self._promptbuf:
                 next_state = ProtocolState.COMMAND
@@ -1971,6 +1996,21 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE)
 
         return next_state, (next_agent_state, result)
+
+    def _handler_autosample_read_mode(self):
+        """
+        """
+        log.debug('%% IN _handler_autosample_read_mode')
+        next_state = None
+        next_agent_state = None
+
+        # Issue read mode command.
+        self._connection.send(InstrumentCmds.AUTOSAMPLE_BREAK)
+        time.sleep(.1)
+        result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE)
+
+        return next_state, (next_agent_state, result)
+
 
     def _handler_command_power_down(self):
         """
@@ -3033,22 +3073,37 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         while True:
             log.debug('Sending what_mode command to get a response from the instrument.')
             # Send what_mode command to attempt to get a response.
-            self._connection.send(InstrumentCmds.SOFT_BREAK_SECOND_HALF)
-            self._connection.send(InstrumentCmds.SOFT_BREAK_SECOND_HALF)
-            time.sleep(delay)
+            # self._connection.send(InstrumentCmds.CMD_WHAT_MODE)
+
+            self._connection.send(InstrumentCmds.AUTOSAMPLE_BREAK)
+            time.sleep(.1)
+            self._connection.send(InstrumentCmds.CMD_WHAT_MODE)
+
+            # self._connection.send(InstrumentCmds.SOFT_BREAK_SECOND_HALF)
+            # self._connection.send(InstrumentCmds.SOFT_BREAK_SECOND_HALF)
+            # time.sleep(delay)
+
+            log.debug('get_mode self._promptbuf: %r' % self._promptbuf)
+            search_obj = re.search(MODE_DATA_REGEX, self._promptbuf)
+            if search_obj:
+                log.debug("get_mode: found=%r", search_obj.group())
+            else:
+                log.debug("get_mode: not found")
 
             for item in self._prompts.list():
                 if item in self._promptbuf:
+                    # log.debug('get_mode got prompt: %s' % repr(item))
                     if item != InstrumentPrompts.Z_NACK:
-                        log.debug('get_mode got prompt: %s' % repr(item))
+                        log.debug('get_mode got prompt (return): %s' % repr(item))
                         return item
 
-            if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException()
+        if time.time() > starttime + timeout:
+            raise InstrumentTimeoutException()
 
     def _create_set_output(self, parameters):
         # load buffer with sync byte (A5), ID byte (0), and size word (# of words in little-endian form)
         # 'user' configuration is 512 bytes, 256 words long, so size is 0x100
+        # output = InstrumentCmds.CONFIGURE_INSTRUMENT + '\xa5\x00\x00\x01'
         output = '\xa5\x00\x00\x01'
         for name in self.UserParameters:
             log.debug('_create_set_output: adding %s to list', name)
@@ -3064,14 +3119,14 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                 output += NortekProtocolParameterDict.convert_datetime_to_words(parameters.format(name))
             else:
                 output += parameters.format(name)
-        log.debug("Created set output: %s with length: %s", output, len(output))
+        log.debug("Created set output: %r with length: %s", output, len(output))
 
         checksum = CHECK_SUM_SEED
         for word_index in range(0, len(output), 2):
             word_value = NortekProtocolParameterDict.convert_word_to_int(output[word_index:word_index+2])
             checksum = (checksum + word_value) % 0x10000
             #log.debug('*** w_i=%d, c_c=%d', word_index, checksum)
-        log.debug('_create_set_output: user checksum = %s', checksum)
+        log.debug('_create_set_output: user checksum = %r', checksum)
 
         output += NortekProtocolParameterDict.word_to_string(checksum)
         self._dump_config(output)
@@ -3122,11 +3177,22 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @retval return The time as a string
         @raise InstrumentProtocolException When a bad response is encountered
         """
-        if len(response) != 4:
+        log.debug("%%% IN _parse_what_mode_response")
+
+        search_obj = re.search(MODE_DATA_REGEX, response)
+        if search_obj:
+            # log.debug("_parse_what_mode_response: found=%r", search_obj.group())
+            log.debug("_parse_what_mode_response: response=%r", search_obj.group())
+            return NortekProtocolParameterDict.convert_word_to_int(search_obj.group(0)[0:2])
+        else:
             log.warn("_parse_what_mode_response: Bad what mode response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid what mode response. (%s)" % response.encode('hex'))
-        log.debug("_parse_what_mode_response: response=%s", response.encode('hex'))
-        return NortekProtocolParameterDict.convert_word_to_int(response[0:2])
+
+        # if len(response) != 4:
+        #     log.warn("_parse_what_mode_response: Bad what mode response from instrument (%s)", response.encode('hex'))
+        #     raise InstrumentProtocolException("Invalid what mode response. (%s)" % response.encode('hex'))
+        # log.debug("_parse_what_mode_response: response=%s", response.encode('hex'))
+        # return NortekProtocolParameterDict.convert_word_to_int(response[0:2])
 
     def _parse_read_battery_voltage_response(self, response, prompt):
         """ Parse the response from the instrument for a read battery voltage command.
