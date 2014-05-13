@@ -1042,15 +1042,15 @@ class MultipleHarvesterDataSetDriver(SimpleDataSetDriver):
 
         self._harvester_config = self._config.get(DataSourceConfigKey.HARVESTER)
         if self._harvester_config:
-            for key in self._data_keys:
+            # we are allowing partial configurations in case all instruments are not present
+            # for all deployments
+            for key in self._harvester_config:
                 sub_config = self._harvester_config.get(key)
-                if not sub_config:
-                    errors.append("harvester missing %s config" % key)
-                else:
-                    if not sub_config.get(DataSetDriverConfigKeys.DIRECTORY):
-                        errors.append("harvester %s config missing 'directory" % key)
-                    if not sub_config.get(DataSetDriverConfigKeys.PATTERN):
-                        errors.append("harvester %s config missing 'pattern" % key)
+                log.debug('sub config is %s', sub_config)
+                if not sub_config.get(DataSetDriverConfigKeys.DIRECTORY):
+                    errors.append("harvester %s config missing 'directory" % key)
+                if not sub_config.get(DataSetDriverConfigKeys.PATTERN):
+                    errors.append("harvester %s config missing 'pattern" % key)
         else:
             errors.append("missing 'harvester' config")
 
