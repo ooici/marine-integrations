@@ -39,7 +39,7 @@ from mi.core.exceptions import \
     SampleException, \
     UnexpectedDataException
 
-from mi.dataset.dataset_parser import BufferLoadingFilenameParser
+from mi.dataset.dataset_parser import BufferLoadingParser
 
 FILE_HEADER_RECORD_SIZE = 4  # bytes
 
@@ -270,11 +270,11 @@ class Vel3dKWfpStringParticle(DataParticle):
         return particle
 
 
-class Vel3dKWfpParser(BufferLoadingFilenameParser):
+class Vel3dKWfpParser(BufferLoadingParser):
 
     _read_state = None
 
-    def __init__(self, config, state, file_handle, file_name,
+    def __init__(self, config, state, file_handle,
                  state_callback, publish_callback, exception_callback):
         """
         Constructor for the Vel3dKWfpParser class.
@@ -306,7 +306,7 @@ class Vel3dKWfpParser(BufferLoadingFilenameParser):
                              Vel3dKWfpStateKey.RECORD_NUMBER: 0}
             self.set_state(initial_state)
 
-        super(Vel3dKWfpParser, self).__init__(config, file_handle, file_name,
+        super(Vel3dKWfpParser, self).__init__(config, file_handle,
             state, self.sieve_function, state_callback, publish_callback,
             exception_callback)
 

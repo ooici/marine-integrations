@@ -34,7 +34,7 @@ from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException, DatasetParserException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.log import get_logger; log = get_logger()
-from mi.dataset.dataset_parser import BufferLoadingFilenameParser
+from mi.dataset.dataset_parser import BufferLoadingParser
 
 FLAG_RECORD_SIZE = 26                   # bytes
 FLAG_RECORD_REGEX = b'(\x00|\x01){26}'  # 26 bytes of zeroes or ones
@@ -208,7 +208,7 @@ class Vel3dKWfpStcInstrumentDataParticle(DataParticle):
 
         return particle
 
-class Vel3dKWfpStcParser(BufferLoadingFilenameParser):
+class Vel3dKWfpStcParser(BufferLoadingParser):
 
     _timestamp = None
     _state = None
@@ -221,7 +221,7 @@ class Vel3dKWfpStcParser(BufferLoadingFilenameParser):
     global flags
     flags = [False for x in range(FLAG_RECORD_SIZE)]
 
-    def __init__(self, config, state, file_handle, file_name,
+    def __init__(self, config, state, file_handle,
       state_callback, publish_callback, exception_callback):
         """
         Constructor for the Vel3d_k__stc_imodemParser class.
@@ -229,7 +229,6 @@ class Vel3dKWfpStcParser(BufferLoadingFilenameParser):
           config - The parser configuration.
           state - The latest parser state.
           file_handle - A reference (handle) to the input file.
-          file_name - Name of the file referenced by the file_handle.
           state_callback - Callback for state changes.
           publish_callback - Callback to publish a particle.
           exception_callback - Callback for an exception
@@ -271,7 +270,7 @@ class Vel3dKWfpStcParser(BufferLoadingFilenameParser):
             self.velocity_end_record_matcher = \
               re.compile(end_of_velocity_regex)
 
-        super(Vel3dKWfpStcParser, self).__init__(config, file_handle, file_name,
+        super(Vel3dKWfpStcParser, self).__init__(config, file_handle,
             state, self.sieve_function, state_callback, publish_callback,
             exception_callback)
 

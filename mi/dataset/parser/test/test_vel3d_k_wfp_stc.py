@@ -106,17 +106,17 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
     """
     Vel3d_k__stc_imodem Parser unit test suite
     """
-    def create_parser(self, file_handle, file_name, new_state):
+    def create_parser(self, file_handle, new_state):
         """
         This function creates a Vel3dKWfpStcParser parser.
         """
         if new_state is None:
             new_state = self.state
-        parser = Vel3dKWfpStcParser(self.config, new_state, file_handle, file_name,
+        parser = Vel3dKWfpStcParser(self.config, new_state, file_handle,
             self.state_callback, self.pub_callback, self.exception_callback)
         return parser
 
-    def state_callback(self, state, file_ingested, file_name):
+    def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the 
         position callback """
         self.state_callback_value = state
@@ -202,7 +202,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         log.info("START SIMPLE")
         log.info("Simple length %d", len(TEST_DATA_GOOD_1_REC))
         input_file = StringIO(TEST_DATA_GOOD_1_REC)
-        self.parser = self.create_parser(input_file, None, self.state)
+        self.parser = self.create_parser(input_file, self.state)
 
         log.info("SIMPLE VERIFY VELOCITY RECORD 1")
         result = self.parser.get_records(1)
@@ -229,7 +229,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         log.info("START SOME")
         log.info("Some length %d", len(TEST_DATA_GOOD_2_REC))
         input_file = StringIO(TEST_DATA_GOOD_2_REC)
-        self.parser = self.create_parser(input_file, None, self.state)
+        self.parser = self.create_parser(input_file, self.state)
 
         log.info("SOME VERIFY VELOCITY RECORD 1")
         result = self.parser.get_records(1)
@@ -263,7 +263,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         log.info("START MANY")
         log.info("Many length %d", len(TEST_DATA_GOOD_BIG_FILE))
         input_file = StringIO(TEST_DATA_GOOD_BIG_FILE)
-        self.parser = self.create_parser(input_file, None, self.state)
+        self.parser = self.create_parser(input_file, self.state)
 
         log.info("MANY VERIFY VELOCITY RECORD 1")
         result = self.parser.get_records(1)
@@ -318,7 +318,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
             Vel3dKWfpStcStateKey.FIRST_RECORD: True,
             Vel3dKWfpStcStateKey.VELOCITY_END: False}
 
-        self.parser = self.create_parser(input_file, None, new_state)
+        self.parser = self.create_parser(input_file, new_state)
 
         ## This should get record 3.
         log.info("MID-STATE AFTER RECORD 2, POSITION %d", 
@@ -339,7 +339,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         log.info("Set state length %d", len(TEST_DATA_GOOD_BIG_FILE))
         input_file = StringIO(TEST_DATA_GOOD_BIG_FILE)
 
-        self.parser = self.create_parser(input_file, None, self.state)
+        self.parser = self.create_parser(input_file, self.state)
 
         log.info("SET STATE VERIFY VELOCITY RECORD 1")
         result = self.parser.get_records(1)
@@ -373,7 +373,7 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         log.info("Bad Flag length %d", len(TEST_DATA_BAD_FLAG_RECORD))
         input_file = StringIO(TEST_DATA_BAD_FLAG_RECORD)
         with self.assertRaises(SampleException):
-            self.parser = self.create_parser(input_file, None, self.state)
+            self.parser = self.create_parser(input_file, self.state)
         log.info("END BAD FLAG")
 
     def test_short_flag_record(self):
@@ -386,5 +386,5 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         log.info("Short Flag length %d", len(TEST_DATA_SHORT_FLAG_RECORD))
         input_file = StringIO(TEST_DATA_SHORT_FLAG_RECORD)
         with self.assertRaises(SampleException):
-            self.parser = self.create_parser(input_file, None, self.state)
+            self.parser = self.create_parser(input_file, self.state)
         log.info("END SHORT FLAG")
