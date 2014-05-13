@@ -2,11 +2,12 @@
 
 header:
   particle_object: FlortdParserDataParticle
-  particle_type: flortd_parsed
+  particle_type: flort_dj_sio_instrument
 
 data:
   - _index: 1
     internal_timestamp: '2013-07-24T12:00:06'
+    controller_timestamp: 1374667202
     date_string: '07/24/13'
     time_string: '12:00:06'
     measurement_wavelength_beta: 700
@@ -18,6 +19,7 @@ data:
     raw_internal_temp: 553
   - _index: 2
     internal_timestamp: '2013-07-24T18:00:06'
+    controller_timestamp: 1374688802
     date_string: '07/24/13'
     time_string: '18:00:06'
     measurement_wavelength_beta: 700
@@ -29,6 +31,7 @@ data:
     raw_internal_temp: 555
   - _index: 3
     internal_timestamp: '2013-07-25T00:00:06'
+    controller_timestamp: 1374710402
     date_string: '07/25/13'
     time_string: '00:00:06'
     measurement_wavelength_beta: 700

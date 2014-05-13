@@ -2,11 +2,12 @@
 
 header:
   particle_object: FlortdParserDataParticle
-  particle_type: flortd_parsed
+  particle_type: flort_dj_sio_instrument
 
 data:
   - _index: 1
     internal_timestamp: '2013-07-23T23:15:06'
+    controller_timestamp: 1374621301
     date_string: '07/23/13'
     time_string: '23:15:06'
     measurement_wavelength_beta: 700

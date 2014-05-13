@@ -2,35 +2,36 @@
 
 header:
   particle_object: AdcpsParserDataParticle
-  particle_type: adcps_parsed
+  particle_type: adcps_jln_sio_mule_instrument
 
 data:
   - _index: 1
     internal_timestamp: '2013-07-25T17:26:16.97'
-    pd12_packet_id: 32622
-    num_bytes: 258
-    ensemble_number: 119
-    unit_id: 0
-    firmware_version: 50
-    firmware_revision: 40
-    real_time_clock: [2013, 7, 25, 17, 26, 16, 97]
-    ensemble_start_time:
-      value: 3583761976.97
-      round: 2
-    heading: 1737
-    pitch: -156
-    roll: 4
-    temperature: 365
-    pressure: 10273
+    controller_timestamp: 1374776411
+    adcps_jln_number: 119
+    adcps_jln_unit_id: 0
+    adcps_jln_fw_vers: 50
+    adcps_jln_fw_rev: 40
+    adcps_jln_year: 2013
+    adcps_jln_month: 7
+    adcps_jln_day: 25
+    adcps_jln_hour: 17
+    adcps_jln_minute: 26
+    adcps_jln_second: 16
+    adcps_jln_hsec: 97
+    adcps_jln_heading: 1737
+    adcps_jln_pitch: -156
+    adcps_jln_roll: 4
+    adcps_jln_temp: 365
+    adcps_jln_pressure: 10273
     velocity_po_error_flag: 1
     velocity_po_up_flag: 1
     velocity_po_north_flag: 1
     velocity_po_east_flag: 1
     subsampling_parameter: 2
-    start_bin: 1
-    num_bins: 28
-    water_velocity_east: [23040, -1793, 3840, -4097, -5889, -10241, -5633, -20737, -23809, -11777, -17665, -11265, -3841, -9473, -6145, 1280, -2305, -11521, -22785, -28929, -24065, -27905, 5632, -29952, -11776, -21248, -11521, 30719]
-    water_velocity_north: [-14593, -13825, -8961, -21249, -15105, -25089, 27903, 27903, 29439, -29697, -27393, -17153, -29185, 29439, -26625, -26369, -16385, -12033, -6657, -27905, 29439, -29441, 14335, 16891, -29190, 9467, 3581, 14334]
-    water_velocity_up: [1536, 0, 256, 2304, 256, -1281, 0, -1025, -1, 512, 1536, 1280, 256, 512, 0, -2305, -513, 1024, 512, -1025, 256, 256, 512, 10240, 4608, 10752, 19456, 5888]
-    error_velocity: [4608, 512, -1, -2561, 2304, -3585, -513, 8192, -4353, 3072, -4097, 7168, -1025, -513, -11009, -9985, -7937, 4096, -6913, 11520, -6401, -2561, -11009, -12545, -2305, 27648, 11520, 128]
-    checksum: -30565 
+    adcps_jln_startbin: 1
+    adcps_jln_bins: 28
+    adcps_jln_vel_error: [23040, -1793, 3840, -4097, -5889, -10241, -5633, -20737, -23809, -11777, -17665, -11265, -3841, -9473, -6145, 1280, -2305, -11521, -22785, -28929, -24065, -27905, 5632, -29952, -11776, -21248, -11521, 30719]
+    adcps_jln_vel_up: [-14593, -13825, -8961, -21249, -15105, -25089, 27903, 27903, 29439, -29697, -27393, -17153, -29185, 29439, -26625, -26369, -16385, -12033, -6657, -27905, 29439, -29441, 14335, 16891, -29190, 9467, 3581, 14334]
+    adcps_jln_vel_north: [1536, 0, 256, 2304, 256, -1281, 0, -1025, -1, 512, 1536, 1280, 256, 512, 0, -2305, -513, 1024, 512, -1025, 256, 256, 512, 10240, 4608, 10752, 19456, 5888]
+    adcps_jln_vel_east: [4608, 512, -1, -2561, 2304, -3585, -513, 8192, -4353, 3072, -4097, 7168, -1025, -513, -11009, -9985, -7937, 4096, -6913, 11520, -6401, -2561, -11009, -12545, -2305, 27648, 11520, 128]

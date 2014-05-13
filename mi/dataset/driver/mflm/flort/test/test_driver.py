@@ -59,7 +59,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM = 'flortd_parsed'
+SAMPLE_STREAM = 'flort_dj_sio_instrument'
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -196,12 +196,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
-        self.memento = {DriverStateKey.FILE_SIZE: 300,
-                        DriverStateKey.FILE_CHECKSUM: 'a640fd577c65ed07ed67f1d2e73d34e2',
-                        DriverStateKey.FILE_MOD_DATE: mod_time,
-                        DriverStateKey.PARSER_STATE: {'in_process_data': [],
-                                                     'unprocessed_data':[[0,69], [197,300]],
-                                                     'timestamp': 3583610106.0}
+        self.memento = {"node59p1.dat": {
+                            DriverStateKey.FILE_SIZE: 300,
+                            DriverStateKey.FILE_CHECKSUM: 'a640fd577c65ed07ed67f1d2e73d34e2',
+                            DriverStateKey.FILE_MOD_DATE: mod_time,
+                            DriverStateKey.PARSER_STATE: {'in_process_data': [],
+                                                        'unprocessed_data':[[0,69], [197,300]]}
+                            }
                         }
 
         self.driver = MflmFLORTDDataSetDriver(
