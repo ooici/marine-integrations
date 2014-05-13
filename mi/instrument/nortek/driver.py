@@ -21,7 +21,7 @@ from mi.core.instrument.instrument_fsm import InstrumentFSM
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 from mi.core.instrument.data_particle import CommonDataParticleType
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol, DEFAULT_WRITE_DELAY
 from mi.core.instrument.driver_dict import DriverDict, DriverDictKey
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
@@ -63,7 +63,6 @@ HW_CONFIG_LEN = 48
 HW_CONFIG_SYNC_BYTES   = '\xa5\x05\x18\x00'
 HEAD_CONFIG_LEN = 224
 HEAD_CONFIG_SYNC_BYTES = '\xa5\x04\x70\x00'
-VELOCITY_DATA_SYNC_BYTES = '\xa5\x10'
 
 BV_LEN = 4
 CLK_LEN = 8
@@ -1361,6 +1360,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Add event handlers for protocol state machine.
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.READ_MODE, self._handler_unknown_read_mode)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
@@ -1417,6 +1417,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.READ_USER_CONFIGURATION, self._parse_read_user_config)
         self._add_response_handler(InstrumentCmds.SAMPLE_AVG_TIME, self._parse_sample_average_interval)
         self._add_response_handler(InstrumentCmds.SAMPLE_INTERVAL_TIME, self._parse_sample_measurement_interval)
+        self._add_response_handler(InstrumentCmds.SOFT_BREAK_SECOND_HALF, self._parse_second_break_response)
 
         self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
@@ -1462,17 +1463,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                             log.debug("chunker_sieve_function: found %r", raw_data[start:start+structure_len])
 
                     index = start+structure_len
-
-        # for structure_sync, structure_len in structs:
-        #     start = raw_data.find(structure_sync)
-        #     if start != -1:    # found a sync pattern
-        #         if start+structure_len <= len(raw_data):    # only check the CRC if all of the structure has arrived
-        #             calculated_checksum = NortekProtocolParameterDict.calculate_checksum(raw_data[start:start+structure_len], structure_len)
-        #             log.debug('chunker_sieve_function: calculated checksum = %s' % calculated_checksum)
-        #             sent_checksum = NortekProtocolParameterDict.convert_word_to_int(raw_data[start+structure_len-2:start+structure_len])
-        #             if sent_checksum == calculated_checksum:
-        #                 return_list.append((start, start+structure_len))
-        #                 log.debug("chunker_sieve_function: found %s", raw_data[start:start+structure_len].encode('hex'))
 
         # by this point, all the particles with headers have been parsed from the raw data
         # what's left can be battery voltage and/or identification string
@@ -1626,30 +1616,40 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._get_response(timeout=TIMEOUT, expected_prompt=InstrumentPrompts.Z_ACK)
         self._update_params()
 
-    def _get_response(self, timeout=TIMEOUT, expected_prompt=None):
+    # def _get_response(self, timeout=TIMEOUT, expected_prompt=None):
+    #     """
+    #     Get a response from the instrument
+    #     @param timeout The timeout in seconds
+    #     @param expected_prompt Only consider the specific expected prompt as
+    #     presented by this string
+    #     @throw InstrumentProtocolExecption on timeout
+    #     """
+    #     # Grab time for timeout and wait for prompt.
+    #     starttime = time.time()
+    #
+    #     if expected_prompt == None:
+    #         prompt_list = self._prompts.list()
+    #     else:
+    #         assert isinstance(expected_prompt, str)
+    #         prompt_list = [expected_prompt]
+    #     while True:
+    #         for item in prompt_list:
+    #             if item in self._promptbuf:
+    #                 return (item, self._linebuf)
+    #             else:
+    #                 time.sleep(.1)
+    #         if time.time() > starttime + timeout:
+    #             raise InstrumentTimeoutException()
+
+
+    def _send_wakeup(self):
         """
-        Get a response from the instrument
-        @param timeout The timeout in seconds
-        @param expected_prompt Only consider the specific expected prompt as
-        presented by this string
-        @throw InstrumentProtocolExecption on timeout
+        Send a wakeup to the device. Overridden by device specific
+        subclasses.
         """
-        # Grab time for timeout and wait for prompt.
-        starttime = time.time()
-                
-        if expected_prompt == None:
-            prompt_list = self._prompts.list()
-        else:
-            assert isinstance(expected_prompt, str)
-            prompt_list = [expected_prompt]   
-        while True:
-            for item in prompt_list:
-                if item in self._promptbuf:
-                    return (item, self._linebuf)
-                else:
-                    time.sleep(.1)
-            if time.time() > starttime + timeout:
-                raise InstrumentTimeoutException()
+
+        self._connection.send(InstrumentCmds.SOFT_BREAK_FIRST_HALF)
+        # alternatively try sending kwijibo?
 
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
@@ -1666,33 +1666,40 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', TIMEOUT)
         expected_prompt = kwargs.get('expected_prompt', InstrumentPrompts.Z_ACK)
-                            
-        # Clear line and prompt buffers for result.
-        self._linebuf = ''
-        self._promptbuf = ''
+        response_regex = kwargs.get('response_regex', None)
+        write_delay = kwargs.get('write_delay', DEFAULT_WRITE_DELAY)
 
         # Get the build handler.
         build_handler = self._build_handlers.get(cmd, None)
-        if build_handler:
-            cmd_line = build_handler(cmd, *args, **kwargs)
-        else:
-            cmd_line = cmd
+        if not build_handler:
+            self._add_build_handler(cmd, self._build_command_default)
 
-        # Send command.
-        log.debug('_do_cmd_resp: %s(%s), timeout=%s, expected_prompt=%s (%s),',
-                  repr(cmd_line), repr(cmd_line.encode("hex")), timeout, expected_prompt, expected_prompt.encode("hex"))
-        self._connection.send(cmd_line)
+        return super(NortekInstrumentProtocol, self)._do_cmd_resp(cmd, timeout=timeout,
+                                                                  expected_prompt=expected_prompt,
+                                                                  response_regex=response_regex,
+                                                                  write_delay=write_delay,
+                                                                  *args)
 
-        # Wait for the prompt, prepare result and return, timeout exception
-        (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
+        # # Clear line and prompt buffers for result.
+        # self._linebuf = ''
+        # self._promptbuf = ''
 
-        resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
-            self._response_handlers.get(cmd, None)
-        resp_result = None
-        if resp_handler:
-            resp_result = resp_handler(result, prompt)
-        
-        return resp_result
+
+        # # Send command.
+        # log.debug('_do_cmd_resp: %s(%s), timeout=%s, expected_prompt=%r,',
+        #           repr(cmd_line), repr(cmd_line.encode("hex")), timeout, expected_prompt)
+        # self._connection.send(cmd_line)
+        #
+        # # Wait for the prompt, prepare result and return, timeout exception
+        # (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
+        #
+        # resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
+        #     self._response_handlers.get(cmd, None)
+        # resp_result = None
+        # if resp_handler:
+        #     resp_result = resp_handler(result, prompt)
+        #
+        # return resp_result
 
     ########################################################################
     # Unknown handlers.
@@ -1717,47 +1724,55 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        # reply = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_MODE, )
-        # # log.debug("Reply type: %s", type(reply))
-        #
-        # time.sleep(1)
-        #
-        # # Get the value to check in the reply
-        # if(reply != None):
-        #     value = reply[1]
-        #
-        # log.debug('_handler_unknown_discover: value=%s', value)
+        ret_mode = self._protocol_fsm.on_event(ProtocolEvent.READ_MODE)
+        prompt = ret_mode[1]
 
-
-        # try to discover the device mode using timeout if passed.
-        timeout = kwargs.get('timeout', TIMEOUT)
-        prompt = self._get_mode(timeout)
-        log.debug('_handler_unknown_discover: prompt=%s', prompt)
-        if prompt == InstrumentPrompts.COMMAND_MODE:
+        if prompt == 0:
+            log.debug('_handler_unknown_discover: FIRMWARE_UPGRADE')
+            raise InstrumentStateException('Firmware upgrade state.')
+        elif prompt == 1:
+            log.debug('_handler_unknown_discover: MEASUREMENT_MODE')
+            next_state = ProtocolState.AUTOSAMPLE
+            result = ResourceAgentState.STREAMING
+        elif prompt == 2:
             log.debug('_handler_unknown_discover: COMMAND_MODE')
             next_state = ProtocolState.COMMAND
             result = ResourceAgentState.IDLE
-        elif prompt == VELOCITY_DATA_SYNC_BYTES:
-            log.debug('_handler_unknown_discover: VELOCITY_DATA_SYNC_BYTES')
+        elif prompt == 4:
+            log.debug('_handler_unknown_discover: DATA_RETRIEVAL_MODE')
             next_state = ProtocolState.AUTOSAMPLE
             result = ResourceAgentState.STREAMING
-        elif prompt == InstrumentPrompts.CONFIRMATION:
-            log.debug('_handler_unknown_discover: CONFIRMATION')
+        elif prompt == 5:
+            log.debug('_handler_unknown_discover: CONFIRMATION_MODE')
             next_state = ProtocolState.AUTOSAMPLE
             result = ResourceAgentState.STREAMING
-        elif prompt == InstrumentPrompts.Z_ACK:
-            log.debug('_handler_unknown_discover: Z_ACK')
-            log.debug('_handler_unknown_discover: promptbuf=%s (%s)', self._promptbuf, self._promptbuf.encode("hex"))
-            if InstrumentModes.COMMAND in self._promptbuf:
-                next_state = ProtocolState.COMMAND
-                result = ResourceAgentState.IDLE
-            elif InstrumentModes.MEASUREMENT in self._promptbuf or InstrumentModes.CONFIRMATION in self._promptbuf:
-                next_state = ProtocolState.AUTOSAMPLE
-                result = ResourceAgentState.STREAMING
-            else:
-                raise InstrumentStateException('Unknown state.')
         else:
-            raise InstrumentStateException('Unknown state.')
+            raise InstrumentStateException('Unknown state: %s', ret_mode[1])
+
+        # timeout = kwargs.get('timeout', TIMEOUT)
+        # prompt = self._get_mode(timeout)
+        # log.debug('_handler_unknown_discover: prompt=%s', prompt)
+        # if prompt == InstrumentPrompts.COMMAND_MODE:
+        #     log.debug('_handler_unknown_discover: COMMAND_MODE')
+        #     next_state = ProtocolState.COMMAND
+        #     result = ResourceAgentState.IDLE
+        # elif prompt == InstrumentPrompts.CONFIRMATION:
+        #     log.debug('_handler_unknown_discover: CONFIRMATION')
+        #     next_state = ProtocolState.AUTOSAMPLE
+        #     result = ResourceAgentState.STREAMING
+        # elif prompt == InstrumentPrompts.Z_ACK:
+        #     log.debug('_handler_unknown_discover: Z_ACK')
+        #     log.debug('_handler_unknown_discover: promptbuf=%s (%s)', self._promptbuf, self._promptbuf.encode("hex"))
+        #     if InstrumentModes.COMMAND in self._promptbuf:
+        #         next_state = ProtocolState.COMMAND
+        #         result = ResourceAgentState.IDLE
+        #     elif InstrumentModes.MEASUREMENT in self._promptbuf or InstrumentModes.CONFIRMATION in self._promptbuf:
+        #         next_state = ProtocolState.AUTOSAMPLE
+        #         result = ResourceAgentState.STREAMING
+        #     else:
+        #         raise InstrumentStateException('Unknown state.')
+        # else:
+        #     raise InstrumentStateException('Unknown state.')
 
         log.debug('_handler_unknown_discover: state=%s', next_state)
 
@@ -2007,7 +2022,31 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Issue read mode command.
         self._connection.send(InstrumentCmds.AUTOSAMPLE_BREAK)
         time.sleep(.1)
-        result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE)
+        result = self._do_cmd_resp(InstrumentCmds.SAMPLE_WHAT_MODE)
+
+        return next_state, (next_agent_state, result)
+
+
+    def _handler_unknown_read_mode(self):
+        """
+        """
+        log.debug('%% IN _handler_unknown_read_mode')
+        next_state = None
+        next_agent_state = None
+
+        # Issue read mode command.
+        try:
+            self._connection.send(InstrumentCmds.AUTOSAMPLE_BREAK)
+            time.sleep(.1)
+            result = self._do_cmd_resp(InstrumentCmds.SAMPLE_WHAT_MODE, timeout=0.4)
+            # log.debug('_handler_unknown_read_mode: response I = %r', result)
+        except InstrumentTimeoutException:
+            log.debug('_handler_unknown_read_mode: no response to "I", sending "II"')
+            # if there is no response, catch timeout exception and issue another 'I' command to make II command
+            result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE)
+            # log.debug('_handler_unknown_read_mode: response II = %r', result)
+
+        # if the above fails, try the break method
 
         return next_state, (next_agent_state, result)
 
@@ -2191,19 +2230,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # self.stop_scheduled_job(ScheduledJob.CLOCK_SYNC)
         pass
 
-    def _helper_measurement_to_command_mode(self, *args, **kwargs):
-
-        # send soft break
-        self._connection.send(InstrumentCmds.SOFT_BREAK_FIRST_HALF)
-        time.sleep(.1)
-        self._do_cmd_resp(InstrumentCmds.SOFT_BREAK_SECOND_HALF,
-                          expected_prompt=InstrumentPrompts.CONFIRMATION, *args, **kwargs)
-
-        # Issue the confirmation command.
-        self._do_cmd_resp(InstrumentCmds.CONFIRMATION, *args, **kwargs)
-
-        return None
-
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Stop autosample and switch back to command mode.
@@ -2218,7 +2244,18 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        self._helper_measurement_to_command_mode(*args, **kwargs)
+        # send soft break
+        self._connection.send(InstrumentCmds.SOFT_BREAK_FIRST_HALF)
+        time.sleep(.1)
+        ret_prompt = self._do_cmd_resp(InstrumentCmds.SOFT_BREAK_SECOND_HALF,
+                                       expected_prompt=[InstrumentPrompts.CONFIRMATION, InstrumentPrompts.COMMAND_MODE],
+                                       *args, **kwargs)
+
+        log.debug('_handler_autosample_stop_autosample, ret_prompt: %s', ret_prompt)
+
+        if ret_prompt == InstrumentPrompts.CONFIRMATION:
+            # Issue the confirmation command.
+            self._do_cmd_resp(InstrumentCmds.CONFIRMATION, *args, **kwargs)
 
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
@@ -3070,6 +3107,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         log.debug("_get_mode: timeout = %d", timeout)
 
+        # self._protocol_fsm.on_event(ProtocolEvent.READ_MODE)
+        # self._async_raise_fsm_event(ProtocolEvent.READ_MODE)
+
         while True:
             log.debug('Sending what_mode command to get a response from the instrument.')
             # Send what_mode command to attempt to get a response.
@@ -3133,6 +3173,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         return output
 
+    def _build_command_default(self, cmd):
+        return cmd
+
     def _build_set_configuration_command(self, cmd, *args, **kwargs):
         user_configuration = kwargs.get('user_configuration', None)
         if not user_configuration:
@@ -3174,7 +3217,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         
         @param response The response string from the instrument
         @param prompt The prompt received from the instrument
-        @retval return The time as a string
+        @retval return The mode as an int
         @raise InstrumentProtocolException When a bad response is encountered
         """
         log.debug("%%% IN _parse_what_mode_response")
@@ -3188,11 +3231,60 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             log.warn("_parse_what_mode_response: Bad what mode response from instrument (%s)", response.encode('hex'))
             raise InstrumentProtocolException("Invalid what mode response. (%s)" % response.encode('hex'))
 
-        # if len(response) != 4:
-        #     log.warn("_parse_what_mode_response: Bad what mode response from instrument (%s)", response.encode('hex'))
-        #     raise InstrumentProtocolException("Invalid what mode response. (%s)" % response.encode('hex'))
-        # log.debug("_parse_what_mode_response: response=%s", response.encode('hex'))
-        # return NortekProtocolParameterDict.convert_word_to_int(response[0:2])
+    def _parse_second_break_response(self, response, prompt):
+        """ Parse the response from the instrument for a 'what mode' command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The response as is
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        log.debug("%%% IN _parse_second_break_response")
+
+        for search_prompt in (InstrumentPrompts.CONFIRMATION, InstrumentPrompts.COMMAND_MODE):
+            start = response.find(search_prompt)
+            if start != -1:
+                log.debug("_parse_second_break_response: response=%r", response[start:start+len(search_prompt)])
+                return response[start:start+len(search_prompt)]
+
+        log.warn("_parse_second_break_response: Bad what second break response from instrument (%s)", response)
+        raise InstrumentProtocolException("Invalid second break response. (%s)" % response)
+
+        # return_list = []
+        # structs = add_structs + NORTEK_COMMON_SAMPLE_STRUCTS
+        #
+        # for structure_sync, structure_len in structs:
+        #
+        #     index = 0
+        #     start = 0
+        #
+        #     #while there are still matches....
+        #     while start != -1:
+        #         start = response.find(structure_sync, index)
+        #         # found a sync pattern
+        #         if start != -1:
+        #
+        #             # only check the CRC if all of the structure has arrived
+        #             if start+structure_len <= len(response):
+        #
+        #                 if sent_checksum == calculated_checksum:
+        #                     return_list.append((start, start+structure_len))
+        #                     #slice raw data off
+        #                     log.debug("chunker_sieve_function: found %r", response[start:start+structure_len])
+        #
+        #             index = start+structure_len
+        #
+        #
+        # log.debug("_parse_second_break_response: response=%r", response)
+        # return response
+
+        # search_obj = re.search(MODE_DATA_REGEX, response)
+        # if search_obj:
+        #     log.debug("_parse_second_break_response: response=%r", search_obj.group())
+        #     return search_obj.group(0)
+        # else:
+        #     log.warn("_parse_second_break_response: Bad what second break response from instrument (%s)", response)
+        #     raise InstrumentProtocolException("Invalid second break response. (%s)" % response)
 
     def _parse_read_battery_voltage_response(self, response, prompt):
         """ Parse the response from the instrument for a read battery voltage command.
