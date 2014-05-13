@@ -17,7 +17,7 @@ from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
-from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 from mi.core.instrument.instrument_driver import SingleConnectionInstrumentDriver
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
@@ -155,7 +155,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
-        self._protocol_fsm = InstrumentFSM(ProtocolState, ProtocolEvent,
+        self._protocol_fsm = ThreadSafeFSM(ProtocolState, ProtocolEvent,
                             ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
