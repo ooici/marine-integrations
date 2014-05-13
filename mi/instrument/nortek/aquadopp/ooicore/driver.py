@@ -343,12 +343,16 @@ class Protocol(NortekInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be woken for command.
         @throws InstrumentProtocolException if command could not be built or misunderstood.
         """
+        log.debug('%% IN _handler_command_acquire_sample')
+
         next_state = None
         next_agent_state = None
 
         # the instrument doesn't respond with ACKs for this command, so look for start of velocity data header structure
         result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA,
                                    expected_prompt=VELOCITY_HEADER_DATA_SYNC_BYTES, *args, **kwargs)
+        #TODO - NEED TO GET BACK INTO COMMAND MODE! maybe use ST command and then use helper
+        #self._helper_measurement_to_command_mode()
 
         return next_state, (next_agent_state, result)
 

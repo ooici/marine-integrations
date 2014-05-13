@@ -26,10 +26,10 @@ __license__ = 'Apache 2.0'
 from gevent import monkey; monkey.patch_all()
 import gevent
 
-
 from nose.plugins.attrib import attr
 
-from mi.core.log import get_logger; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
 from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
 
@@ -63,46 +63,6 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={}
 )
-
-
-def user_config2():
-    # CompassUpdateRate = 2, MeasurementInterval = 3600
-    user_config_values = [0xa5, 0x00, 0x00, 0x01, 0x7d, 0x00, 0x37, 0x00, 0x20, 0x00, 0xb5, 0x01, 0x00, 0x02, 0x01, 0x00, 
-                          0x3c, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 
-                          0x01, 0x00, 0x01, 0x00, 0x20, 0x00, 0x10, 0x0e, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x01, 0x00, 
-                          0x56, 0x07, 0x08, 0x10, 0x12, 0x08, 0xc0, 0xa8, 0x00, 0x00, 0x22, 0x00, 0x11, 0x41, 0x14, 0x00, 
-                          0x01, 0x00, 0x14, 0x00, 0x04, 0x00, 0x00, 0x00, 0xe8, 0x35, 0x5e, 0x01, 0x02, 0x3d, 0x1e, 0x3d, 
-                          0x39, 0x3d, 0x53, 0x3d, 0x6e, 0x3d, 0x88, 0x3d, 0xa2, 0x3d, 0xbb, 0x3d, 0xd4, 0x3d, 0xed, 0x3d, 
-                          0x06, 0x3e, 0x1e, 0x3e, 0x36, 0x3e, 0x4e, 0x3e, 0x65, 0x3e, 0x7d, 0x3e, 0x93, 0x3e, 0xaa, 0x3e, 
-                          0xc0, 0x3e, 0xd6, 0x3e, 0xec, 0x3e, 0x02, 0x3f, 0x17, 0x3f, 0x2c, 0x3f, 0x41, 0x3f, 0x55, 0x3f, 
-                          0x69, 0x3f, 0x7d, 0x3f, 0x91, 0x3f, 0xa4, 0x3f, 0xb8, 0x3f, 0xca, 0x3f, 0xdd, 0x3f, 0xf0, 0x3f, 
-                          0x02, 0x40, 0x14, 0x40, 0x26, 0x40, 0x37, 0x40, 0x49, 0x40, 0x5a, 0x40, 0x6b, 0x40, 0x7c, 0x40, 
-                          0x8c, 0x40, 0x9c, 0x40, 0xac, 0x40, 0xbc, 0x40, 0xcc, 0x40, 0xdb, 0x40, 0xea, 0x40, 0xf9, 0x40, 
-                          0x08, 0x41, 0x17, 0x41, 0x25, 0x41, 0x33, 0x41, 0x42, 0x41, 0x4f, 0x41, 0x5d, 0x41, 0x6a, 0x41, 
-                          0x78, 0x41, 0x85, 0x41, 0x92, 0x41, 0x9e, 0x41, 0xab, 0x41, 0xb7, 0x41, 0xc3, 0x41, 0xcf, 0x41, 
-                          0xdb, 0x41, 0xe7, 0x41, 0xf2, 0x41, 0xfd, 0x41, 0x08, 0x42, 0x13, 0x42, 0x1e, 0x42, 0x28, 0x42, 
-                          0x33, 0x42, 0x3d, 0x42, 0x47, 0x42, 0x51, 0x42, 0x5b, 0x42, 0x64, 0x42, 0x6e, 0x42, 0x77, 0x42, 
-                          0x80, 0x42, 0x89, 0x42, 0x91, 0x42, 0x9a, 0x42, 0xa2, 0x42, 0xaa, 0x42, 0xb2, 0x42, 0xba, 0x42, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1e, 0x00, 0x5a, 0x00, 0x5a, 0x00, 0xbc, 0x02, 
-                          0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2a, 0x00, 0x00, 0x00, 
-                          0x02, 0x00, 0x14, 0x00, 0xea, 0x01, 0x14, 0x00, 0xea, 0x01, 0x0a, 0x00, 0x05, 0x00, 0x00, 0x00, 
-                          0x40, 0x00, 0x40, 0x00, 0x02, 0x00, 0x0f, 0x00, 0x5a, 0x00, 0x00, 0x00, 0x01, 0x00, 0xc8, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x0f, 0x00, 0xea, 0x01, 0xea, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 
-                          0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, 0xff, 
-                          0xcd, 0xff, 0x8b, 0x00, 0xe5, 0x00, 0xee, 0x00, 0x0b, 0x00, 0x84, 0xff, 0x3d, 0xff, 0xa8, 0x98]
-    user_config = ''
-    for value in user_config_values:
-        user_config += chr(value)
-    return user_config
 
 
 # velocity data particle & sample 
@@ -436,9 +396,9 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
 
     def test_acquire_sample(self):
         """
-        Test acquire sample command and events.
+        Verify acquire sample command and events.
         1. initialize the instrument to COMMAND state
-        2. command the driver to ACQUIRESAMPLE
+        2. command the driver to ACQUIRE SAMPLE
         3. verify the particle coming in
         """
 
@@ -449,7 +409,7 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
 
     def test_command_autosample(self):
         """
-        Test autosample command and events.
+        Verify autosample command and events.
         1. initialize the instrument to COMMAND state
         2. command the instrument to AUTOSAMPLE state
         3. verify the particle coming in
@@ -465,10 +425,6 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user, timeout=TIMEOUT)
         self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_velocity, timeout=TIMEOUT)
 
-        # TODO - WHEN DOES THIS PARTICLE COME ABOUT?
-        #self.assert_async_particle_generation(DataParticleType.DIAGNOSTIC_HEADER, self.assert_particle_diagnostic_header, timeout=TIMEOUT)
-        #self.assert_async_particle_generation(DataParticleType.DIAGNOSTIC, self.assert_particle_diagnostic, timeout=TIMEOUT)
-
         # # wait for some samples to be generated
         gevent.sleep(10)
 
@@ -482,7 +438,7 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
                
     def test_instrument_read_id(self):
         """
-        Test for reading ID, need to be implemented in the child class because each ID is unique to the
+        Verify the reading ID, need to be implemented in the child class because each ID is unique to the
         instrument.
         """
         self.assert_initialize_driver()
@@ -495,6 +451,7 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
 
         self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
 
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for                                 #
@@ -506,14 +463,14 @@ class QualFromIDK(NortekQualTest):
         NortekQualTest.setUp(self)
 
     def assert_sample_data_particle(self, sample):
-        log.debug('assertSampleDataParticle: sample=%s', sample)
-        self.assertTrue(sample[DataParticleKey.STREAM_NAME],
-            DataParticleType.PARSED)
-        self.assertTrue(sample[DataParticleKey.PKT_FORMAT_ID],
-            DataParticleValue.JSON_DATA)
+        """
+        Assert the Velocity data particle is the expected format
+        """
+        log.debug('assert_sample_data_particle: sample=%s', sample)
+        self.assertTrue(sample[DataParticleKey.STREAM_NAME], DataParticleType.VELOCITY)
+        self.assertTrue(sample[DataParticleKey.PKT_FORMAT_ID], DataParticleValue.JSON_DATA)
         self.assertTrue(sample[DataParticleKey.PKT_VERSION], 1)
-        self.assertTrue(isinstance(sample[DataParticleKey.VALUES],
-            list))
+        self.assertTrue(isinstance(sample[DataParticleKey.VALUES], list))
         self.assertTrue(isinstance(sample.get(DataParticleKey.DRIVER_TIMESTAMP), float))
         self.assertTrue(sample.get(DataParticleKey.PREFERRED_TIMESTAMP))
         
@@ -522,53 +479,38 @@ class QualFromIDK(NortekQualTest):
         for value in values:
             value_ids.append(value['value_id'])
         if AquadoppDwVelocityDataParticleKey.TIMESTAMP in value_ids:
-            log.debug('assertSampleDataParticle: AquadoppDwVelocityDataParticle/AquadoppDwDiagnosticDataParticle detected')
+            log.debug('assert_sample_data_particle: AquadoppDwVelocityDataParticle detected')
             self.assertEqual(sorted(value_ids), sorted(AquadoppDwVelocityDataParticleKey.list()))
             for value in values:
                 if value['value_id'] == AquadoppDwVelocityDataParticleKey.TIMESTAMP:
                     self.assertTrue(isinstance(value['value'], str))
                 else:
                     self.assertTrue(isinstance(value['value'], int))
-        elif AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS in value_ids:
-            log.debug('assertSampleDataParticle: AquadoppDwDiagnosticHeaderDataParticle detected')
-            self.assertEqual(sorted(value_ids), sorted(AquadoppDwDiagnosticHeaderDataParticleKey.list()))
-            for value in values:
-                self.assertTrue(isinstance(value['value'], int))
         else:
-            self.fail('Unknown data particle')
+            self.fail('assert_sample_data_particle: Unknown data particle')
 
-    def test_direct_access_telnet_mode(self):
+    def test_direct_access_telnet_mode_driver(self):
         """
-        This test manually tests that the Instrument Driver properly supports direct access to the
+        Verify the Instrument Driver properly supports direct access to the
         physical instrument. (telnet mode)
         """
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
         self.tcp_client.send_data("K1W%!Q")
-        self.tcp_client.expect("DW-AQUADOPP")
+        self.tcp_client.expect("AQUADOPP")
 
         self.assert_direct_access_stop_telnet()
 
     def test_poll(self):
         """
-        poll for a single sample
-        Verify execute_acquire_sample
+        Verify the driver can poll the instrument for a single sample
         """
-        self.assert_sample_polled(self.assert_sample_data_particle,
-                                  [DataParticleType.VELOCITY,
-                                   DataParticleType.DIAGNOSTIC,
-                                   DataParticleType.DIAGNOSTIC_HEADER],
-                                  timeout=100)
+        self.assert_sample_polled(self.assert_sample_data_particle, DataParticleType.VELOCITY, timeout=10)
 
     def test_autosample(self):
         """
-        start and stop autosample and verify data particle
-        Verify execute_start_autosample and execute_stop_autosample
+        Verify the driver can enter and exit autosample mode, while in autosample the driver will collect multiple
+        samples.
         """
-        self.assert_sample_autosample(self.assert_sample_data_particle,
-                                  [DataParticleType.VELOCITY,
-                                   DataParticleType.DIAGNOSTIC,
-                                   DataParticleType.DIAGNOSTIC_HEADER],
-                                  timeout=100)
-
+        self.assert_sample_autosample(self.assert_sample_data_particle, DataParticleType.VELOCITY, timeout=10)

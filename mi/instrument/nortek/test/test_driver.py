@@ -367,6 +367,60 @@ class DriverTestMixinSub(DriverTestMixin):
         NortekEngClockDataParticleKey.DATE_TIME_STAMP: {TYPE: int, VALUE: 0, REQUIRED: False}
     }
 
+    _driver_parameters = {
+       Parameter.TRANSMIT_PULSE_LENGTH: {TYPE: int, VALUE: 2, REQUIRED: True},
+       Parameter.BLANKING_DISTANCE: {TYPE: int, VALUE: 16, REQUIRED: True},
+       Parameter.RECEIVE_LENGTH: {TYPE: int, VALUE: 7, REQUIRED: True},
+       Parameter.TIME_BETWEEN_PINGS: {TYPE: int, VALUE: 44, REQUIRED: True},
+       Parameter.TIME_BETWEEN_BURST_SEQUENCES: {TYPE: int, VALUE: 512, REQUIRED: True},
+       Parameter.NUMBER_PINGS: {},
+       Parameter.AVG_INTERVAL: {},
+       Parameter.USER_NUMBER_BEAMS: {},
+       Parameter.TIMING_CONTROL_REGISTER: {},
+       Parameter.POWER_CONTROL_REGISTER: {},
+       Parameter.A1_1_SPARE: {},
+       Parameter.B0_1_SPARE: {},
+       Parameter.B1_1_SPARE: {},
+       Parameter.COMPASS_UPDATE_RATE: {},
+       Parameter.COORDINATE_SYSTEM: {},
+       Parameter.NUMBER_BINS: {},
+       Parameter.BIN_LENGTH: {},
+       Parameter.MEASUREMENT_INTERVAL: {},
+       Parameter.DEPLOYMENT_NAME: {},
+       Parameter.WRAP_MODE: {},
+       Parameter.CLOCK_DEPLOY: {},
+       Parameter.DIAGNOSTIC_INTERVAL: {},
+       Parameter.MODE: {},
+       Parameter.ADJUSTMENT_SOUND_SPEED: {},
+       Parameter.NUMBER_SAMPLES_DIAGNOSTIC: {},
+       Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC: {},
+       Parameter.NUMBER_PINGS_DIAGNOSTIC: {},
+       Parameter.MODE_TEST: {},
+       Parameter.ANALOG_INPUT_ADDR: {},
+       Parameter.SW_VERSION: {},
+       Parameter.USER_1_SPARE: {},
+       Parameter.VELOCITY_ADJ_TABLE: {},
+       Parameter.COMMENTS: {},
+       Parameter.WAVE_MEASUREMENT_MODE: {},
+       Parameter.DYN_PERCENTAGE_POSITION: {},
+       Parameter.WAVE_TRANSMIT_PULSE: {},
+       Parameter.WAVE_BLANKING_DISTANCE: {},
+       Parameter.WAVE_CELL_SIZE: {},
+       Parameter.NUMBER_DIAG_SAMPLES: {},
+       Parameter.A1_2_SPARE: {},
+       Parameter.B0_2_SPARE: {},
+       Parameter.NUMBER_SAMPLES_PER_BURST: {},
+       Parameter.USER_2_SPARE: {},
+       Parameter.ANALOG_OUTPUT_SCALE: {},
+       Parameter.CORRELATION_THRESHOLD: {},
+       Parameter.USER_3_SPARE: {},
+       Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG: {},
+       Parameter.USER_4_SPARE: {},
+       Parameter.QUAL_CONSTANTS: {},
+       EngineeringParameter.CLOCK_SYNC_INTERVAL: {},
+       EngineeringParameter.ACQUIRE_STATUS_INTERVAL: {},
+    }
+
     _user_config_parameters = {
         NortekUserConfigDataParticleKey.TX_LENGTH: {TYPE: int, VALUE: 2, REQUIRED: True},
         NortekUserConfigDataParticleKey.BLANK_DIST: {TYPE: int, VALUE: 16, REQUIRED: True},
@@ -795,7 +849,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         driver = NortekInstrumentDriver(self._got_data_event_callback)
         self.assert_capabilities(driver, capabilities)
 
-    def test_scheduled_clock_sync_autosample(self):
+    def test_scheduled_clock_sync_acquire_status(self):
         """
         Verify the scheduled clock sync and acquire status is added to the protocol
         Verify if there is no scheduling, nothing is added to the protocol
@@ -947,9 +1001,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_metadata_generation(instrument_params=Parameter.list() + params,
                                         commands=Capability.list())
         
-        # check one to see that the file is loading data from somewhere. This is
-        # a brittle test, but a key indicator probably worth having should the
-        # file load system not be working
+        # check one to see that the file is loading data from somewhere.
         json_result = self.driver_client.cmd_dvr("get_config_metadata")
         result = json.loads(json_result)
 
@@ -999,7 +1051,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
     def test_errors(self):
         """
-        Verify response to erroneous commands,  and setting bad parameters.
+        Verify response to erroneous commands and setting bad parameters.
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
@@ -1046,12 +1098,14 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class NortekQualTest(InstrumentDriverQualificationTestCase):
+class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverQualificationTestCase.setUp(self)
 
     def test_sync_clock(self):
-
+        """
+        Verify the driver can command a clock sync to the instrument
+        """
         self.assert_enter_command_mode()
 
         # Begin streaming.
@@ -1064,7 +1118,9 @@ class NortekQualTest(InstrumentDriverQualificationTestCase):
         self.assertEqual(state, ResourceAgentState.COMMAND)
 
     def test_acquire_status(self):
-
+        """
+        Verify the driver can command an acquire status from the instrument
+        """
         self.assert_enter_command_mode()
 
         # Begin streaming.
@@ -1089,12 +1145,12 @@ class NortekQualTest(InstrumentDriverQualificationTestCase):
         self.tcp_client.send_data("BV")
         self.tcp_client.expect("\x06\x06")
 
-        self.tcp_client.send_data("BV" + user_config2())
+        self.tcp_client.send_data("CC" + user_config2())
         self.tcp_client.expect("\x06\x06")
 
         self.assert_direct_access_stop_telnet()
 
-        # verify the setting got restored.
+        # # verify the setting got restored.
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
         self.assert_get_parameter(Parameter.DIAGNOSTIC_INTERVAL, 10800)
 
@@ -1122,12 +1178,6 @@ class NortekQualTest(InstrumentDriverQualificationTestCase):
 
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 45)
 
-        ###
-        # Test direct access disconnect
-        ###
-        self.assert_direct_access_start_telnet()
-        self.tcp_client.disconnect()
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
 
     def test_direct_access_telnet_mode_autosample(self):
         """
@@ -1137,25 +1187,18 @@ class NortekQualTest(InstrumentDriverQualificationTestCase):
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
-        log.debug("DA Server Started. Put system into ")
-        self.tcp_client.send_data("$run" + NEWLINE)
-        self.tcp_client.expect("mvs 1")
+        log.debug("DA Server Started. Put system into autosample")
+        self.tcp_client.send_data("ST")
         log.debug("DA autosample started")
 
         #Assert if stopping DA while autosampling, discover will put driver into Autosample state
         self.assert_direct_access_stop_telnet()
         self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, timeout=10)
 
-        ###
-        # Test direct access disconnect
-        ###
-        self.assert_direct_access_start_telnet()
-        self.tcp_client.disconnect()
-        self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 30)
 
     def test_get_set_parameters(self):
         """
-        verify that parameters can be get set properly
+        Verify that parameters can be get set properly
         """
         self.assert_enter_command_mode()
 
@@ -1167,13 +1210,11 @@ class NortekQualTest(InstrumentDriverQualificationTestCase):
         self.assert_set_parameter(Parameter.AVG_INTERVAL, 4)
         self.assert_set_parameter(Parameter.AVG_INTERVAL, value_before_set)
 
-        self.assert_reset()
-
     def test_instrument_set_configuration(self):
         """
-        @brief Test for setting instrument configuration
+        Verify driver can set the instrument configuration
         """
-
+        #todo
         self.assert_enter_command_mode()
 
         # command the instrument to set the user configuration.
@@ -1188,28 +1229,27 @@ class NortekQualTest(InstrumentDriverQualificationTestCase):
 
     def test_get_capabilities(self):
         """
-        @brief Verify that the correct capabilities are returned from
+        Verify that the correct capabilities are returned from
         get_capabilities at various driver/agent states.
         """
-        self.assert_enter_command_mode()
-
         ##################
         #  Command Mode
         ##################
-
-        capabilities = {
-            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
-            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
-            AgentCapabilityType.RESOURCE_COMMAND: [ProtocolEvent.ACQUIRE_SAMPLE,
+        capabilities = {}
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
+        capabilities[AgentCapabilityType.AGENT_PARAMETER] = self._common_agent_parameters()
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [ProtocolEvent.ACQUIRE_SAMPLE,
+                                                   ProtocolEvent.GET,
+                                                   ProtocolEvent.SET,
                                                    ProtocolEvent.ACQUIRE_STATUS,
                                                    ProtocolEvent.CLOCK_SYNC,
                                                    ProtocolEvent.START_AUTOSAMPLE,
-                                                   ProtocolEvent.START_DIRECT],
-            AgentCapabilityType.RESOURCE_INTERFACE: None,
-            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
-        }
+                                                   ProtocolEvent.START_DIRECT]
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = None
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
+
         self.assert_enter_command_mode()
-        self.assert_resource_capabilities(capabilities)
+        self.assert_capabilities(capabilities)
 
         ##################
         #  Streaming Mode
@@ -1233,9 +1273,9 @@ class NortekQualTest(InstrumentDriverQualificationTestCase):
         self.assert_capabilities(capabilities)
         self.assert_direct_access_stop_telnet()
 
-        # #######################
-        # #  Uninitialized Mode
-        # #######################
+        #######################
+        #  Uninitialized Mode
+        #######################
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
