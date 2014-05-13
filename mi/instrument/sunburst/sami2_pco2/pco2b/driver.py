@@ -27,21 +27,17 @@ from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiDataParticleType
-from mi.instrument.sunburst.sami2_pco2.driver import ProtocolState
-from mi.instrument.sunburst.sami2_pco2.driver import ProtocolEvent
-from mi.instrument.sunburst.sami2_pco2.driver import Capability
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolState
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolEvent
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wCapability
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiParameter
 from mi.instrument.sunburst.sami2_pco2.driver import Prompt
-from mi.instrument.sunburst.sami2_pco2.driver import SamiInstrumentCommand
 from mi.instrument.sunburst.sami2_pco2.driver import SamiRegularStatusDataParticle
-from mi.instrument.sunburst.sami2_pco2.driver import SamiRegularStatusDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.driver import SamiControlRecordDataParticle
-from mi.instrument.sunburst.sami2_pco2.driver import SamiControlRecordDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiConfigurationDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentDriver
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocol
@@ -51,7 +47,6 @@ from mi.instrument.sunburst.sami2_pco2.driver import ERROR_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import NEWLINE
 from mi.instrument.sunburst.sami2_pco2.driver import SAMI_SAMPLE_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticle
-from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentCommand
 ###
 #    Driver Constant Definitions
@@ -119,6 +114,29 @@ CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 ###
 #    Begin Classes
 ###
+
+
+class ProtocolState(Pco2wProtocolState):
+    """
+    Extend base class with instrument specific functionality.
+    """
+    pass
+
+
+class ProtocolEvent(Pco2wProtocolEvent):
+    """
+    Extend base class with instrument specific functionality.
+    """
+    pass
+
+
+class Capability(Pco2wCapability):
+    """
+    Extend base class with instrument specific functionality.
+    """
+    pass
+
+
 class DataParticleType(Pco2wSamiDataParticleType):
     """
     Data particle types produced by this driver
@@ -126,6 +144,7 @@ class DataParticleType(Pco2wSamiDataParticleType):
     # PCO2W driver extends the base class (SamiDataParticleType) with:
     DEV1_SAMPLE = 'pco2w_dev1_data_record'
     CONFIGURATION = 'pco2w_configuration'
+
 
 class Parameter(Pco2wSamiParameter):
     """
@@ -135,6 +154,7 @@ class Parameter(Pco2wSamiParameter):
     # PCO2W driver extends the base class (Pco2SamiParameter) with:
     EXTERNAL_PUMP_SETTINGS = 'external_pump_setting'
     EXTERNAL_PUMP_DELAY = 'external_pump_delay'
+
 
 class InstrumentCommand(Pco2wInstrumentCommand):
     """
@@ -418,6 +438,13 @@ class Protocol(Pco2wProtocol):
 
         self._engineering_parameters.append(Parameter.EXTERNAL_PUMP_DELAY)
 
+    def _filter_capabilities(self, events):
+        """
+        Return a list of currently available capabilities.
+        """
+
+        return [x for x in events if Capability.has(x)]
+
     def _parse_response_sample_dev1(self, response, prompt):
         """
         Parse response to take dev1 sample from instrument
@@ -492,6 +519,15 @@ class Protocol(Pco2wProtocol):
     ########################################################################
     # Build Command, Driver and Parameter dictionaries
     ########################################################################
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+
+        log.debug('Protocol._build_command_dict')
+
+        Pco2wProtocol._build_command_dict(self)
 
     def _build_param_dict(self):
         """

@@ -23,15 +23,12 @@ from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentProtocolException
-#from mi.core.exceptions import InstrumentParameterException
 
 from mi.core.common import BaseEnum
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_fsm import InstrumentFSM
-from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.instrument.sunburst.driver import Prompt
@@ -50,7 +47,6 @@ from mi.instrument.sunburst.driver import ERROR_REGEX_MATCHER
 from mi.instrument.sunburst.driver import REGULAR_STATUS_REGEX_MATCHER
 
 from mi.instrument.sunburst.driver import NEWLINE
-from mi.instrument.sunburst.driver import TIMEOUT
 from mi.instrument.sunburst.driver import SamiScheduledJob
 from mi.instrument.sunburst.driver import SamiProtocolState
 from mi.instrument.sunburst.driver import SamiProtocolEvent
@@ -133,17 +129,20 @@ class ScheduledJob(SamiScheduledJob):
     """
     pass
 
+
 class ProtocolState(SamiProtocolState):
     """
     Extend base class with instrument specific functionality.
     """
     pass
 
+
 class ProtocolEvent(SamiProtocolEvent):
     """
     Extend base class with instrument specific functionality.
     """
     pass
+
 
 class Capability(SamiCapability):
     """

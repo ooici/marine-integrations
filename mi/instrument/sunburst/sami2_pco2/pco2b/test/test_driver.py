@@ -53,12 +53,12 @@ from mi.instrument.sunburst.driver import SamiInstrumentCommand
 from mi.instrument.sunburst.sami2_pco2.driver import ScheduledJob
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import ProtocolState
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import ProtocolEvent
-from mi.instrument.sunburst.sami2_pco2.driver import Capability
+from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Capability
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Parameter
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Protocol
 from mi.instrument.sunburst.driver import Prompt
 from mi.instrument.sunburst.driver import NEWLINE
-from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Pco2wSamiSampleDataParticleKey
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Pco2wDev1SampleDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import Pco2wConfigurationDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.pco2b.driver import DataParticleType
@@ -120,11 +120,11 @@ InstrumentDriverTestCase.initialize(
 # methods for validating data particles.                                      #
 ###############################################################################
 class DriverTestMixinSub(Pco2DriverTestMixinSub):
-
     '''
     Mixin class used for storing data particle constants and common data
     assertion methods.
     '''
+
     # Create some short names for the parameter test config
     TYPE = ParameterTestConfigKey.TYPE
     READONLY = ParameterTestConfigKey.READONLY
@@ -134,6 +134,22 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
     REQUIRED = ParameterTestConfigKey.REQUIRED
     DEFAULT = ParameterTestConfigKey.DEFAULT
     STATES = ParameterTestConfigKey.STATES
+
+    _driver_capabilities = {
+        # capabilities defined in the IOS
+        Capability.ACQUIRE_STATUS:      {STATES: [ProtocolState.COMMAND,
+                                                  ProtocolState.AUTOSAMPLE]},
+        Capability.ACQUIRE_SAMPLE:      {STATES: [ProtocolState.COMMAND]},
+        Capability.ACQUIRE_BLANK_SAMPLE:{STATES: [ProtocolState.COMMAND]},
+        Capability.START_AUTOSAMPLE:    {STATES: [ProtocolState.COMMAND,
+                                                  ProtocolState.AUTOSAMPLE]},
+        Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
+                                                  ProtocolState.COMMAND]},
+        Capability.DEIONIZED_WATER_FLUSH: {STATES: [ProtocolState.COMMAND]},
+        Capability.REAGENT_FLUSH:       {STATES: [ProtocolState.COMMAND]}
+    }
+
+
 
     ###
     #  Instrument output (driver input) Definitions
@@ -425,6 +441,77 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
 @attr('UNIT', group='mi')
 class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
 
+    capabilities_test_dict = {
+        ProtocolState.UNKNOWN:          ['DRIVER_EVENT_DISCOVER'],
+        ProtocolState.WAITING:          ['DRIVER_EVENT_DISCOVER'],
+        ProtocolState.COMMAND:          ['DRIVER_EVENT_GET',
+                                         'DRIVER_EVENT_SET',
+                                         'DRIVER_EVENT_START_DIRECT',
+                                         'DRIVER_EVENT_ACQUIRE_STATUS',
+                                         'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                         'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE',
+                                         'DRIVER_EVENT_START_AUTOSAMPLE',
+                                         'DRIVER_EVENT_DEIONIZED_WATER_FLUSH',
+                                         'DRIVER_EVENT_REAGENT_FLUSH'],
+        ProtocolState.DEIONIZED_WATER_FLUSH: ['PROTOCOL_EVENT_EXECUTE_FLUSH',
+                                              'PROTOCOL_EVENT_SUCCESS',
+                                              'PROTOCOL_EVENT_TIMEOUT',
+                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.REAGENT_FLUSH:         ['PROTOCOL_EVENT_EXECUTE_FLUSH',
+                                              'PROTOCOL_EVENT_SUCCESS',
+                                              'PROTOCOL_EVENT_TIMEOUT',
+                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.AUTOSAMPLE:       ['DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                         'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE',
+                                         'DRIVER_EVENT_STOP_AUTOSAMPLE',
+                                         'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.DIRECT_ACCESS:    ['EXECUTE_DIRECT',
+                                         'DRIVER_EVENT_STOP_DIRECT'],
+        ProtocolState.POLLED_SAMPLE:     ['PROTOCOL_EVENT_TAKE_SAMPLE',
+                                          'PROTOCOL_EVENT_SUCCESS',
+                                          'PROTOCOL_EVENT_TIMEOUT',
+                                          'DRIVER_EVENT_ACQUIRE_STATUS',
+                                          'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                          'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'],
+        ProtocolState.POLLED_BLANK_SAMPLE: ['PROTOCOL_EVENT_TAKE_SAMPLE',
+                                            'PROTOCOL_EVENT_SUCCESS',
+                                            'PROTOCOL_EVENT_TIMEOUT',
+                                            'DRIVER_EVENT_ACQUIRE_STATUS',
+                                            'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                            'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'],
+        ProtocolState.SCHEDULED_SAMPLE:   ['PROTOCOL_EVENT_TAKE_SAMPLE',
+                                           'PROTOCOL_EVENT_SUCCESS',
+                                           'PROTOCOL_EVENT_TIMEOUT',
+                                           'DRIVER_EVENT_ACQUIRE_STATUS',
+                                           'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                           'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'],
+        ProtocolState.SCHEDULED_BLANK_SAMPLE: ['PROTOCOL_EVENT_TAKE_SAMPLE',
+                                               'PROTOCOL_EVENT_SUCCESS',
+                                               'PROTOCOL_EVENT_TIMEOUT',
+                                               'DRIVER_EVENT_ACQUIRE_STATUS',
+                                               'DRIVER_EVENT_ACQUIRE_SAMPLE',
+                                               'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE']
+    }
+
+    def test_base_driver_enums(self):
+        """
+        Verify that all the SAMI Instrument driver enumerations have no
+        duplicate values that might cause confusion. Also do a little
+        extra validation for the Capabilites
+
+        Extra enumeration tests are done in a specific subclass
+        """
+
+        # Test Enums defined in the base SAMI driver
+        self.assert_enum_has_no_duplicates(ProtocolState())
+        self.assert_enum_has_no_duplicates(ProtocolEvent())
+
+        # Test capabilites for duplicates, then verify that capabilities
+        # is a subset of proto events
+
+        self.assert_enum_has_no_duplicates(Capability())
+        self.assert_enum_complete(Capability(), ProtocolEvent())
+
     def test_driver_schema(self):
         """
         get the driver schema and verify it is configured properly
@@ -591,7 +678,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
            Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x38,
            Parameter.EXTERNAL_PUMP_SETTINGS: 0x14,
            Parameter.EXTERNAL_PUMP_DELAY: 10,
-           Parameter.AUTO_SAMPLE_INTERVAL: 3600
+           Parameter.AUTO_SAMPLE_INTERVAL: 3600,
+           Parameter.FLUSH_DURATION: 1
         }
 
         new_values = {
@@ -606,7 +694,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
            Parameter.NUMBER_EXTRA_PUMP_CYCLES: 0x39,
            Parameter.EXTERNAL_PUMP_SETTINGS: 0x40,
            Parameter.EXTERNAL_PUMP_DELAY: 300,
-           Parameter.AUTO_SAMPLE_INTERVAL: 600
+           Parameter.AUTO_SAMPLE_INTERVAL: 600,
+           Parameter.FLUSH_DURATION: 8
         }
 
         self.assert_initialize_driver()
@@ -634,6 +723,7 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_set(Parameter.NUMBER_EXTRA_PUMP_CYCLES, 88)
         self.assert_set(Parameter.EXTERNAL_PUMP_SETTINGS, 40)
         self.assert_set(Parameter.EXTERNAL_PUMP_DELAY, 60)
+        self.assert_set(Parameter.FLUSH_DURATION, 8)
 
         self.assert_set_readonly(Parameter.START_TIME_FROM_LAUNCH, 84600)
         self.assert_set_readonly(Parameter.STOP_TIME_FROM_START, 84600)
@@ -654,7 +744,8 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
             Parameter.BIT_SWITCHES: 1,
             Parameter.NUMBER_EXTRA_PUMP_CYCLES: 88,
             Parameter.EXTERNAL_PUMP_SETTINGS: 40,
-            Parameter.EXTERNAL_PUMP_DELAY: 60
+            Parameter.EXTERNAL_PUMP_DELAY: 60,
+            Parameter.FLUSH_DURATION: 8
         }
         self.assert_set_bulk(new_values)
 
@@ -801,6 +892,11 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         self.assert_async_particle_generation(DataParticleType.THERMISTOR_VOLTAGE, self.assert_particle_thermistor_voltage)
         self.assert_current_state(ProtocolState.COMMAND)
 
+    def test_flush_pump(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=5.0)
+        self.assert_driver_command(ProtocolEvent.REAGENT_FLUSH, delay=5.0)
+
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #
@@ -894,6 +990,9 @@ class DriverQualificationTest(Pco2DriverQualificationTest, DriverTestMixinSub):
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.CONFIGURATION, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_battery_voltage, DataParticleType.BATTERY_VOLTAGE, sample_count=1, timeout=10)
         self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_thermistor_voltage, DataParticleType.THERMISTOR_VOLTAGE, sample_count=1, timeout=10)
+
+        self.assert_resource_command(ProtocolEvent.DEIONIZED_WATER_FLUSH, delay=5, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
+        self.assert_resource_command(ProtocolEvent.REAGENT_FLUSH, delay=5, agent_state=ResourceAgentState.COMMAND, resource_state=ProtocolState.COMMAND)
 
     def test_autosample_poll(self):
 

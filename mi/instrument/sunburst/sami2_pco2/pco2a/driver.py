@@ -19,27 +19,21 @@ from mi.core.log import get_logger
 log = get_logger()
 
 from mi.core.exceptions import SampleException
-from mi.core.exceptions import InstrumentProtocolException
 
-from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiDataParticleType
-from mi.instrument.sunburst.sami2_pco2.driver import ProtocolState
-from mi.instrument.sunburst.sami2_pco2.driver import ProtocolEvent
-from mi.instrument.sunburst.sami2_pco2.driver import Capability
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolState
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocolEvent
+from mi.instrument.sunburst.sami2_pco2.driver import Pco2wCapability
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiParameter
 from mi.instrument.sunburst.sami2_pco2.driver import Prompt
-from mi.instrument.sunburst.sami2_pco2.driver import SamiInstrumentCommand
 from mi.instrument.sunburst.sami2_pco2.driver import SamiRegularStatusDataParticle
-from mi.instrument.sunburst.sami2_pco2.driver import SamiRegularStatusDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.driver import SamiControlRecordDataParticle
-from mi.instrument.sunburst.sami2_pco2.driver import SamiControlRecordDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiConfigurationDataParticleKey
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentDriver
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wProtocol
@@ -49,7 +43,6 @@ from mi.instrument.sunburst.sami2_pco2.driver import ERROR_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import NEWLINE
 from mi.instrument.sunburst.sami2_pco2.driver import SAMI_SAMPLE_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticle
-from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticleKey
 
 ###
 #    Driver Constant Definitions
@@ -106,11 +99,33 @@ CONFIGURATION_REGEX_MATCHER = re.compile(CONFIGURATION_REGEX)
 #    Begin Classes
 ###
 
+class ProtocolState(Pco2wProtocolState):
+    """
+    Extend base class with instrument specific functionality.
+    """
+    pass
+
+
+class ProtocolEvent(Pco2wProtocolEvent):
+    """
+    Extend base class with instrument specific functionality.
+    """
+    pass
+
+
+class Capability(Pco2wCapability):
+    """
+    Extend base class with instrument specific functionality.
+    """
+    pass
+
+
 class DataParticleType(Pco2wSamiDataParticleType):
     """
     Data particle types produced by this driver
     """
     CONFIGURATION = 'pco2w_a_configuration'
+
 
 class Parameter(Pco2wSamiParameter):
     """
@@ -321,6 +336,13 @@ class Protocol(Pco2wProtocol):
         # build the chunker
         self._chunker = StringChunker(Protocol.sieve_function)
 
+    def _filter_capabilities(self, events):
+        """
+        Return a list of currently available capabilities.
+        """
+
+        return [x for x in events if Capability.has(x)]
+
     @staticmethod
     def sieve_function(raw_data):
         """
@@ -360,6 +382,15 @@ class Protocol(Pco2wProtocol):
     ########################################################################
     # Build Command, Driver and Parameter dictionaries
     ########################################################################
+
+    def _build_command_dict(self):
+        """
+        Populate the command dictionary with command.
+        """
+
+        log.debug('Protocol._build_command_dict')
+
+        Pco2wProtocol._build_command_dict(self)
 
     def _build_param_dict(self):
         """
