@@ -107,22 +107,22 @@ class Vel3dKWfpStcStateKey(BaseEnum):
 
 
 class Vel3dKWfpStcDataParticleType(BaseEnum):
-    TIME_PARTICLE = 'vel3d_k_wfp_stc_metadata'
-    VELOCITY_PARTICLE = 'vel3d_k_wfp_stc_instrument'
+    METADATA_PARTICLE = 'vel3d_k_wfp_stc_metadata'
+    INSTRUMENT_PARTICLE = 'vel3d_k_wfp_stc_instrument'
 
 
-class Vel3dKWfpStcTimeDataParticleKey(BaseEnum):
+class Vel3dKWfpStcMetadataParticleKey(BaseEnum):
     NUMBER_OF_RECORDS = 'vel3d_k_number_of_records'
     TIME_OFF = 'vel3d_k_time_off'
     TIME_ON = 'vel3d_k_time_on'
 
 
-class Vel3dKWfpStcTimeDataParticle(DataParticle):
+class Vel3dKWfpStcMetadataParticle(DataParticle):
     """
     Class for parsing TIME data from the VEL3D_K__stc_imodem data set
     """
 
-    _data_particle_type = Vel3dKWfpStcDataParticleType.TIME_PARTICLE
+    _data_particle_type = Vel3dKWfpStcDataParticleType.METADATA_PARTICLE
     
     def _build_parsed_values(self):
         """
@@ -136,32 +136,32 @@ class Vel3dKWfpStcTimeDataParticle(DataParticle):
         # extracted and unpacked from the time data record.
         #
         particle = [
-          {
-            DataParticleKey.VALUE_ID:
-              Vel3dKWfpStcTimeDataParticleKey.TIME_ON, 
-            DataParticleKey.VALUE: self.raw_data[INDEX_TIME_ON]
-          },
-          {
-            DataParticleKey.VALUE_ID: 
-              Vel3dKWfpStcTimeDataParticleKey.TIME_OFF,
-            DataParticleKey.VALUE: self.raw_data[INDEX_TIME_OFF]
-          },
-          {
-            DataParticleKey.VALUE_ID: 
-              Vel3dKWfpStcTimeDataParticleKey.NUMBER_OF_RECORDS, 
-            DataParticleKey.VALUE: self.raw_data[INDEX_RECORDS]
-          }
+            {
+                DataParticleKey.VALUE_ID:
+                    Vel3dKWfpStcMetadataParticleKey.TIME_ON,
+                DataParticleKey.VALUE: self.raw_data[INDEX_TIME_ON]
+            },
+            {
+                DataParticleKey.VALUE_ID:
+                    Vel3dKWfpStcMetadataParticleKey.TIME_OFF,
+                DataParticleKey.VALUE: self.raw_data[INDEX_TIME_OFF]
+            },
+            {
+                DataParticleKey.VALUE_ID:
+                    Vel3dKWfpStcMetadataParticleKey.NUMBER_OF_RECORDS,
+                DataParticleKey.VALUE: self.raw_data[INDEX_RECORDS]
+            }
         ]
 
         return particle
 
 
-class Vel3dKWfpStcVelocityDataParticle(DataParticle):
+class Vel3dKWfpStcInstrumentDataParticle(DataParticle):
     """
     Class for parsing VELOCITY data from the VEL3D_K__stc_imodem data set
     """
 
-    _data_particle_type = Vel3dKWfpStcDataParticleType.VELOCITY_PARTICLE
+    _data_particle_type = Vel3dKWfpStcDataParticleType.INSTRUMENT_PARTICLE
     
     def _build_parsed_values(self):
         """
@@ -457,7 +457,7 @@ class Vel3dKWfpStcParser(BufferLoadingFilenameParser):
                         ntp_time = ntplib.system_to_ntp_time(timestamp)
 
                         particle = self._extract_sample(
-                            Vel3dKWfpStcVelocityDataParticle,
+                            Vel3dKWfpStcInstrumentDataParticle,
                             None, velocity_fields, ntp_time)
 
                         result_particles.append((particle,
@@ -495,7 +495,7 @@ class Vel3dKWfpStcParser(BufferLoadingFilenameParser):
                     ntp_time = ntplib.system_to_ntp_time(self.time_on)
 
                     particle = self._extract_sample(
-                        Vel3dKWfpStcTimeDataParticle, None, time_fields, ntp_time)
+                        Vel3dKWfpStcMetadataParticle, None, time_fields, ntp_time)
 
                     self._increment_state(TIME_RECORD_SIZE)
                     result_particles.append((particle, copy.copy(self._read_state)))
@@ -644,7 +644,7 @@ class Vel3dKWfpStcParser(BufferLoadingFilenameParser):
         37      1      ubyte   Amp1
         38      1      ubyte   Amp2
         39      1      ubyte   Cor0
-        40      1      ubyte   Cor1:
+        40      1      ubyte   Cor1
         41      1      ubyte   Cor2
         """
 
@@ -716,4 +716,3 @@ class Vel3dKWfpStcParser(BufferLoadingFilenameParser):
                 start_index = end_index
 
         return indices_list
-
