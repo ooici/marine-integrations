@@ -146,7 +146,8 @@ class DriverTestMixinSub(Pco2DriverTestMixinSub):
         Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
                                                   ProtocolState.COMMAND]},
         Capability.DEIONIZED_WATER_FLUSH: {STATES: [ProtocolState.COMMAND]},
-        Capability.REAGENT_FLUSH:       {STATES: [ProtocolState.COMMAND]}
+        Capability.REAGENT_FLUSH:         {STATES: [ProtocolState.COMMAND]},
+        Capability.RUN_EXTERNAL_PUMP:     {STATES: [ProtocolState.COMMAND]}
     }
 
 
@@ -452,12 +453,17 @@ class DriverUnitTest(Pco2DriverUnitTest, DriverTestMixinSub):
                                          'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE',
                                          'DRIVER_EVENT_START_AUTOSAMPLE',
                                          'DRIVER_EVENT_DEIONIZED_WATER_FLUSH',
-                                         'DRIVER_EVENT_REAGENT_FLUSH'],
+                                         'DRIVER_EVENT_REAGENT_FLUSH',
+                                         'DRIVER_EVENT_RUN_EXTERNAL_PUMP'],
         ProtocolState.DEIONIZED_WATER_FLUSH: ['PROTOCOL_EVENT_EXECUTE_FLUSH',
                                               'PROTOCOL_EVENT_SUCCESS',
                                               'PROTOCOL_EVENT_TIMEOUT',
                                               'DRIVER_EVENT_ACQUIRE_STATUS'],
         ProtocolState.REAGENT_FLUSH:         ['PROTOCOL_EVENT_EXECUTE_FLUSH',
+                                              'PROTOCOL_EVENT_SUCCESS',
+                                              'PROTOCOL_EVENT_TIMEOUT',
+                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.RUN_EXTERNAL_PUMP:     ['PROTOCOL_EVENT_TAKE_SAMPLE',
                                               'PROTOCOL_EVENT_SUCCESS',
                                               'PROTOCOL_EVENT_TIMEOUT',
                                               'DRIVER_EVENT_ACQUIRE_STATUS'],

@@ -48,6 +48,11 @@ from mi.instrument.sunburst.sami2_pco2.driver import NEWLINE
 from mi.instrument.sunburst.sami2_pco2.driver import SAMI_SAMPLE_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticle
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wInstrumentCommand
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_driver import ResourceAgentState
+from mi.core.instrument.instrument_driver import DriverAsyncEvent
+
 ###
 #    Driver Constant Definitions
 ###
@@ -120,21 +125,21 @@ class ProtocolState(Pco2wProtocolState):
     """
     Extend base class with instrument specific functionality.
     """
-    pass
+    RUN_EXTERNAL_PUMP = 'PROTOCOL_STATE_RUN_EXTERNAL_PUMP'
 
 
 class ProtocolEvent(Pco2wProtocolEvent):
     """
     Extend base class with instrument specific functionality.
     """
-    pass
+    RUN_EXTERNAL_PUMP = 'DRIVER_EVENT_RUN_EXTERNAL_PUMP'
 
 
 class Capability(Pco2wCapability):
     """
     Extend base class with instrument specific functionality.
     """
-    pass
+    RUN_EXTERNAL_PUMP = ProtocolEvent.RUN_EXTERNAL_PUMP
 
 
 class DataParticleType(Pco2wSamiDataParticleType):
@@ -417,9 +422,43 @@ class Protocol(Pco2wProtocol):
         """
 
         # Construct protocol superclass.
+        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+
+        # Build protocol state machine.
+        self._protocol_fsm = InstrumentFSM(
+            ProtocolState, ProtocolEvent,
+            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
+
+        # Construct protocol superclass.
         Pco2wProtocol.__init__(self, prompts, newline, driver_event)
 
         # Build protocol state machine.
+
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.RUN_EXTERNAL_PUMP,
+            self._handler_command_run_external_pump)
+
+        # this state would be entered whenever a RUN_EXTERNAL_PUMP event
+        # occurred while in the COMMAND state
+        self._protocol_fsm.add_handler(
+            ProtocolState.RUN_EXTERNAL_PUMP, ProtocolEvent.ENTER,
+            self._handler_run_external_pump_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.RUN_EXTERNAL_PUMP, ProtocolEvent.EXIT,
+            self._handler_run_external_pump_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.RUN_EXTERNAL_PUMP, ProtocolEvent.TAKE_SAMPLE,
+            self._handler_run_external_pump_execute)
+        self._protocol_fsm.add_handler(
+            ProtocolState.RUN_EXTERNAL_PUMP, ProtocolEvent.SUCCESS,
+            self._handler_run_external_pump_success)
+        self._protocol_fsm.add_handler(
+            ProtocolState.RUN_EXTERNAL_PUMP, ProtocolEvent.TIMEOUT,
+            self._handler_run_external_pump_timeout)
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            ProtocolState.RUN_EXTERNAL_PUMP, ProtocolEvent.ACQUIRE_STATUS,
+            self._handler_queue_acquire_status)
 
         # Add build handlers for device commands.
         ### primarily defined in base class
@@ -445,30 +484,133 @@ class Protocol(Pco2wProtocol):
 
         return [x for x in events if Capability.has(x)]
 
+    ########################################################################
+    # Command handlers.
+    ########################################################################
+
+    def _handler_command_run_external_pump(self):
+        """
+        Run external pump
+        """
+
+        log.debug('Protocol._handler_command_run_external_pump()')
+
+        next_state = ProtocolState.RUN_EXTERNAL_PUMP
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+
+        return (next_state, (next_agent_state, result))
+
+    ########################################################################
+    # Run external pump handlers.
+    ########################################################################
+
+    def _handler_run_external_pump_enter(self, *args, **kwargs):
+        """
+        Enter state.
+        """
+
+        log.debug('Protocol._handler_run_external_pump_enter')
+
+        self._async_raise_fsm_event(ProtocolEvent.TAKE_SAMPLE)
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_run_external_pump_exit(self, *args, **kwargs):
+        """
+        Exit state.
+        """
+
+        log.debug('Protocol._handler_run_external_pump_exit')
+
+    def _handler_run_external_pump_success(self, *args, **kwargs):
+        """
+        Successfully received a dev1 sample (external pump) from SAMI
+        """
+
+        log.debug('Protocol._handler_run_external_pump_success')
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ProtocolState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    def _handler_run_external_pump_timeout(self, *args, **kwargs):
+        """
+        Dev1 sample (external pump) timeout occurred.
+        """
+
+        log.error('Protocol._handler_run_external_pump_timeout(): Run external pump timeout occurred')
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    def _handler_run_external_pump_execute(self, *args, **kwargs):
+        """
+        Execute run external pump (dev1) command
+        """
+
+        try:
+
+            self._take_dev1_sample()
+
+            log.debug('Protocol._handler_run_external_pump_execute(): SUCCESS')
+
+            self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
+
+        except InstrumentTimeoutException:
+
+            log.error('Protocol._handler_run_external_pump_execute(): TIMEOUT')
+
+            self._async_raise_fsm_event(ProtocolEvent.TIMEOUT)
+
+        return None, None
+
+    ########################################################################
+    # Response handlers.
+    ########################################################################
+
     def _parse_response_sample_dev1(self, response, prompt):
         """
         Parse response to take dev1 sample from instrument
         """
         pass
 
-    def _pre_sample_processing(self):
+    def _take_dev1_sample(self):
         """
-        Override in sub class if needed
+        Run external pump and wait for dev1 sample
         """
-        log.debug('Protocol._pre_sample_processing(): Take Dev1 Sample START')
+
+        log.debug('Protocol._take_dev1_sample(): Take Dev1 Sample START')
 
         start_time = time.time()
 
         dev1_timeout = self._param_dict.get(Parameter.EXTERNAL_PUMP_SETTINGS)
 
-        log.debug('Protocol._pre_sample_processing(): Dev1 Timeout = ' + str(dev1_timeout))
+        log.debug('Protocol._take_dev1_sample(): Dev1 Timeout = ' + str(dev1_timeout))
 
         ## An exception is raised if timeout is hit.
         self._do_cmd_resp(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, timeout = dev1_timeout, response_regex=DEV1_SAMPLE_REGEX_MATCHER)
 
         sample_time = time.time() - start_time
 
-        log.debug('Protocol._pre_sample_processing(): Dev1 Sample took ' + str(sample_time) + ' to FINISH')
+        log.debug('Protocol._take_dev1_sample(): Dev1 Sample took ' + str(sample_time) + ' to FINISH')
+
+    def _pre_sample_processing(self):
+        """
+        Run external pump and wait for equilibrium
+        """
+        log.debug('Protocol._pre_sample_processing():')
+
+        self._take_dev1_sample()
 
         external_pump_delay = self._param_dict.get(Parameter.EXTERNAL_PUMP_DELAY)
 
@@ -528,6 +670,8 @@ class Protocol(Pco2wProtocol):
         log.debug('Protocol._build_command_dict')
 
         Pco2wProtocol._build_command_dict(self)
+
+        self._cmd_dict.add(Capability.RUN_EXTERNAL_PUMP, display_name="run external pump")
 
     def _build_param_dict(self):
         """

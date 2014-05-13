@@ -27,7 +27,6 @@ from mi.core.exceptions import NotImplementedException
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
-from mi.core.instrument.instrument_fsm import InstrumentFSM
 from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.protocol_param_dict import ProtocolParameterDict
 from mi.core.instrument.protocol_param_dict import ParameterDictType
@@ -55,7 +54,7 @@ from mi.instrument.sunburst.driver import SamiProtocolEvent
 from mi.instrument.sunburst.driver import SamiCapability
 from mi.instrument.sunburst.driver import TIMEOUT
 from mi.instrument.sunburst.driver import NEW_LINE_REGEX_MATCHER
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+
 
 ###
 #    Driver Constant Definitions
@@ -282,14 +281,6 @@ class Pco2wProtocol(SamiProtocol):
         log.debug('Pco2wProtocol.__init__()')
 
         # Construct protocol superclass.
-        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
-
-        # Build protocol state machine.
-        self._protocol_fsm = InstrumentFSM(
-            Pco2wProtocolState, Pco2wProtocolEvent,
-            Pco2wProtocolEvent.ENTER, Pco2wProtocolEvent.EXIT)
-
-        # Construct protocol superclass.
         SamiProtocol.__init__(self, prompts, newline, driver_event)
 
         self._protocol_fsm.add_handler(
@@ -396,7 +387,7 @@ class Pco2wProtocol(SamiProtocol):
             Pco2wProtocolState.DEIONIZED_WATER_FLUSH, Pco2wProtocolEvent.ACQUIRE_STATUS,
             self._handler_queue_acquire_status)
 
-        # this state would be entered whenever a PUMP_DEIONIZED_WATER event
+        # this state would be entered whenever a PUMP_REAGENT event
         # occurred while in the COMMAND state
         self._protocol_fsm.add_handler(
             Pco2wProtocolState.REAGENT_FLUSH, Pco2wProtocolEvent.ENTER,

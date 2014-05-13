@@ -43,6 +43,8 @@ from mi.instrument.sunburst.sami2_pco2.driver import ERROR_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import NEWLINE
 from mi.instrument.sunburst.sami2_pco2.driver import SAMI_SAMPLE_REGEX_MATCHER
 from mi.instrument.sunburst.sami2_pco2.driver import Pco2wSamiSampleDataParticle
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.instrument_fsm import InstrumentFSM
 
 ###
 #    Driver Constant Definitions
@@ -324,6 +326,14 @@ class Protocol(Pco2wProtocol):
         @param newline The newline.
         @param driver_event Driver process event callback.
         """
+
+        # Construct protocol superclass.
+        CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
+
+        # Build protocol state machine.
+        self._protocol_fsm = InstrumentFSM(
+            ProtocolState, ProtocolEvent,
+            ProtocolEvent.ENTER, ProtocolEvent.EXIT)
 
         # Construct protocol superclass.
         Pco2wProtocol.__init__(self, prompts, newline, driver_event)

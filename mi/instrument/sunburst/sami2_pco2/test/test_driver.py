@@ -76,15 +76,6 @@ from mi.instrument.sunburst.test.test_driver import SamiQualificationTest
 # Driver constant definitions
 ###
 
-TYPE = ParameterTestConfigKey.TYPE
-READONLY = ParameterTestConfigKey.READONLY
-STARTUP = ParameterTestConfigKey.STARTUP
-DA = ParameterTestConfigKey.DIRECT_ACCESS
-VALUE = ParameterTestConfigKey.VALUE
-REQUIRED = ParameterTestConfigKey.REQUIRED
-DEFAULT = ParameterTestConfigKey.DEFAULT
-STATES = ParameterTestConfigKey.STATES
-
 ###############################################################################
 #                           DRIVER TEST MIXIN                                 #
 #     Defines a set of constants and assert methods used for data particle    #
