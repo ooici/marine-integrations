@@ -352,7 +352,7 @@ class Protocol(Pco2wProtocol):
         self._extract_sample(Pco2wConfigurationDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
         sample = self._extract_sample(Pco2wSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
 
-        log.debug('herb: ' + 'Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
+        log.debug('Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
 
         if sample:
             self._verify_checksum(chunk, SAMI_SAMPLE_REGEX_MATCHER)
@@ -367,7 +367,7 @@ class Protocol(Pco2wProtocol):
         and value formatting function for set commands.
         """
 
-        log.debug('herb: ' + 'Protocol._build_param_dict()')
+        log.debug('Protocol._build_param_dict()')
 
         Pco2wProtocol._build_param_dict(self)
 
@@ -481,18 +481,21 @@ class Protocol(Pco2wProtocol):
         @retval configuration string regex.
         """
         return CONFIGURATION_REGEX
+
     def _get_configuration_string_regex_matcher(self):
         """
         Get config string regex matcher.
         @retval configuration string regex matcher
         """
         return CONFIGURATION_REGEX_MATCHER
+
     def _get_blank_sample_timeout(self):
         """
         Get blank sample timeout.
         @retval blank sample timeout in seconds.
         """
         return SAMPLE_DELAY
+
     def _get_sample_timeout(self):
         """
         Get sample timeout.

@@ -428,24 +428,24 @@ class Protocol(Pco2wProtocol):
         """
         Override in sub class if needed
         """
-        log.debug('herb: ' + 'Protocol._pre_sample_processing(): Take Dev1 Sample START')
+        log.debug('Protocol._pre_sample_processing(): Take Dev1 Sample START')
 
         start_time = time.time()
 
         dev1_timeout = self._param_dict.get(Parameter.EXTERNAL_PUMP_SETTINGS)
 
-        log.debug('herb: ' + 'Protocol._pre_sample_processing(): Dev1 Timeout = ' + str(dev1_timeout))
+        log.debug('Protocol._pre_sample_processing(): Dev1 Timeout = ' + str(dev1_timeout))
 
         ## An exception is raised if timeout is hit.
         self._do_cmd_resp(InstrumentCommand.ACQUIRE_SAMPLE_DEV1, timeout = dev1_timeout, response_regex=DEV1_SAMPLE_REGEX_MATCHER)
 
         sample_time = time.time() - start_time
 
-        log.debug('herb: ' + 'Protocol._pre_sample_processing(): Dev1 Sample took ' + str(sample_time) + ' to FINISH')
+        log.debug('Protocol._pre_sample_processing(): Dev1 Sample took ' + str(sample_time) + ' to FINISH')
 
         external_pump_delay = self._param_dict.get(Parameter.EXTERNAL_PUMP_DELAY)
 
-        log.debug('herb: ' + 'Protocol._pre_sample_processing(): Delaying for %d seconds', external_pump_delay)
+        log.debug('Protocol._pre_sample_processing(): Delaying for %d seconds', external_pump_delay)
 
         time.sleep(external_pump_delay)
 
@@ -482,7 +482,7 @@ class Protocol(Pco2wProtocol):
         dev1_sample = self._extract_sample(Pco2wDev1SampleDataParticle, DEV1_SAMPLE_REGEX_MATCHER, chunk, timestamp)
         sami_sample = self._extract_sample(Pco2wSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
 
-        log.debug('herb: ' + 'Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
+        log.debug('Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
 
         if sami_sample:
             self._verify_checksum(chunk, SAMI_SAMPLE_REGEX_MATCHER)
@@ -499,7 +499,7 @@ class Protocol(Pco2wProtocol):
         and value formatting function for set commands.
         """
 
-        log.debug('herb: ' + 'Protocol._build_param_dict()')
+        log.debug('Protocol._build_param_dict()')
 
         Pco2wProtocol._build_param_dict(self)
 
@@ -632,18 +632,21 @@ class Protocol(Pco2wProtocol):
         @retval configuration string regex.
         """
         return CONFIGURATION_REGEX
+
     def _get_configuration_string_regex_matcher(self):
         """
         Get config string regex matcher.
         @retval configuration string regex matcher
         """
         return CONFIGURATION_REGEX_MATCHER
+
     def _get_blank_sample_timeout(self):
         """
         Get blank sample timeout.
         @retval blank sample timeout in seconds.
         """
         return SAMPLE_DELAY
+
     def _get_sample_timeout(self):
         """
         Get sample timeout.

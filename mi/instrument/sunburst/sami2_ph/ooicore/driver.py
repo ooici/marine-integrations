@@ -510,7 +510,7 @@ class Protocol(SamiProtocol):
         self._extract_sample(PhsenConfigDataParticle, CONFIGURATION_REGEX_MATCHER, chunk, timestamp)
         sample = self._extract_sample(PhsenSamiSampleDataParticle, SAMI_SAMPLE_REGEX_MATCHER, chunk, timestamp)
 
-        log.debug('herb: ' + 'Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
+        log.debug('Protocol._got_chunk(): get_current_state() == ' + self.get_current_state())
 
         if sample:
             self._verify_checksum(chunk, SAMI_SAMPLE_REGEX_MATCHER)
@@ -723,7 +723,7 @@ class Protocol(SamiProtocol):
                              display_name='salinity delay')
 
     def _get_specific_configuration_string_parameters(self):
-        log.debug('herb: ' + 'Protocol._build_configuration_string_specific()')
+        log.debug('Protocol._build_configuration_string_specific()')
 
         # An ordered list of parameters, can not use unordered dict
         # PCO2W driver extends the base class (SamiParameter)
@@ -769,24 +769,28 @@ class Protocol(SamiProtocol):
         @retval configuration string regex.
         """
         return CONFIGURATION_REGEX
+
     def _get_configuration_string_regex_matcher(self):
         """
         Get config string regex matcher.
         @retval configuration string regex matcher
         """
         return CONFIGURATION_REGEX_MATCHER
+
     def _get_blank_sample_timeout(self):
         """
         Get blank sample timeout.
         @retval blank sample timeout in seconds.
         """
         return SAMPLE_DELAY
+
     def _get_sample_timeout(self):
         """
         Get sample timeout.
         @retval sample timeout in seconds.
         """
         return SAMPLE_DELAY
+
     def _get_sample_regex(self):
         """
         Get sample regex

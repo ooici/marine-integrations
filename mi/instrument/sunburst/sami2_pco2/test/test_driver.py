@@ -115,7 +115,9 @@ class Pco2DriverTestMixinSub(SamiMixin):
         Capability.START_AUTOSAMPLE:    {STATES: [ProtocolState.COMMAND,
                                                   ProtocolState.AUTOSAMPLE]},
         Capability.STOP_AUTOSAMPLE:     {STATES: [ProtocolState.AUTOSAMPLE,
-                                                  ProtocolState.COMMAND]}
+                                                  ProtocolState.COMMAND]},
+        Capability.DEIONIZED_WATER_FLUSH: {STATES: [ProtocolState.COMMAND]},
+        Capability.REAGENT_FLUSH:       {STATES: [ProtocolState.COMMAND]}
     }
 
 ###############################################################################
@@ -143,7 +145,17 @@ class Pco2DriverUnitTest(SamiUnitTest, Pco2DriverTestMixinSub):
                                          'DRIVER_EVENT_ACQUIRE_STATUS',
                                          'DRIVER_EVENT_ACQUIRE_SAMPLE',
                                          'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE',
-                                         'DRIVER_EVENT_START_AUTOSAMPLE'],
+                                         'DRIVER_EVENT_START_AUTOSAMPLE',
+                                         'DRIVER_EVENT_DEIONIZED_WATER_FLUSH',
+                                         'DRIVER_EVENT_REAGENT_FLUSH'],
+        ProtocolState.DEIONIZED_WATER_FLUSH: ['PROTOCOL_EVENT_EXECUTE_FLUSH',
+                                              'PROTOCOL_EVENT_SUCCESS',
+                                              'PROTOCOL_EVENT_TIMEOUT',
+                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
+        ProtocolState.REAGENT_FLUSH:         ['PROTOCOL_EVENT_EXECUTE_FLUSH',
+                                              'PROTOCOL_EVENT_SUCCESS',
+                                              'PROTOCOL_EVENT_TIMEOUT',
+                                              'DRIVER_EVENT_ACQUIRE_STATUS'],
         ProtocolState.AUTOSAMPLE:       ['DRIVER_EVENT_ACQUIRE_SAMPLE',
                                          'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE',
                                          'DRIVER_EVENT_STOP_AUTOSAMPLE',

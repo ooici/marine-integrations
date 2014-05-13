@@ -53,11 +53,17 @@ from mi.instrument.sunburst.driver import SamiScheduledJob
 from mi.instrument.sunburst.driver import SamiProtocolState
 from mi.instrument.sunburst.driver import SamiProtocolEvent
 from mi.instrument.sunburst.driver import SamiCapability
+from mi.instrument.sunburst.driver import TIMEOUT
+from mi.instrument.sunburst.driver import NEW_LINE_REGEX_MATCHER
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 
 ###
 #    Driver Constant Definitions
 ###
+
+PUMP_REAGENT = '01'  # Pump on, valve off
+PUMP_DEIONIZED_WATER = '03'  # Pump on, valve on
+PUMP_DURATION_UNITS = 0.125  # 1/8 second
 
 # Imported from base class
 
@@ -65,7 +71,7 @@ from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProt
 #    Driver RegEx Definitions
 ###
 
-# Mostly defined in base class with these additional, instrument specfic
+# Mostly defined in base class with these additional, instrument specific
 # additions
 
 # SAMI Sample Records (Types 0x04 or 0x05)
@@ -90,7 +96,7 @@ class ScheduledJob(SamiScheduledJob):
     """
     Extend base class with instrument specific functionality.
     """
-    ACQUIRE_BLANK_SAMPLE = 'acquire_blank_sample'
+    pass
 
 class ProtocolState(SamiProtocolState):
     """
@@ -98,19 +104,26 @@ class ProtocolState(SamiProtocolState):
     """
     POLLED_BLANK_SAMPLE = 'PROTOCOL_STATE_POLLED_BLANK_SAMPLE'
     SCHEDULED_BLANK_SAMPLE = 'PROTOCOL_STATE_SCHEDULED_BLANK_SAMPLE'
+    DEIONIZED_WATER_FLUSH = 'PROTOCOL_STATE_DEIONIZED_WATER_FLUSH'
+    REAGENT_FLUSH = 'PROTOCOL_STATE_REAGENT_FLUSH'
 
 class ProtocolEvent(SamiProtocolEvent):
     """
     Extend base class with instrument specific functionality.
     """
     ACQUIRE_BLANK_SAMPLE = 'DRIVER_EVENT_ACQUIRE_BLANK_SAMPLE'
-    ### ACQUIRE_SCHEDULABLE_BLANK_SAMPLE = 'PROTOCOL_EVENT_ACQUIRE_SCHEDULABLE_BLANK_SAMPLE'
+    DEIONIZED_WATER_FLUSH = 'DRIVER_EVENT_DEIONIZED_WATER_FLUSH'
+    REAGENT_FLUSH = 'DRIVER_EVENT_REAGENT_FLUSH'
+
+    EXECUTE_FLUSH = 'PROTOCOL_EVENT_EXECUTE_FLUSH'
 
 class Capability(SamiCapability):
     """
     Extend base class with instrument specific functionality.
     """
     ACQUIRE_BLANK_SAMPLE = ProtocolEvent.ACQUIRE_BLANK_SAMPLE
+    DEIONIZED_WATER_FLUSH = ProtocolEvent.DEIONIZED_WATER_FLUSH
+    REAGENT_FLUSH = ProtocolEvent.REAGENT_FLUSH
 
 class Pco2wSamiDataParticleType(SamiDataParticleType):
     """
@@ -134,11 +147,17 @@ class Pco2wSamiParameter(SamiParameter):
     BIT_SWITCHES = 'bit_switches'
     NUMBER_EXTRA_PUMP_CYCLES = 'number_extra_pump_cycles'
 
+    FLUSH_DURATION = 'flush_duration'
+
 class Pco2wInstrumentCommand(SamiInstrumentCommand):
     """
     Extend base class with instrument specific functionality.
     """
     ACQUIRE_BLANK_SAMPLE_SAMI = 'C'
+
+    PUMP_DEIONIZED_WATER_SAMI = 'P' + PUMP_DEIONIZED_WATER
+    PUMP_REAGENT_SAMI = 'P' + PUMP_REAGENT
+    PUMP_OFF = 'P'
 
 ###############################################################################
 # Data Particles
@@ -260,7 +279,7 @@ class Pco2wProtocol(SamiProtocol):
         @param driver_event Driver process event callback.
         """
 
-        log.debug('herb: ' + 'Pco2wProtocol.__init__()')
+        log.debug('Pco2wProtocol.__init__()')
 
         # Construct protocol superclass.
         CommandResponseInstrumentProtocol.__init__(self, prompts, newline, driver_event)
@@ -276,6 +295,12 @@ class Pco2wProtocol(SamiProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.COMMAND, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
             self._handler_command_acquire_blank_sample)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.DEIONIZED_WATER_FLUSH,
+            self._handler_command_deionized_water_flush)
+        self._protocol_fsm.add_handler(
+            ProtocolState.COMMAND, ProtocolEvent.REAGENT_FLUSH,
+            self._handler_command_reagent_flush)
 
         self._protocol_fsm.add_handler(
             ProtocolState.AUTOSAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
@@ -285,9 +310,12 @@ class Pco2wProtocol(SamiProtocol):
         self._protocol_fsm.add_handler(
             ProtocolState.POLLED_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
             self._handler_queue_acquire_blank_sample)
+        self._protocol_fsm.add_handler(
+            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
+            self._handler_queue_acquire_blank_sample)
 
         # this state would be entered whenever an ACQUIRE_BLANK_SAMPLE event
-        # occurred while in either the COMMAND state
+        # occurred while in the COMMAND state
         # and will last anywhere from a few seconds to 3
         # minutes depending on instrument and sample type.
         self._protocol_fsm.add_handler(
@@ -316,13 +344,8 @@ class Pco2wProtocol(SamiProtocol):
             ProtocolState.POLLED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
             self._handler_queue_acquire_blank_sample)
 
-        ## Events to queue - intended for schedulable events occurring when a sample is being taken
-        self._protocol_fsm.add_handler(
-            ProtocolState.SCHEDULED_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
-            self._handler_queue_acquire_blank_sample)
-
         # this state would be entered whenever an ACQUIRE_BLANK_SAMPLE event
-        # occurred while in either the COMMAND state
+        # occurred while in the AUTOSAMPLE state
         # and will last anywhere from a few seconds to 3
         # minutes depending on instrument and sample type.
         self._protocol_fsm.add_handler(
@@ -351,13 +374,62 @@ class Pco2wProtocol(SamiProtocol):
             ProtocolState.SCHEDULED_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE,
             self._handler_queue_acquire_blank_sample)
 
-        # engineering parameters can be added in sub classes
+        # this state would be entered whenever a PUMP_DEIONIZED_WATER event
+        # occurred while in the COMMAND state
+        self._protocol_fsm.add_handler(
+            ProtocolState.DEIONIZED_WATER_FLUSH, ProtocolEvent.ENTER,
+            self._handler_deionized_water_flush_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.DEIONIZED_WATER_FLUSH, ProtocolEvent.EXIT,
+            self._handler_deionized_water_flush_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.DEIONIZED_WATER_FLUSH, ProtocolEvent.EXECUTE_FLUSH,
+            self._handler_deionized_water_flush_execute)
+        self._protocol_fsm.add_handler(
+            ProtocolState.DEIONIZED_WATER_FLUSH, ProtocolEvent.SUCCESS,
+            self._handler_deionized_water_flush_success)
+        self._protocol_fsm.add_handler(
+            ProtocolState.DEIONIZED_WATER_FLUSH, ProtocolEvent.TIMEOUT,
+            self._handler_deionized_water_flush_timeout)
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            ProtocolState.DEIONIZED_WATER_FLUSH, ProtocolEvent.ACQUIRE_STATUS,
+            self._handler_queue_acquire_status)
+
+        # this state would be entered whenever a PUMP_DEIONIZED_WATER event
+        # occurred while in the COMMAND state
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH, ProtocolEvent.ENTER,
+            self._handler_reagent_flush_enter)
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH, ProtocolEvent.EXIT,
+            self._handler_reagent_flush_exit)
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH, ProtocolEvent.EXECUTE_FLUSH,
+            self._handler_reagent_flush_execute)
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH, ProtocolEvent.SUCCESS,
+            self._handler_reagent_flush_success)
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH, ProtocolEvent.TIMEOUT,
+            self._handler_reagent_flush_timeout)
+        ## Events to queue - intended for schedulable events occurring when a sample is being taken
+        self._protocol_fsm.add_handler(
+            ProtocolState.REAGENT_FLUSH, ProtocolEvent.ACQUIRE_STATUS,
+            self._handler_queue_acquire_status)
+
         self._add_build_handler(Pco2wInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, self._build_simple_command)
+        self._add_build_handler(Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, self._build_pump_command)
+        self._add_build_handler(Pco2wInstrumentCommand.PUMP_REAGENT_SAMI, self._build_pump_command)
+        self._add_build_handler(Pco2wInstrumentCommand.PUMP_OFF, self._build_simple_command)
 
         # Add response handlers for device commands.
         self._add_response_handler(Pco2wInstrumentCommand.ACQUIRE_BLANK_SAMPLE_SAMI, self._parse_response_blank_sample_sami)
+        self._add_response_handler(Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, self._parse_response_pump_deionized_water_sami)
+        self._add_response_handler(Pco2wInstrumentCommand.PUMP_REAGENT_SAMI, self._parse_response_pump_reagent_sami)
+        self._add_response_handler(Pco2wInstrumentCommand.PUMP_OFF, self._parse_response_pump_off_sami)
 
-        self._add_scheduler_event(ScheduledJob.ACQUIRE_BLANK_SAMPLE, ProtocolEvent.ACQUIRE_BLANK_SAMPLE)
+        self._engineering_parameters.append(Pco2wSamiParameter.FLUSH_DURATION)
 
     def _filter_capabilities(self, events):
         """
@@ -367,14 +439,31 @@ class Pco2wProtocol(SamiProtocol):
         return [x for x in events if Capability.has(x)]
 
     ########################################################################
+    # Build command handlers.
+    ########################################################################
+
+    def _build_pump_command(self, cmd):
+
+        param = Pco2wSamiParameter.FLUSH_DURATION
+        value = self._param_dict.get(param)
+        flush_duration_str = self._param_dict.format(param, value)
+
+        log.debug('Pco2wProtocol._build_pump_command(): flush duration value = %s, string = %s' % (value, flush_duration_str))
+
+        pump_command = cmd + flush_duration_str + NEWLINE
+
+        log.debug('Pco2wProtocol._build_pump_command(): pump command = %s' % pump_command)
+
+        return pump_command
+
+    ########################################################################
     # Events to queue handlers.
     ########################################################################
     def _handler_queue_acquire_blank_sample(self, *args, **kwargs):
         """
         Buffer blank sample command received during taking a sample
         """
-        log.debug('herb: ' +
-                  'SamiProtocol._handler_queue_acquire_blank_sample():' +
+        log.debug('Pco2wProtocol._handler_queue_acquire_blank_sample():' +
                   ' queueing ProtocolEvent.ACQUIRE_BLANK_SAMPLE in state ' +
                   self.get_current_state())
 
@@ -395,13 +484,210 @@ class Pco2wProtocol(SamiProtocol):
         Acquire a blank sample
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_command_acquire_blank_sample()')
+        log.debug('Pco2wProtocol._handler_command_acquire_blank_sample()')
 
         next_state = ProtocolState.POLLED_BLANK_SAMPLE
         next_agent_state = ResourceAgentState.BUSY
         result = None
 
         return (next_state, (next_agent_state, result))
+
+    def _handler_command_deionized_water_flush(self):
+        """
+        Flush with deionized water
+        """
+
+        log.debug('Pco2wProtocol._handler_command_deionized_water_flush()')
+
+        next_state = ProtocolState.DEIONIZED_WATER_FLUSH
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+
+        return (next_state, (next_agent_state, result))
+
+    def _handler_command_reagent_flush(self):
+        """
+        Flush with reagent
+        """
+
+        log.debug('Pco2wProtocol._handler_command_reagent_flush()')
+
+        next_state = ProtocolState.REAGENT_FLUSH
+        next_agent_state = ResourceAgentState.BUSY
+        result = None
+
+        return (next_state, (next_agent_state, result))
+
+    ########################################################################
+    # Deionized water flush handlers.
+    ########################################################################
+
+    def _handler_deionized_water_flush_enter(self, *args, **kwargs):
+        """
+        Enter state.
+        """
+
+        log.debug('Pco2wProtocol._handler_deionized_water_flush_enter')
+
+        self._async_raise_fsm_event(ProtocolEvent.EXECUTE_FLUSH)
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_deionized_water_flush_exit(self, *args, **kwargs):
+        """
+        Exit state.
+        """
+
+        log.debug('Pco2wProtocol._handler_deionized_water_flush_exit')
+
+    def _handler_deionized_water_flush_success(self, *args, **kwargs):
+        """
+        Successfully received a sample from SAMI
+        """
+
+        log.debug('Pco2wProtocol._handler_deionized_water_flush_success')
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    def _handler_deionized_water_flush_timeout(self, *args, **kwargs):
+        """
+        Sample timeout occurred.
+        """
+
+        log.error('Pco2wProtocol._handler_deionized_water_flush_timeout(): Deionized water flush timeout occurred')
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    def _handler_deionized_water_flush_execute(self, *args, **kwargs):
+        """
+        Execute pump command, sleep to make sure it completes and make sure pump is off
+        """
+
+        try:
+            flush_duration = self._param_dict.get(Pco2wSamiParameter.FLUSH_DURATION)
+            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
+
+            log.debug('Pco2wProtocol._handler_deionized_water_flush_execute(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
+
+            # Add 1 seconds to make sure pump completes.
+
+            flush_duration_seconds += 1.0
+
+            log.debug('Pco2wProtocol._handler_deionized_water_flush_execute(): sleeping %f seconds' % flush_duration_seconds)
+
+            self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_DEIONIZED_WATER_SAMI, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
+
+            time.sleep(flush_duration_seconds)
+
+            # Make sure pump is off
+
+            self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_OFF, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
+
+            log.debug('Pco2wProtocol._handler_deionized_water_flush_execute(): SUCCESS')
+
+            self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
+        except InstrumentTimeoutException:
+            log.error('Pco2wProtocol._handler_deionized_water_flush_execute(): TIMEOUT')
+            self._async_raise_fsm_event(ProtocolEvent.TIMEOUT)
+
+        return None, None
+
+    ########################################################################
+    # Reagent flush handlers.
+    ########################################################################
+
+    def _handler_reagent_flush_enter(self, *args, **kwargs):
+        """
+        Enter state.
+        """
+
+        log.debug('Pco2wProtocol._handler_reagent_flush_enter')
+
+        self._async_raise_fsm_event(ProtocolEvent.EXECUTE_FLUSH)
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
+
+    def _handler_reagent_flush_exit(self, *args, **kwargs):
+        """
+        Exit state.
+        """
+
+        log.debug('Pco2wProtocol._handler_reagent_flush_exit')
+
+    def _handler_reagent_flush_success(self, *args, **kwargs):
+        """
+        Successfully received a sample from SAMI
+        """
+
+        log.debug('Pco2wProtocol._handler_reagent_flush_success')
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    def _handler_reagent_flush_timeout(self, *args, **kwargs):
+        """
+        Sample timeout occurred.
+        """
+
+        log.error('Pco2wProtocol._handler_reagent_flush_timeout(): Reagent flush timeout occurred')
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        self._async_agent_state_change(next_agent_state)
+
+        return (next_state, next_agent_state)
+
+    def _handler_reagent_flush_execute(self, *args, **kwargs):
+        """
+        Execute pump command, sleep to make sure it completes and make sure pump is off
+        """
+
+        try:
+            flush_duration = self._param_dict.get(Pco2wSamiParameter.FLUSH_DURATION)
+            flush_duration_seconds = flush_duration * PUMP_DURATION_UNITS
+
+            log.debug('Pco2wProtocol._handler_reagent_flush_execute(): flush duration param = %s, seconds = %s' % (flush_duration, flush_duration_seconds))
+
+            # Add 1 seconds to make sure pump completes.
+
+            flush_duration_seconds += 1.0
+
+            log.debug('Pco2wProtocol._handler_reagent_flush_execute(): sleeping %f seconds' % flush_duration_seconds)
+
+            self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_REAGENT_SAMI, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
+
+            time.sleep(flush_duration_seconds)
+
+            # Make sure pump is off
+
+            self._do_cmd_resp(Pco2wInstrumentCommand.PUMP_OFF, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
+
+            log.debug('Pco2wProtocol._handler_reagent_flush_execute(): SUCCESS')
+            self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
+        except InstrumentTimeoutException:
+            log.error('Pco2wProtocol._handler_reagent_flush_execute(): TIMEOUT')
+            self._async_raise_fsm_event(ProtocolEvent.TIMEOUT)
+
+        return None, None
 
     ########################################################################
     # Autosample handlers.
@@ -412,7 +698,7 @@ class Pco2wProtocol(SamiProtocol):
         While in autosample mode, poll for blank samples
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_autosample_acquire_blank_sample')
+        log.debug('Pco2wProtocol._handler_autosample_acquire_blank_sample')
 
         next_state = ProtocolState.SCHEDULED_BLANK_SAMPLE
         next_agent_state = ResourceAgentState.BUSY
@@ -429,18 +715,18 @@ class Pco2wProtocol(SamiProtocol):
         Acquire the instrument's status
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_take_blank_sample() ENTER')
-        log.debug('herb: ' + 'SamiProtocol._handler_take_blank_sample(): CURRENT_STATE == ' + self.get_current_state())
+        log.debug('Pco2wProtocol._handler_take_blank_sample() ENTER')
+        log.debug('Pco2wProtocol._handler_take_blank_sample(): CURRENT_STATE == ' + self.get_current_state())
 
         try:
             self._take_blank_sample()
-            log.debug('herb: ' + 'SamiProtocol._handler_take_blank_sample(): SUCCESS')
+            log.debug('Pco2wProtocol._handler_take_blank_sample(): SUCCESS')
             self._async_raise_fsm_event(ProtocolEvent.SUCCESS)
         except InstrumentTimeoutException:
-            log.error('SamiProtocol._handler_take_blank_sample(): TIMEOUT')
+            log.error('Pco2wProtocol._handler_take_blank_sample(): TIMEOUT')
             self._async_raise_fsm_event(ProtocolEvent.TIMEOUT)
 
-        log.debug('herb: ' + 'SamiProtocol._handler_take_blank_sample() EXIT')
+        log.debug('Pco2wProtocol._handler_take_blank_sample() EXIT')
 
         return None, None
 
@@ -453,7 +739,7 @@ class Pco2wProtocol(SamiProtocol):
         Enter state.
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_enter')
+        log.debug('Pco2wProtocol._handler_polled_sample_enter')
 
         self._async_raise_fsm_event(ProtocolEvent.TAKE_SAMPLE)
 
@@ -466,16 +752,14 @@ class Pco2wProtocol(SamiProtocol):
         Exit state.
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_exit')
-
-        pass
+        log.debug('Pco2wProtocol._handler_polled_sample_exit')
 
     def _handler_polled_blank_sample_success(self, *args, **kwargs):
         """
         Successfully received a sample from SAMI
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_success')
+        log.debug('Pco2wProtocol._handler_polled_sample_success')
 
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
@@ -489,7 +773,7 @@ class Pco2wProtocol(SamiProtocol):
         Sample timeout occurred.
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_polled_sample_timeout')
+        log.error('Pco2wProtocol._handler_polled_blank_sample_timeout(): Blank sample timeout occurred')
 
         next_state = ProtocolState.COMMAND
         next_agent_state = ResourceAgentState.COMMAND
@@ -507,7 +791,7 @@ class Pco2wProtocol(SamiProtocol):
         Enter state.
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_scheduled_blank_sample_enter')
+        log.debug('Pco2wProtocol._handler_scheduled_blank_sample_enter')
 
         self._async_raise_fsm_event(ProtocolEvent.TAKE_SAMPLE)
 
@@ -520,16 +804,14 @@ class Pco2wProtocol(SamiProtocol):
         Exit state.
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_scheduled_blank_sample_exit')
-
-        pass
+        log.debug('Pco2wProtocol._handler_scheduled_blank_sample_exit')
 
     def _handler_scheduled_blank_sample_success(self, *args, **kwargs):
         """
         Successfully received a sample from SAMI
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_scheduled_blank_sample_success')
+        log.debug('Pco2wProtocol._handler_scheduled_blank_sample_success')
 
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -543,7 +825,7 @@ class Pco2wProtocol(SamiProtocol):
         Sample timeout occurred.
         """
 
-        log.debug('herb: ' + 'SamiProtocol._handler_scheduled_blank_sample_timeout')
+        log.error('Pco2wProtocol._handler_scheduled_blank_sample_timeout(): Blank sample timeout occurred')
 
         next_state = ProtocolState.AUTOSAMPLE
         next_agent_state = ResourceAgentState.STREAMING
@@ -560,8 +842,25 @@ class Pco2wProtocol(SamiProtocol):
         """
         Parse response to take blank sample instrument command
         """
-        log.debug('herb: ' + 'SamiProtocol._parse_response_blank_sample_sami')
-        pass
+        log.debug('Pco2wProtocol._parse_response_blank_sample_sami')
+
+    def _parse_response_pump_deionized_water_sami(self, response, prompt):
+        """
+        Parse response to pump deionized water command
+        """
+        log.debug('Pco2wProtocol._parse_response_pump_deionized_water_sami')
+
+    def _parse_response_pump_reagent_sami(self, response, prompt):
+        """
+        Parse response to pump reagent command
+        """
+        log.debug('Pco2wProtocol._parse_response_pump_reagent_sami')
+
+    def _parse_response_pump_off_sami(self, response, prompt):
+        """
+        Parse response to pump off command
+        """
+        log.debug('Pco2wProtocol._parse_response_pump_off_sami')
 
     ########################################################################
     # Private Methods
@@ -572,7 +871,7 @@ class Pco2wProtocol(SamiProtocol):
         Take blank sample instrument command
         """
 
-        log.debug('herb: ' + 'Pco2wProtocol._take_blank_sample(): _take_blank_sample() START')
+        log.debug('Pco2wProtocol._take_blank_sample(): _take_blank_sample() START')
 
         self._pre_sample_processing()
 
@@ -583,9 +882,7 @@ class Pco2wProtocol(SamiProtocol):
 
         sample_time = time.time() - start_time
 
-        log.debug('herb: ' + 'Pco2wProtocol._take_blank_sample(): Blank Sample took ' + str(sample_time) + ' to FINISH')
-
-        pass
+        log.debug('Pco2wProtocol._take_blank_sample(): Blank Sample took ' + str(sample_time) + ' to FINISH')
 
     ########################################################################
     # Build Command, Driver and Parameter dictionaries
@@ -596,11 +893,13 @@ class Pco2wProtocol(SamiProtocol):
         Populate the command dictionary with command.
         """
 
-        log.debug('herb: ' + 'SamiProtocol._build_command_dict')
+        log.debug('Pco2wProtocol._build_command_dict')
 
         SamiProtocol._build_command_dict(self)
 
         self._cmd_dict.add(Capability.ACQUIRE_BLANK_SAMPLE, display_name="acquire blank sample")
+        self._cmd_dict.add(Capability.DEIONIZED_WATER_FLUSH, display_name="deionized water flush")
+        self._cmd_dict.add(Capability.REAGENT_FLUSH, display_name="reagent flush")
 
     def _build_param_dict(self):
         """
@@ -608,7 +907,7 @@ class Pco2wProtocol(SamiProtocol):
         and value formatting function for set commands.
         """
 
-        log.debug('herb: ' + 'Pco2wProtocol._build_param_dict()')
+        log.debug('Pco2wProtocol._build_param_dict()')
 
         SamiProtocol._build_param_dict(self)
 
@@ -715,6 +1014,16 @@ class Pco2wProtocol(SamiProtocol):
                              visibility=ParameterDictVisibility.READ_WRITE,
                              display_name='number of extra pump cycles')
 
+        self._param_dict.add(Pco2wSamiParameter.FLUSH_DURATION, r'Flush duration = ([0-9]+)',
+                             lambda match: match.group(1),
+                             lambda x: self._int_to_hexstring(x, 2),
+                             type=ParameterDictType.INT,
+                             startup_param=True,
+                             direct_access=False,
+                             default_value=1,
+                             visibility=ParameterDictVisibility.READ_WRITE,
+                             display_name='auto sample interval')
+
     ########################################################################
     # Overridden base class methods
     ########################################################################
@@ -732,5 +1041,5 @@ class Pco2wProtocol(SamiProtocol):
         Get sample regex
         @retval sample regex
         """
-        log.debug('herb: ' + 'Protocol._get_sample_regex()')
+        log.debug('Protocol._get_sample_regex()')
         return SAMI_SAMPLE_REGEX_MATCHER
