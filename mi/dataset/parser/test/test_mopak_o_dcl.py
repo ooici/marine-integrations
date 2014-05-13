@@ -32,7 +32,7 @@ class MopakODclParserUnitTestCase(ParserUnitTestCase):
     """
     MopakODcl Parser unit test suite
     """
-    def state_callback(self, state, file_ingested, file_name):
+    def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
         self.file_ingested_value = file_ingested
