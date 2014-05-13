@@ -131,7 +131,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         """
         raise NotImplementedException()
 
-    def test_scheduled_device_configuration_command(self):
+    def _test_scheduled_device_configuration_command(self):
         """
         Verify the device status command can be triggered and run in command
         """
@@ -140,7 +140,7 @@ class TeledyneIntegrationTest(InstrumentDriverIntegrationTestCase):
         self.assert_current_state(TeledyneProtocolState.COMMAND)
 
 
-    def test_scheduled_device_configuration_autosample(self):
+    def _test_scheduled_device_configuration_autosample(self):
         """
         Verify the device status command can be triggered and run in autosample
         """
