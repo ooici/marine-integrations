@@ -11,7 +11,7 @@ data:
     vel3d_k_serial: 100036
     vel3d_k_configuration: 238
     date_time_array: [114, 1, 24, 18, 30, 16]
-    vel3d_k_micro_seconds: 3750
+    vel3d_k_micro_second: 3750
     vel3d_k_speed_sound: 15000
     vel3d_k_temp_c: 2244
     vel3d_k_pressure: 0
@@ -32,7 +32,7 @@ data:
     vel3d_k_acc_y: -128
     vel3d_k_acc_z: 16078
     vel3d_k_ambiguity: 10714
-    vel3d_k_data_set_description: 282
+    vel3d_k_data_set_description: [2, 3, 4, 0, 0]
     vel3d_k_transmit_energy: 0
     vel3d_k_v_scale: -4
     vel3d_k_power_level: -9
@@ -54,7 +54,7 @@ data:
     vel3d_k_serial: 100036
     vel3d_k_configuration: 238
     date_time_array: [114, 1, 24, 18, 30, 16]
-    vel3d_k_micro_seconds: 8750
+    vel3d_k_micro_second: 8750
     vel3d_k_speed_sound: 15000
     vel3d_k_temp_c: 2244
     vel3d_k_pressure: 0
@@ -75,7 +75,7 @@ data:
     vel3d_k_acc_y: -128
     vel3d_k_acc_z: 16078
     vel3d_k_ambiguity: 10714
-    vel3d_k_data_set_description: 282
+    vel3d_k_data_set_description: [2, 3, 4, 0, 0]
     vel3d_k_transmit_energy: 0
     vel3d_k_v_scale: -3
     vel3d_k_power_level: -9
@@ -97,7 +97,7 @@ data:
     vel3d_k_serial: 100036
     vel3d_k_configuration: 238
     date_time_array: [114, 1, 24, 18, 30, 17]
-    vel3d_k_micro_seconds: 3750
+    vel3d_k_micro_second: 3750
     vel3d_k_speed_sound: 15000
     vel3d_k_temp_c: 2244
     vel3d_k_pressure: 0
@@ -118,7 +118,7 @@ data:
     vel3d_k_acc_y: -122
     vel3d_k_acc_z: 16344
     vel3d_k_ambiguity: 10714
-    vel3d_k_data_set_description: 282
+    vel3d_k_data_set_description: [2, 3, 4, 0, 0]
     vel3d_k_transmit_energy: 0
     vel3d_k_v_scale: -4
     vel3d_k_power_level: -9
@@ -140,7 +140,7 @@ data:
     vel3d_k_serial: 100036
     vel3d_k_configuration: 238
     date_time_array: [114, 1, 24, 18, 30, 17]
-    vel3d_k_micro_seconds: 8750
+    vel3d_k_micro_second: 8750
     vel3d_k_speed_sound: 15000
     vel3d_k_temp_c: 2244
     vel3d_k_pressure: 0
@@ -161,7 +161,7 @@ data:
     vel3d_k_acc_y: -122
     vel3d_k_acc_z: 16344
     vel3d_k_ambiguity: 10714
-    vel3d_k_data_set_description: 282
+    vel3d_k_data_set_description: [2, 3, 4, 0, 0]
     vel3d_k_transmit_energy: 0
     vel3d_k_v_scale: -3
     vel3d_k_power_level: -9
@@ -183,7 +183,7 @@ data:
     vel3d_k_serial: 100036
     vel3d_k_configuration: 238
     date_time_array: [114, 1, 24, 18, 30, 18]
-    vel3d_k_micro_seconds: 3750
+    vel3d_k_micro_second: 3750
     vel3d_k_speed_sound: 15000
     vel3d_k_temp_c: 2244
     vel3d_k_pressure: 0
@@ -204,7 +204,7 @@ data:
     vel3d_k_acc_y: -112
     vel3d_k_acc_z: 16332
     vel3d_k_ambiguity: 10714
-    vel3d_k_data_set_description: 282
+    vel3d_k_data_set_description: [2, 3, 4, 0, 0]
     vel3d_k_transmit_energy: 0
     vel3d_k_v_scale: -3
     vel3d_k_power_level: -9
