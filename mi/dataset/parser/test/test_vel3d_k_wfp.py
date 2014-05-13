@@ -435,7 +435,6 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         position = FILE_HEADER_SIZE + (2 * DATA_RECORD_SIZE)
         new_state = {Vel3dKWfpStateKey.POSITION: position,
                      Vel3dKWfpStateKey.RECORD_NUMBER: 2}
-        #             Vel3dKWfpStateKey.TIMESTAMP: TIME_ON + (2 * SAMPLE_RATE)}
 
         self.parser = self.create_parser(input_file, None, new_state)
 
@@ -497,7 +496,6 @@ class Vel3dKWfpParserUnitTestCase(ParserUnitTestCase):
         log.info("SET STATE SKIPPING TO POSITION %d", position)
         new_state = {Vel3dKWfpStateKey.POSITION: position,
                      Vel3dKWfpStateKey.RECORD_NUMBER: 3}
-        #            Vel3dKWfpStateKey.TIMESTAMP: TIME_ON + (3 * SAMPLE_RATE)}
         self.parser.set_state(new_state)
 
         log.info("SET STATE VERIFY DATA RECORD 4")
