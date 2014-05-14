@@ -55,10 +55,10 @@ from mi.dataset.parser.vel3d_k_wfp import \
     Vel3dKWfpStringParticle
 
 from mi.dataset.parser.vel3d_k_wfp_stc import \
-  Vel3dKWfpStcDataParticleType, \
-  Vel3dKWfpStcStateKey, \
-  Vel3dKWfpStcTimeDataParticle, \
-  Vel3dKWfpStcVelocityDataParticle
+    Vel3dKWfpStcDataParticleType, \
+    Vel3dKWfpStcStateKey, \
+    Vel3dKWfpStcMetadataParticle, \
+    Vel3dKWfpStcInstrumentParticle
 
 DIR_WFP = '/tmp/dsatest1'
 DIR_WFP_STC = '/tmp/dsatest2'
@@ -103,9 +103,11 @@ VELOCITY_RECORD_SIZE = 24
 SAMPLE_RATE = .5        # data records sample rate
 PARSER_STATE = 'parser_state'
 
-WFP_PARTICLES = (Vel3dKWfpInstrumentParticle, Vel3dKWfpMetadataParticle,
-    Vel3dKWfpStringParticle)
-WFP_STC_PARTICLES = (Vel3dKWfpStcTimeDataParticle, Vel3dKWfpStcVelocityDataParticle)
+WFP_PARTICLES = (Vel3dKWfpInstrumentParticle,
+                 Vel3dKWfpMetadataParticle,
+                 Vel3dKWfpStringParticle)
+WFP_STC_PARTICLES = (Vel3dKWfpStcMetadataParticle,
+                     Vel3dKWfpStcInstrumentParticle)
 
 # The integration and qualification tests generated here are suggested tests,
 # but may not be enough to fully test your driver. Additional tests should be
@@ -118,6 +120,18 @@ WFP_STC_PARTICLES = (Vel3dKWfpStcTimeDataParticle, Vel3dKWfpStcVelocityDataParti
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
+
+    def assert_file_ingested(self, filename, data_key):
+        """
+        Assert that a particular file was ingested
+        Need to override for multiple harvester since we have the additional data_key
+        If the ingested flag is not set in the driver state for this file, fail the test
+        @ param filename name of the file to check that it was ingested using the ingested flag
+        """
+        log.debug("last state callback result %s", self.state_callback_result[-1])
+        last_state = self.state_callback_result[-1][data_key]
+        if not filename in last_state or not last_state[filename]['ingested']:
+            self.fail("File %s was not ingested" % filename)
 
     def clear_sample_data(self):
         log.debug("Driver Config: %s", self._driver_config())
@@ -256,7 +270,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_event('ResourceAgentErrorEvent')
 
         # Verify that the entire file has been read.
-        self.assert_file_ingested(filename)
+        self.assert_file_ingested(filename, DataTypeKey.VEL3D_K_WFP_STC)
 
         log.info("========== END INTEG TEST INCOMPLETE ==========")
 
@@ -281,9 +295,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
-
-        # Verify that the entire file has been read.
-        self.assert_file_ingested(filename)
 
         log.info("========== END INTEG TEST INVALID FLAG ==========")
 
@@ -316,14 +327,10 @@ class IntegrationTest(DataSetIntegrationTestCase):
         filename_2 = 'A0000010.DAT'
         filename_3 = 'A0000002.DEC'
         filename_4 = 'A0000004.DEC'
-        path_1 = self.create_sample_data_set_dir(
-            'A0000010_5.DAT', DIR_WFP, filename_1)
-        path_2 = self.create_sample_data_set_dir(
-            'A0000010_10.DAT', DIR_WFP, filename_2)
-        path_3 = self.create_sample_data_set_dir(
-            'valid_A0000002.DEC', DIR_WFP_STC, filename_3)
-        path_4 = self.create_sample_data_set_dir(
-            'valid_A0000004.DEC', DIR_WFP_STC, filename_4)
+        path_1 = self.create_sample_data_set_dir('A0000010_5.DAT', DIR_WFP, filename_1)
+        path_2 = self.create_sample_data_set_dir('A0000010_10.DAT', DIR_WFP, filename_2)
+        path_3 = self.create_sample_data_set_dir('valid_A0000002.DEC', DIR_WFP_STC, filename_3)
+        path_4 = self.create_sample_data_set_dir('valid_A0000004.DEC', DIR_WFP_STC, filename_4)
 
         # Create and store the new driver state.
         # Set status of file 1 to completely read.
@@ -337,22 +344,26 @@ class IntegrationTest(DataSetIntegrationTestCase):
             TIME_RECORD_SIZE
         file4_position = FLAG_RECORD_SIZE + (2 *VELOCITY_RECORD_SIZE)
 
-        state = {
-            filename_1 : self.get_file_state(path_1, True, file1_position),
-            filename_2 : self.get_file_state(path_2, False, file2_position),
-            filename_3 : self.get_file_state(path_3, True, file3_position),
-            filename_4 : self.get_file_state(path_4, False, file4_position)
+        wfp_key = DataTypeKey.VEL3D_K_WFP
+        stc_key = DataTypeKey.VEL3D_K_WFP_STC
+
+        state = {wfp_key:
+                     {filename_1 : self.get_file_state(path_1, True, file1_position),
+                      filename_2 : self.get_file_state(path_2, False, file2_position)},
+                  stc_key:
+                      {filename_3 : self.get_file_state(path_3, True, file3_position),
+                       filename_4 : self.get_file_state(path_4, False, file4_position)}
         }
-        state[filename_1][PARSER_STATE][Vel3dKWfpStateKey.POSITION] = file1_position
-        state[filename_1][PARSER_STATE][Vel3dKWfpStateKey.RECORD_NUMBER] = 5
+        state[wfp_key][filename_1][PARSER_STATE][Vel3dKWfpStateKey.POSITION] = file1_position
+        state[wfp_key][filename_1][PARSER_STATE][Vel3dKWfpStateKey.RECORD_NUMBER] = 5
 
-        state[filename_2][PARSER_STATE][Vel3dKWfpStateKey.POSITION] = file2_position
-        state[filename_2][PARSER_STATE][Vel3dKWfpStateKey.RECORD_NUMBER] = 6
+        state[wfp_key][filename_2][PARSER_STATE][Vel3dKWfpStateKey.POSITION] = file2_position
+        state[wfp_key][filename_2][PARSER_STATE][Vel3dKWfpStateKey.RECORD_NUMBER] = 6
 
-        state[filename_3][PARSER_STATE][Vel3dKWfpStcStateKey.FIRST_RECORD] = False
-        state[filename_3][PARSER_STATE][Vel3dKWfpStcStateKey.VELOCITY_END] = True
-        state[filename_4][PARSER_STATE][Vel3dKWfpStcStateKey.FIRST_RECORD] = False
-        state[filename_4][PARSER_STATE][Vel3dKWfpStcStateKey.VELOCITY_END] = False
+        state[stc_key][filename_3][PARSER_STATE][Vel3dKWfpStcStateKey.FIRST_RECORD] = False
+        state[stc_key][filename_3][PARSER_STATE][Vel3dKWfpStcStateKey.VELOCITY_END] = True
+        state[stc_key][filename_4][PARSER_STATE][Vel3dKWfpStcStateKey.FIRST_RECORD] = False
+        state[stc_key][filename_4][PARSER_STATE][Vel3dKWfpStcStateKey.VELOCITY_END] = False
         self.driver = self._get_driver_object(memento=state)
 
         self.driver.start_sampling()
@@ -378,26 +389,22 @@ class IntegrationTest(DataSetIntegrationTestCase):
         filename_2 = 'A0000010.DAT'
         filename_3 = 'A0000002.DEC'
         filename_4 = 'A0000004.DEC'
-        self.create_sample_data_set_dir(
-            'A0000010_5.DAT', DIR_WFP, filename_1)
-        self.create_sample_data_set_dir(
-            'A0000010_10.DAT', DIR_WFP, filename_2)
-        self.create_sample_data_set_dir(
-            'valid_A0000002.DEC', DIR_WFP_STC, filename_3)
-        self.create_sample_data_set_dir(
-            'valid_A0000004.DEC', DIR_WFP_STC, filename_4)
+        self.create_sample_data_set_dir('A0000010_5.DAT', DIR_WFP, filename_1)
+        self.create_sample_data_set_dir('A0000010_10.DAT', DIR_WFP, filename_2)
+        self.create_sample_data_set_dir('valid_A0000002.DEC', DIR_WFP_STC, filename_3)
+        self.create_sample_data_set_dir('valid_A0000004.DEC', DIR_WFP_STC, filename_4)
 
         # Read the first telemetered data file (A0000002.DEC)
         # Verify that the entire file has been read.
         log.info("========== READ FILE A0000002.DEC ============")
         self.assert_data(WFP_STC_PARTICLES, 'valid_A0000002.yml',count=3, timeout=10)
-        self.assert_file_ingested(filename_3)
+        self.assert_file_ingested(filename_3, DataTypeKey.VEL3D_K_WFP_STC)
 
         # Read the first recovered data file (A0000005.DAT)
         # Verify that the entire file has been read.
         log.info("========== READ FILE A0000005.DAT ============")
         self.assert_data(WFP_PARTICLES, 'A0000010_5_1_5.yml', count=6, timeout=10)
-        self.assert_file_ingested(filename_1)
+        self.assert_file_ingested(filename_1, DataTypeKey.VEL3D_K_WFP)
 
         # Read records 1-3 of the second recovered data file (A0000010.DAT)
         log.info("========== READ FILE A0000010.DAT RECORDS 1-3 ============")
@@ -413,11 +420,11 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Read the second telemetered data file (A0000004.DEC)
         self.assert_data(WFP_STC_PARTICLES, 'valid_A0000004.yml',count=5, timeout=10)
-        self.assert_file_ingested(filename_4)
+        self.assert_file_ingested(filename_4, DataTypeKey.VEL3D_K_WFP_STC)
 
         # Read records 7-10 of the second recovered data file (A0000010.DAT)
         self.assert_data(WFP_PARTICLES, 'A0000010_10_7_10.yml', count=5, timeout=10)
-        self.assert_file_ingested(filename_2)
+        self.assert_file_ingested(filename_2, DataTypeKey.VEL3D_K_WFP)
 
         log.info("=========== END INTEG TEST STOP START RESUME  ================")
 
@@ -493,25 +500,30 @@ class QualificationTest(DataSetQualificationTestCase):
         try:
             wfp_samples = 256
             log.info("===== READ RECOVERED %d SAMPLES =====", wfp_samples)
-            self.get_samples(Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE,
+            self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE,
                 wfp_samples, wfp_samples)
 
             wfp_stc_samples = 522
             log.info("===== READ TELEMETERED %d SAMPLES =====", wfp_stc_samples)
-            self.get_samples(Vel3dKWfpStcDataParticleType.VELOCITY_PARTICLE,
+            self.data_subscribers.get_samples(
+                Vel3dKWfpStcDataParticleType.INSTRUMENT_PARTICLE,
                 wfp_stc_samples, wfp_stc_samples)
 
             wfp_samples = 400
             log.info("===== READ RECOVERED %d SAMPLES =====", wfp_samples)
-            self.get_samples(Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE,
+            self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE,
                 wfp_samples, wfp_samples)
 
             log.info("===== READ RECOVERED METADATA SAMPLE =====")
-            self.get_samples(Vel3dKWfpDataParticleType.METADATA_PARTICLE, 1)
+            self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.METADATA_PARTICLE, 1)
             self.verify_wfp_queue_empty()
 
             log.info("===== READ TELEMETERED METADATA SAMPLE =====")
-            self.get_samples(Vel3dKWfpStcDataParticleType.TIME_PARTICLE, 1)
+            self.data_subscribers.get_samples(
+                Vel3dKWfpStcDataParticleType.METADATA_PARTICLE, 1)
             self.verify_wfp_stc_queue_empty()
 
         except SampleTimeout as e:
@@ -555,7 +567,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_start_sampling()
 
         try:
-            # Verify that we get 5 instrument data particles from the recovered data file.
+            # Verify that we get 5 instrument particles from the recovered data file.
             result = self.data_subscribers.get_samples(
                 Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 5)
 
@@ -569,11 +581,11 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Verify that we get 4 velocity samples from the telemetered data file.
             result = self.data_subscribers.get_samples(
-                Vel3dKWfpStcDataParticleType.VELOCITY_PARTICLE, 4)
+                Vel3dKWfpStcDataParticleType.INSTRUMENT_PARTICLE, 4)
 
             # Verify that we get the Time sample from the telemetered data file.
             time_result = self.data_subscribers.get_samples(
-                Vel3dKWfpStcDataParticleType.TIME_PARTICLE, 1)
+                Vel3dKWfpStcDataParticleType.METADATA_PARTICLE, 1)
 
             # Combine the velocity and time samples and verify results.
             result.extend(time_result)
@@ -602,13 +614,16 @@ class QualificationTest(DataSetQualificationTestCase):
         try:
             # Read file A0000010_10 (3 instrument data records) and verify the data.
             log.info("====== READ FILE A0000010_10 AND VERIFY RECORDS 1-3 =========")
-            result = self.get_samples(Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 3)
+            result = self.data_subscribers.get_samples\
+                (Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 3)
             self.assert_data_values(result, 'A0000010_10_1_3.yml')
 
             # Read file all_A0000003 (3 velocity records) and verify the data.
             log.info("====== READ FILE all_A0000003 AND VERIFY RECORDS 1-3 =========")
-            result = self.get_samples(Vel3dKWfpStcDataParticleType.VELOCITY_PARTICLE, 3)
-            time_result = self.get_samples(Vel3dKWfpStcDataParticleType.TIME_PARTICLE, 1)
+            result = self.data_subscribers.get_samples(
+                Vel3dKWfpStcDataParticleType.INSTRUMENT_PARTICLE, 3)
+            time_result = self.data_subscribers.get_samples(
+                Vel3dKWfpStcDataParticleType.METADATA_PARTICLE, 1)
             result.extend(time_result)
             self.assert_data_values(result, 'all_A0000003.yml')
             self.verify_wfp_stc_queue_empty()
@@ -616,19 +631,23 @@ class QualificationTest(DataSetQualificationTestCase):
             # Read file A0000010_10 (7 instrument data records plus 1 time record).
             # Data is not verified.
             log.info("======== READ FILE A0000010_10 LAST 7 RECORDS =============")
-            result = self.get_samples(Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 7)
-            time_result = self.get_samples(Vel3dKWfpDataParticleType.METADATA_PARTICLE, 1)
+            result = self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 7)
+            time_result = self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.METADATA_PARTICLE, 1)
             self.verify_wfp_queue_empty()
 
             # Read the first 2 data records of file A0000010_5.
             log.info("======== READ FILE A0000010_5 RECORDS 1-2 =============")
             self.create_sample_data_set_dir('A0000010_5.DAT', DIR_WFP, 'A0000005.DAT')
-            wfp_result = self.get_samples(Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 2)
+            wfp_result = self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 2)
 
             # Read the first 2 data records of file valid_A0000004.
             log.info("======== READ FILE valid_A0000004 RECORDS 1-2 =============")
             self.create_sample_data_set_dir('valid_A0000004.DEC', DIR_WFP_STC, 'A0000004.DEC')
-            wfp_stc_result = self.get_samples(Vel3dKWfpStcDataParticleType.VELOCITY_PARTICLE, 2)
+            wfp_stc_result = self.data_subscribers.get_samples(
+                Vel3dKWfpStcDataParticleType.INSTRUMENT_PARTICLE, 2)
 
             # Stop sampling.
             log.info("========== QUAL TEST SHUTDOWN RESTART STOP SAMPLING ===============")
@@ -645,12 +664,14 @@ class QualificationTest(DataSetQualificationTestCase):
             # and combine with the previous ones we read.
             log.info("======== READ FILE A0000010_5 LAST 3 RECORDS =============")
             self.assert_start_sampling()
-            result2 = self.get_samples(Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 3)
+            result2 = self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 3)
             wfp_result.extend(result2)
 
             # Get the time record of file A0000010_5 and combine with the previous ones we read.
             log.info("======== READ FILE A0000010_5 TIME RECORD =============")
-            time_result = self.get_samples(Vel3dKWfpDataParticleType.METADATA_PARTICLE, 1)
+            time_result = self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.METADATA_PARTICLE, 1)
             wfp_result.extend(time_result)
 
             # Verify the results for file A0000010_5 and that the queue is empty.
@@ -659,12 +680,14 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Get the last 2 velocity records of file valid_A0000004
             # and combine with the previous ones we read.
-            result2 = self.get_samples(Vel3dKWfpStcDataParticleType.VELOCITY_PARTICLE, 2)
+            result2 = self.data_subscribers.get_samples(
+                Vel3dKWfpStcDataParticleType.INSTRUMENT_PARTICLE, 2)
             wfp_stc_result.extend(result2)
 
             # Get the time record and combine with previous records.
             # Verify the results and that the queue is empty.
-            time_result = self.get_samples(Vel3dKWfpStcDataParticleType.TIME_PARTICLE, 1)
+            time_result = self.data_subscribers.get_samples(
+                Vel3dKWfpStcDataParticleType.METADATA_PARTICLE, 1)
             wfp_stc_result.extend(time_result)
             self.assert_data_values(wfp_stc_result, 'valid_A0000004.yml')
             self.verify_wfp_stc_queue_empty()
@@ -688,13 +711,17 @@ class QualificationTest(DataSetQualificationTestCase):
 
         try:
             log.info("========== READ FILE A0000010_10 ==============")
-            self.get_samples(Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 10, 10)
-            self.get_samples(Vel3dKWfpDataParticleType.METADATA_PARTICLE, 1)
+            self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 10, 10)
+            self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.METADATA_PARTICLE, 1)
             self.verify_wfp_queue_empty()
 
             log.info("====== READ FILE all_A0000003 AND VERIFY RECORDS 1-3 =========")
-            result = self.get_samples(Vel3dKWfpStcDataParticleType.VELOCITY_PARTICLE, 3)
-            time_result = self.get_samples(Vel3dKWfpStcDataParticleType.TIME_PARTICLE, 1)
+            result = self.data_subscribers.get_samples(
+                Vel3dKWfpStcDataParticleType.INSTRUMENT_PARTICLE, 3)
+            time_result = self.data_subscribers.get_samples(
+                Vel3dKWfpStcDataParticleType.METADATA_PARTICLE, 1)
             result.extend(time_result)
             self.assert_data_values(result, 'all_A0000003.yml')
             self.verify_wfp_stc_queue_empty()
@@ -721,8 +748,11 @@ class QualificationTest(DataSetQualificationTestCase):
 
         try:
             # Read file A0000010_5 (5 data particles) and verify the data.
-            result = self.get_samples(Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 5)
-            time_result = self.get_samples(Vel3dKWfpDataParticleType.METADATA_PARTICLE, 1)
+            log.info("======= Read file A0000010_5 (5 data particles) =========")
+            result = self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 5)
+            time_result = self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.METADATA_PARTICLE, 1)
             result.extend(time_result)
 
             # Verify values
@@ -730,11 +760,15 @@ class QualificationTest(DataSetQualificationTestCase):
             self.verify_wfp_queue_empty()
 
             # Read the first 2 velocity records of file valid_A0000004.
-            wfp_stc_result = self.get_samples(Vel3dKWfpStcDataParticleType.VELOCITY_PARTICLE, 2)
+            log.info("======= Read file valid_A0000004 (2 data particles) ======")
+            wfp_stc_result = self.data_subscribers.get_samples(
+                Vel3dKWfpStcDataParticleType.INSTRUMENT_PARTICLE, 2)
 
             # Read the first 3 data particles of file A0000010_10 then stop.
+            log.info("======= Read file A0000010_10 (1-3 data particles) ======")
             self.create_sample_data_set_dir('A0000010_10.DAT', DIR_WFP, 'A0000010.DAT')
-            result = self.get_samples(Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 3)
+            result = self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 3)
 
             # Verify values from file A0000010_10.
             self.assert_data_values(result, 'A0000010_10_1_3.yml')
@@ -744,29 +778,35 @@ class QualificationTest(DataSetQualificationTestCase):
 
             # Restart sampling and get the last 2 records of file valid_A0000004
             # and combine with the previous ones we read.
+            log.info("========== RESTART  ===============")
             self.assert_start_sampling()
-            result = self.get_samples(Vel3dKWfpStcDataParticleType.VELOCITY_PARTICLE, 2)
+            result = self.data_subscribers.get_samples(
+                Vel3dKWfpStcDataParticleType.INSTRUMENT_PARTICLE, 2)
             wfp_stc_result.extend(result)
 
             # Get the next 3 particles (4-6) of file A0000010_10.
             # These particles are ignored.
-            result = self.get_samples(Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 3)
-
-            self.assert_stop_sampling()
-            self.verify_wfp_queue_empty()
+            log.info("======= Read file A0000010_10 (4-6 data particles) ======")
+            result = self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 3)
 
             # Restart sampling. Read the last 4 particles (7-10) from file A0000010_10.
-            self.assert_start_sampling()
-            result = self.get_samples(Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 4)
+            log.info("======= Read file A0000010_10 (7-10 data particles) ======")
+            result = self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.INSTRUMENT_PARTICLE, 4)
 
             # Get the metadata particle and combine with previous particles.
-            time_result = self.get_samples(Vel3dKWfpDataParticleType.METADATA_PARTICLE, 1)
+            log.info("======= Read file A0000010_10 (metadata particles) ======")
+            time_result = self.data_subscribers.get_samples(
+                Vel3dKWfpDataParticleType.METADATA_PARTICLE, 1)
             result.extend(time_result)
             self.assert_data_values(result, 'A0000010_10_7_10.yml')
             self.verify_wfp_queue_empty()
 
             # Get the time record for file valid_A0000004 and combine with previous records.
-            time_result = self.get_samples(Vel3dKWfpStcDataParticleType.TIME_PARTICLE, 1)
+            log.info("======= Read file valid_A0000004 (metadata particles) ======")
+            time_result = self.data_subscribers.get_samples(
+                Vel3dKWfpStcDataParticleType.METADATA_PARTICLE, 1)
             wfp_stc_result.extend(time_result)
             self.assert_data_values(wfp_stc_result, 'valid_A0000004.yml')
             self.verify_wfp_stc_queue_empty()
@@ -789,5 +829,5 @@ class QualificationTest(DataSetQualificationTestCase):
         """
         Assert the sample queue for all WFP_STC data streams is empty.
         """
-        self.assert_sample_queue_size(Vel3dKWfpStcDataParticleType.VELOCITY_PARTICLE, 0)
-        self.assert_sample_queue_size(Vel3dKWfpStcDataParticleType.TIME_PARTICLE, 0)
+        self.assert_sample_queue_size(Vel3dKWfpStcDataParticleType.INSTRUMENT_PARTICLE, 0)
+        self.assert_sample_queue_size(Vel3dKWfpStcDataParticleType.METADATA_PARTICLE, 0)
