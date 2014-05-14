@@ -156,7 +156,7 @@ class Vel3dKWfpStcMetadataParticle(DataParticle):
         return particle
 
 
-class Vel3dKWfpStcInstrumentDataParticle(DataParticle):
+class Vel3dKWfpStcInstrumentParticle(DataParticle):
     """
     Class for parsing VELOCITY data from the VEL3D_K__stc_imodem data set
     """
@@ -456,7 +456,7 @@ class Vel3dKWfpStcParser(BufferLoadingParser):
                         ntp_time = ntplib.system_to_ntp_time(timestamp)
 
                         particle = self._extract_sample(
-                            Vel3dKWfpStcInstrumentDataParticle,
+                            Vel3dKWfpStcInstrumentParticle,
                             None, velocity_fields, ntp_time)
 
                         result_particles.append((particle,

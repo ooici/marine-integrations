@@ -20,7 +20,7 @@ from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.dataset.parser.vel3d_k_wfp_stc import \
     Vel3dKWfpStcParser, \
     Vel3dKWfpStcMetadataParticle, \
-    Vel3dKWfpStcInstrumentDataParticle, \
+    Vel3dKWfpStcInstrumentParticle, \
     Vel3dKWfpStcStateKey
 from mi.dataset.test.test_parser import ParserUnitTestCase
 
@@ -154,19 +154,19 @@ class Vel3dKWfpStcParserUnitTestCase(ParserUnitTestCase):
         ## This parser stores the groups from the data matcher in raw_data.
         ##
         ntp_time = ntplib.system_to_ntp_time(1380470402.0)
-        self.expected_particle1 = Vel3dKWfpStcInstrumentDataParticle(
+        self.expected_particle1 = Vel3dKWfpStcInstrumentParticle(
             VELOCITY_1_GROUPS, internal_timestamp=ntp_time)
 
         ntp_time = ntplib.system_to_ntp_time(1380470402.5)
-        self.expected_particle2 = Vel3dKWfpStcInstrumentDataParticle(
+        self.expected_particle2 = Vel3dKWfpStcInstrumentParticle(
             VELOCITY_2_GROUPS, internal_timestamp=ntp_time)
 
         ntp_time = ntplib.system_to_ntp_time(1380470403.0)
-        self.expected_particle3 = Vel3dKWfpStcInstrumentDataParticle(
+        self.expected_particle3 = Vel3dKWfpStcInstrumentParticle(
             VELOCITY_1_GROUPS, internal_timestamp=ntp_time)
 
         ntp_time = ntplib.system_to_ntp_time(1380470403.5)
-        self.expected_particle4 = Vel3dKWfpStcInstrumentDataParticle(
+        self.expected_particle4 = Vel3dKWfpStcInstrumentParticle(
             VELOCITY_2_GROUPS, internal_timestamp=ntp_time)
 
         ntp_time = ntplib.system_to_ntp_time(1380470402.0)
