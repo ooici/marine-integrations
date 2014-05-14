@@ -12,17 +12,17 @@ __license__ = 'Apache 2.0'
 
 import re
 import time
+import copy
 import base64
 
 from mi.core.log import get_logger, get_logging_metaclass
-
 log = get_logger()
 
 from mi.core.instrument.instrument_fsm import InstrumentFSM
 
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 from mi.core.instrument.data_particle import CommonDataParticleType
-from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
+from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol, DEFAULT_WRITE_DELAY
 from mi.core.instrument.driver_dict import DriverDict, DriverDictKey
 from mi.core.instrument.protocol_cmd_dict import ProtocolCommandDict
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
@@ -38,7 +38,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 
-from mi.core.exceptions import InstrumentCommandException
+from mi.core.exceptions import InstrumentCommandException, NotImplementedException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
@@ -46,13 +46,17 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
 
 from mi.core.time import get_timestamp_delayed
-from mi.core.common import BaseEnum
+from mi.core.common import InstErrorCode, BaseEnum
+
+from mi.core.util import dict_equal
+
+from mi.core.instrument.chunker import StringChunker
 
 # newline.
 NEWLINE = '\n\r'
 
 # default timeout.
-TIMEOUT = 10
+TIMEOUT = 30
 # set up the 'structure' lengths (in bytes) and sync/id/size constants
 USER_CONFIG_LEN = 512
 USER_CONFIG_SYNC_BYTES = '\xa5\x00\x00\x01'
@@ -68,7 +72,8 @@ INTVL_LEN = 4
 
 CHECK_SUM_SEED = 0xb58c
 
-HARDWARE_CONFIG_DATA_PATTERN = r'%s(.{14})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{12})(.{4})(.{2})' % HW_CONFIG_SYNC_BYTES
+HARDWARE_CONFIG_DATA_PATTERN = r'%s(.{14})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{12})(.{4})(.{2})' \
+                               % HW_CONFIG_SYNC_BYTES
 HARDWARE_CONFIG_DATA_REGEX = re.compile(HARDWARE_CONFIG_DATA_PATTERN, re.DOTALL)
 HEAD_CONFIG_DATA_PATTERN = r'%s(.{2})(.{2})(.{2})(.{12})(.{176})(.{22})(.{2})(.{2})' % HEAD_CONFIG_SYNC_BYTES
 HEAD_CONFIG_DATA_REGEX = re.compile(HEAD_CONFIG_DATA_PATTERN, re.DOTALL)
@@ -83,8 +88,9 @@ CLOCK_DATA_PATTERN = r'(.{1})(.{1})(.{1})(.{1})(.{1})(.{1})'
 CLOCK_DATA_REGEX = re.compile(CLOCK_DATA_PATTERN, re.DOTALL)
 BATTERY_DATA_PATTERN = r'(.{2})\x06\x06'
 BATTERY_DATA_REGEX = re.compile(BATTERY_DATA_PATTERN, re.DOTALL)
-ID_DATA_PATTERN = r'(.{8})'
-#ID_DATA_PATTERN = r'(.{14})\x06\x06'
+MODE_DATA_PATTERN = r'(.{1})\x00\x06\x06'
+MODE_DATA_REGEX = re.compile(MODE_DATA_PATTERN, re.DOTALL)
+ID_DATA_PATTERN = r'(.{14})\x06\x06'
 ID_DATA_REGEX = re.compile(ID_DATA_PATTERN, re.DOTALL)
 
 NORTEK_COMMON_SAMPLE_STRUCTS = [[USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN],
@@ -134,8 +140,10 @@ class InstrumentCmds(BaseEnum):
     CONFIGURE_INSTRUMENT               = 'CC'        # sets the user configuration
     SOFT_BREAK_FIRST_HALF              = '@@@@@@'
     SOFT_BREAK_SECOND_HALF             = 'K1W%!Q'
+    AUTOSAMPLE_BREAK                   = '@'
     READ_REAL_TIME_CLOCK               = 'RC'
     SET_REAL_TIME_CLOCK                = 'SC'
+    CMD_WHAT_MODE                      = 'II'        # to determine the mode of the instrument
     READ_USER_CONFIGURATION            = 'GC'
     READ_HW_CONFIGURATION              = 'GP'
     READ_HEAD_CONFIGURATION            = 'GH'
@@ -144,6 +152,18 @@ class InstrumentCmds(BaseEnum):
     START_MEASUREMENT_WITHOUT_RECORDER = 'ST'
     ACQUIRE_DATA                       = 'AD'
     CONFIRMATION                       = 'MC'        # confirm a break request
+    SAMPLE_WHAT_MODE                   = 'I'
+
+
+class InstrumentModes(BaseEnum):
+    """
+    List of possible modes the instrument can be in
+    """
+    FIRMWARE_UPGRADE = '\x00\x00\x06\x06'
+    MEASUREMENT      = '\x01\x00\x06\x06'
+    COMMAND          = '\x02\x00\x06\x06'
+    DATA_RETRIEVAL   = '\x04\x00\x06\x06'
+    CONFIRMATION     = '\x05\x00\x06\x06'
 
 
 class ProtocolState(BaseEnum):
@@ -579,11 +599,11 @@ class EngineeringParameter(DriverParameter):
     CLOCK_SYNC_INTERVAL = 'ClockSyncInterval'
     ACQUIRE_STATUS_INTERVAL = 'AcquireStatusInterval'
 
+
 class NortekUserConfigDataParticle(DataParticle):
     """
     Routine for parsing user config data into a data particle structure for the Nortek sensor.
     """
-
     _data_particle_type = NortekDataParticleType.USER_CONFIG
 
     def _build_parsed_values(self):
@@ -779,7 +799,7 @@ class NortekEngBatteryDataParticle(DataParticle):
 
 class NortekEngIdDataParticleKey(BaseEnum):
     """
-    Particles for identication data
+    Particles for identification data
     """
     ID = "identification_string"
 
@@ -1072,11 +1092,12 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
     """
     #logging level
     __metaclass__ = get_logging_metaclass(log_level='debug')
+
     #used for storing parameter values before they are changed during DA, used for restoring system
     da_param_restore = []
 
+    # user configuration order of params, this needs to match the configuration order for setting params
     order_of_user_config = [
-        # user configuration order of params
         Parameter.TRANSMIT_PULSE_LENGTH,
         Parameter.BLANKING_DISTANCE,
         Parameter.RECEIVE_LENGTH,
@@ -1146,6 +1167,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Add event handlers for protocol state machine.
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.ENTER, self._handler_unknown_enter)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.DISCOVER, self._handler_unknown_discover)
+        self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.READ_MODE, self._handler_unknown_read_mode)
         self._protocol_fsm.add_handler(ProtocolState.UNKNOWN, ProtocolEvent.EXIT, self._handler_unknown_exit)
 
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.ENTER, self._handler_command_enter)
@@ -1162,6 +1184,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.ENTER, self._handler_autosample_enter)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.EXIT, self._handler_autosample_exit)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.READ_MODE, self._handler_autosample_read_mode)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_autosample_clock_sync)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS, self._handler_command_acquire_status)
@@ -1179,11 +1202,14 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         # Add response handlers for device commands.
         self._add_response_handler(InstrumentCmds.READ_REAL_TIME_CLOCK, self._parse_read_clock_response)
+        self._add_response_handler(InstrumentCmds.CMD_WHAT_MODE, self._parse_what_mode_response)
+        self._add_response_handler(InstrumentCmds.SAMPLE_WHAT_MODE, self._parse_what_mode_response)
         self._add_response_handler(InstrumentCmds.READ_BATTERY_VOLTAGE, self._parse_read_battery_voltage_response)
         self._add_response_handler(InstrumentCmds.READ_ID, self._parse_read_id)
         self._add_response_handler(InstrumentCmds.READ_HW_CONFIGURATION, self._parse_read_hw_config)
         self._add_response_handler(InstrumentCmds.READ_HEAD_CONFIGURATION, self._parse_read_head_config)
         self._add_response_handler(InstrumentCmds.READ_USER_CONFIGURATION, self._parse_read_user_config)
+        self._add_response_handler(InstrumentCmds.SOFT_BREAK_SECOND_HALF, self._parse_second_break_response)
 
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
@@ -1311,7 +1337,12 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         try:
             params_to_set = args[0]
             self._verify_not_readonly(*args, **kwargs)
+        except IndexError:
+            raise InstrumentParameterException('Set params requires a parameter dict.')
 
+        except InstrumentParameterException:
+            log.debug("Attempt to set read only parameter(s) (%s)", params_to_set)
+        else:
             if not isinstance(params_to_set, dict):
                 raise InstrumentParameterException('Set parameters not a dict.')
 
@@ -1346,11 +1377,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
             log.debug('_handler_command_set: sending config change event!')
 
-        except IndexError:
-            raise InstrumentParameterException('Set params requires a parameter dict.')
-        except InstrumentParameterException:
-            log.debug("Attempt to set read only parameter(s) (%s)", params_to_set)
-
     def _get_response(self, timeout=TIMEOUT, expected_prompt=None, response_regex=None):
         """
         Get a response from the instrument
@@ -1375,6 +1401,15 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             if time.time() > starttime + timeout:
                 raise InstrumentTimeoutException()
 
+    def _send_wakeup(self):
+        """
+        Send a wakeup to the device. Overridden by device specific
+        subclasses.
+        """
+
+        self._connection.send(InstrumentCmds.SOFT_BREAK_FIRST_HALF)
+        # alternatively try sending kwijibo?
+
     def _do_cmd_resp(self, cmd, *args, **kwargs):
         """
         Perform a command-response on the device.
@@ -1390,32 +1425,40 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Get timeout and initialize response.
         timeout = kwargs.get('timeout', TIMEOUT)
         expected_prompt = kwargs.get('expected_prompt', InstrumentPrompts.Z_ACK)
+        response_regex = kwargs.get('response_regex', None)
+        write_delay = kwargs.get('write_delay', DEFAULT_WRITE_DELAY)
 
         # Get the build handler.
         build_handler = self._build_handlers.get(cmd, None)
-        if build_handler:
-            cmd_line = build_handler(cmd, *args, **kwargs)
-        else:
-            cmd_line = cmd
+        if not build_handler:
+            self._add_build_handler(cmd, self._build_command_default)
 
-        # Send command.
-        log.debug('_do_cmd_resp: %s(%s), timeout=%s, expected_prompt=%s (%s),',
-                  repr(cmd_line), repr(cmd_line.encode("hex")), timeout, expected_prompt, expected_prompt.encode("hex"))
-        # Clear line and prompt buffers for result.
-        self._linebuf = ''
-        self._promptbuf = ''
-        self._connection.send(cmd_line)
+        return super(NortekInstrumentProtocol, self)._do_cmd_resp(cmd, timeout=timeout,
+                                                                  expected_prompt=expected_prompt,
+                                                                  response_regex=response_regex,
+                                                                  write_delay=write_delay,
+                                                                  *args)
 
-        # Wait for the prompt, prepare result and return, timeout exception
-        (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
+        # # Clear line and prompt buffers for result.
+        # self._linebuf = ''
+        # self._promptbuf = ''
 
-        resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
-            self._response_handlers.get(cmd, None)
-        resp_result = None
-        if resp_handler:
-            resp_result = resp_handler(result, prompt)
 
-        return resp_result
+        # # Send command.
+        # log.debug('_do_cmd_resp: %s(%s), timeout=%s, expected_prompt=%r,',
+        #           repr(cmd_line), repr(cmd_line.encode("hex")), timeout, expected_prompt)
+        # self._connection.send(cmd_line)
+        #
+        # # Wait for the prompt, prepare result and return, timeout exception
+        # (prompt, result) = self._get_response(timeout, expected_prompt=expected_prompt)
+        #
+        # resp_handler = self._response_handlers.get((self.get_current_state(), cmd), None) or \
+        #     self._response_handlers.get(cmd, None)
+        # resp_result = None
+        # if resp_handler:
+        #     resp_result = resp_handler(result, prompt)
+        #
+        # return resp_result
 
     ########################################################################
     # Unknown handlers.
@@ -1440,21 +1483,58 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         next_state = None
         result = None
 
-        #send command twice to interrupt the instrument
-        self._connection.send(InstrumentCmds.SOFT_BREAK_SECOND_HALF)
-        self._do_cmd_resp(InstrumentCmds.SOFT_BREAK_SECOND_HALF)
+        ret_mode = self._protocol_fsm.on_event(ProtocolEvent.READ_MODE)
+        prompt = ret_mode[1]
 
-        for item in self._prompts.list():
-            if item in self._promptbuf:
-                log.debug('_handler_unknown_discover got prompt: %s' % repr(item))
-                if item == InstrumentPrompts.COMMAND_MODE:
-                    next_state = ProtocolState.COMMAND
-                    result = ResourceAgentState.IDLE
-                elif item == InstrumentPrompts.CONFIRMATION:
-                    next_state = ProtocolState.AUTOSAMPLE
-                    result = ResourceAgentState.STREAMING
+        if prompt == 0:
+            log.debug('_handler_unknown_discover: FIRMWARE_UPGRADE')
+            raise InstrumentStateException('Firmware upgrade state.')
+        elif prompt == 1:
+            log.debug('_handler_unknown_discover: MEASUREMENT_MODE')
+            next_state = ProtocolState.AUTOSAMPLE
+            result = ResourceAgentState.STREAMING
+        elif prompt == 2:
+            log.debug('_handler_unknown_discover: COMMAND_MODE')
+            next_state = ProtocolState.COMMAND
+            result = ResourceAgentState.IDLE
+        elif prompt == 4:
+            log.debug('_handler_unknown_discover: DATA_RETRIEVAL_MODE')
+            next_state = ProtocolState.AUTOSAMPLE
+            result = ResourceAgentState.STREAMING
+        elif prompt == 5:
+            log.debug('_handler_unknown_discover: CONFIRMATION_MODE')
+            next_state = ProtocolState.AUTOSAMPLE
+            result = ResourceAgentState.STREAMING
+        else:
+            raise InstrumentStateException('Unknown state: %s' % ret_mode[1])
+
+        # timeout = kwargs.get('timeout', TIMEOUT)
+        # prompt = self._get_mode(timeout)
+        # log.debug('_handler_unknown_discover: prompt=%s', prompt)
+        # if prompt == InstrumentPrompts.COMMAND_MODE:
+        #     log.debug('_handler_unknown_discover: COMMAND_MODE')
+        #     next_state = ProtocolState.COMMAND
+        #     result = ResourceAgentState.IDLE
+        # elif prompt == InstrumentPrompts.CONFIRMATION:
+        #     log.debug('_handler_unknown_discover: CONFIRMATION')
+        #     next_state = ProtocolState.AUTOSAMPLE
+        #     result = ResourceAgentState.STREAMING
+        # elif prompt == InstrumentPrompts.Z_ACK:
+        #     log.debug('_handler_unknown_discover: Z_ACK')
+        #     log.debug('_handler_unknown_discover: promptbuf=%s (%s)', self._promptbuf, self._promptbuf.encode("hex"))
+        #     if InstrumentModes.COMMAND in self._promptbuf:
+        #         next_state = ProtocolState.COMMAND
+        #         result = ResourceAgentState.IDLE
+        #     elif InstrumentModes.MEASUREMENT in self._promptbuf or InstrumentModes.CONFIRMATION in self._promptbuf:
+        #         next_state = ProtocolState.AUTOSAMPLE
+        #         result = ResourceAgentState.STREAMING
+        #     else:
+        #         raise InstrumentStateException('Unknown state.')
+        # else:
+        #     raise InstrumentStateException('Unknown state.')
 
         log.debug('_handler_unknown_discover: state=%s', next_state)
+
 
         return next_state, result
 
@@ -1468,7 +1548,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
-
     def _handler_command_enter(self, *args, **kwargs):
         """
         Enter command state. Configure the instrument and driver, sync the clock, and start scheduled events
@@ -1478,10 +1557,11 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug('%% IN _handler_command_enter')
         # Command device to update parameters and send a config change event.
-        self._update_params()
-        self._init_params()
+        #self._update_params()
+        #self._init_params()
 
-        self._clock_sync()
+        #self._update_params()
+        #self._init_params()
 
         # Tell driver superclass to send a state change event.
         # Superclass will query the state.
@@ -1507,13 +1587,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_acquire_sample(self, *args, **kwargs):
         """
-        Command the instrument to acquire sample data. Instrument will enter Power Down mode when finished
+        Command the instrument to acquire sample data.
         """
-        log.debug('%% IN _handler_command_acquire_sample')
-
-        result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA)
-
-        return None, (None, result)
+        raise NotImplementedException('_handler_command_acquire_sample: Implement in child class!')
 
     def _handler_command_acquire_status(self, *args, **kwargs):
         """
@@ -1538,8 +1614,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._handler_command_get_user_config()
 
         #ID
-        self._handler_command_read_id()
-        # self._do_cmd_resp(InstrumentCmds.READ_ID)
+        #self._handler_command_read_id()
+        self._do_cmd_resp(InstrumentCmds.READ_ID)
 
         return None, (None, None)
 
@@ -1586,7 +1662,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug('%% IN _handler_command_start_autosample')
         result = self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, *args, **kwargs)
-
         return ProtocolState.AUTOSAMPLE, (ResourceAgentState.STREAMING, result)
 
     def _handler_command_start_direct(self):
@@ -1594,33 +1669,70 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         Start Direct Access
         """
         log.debug('%% IN _handler_start_direct: entering DA mode')
-
-        return ResourceAgentState.DIRECT_ACCESS, (ProtocolState.DIRECT_ACCESS, None)
+        return ProtocolState.DIRECT_ACCESS, (ResourceAgentState.DIRECT_ACCESS, None)
 
     def _handler_command_read_clock(self):
         """
         Issue read clock command.
         """
         result = self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK, timeout=TIMEOUT)
-
         return None, (None, result)
+
+    def _handler_command_read_mode(self):
+        """
+        Issue read mode command.
+        """
+        result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE)
+        return None, (None, result)
+
+    def _handler_autosample_read_mode(self):
+        """
+        Issue read mode command.
+        """
+        log.debug('%% IN _handler_autosample_read_mode')
+
+        self._connection.send(InstrumentCmds.AUTOSAMPLE_BREAK)
+        time.sleep(.1)
+        result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE)
+        return None, (None, result)
+
+    def _handler_unknown_read_mode(self):
+        """
+        """
+        log.debug('%% IN _handler_unknown_read_mode')
+        next_state = None
+        next_agent_state = None
+
+        # Issue read mode command.
+        try:
+            self._connection.send(InstrumentCmds.AUTOSAMPLE_BREAK)
+            time.sleep(.1)
+            result = self._do_cmd_resp(InstrumentCmds.SAMPLE_WHAT_MODE, timeout=0.4)
+            # log.debug('_handler_unknown_read_mode: response I = %r', result)
+        except InstrumentTimeoutException:
+            log.debug('_handler_unknown_read_mode: no response to "I", sending "II"')
+            # if there is no response, catch timeout exception and issue another 'I' command to make II command
+            result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE)
+            # log.debug('_handler_unknown_read_mode: response II = %r', result)
+
+        # if the above fails, try the break method
+
+        return next_state, (next_agent_state, result)
 
     def _handler_command_read_battery_voltage(self):
         """
         Issue read battery command.
         """
         log.debug('%% IN _handler_command_read_battery_voltage')
-
         result = self._do_cmd_resp(InstrumentCmds.READ_BATTERY_VOLTAGE)
-
         return None, (None, result)
 
     def _handler_command_read_id(self):
         """
         Issue read clock command.
         """
+        log.debug('%% IN _handler_command_read_id')
         result = self._do_cmd_resp(InstrumentCmds.READ_ID)
-
         return None, (None, result)
 
     def _handler_command_get_hw_config(self):
@@ -1637,7 +1749,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug('%% IN _handler_command_get_head_config')
         result = self._do_cmd_resp(InstrumentCmds.READ_HEAD_CONFIGURATION)
-
         return None, (None, result)
 
     def _handler_command_get_user_config(self):
@@ -1646,7 +1757,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug('%% IN _handler_command_get_user_config')
         result = self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION)
-
         return None, (None, result)
 
     def _clock_sync(self, *args, **kwargs):
@@ -1763,7 +1873,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         Send the three part command to stop autosampling and start command mode in the instrument
         """
-        # send soft break
         self._connection.send(InstrumentCmds.SOFT_BREAK_FIRST_HALF)
         time.sleep(.1)
         self._do_cmd_resp(InstrumentCmds.SOFT_BREAK_SECOND_HALF,
@@ -1825,9 +1934,22 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         incorrect prompt received.
         """
         log.debug('%% IN _handler_autosample_stop_autosample')
-        self._helper_measurement_to_command_mode(*args, **kwargs)
+        self._connection.send(InstrumentCmds.SOFT_BREAK_FIRST_HALF)
+        time.sleep(.1)
+        ret_prompt = self._do_cmd_resp(InstrumentCmds.SOFT_BREAK_SECOND_HALF,
+                                       expected_prompt=[InstrumentPrompts.CONFIRMATION, InstrumentPrompts.COMMAND_MODE],
+                                       *args, **kwargs)
 
-        return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
+        log.debug('_handler_autosample_stop_autosample, ret_prompt: %s', ret_prompt)
+
+        if ret_prompt == InstrumentPrompts.CONFIRMATION:
+            # Issue the confirmation command.
+            self._do_cmd_resp(InstrumentCmds.CONFIRMATION, *args, **kwargs)
+
+        next_state = ProtocolState.COMMAND
+        next_agent_state = ResourceAgentState.COMMAND
+
+        return next_state, (next_agent_state, None)
 
     ########################################################################
     # Direct access handlers.
@@ -1840,7 +1962,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         #get the DA params and store their values for future use in restoring the state after leaving DA
         da_params = self.get_direct_access_params()
-        self.da_param_restore = []
+        self.da_param_restore = {}
         for param in da_params:
             self.da_param_restore[param] = self._param_dict.get(param)
 
@@ -2009,218 +2131,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             return False
 
         return True
-
-    def _update_params(self, *args, **kwargs):
-        """
-        Update the parameter dictionary. Issue the read config command. The response
-        needs to be iterated through a line at a time and values saved to param dictionary.
-        @throws InstrumentTimeoutException if device cannot be timely woken.
-        @throws InstrumentProtocolException if ds/dc misunderstood.
-        """
-        if self.get_current_state() != ProtocolState.COMMAND:
-            raise InstrumentStateException('Can not perform update of parameters when not in command state')
-
-        log.debug('Sending get_user_configuration command to the instrument.')
-        response = self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION) 
-
-        log.debug("RESPONSE = %r", response)
-
-        for param in response:
-            #get each param's value and update the equivalent in the dictionary
-            #some params only exist in the user header and are not needed in the param dict, these we can skip
-            log.debug('parameter in driver = %s, %s', param, response[param])
-            try:
-                self._param_dict.set_value(param, response[param])
-            except Exception:
-                log.debug('parameter %s does not exist, skipping!', param)
-
-    def _create_set_output(self, parameters):
-        """
-        load buffer with sync byte (A5), ID byte (01), and size word (# of words in little-endian form)
-        'user' configuration is 512 bytes = 256 words long = size 0x100
-        """
-        output = '\xa5\x00\x00\x01'
-
-        for param in self.order_of_user_config:
-            log.debug('TRYING TO ADD %s %s', param, self._param_dict.get(param))
-            if param == Parameter.COMMENTS:
-                output += self._param_dict.format(param).ljust(180, "\x00")
-            elif param == Parameter.USER_4_SPARE:
-                output += self._param_dict.format(param).ljust(30, "\x00")
-            elif param == Parameter.DEPLOYMENT_NAME:
-                output += self._param_dict.format(param).ljust(6, "\x00")
-            elif param == Parameter.QUAL_CONSTANTS:
-                output += base64.b64decode(self._param_dict.format(param))
-            elif param == Parameter.VELOCITY_ADJ_TABLE:
-                output += base64.b64decode(self._param_dict.format(param))
-            elif param == Parameter.CLOCK_DEPLOY:
-                output += NortekProtocolParameterDict.convert_datetime_to_words(self._param_dict.format(param))
-            else:
-                output += self._param_dict.format(param)
-            log.debug('_create_set_output: ADDED %s output size = %s', param, len(output))
-
-        checksum = CHECK_SUM_SEED
-        for word_index in range(0, len(output), 2):
-            word_value = NortekProtocolParameterDict.convert_word_to_int(output[word_index:word_index + 2])
-            checksum = (checksum + word_value) % 0x10000
-
-        output += NortekProtocolParameterDict.word_to_string(checksum)
-        self._dump_config(output)
-
-        return output
-
-    def _build_set_configuration_command(self, cmd, *args, **kwargs):
-        """
-        Build the set configuration command
-        """
-        user_configuration = kwargs.get('user_configuration', None)
-        if not user_configuration:
-            raise InstrumentParameterException('set_configuration command missing user_configuration parameter.')
-        if not isinstance(user_configuration, str):
-            raise InstrumentParameterException('set_configuration command requires a string user_configuration parameter.')
-        user_configuration = base64.b64decode(user_configuration)
-        self._dump_config(user_configuration)
-
-        cmd_line = cmd + user_configuration
-        return cmd_line
-
-    def _build_set_real_time_clock_command(self, cmd, time, **kwargs):
-        """
-        Build the set clock command
-        """
-        return cmd + time
-
-    def _parse_read_clock_response(self, response, prompt):
-        """
-        Parse the response from the instrument for a read clock command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The time as a string
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        # packed BCD format, so convert binary to hex to get value
-        # should be the 6 byte response ending with two ACKs
-        if len(response) != 8:
-            log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Bad response from read clock command. (%s)" % response.encode('hex'))
-
-        length = len(self._promptbuf)
-        if self._promptbuf[length-2:length] == InstrumentPrompts.Z_NACK:
-            log.warn("_parse_read_clock_response: Bad response from read clock command. (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Bad response from read clock command. (%s)" % response.encode('hex'))
-
-        log.debug("_parse_read_clock_response: response=%s", response.encode('hex'))
-
-        # Workaround for not so unique data particle chunking
-        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, CLK_LEN])
-
-        time = NortekProtocolParameterDict.convert_time(response)
-        return time
-
-    def _parse_read_battery_voltage_response(self, response, prompt):
-        """
-        Parse the response from the instrument for a read battery voltage command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The time as a string
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        if len(response) != BV_LEN:
-            log.warn("_parse_read_battery_voltage_response: Bad read battery voltage response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Bad response from read battery voltage command. (%s)" % response.encode('hex'))
-
-        length = len(self._promptbuf)
-        if self._promptbuf[length-2:length] == InstrumentPrompts.Z_NACK:
-            log.warn("_parse_read_clock_response: Bad response from read battery voltage command. (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Bad response from read battery voltage command. (%s)" % response.encode('hex'))
-
-        log.debug("_parse_read_battery_voltage_response: response=%s", response.encode('hex'))
-
-        # Workaround for not so unique data particle chunking
-        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, BV_LEN])
-
-        return NortekProtocolParameterDict.convert_word_to_int(response[0:BV_LEN - 2])
-
-    def _parse_read_id(self, response, prompt):
-        """ Parse the response from the instrument for a read ID command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The time as a string
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        if (len(response) != 10):
-            log.warn("_handler_command_read_id: Bad read ID response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read ID response. (%s)", response.encode('hex'))
-
-        length = len(self._promptbuf)
-        if self._promptbuf[length-2:length] == InstrumentPrompts.Z_NACK:
-            log.warn("_parse_read_clock_response: Bad response from read id command. (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Bad response from read id command. (%s)" % response.encode('hex'))
-
-        log.debug("_handler_command_read_id: response=%s", response.encode('hex'))
-
-        # Workaround for not so unique data particle chunking
-        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, ID_LEN])
-
-        return response[0:8]
-
-    def _parse_read_hw_config(self, response, prompt):
-        """
-        Parse the response from the instrument for a read hw config command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The hardware configuration parse into a dict. Names
-        include SerialNo (string), Config (int), Frequency(int),
-        PICversion (int), HWrevision (int), RecSize (int), Status (int), and
-        FWversion (binary)
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        if not self._check_configuration(self._promptbuf, HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN):
-            log.warn("_parse_read_hw_config: Bad read hw response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read hw response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_hw_config: response=%s", response.encode('hex'))
-
-        return hw_config_to_dict(response)
-
-    def _parse_read_head_config(self, response, prompt):
-        """
-        Parse the response from the instrument for a read head command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The head configuration parsed into a dict. Names include
-        Config (int), Frequency (int), Type (int), SerialNo (string)
-        System (binary), NBeams (int)
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        if not self._check_configuration(self._promptbuf, HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN):
-            log.warn("_parse_read_head_config: Bad read head response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read head response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_head_config: response=%s", response.encode('hex'))
-
-        return head_config_to_dict(response)
-
-    def _parse_read_user_config(self, response, prompt):
-        """
-        Parse the response from the instrument for a read user command.
-
-        @param response The response string from the instrument
-        @param prompt The prompt received from the instrument
-        @retval return The user configuration parsed into a dict. Names include:
-
-        @raise InstrumentProtocolException When a bad response is encountered
-        """
-        log.debug("%% IN _parse_read_user_config")
-        if not self._check_configuration(self._promptbuf, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):
-            log.warn("_parse_read_user_config: Bad read user response from instrument (%s)", response.encode('hex'))
-            raise InstrumentProtocolException("Invalid read user response. (%s)" % response.encode('hex'))
-        log.debug("_parse_read_user_config: response=%s", response.encode('hex'))
-
-        return user_config_to_dict(response)
 
     def _build_param_dict(self):
         """
@@ -2827,3 +2737,377 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.set_value(Parameter.B1_1_SPARE, "00")
         self._param_dict.set_value(Parameter.USER_1_SPARE, "00")
 
+    def _update_params(self, *args, **kwargs):
+        """
+        Update the parameter dictionary. Issue the read config command. The response
+        needs to be iterated through a line at a time and values saved to param dictionary.
+        @throws InstrumentTimeoutException if device cannot be timely woken.
+        @throws InstrumentProtocolException if ds/dc misunderstood.
+        """
+        if self.get_current_state() != ProtocolState.COMMAND:
+            raise InstrumentStateException('Can not perform update of parameters when not in command state')
+
+        log.debug('Sending get_user_configuration command to the instrument.')
+        response = self._do_cmd_resp(InstrumentCmds.READ_USER_CONFIGURATION)
+
+        log.debug("RESPONSE = %r", response)
+
+        for param in response:
+            #get each param's value and update the equivalent in the dictionary
+            #some params only exist in the user header and are not needed in the param dict, these we can skip
+            log.debug('parameter in driver = %s, %s', param, response[param])
+            try:
+                self._param_dict.set_value(param, response[param])
+            except Exception:
+                log.debug('parameter %s does not exist, skipping!', param)
+
+    def _get_mode(self, timeout, delay=1):
+        """
+        _wakeup is replaced by this method for this instrument to search for
+        prompt strings at other than just the end of the line.
+        @param timeout The timeout to wake the device.
+        @param delay The time to wait between consecutive wakeups.
+        @throw InstrumentTimeoutException if the device could not be woken.
+        """
+        # Clear the prompt buffer.
+        self._promptbuf = ''
+
+        # Grab time for timeout.
+        starttime = time.time()
+
+        log.debug("_get_mode: timeout = %d", timeout)
+
+        # self._protocol_fsm.on_event(ProtocolEvent.READ_MODE)
+        # self._async_raise_fsm_event(ProtocolEvent.READ_MODE)
+
+        while True:
+            log.debug('Sending what_mode command to get a response from the instrument.')
+            # Send what_mode command to attempt to get a response.
+            # self._connection.send(InstrumentCmds.CMD_WHAT_MODE)
+
+            self._connection.send(InstrumentCmds.AUTOSAMPLE_BREAK)
+            time.sleep(.1)
+            self._connection.send(InstrumentCmds.CMD_WHAT_MODE)
+
+            # self._connection.send(InstrumentCmds.SOFT_BREAK_SECOND_HALF)
+            # self._connection.send(InstrumentCmds.SOFT_BREAK_SECOND_HALF)
+            # time.sleep(delay)
+
+            log.debug('get_mode self._promptbuf: %r' % self._promptbuf)
+            search_obj = re.search(MODE_DATA_REGEX, self._promptbuf)
+            if search_obj:
+                log.debug("get_mode: found=%r", search_obj.group())
+            else:
+                log.debug("get_mode: not found")
+
+            for item in self._prompts.list():
+                if item in self._promptbuf:
+                    # log.debug('get_mode got prompt: %s' % repr(item))
+                    if item != InstrumentPrompts.Z_NACK:
+                        log.debug('get_mode got prompt (return): %s' % repr(item))
+                        return item
+
+        if time.time() > starttime + timeout:
+            raise InstrumentTimeoutException()
+
+    def _create_set_output(self, parameters):
+        """
+        load buffer with sync byte (A5), ID byte (01), and size word (# of words in little-endian form)
+        'user' configuration is 512 bytes = 256 words long = size 0x100
+        """
+        output = '\xa5\x00\x00\x01'
+
+        for param in self.order_of_user_config:
+            log.debug('TRYING TO ADD %s %s', param, self._param_dict.get(param))
+            if param == Parameter.COMMENTS:
+                output += self._param_dict.format(param).ljust(180, "\x00")
+            elif param == Parameter.USER_4_SPARE:
+                output += self._param_dict.format(param).ljust(30, "\x00")
+            elif param == Parameter.DEPLOYMENT_NAME:
+                output += self._param_dict.format(param).ljust(6, "\x00")
+            elif param == Parameter.QUAL_CONSTANTS:
+                output += base64.b64decode(self._param_dict.format(param))
+            elif param == Parameter.VELOCITY_ADJ_TABLE:
+                output += base64.b64decode(self._param_dict.format(param))
+            elif param == Parameter.CLOCK_DEPLOY:
+                output += NortekProtocolParameterDict.convert_datetime_to_words(self._param_dict.format(param))
+            else:
+                output += self._param_dict.format(param)
+            log.debug('_create_set_output: ADDED %s output size = %s', param, len(output))
+
+        checksum = CHECK_SUM_SEED
+        for word_index in range(0, len(output), 2):
+            word_value = NortekProtocolParameterDict.convert_word_to_int(output[word_index:word_index + 2])
+            checksum = (checksum + word_value) % 0x10000
+
+        output += NortekProtocolParameterDict.word_to_string(checksum)
+        self._dump_config(output)
+
+        return output
+
+    def _build_command_default(self, cmd):
+        return cmd
+
+    def _build_set_configuration_command(self, cmd, *args, **kwargs):
+        """
+        Build the set configuration command
+        """
+        user_configuration = kwargs.get('user_configuration', None)
+        if not user_configuration:
+            raise InstrumentParameterException('set_configuration command missing user_configuration parameter.')
+        if not isinstance(user_configuration, str):
+            raise InstrumentParameterException('set_configuration command requires a string user_configuration parameter.')
+        user_configuration = base64.b64decode(user_configuration)
+        self._dump_config(user_configuration)
+
+        cmd_line = cmd + user_configuration
+        return cmd_line
+
+    def _build_set_real_time_clock_command(self, cmd, time, **kwargs):
+        """
+        Build the set clock command
+        """
+        return cmd + time
+
+    def _parse_what_mode_response(self, response, prompt):
+        """ Parse the response from the instrument for a 'what mode' command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The mode as an int
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        log.debug("%%% IN _parse_what_mode_response")
+
+        search_obj = re.search(MODE_DATA_REGEX, response)
+        if search_obj:
+            # log.debug("_parse_what_mode_response: found=%r", search_obj.group())
+            log.debug("_parse_what_mode_response: response=%r", search_obj.group())
+            return NortekProtocolParameterDict.convert_word_to_int(search_obj.group(0)[0:2])
+        else:
+            log.warn("_parse_what_mode_response: Bad what mode response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid what mode response. (%s)" % response.encode('hex'))
+
+    def _parse_read_clock_response(self, response, prompt):
+        """
+        Parse the response from the instrument for a read clock command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        # packed BCD format, so convert binary to hex to get value
+        # should be the 6 byte response ending with two ACKs
+        if len(response) != CLK_LEN:
+            log.warn("_parse_read_clock_response: Bad read clock response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Bad response from read clock command. (%s)" % response.encode('hex'))
+
+        length = len(self._promptbuf)
+        if self._promptbuf[length-2:length] == InstrumentPrompts.Z_NACK:
+            log.warn("_parse_read_clock_response: Bad response from read clock command. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Bad response from read clock command. (%s)" % response.encode('hex'))
+
+        log.debug("_parse_read_clock_response: response=%s", response.encode('hex'))
+
+        # Workaround for not so unique data particle chunking
+        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, CLK_LEN])
+
+        time = NortekProtocolParameterDict.convert_time(response)
+        return time
+
+    def _parse_second_break_response(self, response, prompt):
+        """ Parse the response from the instrument for a 'what mode' command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The response as is
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        log.debug("%%% IN _parse_second_break_response")
+
+        for search_prompt in (InstrumentPrompts.CONFIRMATION, InstrumentPrompts.COMMAND_MODE):
+            start = response.find(search_prompt)
+            if start != -1:
+                log.debug("_parse_second_break_response: response=%r", response[start:start+len(search_prompt)])
+                return response[start:start+len(search_prompt)]
+
+        log.warn("_parse_second_break_response: Bad what second break response from instrument (%s)", response)
+        raise InstrumentProtocolException("Invalid second break response. (%s)" % response)
+
+        # return_list = []
+        # structs = add_structs + NORTEK_COMMON_SAMPLE_STRUCTS
+        #
+        # for structure_sync, structure_len in structs:
+        #
+        #     index = 0
+        #     start = 0
+        #
+        #     #while there are still matches....
+        #     while start != -1:
+        #         start = response.find(structure_sync, index)
+        #         # found a sync pattern
+        #         if start != -1:
+        #
+        #             # only check the CRC if all of the structure has arrived
+        #             if start+structure_len <= len(response):
+        #
+        #                 if sent_checksum == calculated_checksum:
+        #                     return_list.append((start, start+structure_len))
+        #                     #slice raw data off
+        #                     log.debug("chunker_sieve_function: found %r", response[start:start+structure_len])
+        #
+        #             index = start+structure_len
+        #
+        #
+        # log.debug("_parse_second_break_response: response=%r", response)
+        # return response
+
+        # search_obj = re.search(MODE_DATA_REGEX, response)
+        # if search_obj:
+        #     log.debug("_parse_second_break_response: response=%r", search_obj.group())
+        #     return search_obj.group(0)
+        # else:
+        #     log.warn("_parse_second_break_response: Bad what second break response from instrument (%s)", response)
+        #     raise InstrumentProtocolException("Invalid second break response. (%s)" % response)
+
+    def _parse_read_battery_voltage_response(self, response, prompt):
+        """
+        Parse the response from the instrument for a read battery voltage command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if len(response) != BV_LEN:
+            log.warn("_parse_read_battery_voltage_response: Bad read battery voltage response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Bad response from read battery voltage command. (%s)" % response.encode('hex'))
+
+        length = len(self._promptbuf)
+        if self._promptbuf[length-2:length] == InstrumentPrompts.Z_NACK:
+            log.warn("_parse_read_clock_response: Bad response from read battery voltage command. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Bad response from read battery voltage command. (%s)" % response.encode('hex'))
+
+        log.debug("_parse_read_battery_voltage_response: response=%s", response.encode('hex'))
+
+        # Workaround for not so unique data particle chunking
+        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, BV_LEN])
+
+        return NortekProtocolParameterDict.convert_word_to_int(response[0:BV_LEN - 2])
+
+    def _parse_read_id(self, response, prompt):
+        """ Parse the response from the instrument for a read ID command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        log.debug('length of response = %s', len(response))
+        if len(response) != ID_LEN:
+            log.warn("_handler_command_read_id: Bad read ID response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read ID response. (%s)", response.encode('hex'))
+
+        length = len(self._promptbuf)
+        if self._promptbuf[length-2:length] == InstrumentPrompts.Z_NACK:
+            log.warn("_parse_read_clock_response: Bad response from read id command. (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Bad response from read id command. (%s)" % response.encode('hex'))
+
+        log.debug("_handler_command_read_id: response=%s", response.encode('hex'))
+
+        # Workaround for not so unique data particle chunking
+        NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, ID_LEN])
+
+        return response[0:8]
+
+    def _parse_sample_average_interval(self, response, prompt):
+        """ Parse the response from the instrument for a sample average interval command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if len(response) != INTVL_LEN:
+            log.warn("_handler_command_sample_average_interval: Bad response from instrument (%s)",
+                     response.encode('hex'))
+            raise InstrumentProtocolException("Invalid sample average interval response. (%s)", response.encode('hex'))
+        log.debug("_handler_command_sample_average_interval: response=%s", response.encode('hex'))
+
+        # Workaround for not so unique data particle chunking
+        # NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, INTVL_LEN])
+
+        return NortekProtocolParameterDict.convert_word_to_int(response[0:INTVL_LEN-2])
+
+
+    def _parse_sample_measurement_interval(self, response, prompt):
+        """ Parse the response from the instrument for a sample measurement interval command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The time as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if len(response) != INTVL_LEN:
+            log.warn("_handler_command_sample_measurement_interval: Bad response from instrument (%s)",
+                     response.encode('hex'))
+            raise InstrumentProtocolException("Invalid sample measurement interval response. (%s)", response.encode('hex'))
+        log.debug("_handler_command_sample_measurement_interval: response=%s", response.encode('hex'))
+
+        # Workaround for not so unique data particle chunking
+        # NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS.append([response, INTVL_LEN])
+
+        return NortekProtocolParameterDict.convert_word_to_int(response[0:INTVL_LEN-2])
+
+    def _parse_read_hw_config(self, response, prompt):
+        """ Parse the response from the instrument for a read hw config command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The hardware configuration parse into a dict. Names
+        include SerialNo (string), Config (int), Frequency(int),
+        PICversion (int), HWrevision (int), RecSize (int), Status (int), and
+        FWversion (binary)
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if not self._check_configuration(self._promptbuf, HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN):
+            log.warn("_parse_read_hw_config: Bad read hw response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read hw response. (%s)" % response.encode('hex'))
+        log.debug("_parse_read_hw_config: response=%s", response.encode('hex'))
+
+        return hw_config_to_dict(response)
+
+    def _parse_read_head_config(self, response, prompt):
+        """ Parse the response from the instrument for a read head command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The head configuration parsed into a dict. Names include
+        Config (int), Frequency (int), Type (int), SerialNo (string)
+        System (binary), NBeams (int)
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if not self._check_configuration(self._promptbuf, HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN):
+            log.warn("_parse_read_head_config: Bad read head response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read head response. (%s)" % response.encode('hex'))
+        log.debug("_parse_read_head_config: response=%s", response.encode('hex'))
+
+        return head_config_to_dict(response)
+
+    def _parse_read_user_config(self, response, prompt):
+        """ Parse the response from the instrument for a read user command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The user configuration parsed into a dict. Names include:
+
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        if not self._check_configuration(self._promptbuf, USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN):
+            log.warn("_parse_read_user_config: Bad read user response from instrument (%s)", response.encode('hex'))
+            raise InstrumentProtocolException("Invalid read user response. (%s)" % response.encode('hex'))
+        log.debug("_parse_read_user_config: response=%s", response.encode('hex'))
+
+        #return response
+        return user_config_to_dict(response)
