@@ -36,8 +36,8 @@ from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.core.instrument.protocol_cmd_dict import CommandDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictKey, ParameterDictType
 
-from mi.instrument.nortek.driver import NortekProtocolParameterDict, EngineeringParameter, TIMEOUT, \
-    NortekParameterDictVal, INTERVAL_TIME_REGEX
+from mi.instrument.nortek.driver import NortekProtocolParameterDict, TIMEOUT, \
+    NortekParameterDictVal, EngineeringParameter, INTERVAL_TIME_REGEX
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekUserConfigDataParticleKey
@@ -240,7 +240,7 @@ def eng_id_sample():
     sample_as_hex = "41514420313231352020202020200606"
     return sample_as_hex.decode('hex')
 
-eng_id_particle = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID, DataParticleKey.VALUE: "AQD 1215"}]
+eng_id_particle = [{DataParticleKey.VALUE_ID: NortekEngIdDataParticleKey.ID, DataParticleKey.VALUE: "4151442031323135202020202020"}]
 
 
 def user_config1():
@@ -367,58 +367,62 @@ class DriverTestMixinSub(DriverTestMixin):
         NortekEngClockDataParticleKey.DATE_TIME_STAMP: {TYPE: int, VALUE: 0, REQUIRED: False}
     }
 
+    _id_parameter = {
+        NortekEngIdDataParticleKey.ID: {TYPE: str, VALUE: '', REQUIRED:True}
+    }
+
     _driver_parameters = {
-       Parameter.TRANSMIT_PULSE_LENGTH: {TYPE: int, VALUE: 2, REQUIRED: True},
-       Parameter.BLANKING_DISTANCE: {TYPE: int, VALUE: 16, REQUIRED: True},
-       Parameter.RECEIVE_LENGTH: {TYPE: int, VALUE: 7, REQUIRED: True},
-       Parameter.TIME_BETWEEN_PINGS: {TYPE: int, VALUE: 44, REQUIRED: True},
-       Parameter.TIME_BETWEEN_BURST_SEQUENCES: {TYPE: int, VALUE: 512, REQUIRED: True},
-       Parameter.NUMBER_PINGS: {},
-       Parameter.AVG_INTERVAL: {},
-       Parameter.USER_NUMBER_BEAMS: {},
-       Parameter.TIMING_CONTROL_REGISTER: {},
-       Parameter.POWER_CONTROL_REGISTER: {},
-       Parameter.A1_1_SPARE: {},
-       Parameter.B0_1_SPARE: {},
-       Parameter.B1_1_SPARE: {},
-       Parameter.COMPASS_UPDATE_RATE: {},
-       Parameter.COORDINATE_SYSTEM: {},
-       Parameter.NUMBER_BINS: {},
-       Parameter.BIN_LENGTH: {},
-       Parameter.MEASUREMENT_INTERVAL: {},
-       Parameter.DEPLOYMENT_NAME: {},
-       Parameter.WRAP_MODE: {},
-       Parameter.CLOCK_DEPLOY: {},
-       Parameter.DIAGNOSTIC_INTERVAL: {},
-       Parameter.MODE: {},
-       Parameter.ADJUSTMENT_SOUND_SPEED: {},
-       Parameter.NUMBER_SAMPLES_DIAGNOSTIC: {},
-       Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC: {},
-       Parameter.NUMBER_PINGS_DIAGNOSTIC: {},
-       Parameter.MODE_TEST: {},
-       Parameter.ANALOG_INPUT_ADDR: {},
-       Parameter.SW_VERSION: {},
-       Parameter.USER_1_SPARE: {},
-       Parameter.VELOCITY_ADJ_TABLE: {},
-       Parameter.COMMENTS: {},
-       Parameter.WAVE_MEASUREMENT_MODE: {},
-       Parameter.DYN_PERCENTAGE_POSITION: {},
-       Parameter.WAVE_TRANSMIT_PULSE: {},
-       Parameter.WAVE_BLANKING_DISTANCE: {},
-       Parameter.WAVE_CELL_SIZE: {},
-       Parameter.NUMBER_DIAG_SAMPLES: {},
-       Parameter.A1_2_SPARE: {},
-       Parameter.B0_2_SPARE: {},
-       Parameter.NUMBER_SAMPLES_PER_BURST: {},
-       Parameter.USER_2_SPARE: {},
-       Parameter.ANALOG_OUTPUT_SCALE: {},
-       Parameter.CORRELATION_THRESHOLD: {},
-       Parameter.USER_3_SPARE: {},
-       Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG: {},
-       Parameter.USER_4_SPARE: {},
-       Parameter.QUAL_CONSTANTS: {},
-       EngineeringParameter.CLOCK_SYNC_INTERVAL: {},
-       EngineeringParameter.ACQUIRE_STATUS_INTERVAL: {},
+        Parameter.TRANSMIT_PULSE_LENGTH: {TYPE: int, VALUE: 2, REQUIRED: True},
+        Parameter.BLANKING_DISTANCE: {TYPE: int, VALUE: 16, REQUIRED: True},
+        Parameter.RECEIVE_LENGTH: {TYPE: int, VALUE: 7, REQUIRED: True},
+        Parameter.TIME_BETWEEN_PINGS: {TYPE: int, VALUE: 44, REQUIRED: True},
+        Parameter.TIME_BETWEEN_BURST_SEQUENCES: {TYPE: int, VALUE: 512, REQUIRED: True},
+        Parameter.NUMBER_PINGS: {},
+        Parameter.AVG_INTERVAL: {},
+        Parameter.USER_NUMBER_BEAMS: {},
+        Parameter.TIMING_CONTROL_REGISTER: {},
+        Parameter.POWER_CONTROL_REGISTER: {},
+        Parameter.A1_1_SPARE: {},
+        Parameter.B0_1_SPARE: {},
+        Parameter.B1_1_SPARE: {},
+        Parameter.COMPASS_UPDATE_RATE: {},
+        Parameter.COORDINATE_SYSTEM: {},
+        Parameter.NUMBER_BINS: {},
+        Parameter.BIN_LENGTH: {},
+        Parameter.MEASUREMENT_INTERVAL: {},
+        Parameter.DEPLOYMENT_NAME: {},
+        Parameter.WRAP_MODE: {},
+        Parameter.CLOCK_DEPLOY: {},
+        Parameter.DIAGNOSTIC_INTERVAL: {},
+        Parameter.MODE: {},
+        Parameter.ADJUSTMENT_SOUND_SPEED: {},
+        Parameter.NUMBER_SAMPLES_DIAGNOSTIC: {},
+        Parameter.NUMBER_BEAMS_CELL_DIAGNOSTIC: {},
+        Parameter.NUMBER_PINGS_DIAGNOSTIC: {},
+        Parameter.MODE_TEST: {},
+        Parameter.ANALOG_INPUT_ADDR: {},
+        Parameter.SW_VERSION: {},
+        Parameter.USER_1_SPARE: {},
+        Parameter.VELOCITY_ADJ_TABLE: {},
+        Parameter.COMMENTS: {},
+        Parameter.WAVE_MEASUREMENT_MODE: {},
+        Parameter.DYN_PERCENTAGE_POSITION: {},
+        Parameter.WAVE_TRANSMIT_PULSE: {},
+        Parameter.WAVE_BLANKING_DISTANCE: {},
+        Parameter.WAVE_CELL_SIZE: {},
+        Parameter.NUMBER_DIAG_SAMPLES: {},
+        Parameter.A1_2_SPARE: {},
+        Parameter.B0_2_SPARE: {},
+        Parameter.NUMBER_SAMPLES_PER_BURST: {},
+        Parameter.USER_2_SPARE: {},
+        Parameter.ANALOG_OUTPUT_SCALE: {},
+        Parameter.CORRELATION_THRESHOLD: {},
+        Parameter.USER_3_SPARE: {},
+        Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG: {},
+        Parameter.USER_4_SPARE: {},
+        Parameter.QUAL_CONSTANTS: {},
+        EngineeringParameter.CLOCK_SYNC_INTERVAL: {},
+        EngineeringParameter.ACQUIRE_STATUS_INTERVAL: {},
     }
 
     _user_config_parameters = {
@@ -571,6 +575,15 @@ class DriverTestMixinSub(DriverTestMixin):
         self.assert_data_particle_header(data_particle, NortekDataParticleType.USER_CONFIG)
         self.assert_data_particle_parameters(data_particle, self._user_config_parameters, verify_values)
 
+    def assert_particle_id(self, data_particle, verify_values=False):
+        """
+        Verify [flortd]_sample particle
+        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        @param verify_values:  bool, should we verify parameter values
+        """
+        self.assert_data_particle_keys(NortekEngIdDataParticleKey, self._id_parameter)
+        self.assert_data_particle_header(data_particle, NortekDataParticleType.ID_STRING)
+        self.assert_data_particle_parameters(data_particle, self._id_parameter, verify_values)
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -826,7 +839,8 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         also be defined in the protocol FSM.
         """
         capabilities = {
-            ProtocolState.UNKNOWN:      [ProtocolEvent.DISCOVER],
+            ProtocolState.UNKNOWN:      [ProtocolEvent.DISCOVER,
+                                         ProtocolEvent.READ_MODE],
 
             ProtocolState.COMMAND:      [ProtocolEvent.GET,
                                          ProtocolEvent.SET,
@@ -840,10 +854,12 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 
             ProtocolState.AUTOSAMPLE:   [ProtocolEvent.STOP_AUTOSAMPLE,
                                          ProtocolEvent.SCHEDULED_CLOCK_SYNC,
-                                         ProtocolEvent.SCHEDULED_ACQUIRE_STATUS],
+                                         ProtocolEvent.SCHEDULED_ACQUIRE_STATUS,
+                                         ProtocolEvent.READ_MODE],
 
             ProtocolState.DIRECT_ACCESS: [ProtocolEvent.STOP_DIRECT,
-                                          ProtocolEvent.EXECUTE_DIRECT]
+                                          ProtocolEvent.EXECUTE_DIRECT,
+                                          ProtocolEvent.READ_MODE]
         }
 
         driver = NortekInstrumentDriver(self._got_data_event_callback)
@@ -854,7 +870,6 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         Verify the scheduled clock sync and acquire status is added to the protocol
         Verify if there is no scheduling, nothing is added to the protocol
         """
-
         mock_callback = Mock(spec="PortAgentClient")
         protocol = NortekInstrumentProtocol(InstrumentPrompts, NEWLINE, mock_callback)
 
@@ -938,23 +953,11 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_set(Parameter.COMPASS_UPDATE_RATE, 1, no_get=True)
 
         #test start parameter
-        before = self.driver_client.cmd_dvr('get_resource', [EngineeringParameter.ACQUIRE_STATUS_INTERVAL])
-        log.debug('BEFORE = %r', before)
-        self.assert_set(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:20:00', no_get=True)
-        after = self.driver_client.cmd_dvr('get_resource', [EngineeringParameter.ACQUIRE_STATUS_INTERVAL])
-        log.debug('AFTER = %r', after)
-        self.assertEqual(before, after, 'ACQUIRE_STATUS_INTERVAL should not have been set!')
+        self.assert_set_exception(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, '00:20:00', exception_class=InstrumentParameterException)
 
         #test read only parameter
-        before = self.driver_client.cmd_dvr('get_resource', [Parameter.USER_4_SPARE])
-        log.debug('BEFORE = %r', before)
-        self.assert_set(Parameter.USER_4_SPARE, 'blah', no_get=True)
-        after = self.driver_client.cmd_dvr('get_resource', [Parameter.USER_4_SPARE])
-        log.debug('AFTER = %r', after)
-        self.assertEqual(before, after, 'USER_4_SPARE should not have been set!')
+        self.assert_set_exception(Parameter.USER_4_SPARE, 'blah', exception_class=InstrumentParameterException)
 
-        #test read/write parameter
-        self.assert_set(Parameter.TRANSMIT_PULSE_LENGTH, 14)
 
     def test_instrument_clock_sync(self):
         """
@@ -967,7 +970,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         """
         Verify the driver send the acquire sample command and receive the events.
         1. initialize the instrument to COMMAND state
-        2. command the driver to ACQUIRESAMPLE
+        2. command the driver to ACQUIRE SAMPLE
         3. verify the particle coming in
 
         Implement in child class because the particles being generated are specific to the instrument
@@ -991,7 +994,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         """
         Verify the driver generates metadata information
         """
-
         self.assert_initialize_driver()
 
         params = EngineeringParameter.list()
@@ -1000,7 +1002,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
         self.assert_metadata_generation(instrument_params=Parameter.list() + params,
                                         commands=Capability.list())
-        
+
         # check one to see that the file is loading data from somewhere.
         json_result = self.driver_client.cmd_dvr("get_config_metadata")
         result = json.loads(json_result)
@@ -1035,19 +1037,23 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_async_particle_generation(NortekDataParticleType.HEAD_CONFIG, self.assert_particle_head)
         #GC
         self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
-        #TODO ASSERT ID PARTICLE
+        #ID
+        #self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_id)
 
     def test_direct_access(self):
         """
-        Verify the driver can enter the direct access state
+        Verify the driver can enter/exit the direct access state
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
         self.assert_state_change(ProtocolState.COMMAND, 5)
+        log.debug('in command mode')
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.START_DIRECT)
         self.assert_state_change(ProtocolState.DIRECT_ACCESS, 5)
+        log.debug('in direct access')
 
         self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.STOP_DIRECT)
         self.assert_state_change(ProtocolState.COMMAND, 5)
+        log.debug('leaving direct access')
 
     def test_errors(self):
         """
@@ -1195,7 +1201,6 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
         self.assert_direct_access_stop_telnet()
         self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, timeout=10)
 
-
     def test_get_set_parameters(self):
         """
         Verify that parameters can be get set properly
@@ -1214,7 +1219,6 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
         """
         Verify driver can set the instrument configuration
         """
-        #todo
         self.assert_enter_command_mode()
 
         # command the instrument to set the user configuration.

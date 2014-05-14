@@ -292,7 +292,7 @@ class Protocol(NortekInstrumentProtocol):
     Instrument protocol class
     Subclasses NortekInstrumentProtocol
     """
-    
+
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.

@@ -33,7 +33,7 @@ log = get_logger()
 
 from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
 
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
+from mi.core.instrument.instrument_driver import DriverAsyncEvent, DriverConfigKey
 
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.chunker import StringChunker
@@ -62,6 +62,9 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='nortek_aquadopp_dw_ooicore_agent',
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={}
+        # DriverConfigKey.PARAMETERS:
+        #     {EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
+        #      EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:00'}}
 )
 
 
@@ -312,7 +315,6 @@ class DriverUnitTest(NortekUnitTest):
         Verify driver can get velocity sample data out in a reasonable format.
         Parsed is all we care about...raw is tested in the base DataParticle tests
         """
-        
         port_timestamp = 3555423720.711772
         driver_timestamp = 3555423722.711772
 
@@ -401,7 +403,6 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         2. command the driver to ACQUIRE SAMPLE
         3. verify the particle coming in
         """
-
         self.assert_initialize_driver(ProtocolState.COMMAND)
         # test acquire sample
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
@@ -416,7 +417,6 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         4. command the instrument back to COMMAND state
         5. verify the sampling is continuous by gathering several samples
         """
-
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
         # test autosample
@@ -498,7 +498,9 @@ class QualFromIDK(NortekQualTest):
         self.assertTrue(self.tcp_client)
 
         self.tcp_client.send_data("K1W%!Q")
-        self.tcp_client.expect("AQUADOPP")
+        result = self.tcp_client.expect("AQUADOPP")
+
+        self.assertTrue(result)
 
         self.assert_direct_access_stop_telnet()
 

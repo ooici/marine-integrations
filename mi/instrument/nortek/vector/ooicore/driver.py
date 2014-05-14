@@ -19,7 +19,7 @@ from mi.core.exceptions import SampleException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
 from mi.instrument.nortek.driver import NortekEngBatteryDataParticle, NortekEngClockDataParticle, \
-    NortekEngIdDataParticle, BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX
+    NortekEngIdDataParticle, BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, Parameter
 from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
@@ -296,6 +296,7 @@ class Protocol(NortekInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
+
     def __init__(self, prompts, newline, driver_event):
         NortekInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
@@ -331,21 +332,26 @@ class Protocol(NortekInstrumentProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
-    def _handler_command_acquire_sample(self, *args, **kwargs):
-        """
-        Acquire sample from vector.
-        @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).        
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
-        """
-        next_state = None
-        next_agent_state = None
+    # def _handler_command_acquire_sample(self, *args, **kwargs):
+    #     """
+    #     Acquire sample from vector.
+    #     @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
+    #     @throws InstrumentTimeoutException if device cannot be woken for command.
+    #     @throws InstrumentProtocolException if command could not be built or misunderstood.
+    #     """
+    #     next_state = None
+    #     next_agent_state = None
+    #     result = None
+    #
+    #     result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, expected_prompt=VELOCITY_DATA_SYNC_BYTES, timeout=30, *args, **kwargs)
+    #
+    #     return (next_state, (next_agent_state, result))
 
-        # the vector doesn't respond with ACKs for this command, so look for start of velocity data header structure
-        result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, 
-                                   expected_prompt=VELOCITY_HEADER_DATA_SYNC_BYTES, *args, **kwargs)
-        
-        return next_state, (next_agent_state, result)
+    def _helper_get_data_key(self):
+        # override to pass the correct velocity data key per instrument
+
+        # TODO change this to a init value that the base class can use
+        return VELOCITY_DATA_SYNC_BYTES
 
     ########################################################################
     # Private helpers.

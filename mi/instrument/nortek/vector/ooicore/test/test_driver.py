@@ -47,7 +47,7 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import SampleException
 
-from mi.instrument.nortek.driver import ProtocolState, TIMEOUT, ID_DATA_PATTERN
+from mi.instrument.nortek.driver import ProtocolState, TIMEOUT, ID_DATA_PATTERN, EngineeringParameter
 from mi.instrument.nortek.driver import ProtocolEvent
 from mi.instrument.nortek.driver import Parameter
 
@@ -71,10 +71,9 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='nortek_vector_dw_ooicore_agent',
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={
-        DriverConfigKey.PARAMETERS: {
-            Parameter.AVG_INTERVAL: 61
-        }
-    }
+        DriverConfigKey.PARAMETERS:
+            {EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:10',
+             EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:10'}}
 )
 
 
@@ -435,20 +434,20 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
-    def test_instrument_read_id(self):
-        """
-        Test for reading ID, need to be implemented in the child class because each ID is unique to the
-        instrument.
-        """
-        self.assert_initialize_driver()
-
-        # command the instrument to read the ID.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
-
-        log.debug("read ID returned: %s", response)
-        self.assertTrue(re.search(r'VEL .*', response[1]))
-
-        self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
+    # def test_instrument_read_id(self):
+    #     """
+    #     Test for reading ID, need to be implemented in the child class because each ID is unique to the
+    #     instrument.
+    #     """
+    #     self.assert_initialize_driver()
+    #
+    #     # command the instrument to read the ID.
+    #     response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
+    #
+    #     log.debug("read ID returned: %s", response)
+    #     self.assertTrue(re.search(r'VEL .*', response[1]))
+    #
+    #     self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
 
 
 ###############################################################################
