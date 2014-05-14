@@ -74,7 +74,7 @@ class MflmCTDMODataSetDriver(MultipleHarvesterDataSetDriver):
             config,
             parser_state,
             stream_in,
-            self._save_ctdmo_ghqr_sio_mule_parser_state,
+            lambda state: self._save_parser_state(state, DataTypeKey.CTDMO_GHQR_SIO_MULE),
             self._data_callback,
             self._sample_exception_callback
         )
@@ -104,7 +104,7 @@ class MflmCTDMODataSetDriver(MultipleHarvesterDataSetDriver):
             self._ctdmo_ghqr_sio_mule_harvester = SingleFileHarvester(
                 self._harvester_config.get(DataTypeKey.CTDMO_GHQR_SIO_MULE),
                 driver_state[DataTypeKey.CTDMO_GHQR_SIO_MULE],
-                self._ctdmo_ghqr_sio_mule_file_changed_callback,
+                lambda file_state: self._file_changed_callback(file_state, DataTypeKey.CTDMO_GHQR_SIO_MULE),
                 self._exception_callback
             )
             self._harvester.append(self._ctdmo_ghqr_sio_mule_harvester)
@@ -114,9 +114,9 @@ class MflmCTDMODataSetDriver(MultipleHarvesterDataSetDriver):
         #if DataTypeKey.CTDMO_GHQR in self._harvester_config:
             #self._ctdmo_ghqr_harvester = SingleDirectoryHarvester(
             #    self._harvester_config.get(DataTypeKey.CTDMO_GHQR),
-            #    driver_state,
-            #    self._new_ctdmo_ghqr_file_callback,
-            #    self._modified_file_callback,
+            #    driver_state[DataTypeKey.CTDMO_GHQR],
+            #    lambda filename:self._new_file_callback(filename, DataTypeKey.CTDMO_GHQR),
+            #    lambda modified: self._modified_file_callback(modified, DataTypeKey.CTDMO_GHQR),
             #    self._exception_callback
             #)
         #    self._harvester.append(self._ctdmo_ghqr_harvester)
@@ -159,30 +159,3 @@ class MflmCTDMODataSetDriver(MultipleHarvesterDataSetDriver):
                                                                     self._new_file_queue[data_key][filename][DriverStateKey.FILE_SIZE]])
             self._save_parser_state(new_parser_state, data_key)
 
-    def _ctdmo_ghqr_sio_mule_file_changed_callback(self, new_state):
-        """
-        Callback used by the ctdmo ghqr sio mule single file harvester called when a file change is detected.  
-        Store the new state in a queue.
-        @param new_state: state of the changed file
-        """
-        self._file_changed_callback(new_state, DataTypeKey.CTDMO_GHQR_SIO_MULE)
-
-    def _new_ctdmo_ghqr_file_callback(self, file_name):
-        """
-        Callback used by the ctdmo ghqr single directory harvester called when a new file is detected.  Store the
-        filename in a queue.
-        @param file_name: file name of the found file.
-        """
-        self._new_file_callback(file_name, DataTypeKey.CTDMO_GHQR)
-
-    def _save_ctdmo_ghqr_sio_mule_parser_state(self, state):
-        """
-        Callback used by ctdmo ghqr sio mule parser to save the parser state
-        """
-        self._save_parser_state(state, DataTypeKey.CTDMO_GHQR_SIO_MULE)
-
-    def _save_ctdmo_ghqr_parser_state(self, state):
-        """
-        Callback used by ctdmo ghqr parser to save the parser state
-        """
-        self._save_parser_state(state, DataTypeKey.CTDMO_GHQR)

@@ -107,7 +107,7 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
             config,
             parser_state,
             stream_in,
-            self._save_cg_stc_eng_parser_state,
+            lambda state, ingested: self._save_parser_state(state, DataTypeKey.CG_STC_ENG, ingested),
             self._data_callback,
             self._sample_exception_callback
         )
@@ -132,7 +132,7 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
             parser_state,
             stream_in,
             file_in,
-            self._save_mopak_parser_state,
+            lambda state, ingested: self._save_parser_state(state, DataTypeKey.MOPAK, ingested),
             self._data_callback,
             self._sample_exception_callback
         )
@@ -154,7 +154,7 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
             config,
             parser_state,
             stream_in,
-            self._save_rte_parser_state,
+            lambda state, ingested: self._save_parser_state(state, DataTypeKey.RTE, ingested),
             self._data_callback,
             self._sample_exception_callback
         )
@@ -169,8 +169,8 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
             self._cg_stc_eng_harvester = SingleDirectoryHarvester(
                 self._harvester_config.get(DataTypeKey.CG_STC_ENG),
                 driver_state[DataTypeKey.CG_STC_ENG],
-                self._new_cg_stc_eng_file_callback,
-                self._modified_cg_stc_eng_callback,
+                lambda filename: self._new_file_callback(filename, DataTypeKey.CG_STC_ENG),
+                lambda modified: self._modified_file_callback(modified, DataTypeKey.CG_STC_ENG),
                 self._exception_callback
             )
             self._harvester.append(self._cg_stc_eng_harvester)
@@ -181,8 +181,8 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
             self._mopak_harvester = SingleDirectoryHarvester(
                 self._harvester_config.get(DataTypeKey.MOPAK),
                 driver_state[DataTypeKey.MOPAK],
-                self._new_mopak_file_callback,
-                self._modified_mopak_callback,
+                lambda filename: self._new_file_callback(filename, DataTypeKey.MOPAK),
+                lambda modified: self._modified_file_callback(modified, DataTypeKey.MOPAK),
                 self._exception_callback
             )
             self._harvester.append(self._mopak_harvester)
@@ -193,8 +193,8 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
             self._rte_harvester = SingleDirectoryHarvester(
                 self._harvester_config.get(DataTypeKey.RTE),
                 driver_state[DataTypeKey.RTE],
-                self._new_rte_file_callback,
-                self._modified_rte_callback,
+                lambda filename: self._new_file_callback(filename, DataTypeKey.RTE),
+                lambda modified: self._modified_file_callback(modified, DataTypeKey.RTE),
                 self._exception_callback
             )
             self._harvester.append(self._rte_harvester)
@@ -241,65 +241,8 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
             else:
                 break
 
-    def _new_cg_stc_eng_file_callback(self, file_name):
-        """
-        Callback used by the cg_stc_eng single directory harvester called when a new file is detected.  Store the
-        filename in a queue.
-        @param file_name: file name of the found file.
-        """
-        self._new_file_callback(file_name, DataTypeKey.CG_STC_ENG)
 
-    def _new_mopak_file_callback(self, file_name):
-        """
-        Callback used by the MOPAK single directory harvester called when a new file is detected.  Store the
-        filename in a queue.
-        @param file_name: file name of the found file.
-        """
-        self._new_file_callback(file_name, DataTypeKey.MOPAK)
 
-    def _new_rte_file_callback(self, file_name):
-        """
-        Callback used by the RTE single directory harvester called when a new file is detected.  Store the
-        filename in a queue.
-        @param file_name: file name of the found file.
-        """
-        self._new_file_callback(file_name, DataTypeKey.RTE)
-
-    def _save_cg_stc_eng_parser_state(self, state, file_ingested=False):
-        """
-        Callback used by cg_stc_eng parser to save the parser state
-        """
-        self._save_parser_state(state, DataTypeKey.CG_STC_ENG, file_ingested)
-
-    def _save_mopak_parser_state(self, state, file_ingested=False):
-        """
-        Callback used by mopak parser to save the parser state
-        """
-        self._save_parser_state(state, DataTypeKey.MOPAK, file_ingested)
-
-    def _save_rte_parser_state(self, state, file_ingested=False):
-        """
-        Callback used by rte parser to save the parser state
-        """
-        self._save_parser_state(state, DataTypeKey.RTE, file_ingested)
-
-    def _modified_cg_stc_eng_callback(self, modified_state):
-        """
-        Callback used by the cg_stc_eng harvester when a file that was ingested has been modified
-        """
-        self._modified_file_callback(modified_state, DataTypeKey.CG_STC_ENG)
-
-    def _modified_mopak_callback(self, modified_state):
-        """
-        Callback used by the mopak harvester when a file that was ingested has been modified
-        """
-        self._modified_file_callback(modified_state, DataTypeKey.MOPAK)
-
-    def _modified_rte_callback(self, modified_state):
-        """
-        Callback used by the rte harvester when a file that was ingested has been modified
-        """
-        self._modified_file_callback(modified_state, DataTypeKey.RTE)
 
     
 
