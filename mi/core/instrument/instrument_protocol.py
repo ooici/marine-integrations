@@ -306,8 +306,9 @@ class InstrumentProtocol(object):
         """
         log.info("_async_raise_fsm_event: starting new thread to raise event")
 
-        if not args:
-            args = []
+        args = list(args)
+
+        log.debug('_async_raise_fsm_event event: %s args: %r', event, args)
 
         args.insert(0, event)
 
