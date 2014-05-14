@@ -430,7 +430,6 @@ class SeaBird19plusMixin(DriverTestMixin):
 
     _hardware_parameters = {
         SBE19HardwareParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 1906914, REQUIRED: True},
-        SBE19HardwareParticleKey.MANUFACTURER: {TYPE: unicode, VALUE: "Sea-Bird Electronics, Inc.", REQUIRED: True},
         SBE19HardwareParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: '2.3', REQUIRED: True},
         SBE19HardwareParticleKey.FIRMWARE_DATE: {TYPE: unicode, VALUE: '16 March 2011 08:50', REQUIRED: True},
         SBE19HardwareParticleKey.COMMAND_SET_VERSION: {TYPE: unicode, VALUE: '1.2', REQUIRED: True},
@@ -438,9 +437,7 @@ class SeaBird19plusMixin(DriverTestMixin):
         SBE19HardwareParticleKey.ASSEMBLY_NUMBER: {TYPE: list, VALUE: ['41054H', '41580B', '41606', '41057A'], REQUIRED: True},
         SBE19HardwareParticleKey.MANUFACTURE_DATE: {TYPE: unicode, VALUE: '29 SEP 2011', REQUIRED: True},
         SBE19HardwareParticleKey.TEMPERATURE_SENSOR_SERIAL_NUMBER: {TYPE: int, VALUE: 1906914, REQUIRED: True},
-        SBE19HardwareParticleKey.TEMPERATURE_SENSOR_TYPE: {TYPE: unicode, VALUE: 'temperature0', REQUIRED: True},
         SBE19HardwareParticleKey.CONDUCTIVITY_SENSOR_SERIAL_NUMBER: {TYPE: int, VALUE: 1906914, REQUIRED: True},
-        SBE19HardwareParticleKey.CONDUCTIVITY_SENSOR_TYPE: {TYPE: unicode, VALUE: 'conductivity-0', REQUIRED: True},
         SBE19HardwareParticleKey.PRESSURE_SENSOR_SERIAL_NUMBER: {TYPE: unicode, VALUE: '3313899', REQUIRED: True},
         SBE19HardwareParticleKey.PRESSURE_SENSOR_TYPE: {TYPE: unicode, VALUE: 'strain-0', REQUIRED: True},
         SBE19HardwareParticleKey.VOLT0_TYPE: {TYPE: unicode, VALUE: 'not assigned', REQUIRED: True},
