@@ -5,7 +5,7 @@ header:
 data:
   - _index: 1
     internal_timestamp: 3589459202.000000
-    particle_object: Vel3dKWfpStcVelocityDataParticle
+    particle_object: Vel3dKWfpStcInstrumentParticle
     particle_type: vel3d_k_wfp_stc_instrument
     date_time_array: [113, 8, 29, 16, 0, 17]
     vel3d_k_soundSpeed: !!null 
@@ -35,7 +35,7 @@ data:
     vel3d_k_cor2: !!null
   - _index: 2
     internal_timestamp: 3589459202.500000
-    particle_object: Vel3dKWfpStcVelocityDataParticle
+    particle_object: Vel3dKWfpStcInstrumentParticle
     particle_type: vel3d_k_wfp_stc_instrument
     date_time_array: [113, 8, 29, 16, 4, 37] 
     vel3d_k_soundSpeed: !!null 
@@ -65,7 +65,7 @@ data:
     vel3d_k_cor2: !!null
   - _index: 3
     internal_timestamp: 3589459202.000000
-    particle_object: Vel3dKWfpStcTimeDataParticle
+    particle_object: Vel3dKWfpStcMetadataParticle
     particle_type: vel3d_k_wfp_stc_metadata
     vel3d_k_time_on: 1380470402
     vel3d_k_time_off: 1380470683
