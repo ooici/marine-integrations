@@ -1,8 +1,0 @@
-driver_metadata:
-  author: Steve Myerson (Raytheon)
-  constructor: Vel3dKWfpStcDataSetDriver
-  driver_name: vel3d_k_wfp_stc
-  driver_path: vel3d_k/wfp_stc
-  email: Steven_G_Myerson@raytheon.com
-  release_notes: Initial Release
-  version: 0.0.1
