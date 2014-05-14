@@ -16,14 +16,15 @@ import ntplib
 
 from mi.core.log import get_logger; log = get_logger()
 from mi.core.common import BaseEnum
-from mi.core.instrument.data_particle import DataParticle, DataParticleKey
+from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
-from mi.core.exceptions import SampleException, DatasetParserException
+from mi.core.exceptions import SampleException, DatasetParserException, RecoverableSampleException
 
 class DataParticleType(BaseEnum):
-    SAMPLE = 'dostad_parsed'
+    SAMPLE = 'dosta_ln_wfp_instrument'
 
 class DostadParserDataParticleKey(BaseEnum):
+    CONTROLLER_TIMESTAMP = 'controller_timestamp'
     PRODUCT_NUMBER = 'product_number'
     SERIAL_NUMBER = 'serial_number'
     ESTIMATED_OXYGEN = 'estimated_oxygen_concentration'
@@ -41,6 +42,9 @@ DATA_REGEX = b'\xff\x11\x25\x11(\d+)\t(\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\
              '(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\t(\d+.\d+)\x0d\x0a'
 DATA_MATCHER = re.compile(DATA_REGEX)
 
+TIMESTAMP_REGEX = b'[0-9A-Fa-f]{8}'
+TIMESTAMP_MATCHER = re.compile(TIMESTAMP_REGEX)
+
 class DostadParserDataParticle(DataParticle):
     """
     Class for parsing data from the DOSTA-D instrument on a MSFM platform node
@@ -48,32 +52,71 @@ class DostadParserDataParticle(DataParticle):
 
     _data_particle_type = DataParticleType.SAMPLE
 
+    def __init__(self, raw_data,
+                 port_timestamp=None,
+                 internal_timestamp=None,
+                 preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
+                 quality_flag=DataParticleValue.OK,
+                 new_sequence=None):
+        super(DostadParserDataParticle, self).__init__(raw_data,
+                                                      port_timestamp=None,
+                                                      internal_timestamp=None,
+                                                      preferred_timestamp=DataParticleKey.PORT_TIMESTAMP,
+                                                      quality_flag=DataParticleValue.OK,
+                                                      new_sequence=None)
+        timestamp_match = TIMESTAMP_MATCHER.match(self.raw_data[:8])
+        if not timestamp_match:
+            raise RecoverableSampleException("DostaParserDataParticle: No regex match of " \
+                                             "timestamp [%s]" % self.raw_data[:8])
+        self._data_match = DATA_MATCHER.match(self.raw_data[8:])
+        if not self._data_match:
+            raise RecoverableSampleException("DostaParserDataParticle: No regex match of " \
+                                              "parsed sample data [%s]" % self.raw_data[8:])
+
+        posix_time = int(timestamp_match.group(0), 16)
+        self.set_internal_timestamp(unix_time=float(posix_time))
+
     def _build_parsed_values(self):
         """
         Take something in the binary data values and turn it into a
         particle with the appropriate tag.
         throws SampleException If there is a problem with sample creation
         """
-        # match the data inside the wrapper
-        match = DATA_MATCHER.match(self.raw_data)
-        if not match:
-            raise SampleException("DostadParserDataParticle: No regex match of \
-                                  parsed sample data [%s]", self.raw_data)
-
-        result = [self._encode_value(DostadParserDataParticleKey.PRODUCT_NUMBER, match.group(1), int),
-                  self._encode_value(DostadParserDataParticleKey.SERIAL_NUMBER, match.group(2), int),
-                  self._encode_value(DostadParserDataParticleKey.ESTIMATED_OXYGEN, match.group(3), float),
-                  self._encode_value(DostadParserDataParticleKey.AIR_SATURATION, match.group(4), float),
-                  self._encode_value(DostadParserDataParticleKey.OPTODE_TEMPERATURE, match.group(5), float),
-                  self._encode_value(DostadParserDataParticleKey.CALIBRATED_PHASE, match.group(6), float),
-                  self._encode_value(DostadParserDataParticleKey.TEMP_COMPENSATED_PHASE, match.group(7), float),
-                  self._encode_value(DostadParserDataParticleKey.BLUE_PHASE, match.group(8), float),
-                  self._encode_value(DostadParserDataParticleKey.RED_PHASE, match.group(9), float),
-                  self._encode_value(DostadParserDataParticleKey.BLUE_AMPLITUDE, match.group(10), float),
-                  self._encode_value(DostadParserDataParticleKey.RED_AMPLITUDE, match.group(11), float),
-                  self._encode_value(DostadParserDataParticleKey.RAW_TEMP, match.group(12), float)]
+        result = []
+        if self._data_match:
+            result = [self._encode_value(DostadParserDataParticleKey.CONTROLLER_TIMESTAMP,
+                                         self.raw_data[0:8],
+                                         DostadParserDataParticle.encode_int_16),
+                      self._encode_value(DostadParserDataParticleKey.PRODUCT_NUMBER,
+                                         self._data_match.group(1), int),
+                      self._encode_value(DostadParserDataParticleKey.SERIAL_NUMBER,
+                                         self._data_match.group(2), int),
+                      self._encode_value(DostadParserDataParticleKey.ESTIMATED_OXYGEN,
+                                         self._data_match.group(3), float),
+                      self._encode_value(DostadParserDataParticleKey.AIR_SATURATION,
+                                         self._data_match.group(4), float),
+                      self._encode_value(DostadParserDataParticleKey.OPTODE_TEMPERATURE,
+                                         self._data_match.group(5), float),
+                      self._encode_value(DostadParserDataParticleKey.CALIBRATED_PHASE,
+                                         self._data_match.group(6), float),
+                      self._encode_value(DostadParserDataParticleKey.TEMP_COMPENSATED_PHASE,
+                                         self._data_match.group(7), float),
+                      self._encode_value(DostadParserDataParticleKey.BLUE_PHASE,
+                                         self._data_match.group(8), float),
+                      self._encode_value(DostadParserDataParticleKey.RED_PHASE,
+                                         self._data_match.group(9), float),
+                      self._encode_value(DostadParserDataParticleKey.BLUE_AMPLITUDE,
+                                         self._data_match.group(10), float),
+                      self._encode_value(DostadParserDataParticleKey.RED_AMPLITUDE,
+                                         self._data_match.group(11), float),
+                      self._encode_value(DostadParserDataParticleKey.RAW_TEMP,
+                                         self._data_match.group(12), float)]
 
         return result
+
+    @staticmethod
+    def encode_int_16(hex_str):
+        return int(hex_str, 16)
 
 class DostadParser(SioMuleParser):
 
@@ -118,19 +161,11 @@ class DostadParser(SioMuleParser):
                 data_match = DATA_MATCHER.search(chunk)
                 if data_match:
                     log.debug('Found data match in chunk %s', chunk[1:32])
-                    # get the time from the header
-                    posix_time = int(header_match.group(3), 16)
-                    # convert from posix to local time
-                    log.debug('utc timestamp %s', datetime.utcfromtimestamp(posix_time))
-                    self._timestamp = ntplib.system_to_ntp_time(float(posix_time))
-                    log.debug("Converted time \"%s\" (unix: %s) into %s", header_match.group(3),
-                              posix_time, self._timestamp)
 
                     # particle-ize the data block received, return the record
-                    sample = self._extract_sample(DostadParserDataParticle,
-                                                  DATA_MATCHER,
-                                                  data_match.group(0),
-                                                  self._timestamp)
+                    sample = self._extract_sample(DostadParserDataParticle, None,
+                                                  header_match.group(3) + data_match.group(0),
+                                                  None)
                     if sample:
                         # create particle
                         result_particles.append(sample)
