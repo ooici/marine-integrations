@@ -50,9 +50,6 @@ DATA_MATCHER = re.compile(DATA_REGEX)
 DATA_REGEX_B = b'(Record\[\d+\]:)([\x00-\xFF]*)(\x6e\x7f[\x00-\xFF]+?)\r\n'
 DATA_MATCHER_B = re.compile(DATA_REGEX_B)
 
-DATA_REGEX_C = b'(Record\[\d+\]:)([\x00-\xFF]+?)\r\n'
-DATA_MATCHER_C = re.compile(DATA_REGEX_C)
-
 RX_FAILURE_REGEX = b'Record\[\d+\]:ReceiveFailure\r\n'
 RX_FAILURE_MATCHER = re.compile(RX_FAILURE_REGEX)
 
@@ -406,11 +403,9 @@ class AdcpsJlnStcParser(BufferLoadingParser):
                         else:
                             log.info("Found record whose checksum doesn't match 0x%s", binascii.hexlify(data_match.group(0)))
                             self._exception_callback(SampleException("Found record whose checksum doesn't match 0x%s" % binascii.hexlify(data_match.group(0))))
-                else:
-                    match_c = DATA_MATCHER_C.match(chunk)
-                    if match_c:
-                        # The record format is recognized but does not contain the expected ID = 7F6E. Skip this record and try parsing the next.
-                        self._exception_callback(SampleException("ID Field does not equal 7F6E. Skipping record."))
+                else:          
+                    # The record format is recognized but does not contain the expected ID = 7F6E. Skip this record and try parsing the next.
+                    self._exception_callback(SampleException("ID Field does not equal 7F6E. Skipping record."))
             else:
                 log.info("Found RecieveFailure record, ignoring")
 
