@@ -21,7 +21,7 @@ from mi.dataset.parser.sio_mule_common import StateKey
 from mi.dataset.parser.vel3d_l_wfp import \
     Vel3dLWfpSioMuleParser, \
     Vel3dLWfpInstrumentParticle, \
-    Vel3dLWfpMetadataParticle
+    Vel3dLWfpSioMuleMetadataParticle
 
 # Telemetered Record #1 has 1 SIO block with 1 instrument record.
 TEL_RECORD_1 = \
@@ -271,7 +271,8 @@ EXPECTED_FIELDS_RECORD_1_1 = (1, 2, 3, 1, 2, 2013, 101.0, 201.0, 301.0,
                               1001.0, 2001.0, 3001.0,
                               10001.0, 20001.0, 30001.0, 40001.0)
 
-EXPECTED_FIELDS_RECORD_1_META = (1390820402, 1390826719, 10, 65535, 1, 1374902331)
+EXPECTED_FIELDS_RECORD_1_META = (1374902331, 1390820402, 1390826719, 65535, 1,
+                                 10, 1374902331)
 
 
 EXPECTED_FIELDS_RECORD_2_1 = (2, 3, 4, 2, 3, 2013, 102.0, 202.0, 302.0,
@@ -282,7 +283,8 @@ EXPECTED_FIELDS_RECORD_2_2 = (3, 4, 5, 3, 4, 2013, 103.0, 203.0, 303.0,
                               1003.0, 2003.0, 3003.0,
                               10003.0, 20003.0, 30003.0, 40003.0)
 
-EXPECTED_FIELDS_RECORD_2_META = (1390820403, 1390826720, None, 65535, 2, 1374902331)
+EXPECTED_FIELDS_RECORD_2_META = (1374902331, 1390820403, 1390826720, 65535, 2,
+                                 None, 1374902331)
 
 
 EXPECTED_FIELDS_RECORD_3_1 = (4, 5, 6, 4, 5, 2013, 104.0, 204.0, 304.0,
@@ -297,7 +299,8 @@ EXPECTED_FIELDS_RECORD_3_3 = (6, 7, 8, 6, 7, 2013, 106.0, 206.0, 306.0,
                               1006.0, 2006.0, 3006.0,
                               10006.0, 20006.0, 30006.0, 40006.0)
 
-EXPECTED_FIELDS_RECORD_3_META = (1390820404, 1390826721, 12, 65535, 3, 1374902331)
+EXPECTED_FIELDS_RECORD_3_META = (1374902331, 1390820404, 1390826721, 65535, 3,
+                                 12, 1374902331)
 
 
 EXPECTED_FIELDS_RECORD_4_1 = (7, 8, 9, 7, 8, 2013, 107.0, 207.0, 307.0,
@@ -316,7 +319,8 @@ EXPECTED_FIELDS_RECORD_4_4 = (10, 11, 12, 10, 11, 2013, 110.0, 210.0, 310.0,
                               1010.0, 2010.0, 3010.0,
                               10010.0, 20010.0, 30010.0, 40010.0)
 
-EXPECTED_FIELDS_RECORD_4_META = (1390820405, 1390826722, None, 65535, 4, 1374902331)
+EXPECTED_FIELDS_RECORD_4_META = (1374902331, 1390820405, 1390826722, 65535, 4,
+                                 None, 1374902331)
 
 
 EXPECTED_FIELDS_RECORD_10_1 = (1, 2, 3, 1, 2, 2013, 101.0, 201.0, 301.0,
@@ -359,7 +363,8 @@ EXPECTED_FIELDS_RECORD_10_10 = (10, 11, 12, 10, 11, 2013, 110.0, 210.0, 310.0,
                                 1010.0, 2010.0, 3010.0,
                                 10010.0, 20010.0, 30010.0, 40010.0)
 
-EXPECTED_FIELDS_RECORD_10_META = (1390820402, 1390826719, 10, 65535, 10, 1374902331)
+EXPECTED_FIELDS_RECORD_10_META = (1374902331, 1390820402, 1390826719, 65535, 10,
+                                  10, 1374902331)
 
 
 EXPECTED_FIELDS_RECORD_2_3_1_1 = (1, 2, 3, 1, 2, 2013, 101.0, 201.0, 301.0,
@@ -374,7 +379,8 @@ EXPECTED_FIELDS_RECORD_2_3_1_3 = (3, 4, 5, 3, 4, 2013, 103.0, 203.0, 303.0,
                                   1003.0, 2003.0, 3003.0,
                                   10003.0, 20003.0, 30003.0, 40003.0)
 
-EXPECTED_FIELDS_RECORD_2_3_META_1 = (1390820402, 1390826719, 10, 65535, 3, 1374902331)
+EXPECTED_FIELDS_RECORD_2_3_META_1 = (1374902331, 1390820402, 1390826719, 65535, 3,
+                                     10, 1374902331)
 
 
 EXPECTED_FIELDS_RECORD_2_3_2_1 = (4, 5, 6, 4, 5, 2013, 104.0, 204.0, 304.0,
@@ -389,7 +395,8 @@ EXPECTED_FIELDS_RECORD_2_3_2_3 = (6, 7, 8, 6, 7, 2013, 106.0, 206.0, 306.0,
                                   1006.0, 2006.0, 3006.0,
                                   10006.0, 20006.0, 30006.0, 40006.0)
 
-EXPECTED_FIELDS_RECORD_2_3_META_2 = (1390820403, 1390826720, None, 65535, 3, 1374902331)
+EXPECTED_FIELDS_RECORD_2_3_META_2 = (1374902331, 1390820403, 1390826720,  65535, 3,
+                                     None, 1374902331)
 
 
 # The list of generated tests are the suggested tests, but there may
@@ -406,104 +413,104 @@ class Vel3dLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         """
         # The first number refers to the SIO record number.
         # The second number refers to the FSI record within the SIO block.
-        self.expected_particle_1_1 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_1_1 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_1_1, internal_timestamp=3566106123.0)
 
-        self.expected_particle_2_1 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_2_1 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_2_1, internal_timestamp=3568874584.0)
 
-        self.expected_particle_2_2 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_2_2 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_2_2, internal_timestamp=3571383845.0)
 
-        self.expected_particle_3_1 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_3_1 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_3_1, internal_timestamp=3574152306.0)
 
-        self.expected_particle_3_2 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_3_2 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_3_2, internal_timestamp=3576834367.0)
 
-        self.expected_particle_3_3 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_3_3 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_3_3, internal_timestamp=3579602828.0)
 
-        self.expected_particle_4_1 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_4_1 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_4_1, internal_timestamp=3582284889.0)
 
-        self.expected_particle_4_2 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_4_2 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_4_2, internal_timestamp=3585053350.0)
 
-        self.expected_particle_4_3 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_4_3 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_4_3, internal_timestamp=3587821811.0)
 
-        self.expected_particle_4_4 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_4_4 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_4_4, internal_timestamp=3590503872.0)
 
-        self.expected_particle_10_1 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_10_1 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_10_1, internal_timestamp=3566106123.0)
 
-        self.expected_particle_10_2 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_10_2 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_10_2, internal_timestamp=3568874584.0)
 
-        self.expected_particle_10_3 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_10_3 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_10_3, internal_timestamp=3571383845.0)
 
-        self.expected_particle_10_4 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_10_4 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_10_4, internal_timestamp=3574152306.0)
 
-        self.expected_particle_10_5 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_10_5 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_10_5, internal_timestamp=3576834367.0)
 
-        self.expected_particle_10_6 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_10_6 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_10_6, internal_timestamp=3579602828.0)
 
-        self.expected_particle_10_7 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_10_7 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_10_7, internal_timestamp=3582284889.0)
 
-        self.expected_particle_10_8 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_10_8 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_10_8, internal_timestamp=3585053350.0)
 
-        self.expected_particle_10_9 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_10_9 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_10_9, internal_timestamp=3587821811.0)
 
-        self.expected_particle_10_10=  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_10_10= Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_10_10, internal_timestamp=3590503872.0)
 
-        self.expected_particle_1_meta = Vel3dLWfpMetadataParticle(
+        self.expected_particle_1_meta = Vel3dLWfpSioMuleMetadataParticle(
             EXPECTED_FIELDS_RECORD_1_META, internal_timestamp=3583891131.0)
 
-        self.expected_particle_2_meta = Vel3dLWfpMetadataParticle(
+        self.expected_particle_2_meta = Vel3dLWfpSioMuleMetadataParticle(
             EXPECTED_FIELDS_RECORD_2_META, internal_timestamp=3583891131.0)
 
-        self.expected_particle_3_meta = Vel3dLWfpMetadataParticle(
+        self.expected_particle_3_meta = Vel3dLWfpSioMuleMetadataParticle(
             EXPECTED_FIELDS_RECORD_3_META, internal_timestamp=3583891131.0)
 
-        self.expected_particle_4_meta = Vel3dLWfpMetadataParticle(
+        self.expected_particle_4_meta = Vel3dLWfpSioMuleMetadataParticle(
             EXPECTED_FIELDS_RECORD_4_META, internal_timestamp=3583891131.0)
 
-        self.expected_particle_10_meta = Vel3dLWfpMetadataParticle(
+        self.expected_particle_10_meta = Vel3dLWfpSioMuleMetadataParticle(
             EXPECTED_FIELDS_RECORD_10_META, internal_timestamp=3583891131.0)
         
         # The following are for the multiple SIO block file.
-        self.expected_particle_2_3_1_1 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_2_3_1_1 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_2_3_1_1, internal_timestamp=3566106123.0)
         
-        self.expected_particle_2_3_1_2 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_2_3_1_2 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_2_3_1_2, internal_timestamp=3568874584.0)
 
-        self.expected_particle_2_3_1_3 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_2_3_1_3 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_2_3_1_3, internal_timestamp=3571383845.0)
 
-        self.expected_particle_2_3_2_1 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_2_3_2_1 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_2_3_2_1, internal_timestamp=3574152306.0)
 
-        self.expected_particle_2_3_2_2 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_2_3_2_2 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_2_3_2_2, internal_timestamp=3576834367.0)
 
-        self.expected_particle_2_3_2_3 =  Vel3dLWfpInstrumentParticle(
+        self.expected_particle_2_3_2_3 = Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_2_3_2_3, internal_timestamp=3579602828.0)
 
-        self.expected_particle_2_3_meta_1 = Vel3dLWfpMetadataParticle(
+        self.expected_particle_2_3_meta_1 = Vel3dLWfpSioMuleMetadataParticle(
             EXPECTED_FIELDS_RECORD_2_3_META_1, internal_timestamp=3583891131.0)
 
-        self.expected_particle_2_3_meta_2 = Vel3dLWfpMetadataParticle(
+        self.expected_particle_2_3_meta_2 = Vel3dLWfpSioMuleMetadataParticle(
             EXPECTED_FIELDS_RECORD_2_3_META_2, internal_timestamp=3583891131.0)
 
     def create_parser(self, file_handle, new_state):
@@ -524,7 +531,6 @@ class Vel3dLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
     def state_callback(self, state):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
-        #self.file_ingested_value = file_ingested
 
     def pub_callback(self, pub):
         """ Call back method to watch what comes in via the publish callback """
@@ -533,12 +539,12 @@ class Vel3dLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
     def setUp(self):
         ParserUnitTestCase.setUp(self)
         self.config = {
-	        DataSetDriverConfigKeys.PARTICLE_MODULE:\
+            DataSetDriverConfigKeys.PARTICLE_MODULE:
                 'mi.dataset.parser.vel3d_l_wfp_sio_mule',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: \
-                [' Vel3dLWfpInstrumentParticle',
+            DataSetDriverConfigKeys.PARTICLE_CLASS:
+                ['Vel3dLWfpInstrumentParticle',
                  'Vel3dLWfpSioMuleMetadataParticle']
-	    }
+        }
         # Define test data particles and their associated timestamps which will be 
         # compared with returned results
 
@@ -626,8 +632,7 @@ class Vel3dLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         # the first 2 instrument records in SIO block 2.
         new_state = {
             StateKey.UNPROCESSED_DATA: [[468, 934]],
-            StateKey.IN_PROCESS_DATA: [[468, 934, 4, 2]],
-            StateKey.TIMESTAMP: 0.0}
+            StateKey.IN_PROCESS_DATA: [[468, 934, 4, 2]]}
         self.parser = self.create_parser(input_file, new_state)
 
         log.info("MID STATE VERIFY RECORD 2_3")
@@ -650,11 +655,6 @@ class Vel3dLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         log.info("Multiple SIO Blocks length %d", len(TEL_RECORD_2_3))
         input_file = StringIO(TEL_RECORD_2_3)
         self.parser = self.create_parser(input_file, self.state)
-
-        #result = self.parser.get_records(1)
-        #log.info('========================  ACT %s', result[0].raw_data)
-        #log.info('++++++++++++++++++++++++  EXP %s', self.expected_particle_2_3_1_1.raw_data)
-        #self.assertEqual(result, [self.expected_particle_2_3_1_1])
 
         result = self.parser.get_records(8)
         self.assertEqual(result, [self.expected_particle_2_3_1_1,
@@ -687,8 +687,7 @@ class Vel3dLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         # The next record that will be read is the metadata record.
         new_state = {
             StateKey.UNPROCESSED_DATA: [[0, 934]],
-            StateKey.IN_PROCESS_DATA: [[0, 468, 4, 3], [468, 934, 4, 0]],
-            StateKey.TIMESTAMP: 0.0}
+            StateKey.IN_PROCESS_DATA: [[0, 468, 4, 3], [468, 934, 4, 0]]}
         self.parser.set_state(new_state)
 
         log.info("SET STATE VERIFY RECORD 1_META")
@@ -698,8 +697,7 @@ class Vel3dLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
         # Skip past the first instrument record in SIO block 2.
         new_state = {
             StateKey.UNPROCESSED_DATA: [[468, 934]],
-            StateKey.IN_PROCESS_DATA: [[468, 934, 4, 1]],
-            StateKey.TIMESTAMP: 0.0}
+            StateKey.IN_PROCESS_DATA: [[468, 934, 4, 1]]}
         self.parser.set_state(new_state)
 
         log.info("SET STATE VERIFY RECORD 2_2")
@@ -716,10 +714,10 @@ class Vel3dLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
 
     def test_simple_no_decimation(self):
         """
-	    Read test data and pull out data particles one at a time.
-	    Assert that the results are those we expected.
-	    This test verifies that a missing decimation factor is handled correctly.
-	    """
+        Read test data and pull out data particles one at a time.
+        Assert that the results are those we expected.
+        This test verifies that a missing decimation factor is handled correctly.
+        """
         log.info("============== START SIMPLE NO DECIMATION ==================")
         log.info("Simple length %d", len(TEL_RECORD_1))
         input_file = StringIO(TEL_RECORD_1)
@@ -737,10 +735,10 @@ class Vel3dLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
 
     def test_simple_with_decimation(self):
         """
-	    Read test data and pull out data particles one at a time.
-	    Assert that the results are those we expected.
-	    This test verifies that a decimation factor is handled correctly.
-	    """
+        Read test data and pull out data particles one at a time.
+        Assert that the results are those we expected.
+        This test verifies that a decimation factor is handled correctly.
+        """
         log.info("============== START SIMPLE WITH DECIMATION ==================")
         log.info("Simple length %d", len(TEL_RECORD_2))
         input_file = StringIO(TEL_RECORD_2)
@@ -748,26 +746,14 @@ class Vel3dLWfpSioMuleParserUnitTestCase(ParserUnitTestCase):
 
         log.info("SIMPLE WITH DECIMATION VERIFY RECORD 1")
         result = self.parser.get_records(1)
-        #log.info("ACT %s %f", result[0].raw_data,
-        #    result[0].contents[DataParticleKey.INTERNAL_TIMESTAMP])
-        #log.info("EXP %s %f", self.expected_particle_2_1.raw_data,
-        #    self.expected_particle_2_1.contents[DataParticleKey.INTERNAL_TIMESTAMP])
         self.verify_contents(result, self.expected_particle_2_1)
 
         log.info("SIMPLE WITH DECIMATION VERIFY RECORD 2")
         result = self.parser.get_records(1)
-        #log.info("ACT %s %f", result[0].raw_data,
-        #    result[0].contents[DataParticleKey.INTERNAL_TIMESTAMP])
-        #log.info("EXP %s %f", self.expected_particle_2_2.raw_data,
-        #    self.expected_particle_2_2.contents[DataParticleKey.INTERNAL_TIMESTAMP])
         self.verify_contents(result, self.expected_particle_2_2)
 
         log.info("SIMPLE WITH DECIMATION VERIFY METADATA RECORD")
         result = self.parser.get_records(1)
-        #log.info("ACT %s %f", result[0].raw_data,
-        #    result[0].contents[DataParticleKey.INTERNAL_TIMESTAMP])
-        #log.info("EXP %s %f", self.expected_particle_2_meta.raw_data,
-        #    self.expected_particle_2_meta.contents[DataParticleKey.INTERNAL_TIMESTAMP])
         self.verify_contents(result, self.expected_particle_2_meta)
 
         log.info("============== END SIMPLE WITH DECIMATION ==================")

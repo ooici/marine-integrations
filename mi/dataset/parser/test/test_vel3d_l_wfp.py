@@ -252,7 +252,7 @@ EXPECTED_FIELDS_RECORD_1_1 = (1, 2, 3, 1, 2, 2013, 101.0, 201.0, 301.0,
                               1001.0, 2001.0, 3001.0,
                               10001.0, 20001.0, 30001.0, 40001.0)
 
-EXPECTED_FIELDS_RECORD_1_META = (1390820402, 1390826719, None, 65535, 1, 1390826719)
+EXPECTED_FIELDS_RECORD_1_META = (1390826719, 1390820402, 1390826719, 65535, 1)
 
 
 EXPECTED_FIELDS_RECORD_2_1 = (2, 3, 4, 2, 3, 2013, 102.0, 202.0, 302.0,
@@ -263,7 +263,7 @@ EXPECTED_FIELDS_RECORD_2_2 = (3, 4, 5, 3, 4, 2013, 103.0, 203.0, 303.0,
                               1003.0, 2003.0, 3003.0,
                               10003.0, 20003.0, 30003.0, 40003.0)
 
-EXPECTED_FIELDS_RECORD_2_META = (1390820403, 1390826720, None, 65535, 2, 1390826720)
+EXPECTED_FIELDS_RECORD_2_META = (1390826720, 1390820403, 1390826720, 65535, 2)
 
 
 EXPECTED_FIELDS_RECORD_3_1 = (4, 5, 6, 4, 5, 2013, 104.0, 204.0, 304.0,
@@ -278,7 +278,7 @@ EXPECTED_FIELDS_RECORD_3_3 = (6, 7, 8, 6, 7, 2013, 106.0, 206.0, 306.0,
                               1006.0, 2006.0, 3006.0,
                               10006.0, 20006.0, 30006.0, 40006.0)
 
-EXPECTED_FIELDS_RECORD_3_META = (1390820404, 1390826721, None, 65535, 3, 1390826721)
+EXPECTED_FIELDS_RECORD_3_META = (1390826721, 1390820404, 1390826721, 65535, 3)
 
 
 EXPECTED_FIELDS_RECORD_4_1 = (7, 8, 9, 7, 8, 2013, 107.0, 207.0, 307.0,
@@ -297,7 +297,7 @@ EXPECTED_FIELDS_RECORD_4_4 = (10, 11, 12, 10, 11, 2013, 110.0, 210.0, 310.0,
                               1010.0, 2010.0, 3010.0,
                               10010.0, 20010.0, 30010.0, 40010.0)
 
-EXPECTED_FIELDS_RECORD_4_META = (1390820405, 1390826722, None, 65535, 4, 1390826722)
+EXPECTED_FIELDS_RECORD_4_META = (1390826722, 1390820405, 1390826722, 65535, 4)
 
 
 EXPECTED_FIELDS_RECORD_10_1 = (1, 2, 3, 1, 2, 2013, 101.0, 201.0, 301.0,
@@ -340,7 +340,7 @@ EXPECTED_FIELDS_RECORD_10_10 = (10, 11, 12, 10, 11, 2013, 110.0, 210.0, 310.0,
                                 1010.0, 2010.0, 3010.0,
                                 10010.0, 20010.0, 30010.0, 40010.0)
 
-EXPECTED_FIELDS_RECORD_10_META = (1390820402, 1390826719, None, 65535, 10, 1390826719)
+EXPECTED_FIELDS_RECORD_10_META = (1390826719, 1390820402, 1390826719, 65535, 10)
 
 
 EXPECTED_FIELDS_RECORD_2_3_1_1 = (1, 2, 3, 1, 2, 2013, 101.0, 201.0, 301.0,
@@ -355,7 +355,7 @@ EXPECTED_FIELDS_RECORD_2_3_1_3 = (3, 4, 5, 3, 4, 2013, 103.0, 203.0, 303.0,
                                   1003.0, 2003.0, 3003.0,
                                   10003.0, 20003.0, 30003.0, 40003.0)
 
-EXPECTED_FIELDS_RECORD_2_3_META_1 = (1390820402, 1390826719, None, 65535, 3, 1390826719)
+EXPECTED_FIELDS_RECORD_2_3_META_1 = (1390826719, 1390820402, 1390826719, 65535, 3)
 
 
 EXPECTED_FIELDS_RECORD_2_3_2_1 = (4, 5, 6, 4, 5, 2013, 104.0, 204.0, 304.0,
@@ -370,7 +370,7 @@ EXPECTED_FIELDS_RECORD_2_3_2_3 = (6, 7, 8, 6, 7, 2013, 106.0, 206.0, 306.0,
                                   1006.0, 2006.0, 3006.0,
                                   10006.0, 20006.0, 30006.0, 40006.0)
 
-EXPECTED_FIELDS_RECORD_2_3_META_2 = (1390820403, 1390826720, None, 65535, 3, 1390826720)
+EXPECTED_FIELDS_RECORD_2_3_META_2 = (1390826720, 1390820403, 1390826720, 65535, 3)
 
 # The list of generated tests are the suggested tests, but there may
 # be other tests needed to fully test your parser
@@ -384,8 +384,7 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         """
         This function creates the expected particle results.
         """
-        # The first number refers to the SIO record number.
-        # The second number refers to the FSI record within the SIO block.
+
         self.expected_particle_1_1 =  Vel3dLWfpInstrumentParticle(
             EXPECTED_FIELDS_RECORD_1_1, internal_timestamp=3566106123.0)
 
@@ -492,7 +491,7 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         """
         if new_state is None:
             new_state = self.state
-        parser = Vel3dLWfpParser(self.config, new_state, file_handle, "UnitTest",
+        parser = Vel3dLWfpParser(self.config, new_state, file_handle,
             self.state_callback, self.pub_callback, self.exception_callback)
         return parser
 
@@ -686,34 +685,18 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
 
         log.info("SIMPLE WITHOUT DECIMATION VERIFY RECORD 1")
         result = self.parser.get_records(1)
-        #log.info("ACT %s %f", result[0].raw_data,
-        #    result[0].contents[DataParticleKey.INTERNAL_TIMESTAMP])
-        #log.info("EXP %s %f", self.expected_particle_3_1.raw_data,
-        #    self.expected_particle_2_1.contents[DataParticleKey.INTERNAL_TIMESTAMP])
         self.verify_contents(result, self.expected_particle_3_1)
 
         log.info("SIMPLE WITHOUT DECIMATION VERIFY RECORD 2")
         result = self.parser.get_records(1)
-        #log.info("ACT %s %f", result[0].raw_data,
-        #    result[0].contents[DataParticleKey.INTERNAL_TIMESTAMP])
-        #log.info("EXP %s %f", self.expected_particle_3_2.raw_data,
-        #    self.expected_particle_2_2.contents[DataParticleKey.INTERNAL_TIMESTAMP])
         self.verify_contents(result, self.expected_particle_3_2)
 
         log.info("SIMPLE WITHOUT DECIMATION VERIFY RECORD 3")
         result = self.parser.get_records(1)
-        #log.info("ACT %s %f", result[0].raw_data,
-        #    result[0].contents[DataParticleKey.INTERNAL_TIMESTAMP])
-        #log.info("EXP %s %f", self.expected_particle_3_3.raw_data,
-        #    self.expected_particle_2_2.contents[DataParticleKey.INTERNAL_TIMESTAMP])
         self.verify_contents(result, self.expected_particle_3_3)
 
         log.info("SIMPLE WITHOUT DECIMATION VERIFY METADATA RECORD")
         result = self.parser.get_records(1)
-        #log.info("ACT %s %f", result[0].raw_data,
-        #    result[0].contents[DataParticleKey.INTERNAL_TIMESTAMP])
-        #log.info("EXP %s %f", self.expected_particle_3_meta.raw_data,
-        #    self.expected_particle_2_meta.contents[DataParticleKey.INTERNAL_TIMESTAMP])
         self.verify_contents(result, self.expected_particle_3_meta)
 
         log.info("============== END SIMPLE WITHOUT DECIMATION ==================")

@@ -30,9 +30,11 @@ from mi.core.exceptions import \
 
 from mi.dataset.dataset_parser import \
     Parser, \
-    BufferLoadingFilenameParser, \
     BufferLoadingParser
-from mi.dataset.parser.sio_mule_common import SioMuleParser, SIO_HEADER_MATCHER
+
+from mi.dataset.parser.sio_mule_common import \
+    SioMuleParser, \
+    SIO_HEADER_MATCHER
 
 ID_VEL3D_L_WFP_SIO_MULE = 'WA'    # The type of instrument for telemetered data
 
@@ -41,8 +43,9 @@ SIO_HEADER_GROUP_DATA_LENGTH = 2  # Header group number for data length
 SIO_HEADER_GROUP_TIMESTAMP = 3    # Header group number for timestamp
 
 #
-# File format (this does not include the SIO header)
-# Data bytes (4 bytes)
+# File format (this does not include the SIO header
+# which is applicable to telemetered data only):
+# Data bytes (4 bytes) - Field is used for recovered, ignored for telemetered
 # FSI Header (279 bytes)
 # FSI Record (47 bytes * N instances)
 # Sensor start time (4 bytes)
@@ -103,14 +106,26 @@ INSTRUMENT_PARTICLE_KEYS = \
     ['vel3d_l_vp4',             float]
 ]
 
-METADATA_PARTICLE_KEYS = \
+SIO_METADATA_PARTICLE_KEYS = \
 [
+    [None,                           None],  # Metadata timestamp handled separately
+    ['vel3d_l_time_on',              int],
+    ['vel3d_l_time_off',             int],
+    ['vel3d_l_serial_number',        int],
+    ['vel3d_l_number_of_records',    int],
+    ['vel3d_l_decimation_factor',    int],
+    ['vel3d_l_controller_timestamp', int]
+]
+
+WFP_METADATA_PARTICLE_KEYS = \
+[
+    [None,                        None],    # Metadata timestamp handled separately
     ['vel3d_l_time_on',           int],
     ['vel3d_l_time_off',          int],
-    ['vel3d_l_decimation_factor', int],
     ['vel3d_l_serial_number',     int],
     ['vel3d_l_number_of_records', int]
 ]
+
 DATE_TIME_ARRAY = 'vel3d_l_date_time_array'  # This one needs to be special-cased
 DATE_TIME_SIZE = 6                     # 6 bytes for the output date time field
 
@@ -118,15 +133,17 @@ DECIMATION_RECORD_SIZE = 10  # bytes in time fields plus decimation field
 DECIMATION_FORMAT = '>2IH'   # 2 uint32, 1 uint16
 TIME_RECORD_SIZE = 8         # bytes in time fields
 TIME_FORMAT = '>2I'          # 2 uint32
-FIELD_TIME_ON = 0
-FIELD_TIME_OFF = 1
-FIELD_DECIMATION = 2
+FIELD_METADATA_TIMESTAMP = 0
+FIELD_TIME_ON = 1
+FIELD_TIME_OFF = 2
 FIELD_SERIAL_NUMBER = 3
 FIELD_NUMBER_OF_RECORDS = 4
-FIELD_METADATA_TIMESTAMP = 5
+FIELD_DECIMATION = 5
+FIELD_CONTROLLER_TIMESTAMP = 6
 
 PARTICLE_TYPE_INSTRUMENT = 1
-PARTICLE_TYPE_METADATA = 2
+PARTICLE_TYPE_SIO_METADATA = 2
+PARTICLE_TYPE_WFP_METADATA = 3
 
 
 class Vel3dLWfpStateKey(BaseEnum):
@@ -136,12 +153,14 @@ class Vel3dLWfpStateKey(BaseEnum):
 
 class Vel3dLWfpDataParticleType(BaseEnum):
     INSTRUMENT_PARTICLE = 'vel3d_l_wfp_instrument'
-    METADATA_PARTICLE = 'vel3d_l_wfp_metadata'
+    SIO_METADATA_PARTICLE = 'vel3d_l_wfp_sio_mule_metadata'
+    WFP_METADATA_PARTICLE = 'vel3d_l_wfp_metadata'
 
 
 class Vel3dLWfpInstrumentParticle(DataParticle):
     """
     Class for generating vel3d_l_wfp instrument particles.
+    This class is for both recovered and telemetered data.
     """
 
     _data_particle_type = Vel3dLWfpDataParticleType.INSTRUMENT_PARTICLE
@@ -209,14 +228,13 @@ class Vel3dLWfpInstrumentParticle(DataParticle):
         return particle
 
 
-class Vel3dLWfpMetadataParticle(DataParticle):
+class Vel3dLMetadataParticle(DataParticle):
     """
-    Class for generating vel3d_l_wfp metadata particles.
+    Generic class for generating vel3d_l metadata particles,
+    both recovered and telemetered.
     """
 
-    _data_particle_type = Vel3dLWfpDataParticleType.METADATA_PARTICLE
-
-    def _build_parsed_values(self):
+    def generate_metadata_particle(self, particle_key_table):
         """
         Take something in the data format and turn it into
         an array of dictionaries defining the data in the particle
@@ -244,25 +262,61 @@ class Vel3dLWfpMetadataParticle(DataParticle):
         #
         # Extract the metadata particle fields from the parsed values.
         #
-        for x in range(0, len(METADATA_PARTICLE_KEYS)):
-            key = METADATA_PARTICLE_KEYS[x][INDEX_PARTICLE_KEY]
+        for x in range(0, len(particle_key_table)):
+            key = particle_key_table[x][INDEX_PARTICLE_KEY]
+            if key is not None:
 
-            #
-            # There is a bug in encode_value in the parent class.
-            # If the value is 'None', encode_value chokes.
-            # Apparently this bug is not important enough to fix in the parent class,
-            # so it is incumbent on each child class to generate a work-around.
-            #
-            if fields[field_index] is None:
-                particle.append({DataParticleKey.VALUE_ID: key,
-                                 DataParticleKey.VALUE: None})
-            else:
-                particle_value = self._encode_value(key, fields[field_index],
-                    METADATA_PARTICLE_KEYS[x][INDEX_VALUE_TYPE])
-                particle.append(particle_value)
+                #
+                # There is a bug in encode_value in the parent class.
+                # If the value is 'None', encode_value chokes.
+                # Apparently this bug is not important enough to fix in the parent
+                # class, so it is incumbent on each child class to generate a
+                # work-around.
+                #
+                if fields[field_index] is None:
+                    particle.append({DataParticleKey.VALUE_ID: key,
+                                     DataParticleKey.VALUE: None})
+                else:
+                    particle_value = self._encode_value(key, fields[field_index],
+                        particle_key_table[x][INDEX_VALUE_TYPE])
+                    particle.append(particle_value)
+
             field_index += 1
 
-        log.info('@@@@@@@@@@@@@@@@@@@    META PART %s', particle)
+        return particle
+
+
+class Vel3dLWfpSioMuleMetadataParticle(Vel3dLMetadataParticle):
+    """
+    Class for generating vel3d_l_wfp_sio_mule metadata particles.
+    """
+
+    _data_particle_type = Vel3dLWfpDataParticleType.SIO_METADATA_PARTICLE
+
+    def _build_parsed_values(self):
+        """
+        Call the generic generate_metadata_particle function to generate the
+        SIO Mule Metadata particle.
+        """
+        particle = self.generate_metadata_particle(SIO_METADATA_PARTICLE_KEYS)
+        log.info('@@@@@@@@@@@@@@@@@@@    SIO META PART %s', particle)
+        return particle
+
+
+class Vel3dLWfpMetadataParticle(Vel3dLMetadataParticle):
+    """
+    Class for generating vel3d_l_wfp metadata particles.
+    """
+
+    _data_particle_type = Vel3dLWfpDataParticleType.WFP_METADATA_PARTICLE
+
+    def _build_parsed_values(self):
+        """
+        Call the generic generate_metadata_particle function to generate the
+        WFP Metadata particle.
+        """
+        particle = self.generate_metadata_particle(WFP_METADATA_PARTICLE_KEYS)
+        log.info('@@@@@@@@@@@@@@@@@@@    WFP META PART %s', particle)
         return particle
 
 
@@ -271,11 +325,11 @@ class Vel3dLParser(Parser):
     This class contains functions that are common to both the Vel3dLWfp and
     Vel3dLWfpSioMule parsers.
     """
-    def generate_particles(self, fields):
+    def generate_samples(self, fields):
         """
         Given a list of groups of particle fields, generate particles for each group.
         """
-        result_particles = []
+        samples = []
         sample_count = 0
 
         if len(fields) > 0:
@@ -284,6 +338,8 @@ class Vel3dLParser(Parser):
 
                 if particle_type == PARTICLE_TYPE_INSTRUMENT:
                     particle_class = Vel3dLWfpInstrumentParticle
+                elif particle_type == PARTICLE_TYPE_SIO_METADATA:
+                    particle_class = Vel3dLWfpSioMuleMetadataParticle
                 else:
                     particle_class = Vel3dLWfpMetadataParticle
 
@@ -293,12 +349,12 @@ class Vel3dLParser(Parser):
                     #
                     # Add the particle to the list of particles
                     #
-                    result_particles.append(sample)
+                    samples.append(sample)
                     sample_count += 1
 
-        return sample_count, result_particles
+        return sample_count, samples
 
-    def parse_vel3d_data(self, chunk, time_stamp=None):
+    def parse_vel3d_data(self, metadata_type, chunk, time_stamp=None):
         """
         This function parses the Vel3d data, including the FSI Header,
         FSI Records, and Metadata.
@@ -317,7 +373,7 @@ class Vel3dLParser(Parser):
         start_index = DATA_BYTES_SIZE
 
         #
-        # Extract the serial number from the FSI Header.
+        # Extract the little endian 32-bit serial number from the FSI Header.
         #
         serial_number_start = start_index + FSI_HEADER_SERIAL_NUMBER_OFFSET
         serial_number = struct.unpack('<I',
@@ -377,13 +433,12 @@ class Vel3dLParser(Parser):
                 # If it's a decimation record, extract time on, time off
                 # and the decimation factor.
                 #
-                particle_type = PARTICLE_TYPE_METADATA
+                particle_type = metadata_type
                 fields.append(particle_type)
 
                 if bytes_remaining == DECIMATION_RECORD_SIZE:
-                    metadata = struct.unpack(DECIMATION_FORMAT,
+                    (time_on, time_off, decimation) = struct.unpack(DECIMATION_FORMAT,
                         chunk[start_index : start_index + bytes_remaining])
-                    metadata_list = list(metadata)
                     bytes_remaining -= DECIMATION_RECORD_SIZE
 
                 #
@@ -391,30 +446,23 @@ class Vel3dLParser(Parser):
                 # and set decimation to None.
                 #
                 else:
-                    metadata = struct.unpack(TIME_FORMAT,
+                    (time_on, time_off) = struct.unpack(TIME_FORMAT,
                         chunk[start_index : start_index + bytes_remaining])
-                    metadata_list = list(metadata)
-                    metadata_list.append(None)
+                    decimation = None
                     bytes_remaining -= TIME_RECORD_SIZE
 
                 #
-                # Add remaining fields (serial number, number of records,
-                # POSIX timestamp) to the list, then turn it into a tuple
-                # and add it to the other fields.
+                # Create the metadata fields depending on which metadata
+                # particle type is being created.
+                # The fields must be in the same order as the Particle Keys tables.
                 #
-                metadata_list.append(serial_number)
-                metadata_list.append(records_processed)
+                if particle_type == PARTICLE_TYPE_SIO_METADATA:
+                    metadata = (time_stamp, time_on, time_off, serial_number,
+                                records_processed, decimation, time_stamp)
+                else:
+                    metadata = (time_off, time_on, time_off, serial_number,
+                                records_processed)
 
-                #
-                # If there is a timestamp specified,
-                # use it for the Metadata timestamp field.
-                # If not, use the time_off field.
-                #
-                if time_stamp is None:
-                    time_stamp = metadata[FIELD_TIME_OFF]
-                metadata_list.append(time_stamp)
-
-                metadata = tuple(metadata_list)
                 fields.append(metadata)
                 metadata_found = True
 
@@ -444,13 +492,12 @@ class Vel3dLParser(Parser):
         raise exception(error_message)
 
 
-#class Vel3dLWfpParser(BufferLoadingFilenameParser, Vel3dLParser):
 class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
 
     _state = None
     _read_state = None
 
-    def __init__(self, config, state, file_handle, file_name,
+    def __init__(self, config, state, file_handle,
                  state_callback, publish_callback, exception_callback):
         """
         @param config The configuration parameters to feed into the parser
@@ -477,7 +524,7 @@ class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
             initial_state = {Vel3dLWfpStateKey.POSITION: 0}
             self.set_state(initial_state)
 
-        super(Vel3dLWfpParser, self).__init__(config, file_handle, # file_name,
+        super(Vel3dLWfpParser, self).__init__(config, file_handle,
             state,  self.sieve_function, state_callback, publish_callback,
             exception_callback)
 
@@ -521,8 +568,8 @@ class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
             # Generate the particles for this chunk.
             # Add them to the return list of particles.
             #
-            (samples, particles) = self.generate_particles(fields)
-            for x in range(0,len(particles)):
+            (sample_count, particles) = self.generate_samples(fields)
+            for x in range(0, sample_count):
                 result_particles.append((particles[x], copy.copy(self._read_state)))
 
             self._increment_position(len(chunk))
@@ -544,7 +591,7 @@ class Vel3dLWfpParser(BufferLoadingParser, Vel3dLParser):
         #
         # Parse the Vel3d data.
         #
-        particle_fields = self.parse_vel3d_data(chunk)
+        particle_fields = self.parse_vel3d_data(PARTICLE_TYPE_WFP_METADATA, chunk)
         return particle_fields
 
     def set_state(self, state_obj):
@@ -650,7 +697,7 @@ class Vel3dLWfpSioMuleParser(SioMuleParser, Vel3dLParser):
             parsing, plus the state. An empty list of nothing was parsed.
         """
         result_particles = []
-        sample_count = 0
+        total_sample_count = 0
         (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
         (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
         self.handle_non_data(non_data, non_end, start)
@@ -662,13 +709,13 @@ class Vel3dLWfpSioMuleParser(SioMuleParser, Vel3dLParser):
             # Generate the particles for this chunk.
             # Add them to the return list of particles.
             #
-            (samples, particles) = self.generate_particles(fields)
-            sample_count += samples
-            for x in range(0,len(particles)):
+            (samples, particles) = self.generate_samples(fields)
+            total_sample_count += samples
+            for x in range(0, samples):
                 result_particles.append(particles[x])
 
             # keep track of how many samples were found in this chunk
-            self._chunk_sample_count.append(sample_count)
+            self._chunk_sample_count.append(total_sample_count)
 
             (nd_timestamp, non_data, non_start, non_end) = self._chunker.get_next_non_data_with_index(clean=False)
             (timestamp, chunk, start, end) = self._chunker.get_next_data_with_index(clean=True)
@@ -701,7 +748,8 @@ class Vel3dLWfpSioMuleParser(SioMuleParser, Vel3dLParser):
             # Process the remaining Vel3d data, starting from the end of the
             # SIO Header, but not including the trailing 0x03.
             #
-            particle_fields = self.parse_vel3d_data(chunk[header.end(0) : -1],
-                time_stamp=sio_timestamp)
+            particle_fields = self.parse_vel3d_data(PARTICLE_TYPE_SIO_METADATA,
+                chunk[header.end(0) : -1], time_stamp=sio_timestamp)
 
+        log.info('XXXX %s', str(particle_fields))
         return particle_fields
