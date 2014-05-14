@@ -1381,6 +1381,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_HEAD_CONFIGURATION, self._handler_command_get_head_config)
         self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.GET_USER_CONFIGURATION, self._handler_command_get_user_config)
 
+
+        self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
+
         # RECORDER
         # self._protocol_fsm.add_handler(ProtocolState.COMMAND, ProtocolEvent.START_MEASUREMENT_AT_SPECIFIC_TIME,
         #                                self._handler_command_start_measurement_specific_time)
@@ -1407,6 +1410,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_build_handler(InstrumentCmds.SET_REAL_TIME_CLOCK, self._build_set_real_time_clock_command)
 
         # Add response handlers for device commands.
+        self._add_response_handler(InstrumentCmds.ACQUIRE_DATA, self._parse_acquire_data_response)
         self._add_response_handler(InstrumentCmds.READ_REAL_TIME_CLOCK, self._parse_read_clock_response)
         self._add_response_handler(InstrumentCmds.CMD_WHAT_MODE, self._parse_what_mode_response)
         self._add_response_handler(InstrumentCmds.SAMPLE_WHAT_MODE, self._parse_what_mode_response)
@@ -1418,6 +1422,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._add_response_handler(InstrumentCmds.SAMPLE_AVG_TIME, self._parse_sample_average_interval)
         self._add_response_handler(InstrumentCmds.SAMPLE_INTERVAL_TIME, self._parse_sample_measurement_interval)
         self._add_response_handler(InstrumentCmds.SOFT_BREAK_SECOND_HALF, self._parse_second_break_response)
+
 
         self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
@@ -1616,31 +1621,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._get_response(timeout=TIMEOUT, expected_prompt=InstrumentPrompts.Z_ACK)
         self._update_params()
 
-    # def _get_response(self, timeout=TIMEOUT, expected_prompt=None):
-    #     """
-    #     Get a response from the instrument
-    #     @param timeout The timeout in seconds
-    #     @param expected_prompt Only consider the specific expected prompt as
-    #     presented by this string
-    #     @throw InstrumentProtocolExecption on timeout
-    #     """
-    #     # Grab time for timeout and wait for prompt.
-    #     starttime = time.time()
-    #
-    #     if expected_prompt == None:
-    #         prompt_list = self._prompts.list()
-    #     else:
-    #         assert isinstance(expected_prompt, str)
-    #         prompt_list = [expected_prompt]
-    #     while True:
-    #         for item in prompt_list:
-    #             if item in self._promptbuf:
-    #                 return (item, self._linebuf)
-    #             else:
-    #                 time.sleep(.1)
-    #         if time.time() > starttime + timeout:
-    #             raise InstrumentTimeoutException()
-
 
     def _send_wakeup(self):
         """
@@ -1819,7 +1799,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug('%% IN _handler_command_acquire_sample')
 
-        result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA)
+        key = self._helper_get_data_key()
+        result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, expected_prompt=key, timeout=30, *args, **kwargs)
 
         return None, (None, result)
 
@@ -1911,7 +1892,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             for (name, value) in params_to_set.iteritems():
                 log.debug('_handler_command_set: setting %s to %s', name, value)
                 if parameters.set_from_value(name, value):
-                    log.debug('_set_params: a value was updated: %s', value)
+                    log.debug('_handler_command_set: a value was updated: %s', value)
                     new_value = True
         except Exception as ex:
             raise InstrumentParameterException('Unable to set parameter %s to %s: %s' % (name, value, ex))
@@ -3191,6 +3172,33 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
     def _build_set_real_time_clock_command(self, cmd, time, **kwargs):
         return cmd + time
 
+    def _parse_acquire_data_response(self, response, prompt):
+        """ Parse the response from the instrument for a acquire data command.
+
+        @param response The response string from the instrument
+        @param prompt The prompt received from the instrument
+        @retval return The [value] as a string
+        @raise InstrumentProtocolException When a bad response is encountered
+        """
+        log.debug("%%% IN _parse_acquire_data_response")
+        # log.debug("_parse_acquire_data_response: response=%r, prompt=%r", response, prompt)
+
+        key = self._helper_get_data_key()
+        start = response.find(key)
+        if start != -1:
+            log.debug("_parse_acquire_data_response: response=%r", response[start:start+len(key)])
+            # log.debug("_parse_acquire_data_response: Calling STOP_AUTOSAMPLE")
+            self._protocol_fsm.on_event(ProtocolEvent.STOP_AUTOSAMPLE)
+            return response[start:start+len(key)]
+
+        log.warn("_parse_acquire_data_response: Bad acquire data response from instrument (%s)", response)
+        raise InstrumentProtocolException("Invalid acquire data response. (%s)" % response)
+
+    def _helper_get_data_key(self):
+        # override to pass the correct velocity data key per instrument
+
+        pass
+
     def _parse_read_clock_response(self, response, prompt):
         """ Parse the response from the instrument for a read clock command.
         
@@ -3249,42 +3257,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         log.warn("_parse_second_break_response: Bad what second break response from instrument (%s)", response)
         raise InstrumentProtocolException("Invalid second break response. (%s)" % response)
-
-        # return_list = []
-        # structs = add_structs + NORTEK_COMMON_SAMPLE_STRUCTS
-        #
-        # for structure_sync, structure_len in structs:
-        #
-        #     index = 0
-        #     start = 0
-        #
-        #     #while there are still matches....
-        #     while start != -1:
-        #         start = response.find(structure_sync, index)
-        #         # found a sync pattern
-        #         if start != -1:
-        #
-        #             # only check the CRC if all of the structure has arrived
-        #             if start+structure_len <= len(response):
-        #
-        #                 if sent_checksum == calculated_checksum:
-        #                     return_list.append((start, start+structure_len))
-        #                     #slice raw data off
-        #                     log.debug("chunker_sieve_function: found %r", response[start:start+structure_len])
-        #
-        #             index = start+structure_len
-        #
-        #
-        # log.debug("_parse_second_break_response: response=%r", response)
-        # return response
-
-        # search_obj = re.search(MODE_DATA_REGEX, response)
-        # if search_obj:
-        #     log.debug("_parse_second_break_response: response=%r", search_obj.group())
-        #     return search_obj.group(0)
-        # else:
-        #     log.warn("_parse_second_break_response: Bad what second break response from instrument (%s)", response)
-        #     raise InstrumentProtocolException("Invalid second break response. (%s)" % response)
 
     def _parse_read_battery_voltage_response(self, response, prompt):
         """ Parse the response from the instrument for a read battery voltage command.
