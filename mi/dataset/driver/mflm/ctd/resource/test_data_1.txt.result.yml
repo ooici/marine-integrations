@@ -2,18 +2,36 @@
 
 header:
   particle_object: CtdmoParserDataParticle
-  particle_type: ctdmo_parsed
+  particle_type: ctdmo_ghqr__mule_sio_instrument
 
 data:
   - _index: 1
     internal_timestamp: '2013-07-24T00:00:01Z'
+    controller_timestamp: 1374631638
     inductive_id: 55
     temperature: 234702
     conductivity: 50004
     pressure: 2790
     ctd_time: 427939201
   - _index: 2
+    internal_timestamp: '2013-07-24T02:00:01Z'
+    controller_timestamp: 1374638838
+    inductive_id: 55
+    temperature: 229120
+    conductivity: 50004
+    pressure: 2789
+    ctd_time: 427946401
+  - _index: 3
+    internal_timestamp: '2013-07-24T04:00:01Z'
+    controller_timestamp: 1374646038
+    inductive_id: 55
+    temperature: 221767
+    conductivity: 50004
+    pressure: 2788
+    ctd_time: 427953601
+  - _index: 4
     internal_timestamp: '2013-07-24T06:00:01Z'
+    controller_timestamp: 1374653238 
     inductive_id: 55
     temperature: 219326
     conductivity: 50004
