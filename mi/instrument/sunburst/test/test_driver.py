@@ -27,6 +27,8 @@ from mock import Mock
 from mi.core.log import get_logger
 log = get_logger()
 
+from mi.core.exceptions import InstrumentCommandException
+
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
@@ -360,6 +362,10 @@ class SamiIntegrationTest(InstrumentDriverIntegrationTestCase):
 
         self.assertTrue(time_difference <= TIME_THRESHOLD,
                         "Time threshold exceeded, time_difference = %s, time_threshold = %s" % (time_difference, TIME_THRESHOLD))
+
+    def test_bad_command(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command_exception('bad_command', exception_class=InstrumentCommandException)
 
     def test_time_sync(self):
         self.assert_initialize_driver()

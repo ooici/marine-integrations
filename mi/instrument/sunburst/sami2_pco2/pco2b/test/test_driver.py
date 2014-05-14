@@ -755,6 +755,19 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         }
         self.assert_set_bulk(new_values)
 
+    def test_bad_parameters(self):
+        self.assert_initialize_driver()
+
+        self.assert_set_exception(Parameter.CYCLES_BETWEEN_BLANKS, 7.0)
+        self.assert_set_exception(Parameter.PUMP_PULSE, 20.0)
+        self.assert_set_exception(Parameter.SAMPLES_PER_MEASUREMENT, 239.0)
+        self.assert_set_exception(Parameter.NUMBER_REAGENT_CYCLES, 26.0)
+        self.assert_set_exception(Parameter.NUMBER_BLANK_CYCLES, 30.0)
+        self.assert_set_exception(Parameter.FLUSH_PUMP_INTERVAL, 2.0)
+        self.assert_set_exception(Parameter.BIT_SWITCHES, 1.0)
+        self.assert_set_exception(Parameter.NUMBER_EXTRA_PUMP_CYCLES, 88.0)
+        self.assert_set_exception(Parameter.EXTERNAL_PUMP_SETTINGS, 40.0)
+
     ## EXTERNAL_PUMP_DELAY is set to 10 seconds in the startup_config.  It defaults to 10 minutes
 
     def test_external_pump_delay(self):

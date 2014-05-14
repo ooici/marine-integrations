@@ -737,6 +737,18 @@ class DriverIntegrationTest(Pco2DriverIntegrationTest, DriverTestMixinSub):
         }
         self.assert_set_bulk(new_values)
 
+    def test_bad_parameters(self):
+        self.assert_initialize_driver()
+
+        self.assert_set_exception(Parameter.CYCLES_BETWEEN_BLANKS, value=7.0)
+        self.assert_set_exception(Parameter.PUMP_PULSE, value=20.0)
+        self.assert_set_exception(Parameter.SAMPLES_PER_MEASUREMENT, 239.0)
+        self.assert_set_exception(Parameter.NUMBER_REAGENT_CYCLES, 26.0)
+        self.assert_set_exception(Parameter.NUMBER_BLANK_CYCLES, 30.0)
+        self.assert_set_exception(Parameter.FLUSH_PUMP_INTERVAL, 2.0)
+        self.assert_set_exception(Parameter.BIT_SWITCHES, 1.0)
+        self.assert_set_exception(Parameter.NUMBER_EXTRA_PUMP_CYCLES, 88.0)
+
     def test_acquire_sample(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)

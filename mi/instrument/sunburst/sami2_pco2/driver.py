@@ -1006,7 +1006,7 @@ class Pco2wProtocol(SamiProtocol):
                              direct_access=False,
                              default_value=1,
                              visibility=ParameterDictVisibility.READ_WRITE,
-                             display_name='auto sample interval')
+                             display_name='flush duration')
 
     ########################################################################
     # Overridden base class methods

@@ -636,6 +636,24 @@ class DriverIntegrationTest(SamiIntegrationTest, DriverTestMixinSub):
         }
         self.assert_set_bulk(new_values)
 
+    def test_bad_parameters(self):
+        self.assert_initialize_driver()
+
+        self.assert_set_exception(Parameter.NUMBER_SAMPLES_AVERAGED, 2.0)
+        self.assert_set_exception(Parameter.NUMBER_FLUSHES, 30.0)
+        self.assert_set_exception(Parameter.PUMP_ON_FLUSH, 5.0)
+        self.assert_set_exception(Parameter.PUMP_OFF_FLUSH, 25.0)
+        self.assert_set_exception(Parameter.NUMBER_REAGENT_PUMPS, 2.0)
+        self.assert_set_exception(Parameter.VALVE_DELAY, 10.0)
+        self.assert_set_exception(Parameter.PUMP_ON_IND, 10.0)
+        self.assert_set_exception(Parameter.PV_OFF_IND, 15.0)
+        self.assert_set_exception(Parameter.NUMBER_BLANKS, 7.0)
+        self.assert_set_exception(Parameter.PUMP_MEASURE_T, 10.0)
+        self.assert_set_exception(Parameter.PUMP_OFF_TO_MEASURE, 5.0)
+        self.assert_set_exception(Parameter.MEASURE_TO_PUMP_ON, 7.0)
+        self.assert_set_exception(Parameter.NUMBER_MEASUREMENTS, 40.0)
+        self.assert_set_exception(Parameter.SALINITY_DELAY, 5.0)
+
     def test_acquire_sample(self):
         self.assert_initialize_driver()
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
