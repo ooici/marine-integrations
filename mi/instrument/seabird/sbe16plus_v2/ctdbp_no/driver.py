@@ -40,9 +40,7 @@ from mi.core.instrument.protocol_param_dict import ParameterDictType
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Command
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SendOptodeCommand
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19Protocol
-from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import DataParticleType
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19DataParticle
-from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19HardwareParticle
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19StatusParticle
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import OptodeSettingsParticle
 
@@ -109,19 +107,25 @@ class ConfirmedParameter(BaseEnum):
 # Particles
 ###############################################################################
 
+class DataParticleType(BaseEnum):
+    RAW = CommonDataParticleType.RAW
+    CTD_PARSED = 'ctdbp_no_sample'
+    DEVICE_STATUS = 'ctdbp_no_status'
+    DEVICE_CALIBRATION = 'ctdbp_no_calibration_coefficients'
+    DEVICE_HARDWARE = 'ctdbp_no_hardware'
+    DEVICE_CONFIGURATION = 'ctdbp_no_configuration'
+    OPTODE_SETTINGS = 'ctdbp_no_optode_settings'
+
 
 class SBE16NOHardwareParticleKey(BaseEnum):
     SERIAL_NUMBER = "serial_number"
-    MANUFACTURER = "manufacturer"
     FIRMWARE_VERSION = "firmware_version"
     FIRMWARE_DATE = "firmware_date"
     COMMAND_SET_VERSION = "command_set_version"
     PCB_SERIAL_NUMBER = "pcb_serial_number"
     ASSEMBLY_NUMBER = "assembly_number"
     MANUFACTURE_DATE = "manufacture_date"
-    TEMPERATURE_SENSOR_TYPE = 'temperature_sensor_type'
     TEMPERATURE_SENSOR_SERIAL_NUMBER = 'temp_sensor_serial_number'
-    CONDUCTIVITY_SENSOR_TYPE = 'conductivity_sensor_type'
     CONDUCTIVITY_SENSOR_SERIAL_NUMBER = 'cond_sensor_serial_number'
     PRESSURE_SENSOR_TYPE = 'pressure_sensor_type'
     PRESSURE_SENSOR_SERIAL_NUMBER = 'quartz_pressure_sensor_serial_number'
@@ -131,7 +135,7 @@ class SBE16NOHardwareParticleKey(BaseEnum):
     VOLT1_SERIAL_NUMBER = 'volt1_serial_number'
 
 
-class SBE19HardwareParticle(SeaBirdParticle):
+class SBE16NOHardwareParticle(SeaBirdParticle):
 
     _data_particle_type = DataParticleType.DEVICE_HARDWARE
 
@@ -150,7 +154,7 @@ class SBE19HardwareParticle(SeaBirdParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        return re.compile(SBE19HardwareParticle.regex(), re.DOTALL)
+        return re.compile(SBE16NOHardwareParticle.regex(), re.DOTALL)
 
     @staticmethod
     def resp_regex():
@@ -167,7 +171,7 @@ class SBE19HardwareParticle(SeaBirdParticle):
         get the compiled regex pattern
         @return: compiled re
         """
-        return re.compile(SBE19HardwareParticle.resp_regex(), re.DOTALL)
+        return re.compile(SBE16NOHardwareParticle.resp_regex(), re.DOTALL)
 
     def _build_parsed_values(self):
         """
@@ -180,7 +184,6 @@ class SBE19HardwareParticle(SeaBirdParticle):
         PCB_SERIAL_NUMBER = "PCBSerialNum"
         ASSEMBLY_NUMBER = "AssemblyNum"
         SERIAL_NUMBER = "SerialNumber"
-        MANUFACTURER = "Manufacturer"
         FIRMWARE_VERSION = "FirmwareVersion"
         FIRMWARE_DATE = "FirmwareDate"
         COMMAND_SET_VERSION = "CommandSetVersion"
@@ -195,7 +198,7 @@ class SBE19HardwareParticle(SeaBirdParticle):
         VOLT1 = "volt 1"
 
         # check to make sure there is a correct match before continuing
-        match = SBE19HardwareParticle.regex_compiled().match(self.raw_data)
+        match = SBE16NOHardwareParticle.regex_compiled().match(self.raw_data)
         if not match:
             raise SampleException("No regex match of parsed hardware data: [%s]" %
                                   self.raw_data)
@@ -205,7 +208,6 @@ class SBE19HardwareParticle(SeaBirdParticle):
         log.debug("root.tagName = %s" %root.tagName)
         serial_number = int(root.getAttribute(SERIAL_NUMBER))
 
-        manufacturer = self._extract_xml_element_value(root, MANUFACTURER)
         firmware_version = self._extract_xml_element_value(root, FIRMWARE_VERSION)
         firmware_date = self._extract_xml_element_value(root, FIRMWARE_DATE)
         command_set_version = self._extract_xml_element_value(root, COMMAND_SET_VERSION)
@@ -219,9 +221,7 @@ class SBE19HardwareParticle(SeaBirdParticle):
             pcb_assembly.append(assembly.getAttribute(ASSEMBLY_NUMBER))
 
         temperature_sensor_serial_number = 0
-        temperature_sensor_type = ""
         conductivity_sensor_serial_number = 0
-        conductivity_sensor_type = ""
         pressure_sensor_serial_number = 0
         pressure_sensor_type = ""
         volt0_serial_number = 0
@@ -236,10 +236,8 @@ class SBE19HardwareParticle(SeaBirdParticle):
             sensor_id = sensor.getAttribute(ID)
             if sensor_id == TEMPERATURE_SENSOR_ID:
                 temperature_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
-                temperature_sensor_type = self._extract_xml_element_value(sensor, TYPE)
             elif sensor_id == CONDUCTIVITY_SENSOR_ID:
                 conductivity_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
-                conductivity_sensor_type = self._extract_xml_element_value(sensor, TYPE)
             elif sensor_id == PRESSURE_SENSOR_ID:
                 pressure_sensor_serial_number = self._extract_xml_element_value(sensor, SERIAL_NUMBER)
                 pressure_sensor_type = self._extract_xml_element_value(sensor, TYPE)
@@ -258,8 +256,6 @@ class SBE19HardwareParticle(SeaBirdParticle):
 
         result = [{DataParticleKey.VALUE_ID: SBE16NOHardwareParticleKey.SERIAL_NUMBER,
                    DataParticleKey.VALUE: serial_number},
-                  {DataParticleKey.VALUE_ID: SBE16NOHardwareParticleKey.MANUFACTURER,
-                   DataParticleKey.VALUE: manufacturer},
                   {DataParticleKey.VALUE_ID: SBE16NOHardwareParticleKey.FIRMWARE_VERSION,
                    DataParticleKey.VALUE: firmware_version},
                   {DataParticleKey.VALUE_ID: SBE16NOHardwareParticleKey.FIRMWARE_DATE,
@@ -274,12 +270,8 @@ class SBE19HardwareParticle(SeaBirdParticle):
                    DataParticleKey.VALUE: pcb_assembly},
                   {DataParticleKey.VALUE_ID: SBE16NOHardwareParticleKey.TEMPERATURE_SENSOR_SERIAL_NUMBER,
                    DataParticleKey.VALUE: temperature_sensor_serial_number},
-                   {DataParticleKey.VALUE_ID: SBE16NOHardwareParticleKey.TEMPERATURE_SENSOR_TYPE,
-                   DataParticleKey.VALUE: temperature_sensor_type},
                   {DataParticleKey.VALUE_ID: SBE16NOHardwareParticleKey.CONDUCTIVITY_SENSOR_SERIAL_NUMBER,
                    DataParticleKey.VALUE: conductivity_sensor_serial_number},
-                   {DataParticleKey.VALUE_ID: SBE16NOHardwareParticleKey.CONDUCTIVITY_SENSOR_TYPE,
-                   DataParticleKey.VALUE: conductivity_sensor_type},
                   {DataParticleKey.VALUE_ID: SBE16NOHardwareParticleKey.PRESSURE_SENSOR_SERIAL_NUMBER,
                    DataParticleKey.VALUE: pressure_sensor_serial_number},
                   {DataParticleKey.VALUE_ID: SBE16NOHardwareParticleKey.PRESSURE_SENSOR_TYPE,
@@ -729,7 +721,7 @@ class SBE16NOProtocol(SBE19Protocol):
         return_list = []
 
         matchers.append(SBE19DataParticle.regex_compiled())
-        matchers.append(SBE19HardwareParticle.regex_compiled())
+        matchers.append(SBE16NOHardwareParticle.regex_compiled())
         matchers.append(SBE16NOCalibrationParticle.regex_compiled())
         matchers.append(SBE19StatusParticle.regex_compiled())
         matchers.append(SBE16NOConfigurationParticle.regex_compiled())
@@ -746,7 +738,7 @@ class SBE16NOProtocol(SBE19Protocol):
         The base class got_data has gotten a chunk from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes. 
         """
-        if not (self._extract_sample(SBE19HardwareParticle, SBE19HardwareParticle.regex_compiled(), chunk, timestamp) or
+        if not (self._extract_sample(SBE16NOHardwareParticle, SBE16NOHardwareParticle.regex_compiled(), chunk, timestamp) or
                 self._extract_sample(SBE19DataParticle, SBE19DataParticle.regex_compiled(), chunk, timestamp) or
                 self._extract_sample(SBE16NOCalibrationParticle, SBE16NOCalibrationParticle.regex_compiled(), chunk, timestamp) or
                 self._extract_sample(SBE16NOConfigurationParticle, SBE16NOConfigurationParticle.regex_compiled(), chunk, timestamp) or
@@ -768,7 +760,7 @@ class SBE16NOProtocol(SBE19Protocol):
         result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE19StatusParticle.regex_compiled(),
                                     timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE19HardwareParticle.regex_compiled(),
+        result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE16NOHardwareParticle.regex_compiled(),
                                     timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetHD Response: %s", result)
         result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE16NOConfigurationParticle.regex_compiled(),
@@ -820,7 +812,7 @@ class SBE16NOProtocol(SBE19Protocol):
         result = self._do_cmd_resp(Command.GET_SD, response_regex=SBE19StatusParticle.regex_compiled(),
                                     timeout=TIMEOUT)
         log.debug("_handler_autosample_acquire_status: GetSD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE19HardwareParticle.regex_compiled(),
+        result += self._do_cmd_resp(Command.GET_HD, response_regex=SBE16NOHardwareParticle.regex_compiled(),
                                     timeout=TIMEOUT)
         log.debug("_handler_autosample_acquire_status: GetHD Response: %s", result)
         result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE16NOConfigurationParticle.regex_compiled(),
