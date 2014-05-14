@@ -441,16 +441,13 @@ class SBE19StatusParticle(SeaBirdParticle):
 
 class SBE19HardwareParticleKey(BaseEnum):
     SERIAL_NUMBER = "serial_number"
-    MANUFACTURER = "manufacturer"
     FIRMWARE_VERSION = "firmware_version"
     FIRMWARE_DATE = "firmware_date"
     COMMAND_SET_VERSION = "command_set_version"
     PCB_SERIAL_NUMBER = "pcb_serial_number"
     ASSEMBLY_NUMBER = "assembly_number"
     MANUFACTURE_DATE = "manufacture_date"
-    TEMPERATURE_SENSOR_TYPE = 'temperature_sensor_type'
     TEMPERATURE_SENSOR_SERIAL_NUMBER = 'temp_sensor_serial_number'
-    CONDUCTIVITY_SENSOR_TYPE = 'conductivity_sensor_type'
     CONDUCTIVITY_SENSOR_SERIAL_NUMBER = 'cond_sensor_serial_number'
     PRESSURE_SENSOR_TYPE = 'pressure_sensor_type'
     PRESSURE_SENSOR_SERIAL_NUMBER = 'strain_pressure_sensor_serial_number'
@@ -508,7 +505,6 @@ class SBE19HardwareParticle(SeaBirdParticle):
         PCB_SERIAL_NUMBER = "PCBSerialNum"
         ASSEMBLY_NUMBER = "AssemblyNum"
         SERIAL_NUMBER = "SerialNumber"
-        MANUFACTURER = "Manufacturer"
         FIRMWARE_VERSION = "FirmwareVersion"
         FIRMWARE_DATE = "FirmwareDate"
         COMMAND_SET_VERSION = "CommandSetVersion"
@@ -533,7 +529,6 @@ class SBE19HardwareParticle(SeaBirdParticle):
         log.debug("root.tagName = %s" %root.tagName)
         serial_number = int(root.getAttribute(SERIAL_NUMBER))
 
-        manufacturer = self._extract_xml_element_value(root, MANUFACTURER)
         firmware_version = self._extract_xml_element_value(root, FIRMWARE_VERSION)
         firmware_date = self._extract_xml_element_value(root, FIRMWARE_DATE)
         command_set_version = self._extract_xml_element_value(root, COMMAND_SET_VERSION)
@@ -547,9 +542,7 @@ class SBE19HardwareParticle(SeaBirdParticle):
             pcb_assembly.append(assembly.getAttribute(ASSEMBLY_NUMBER))
 
         temperature_sensor_serial_number = 0
-        temperature_sensor_type = ""
         conductivity_sensor_serial_number = 0
-        conductivity_sensor_type = ""
         pressure_sensor_serial_number = 0
         pressure_sensor_type = ""
         volt0_serial_number = 0
@@ -564,10 +557,8 @@ class SBE19HardwareParticle(SeaBirdParticle):
             sensor_id = sensor.getAttribute(ID)
             if sensor_id == TEMPERATURE_SENSOR_ID:
                 temperature_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
-                temperature_sensor_type = self._extract_xml_element_value(sensor, TYPE)
             elif sensor_id == CONDUCTIVITY_SENSOR_ID:
                 conductivity_sensor_serial_number = int(self._extract_xml_element_value(sensor, SERIAL_NUMBER))
-                conductivity_sensor_type = self._extract_xml_element_value(sensor, TYPE)
             elif sensor_id == PRESSURE_SENSOR_ID:
                 pressure_sensor_serial_number = self._extract_xml_element_value(sensor, SERIAL_NUMBER)
                 pressure_sensor_type = self._extract_xml_element_value(sensor, TYPE)
@@ -586,8 +577,6 @@ class SBE19HardwareParticle(SeaBirdParticle):
 
         result = [{DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.SERIAL_NUMBER,
                    DataParticleKey.VALUE: serial_number},
-                  {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.MANUFACTURER,
-                   DataParticleKey.VALUE: manufacturer},
                   {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.FIRMWARE_VERSION,
                    DataParticleKey.VALUE: firmware_version},
                   {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.FIRMWARE_DATE,
@@ -602,12 +591,8 @@ class SBE19HardwareParticle(SeaBirdParticle):
                    DataParticleKey.VALUE: pcb_assembly},
                   {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.TEMPERATURE_SENSOR_SERIAL_NUMBER,
                    DataParticleKey.VALUE: temperature_sensor_serial_number},
-                   {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.TEMPERATURE_SENSOR_TYPE,
-                   DataParticleKey.VALUE: temperature_sensor_type},
                   {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.CONDUCTIVITY_SENSOR_SERIAL_NUMBER,
                    DataParticleKey.VALUE: conductivity_sensor_serial_number},
-                   {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.CONDUCTIVITY_SENSOR_TYPE,
-                   DataParticleKey.VALUE: conductivity_sensor_type},
                   {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.PRESSURE_SENSOR_SERIAL_NUMBER,
                    DataParticleKey.VALUE: pressure_sensor_serial_number},
                   {DataParticleKey.VALUE_ID: SBE19HardwareParticleKey.PRESSURE_SENSOR_TYPE,
@@ -1166,7 +1151,6 @@ class SBE19Protocol(SBE16Protocol):
 
         self._chunker = StringChunker(self.sieve_function)
 
-        self._add_scheduler_event(ScheduledJob.CONFIGURATION_DATA, ProtocolEvent.GET_CONFIGURATION)
         self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
         self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
 
