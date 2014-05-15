@@ -295,7 +295,6 @@ class InstrumentProtocol(object):
 
         self._driver_event(DriverAsyncEvent.AGENT_EVENT, val)
 
-
     def _async_raise_fsm_event(self, event, *args, **kwargs):
         """
         Spawn a new thread and raise an FSM event.  This is intended to be used from the listener
@@ -306,12 +305,12 @@ class InstrumentProtocol(object):
         """
         log.info("_async_raise_fsm_event: starting new thread to raise event")
 
-        if not args:
-            args = []
+        args = list(args)
+
+        log.debug('_async_raise_fsm_event event: %s args: %r', event, args)
 
         args.insert(0, event)
 
-        self._connection_lost = True
         new_thread = Thread(
             target=self._protocol_fsm.on_event,
             args=args)
