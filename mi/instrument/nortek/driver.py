@@ -84,22 +84,19 @@ USER_CONFIG_DATA_REGEX = re.compile(USER_CONFIG_DATA_PATTERN, re.DOTALL)
 
 CLOCK_DATA_PATTERN = r'(.{1})(.{1})(.{1})(.{1})(.{1})(.{1})\x06\x06'
 CLOCK_DATA_REGEX = re.compile(CLOCK_DATA_PATTERN, re.DOTALL)
-BATTERY_DATA_PATTERN = r'(.{2})\x06\x06'
+BATTERY_DATA_PATTERN = r'(.{2})\x06\x06'        # TODO can remove it no longer required in IOS, otherwise update to only take a valid range
 BATTERY_DATA_REGEX = re.compile(BATTERY_DATA_PATTERN, re.DOTALL)
-MODE_DATA_PATTERN = r'(.{1})\x00\x06\x06'
+MODE_DATA_PATTERN = r'(.{1})\x00\x06\x06'       # TODO Update this pattern so it only takes hex values \0x00, \0x01, \0x02, \0x04, and \0x05
 MODE_DATA_REGEX = re.compile(MODE_DATA_PATTERN, re.DOTALL)
-ID_DATA_PATTERN = r'(.{14})\x06\x06'
+ID_DATA_PATTERN = r'(.{14})\x06\x06'            # TODO can remove it no longer required in IOS, otherwise update to only take a valid range ["VEC 8181", "AQD 8493"]
 ID_DATA_REGEX = re.compile(ID_DATA_PATTERN, re.DOTALL)
 
 NORTEK_COMMON_SAMPLE_STRUCTS = [[USER_CONFIG_SYNC_BYTES, USER_CONFIG_LEN],
                                 [HW_CONFIG_SYNC_BYTES, HW_CONFIG_LEN],
                                 [HEAD_CONFIG_SYNC_BYTES, HEAD_CONFIG_LEN]]
 
-NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS = []
+NORTEK_COMMON_DYNAMIC_SAMPLE_STRUCTS = []  # TODO this can probably be removed if battery voltage and ID are no longer needed.
 
-# NORTEK_COMMON_REGEX = [USER_CONFIG_DATA_REGEX,
-#                            HARDWARE_CONFIG_DATA_REGEX,
-#                            HEAD_CONFIG_DATA_REGEX]
 
 class ScheduledJob(BaseEnum):
     CLOCK_SYNC = 'clock_sync'
@@ -1977,8 +1974,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
 
         # Issue read clock command.
-        result = self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK,
-                                   timeout=TIMEOUT+5)
+        result = self._do_cmd_resp(InstrumentCmds.READ_REAL_TIME_CLOCK, timeout=TIMEOUT+5)
 
         return next_state, (next_agent_state, result)
 
@@ -1989,7 +1985,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         next_agent_state = None
 
         # Issue read mode command.
-        result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE)
+        result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE, timeout=45)
 
         return next_state, (next_agent_state, result)
 
@@ -2024,10 +2020,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         except InstrumentTimeoutException:
             log.debug('_handler_unknown_read_mode: no response to "I", sending "II"')
             # if there is no response, catch timeout exception and issue another 'I' command to make II command
-            result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE)
+            result = self._do_cmd_resp(InstrumentCmds.CMD_WHAT_MODE, timeout=45)
             # log.debug('_handler_unknown_read_mode: response II = %r', result)
-
-        # if the above fails, try the break method
 
         return next_state, (next_agent_state, result)
 
