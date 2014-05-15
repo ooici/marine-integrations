@@ -843,17 +843,17 @@ class NortekParameterDictVal(RegexParameter):
         init_value = kwargs.get('init_value', False)
         match = self.regex.match(input)
         if match:
-            log.debug('NortekDictVal.update(): match=<%s>, init_value=%s', match.group(1).encode('hex'), init_value)
+            #log.debug('NortekDictVal.update(): match=<%s>, init_value=%s', match.group(1).encode('hex'), init_value)
             value = self.f_getval(match)
             if init_value:
                 self.description.init_value = value
             else:
                 self.value.set_value(value)
-            if isinstance(value, int):
-                log.debug('NortekParameterDictVal.update(): updated parameter %s=<%d>', self.name, value)
-            else:
-                log.debug('NortekParameterDictVal.update(): updated parameter %s=\"%s\" <%s>', self.name,
-                          value, str(self.value.get_value()).encode('hex'))
+            # if isinstance(value, int):
+            #     #log.debug('NortekParameterDictVal.update(): updated parameter %s=<%d>', self.name, value)
+            # else:
+            #     #log.debug('NortekParameterDictVal.update(): updated parameter %s=\"%s\" <%s>', self.name,
+            #     #          value, str(self.value.get_value()).encode('hex'))
             return True
         else:
             log.debug('NortekParameterDictVal.update(): failed to update parameter %s', self.name)
@@ -870,7 +870,7 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
         """
         config = {}
         for (key, val) in self._param_dict.iteritems():
-            log.debug("Getting configuration key [%s] with value: [%s]", key, val.value.value)
+            #log.debug("Getting configuration key [%s] with value: [%s]", key, val.value.value)
             if not key.endswith('Spare'):
                 config[key] = val.get_value()
         return config
@@ -882,7 +882,7 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
         @param value The parameter value.
         @raises KeyError if the name is invalid.
         """
-        log.debug("NortekProtocolParameterDict.set_from_value(): name=%s, value=%s", name, value)
+        #log.debug("NortekProtocolParameterDict.set_from_value(): name=%s, value=%s", name, value)
 
         retval = False
 
@@ -1204,6 +1204,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.READ_MODE, self._handler_unknown_read_mode)
+        self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXIT, self._handler_direct_access_exit)
 
         # State state machine in UNKNOWN state.
         self._protocol_fsm.start(ProtocolState.UNKNOWN)
@@ -1344,7 +1345,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         # Retrieve required parameter from args.
         # Raise exception if no parameter provided, or not a dict.
-        params_to_set = None
         try:
             params_to_set = args[0]
             self._verify_not_readonly(*args, **kwargs)
@@ -1360,9 +1360,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         name = None
         value = None
         try:
-            new_value = False
             for (name, value) in params_to_set.iteritems():
-                log.debug('_set_params: setting %s to %s', name, value)
+                #log.debug('_set_params: setting %s to %s', name, value)
                 parameters.set_from_value(name, value)
         except Exception as ex:
             raise InstrumentParameterException('Unable to set parameter %s to %s: %s' % (name, value, ex))
@@ -1376,15 +1375,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         # Clear the prompt buffer.
         self._promptbuf = ''
         self._get_response(timeout=TIMEOUT, expected_prompt=InstrumentPrompts.Z_ACK)
-        return_val = self._update_params()
-        log.debug('_handler_command_set: _update_params() returns: %s', return_val)
-
-        if new_value:
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-
-        if return_val is True:
-            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-            log.debug('_handler_command_set: sending config change event!')
+        self._update_params()
 
     def _send_wakeup(self):
         """
@@ -1444,8 +1435,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug("%%% IN _handler_unknown_discover")
 
-        next_state = None
-        result = None
+        # next_state = None
+        # result = None
 
         ret_mode = self._protocol_fsm.on_event(ProtocolEvent.READ_MODE)
         prompt = ret_mode[1]
@@ -1456,25 +1447,25 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         elif prompt == 1:
             log.debug('_handler_unknown_discover: MEASUREMENT_MODE')
             next_state = ProtocolState.AUTOSAMPLE
-            result = ResourceAgentState.STREAMING
+            next_agent_state = ResourceAgentState.STREAMING
         elif prompt == 2:
             log.debug('_handler_unknown_discover: COMMAND_MODE')
             next_state = ProtocolState.COMMAND
-            result = ResourceAgentState.IDLE
+            next_agent_state = ResourceAgentState.IDLE
         elif prompt == 4:
             log.debug('_handler_unknown_discover: DATA_RETRIEVAL_MODE')
             next_state = ProtocolState.AUTOSAMPLE
-            result = ResourceAgentState.STREAMING
+            next_agent_state = ResourceAgentState.STREAMING
         elif prompt == 5:
             log.debug('_handler_unknown_discover: CONFIRMATION_MODE')
             next_state = ProtocolState.AUTOSAMPLE
-            result = ResourceAgentState.STREAMING
+            next_agent_state = ResourceAgentState.STREAMING
         else:
             raise InstrumentStateException('Unknown state: %s' % ret_mode[1])
 
         log.debug('_handler_unknown_discover: state=%s', next_state)
 
-        return next_state, result
+        return next_state, next_agent_state
 
     def _handler_unknown_exit(self, *args, **kwargs):
         """
@@ -1494,14 +1485,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if the update commands and not recognized.
         """
         log.debug('%% IN _handler_command_enter')
-        # Command device to update parameters and send a config change event.
 
+        # Command device to update parameters and send a config change event.
         self._update_params()
         self._init_params()
-
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
         if self._param_dict.get(EngineeringParameter.CLOCK_SYNC_INTERVAL) is not None:
             log.debug("Configuring the scheduler to sync clock %s", self._param_dict.get(EngineeringParameter.CLOCK_SYNC_INTERVAL))
@@ -1512,6 +1499,10 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             log.debug("Configuring the scheduler to acquire status %s", self._param_dict.get(EngineeringParameter.ACQUIRE_STATUS_INTERVAL))
             if self._param_dict.get(EngineeringParameter.ACQUIRE_STATUS_INTERVAL) != '00:00:00':
                 self.start_scheduled_job(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
+
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
     def _handler_command_exit(self, *args, **kwargs):
         """
@@ -1785,10 +1776,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         """
         log.debug('%% IN _handler_autosample_enter')
 
-        # Tell driver superclass to send a state change event.
-        # Superclass will query the state.
-        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
-
         if self._param_dict.get(EngineeringParameter.CLOCK_SYNC_INTERVAL) is not None:
             log.debug("Configuring the scheduler to sync clock %s", self._param_dict.get(EngineeringParameter.CLOCK_SYNC_INTERVAL))
             if self._param_dict.get(EngineeringParameter.CLOCK_SYNC_INTERVAL) != '00:00:00':
@@ -1799,6 +1786,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
             if self._param_dict.get(EngineeringParameter.ACQUIRE_STATUS_INTERVAL) != '00:00:00':
                 self.start_scheduled_job(EngineeringParameter.ACQUIRE_STATUS_INTERVAL, ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
 
+        # Tell driver superclass to send a state change event.
+        # Superclass will query the state.
+        self._driver_event(DriverAsyncEvent.STATE_CHANGE)
     def _handler_autosample_exit(self, *args, **kwargs):
         """
         Exit autosample state.
@@ -2141,8 +2131,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.A1_1_SPARE,
                                    r'^.{%s}(.{2}).*' % str(24),
-                                   lambda match: match.group(1),
-                                lambda string: string,
+                                   lambda match: match.group(1).encode('hex'),
+                                   lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
                                    visibility=ParameterDictVisibility.READ_ONLY,
@@ -2150,8 +2140,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.B0_1_SPARE,
                                    r'^.{%s}(.{2}).*' % str(26),
-                                   lambda match: match.group(1),
-                                lambda string: string,
+                                   lambda match: match.group(1).encode('hex'),
+                                   lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
                                    visibility=ParameterDictVisibility.READ_ONLY,
@@ -2160,8 +2150,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.B1_1_SPARE,
                                     r'^.{%s}(.{2}).*' % str(28),
-                                    lambda match: match.group(1),
-                                lambda string: string,
+                                    lambda match: match.group(1).encode('hex'),
+                                    lambda string: string.decode('hex'),
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.STRING,
                                     visibility=ParameterDictVisibility.READ_ONLY,
@@ -2370,8 +2360,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.USER_1_SPARE,
                                     r'^.{%s}(.{2}).*' % str(74),
-                                    lambda match: match.group(1),
-                                lambda string: string,
+                                    lambda match: match.group(1).encode('hex'),
+                                    lambda string: string.decode('hex'),
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.STRING,
                                     visibility=ParameterDictVisibility.READ_ONLY,
@@ -2461,8 +2451,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.A1_2_SPARE,
                                    r'^.{%s}(.{2}).*' % str(448),
-                                   lambda match: match.group(1),
-                                    lambda string: string,
+                                   lambda match: match.group(1).encode('hex'),
+                                   lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
                                    visibility=ParameterDictVisibility.READ_ONLY,
@@ -2470,8 +2460,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.B0_2_SPARE,
                                    r'^.{%s}(.{2}).*' % str(450),
-                                   lambda match: match.group(1),
-                                    lambda string: string,
+                                   lambda match: match.group(1).encode('hex'),
+                                   lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
                                    visibility=ParameterDictVisibility.READ_ONLY,
@@ -2493,8 +2483,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.USER_2_SPARE,          # for Vector this is 'SAMPLE_RATE'
                                     r'^.{%s}(.{2}).*' % str(454),
-                                    lambda match: match.group(1),
-                                    lambda string: string,
+                                    lambda match: match.group(1).encode('hex'),
+                                    lambda string: string.decode('hex'),
                                     regex_flags=re.DOTALL,
                                     type=ParameterDictType.STRING,
                                     visibility=ParameterDictVisibility.READ_ONLY,       # This might change based on OIS
@@ -2524,8 +2514,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.USER_3_SPARE,
                                    r'^.{%s}(.{2}).*' % str(460),
-                                   lambda match: match.group(1),
-                                    lambda string: string,
+                                   lambda match: match.group(1).encode('hex'),
+                                   lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
                                    visibility=ParameterDictVisibility.READ_ONLY,
@@ -2546,8 +2536,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.USER_4_SPARE,
                                    r'^.{%s}(.{30}).*' % str(464),
-                                   lambda match: match.group(1),
-                                   lambda string: string,
+                                   lambda match: match.group(1).encode('hex'),
+                                   lambda string: string.decode('hex'),
                                    regex_flags=re.DOTALL,
                                    type=ParameterDictType.STRING,
                                    visibility=ParameterDictVisibility.READ_ONLY,
@@ -2589,11 +2579,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
                                 display_name="acquire status interval",
                                 default_value='00:00:00',
                                 startup_param=True))
-
-
-
-        # Child should do this after adding any special strings
-        # self._param_dict.load_strings()
 
     def _dump_config(self, input):
         # dump config block
@@ -2645,8 +2630,8 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be timely woken.
         @throws InstrumentProtocolException if ds/dc misunderstood.
         """
-        # if self.get_current_state() != ProtocolState.COMMAND or self.get_current_state() != ProtocolState.DIRECT_ACCESS:
-        #     raise InstrumentStateException('Can not perform update of parameters when not in command state')
+        if self.get_current_state() != ProtocolState.COMMAND: # or self.get_current_state() != ProtocolState.DIRECT_ACCESS:
+           raise InstrumentStateException('Can not perform update of parameters when not in command state')
         # Get old param dict config.
         old_config = self._param_dict.get_config()
         log.debug("_update_params: old_config: %s", old_config)
@@ -2686,12 +2671,12 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
 
         log.debug("_update_params: new_config: %s", new_config)
-
-        config_changed = cmp(new_config, old_config)
-        log.debug("config_changed: %s", config_changed)
-        if config_changed:
+        #TODO - COMPARISION MAY NOT WORK
+        log.debug('FSM STATE = %s', self._protocol_fsm.get_current_state() )
+        if new_config != old_config and self._protocol_fsm.get_current_state() != ProtocolState.UNKNOWN:
             self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
-        return config_changed
+
+
 
 
     def _get_mode(self, timeout, delay=1):
