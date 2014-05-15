@@ -139,7 +139,6 @@ class SeaBird19plusMixin(DriverTestMixin):
     DEFAULT   = ParameterTestConfigKey.DEFAULT
     STATES    = ParameterTestConfigKey.STATES
 
-
     ###
     #  Instrument output (driver input) Definitions
     ###
