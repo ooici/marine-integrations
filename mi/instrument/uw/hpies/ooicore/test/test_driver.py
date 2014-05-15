@@ -12,39 +12,43 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
+from mi.core.exceptions import SampleException
+from mi.core.instrument.data_particle import RawDataParticle
 
 __author__ = 'Dan Mergens'
 __license__ = 'Apache 2.0'
 
-import unittest
+# import unittest
 
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+
+log = get_logger()
 
 # MI imports.
-from mi.idk.unit_test import InstrumentDriverTestCase
+from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
 from mi.idk.unit_test import InstrumentDriverUnitTestCase
 from mi.idk.unit_test import InstrumentDriverIntegrationTestCase
 from mi.idk.unit_test import InstrumentDriverQualificationTestCase
 from mi.idk.unit_test import DriverTestMixin
 
-from interface.objects import AgentCommand
-
-from mi.core.instrument.logger_client import LoggerClient
+# from interface.objects import AgentCommand
+#
+# from mi.core.instrument.logger_client import LoggerClient
 
 from mi.core.instrument.chunker import StringChunker
-from mi.core.instrument.instrument_driver import DriverAsyncEvent
-from mi.core.instrument.instrument_driver import DriverConnectionState
-from mi.core.instrument.instrument_driver import DriverProtocolState
+# from mi.core.instrument.instrument_driver import DriverAsyncEvent
+# from mi.core.instrument.instrument_driver import DriverConnectionState
+# from mi.core.instrument.instrument_driver import DriverProtocolState
+#
+# from ion.agents.instrument.instrument_agent import InstrumentAgentState
+# from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from ion.agents.instrument.instrument_agent import InstrumentAgentState
-from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
-
-from mi.instrument.uw.hpies.ooicore.driver import InstrumentDriver
+from mi.instrument.uw.hpies.ooicore.driver import InstrumentDriver, HEFDataParticle
 from mi.instrument.uw.hpies.ooicore.driver import DataParticleType
-from mi.instrument.uw.hpies.ooicore.driver import InstrumentCommand
+from mi.instrument.uw.hpies.ooicore.driver import Command
 from mi.instrument.uw.hpies.ooicore.driver import ProtocolState
 from mi.instrument.uw.hpies.ooicore.driver import ProtocolEvent
 from mi.instrument.uw.hpies.ooicore.driver import Capability
@@ -60,12 +64,13 @@ InstrumentDriverTestCase.initialize(
     driver_module='mi.instrument.uw.hpies.ooicore.driver',
     driver_class="InstrumentDriver",
 
-    instrument_agent_resource_id = 'VXVOO1',
-    instrument_agent_name = 'uw_hpies_ooicore',
-    instrument_agent_packet_config = DataParticleType(),
+    instrument_agent_resource_id='VXVOO1',
+    instrument_agent_name='uw_hpies_ooicore',
+    instrument_agent_packet_config=DataParticleType(),
 
-    driver_startup_config = {}
+    driver_startup_config={}
 )
+
 
 #################################### RULES ####################################
 #                                                                             #
@@ -89,24 +94,168 @@ InstrumentDriverTestCase.initialize(
 #     Defines a set of constants and assert methods used for data particle    #
 #     verification 														      #
 #                                                                             #
-#  In python mixin classes are classes designed such that they wouldn't be    #
-#  able to stand on their own, but are inherited by other classes generally   #
-#  using multiple inheritance.                                                #
+#  In python, mixin classes provide capabilities which must be extended by    #
+#  inherited classes, often using multiple inheritance.                       #
 #                                                                             #
-# This class defines a configuration structure for testing and common assert  #
-# methods for validating data particles.									  #
+#  This class defines a configuration structure for testing and common assert #
+#  methods for validating data particles.									  #
 ###############################################################################
-class DriverTestMixinSub(DriverTestMixin):
-    def assertSampleDataParticle(self, data_particle):
-        '''
-        Verify a particle is a know particle to this driver and verify the particle is
-        correct
-        @param data_particle: Data particle of unkown type produced by the driver
-        '''
-        if (isinstance(data_particle, RawDataParticle)):
+class UtilMixin(DriverTestMixin):
+    """
+    Mixin class used for storing data particle constants and common data assertion methods.
+    """
+    # Create some short names for the parameter test config
+    TYPE = ParameterTestConfigKey.TYPE
+    READONLY = ParameterTestConfigKey.READONLY
+    STARTUP = ParameterTestConfigKey.STARTUP
+    DA = ParameterTestConfigKey.DIRECT_ACCESS
+    VALUE = ParameterTestConfigKey.VALUE
+    REQUIRED = ParameterTestConfigKey.REQUIRED
+    DEFAULT = ParameterTestConfigKey.DEFAULT
+    STATES = ParameterTestConfigKey.STATES
+
+    # SAMPLE_HEADER = "20140430T222632 #3__HE04 E a 0 985 2 3546330153 3113 3 3 3 1398896784*1bbb"
+    SAMPLE_HEF = "20140501T173921 #3__DE 797 79380 192799 192803 192930*56a8"
+    SAMPLE_MOTOR = "20140501T173728 #3__DM 11 24425*396b"
+    SAMPLE_CAL = "20140430T230632 #3__DC 2 192655 192637 135611 80036 192554 192644*5c28"
+    SAMPLE_IES = "20140501T175203 #5_AUX,1398880200,04,999999,999999,999999,999999,0010848,021697,022030,04000005.252,1B05,1398966715*c69e"
+    # SAMPLE_HEADING = "20140430T195148 #3_hdg=  65.48 pitch=  -3.23 roll=  -2.68 temp=  30.20\r\n*1049"
+    # SAMPLE_TIME = "20140430T195224 #2_TOD,1398887544,1398887537*01f5"
+    # SAMPLE_SM = "20140430T222451 #3__SM 0 172 7*c5b2"
+    # SAMPLE_Sm = "20140430T222451 #3__Sm 0 32*df9f"
+    SAMPLE_HEF_INVALID = SAMPLE_HEF.replace('DE', 'DQ')
+    SAMPLE_HEF_MISSING_CHECKSUM = SAMPLE_HEF[:-4]
+    SAMPLE_HEF_WRONG_CHECKSUM = "{0}dead".format(SAMPLE_HEF_MISSING_CHECKSUM)
+
+    _driver_capabilities = {
+
+    }
+
+    _driver_parameters = {
+        # HEF parameters
+        Parameter.SERIAL:
+            {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: '', REQUIRED: False},
+        Parameter.DEBUG_LEVEL:
+            {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 0, REQUIRED: False},
+        Parameter.WSRUN_PINCH:
+            {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 120, REQUIRED: False},
+        Parameter.NFC_CALIBRATE:
+            {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 60, REQUIRED: False},
+        Parameter.CAL_HOLD:
+            {TYPE: float, READONLY: True, DA: True, STARTUP: True, VALUE: 20, REQUIRED: False},
+        Parameter.CAL_SKIP:
+            {TYPE: int, READONLY: True, DA: False, STARTUP: False, VALUE: 10, REQUIRED: False},
+        Parameter.NHC_COMPASS:
+            {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 122, REQUIRED: False},
+        Parameter.COMPASS_SAMPLES:
+            {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 1, REQUIRED: False},
+        Parameter.COMPASS_DELAY:
+            {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 10, REQUIRED: False},
+        Parameter.INITIAL_COMPASS:
+            {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 10, REQUIRED: False},
+        Parameter.INITIAL_COMPASS_DELAY:  # float or int??
+            {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 1, REQUIRED: False},
+        Parameter.MOTOR_SAMPLES:
+            {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 10, REQUIRED: False},
+        Parameter.EF_SAMPLES:
+            {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 10, REQUIRED: False},
+        Parameter.CAL_SAMPLES:
+            {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 10, REQUIRED: False},
+        Parameter.CONSOLE_TIMEOUT:
+            {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 300, REQUIRED: False},
+        Parameter.WSRUN_DELAY:
+            {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 0, REQUIRED: False},
+        Parameter.MOTOR_DIR_NHOLD:
+            {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 0, REQUIRED: False},
+        Parameter.MOTOR_DIR_INIT:
+            {TYPE: str, READONLY: True, DA: True, STARTUP: True, VALUE: 'f', REQUIRED: False},
+        Parameter.POWER_COMPASS_W_MOTOR:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: False, REQUIRED: False},
+        Parameter.KEEP_AWAKE_W_MOTOR:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True, REQUIRED: False},
+        Parameter.MOTOR_TIMEOUTS_1A:
+            {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 200, REQUIRED: False},
+        Parameter.MOTOR_TIMEOUTS_1B:
+            {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 200, REQUIRED: False},
+        Parameter.MOTOR_TIMEOUTS_2A:
+            {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 200, REQUIRED: False},
+        Parameter.MOTOR_TIMEOUTS_2B:
+            {TYPE: int, READONLY: False, DA: True, STARTUP: True, VALUE: 200, REQUIRED: False},
+        Parameter.RSN_CONFIG:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: True, REQUIRED: False},
+        Parameter.INVERT_LED_DRIVERS:
+            {TYPE: bool, READONLY: True, DA: True, STARTUP: True, VALUE: False, REQUIRED: False},
+        Parameter.M1A_LED:
+            {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 1, REQUIRED: False},
+        Parameter.M2A_LED:
+            {TYPE: int, READONLY: True, DA: True, STARTUP: True, VALUE: 1, REQUIRED: False},
+        # IES parameters
+        Parameter.IES_TIME:
+            {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: '', REQUIRED: False},
+        Parameter.ECHO_SAMPLES:
+            {TYPE: int, READONLY: True, DA: False, STARTUP: False, VALUE: 4, REQUIRED: False},
+        Parameter.WATER_DEPTH:
+            {TYPE: int, READONLY: True, DA: False, STARTUP: False, VALUE: 3000, REQUIRED: False},
+        Parameter.ACOUSTIC_LOCKOUT:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 3.6, REQUIRED: False},
+        Parameter.ACOUSTIC_OUTPUT:
+            {TYPE: int, READONLY: True, DA: False, STARTUP: False, VALUE: 186, REQUIRED: False},
+        Parameter.RELEASE_TIME:
+            {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: 'Thu Dec 25 12:00:00 2014', REQUIRED: False},
+        Parameter.COLLECT_TELEMETRY:
+            {TYPE: bool, READONLY: True, DA: False, STARTUP: False, VALUE: True, REQUIRED: False},
+        Parameter.MISSION_STATEMENT:
+            {TYPE: str, READONLY: True, DA: False, STARTUP: False, VALUE: 'No mission statement has been entered',
+             REQUIRED: False},
+        Parameter.PT_SAMPLES:
+            {TYPE: int, READONLY: True, DA: False, STARTUP: False, VALUE: 1, REQUIRED: False},
+        Parameter.TEMP_COEFF_U0:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 5.814289, REQUIRED: False},
+        Parameter.TEMP_COEFF_Y1:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: -3978.811, REQUIRED: False},
+        Parameter.TEMP_COEFF_Y2:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: -10771.79, REQUIRED: False},
+        Parameter.TEMP_COEFF_Y3:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 0.0, REQUIRED: False},
+        Parameter.PRES_COEFF_C1:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: -30521.42, REQUIRED: False},
+        Parameter.PRES_COEFF_C2:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: -2027.363, REQUIRED: False},
+        Parameter.PRES_COEFF_C3:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 95228.34, REQUIRED: False},
+        Parameter.PRES_COEFF_D1:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 0.039810, REQUIRED: False},
+        Parameter.PRES_COEFF_D2:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 0.0, REQUIRED: False},
+        Parameter.PRES_COEFF_T1:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 30.10050, REQUIRED: False},
+        Parameter.PRES_COEFF_T2:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 0.096742, REQUIRED: False},
+        Parameter.PRES_COEFF_T3:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 56.45416, REQUIRED: False},
+        Parameter.PRES_COEFF_T4:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 151.539900, REQUIRED: False},
+        Parameter.PRES_COEFF_T5:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 0.0, REQUIRED: False},
+        Parameter.BLILEY_0:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: -0.575100, REQUIRED: False},
+        Parameter.BLILEY_1:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: -0.5282501, REQUIRED: False},
+        Parameter.BLILEY_2:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: -0.013084390, REQUIRED: False},
+        Parameter.BLILEY_3:
+            {TYPE: float, READONLY: True, DA: False, STARTUP: False, VALUE: 0.00004622697, REQUIRED: False},
+    }
+
+    def assert_sample_data_particle(self, data_particle):
+        """
+        Verify a particle is known to this driver and is correct
+        @param data_particle: Data particle of unknown type produced by the driver
+        """
+        if isinstance(data_particle, RawDataParticle):
             self.assert_particle_raw(data_particle)
         else:
-            log.error("Unknown Particle Detected: %s" % data_particle)
+            log.error("Unknown particle detected: %s" % data_particle)
             self.assertFalse(True)
 
 
@@ -124,10 +273,9 @@ class DriverTestMixinSub(DriverTestMixin):
 #   driver process.                                                           #
 ###############################################################################
 @attr('UNIT', group='mi')
-class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
+class DriverUnitTest(InstrumentDriverUnitTestCase, UtilMixin):
     def setUp(self):
         InstrumentDriverUnitTestCase.setUp(self)
-
 
     def test_driver_enums(self):
         """
@@ -138,12 +286,11 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         self.assert_enum_has_no_duplicates(ProtocolState())
         self.assert_enum_has_no_duplicates(ProtocolEvent())
         self.assert_enum_has_no_duplicates(Parameter())
-        self.assert_enum_has_no_duplicates(InstrumentCommand())
+        self.assert_enum_has_no_duplicates(Command())
 
-        # Test capabilites for duplicates, them verify that capabilities is a subset of proto events
+        # Test capabilities for duplicates, them verify that capabilities is a subset of proto events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
-
 
     def test_chunker(self):
         """
@@ -151,6 +298,20 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         """
         chunker = StringChunker(Protocol.sieve_function)
 
+        self.assert_chunker_sample(chunker, self.SAMPLE_HEF)
+        self.assert_chunker_sample(chunker, self.SAMPLE_CAL)
+        self.assert_chunker_sample(chunker, self.SAMPLE_IES)
+        self.assert_chunker_sample(chunker, self.SAMPLE_MOTOR)
+        self.assert_chunker_sample_with_noise(chunker, self.SAMPLE_HEF)
+        self.assert_chunker_fragmented_sample(chunker, self.SAMPLE_HEF)
+        self.assert_chunker_combined_sample(chunker, self.SAMPLE_HEF)
+
+    def test_corrupt_data_sample(self):
+        for particle in (HEFDataParticle(self.SAMPLE_HEF_INVALID),
+                         HEFDataParticle(self.SAMPLE_HEF_MISSING_CHECKSUM),
+                         HEFDataParticle(self.SAMPLE_HEF_WRONG_CHECKSUM)):
+            with self.assertRaises(SampleException):
+                particle.generate()
 
     def test_got_data(self):
         """
@@ -159,7 +320,6 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, DriverTestMixinSub):
         # Create and initialize the instrument driver with a mock port agent
         driver = InstrumentDriver(self._got_data_event_callback)
         self.assert_initialize_driver(driver)
-
 
     def test_protocol_filter_capabilities(self):
         """
@@ -193,7 +353,6 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
 
-
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
 # Device specific qualification tests are for doing final testing of ion      #
@@ -207,7 +366,8 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical
+        instrument. (telnet mode)
         """
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
@@ -218,26 +378,22 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
 
         self.assert_direct_access_stop_telnet()
 
-
     def test_poll(self):
-        '''
+        """
         No polling for a single sample
-        '''
-
+        """
 
     def test_autosample(self):
-        '''
+        """
         start and stop autosample and verify data particle
-        '''
-
+        """
 
     def test_get_set_parameters(self):
-        '''
+        """
         verify that all parameters can be get set properly, this includes
         ensuring that read only parameters fail on set.
-        '''
+        """
         self.assert_enter_command_mode()
-
 
     def test_get_capabilities(self):
         """
