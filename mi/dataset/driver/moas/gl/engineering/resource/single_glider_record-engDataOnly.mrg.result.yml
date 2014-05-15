@@ -6,12 +6,16 @@ header:
 
 data:
   - _index: 1
-    particle_object: EngineeringTelemeteredDataParticle
-    particle_type: glider_eng_telemetered
+    particle_object: EngineeringMetadataDataParticle
+    particle_type: glider_eng_metadata
     glider_eng_filename: 'unit_247-2012-051-0-0-dbd(01840000)'
     glider_mission_name: 'ENDUR1.MI'
     glider_eng_fileopen_time: 'Tue_Feb_21_18:39:39_2012'
-    internal_timestamp: 3538838369.262939930
+    internal_timestamp: '2012-02-21T18:39:39.0Z'
+  - _index: 2
+    particle_object: EngineeringTelemeteredDataParticle
+    particle_type: glider_eng_telemetered
+    internal_timestamp: '2012-02-21T18:39:29.262940Z' 
     m_present_time: 1329849569.26294
     m_present_secs_into_mission: 0
     m_gps_lat:
@@ -60,10 +64,10 @@ data:
     m_water_depth: -1
     m_water_vx: -0.0616963
     m_water_vy: -0.144984
-  - _index: 2
+  - _index: 3
     particle_object: EngineeringScienceTelemeteredDataParticle
     particle_type: glider_eng_sci_telemetered
-    internal_timestamp: 3538838369.262939930
+    internal_timestamp: '2012-02-21T18:39:29.262940Z'
     sci_m_present_time: 1329849569.26294
     sci_m_present_secs_into_mission: 0
     sci_m_disk_free: 1000.1

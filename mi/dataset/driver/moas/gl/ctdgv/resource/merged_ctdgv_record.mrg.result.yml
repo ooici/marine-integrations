@@ -7,7 +7,7 @@ header:
 data:
   - _index: 1
     _new_sequence: False
-    internal_timestamp: 3587338041.829619884
+    internal_timestamp: '2013-09-05T02:47:21.82962Z'
     m_present_time: 1378349241.82962
     m_present_secs_into_mission: 121147
     sci_m_present_time: 1378349241.82962
@@ -18,7 +18,7 @@ data:
     sci_water_temp: 15.3683
   - _index: 2
     _new_sequence: False
-    internal_timestamp: 3587338102.109069824
+    internal_timestamp: '2013-09-05T02:48:22.10907Z'
     m_present_time: 1378349302.10907
     m_present_secs_into_mission: 121207
     sci_m_present_time: 1378349302.10907
@@ -29,7 +29,7 @@ data:
     sci_water_temp: 15.3703
   - _index: 3
     _new_sequence: False
-    internal_timestamp: 3587338162.397799969
+    internal_timestamp: '2013-09-05T02:49:22.3978Z'
     m_present_time: 1378349362.3978
     m_present_secs_into_mission: 121267
     sci_m_present_time: 1378349362.3978

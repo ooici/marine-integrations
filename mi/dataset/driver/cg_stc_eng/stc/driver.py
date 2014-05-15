@@ -12,13 +12,17 @@ __author__ = 'Emily Hahn'
 __license__ = 'Apache 2.0'
 
 import string
+import os
+import gevent
 
 from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 
-from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver
+from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver, DataSetDriverConfigKeys
+from mi.dataset.dataset_driver import DriverStateKey
 from mi.dataset.parser.cg_stc_eng_stc import CgStcEngStcParser, CgStcEngStcParserDataParticle
-from mi.dataset.parser.mopak_o_dcl import MopakODclParser, MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle
+from mi.dataset.parser.mopak_o_dcl import MopakODclParser, MopakODclAccelParserDataParticle
+from mi.dataset.parser.mopak_o_dcl import MopakODclRateParserDataParticle
 from mi.dataset.parser.rte_o_dcl import RteODclParser, RteODclParserDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
@@ -68,19 +72,30 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
         super(CgStcEngStcDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
                                                        exception_callback, data_keys)
 
-    def _build_parser(self, parser_state, stream_in, file_in, data_key):
+    def _build_parser(self, parser_state, stream_in, data_key, file_in):
+        """
+        Build the parser based on which data_key is input.  The file name is only
+        needed for mopak, and it just not passed in to the other parser builders
+        @param parser_state previous parser state to initialize parser with
+        @param stream_in handle of the opened file to parse
+        @param data_key harvester / parser key 
+        @param file_in file name
+        """
         parser = None
         if data_key == DataTypeKey.CG_STC_ENG:
-            parser = self._build_cg_stc_eng_parser(parser_state, stream_in, file_in)
+            parser = self._build_cg_stc_eng_parser(parser_state, stream_in)
         if data_key == DataTypeKey.MOPAK:
+            # mopak requires the filename to obtain the time from the name
             parser = self._build_mopak_parser(parser_state, stream_in, file_in)
         elif data_key == DataTypeKey.RTE:
-            parser = self._build_rte_parser(parser_state, stream_in, file_in)
+            parser = self._build_rte_parser(parser_state, stream_in)
         return parser
 
-    def _build_cg_stc_eng_parser(self, parser_state, stream_in, file_in):
+    def _build_cg_stc_eng_parser(self, parser_state, stream_in):
         """
         Build and return the parser
+        @param parser_state previous parser state to initialize parser with
+        @param stream_in handle of the opened file to parse
         """
         config = self._parser_config
         config.update({
@@ -92,8 +107,7 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
             config,
             parser_state,
             stream_in,
-            file_in,
-            self._save_parser_state,
+            self._save_cg_stc_eng_parser_state,
             self._data_callback,
             self._sample_exception_callback
         )
@@ -102,6 +116,9 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
     def _build_mopak_parser(self, parser_state, stream_in, file_in):
         """
         Build and return the parser
+        @param parser_state previous parser state to initialize parser with
+        @param stream_in handle of the opened file to parse
+        @param file_in the filename of the file to parse
         """
         config = self._parser_config
         config.update({
@@ -115,15 +132,17 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
             parser_state,
             stream_in,
             file_in,
-            self._save_parser_state,
+            self._save_mopak_parser_state,
             self._data_callback,
             self._sample_exception_callback
         )
         return self._mopak_parser
 
-    def _build_rte_parser(self, parser_state, stream_in, file_in):
+    def _build_rte_parser(self, parser_state, stream_in):
         """
         Build and return the parser
+        @param parser_state previous parser state to initialize parser with
+        @param stream_in handle of the opened file to parse
         """
         config = self._parser_config
         config.update({
@@ -135,8 +154,7 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
             config,
             parser_state,
             stream_in,
-            file_in,
-            self._save_parser_state,
+            self._save_rte_parser_state,
             self._data_callback,
             self._sample_exception_callback
         )
@@ -146,29 +164,82 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
         """
         Build and return the harvester
         """
-        self._cg_stc_eng_harvester = SingleDirectoryHarvester(
-            self._harvester_config.get(DataTypeKey.CG_STC_ENG),
-            driver_state,
-            self._new_cg_stc_eng_file_callback,
-            self._modified_file_callback,
-            self._exception_callback
-        )
-        self._mopak_harvester = SingleDirectoryHarvester(
-            self._harvester_config.get(DataTypeKey.MOPAK),
-            driver_state,
-            self._new_mopak_file_callback,
-            self._modified_file_callback,
-            self._exception_callback
-        )
-        self._rte_harvester = SingleDirectoryHarvester(
-            self._harvester_config.get(DataTypeKey.RTE),
-            driver_state,
-            self._new_rte_file_callback,
-            self._modified_file_callback,
-            self._exception_callback
-        )
-        self._harvester = [self._cg_stc_eng_harvester, self._mopak_harvester, self._rte_harvester]
+        self._harvester = []
+        if DataTypeKey.CG_STC_ENG in self._harvester_config:
+            self._cg_stc_eng_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataTypeKey.CG_STC_ENG),
+                driver_state[DataTypeKey.CG_STC_ENG],
+                self._new_cg_stc_eng_file_callback,
+                self._modified_cg_stc_eng_callback,
+                self._exception_callback
+            )
+            self._harvester.append(self._cg_stc_eng_harvester)
+        else:
+            log.warn('No configuration for cg_stc_eng harvester, not building')
+
+        if DataTypeKey.MOPAK in self._harvester_config:
+            self._mopak_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataTypeKey.MOPAK),
+                driver_state[DataTypeKey.MOPAK],
+                self._new_mopak_file_callback,
+                self._modified_mopak_callback,
+                self._exception_callback
+            )
+            self._harvester.append(self._mopak_harvester)
+        else:
+            log.warn('No configuration for mopak harvester, not building')
+
+        if DataTypeKey.RTE in self._harvester_config:
+            self._rte_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataTypeKey.RTE),
+                driver_state[DataTypeKey.RTE],
+                self._new_rte_file_callback,
+                self._modified_rte_callback,
+                self._exception_callback
+            )
+            self._harvester.append(self._rte_harvester)
+        else:
+            log.warn('No configuration for rte harvester, not building')
         return self._harvester
+
+    def _get_parser_results(self, file_name, data_key):
+        """
+        Build the parser and get all the records until there are no more available
+        Need to override this from the base parser class to pass in the filename for mopak
+        @param file_name name of the file to parse
+        @param data_key The key to index into the harvester and parser
+        """
+        count = 1
+        delay = None
+
+        directory = self._harvester_config[data_key].get(DataSetDriverConfigKeys.DIRECTORY)
+
+        if self._generate_particle_count:
+            # Calculate the delay between grabbing records to publish.
+            delay = float(1) / float(self._particle_count_per_second) * float(self._generate_particle_count)
+            count = self._generate_particle_count
+
+        # Open the copied file in the storage directory so we know the file won't be
+        # changed while we are reading it
+        path = os.path.join(directory, file_name)
+
+        self._raise_new_file_event(path)
+        log.debug("Open new data source file: %s", path)
+        handle = open(path)
+
+        self._file_in_process[data_key] = file_name
+
+        # the file directory is initialized in the harvester, so it will exist by this point
+        parser = self._build_parser(self._driver_state[data_key][file_name][DriverStateKey.PARSER_STATE], handle, data_key, file_name)
+
+        while(True):
+            result = parser.get_records(count)
+            if result:
+                log.trace("Record parsed: %r delay: %f", result, delay)
+                if delay:
+                    gevent.sleep(delay)
+            else:
+                break
 
     def _new_cg_stc_eng_file_callback(self, file_name):
         """
@@ -193,6 +264,42 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
         @param file_name: file name of the found file.
         """
         self._new_file_callback(file_name, DataTypeKey.RTE)
+
+    def _save_cg_stc_eng_parser_state(self, state, file_ingested=False):
+        """
+        Callback used by cg_stc_eng parser to save the parser state
+        """
+        self._save_parser_state(state, DataTypeKey.CG_STC_ENG, file_ingested)
+
+    def _save_mopak_parser_state(self, state, file_ingested=False):
+        """
+        Callback used by mopak parser to save the parser state
+        """
+        self._save_parser_state(state, DataTypeKey.MOPAK, file_ingested)
+
+    def _save_rte_parser_state(self, state, file_ingested=False):
+        """
+        Callback used by rte parser to save the parser state
+        """
+        self._save_parser_state(state, DataTypeKey.RTE, file_ingested)
+
+    def _modified_cg_stc_eng_callback(self, modified_state):
+        """
+        Callback used by the cg_stc_eng harvester when a file that was ingested has been modified
+        """
+        self._modified_file_callback(modified_state, DataTypeKey.CG_STC_ENG)
+
+    def _modified_mopak_callback(self, modified_state):
+        """
+        Callback used by the mopak harvester when a file that was ingested has been modified
+        """
+        self._modified_file_callback(modified_state, DataTypeKey.MOPAK)
+
+    def _modified_rte_callback(self, modified_state):
+        """
+        Callback used by the rte harvester when a file that was ingested has been modified
+        """
+        self._modified_file_callback(modified_state, DataTypeKey.RTE)
 
     
 

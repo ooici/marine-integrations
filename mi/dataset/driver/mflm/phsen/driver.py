@@ -14,10 +14,10 @@ __license__ = 'Apache 2.0'
 import string
 
 from mi.core.log import get_logger ; log = get_logger()
-from mi.dataset.driver.mflm.driver import MflmDataSetDriver
+from mi.dataset.driver.mflm.driver import SioMuleDataSetDriver
 from mi.dataset.parser.phsen import PhsenParser, PhsenParserDataParticle
 
-class MflmPHSENDataSetDriver(MflmDataSetDriver):
+class MflmPHSENDataSetDriver(SioMuleDataSetDriver):
     
     @classmethod
     def stream_config(cls):
@@ -42,4 +42,3 @@ class MflmPHSENDataSetDriver(MflmDataSetDriver):
             self._sample_exception_callback
         )
         return self._parser
-

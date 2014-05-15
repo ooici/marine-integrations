@@ -7,12 +7,16 @@ header:
 
 data:
   - _index: 1
-    particle_object: EngineeringTelemeteredDataParticle
-    particle_type: glider_eng_telemetered
+    particle_object: EngineeringMetadataDataParticle
+    particle_type: glider_eng_metadata
     glider_eng_filename: 'unit_247-2012-051-0-0-dbd(01840000)'
     glider_mission_name: 'ENDUR1.MI'
     glider_eng_fileopen_time: 'Tue_Feb_21_18:39:39_2012'
-    internal_timestamp: 3538838503.758150101
+    internal_timestamp: '2012-02-21T18:39:39.0Z'
+  - _index: 2
+    particle_object: EngineeringTelemeteredDataParticle
+    particle_type: glider_eng_telemetered
+    internal_timestamp: '2012-02-21T18:41:43.758150Z'
     m_present_time: 1329849703.75815
     m_present_secs_into_mission: 134.605
     m_gps_lat:
@@ -61,13 +65,10 @@ data:
     m_water_depth: null
     m_water_vx: null
     m_water_vy: null
-  - _index: 2
+  - _index: 3
     particle_object: EngineeringTelemeteredDataParticle
     particle_type: glider_eng_telemetered
-    glider_eng_filename: 'unit_247-2012-051-0-0-dbd(01840000)'
-    glider_mission_name: 'ENDUR1.MI'
-    glider_eng_fileopen_time: 'Tue_Feb_21_18:39:39_2012'
-    internal_timestamp: 3538838522.245269775
+    internal_timestamp: '2012-02-21T18:42:02.245270Z'
     m_present_time: 1329849722.24527
     m_present_secs_into_mission: 153.091
     m_gps_lat:
@@ -116,17 +117,18 @@ data:
     m_water_depth: null
     m_water_vx: null
     m_water_vy: null
-  - _index: 3
+  - _index: 4
     particle_object: EngineeringScienceTelemeteredDataParticle
     particle_type: glider_eng_sci_telemetered
-    internal_timestamp: 3538838369.262939930
+    internal_timestamp: '2012-02-21T18:39:29.262940Z'
     sci_m_present_time: 1000.1
     sci_m_present_secs_into_mission: 1000.1
     sci_m_disk_free: 1000.1
     sci_m_disk_usage: 1000.1
-  - _index: 4
-    _new_sequence: False
-    internal_timestamp: 3538838418.799619675
+  - _index: 5
+    particle_object: EngineeringScienceTelemeteredDataParticle
+    particle_type: glider_eng_sci_telemetered
+    internal_timestamp: '2012-02-21T18:40:18.799620Z'
     sci_m_present_time: 1000.2
     sci_m_present_secs_into_mission: 1000.2
     sci_m_disk_free: 1000.2

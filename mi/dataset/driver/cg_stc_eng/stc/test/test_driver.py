@@ -26,7 +26,9 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.exceptions import SampleEncodingException, UnexpectedDataException
 from mi.idk.exceptions import SampleTimeout
+from mi.core.instrument.data_particle import DataParticleKey
 
+from pyon.core.exception import Timeout
 from pyon.agent.agent import ResourceAgentState
 from interface.objects import ResourceAgentConnectionLostErrorEvent
 from interface.objects import ResourceAgentErrorEvent
@@ -40,7 +42,8 @@ from mi.dataset.driver.cg_stc_eng.stc.driver import CgStcEngStcDataSetDriver, Da
 from mi.dataset.parser.cg_stc_eng_stc import CgStcEngStcParserDataParticle, CgDataParticleType
 from mi.dataset.parser.rte_o_dcl import RteODclParserDataParticle, RteDataParticleType
 from mi.dataset.parser.mopak_o_dcl import MopakODclAccelParserDataParticle, MopakODclRateParserDataParticle
-from mi.dataset.parser.mopak_o_dcl import MopakDataParticleType
+from mi.dataset.parser.mopak_o_dcl import MopakDataParticleType, StateKey
+from mi.dataset.parser.mopak_o_dcl import MopakODclAccelParserDataParticleKey
 
 # Fill in driver details
 DataSetTestCase.initialize(
@@ -223,14 +226,27 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Create and store the new driver state
         state = {
-            "stc_status.txt": self.get_file_state(path_1, True),
-            "stc_status_second.txt": self.get_file_state(path_2, True),
-            "stc_status_third.txt": self.get_file_state(path_3, False),
-            "20140120_140004.mopak.log": self.get_file_state(path_4, False, 172),
-            "20140120_150004.mopak.log": self.get_file_state(path_5, False, 0),
-            "20140120_140004.rte.log": self.get_file_state(path_6, True, 549),
-            "20140120_150004.rte.log": self.get_file_state(path_7, False, 154)
+            DataTypeKey.CG_STC_ENG:{
+                "stc_status.txt": self.get_file_state(path_1, True),
+                "stc_status_second.txt": self.get_file_state(path_2, True),
+                "stc_status_third.txt": self.get_file_state(path_3, False)
+                },
+            DataTypeKey.MOPAK: {
+                "20140120_140004.mopak.log": self.get_file_state(path_4, False, 172),
+                "20140120_150004.mopak.log": self.get_file_state(path_5, False, 0)
+                },
+            DataTypeKey.RTE: {
+                "20140120_140004.rte.log": self.get_file_state(path_6, True, 549),
+                "20140120_150004.rte.log": self.get_file_state(path_7, False, 154)
+            }
         }
+        log.debug('generated state %s', state)
+        state[DataTypeKey.MOPAK]['20140120_140004.mopak.log']['parser_state'].update({StateKey.TIMER_START: 33456})
+        state[DataTypeKey.MOPAK]['20140120_140004.mopak.log']['parser_state'].update({StateKey.TIMER_ROLLOVER: 0})
+        state[DataTypeKey.MOPAK]['20140120_150004.mopak.log']['parser_state'].update({StateKey.TIMER_START: None})
+        state[DataTypeKey.MOPAK]['20140120_150004.mopak.log']['parser_state'].update({StateKey.TIMER_ROLLOVER: 0})
+        state[DataTypeKey.MOPAK]['20140120_150004.mopak.log']['parser_state'].update({StateKey.POSITION: 0})
+        log.debug('generated state after fields %s', state)
         self.driver = self._get_driver_object(memento=state)
 
         self.driver.start_sampling()
@@ -265,13 +281,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data((MopakODclAccelParserDataParticle,
                           MopakODclRateParserDataParticle),
                           'first_mopak.result.yml', count=5, timeout=10)
-        self.assert_file_ingested("20140120_140004.mopak.log")
+        self.assert_file_ingested("20140120_140004.mopak.log", DataTypeKey.MOPAK)
         self.assert_data(RteODclParserDataParticle, 'first_rte.result.yml',
                          count=2, timeout=10)
-        self.assert_file_ingested("20140120_140004.rte.log")
+        self.assert_file_ingested("20140120_140004.rte.log", DataTypeKey.RTE)
         self.assert_data(CgStcEngStcParserDataParticle, 'stc_first.result.yml',
                          count=1, timeout=10)
-        self.assert_file_ingested("stc_status.txt")
+        self.assert_file_ingested("stc_status.txt", DataTypeKey.CG_STC_ENG)
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
@@ -279,13 +295,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data((MopakODclAccelParserDataParticle,
                           MopakODclRateParserDataParticle),
                           'second_mopak.result.yml', count=2, timeout=10)
-        self.assert_file_ingested("20140120_150004.mopak.log")
+        self.assert_file_ingested("20140120_150004.mopak.log", DataTypeKey.MOPAK)
         self.assert_data(RteODclParserDataParticle, 'second_rte.result.yml',
                          count=2, timeout=10)
-        self.assert_file_ingested("20140120_150004.rte.log")
+        self.assert_file_ingested("20140120_150004.rte.log", DataTypeKey.RTE)
         self.assert_data(CgStcEngStcParserDataParticle, 'stc_second.result.yml',
                          count=1, timeout=10)
-        self.assert_file_ingested("stc_status_second.txt")
+        self.assert_file_ingested("stc_status_second.txt", DataTypeKey.CG_STC_ENG)
 
     def test_sample_exception_mopak(self):
         """
@@ -301,7 +317,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                           MopakODclRateParserDataParticle),
                           'first_mopak.result.yml', count=5, timeout=10)
         self.assert_event('ResourceAgentErrorEvent')
-        self.assert_file_ingested("20140120_140004.mopak.log")
+        self.assert_file_ingested("20140120_140004.mopak.log", DataTypeKey.MOPAK)
 
     def test_sample_exception_eng(self):
         """
@@ -314,7 +330,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
-        self.assert_file_ingested('stc_status_missing_time.txt')
+        self.assert_file_ingested('stc_status_missing_time.txt', DataTypeKey.CG_STC_ENG)
 
     def test_encoding_exception(self):
         self.create_sample_data_set_dir('stc_status_bad_encode.txt', '/tmp/dsatest1')
@@ -326,7 +342,212 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(CgStcEngStcParserDataParticle, 'stc_bad_encode.result.yml',
                          count=1, timeout=10)
         self.assert_event('ResourceAgentErrorEvent')
-        self.assert_file_ingested('stc_status_bad_encode.txt')
+        self.assert_file_ingested('stc_status_bad_encode.txt', DataTypeKey.CG_STC_ENG)
+
+    def test_mopak_unexpected(self):
+        self.create_sample_data_set_dir('20131209_103919.3dmgx3.log', '/tmp/dsatest2',
+                                        "20131209_103919.mopak.log")
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.assert_data((MopakODclAccelParserDataParticle,
+                          MopakODclRateParserDataParticle), None,
+                         count=2857, timeout=100)
+
+    def test_bad_checksum(self):
+        """
+        Assert we skip samples with bad checksums
+        """
+        self.create_sample_data_set_dir('20140313_191853_bad_chksum.3dmgx3.log', '/tmp/dsatest2',
+                                        "20140313_191853.mopak.log")
+        # Start sampling
+        self.driver.start_sampling()
+        # assert we get 5 samples then the file is ingested
+        self.assert_data((MopakODclAccelParserDataParticle,
+                          MopakODclRateParserDataParticle), None, count=5)
+        self.assert_file_ingested('20140313_191853.mopak.log', DataTypeKey.MOPAK)
+
+    def test_mopak_timer_reset(self):
+        """
+        test that we get the sample exception for the mopak timer resetting
+        """
+        self.create_sample_data_set_dir('20140313_191853_timer_reset.3dmgx3.log', '/tmp/dsatest2',
+                                        "20140313_191853.mopak.log")
+        # Start sampling
+        self.driver.start_sampling()
+        # assert we get the sample exception for the timer resetting
+        self.assert_event('ResourceAgentErrorEvent')
+
+    def test_mopak_timer_rollover(self):
+        """
+        confirm mopak times are increasing when expected, then rollover and confirm the timer
+        resets and the timestamp keeps increasing
+        """
+        self.create_sample_data_set_dir('20140313_191853_rollover.3dmgx3.log', '/tmp/dsatest2',
+                                        "20140313_191853.mopak.log")
+        # Start sampling
+        self.driver.start_sampling()
+        try:
+            particles = self.get_samples((MopakODclAccelParserDataParticle,
+                                          MopakODclRateParserDataParticle), 7, 10)
+        except Timeout:
+            log.error("Failed to detect particle %s, expected %d particles, found %d", (MopakODclAccelParserDataParticle,
+                                          MopakODclRateParserDataParticle), 7, found)
+            self.fail("particle detection failed. Expected %d, Found %d" % (7, found))
+
+        # expect particle increase for 5 samples, then rollover
+        last_timer = 0
+        last_timestamp = 0.0
+        for i in range(0,4):
+            (particle_timer, particle_timestamp) = self.get_mopak_particle_time(particles[i])
+            if particle_timer == None or particle_timestamp == None:
+                log.warn("unable to find timer or timestamp for particle %d", i)
+                self.fail("Unable to find timer or timestamp for particle %d", i)
+
+            if particle_timer < last_timer:
+                log.warn("Timer did not increase when expected")
+                self.fail("Timer did not increase when expected")
+            if particle_timestamp < last_timestamp:
+                log.warn("Timestamp did not increase when expected")
+                self.fail("Timestamp did not increase when expected")
+            last_timer = particle_timer
+            last_timestamp = particle_timestamp
+
+        (particle_timer, particle_timestamp) = self.get_mopak_particle_time(particles[5])
+        if particle_timer == None or particle_timestamp == None:
+            log.warn("unable to find timer or timestamp for particle 5")
+            self.fail("Unable to find timer or timestamp for particle 5")
+        # now check that we rolled over
+        if particle_timer >= last_timer:
+            log.warn("Timer did not rollover when expected, last timer %d, particle timer %d", last_timer, particle_timer)
+            self.fail("Timer did not rollover when expected")
+        if particle_timestamp < last_timestamp:
+            log.warn("Timestamp did not increase on rollover when expected, particle_timestamp %f, last timestamp %f",
+                     particle_timestamp, last_timestamp)
+            self.fail("Timestamp did not increase on rollover when expected")
+        last_timer = particle_timer
+        last_timestamp = particle_timestamp
+
+        (particle_timer, particle_timestamp) = self.get_mopak_particle_time(particles[6])
+        if particle_timer < last_timer:
+            log.warn("Timer did not increase when expected")
+            self.fail("Timer did not increase when expected")
+        if particle_timestamp < last_timestamp:
+            log.warn("Timestamp did not increase when expected")
+            self.fail("Timestamp did not increase when expected")
+
+    def get_mopak_particle_time(self, particle):
+        """
+        Get the internal timestamp and the value of the mopak timer field from a mopak particle
+        @param single particle to obtain the timestamp and timer from
+        @returns tuple of particle timer and internal timestamp
+        """
+        particle_timer = (None, None)
+        internal_timestamp = particle.get_value(DataParticleKey.INTERNAL_TIMESTAMP)
+        particle_dict = particle.generate_dict()
+        particle_vals = particle_dict.get('values')
+        for val in particle_vals:
+            # this will catch both rate and accel timers since the key has the same text string
+            if val.get(DataParticleKey.VALUE_ID) == MopakODclAccelParserDataParticleKey.MOPAK_TIMER:
+                particle_timer = val.get(DataParticleKey.VALUE)
+        return (particle_timer, internal_timestamp)
+
+    def test_partial_config(self):
+        """
+        test with only cg_stc_eng and rte configured
+        """
+        partial_config = {
+            DataSourceConfigKey.RESOURCE_ID: 'cg_stc_eng_stc',
+            DataSourceConfigKey.HARVESTER:
+            {
+                DataTypeKey.CG_STC_ENG:
+                {
+                    DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest1',
+                    DataSetDriverConfigKeys.PATTERN: '*.txt',
+                    DataSetDriverConfigKeys.FREQUENCY: 1,
+                },
+                DataTypeKey.RTE:
+                {
+                    DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest3',
+                    DataSetDriverConfigKeys.PATTERN: '*.rte.log',
+                    DataSetDriverConfigKeys.FREQUENCY: 1,
+                }
+            },
+            DataSourceConfigKey.PARSER: {}
+        }
+        self.driver = self._get_driver_object(config=partial_config)
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.create_sample_data_set_dir('stc_status.txt', '/tmp/dsatest1')
+        self.create_sample_data_set_dir('stc_status_all.txt', '/tmp/dsatest1')
+        self.create_sample_data_set_dir('first_rate.mopak.log', '/tmp/dsatest2',
+                                        "20140313_191853.mopak.log")
+        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3',
+                                        "20140120_140004.rte.log")
+        self.create_sample_data_set_dir('second_rate.mopak.log', '/tmp/dsatest2',
+                                        "20140313_201853.mopak.log")
+        self.create_sample_data_set_dir('second.rte.log', '/tmp/dsatest3',
+                                        "20140120_150004.rte.log")
+
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_first.result.yml',
+                         count=1, timeout=10)
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_all.result.yml',
+                         count=1, timeout=10)
+        self.assert_data(RteODclParserDataParticle, 'first_rte.result.yml',
+                         count=2, timeout=10)
+        self.assert_data(RteODclParserDataParticle, 'second_rte.result.yml',
+                         count=2, timeout=10)
+
+    def test_single_config(self):
+        """
+        test with only cg_stc_eng configured
+        """
+        partial_config = {
+            DataSourceConfigKey.RESOURCE_ID: 'cg_stc_eng_stc',
+            DataSourceConfigKey.HARVESTER:
+            {
+                DataTypeKey.CG_STC_ENG:
+                {
+                    DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest1',
+                    DataSetDriverConfigKeys.PATTERN: '*.txt',
+                    DataSetDriverConfigKeys.FREQUENCY: 1,
+                }
+            },
+            DataSourceConfigKey.PARSER: {}
+        }
+        self.driver = self._get_driver_object(config=partial_config)
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+
+        self.create_sample_data_set_dir('stc_status.txt', '/tmp/dsatest1')
+        self.create_sample_data_set_dir('stc_status_all.txt', '/tmp/dsatest1')
+        self.create_sample_data_set_dir('first_rate.mopak.log', '/tmp/dsatest2',
+                                        "20140313_191853.mopak.log")
+        self.create_sample_data_set_dir('first.rte.log', '/tmp/dsatest3',
+                                        "20140120_140004.rte.log")
+        self.create_sample_data_set_dir('second_rate.mopak.log', '/tmp/dsatest2',
+                                        "20140313_201853.mopak.log")
+        self.create_sample_data_set_dir('second.rte.log', '/tmp/dsatest3',
+                                        "20140120_150004.rte.log")
+
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_first.result.yml',
+                         count=1, timeout=10)
+        self.assert_data(CgStcEngStcParserDataParticle, 'stc_all.result.yml',
+                         count=1, timeout=10)
+
+    def assert_file_ingested(self, filename, data_key):
+        """
+        Assert that a particular file was ingested
+        Need to override for multiple harvester since we have the additional data_key
+        If the ingested flag is not set in the driver state for this file, fail the test
+        @ param filename name of the file to check that it was ingested using the ingested flag
+        """
+        log.debug("last state callback result %s", self.state_callback_result[-1])
+        last_state = self.state_callback_result[-1][data_key]
+        if not filename in last_state or not last_state[filename]['ingested']:
+            self.fail("File %s was not ingested" % filename)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
