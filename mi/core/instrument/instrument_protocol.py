@@ -331,8 +331,11 @@ class InstrumentProtocol(object):
             raise KeyError("scheduler does not exist for '%s'" % name)
 
         log.debug("removing scheduler: %s" % name)
-        callback = self._scheduler_callback.get(name) 
-        self._scheduler.remove_job(callback)
+        callback = self._scheduler_callback.get(name)
+        try:
+            self._scheduler.remove_job(callback)
+        except KeyError:
+            log.warning('Unable to remove job from scheduler.')
         self._scheduler_callback.pop(name)
         self._scheduler_config.pop(name, None)
     
