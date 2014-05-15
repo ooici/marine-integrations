@@ -8,11 +8,9 @@
 """
 
 from StringIO import StringIO
-import gevent
-import os
+
 import numpy as np
 import ntplib
-import unittest
 
 from mi.core.log import get_logger
 log = get_logger()
@@ -22,30 +20,28 @@ from nose.plugins.attrib import attr
 from mi.core.exceptions import SampleException
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
-from mi.dataset.parser.glider import GliderParser, StateKey
-from mi.dataset.parser.glider import CtdgvDataParticle
-from mi.dataset.parser.glider import CtdgvParticleKey
-from mi.dataset.parser.glider import DostaTelemeteredDataParticle
-from mi.dataset.parser.glider import DostaRecoveredDataParticle
-from mi.dataset.parser.glider import DostaRecoveredParticleKey
-from mi.dataset.parser.glider import DostaTelemeteredParticleKey
-from mi.dataset.parser.glider import FlordDataParticle
-from mi.dataset.parser.glider import FlordParticleKey
-from mi.dataset.parser.glider import FlortRecoveredDataParticle
-from mi.dataset.parser.glider import FlortTelemeteredDataParticle
-from mi.dataset.parser.glider import FlortRecoveredParticleKey
-from mi.dataset.parser.glider import FlortTelemeteredParticleKey
-from mi.dataset.parser.glider import ParadRecoveredDataParticle
-from mi.dataset.parser.glider import ParadTelemeteredDataParticle
-from mi.dataset.parser.glider import ParadRecoveredParticleKey
-from mi.dataset.parser.glider import ParadTelemeteredParticleKey
+from mi.dataset.parser.glider import GliderParser, GliderEngineeringParser, StateKey
+from mi.dataset.parser.glider import CtdgvDataParticle, CtdgvParticleKey
+from mi.dataset.parser.glider import DostaTelemeteredDataParticle, DostaTelemeteredParticleKey
+from mi.dataset.parser.glider import DostaRecoveredDataParticle, DostaRecoveredParticleKey
+from mi.dataset.parser.glider import FlordDataParticle, FlordParticleKey
+from mi.dataset.parser.glider import FlortRecoveredDataParticle, FlortRecoveredParticleKey
+from mi.dataset.parser.glider import FlortTelemeteredDataParticle, FlortTelemeteredParticleKey
+from mi.dataset.parser.glider import ParadRecoveredDataParticle, ParadRecoveredParticleKey
+from mi.dataset.parser.glider import ParadTelemeteredDataParticle, ParadTelemeteredParticleKey
 from mi.dataset.parser.glider import EngineeringTelemeteredParticleKey
+from mi.dataset.parser.glider import EngineeringTelemeteredDataParticle
 from mi.dataset.parser.glider import EngineeringScienceTelemeteredParticleKey
 from mi.dataset.parser.glider import EngineeringScienceTelemeteredDataParticle
-from mi.dataset.parser.glider import EngineeringTelemeteredDataParticle
-from mi.dataset.parser.glider import DataParticleType
-from mi.dataset.parser.glider import GliderParticle
-from mi.dataset.parser.test.glider_test_results import positions, glider_test_data
+from mi.dataset.parser.glider import EngineeringMetadataParticleKey
+from mi.dataset.parser.glider import EngineeringMetadataDataParticle
+from mi.dataset.parser.glider import EngineeringRecoveredMetadataDataParticle
+from mi.dataset.parser.glider import EngineeringRecoveredParticleKey
+from mi.dataset.parser.glider import EngineeringRecoveredDataParticle
+from mi.dataset.parser.glider import EngineeringScienceRecoveredParticleKey
+from mi.dataset.parser.glider import EngineeringScienceRecoveredDataParticle
+
+
 
 
 HEADER = """dbd_label: DBD_ASC(dinkum_binary_data_ascii)file
@@ -192,7 +188,7 @@ class GliderParserUnitTestCase(ParserUnitTestCase):
         for count, data in enumerate(args):
             io.write(data)
 
-        log.debug("Test data file: %s", io.getvalue())
+        #log.debug("Test data file: %s", io.getvalue())
         io.seek(0)
         self.test_data = io
 
@@ -205,7 +201,15 @@ class GliderParserUnitTestCase(ParserUnitTestCase):
     def reset_parser(self, state = {}):
         self.state_callback_values = []
         self.publish_callback_values = []
+        self.error_callback_values = []
         self.parser = GliderParser(self.config, state, self.test_data,
+                                   self.state_callback, self.pub_callback, self.error_callback)
+
+    def reset_eng_parser(self, state = {}):
+        self.state_callback_values = []
+        self.publish_callback_values = []
+        self.error_callback_values = []
+        self.parser = GliderEngineeringParser(self.config, state, self.test_data,
                                    self.state_callback, self.pub_callback, self.error_callback)
 
     def get_published_value(self):
@@ -338,7 +342,7 @@ class CTDGVGliderTest(GliderParserUnitTestCase):
     """
     config = {
         DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
-        DataSetDriverConfigKeys.PARTICLE_CLASS: 'CtdgvDataParticle',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: 'CtdgvDataParticle'
     }
 
     def test_ctdgv_particle(self):
@@ -382,7 +386,7 @@ class DOSTATelemeteredGliderTest(GliderParserUnitTestCase):
     """
     config = {
         DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
-        DataSetDriverConfigKeys.PARTICLE_CLASS: 'DostaTelemeteredDataParticle',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: 'DostaTelemeteredDataParticle'
     }
 
     def test_dosta_telemetered_particle(self):
@@ -406,14 +410,47 @@ class DOSTATelemeteredGliderTest(GliderParserUnitTestCase):
         self.assert_generate_particle(DostaTelemeteredDataParticle, record_2, 1315)
         self.assert_no_more_data()
 
+
 @attr('UNIT', group='mi')
-class FLORTTelemeteredGliderTest(GliderParserUnitTestCase):
+class DOSTARecoveredGliderTest(GliderParserUnitTestCase):
     """
-    Test cases for dosta glider data
+    Test cases for recovered dosta glider data
     """
     config = {
         DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
-        DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlortTelemeteredDataParticle',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: 'DostaRecoveredDataParticle'
+    }
+
+    def test_dosta_recovered_particle(self):
+        """
+        Verify we publish particles as expected.  Ensure particle is published and
+        that state is returned.
+        """
+        self.set_data(HEADER, DOSTA_RECORD)
+        self.reset_parser()
+
+        record_1 = {DostaRecoveredParticleKey.SCI_OXY4_OXYGEN: 242.217, DostaRecoveredParticleKey.SCI_OXY4_SATURATION: 96.009}
+        record_2 = {DostaRecoveredParticleKey.SCI_OXY4_OXYGEN: 242.141, DostaRecoveredParticleKey.SCI_OXY4_SATURATION: 95.988}
+
+        self.assert_generate_particle(DostaRecoveredDataParticle, record_1, 1159)
+        self.assert_generate_particle(DostaRecoveredDataParticle, record_2, 1315)
+        self.assert_no_more_data()
+
+        # Reset with the parser, but with a state this time
+        self.set_data(HEADER, DOSTA_RECORD)
+        self.reset_parser({StateKey.POSITION: 1159})
+        self.assert_generate_particle(DostaRecoveredDataParticle, record_2, 1315)
+        self.assert_no_more_data()
+
+
+@attr('UNIT', group='mi')
+class FLORTTelemeteredGliderTest(GliderParserUnitTestCase):
+    """
+    Test cases for flort glider data
+    """
+    config = {
+        DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlortTelemeteredDataParticle'
     }
 
     def test_flort_telemetered_particle(self):
@@ -441,14 +478,51 @@ class FLORTTelemeteredGliderTest(GliderParserUnitTestCase):
         self.assert_generate_particle(FlortTelemeteredDataParticle, record_2, 11977)
         self.assert_no_more_data()
 
+
 @attr('UNIT', group='mi')
-class PARADTelemeteredGliderTest(GliderParserUnitTestCase):
+class FLORTRecoveredGliderTest(GliderParserUnitTestCase):
     """
-    Test cases for dosta glider data
+    Test cases for recovered flort glider data
     """
     config = {
         DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
-        DataSetDriverConfigKeys.PARTICLE_CLASS: 'ParadTelemeteredDataParticle',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlortRecoveredDataParticle'
+    }
+
+    def test_flort_recovered_particle(self):
+        """
+        Verify we publish particles as expected.  Ensure particle is published and
+        that state is returned.
+        """
+        self.set_data(HEADER3, FLORT_RECORD)
+        self.reset_parser()
+
+        record_1 = {FlortRecoveredParticleKey.SCI_FLBBCD_BB_UNITS: 0.000281336,
+                    FlortRecoveredParticleKey.SCI_FLBBCD_CDOM_UNITS: 2.0352,
+                    FlortRecoveredParticleKey.SCI_FLBBCD_CHLOR_UNITS: 0.8349}
+        record_2 = {FlortRecoveredParticleKey.SCI_FLBBCD_BB_UNITS: 0.000262988,
+                    FlortRecoveredParticleKey.SCI_FLBBCD_CDOM_UNITS: 2.12,
+                    FlortRecoveredParticleKey.SCI_FLBBCD_CHLOR_UNITS: 0.847}
+
+        self.assert_generate_particle(FlortRecoveredDataParticle, record_1, 10534)
+        self.assert_generate_particle(FlortRecoveredDataParticle, record_2, 11977)
+        self.assert_no_more_data()
+
+        # Reset with the parser, but with a state this time
+        self.set_data(HEADER3, FLORT_RECORD)
+        self.reset_parser({StateKey.POSITION: 10534})
+        self.assert_generate_particle(FlortRecoveredDataParticle, record_2, 11977)
+        self.assert_no_more_data()
+
+
+@attr('UNIT', group='mi')
+class PARADTelemeteredGliderTest(GliderParserUnitTestCase):
+    """
+    Test cases for parad glider data
+    """
+    config = {
+        DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: 'ParadTelemeteredDataParticle'
     }
 
     def test_parad_telemetered_particle(self):
@@ -475,6 +549,43 @@ class PARADTelemeteredGliderTest(GliderParserUnitTestCase):
         self.assert_generate_particle(ParadTelemeteredDataParticle, record_2, 11977)
         self.assert_no_more_data()
 
+
+@attr('UNIT', group='mi')
+class PARADRecoveredGliderTest(GliderParserUnitTestCase):
+    """
+    Test cases for recovered parad glider data
+    """
+    config = {
+        DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: 'ParadRecoveredDataParticle'
+    }
+
+    def test_parad_recovered_particle(self):
+        """
+
+        Verify we publish particles as expected.  Ensure particle is published and
+        that state is returned.
+        """
+        # reused the FLORT record data for this Parad test
+        self.set_data(HEADER3, FLORT_RECORD)
+        self.reset_parser()
+
+        record_1 = {ParadRecoveredParticleKey.SCI_BSIPAR_PAR: 664.424}
+        record_2 = {ParadRecoveredParticleKey.SCI_BSIPAR_PAR: 645.569}
+
+        # (10553 = file size up to start of last row) 10553 - 19 bytes (for 19 lines of Carriage returns above) = 10534
+        self.assert_generate_particle(ParadRecoveredDataParticle, record_1, 10534)
+        # (11997 = file size in bytes) 11997 - 20 bytes (for 20 lines of Carriage returns above) = 11977
+        self.assert_generate_particle(ParadRecoveredDataParticle, record_2, 11977)
+        self.assert_no_more_data()
+
+        # Reset with the parser, but with a state this time
+        self.set_data(HEADER3, FLORT_RECORD)
+        self.reset_parser({StateKey.POSITION: 10534})
+        self.assert_generate_particle(ParadRecoveredDataParticle, record_2, 11977)
+        self.assert_no_more_data()
+
+
 @attr('UNIT', group='mi')
 class FLORDGliderTest(GliderParserUnitTestCase):
     """
@@ -482,7 +593,7 @@ class FLORDGliderTest(GliderParserUnitTestCase):
     """
     config = {
         DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
-        DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlordDataParticle',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: 'FlordDataParticle'
     }
 
     def test_flord_particle(self):
@@ -509,6 +620,7 @@ class FLORDGliderTest(GliderParserUnitTestCase):
         self.assert_generate_particle(FlordDataParticle, record_2, 11977)
         self.assert_no_more_data()
 
+
 @attr('UNIT', group='mi')
 class ENGGliderTest(GliderParserUnitTestCase):
     """
@@ -516,7 +628,9 @@ class ENGGliderTest(GliderParserUnitTestCase):
     """
     config = {
         DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
-        DataSetDriverConfigKeys.PARTICLE_CLASS: 'EngineeringTelemeteredDataParticle',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: ['EngineeringMetadataDataParticle',
+                                                 'EngineeringTelemeteredDataParticle',
+                                                 'EngineeringScienceTelemeteredDataParticle']
     }
 
     def test_eng_particle(self):
@@ -525,56 +639,84 @@ class ENGGliderTest(GliderParserUnitTestCase):
         that state is returned.
         """
         self.set_data(HEADER4, ENGSCI_RECORD)
-        self.reset_parser()
+        self.reset_eng_parser()
+
+        meta_record = {EngineeringMetadataParticleKey.GLIDER_ENG_FILENAME: 'unit_247-2012-051-0-0-dbd(01840000)',
+                       EngineeringMetadataParticleKey.GLIDER_MISSION_NAME: 'ENDUR1.MI',
+                       EngineeringMetadataParticleKey.GLIDER_ENG_FILEOPEN_TIME: 'Tue_Feb_21_18:39:39_2012'}
 
         record_1 = {EngineeringTelemeteredParticleKey.M_BATTPOS: 0.703717,
                     EngineeringTelemeteredParticleKey.M_HEADING: 5.05447}
         record_2 = {EngineeringTelemeteredParticleKey.M_BATTPOS: 0.695632,
                     EngineeringTelemeteredParticleKey.M_HEADING: 5.05447}
 
-        # file size up to start of last row
+        record_sci_1 = {EngineeringScienceTelemeteredParticleKey.SCI_M_DISK_FREE: 1000.1,
+                        EngineeringScienceTelemeteredParticleKey.SCI_M_DISK_USAGE: 1000.1}
+        record_sci_2 = {EngineeringScienceTelemeteredParticleKey.SCI_M_DISK_FREE: 1000.2,
+                        EngineeringScienceTelemeteredParticleKey.SCI_M_DISK_USAGE: 1000.2}
+
+        self.assert_generate_particle(EngineeringMetadataDataParticle, meta_record, 9110)
+        # 1 sample line generates 2 particles
         self.assert_generate_particle(EngineeringTelemeteredDataParticle, record_1, 10795)
+        self.assert_generate_particle(EngineeringScienceTelemeteredDataParticle, record_sci_1, 10795)
         # total file size in bytes
         self.assert_generate_particle(EngineeringTelemeteredDataParticle, record_2, 12479)
+        self.assert_generate_particle(EngineeringScienceTelemeteredDataParticle, record_sci_2, 12479)
         self.assert_no_more_data()
 
         # Reset with the parser, but with a state this time
         self.set_data(HEADER4, ENGSCI_RECORD)
-        self.reset_parser({StateKey.POSITION: 10795})
+        self.reset_eng_parser({StateKey.POSITION: 10795, StateKey.SENT_METADATA: True})
         self.assert_generate_particle(EngineeringTelemeteredDataParticle, record_2, 12479)
+        self.assert_generate_particle(EngineeringScienceTelemeteredDataParticle, record_sci_2, 12479)
         self.assert_no_more_data()
 
 @attr('UNIT', group='mi')
-class ENGSCIGliderTest(GliderParserUnitTestCase):
+class ENGRecoveredGliderTest(GliderParserUnitTestCase):
     """
-    Test cases for eng sci glider data
+    Test cases for recovered eng glider data
     """
     config = {
         DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.glider',
-        DataSetDriverConfigKeys.PARTICLE_CLASS: 'EngineeringScienceTelemeteredDataParticle',
+        DataSetDriverConfigKeys.PARTICLE_CLASS: ['EngineeringRecoveredMetadataDataParticle',
+                                                 'EngineeringRecoveredDataParticle',
+                                                 'EngineeringScienceRecoveredDataParticle']
     }
 
-    def test_eng_sci_particle(self):
+    def test_eng_recovered_particle(self):
         """
         Verify we publish particles as expected.  Ensure particle is published and
         that state is returned.
         """
         self.set_data(HEADER4, ENGSCI_RECORD)
-        self.reset_parser()
+        self.reset_eng_parser()
 
-        record_1 = {EngineeringScienceTelemeteredParticleKey.SCI_M_DISK_FREE: 1000.1,
-                    EngineeringScienceTelemeteredParticleKey.SCI_M_DISK_USAGE: 1000.1}
-        record_2 = {EngineeringScienceTelemeteredParticleKey.SCI_M_DISK_FREE: 1000.2,
-                    EngineeringScienceTelemeteredParticleKey.SCI_M_DISK_USAGE: 1000.2}
+        meta_record = {EngineeringMetadataParticleKey.GLIDER_ENG_FILENAME: 'unit_247-2012-051-0-0-dbd(01840000)',
+                       EngineeringMetadataParticleKey.GLIDER_MISSION_NAME: 'ENDUR1.MI',
+                       EngineeringMetadataParticleKey.GLIDER_ENG_FILEOPEN_TIME: 'Tue_Feb_21_18:39:39_2012'}
 
-        # file size up to start of last row
-        self.assert_generate_particle(EngineeringScienceTelemeteredDataParticle, record_1, 10795)
+        record_1 = {EngineeringRecoveredParticleKey.M_BATTPOS: 0.703717,
+                    EngineeringRecoveredParticleKey.M_HEADING: 5.05447}
+        record_2 = {EngineeringRecoveredParticleKey.M_BATTPOS: 0.695632,
+                    EngineeringRecoveredParticleKey.M_HEADING: 5.05447}
+
+        record_sci_1 = {EngineeringScienceRecoveredParticleKey.SCI_M_DISK_FREE: 1000.1,
+                        EngineeringScienceRecoveredParticleKey.SCI_M_DISK_USAGE: 1000.1}
+        record_sci_2 = {EngineeringScienceRecoveredParticleKey.SCI_M_DISK_FREE: 1000.2,
+                        EngineeringScienceRecoveredParticleKey.SCI_M_DISK_USAGE: 1000.2}
+
+        self.assert_generate_particle(EngineeringRecoveredMetadataDataParticle, meta_record, 9110)
+        # 1 sample line generates 2 particles
+        self.assert_generate_particle(EngineeringRecoveredDataParticle, record_1, 10795)
+        self.assert_generate_particle(EngineeringScienceRecoveredDataParticle, record_sci_1, 10795)
         # total file size in bytes
-        self.assert_generate_particle(EngineeringScienceTelemeteredDataParticle, record_2, 12479)
+        self.assert_generate_particle(EngineeringRecoveredDataParticle, record_2, 12479)
+        self.assert_generate_particle(EngineeringScienceRecoveredDataParticle, record_sci_2, 12479)
         self.assert_no_more_data()
 
         # Reset with the parser, but with a state this time
         self.set_data(HEADER4, ENGSCI_RECORD)
-        self.reset_parser({StateKey.POSITION: 10795})
-        self.assert_generate_particle(EngineeringScienceTelemeteredDataParticle, record_2, 12479)
+        self.reset_eng_parser({StateKey.POSITION: 10795, StateKey.SENT_METADATA: True})
+        self.assert_generate_particle(EngineeringRecoveredDataParticle, record_2, 12479)
+        self.assert_generate_particle(EngineeringScienceRecoveredDataParticle, record_sci_2, 12479)
         self.assert_no_more_data()
