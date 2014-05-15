@@ -82,7 +82,7 @@ class RteODclParserUnitTestCase(ParserUnitTestCase):
         return ntptime
 
     
-    def state_callback(self, state, file_ingested, filename):
+    def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
 
@@ -144,7 +144,7 @@ class RteODclParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         self.stream_handle = StringIO(RteODclParserUnitTestCase.TEST_DATA)
-        self.parser = RteODclParser(self.config, self.start_state, self.stream_handle, 'test.rte.log',
+        self.parser = RteODclParser(self.config, self.start_state, self.stream_handle,
                                     self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
@@ -165,7 +165,7 @@ class RteODclParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         self.stream_handle = StringIO(RteODclParserUnitTestCase.TEST_DATA)
-        self.parser = RteODclParser(self.config, self.start_state, self.stream_handle, 'test.rte.log',
+        self.parser = RteODclParser(self.config, self.start_state, self.stream_handle,
                                     self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(4)
@@ -183,7 +183,7 @@ class RteODclParserUnitTestCase(ParserUnitTestCase):
         """
         new_state = {StateKey.POSITION:549}
         self.stream_handle = StringIO(RteODclParserUnitTestCase.TEST_DATA)
-        self.parser = RteODclParser(self.config, new_state, self.stream_handle, 'test.rte.log',
+        self.parser = RteODclParser(self.config, new_state, self.stream_handle,
                                     self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, 703, self.timestamp3, self.particle_c)
@@ -198,7 +198,7 @@ class RteODclParserUnitTestCase(ParserUnitTestCase):
         """
         new_state = {StateKey.POSITION:549}
         self.stream_handle = StringIO(RteODclParserUnitTestCase.TEST_DATA)
-        self.parser = RteODclParser(self.config, self.start_state, self.stream_handle, 'test.rte.log',
+        self.parser = RteODclParser(self.config, self.start_state, self.stream_handle,
                                     self.state_callback, self.pub_callback, self.exception_callback)
         result = self.parser.get_records(1)
         self.assert_result(result, 395, self.timestamp1, self.particle_a)
@@ -214,7 +214,7 @@ class RteODclParserUnitTestCase(ParserUnitTestCase):
         Ensure that bad data is skipped when it exists.
         """
         self.stream_handle = StringIO(RteODclParserUnitTestCase.BAD_TEST_DATA)
-        self.parser = RteODclParser(self.config, self.start_state, self.stream_handle, 'test.rte.log',
+        self.parser = RteODclParser(self.config, self.start_state, self.stream_handle,
                                     self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)

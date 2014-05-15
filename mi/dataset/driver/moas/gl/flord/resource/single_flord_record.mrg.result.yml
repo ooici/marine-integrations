@@ -1,16 +1,21 @@
-# Result data after parsing test_data_1.txt 
+# Expected Results
 
 header:
-  particle_object: GgldrFlordDelayedDataParticle
-  particle_type: ggldr_flord_delayed
+  particle_object: FlordDataParticle
+  particle_type: flord_m_glider_instrument
 
 data:
   - _index: 1
-    _new_sequence: False
-    internal_timestamp: '2013-09-05T02:47:14.75079'
-    m_present_time: 1378349234.75079
-    m_present_secs_into_mission: 121140
-    sci_m_present_time: 1378349234.75079
-    sci_m_present_secs_into_mission: 121140
-    sci_flbb_bb_units: 0.000298102
-    sci_flbb_chlor_units: 1.519
+    internal_timestamp: '2012-02-21T18:41:59.717560Z' 
+    m_present_time: 1329849719.71756
+    m_present_secs_into_mission: 150.718
+    sci_m_present_time: 1329849719.71756
+    sci_m_present_secs_into_mission: 150.718
+    sci_flbbcd_timestamp: 1000.1
+    sci_flbbcd_bb_ref: 700
+    sci_flbbcd_bb_sig: 145
+    sci_flbbcd_bb_units: 0.000299684
+    sci_flbbcd_chlor_ref: 695
+    sci_flbbcd_chlor_sig: 114
+    sci_flbbcd_chlor_units: 0.8349
+    sci_flbbcd_therm: 560

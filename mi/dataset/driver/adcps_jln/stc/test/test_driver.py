@@ -200,6 +200,20 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_event('ResourceAgentErrorEvent')
         self.assert_data(None, 'partial_first.result.yml', count=2, timeout=10)
         self.assert_file_ingested('adcpt_20130929_091817.DAT')
+        
+    def test_extra_bytes_between_records(self):
+        """
+        Test a case that should produce a sample exception and confirm the
+        sample exception occurs. extra_bytes.DAT contains an extra byte just before the ID of record 1768.
+        """
+        self.create_sample_data('extra_bytes.DAT', 'adcpt_20130929_091817.DAT')
+
+        # Start sampling and watch for an exception
+        self.driver.start_sampling()
+        # an event catches the sample exception
+        self.assert_event('ResourceAgentErrorEvent')
+        self.assert_data(None, 'second.result.yml', count=6, timeout=10)
+        self.assert_file_ingested('adcpt_20130929_091817.DAT')
 
     def test_receive_fail(self):
         """
