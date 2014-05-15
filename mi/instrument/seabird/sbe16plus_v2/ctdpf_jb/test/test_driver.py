@@ -353,7 +353,6 @@ class SeaBird19plusMixin(DriverTestMixin):
 'Sending Optode: get mode' + NEWLINE + NEWLINE + \
 'Optode RX = Mode	4831	134	Smart Sensor Terminal' + NEWLINE
 
-
     VALID_DS_RESPONSE = 'SBE 19plus V 2.3  SERIAL NO. 6914    18 Apr 2014 19:14:13' + NEWLINE + \
         'vbatt = 23.3, vlith =  8.5, ioper =  62.1 ma, ipump =  71.7 ma, ' + NEWLINE + \
         'iext01 =   0.2 ma, iserial =  26.0 ma' + NEWLINE + \
