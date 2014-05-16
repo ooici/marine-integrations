@@ -26,7 +26,7 @@ from mi.dataset.parser.mopak_o_dcl import MopakODclRateParserDataParticle
 from mi.dataset.parser.rte_o_dcl import RteODclParser, RteODclParserDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
-class DataTypeKey(BaseEnum):
+class DataSourceKey(BaseEnum):
     CG_STC_ENG = 'cg_stc_eng'
     MOPAK = 'mopak'
     RTE = 'rte'
@@ -68,7 +68,7 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
                 RteODclParserDataParticle.type()]
 
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
-        data_keys = [DataTypeKey.CG_STC_ENG, DataTypeKey.MOPAK, DataTypeKey.RTE]
+        data_keys = [DataSourceKey.CG_STC_ENG, DataSourceKey.MOPAK, DataSourceKey.RTE]
         super(CgStcEngStcDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
                                                        exception_callback, data_keys)
 
@@ -82,12 +82,12 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
         @param file_in file name
         """
         parser = None
-        if data_key == DataTypeKey.CG_STC_ENG:
+        if data_key == DataSourceKey.CG_STC_ENG:
             parser = self._build_cg_stc_eng_parser(parser_state, stream_in)
-        if data_key == DataTypeKey.MOPAK:
+        if data_key == DataSourceKey.MOPAK:
             # mopak requires the filename to obtain the time from the name
             parser = self._build_mopak_parser(parser_state, stream_in, file_in)
-        elif data_key == DataTypeKey.RTE:
+        elif data_key == DataSourceKey.RTE:
             parser = self._build_rte_parser(parser_state, stream_in)
         return parser
 
@@ -103,15 +103,15 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
             'particle_class': 'CgStcEngStcParserDataParticle'
         })
         log.debug("My Config: %s", config)
-        self._cg_stc_eng_parser = CgStcEngStcParser(
+        cg_stc_eng_parser = CgStcEngStcParser(
             config,
             parser_state,
             stream_in,
-            lambda state, ingested: self._save_parser_state(state, DataTypeKey.CG_STC_ENG, ingested),
+            lambda state, ingested: self._save_parser_state(state, DataSourceKey.CG_STC_ENG, ingested),
             self._data_callback,
             self._sample_exception_callback
         )
-        return self._cg_stc_eng_parser
+        return cg_stc_eng_parser
 
     def _build_mopak_parser(self, parser_state, stream_in, file_in):
         """
@@ -127,16 +127,16 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
                                'MopakODclRateParserDataParticle']
         })
         log.debug("My Config: %s", config)
-        self._mopak_parser = MopakODclParser(
+        mopak_parser = MopakODclParser(
             config,
             parser_state,
             stream_in,
             file_in,
-            lambda state, ingested: self._save_parser_state(state, DataTypeKey.MOPAK, ingested),
+            lambda state, ingested: self._save_parser_state(state, DataSourceKey.MOPAK, ingested),
             self._data_callback,
             self._sample_exception_callback
         )
-        return self._mopak_parser
+        return mopak_parser
 
     def _build_rte_parser(self, parser_state, stream_in):
         """
@@ -150,57 +150,57 @@ class CgStcEngStcDataSetDriver(MultipleHarvesterDataSetDriver):
             'particle_class': 'RteODclParserDataParticle'
         })
         log.debug("My Config: %s", config)
-        self._rte_parser = RteODclParser(
+        rte_parser = RteODclParser(
             config,
             parser_state,
             stream_in,
-            lambda state, ingested: self._save_parser_state(state, DataTypeKey.RTE, ingested),
+            lambda state, ingested: self._save_parser_state(state, DataSourceKey.RTE, ingested),
             self._data_callback,
             self._sample_exception_callback
         )
-        return self._rte_parser
+        return rte_parser
 
     def _build_harvester(self, driver_state):
         """
         Build and return the harvester
         """
-        self._harvester = []
-        if DataTypeKey.CG_STC_ENG in self._harvester_config:
-            self._cg_stc_eng_harvester = SingleDirectoryHarvester(
-                self._harvester_config.get(DataTypeKey.CG_STC_ENG),
-                driver_state[DataTypeKey.CG_STC_ENG],
-                lambda filename: self._new_file_callback(filename, DataTypeKey.CG_STC_ENG),
-                lambda modified: self._modified_file_callback(modified, DataTypeKey.CG_STC_ENG),
+        harvesters = []
+        if DataSourceKey.CG_STC_ENG in self._harvester_config:
+            cg_stc_eng_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataSourceKey.CG_STC_ENG),
+                driver_state[DataSourceKey.CG_STC_ENG],
+                lambda filename: self._new_file_callback(filename, DataSourceKey.CG_STC_ENG),
+                lambda modified: self._modified_file_callback(modified, DataSourceKey.CG_STC_ENG),
                 self._exception_callback
             )
-            self._harvester.append(self._cg_stc_eng_harvester)
+            harvesters.append(cg_stc_eng_harvester)
         else:
             log.warn('No configuration for cg_stc_eng harvester, not building')
 
-        if DataTypeKey.MOPAK in self._harvester_config:
-            self._mopak_harvester = SingleDirectoryHarvester(
-                self._harvester_config.get(DataTypeKey.MOPAK),
-                driver_state[DataTypeKey.MOPAK],
-                lambda filename: self._new_file_callback(filename, DataTypeKey.MOPAK),
-                lambda modified: self._modified_file_callback(modified, DataTypeKey.MOPAK),
+        if DataSourceKey.MOPAK in self._harvester_config:
+            mopak_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataSourceKey.MOPAK),
+                driver_state[DataSourceKey.MOPAK],
+                lambda filename: self._new_file_callback(filename, DataSourceKey.MOPAK),
+                lambda modified: self._modified_file_callback(modified, DataSourceKey.MOPAK),
                 self._exception_callback
             )
-            self._harvester.append(self._mopak_harvester)
+            harvesters.append(mopak_harvester)
         else:
             log.warn('No configuration for mopak harvester, not building')
 
-        if DataTypeKey.RTE in self._harvester_config:
-            self._rte_harvester = SingleDirectoryHarvester(
-                self._harvester_config.get(DataTypeKey.RTE),
-                driver_state[DataTypeKey.RTE],
-                lambda filename: self._new_file_callback(filename, DataTypeKey.RTE),
-                lambda modified: self._modified_file_callback(modified, DataTypeKey.RTE),
+        if DataSourceKey.RTE in self._harvester_config:
+            rte_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataSourceKey.RTE),
+                driver_state[DataSourceKey.RTE],
+                lambda filename: self._new_file_callback(filename, DataSourceKey.RTE),
+                lambda modified: self._modified_file_callback(modified, DataSourceKey.RTE),
                 self._exception_callback
             )
-            self._harvester.append(self._rte_harvester)
+            harvesters.append(rte_harvester)
         else:
             log.warn('No configuration for rte harvester, not building')
-        return self._harvester
+        return harvesters
 
     def _get_parser_results(self, file_name, data_key):
         """

@@ -37,7 +37,7 @@ from mi.idk.dataset.unit_test import DataSetIntegrationTestCase
 from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
-from mi.dataset.driver.mflm.ctd.driver import MflmCTDMODataSetDriver, DataTypeKey
+from mi.dataset.driver.mflm.ctd.driver import MflmCTDMODataSetDriver, DataSourceKey
 from mi.dataset.parser.ctdmo import CtdmoParserDataParticle, DataParticleType
 
 
@@ -50,7 +50,7 @@ DataSetTestCase.initialize(
     startup_config = {
         DataSourceConfigKey.HARVESTER:
         {
-            DataTypeKey.CTDMO_GHQR_SIO_MULE:
+            DataSourceKey.CTDMO_GHQR_SIO_MULE:
             {
                 DataSetDriverConfigKeys.DIRECTORY: '/tmp/dsatest',
                 DataSetDriverConfigKeys.PATTERN: 'node59p1.dat',
@@ -58,7 +58,9 @@ DataSetTestCase.initialize(
                 DataSetDriverConfigKeys.FILE_MOD_WAIT_TIME: 30,
             }
         },
-        DataSourceConfigKey.PARSER: {'inductive_id': 55}
+        DataSourceConfigKey.PARSER: {
+            DataSourceKey.CTDMO_GHQR_SIO_MULE: {'inductive_id': 55}
+        }
     }
 )
 
@@ -70,16 +72,6 @@ DataSetTestCase.initialize(
 ###############################################################################
 @attr('INT', group='mi')
 class IntegrationTest(DataSetIntegrationTestCase):
-
-    def clear_sample_data(self):
-        """
-        Clear all the data out of the test directories
-        """
-        if os.path.exists('/tmp/dsatest'):
-            log.debug("Clean all data from /tmp/dsatest")
-            remove_all_files('/tmp/dsatest')
-        else:
-            os.makedirs('/tmp/dsatest')
 
     def test_get(self):
 
@@ -130,13 +122,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         """
         self.create_sample_data_set_dir("node59p1_step1.dat", '/tmp/dsatest', "node59p1.dat")
         driver_config = self._driver_config()['startup_config']
-        fullfile = os.path.join(driver_config['harvester'][DataTypeKey.CTDMO_GHQR_SIO_MULE]['directory'],
-                            driver_config['harvester'][DataTypeKey.CTDMO_GHQR_SIO_MULE]['pattern'])
+        fullfile = os.path.join(driver_config['harvester'][DataSourceKey.CTDMO_GHQR_SIO_MULE]['directory'],
+                            driver_config['harvester'][DataSourceKey.CTDMO_GHQR_SIO_MULE]['pattern'])
         mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
         self.memento = {
-            DataTypeKey.CTDMO_GHQR_SIO_MULE: {
+            DataSourceKey.CTDMO_GHQR_SIO_MULE: {
                 "node59p1.dat": {
                     DriverStateKey.FILE_SIZE: 6000,
                     DriverStateKey.FILE_CHECKSUM: 'aa1cc1aa816e99e11d8e88fc56f887e7',
@@ -204,58 +196,6 @@ class IntegrationTest(DataSetIntegrationTestCase):
 ###############################################################################
 @attr('QUAL', group='mi')
 class QualificationTest(DataSetQualificationTestCase):
-
-    def clear_sample_data(self):
-        """
-        Clear all the data out of the test directories
-        """
-        if os.path.exists('/tmp/dsatest'):
-            log.debug("Clean all data from /tmp/dsatest")
-            remove_all_files('/tmp/dsatest')
-        else:
-            os.makedirs('/tmp/dsatest')
-
-    def create_data_dir(self):
-        """
-        Verify the test data directory is created and exists.  Return the path to
-        the directory.
-        @return: path to data directory
-        @raise: IDKConfigMissing no harvester config
-        @raise: IDKException if data_dir exists, but not a directory
-        """
-        startup_config = self._driver_config().get('startup_config')
-        if not startup_config:
-            raise IDKConfigMissing("Driver config missing 'startup_config'")
-
-        harvester_config = startup_config.get('harvester')
-        if not harvester_config:
-            raise IDKConfigMissing("Startup config missing 'harvester' config")
-
-        data_dir = []
-
-        for key in harvester_config:
-            data_dir_key = harvester_config[key].get("directory")
-            if not data_dir_key:
-                raise IDKConfigMissing("Harvester config missing 'directory'")
-
-            if not os.path.exists(data_dir_key):
-                log.debug("Creating data dir: %s", data_dir_key)
-                os.makedirs(data_dir_key)
-
-            elif not os.path.isdir(data_dir_key):
-                raise IDKException("%s is not a directory" % data_dir_key)
-            data_dir.append(data_dir_key)
-
-        return data_dir
-
-    def remove_sample_dir(self):
-        """
-        Remove the sample dir and all files
-        """
-        data_dirs = self.create_data_dir()
-        self.clear_sample_data()
-        for data_dir in data_dirs:
-            os.rmdir(data_dir)
 
     def test_publish_path(self):
         """

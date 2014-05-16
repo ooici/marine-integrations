@@ -462,7 +462,9 @@ class InstrumentAgentDataSubscribers(object):
             if(start_time + timeout < time.time()):
                 raise SampleTimeout()
 
-            if(len(result) < sample_count):
+            if len(result) < sample_count and (not self.samples_received.has_key(stream_name) or \
+                                              (self.samples_received.has_key(stream_name) and
+                                               len(self.samples_received.get(stream_name)) == 0)):
                 gevent.sleep(1)
 
         return result

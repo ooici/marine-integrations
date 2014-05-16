@@ -24,12 +24,12 @@ from mi.dataset.parser.dofst_k_wfp import DofstKWfpParser, DofstKWfpParserDataPa
 from mi.dataset.parser.dofst_k_wfp import DofstKWfpMetadataParserDataParticle
 from mi.dataset.harvester import SingleDirectoryHarvester
 
-class DataTypeKey(BaseEnum):
+class DataSourceKey(BaseEnum):
     DOFST_K_WFP_TELEMETERED = 'dofst_k_wfp_telemetered'
     DOFST_K_WFP_RECOVERED = 'dofst_k_wfp_recovered'
 
 class DofstKWfpDataSetDriver(MultipleHarvesterDataSetDriver):
-    
+
     @classmethod
     def stream_config(cls):
         return [DofstKWfpMetadataParserDataParticle.type(),
@@ -37,7 +37,7 @@ class DofstKWfpDataSetDriver(MultipleHarvesterDataSetDriver):
 
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
         # initialize the possible types of harvester/parser pairs for this driver
-        data_keys = [DataTypeKey.DOFST_K_WFP_TELEMETERED, DataTypeKey.DOFST_K_WFP_RECOVERED]
+        data_keys = [DataSourceKey.DOFST_K_WFP_TELEMETERED, DataSourceKey.DOFST_K_WFP_RECOVERED]
         super(DofstKWfpDataSetDriver, self).__init__(config, memento, data_callback, state_callback, event_callback,
                                                      exception_callback, data_keys)
 
@@ -68,10 +68,10 @@ class DofstKWfpDataSetDriver(MultipleHarvesterDataSetDriver):
         Build and return the harvester
         """
         harvesters = []
-        harvester_telem = self._build_single_dir_harvester(driver_state, DataTypeKey.DOFST_K_WFP_TELEMETERED)
+        harvester_telem = self._build_single_dir_harvester(driver_state, DataSourceKey.DOFST_K_WFP_TELEMETERED)
         if harvester_telem != None:
             harvesters.append(harvester_telem)
-        harvester_recov = self._build_single_dir_harvester(driver_state, DataTypeKey.DOFST_K_WFP_RECOVERED)
+        harvester_recov = self._build_single_dir_harvester(driver_state, DataSourceKey.DOFST_K_WFP_RECOVERED)
         if harvester_recov != None:
             harvesters.append(harvester_recov)
         return harvesters
