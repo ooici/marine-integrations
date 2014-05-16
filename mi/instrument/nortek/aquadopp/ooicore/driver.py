@@ -12,6 +12,8 @@ __license__ = 'Apache 2.0'
 
 import re
 
+from mi.core.log import get_logger; log = get_logger()
+
 from mi.core.common import BaseEnum
 
 from mi.core.exceptions import SampleException
