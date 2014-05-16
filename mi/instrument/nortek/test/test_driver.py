@@ -839,7 +839,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
 @attr('INT', group='mi')
 class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
-    @unittest.skip('temp disable')
+    # @unittest.skip('temp disable')
     def test_commands(self):
         """
         Run instrument commands from command mode.
@@ -849,9 +849,9 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         ####
         # Test a bad command
         ####
-        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
+        # self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
 
-    @unittest.skip('temp disable')
+    # @unittest.skip('temp disable')
     def test_command_acquire_status(self):
         """
         Test acquire status command and events.
@@ -878,7 +878,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         #GC
         self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
 
-    #@unittest.skip('temp disable')
+    # @unittest.skip('temp disable')
     def test_parameters(self):
         """
         Verify that we can set the parameters
@@ -890,11 +890,16 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
         #test read/write parameter
-        self.assert_set(Parameter.BLANKING_DISTANCE, 3)
+        self.assert_set(Parameter.RECEIVE_LENGTH, 3)
+
+        # reply = self.driver_client.cmd_dvr('get_resource', [Parameter.SW_VERSION])
+        # return_value = reply.get(Parameter.SW_VERSION)
+        # self.assertNotEqual(return_value, 13700)
+
         self.assert_set(Parameter.COMMENTS, "test comment1")
 
         #test read/write parameter w/direct access only
-        self.assert_set(Parameter.USER_NUMBER_BEAMS, 7)
+        self.assert_set(Parameter.BIN_LENGTH, 8)
 
         # #test setting date/time
         # self.assert_set(Parameter.CLOCK_DEPLOY, get_timestamp_delayed("%m/%d/%y"))
@@ -920,6 +925,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
     def setUp(self):
         InstrumentDriverIntegrationTestCase.setUp(self)
 
+    # @unittest.skip('temp disable')
     def assertParamDictionariesEqual(self, pd1, pd2, all_params=False):
         """
         Verify all device parameters exist and are correct type.
@@ -933,12 +939,14 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
             for (key, val) in pd1.iteritems():
                 self.assertTrue(pd2.has_key(key))
                 self.assertTrue(isinstance(val, pd2[key]))
-    
+
+    # @unittest.skip('temp disable')
     def check_state(self, expected_state):
         self.protocol_state = self.driver_client.cmd_dvr('get_resource_state')
         self.assertEqual(self.protocol_state, expected_state)
         return
 
+    # @unittest.skip('temp disable')
     def put_driver_in_command_mode(self):
         """Wrap the steps and asserts for going into command mode.
            May be used in multiple test cases.
@@ -1128,7 +1136,7 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         #    self.assert_(v == head_config[k])
         self.assertEqual(head_config, response[1])
 
-    @unittest.skip('temp disable')
+    @unittest.skip('temp disable') # expected fields need to be updated in order for this to pass
     def test_instrument_read_user_config(self):
         """
         Read the user config. Doesnt matter so much whats in there, but the
