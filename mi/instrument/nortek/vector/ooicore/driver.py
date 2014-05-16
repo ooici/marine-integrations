@@ -35,12 +35,6 @@ from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import NortekProtocolParameterDict
 from mi.instrument.nortek.driver import Parameter, InstrumentCmds, InstrumentPrompts
 from mi.instrument.nortek.driver import NEWLINE
-from mi.instrument.nortek.driver import HARDWARE_CONFIG_DATA_REGEX
-from mi.instrument.nortek.driver import HEAD_CONFIG_DATA_REGEX
-from mi.instrument.nortek.driver import USER_CONFIG_DATA_REGEX
-from mi.instrument.nortek.driver import BATTERY_DATA_REGEX
-from mi.instrument.nortek.driver import CLOCK_DATA_REGEX
-from mi.instrument.nortek.driver import ID_DATA_REGEX
 
 from mi.core.instrument.chunker import StringChunker
 
@@ -458,7 +452,7 @@ class Protocol(NortekInstrumentProtocol):
         NortekInstrumentProtocol.__init__(self, prompts, newline, driver_event)
         
         # create chunker for processing instrument samples.
-        self._chunker = StringChunker(Protocol.chunker_sieve_function)
+        self._chunker = StringChunker(Protocol.chunker_sieve_function)    # This can be moved to base class if VECTOR_SAMPLE_STRUCTURES can be initialized
         
     @staticmethod
     def chunker_sieve_function(raw_data):
@@ -485,26 +479,7 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(VectorSystemDataParticle, SYSTEM_DATA_REGEX, structure, timestamp)
         self._extract_sample(VectorVelocityHeaderDataParticle, VELOCITY_HEADER_DATA_REGEX, structure, timestamp)
 
-        self._got_chunk_child(structure, timestamp)
-
-            
-    ########################################################################
-    # Command handlers.
-    ########################################################################
-    # def _handler_command_acquire_sample(self, *args, **kwargs):
-    #     """
-    #     Acquire sample from vector.
-    #     @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
-    #     @throws InstrumentTimeoutException if device cannot be woken for command.
-    #     @throws InstrumentProtocolException if command could not be built or misunderstood.
-    #     """
-    #     next_state = None
-    #     next_agent_state = None
-    #     result = None
-    #
-    #     result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, expected_prompt=VELOCITY_DATA_SYNC_BYTES, timeout=30, *args, **kwargs)
-    #
-    #     return (next_state, (next_agent_state, result))
+        self._got_chunk_base(structure, timestamp)
 
     def _helper_get_data_key(self):
         # override to pass the correct velocity data key per instrument
