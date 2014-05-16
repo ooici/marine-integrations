@@ -193,6 +193,33 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_event('ResourceAgentErrorEvent')
         self.assert_file_ingested(filename)
 
+    def test_fileopen_str_parse(self):
+        """
+        Test that we can parse a fileopen string that has a single digit day
+        replaced with an underscore.
+        """
+        path = self.create_sample_data('unit_363_2013_245_6_6.mrg')
+
+        # Start sampling
+        self.driver.start_sampling()
+
+        self.assert_data((EngineeringMetadataDataParticle, EngineeringScienceTelemeteredDataParticle,
+                          EngineeringTelemeteredDataParticle),
+                         None, count=153, timeout=30)
+        self.assert_file_ingested('unit_363_2013_245_6_6.mrg')
+
+    def test_bad_fileopen_str(self):
+        """
+        Test that an unparseable file open date does not return a metadata particle
+        """
+        path = self.create_sample_data('bad_fileopen_date.mrg')
+
+        # Start sampling
+        self.driver.start_sampling()
+
+        # an event catches the sample exception
+        self.assert_event('ResourceAgentErrorEvent')
+        self.assert_file_ingested('bad_fileopen_date.mrg')
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
