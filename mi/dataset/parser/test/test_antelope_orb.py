@@ -86,7 +86,7 @@ class AntelopeOrbParserUnitTestCase(ParserUnitTestCase):
         pkttype, packet, srcname, time = _pkt._stuffPkt(pkt)
         _pkt._freePkt(pkt)
 
-        with patch('mi.core.kudu.brttpkt.OrbReapThr') as MockOrbReapThr:
+        with patch('mi.dataset.parser.antelope_orb.OrbReapThr') as MockOrbReapThr:
             self.parser = AntelopeOrbParser(self.parser_config, self.parser_state,
                             self.state_callback, self.pub_callback,
                             self.error_callback)
