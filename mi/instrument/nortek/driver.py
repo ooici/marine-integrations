@@ -1924,9 +1924,18 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         if next_state == DriverProtocolState.COMMAND:
             next_agent_state = ResourceAgentState.COMMAND
 
-        # if next_state == DriverProtocolState.AUTOSAMPLE:
-        #     #go into command mode
-        #     self._helper_measurement_to_command_mode()
+        if next_state == DriverProtocolState.AUTOSAMPLE:
+            #go into command mode
+            self._connection.send(InstrumentCmds.SOFT_BREAK_FIRST_HALF)
+            time.sleep(.1)
+            ret_prompt = self._do_cmd_resp(InstrumentCmds.SOFT_BREAK_SECOND_HALF,
+                                       expected_prompt=[InstrumentPrompts.CONFIRMATION, InstrumentPrompts.COMMAND_MODE])
+
+            log.debug('_handler_direct_access_stop_direct, stop autosample ret_prompt: %s', ret_prompt)
+
+            if ret_prompt == InstrumentPrompts.CONFIRMATION:
+                # Issue the confirmation command.
+                self._do_cmd_resp(InstrumentCmds.CONFIRMATION)
 
         #restore parameters
         self._set_params(self.da_param_restore)
@@ -2630,8 +2639,9 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentTimeoutException if device cannot be timely woken.
         @throws InstrumentProtocolException if ds/dc misunderstood.
         """
-        if self.get_current_state() != ProtocolState.COMMAND: # or self.get_current_state() != ProtocolState.DIRECT_ACCESS:
-           raise InstrumentStateException('Can not perform update of parameters when not in command state')
+        # log.debug('CURRENT STATE = %s', self.get_current_state())
+        # if self.get_current_state() != ProtocolState.COMMAND or self.get_current_state() != ProtocolState.DIRECT_ACCESS:
+        #    raise InstrumentStateException('Can not perform update of parameters when not in command/DA state')
         # Get old param dict config.
         old_config = self._param_dict.get_config()
         log.debug("_update_params: old_config: %s", old_config)
@@ -2835,7 +2845,6 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
 
         search_obj = re.search(MODE_DATA_REGEX, response)
         if search_obj:
-            # log.debug("_parse_what_mode_response: found=%r", search_obj.group())
             log.debug("_parse_what_mode_response: response=%r", search_obj.group())
             return NortekProtocolParameterDict.convert_word_to_int(search_obj.group(0)[0:2])
         else:

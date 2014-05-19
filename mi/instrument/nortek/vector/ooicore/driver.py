@@ -19,7 +19,7 @@ from mi.core.exceptions import SampleException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
 from mi.instrument.nortek.driver import NortekEngBatteryDataParticle, NortekEngClockDataParticle, \
-    NortekEngIdDataParticle, BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, Parameter
+    NortekEngIdDataParticle, BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX
 from mi.instrument.nortek.driver import NortekDataParticleType
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
@@ -27,7 +27,7 @@ from mi.instrument.nortek.driver import NortekUserConfigDataParticle
 from mi.instrument.nortek.driver import NortekInstrumentDriver
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import NortekProtocolParameterDict
-from mi.instrument.nortek.driver import InstrumentCmds, InstrumentPrompts
+from mi.instrument.nortek.driver import InstrumentPrompts
 from mi.instrument.nortek.driver import NEWLINE
 from mi.instrument.nortek.driver import HARDWARE_CONFIG_DATA_REGEX
 from mi.instrument.nortek.driver import HEAD_CONFIG_DATA_REGEX
@@ -294,7 +294,7 @@ class InstrumentDriver(NortekInstrumentDriver):
 class Protocol(NortekInstrumentProtocol):
     """
     Instrument protocol class
-    Subclasses CommandResponseInstrumentProtocol
+    Subclasses NortekInstrumentProtocol
     """
 
     def __init__(self, prompts, newline, driver_event):

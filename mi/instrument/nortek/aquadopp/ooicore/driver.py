@@ -36,25 +36,25 @@ from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 
 VELOCITY_DATA_LEN = 42
-VELOCITY_HEADER_DATA_SYNC_BYTES = '\xa5\x01\x15\x00'
-DIAGNOSTIC_DATA_HEADER_LEN = 36
-DIAGNOSTIC_DATA_HEADER_SYNC_BYTES = '\xa5\x06\x12\x00'
-DIAGNOSTIC_DATA_LEN = 42
-DIAGNOSTIC_DATA_SYNC_BYTES = '\xa5\x80\x15\x00'
+VELOCITY_HEADER_DATA_SYNC_BYTES = '\xa5\x01'
+# DIAGNOSTIC_DATA_HEADER_LEN = 36
+# DIAGNOSTIC_DATA_HEADER_SYNC_BYTES = '\xa5\x06\x12\x00'
+# DIAGNOSTIC_DATA_LEN = 42
+#DIAGNOSTIC_DATA_SYNC_BYTES = '\xa5\x80\x15\x00'
 
-VECTOR_SAMPLE_STRUCTURES = [[VELOCITY_HEADER_DATA_SYNC_BYTES, VELOCITY_DATA_LEN],
-                            [DIAGNOSTIC_DATA_HEADER_SYNC_BYTES, DIAGNOSTIC_DATA_HEADER_LEN],
-                            [DIAGNOSTIC_DATA_SYNC_BYTES, DIAGNOSTIC_DATA_LEN]]
+VECTOR_SAMPLE_STRUCTURES = [[VELOCITY_HEADER_DATA_SYNC_BYTES, VELOCITY_DATA_LEN]]
+                            #[DIAGNOSTIC_DATA_HEADER_SYNC_BYTES, DIAGNOSTIC_DATA_HEADER_LEN],
+                            #[DIAGNOSTIC_DATA_SYNC_BYTES, DIAGNOSTIC_DATA_LEN]]
 
 VELOCITY_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})' \
                         r'(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % VELOCITY_HEADER_DATA_SYNC_BYTES
 VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN, re.DOTALL)
-DIAGNOSTIC_DATA_HEADER_PATTERN = r'^%s(.{2})(.{2})(.{1})(.{1})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})' \
-                                 r'(.{2})(.{2})(.{2})(.{8})' % DIAGNOSTIC_DATA_HEADER_SYNC_BYTES
-DIAGNOSTIC_DATA_HEADER_REGEX = re.compile(DIAGNOSTIC_DATA_HEADER_PATTERN, re.DOTALL)
-DIAGNOSTIC_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})' \
-                          r'(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % DIAGNOSTIC_DATA_SYNC_BYTES
-DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN, re.DOTALL)
+# DIAGNOSTIC_DATA_HEADER_PATTERN = r'^%s(.{2})(.{2})(.{1})(.{1})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})' \
+#                                  r'(.{2})(.{2})(.{2})(.{8})' % DIAGNOSTIC_DATA_HEADER_SYNC_BYTES
+# DIAGNOSTIC_DATA_HEADER_REGEX = re.compile(DIAGNOSTIC_DATA_HEADER_PATTERN, re.DOTALL)
+# DIAGNOSTIC_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})' \
+#                           r'(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % DIAGNOSTIC_DATA_SYNC_BYTES
+# DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN, re.DOTALL)
 
 
 class DataParticleType(BaseEnum):
@@ -62,8 +62,8 @@ class DataParticleType(BaseEnum):
     List of data particles.  Names match those in the IOS, so need to overwrite definition in base class
     """
     VELOCITY = 'velpt_velocity_data'
-    DIAGNOSTIC = 'velpt_diagonstics_data'
-    DIAGNOSTIC_HEADER = 'velpt_diagonstics_header'
+    #DIAGNOSTIC = 'velpt_diagonstics_data'
+    #DIAGNOSTIC_HEADER = 'velpt_diagonstics_header'
     NortekDataParticleType.HARDWARE_CONFIG = 'velpt_hardware_configuration'
     NortekDataParticleType.HEAD_CONFIG = 'velpt_head_configuration'
     NortekDataParticleType.USER_CONFIG = 'velpt_user_configuration'
@@ -75,75 +75,75 @@ class DataParticleType(BaseEnum):
 ###############################################################################
 # Data particles
 ###############################################################################
-class AquadoppDwDiagnosticHeaderDataParticleKey(BaseEnum):
-    """
-    Diagnostic Header data particles
-    """
-    RECORDS = "records_to_follow"
-    CELL = "cell_number_diagnostics"
-    NOISE1 = "noise_amplitude_beam1"
-    NOISE2 = "noise_amplitude_beam2"
-    NOISE3 = "noise_amplitude_beam3"
-    NOISE4 = "noise_amplitude_beam4"
-    PROCESSING_MAGNITUDE_BEAM1 = "processing_magnitude_beam1"
-    PROCESSING_MAGNITUDE_BEAM2 = "processing_magnitude_beam2"
-    PROCESSING_MAGNITUDE_BEAM3 = "processing_magnitude_beam3"
-    PROCESSING_MAGNITUDE_BEAM4 = "processing_magnitude_beam4"
-    DISTANCE1 = "distance_beam1"
-    DISTANCE2 = "distance_beam2"
-    DISTANCE3 = "distance_beam3"
-    DISTANCE4 = "distance_beam4"
-    
-            
-class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
-    """
-    Routine for parsing diagnostic data header into a data particle structure for the Aquadopp DW sensor. 
-    """
-    _data_particle_type = DataParticleType.DIAGNOSTIC_HEADER
-
-    def _build_parsed_values(self):
-        """
-        Take something in the diagnostic data header sample format and parse it into
-        values with appropriate tags.
-        @throws SampleException If there is a problem with sample creation
-        """
-        match = DIAGNOSTIC_DATA_HEADER_REGEX.match(self.raw_data)
-        
-        if not match:
-            raise SampleException("AquadoppDwDiagnosticHeaderDataParticle: No regex match of parsed sample data: [%s]",
-                                  self.raw_data)
-        
-        records = NortekProtocolParameterDict.convert_word_to_int(match.group(1))
-        cell = NortekProtocolParameterDict.convert_word_to_int(match.group(2))
-        noise1 = ord(match.group(3))
-        noise2 = ord(match.group(4))
-        noise3 = ord(match.group(5))
-        noise4 = ord(match.group(6))
-        proc_magn_beam1 = NortekProtocolParameterDict.convert_word_to_int(match.group(7))
-        proc_magn_beam2 = NortekProtocolParameterDict.convert_word_to_int(match.group(8))
-        proc_magn_beam3 = NortekProtocolParameterDict.convert_word_to_int(match.group(9))
-        proc_magn_beam4 = NortekProtocolParameterDict.convert_word_to_int(match.group(10))
-        distance1 = NortekProtocolParameterDict.convert_word_to_int(match.group(11))
-        distance2 = NortekProtocolParameterDict.convert_word_to_int(match.group(12))
-        distance3 = NortekProtocolParameterDict.convert_word_to_int(match.group(13))
-        distance4 = NortekProtocolParameterDict.convert_word_to_int(match.group(14))
-
-        result = [{DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS, DataParticleKey.VALUE: records},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CELL, DataParticleKey.VALUE: cell},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE1, DataParticleKey.VALUE: noise1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE2, DataParticleKey.VALUE: noise2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE3, DataParticleKey.VALUE: noise3},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE4, DataParticleKey.VALUE: noise4},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM1, DataParticleKey.VALUE: proc_magn_beam1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM2, DataParticleKey.VALUE: proc_magn_beam2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM3, DataParticleKey.VALUE: proc_magn_beam3},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM4, DataParticleKey.VALUE: proc_magn_beam4},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE1, DataParticleKey.VALUE: distance1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE2, DataParticleKey.VALUE: distance2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE3, DataParticleKey.VALUE: distance3},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4, DataParticleKey.VALUE: distance4}]
-
-        return result
+# class AquadoppDwDiagnosticHeaderDataParticleKey(BaseEnum):
+#     """
+#     Diagnostic Header data particles
+#     """
+#     RECORDS = "records_to_follow"
+#     CELL = "cell_number_diagnostics"
+#     NOISE1 = "noise_amplitude_beam1"
+#     NOISE2 = "noise_amplitude_beam2"
+#     NOISE3 = "noise_amplitude_beam3"
+#     NOISE4 = "noise_amplitude_beam4"
+#     PROCESSING_MAGNITUDE_BEAM1 = "processing_magnitude_beam1"
+#     PROCESSING_MAGNITUDE_BEAM2 = "processing_magnitude_beam2"
+#     PROCESSING_MAGNITUDE_BEAM3 = "processing_magnitude_beam3"
+#     PROCESSING_MAGNITUDE_BEAM4 = "processing_magnitude_beam4"
+#     DISTANCE1 = "distance_beam1"
+#     DISTANCE2 = "distance_beam2"
+#     DISTANCE3 = "distance_beam3"
+#     DISTANCE4 = "distance_beam4"
+#
+#
+# class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
+#     """
+#     Routine for parsing diagnostic data header into a data particle structure for the Aquadopp DW sensor.
+#     """
+#     _data_particle_type = DataParticleType.DIAGNOSTIC_HEADER
+#
+#     def _build_parsed_values(self):
+#         """
+#         Take something in the diagnostic data header sample format and parse it into
+#         values with appropriate tags.
+#         @throws SampleException If there is a problem with sample creation
+#         """
+#         match = DIAGNOSTIC_DATA_HEADER_REGEX.match(self.raw_data)
+#
+#         if not match:
+#             raise SampleException("AquadoppDwDiagnosticHeaderDataParticle: No regex match of parsed sample data: [%s]",
+#                                   self.raw_data)
+#
+#         records = NortekProtocolParameterDict.convert_word_to_int(match.group(1))
+#         cell = NortekProtocolParameterDict.convert_word_to_int(match.group(2))
+#         noise1 = ord(match.group(3))
+#         noise2 = ord(match.group(4))
+#         noise3 = ord(match.group(5))
+#         noise4 = ord(match.group(6))
+#         proc_magn_beam1 = NortekProtocolParameterDict.convert_word_to_int(match.group(7))
+#         proc_magn_beam2 = NortekProtocolParameterDict.convert_word_to_int(match.group(8))
+#         proc_magn_beam3 = NortekProtocolParameterDict.convert_word_to_int(match.group(9))
+#         proc_magn_beam4 = NortekProtocolParameterDict.convert_word_to_int(match.group(10))
+#         distance1 = NortekProtocolParameterDict.convert_word_to_int(match.group(11))
+#         distance2 = NortekProtocolParameterDict.convert_word_to_int(match.group(12))
+#         distance3 = NortekProtocolParameterDict.convert_word_to_int(match.group(13))
+#         distance4 = NortekProtocolParameterDict.convert_word_to_int(match.group(14))
+#
+#         result = [{DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS, DataParticleKey.VALUE: records},
+#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CELL, DataParticleKey.VALUE: cell},
+#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE1, DataParticleKey.VALUE: noise1},
+#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE2, DataParticleKey.VALUE: noise2},
+#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE3, DataParticleKey.VALUE: noise3},
+#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE4, DataParticleKey.VALUE: noise4},
+#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM1, DataParticleKey.VALUE: proc_magn_beam1},
+#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM2, DataParticleKey.VALUE: proc_magn_beam2},
+#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM3, DataParticleKey.VALUE: proc_magn_beam3},
+#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM4, DataParticleKey.VALUE: proc_magn_beam4},
+#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE1, DataParticleKey.VALUE: distance1},
+#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE2, DataParticleKey.VALUE: distance2},
+#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE3, DataParticleKey.VALUE: distance3},
+#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4, DataParticleKey.VALUE: distance4}]
+#
+#         return result
 
     
 class AquadoppDwVelocityDataParticleKey(BaseEnum):
@@ -233,27 +233,27 @@ class AquadoppDwVelocityDataParticle(DataParticle):
         return result
 
 
-class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
-    """
-    Routine for parsing diagnostic data into a data particle structure for the Aquadopp DW sensor. 
-    This structure is the same as the velocity data, so particle is built with the same method
-    """
-    _data_particle_type = DataParticleType.DIAGNOSTIC
-
-    def _build_parsed_values(self):
-        """
-        Take the diagnostic data sample and parse it into
-        values with appropriate tags.
-        @throws SampleException If there is a problem with sample creation
-        """
-        match = DIAGNOSTIC_DATA_REGEX.match(self.raw_data)
-        
-        if not match:
-            raise SampleException("AquadoppDwDiagnosticDataParticle: No regex match of parsed sample data: [%s]",
-                                  self.raw_data)
-        
-        result = self._build_particle(match)
-        return result
+# class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
+#     """
+#     Routine for parsing diagnostic data into a data particle structure for the Aquadopp DW sensor.
+#     This structure is the same as the velocity data, so particle is built with the same method
+#     """
+#     _data_particle_type = DataParticleType.DIAGNOSTIC
+#
+#     def _build_parsed_values(self):
+#         """
+#         Take the diagnostic data sample and parse it into
+#         values with appropriate tags.
+#         @throws SampleException If there is a problem with sample creation
+#         """
+#         match = DIAGNOSTIC_DATA_REGEX.match(self.raw_data)
+#
+#         if not match:
+#             raise SampleException("AquadoppDwDiagnosticDataParticle: No regex match of parsed sample data: [%s]",
+#                                   self.raw_data)
+#
+#         result = self._build_particle(match)
+#         return result
 
 
 ###############################################################################
@@ -321,8 +321,8 @@ class Protocol(NortekInstrumentProtocol):
         """
 
         self._extract_sample(AquadoppDwVelocityDataParticle, VELOCITY_DATA_REGEX, structure, timestamp)
-        self._extract_sample(AquadoppDwDiagnosticDataParticle, DIAGNOSTIC_DATA_REGEX, structure, timestamp)
-        self._extract_sample(AquadoppDwDiagnosticHeaderDataParticle, DIAGNOSTIC_DATA_HEADER_REGEX, structure, timestamp)
+        # self._extract_sample(AquadoppDwDiagnosticDataParticle, DIAGNOSTIC_DATA_REGEX, structure, timestamp)
+        # self._extract_sample(AquadoppDwDiagnosticHeaderDataParticle, DIAGNOSTIC_DATA_HEADER_REGEX, structure, timestamp)
         self._extract_sample(NortekUserConfigDataParticle, USER_CONFIG_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekHardwareConfigDataParticle, HARDWARE_CONFIG_DATA_REGEX, structure, timestamp)
         self._extract_sample(NortekHeadConfigDataParticle, HEAD_CONFIG_DATA_REGEX, structure, timestamp)
@@ -336,25 +336,11 @@ class Protocol(NortekInstrumentProtocol):
     ########################################################################
     # Command handlers.
     ########################################################################
-    def _handler_command_acquire_sample(self, *args, **kwargs):
-        """
-        Acquire sample from vector.
-        @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
-        @throws InstrumentTimeoutException if device cannot be woken for command.
-        @throws InstrumentProtocolException if command could not be built or misunderstood.
-        """
-        log.debug('%% IN _handler_command_acquire_sample')
+    def _helper_get_data_key(self):
+        # override to pass the correct velocity data key per instrument
 
-        next_state = None
-        next_agent_state = None
-
-        # the instrument doesn't respond with ACKs for this command, so look for start of velocity data header structure
-        result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA,
-                                   expected_prompt=VELOCITY_HEADER_DATA_SYNC_BYTES, *args, **kwargs)
-        #TODO - NEED TO GET BACK INTO COMMAND MODE! maybe use ST command and then use helper
-        #self._helper_measurement_to_command_mode()
-
-        return next_state, (next_agent_state, result)
+        # TODO change this to a init value that the base class can use
+        return VELOCITY_HEADER_DATA_SYNC_BYTES
 
     def _build_param_dict(self):
         """

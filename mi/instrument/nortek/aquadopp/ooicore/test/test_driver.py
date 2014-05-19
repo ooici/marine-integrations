@@ -42,11 +42,11 @@ from mi.core.exceptions import SampleException
 
 from mi.instrument.nortek.aquadopp.ooicore.driver import DataParticleType
 from mi.instrument.nortek.aquadopp.ooicore.driver import Protocol
-from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticle
-from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticleKey
+# from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticle
+# from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticleKey
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticle
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticleKey
-from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticDataParticle
+# from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticDataParticle
 
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest
 from mi.instrument.nortek.driver import ProtocolState, ProtocolEvent, NortekDataParticleType, TIMEOUT, ID_DATA_PATTERN
@@ -165,20 +165,20 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
     STATES = ParameterTestConfigKey.STATES
 
     _sample_diagnostic_header = {
-        AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS: {TYPE: int, VALUE: 0, REQUIRED: True},
-        AquadoppDwDiagnosticHeaderDataParticleKey.CELL: {TYPE: int, VALUE: 0, REQUIRED: True},
-        AquadoppDwDiagnosticHeaderDataParticleKey.NOISE1: {TYPE: int, VALUE: 0, REQUIRED: True},
-        AquadoppDwDiagnosticHeaderDataParticleKey.NOISE2: {TYPE: int, VALUE: 0, REQUIRED: True},
-        AquadoppDwDiagnosticHeaderDataParticleKey.NOISE3: {TYPE: int, VALUE: 0, REQUIRED: True},
-        AquadoppDwDiagnosticHeaderDataParticleKey.NOISE4: {TYPE: int, VALUE: 0, REQUIRED: True},
-        AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM1: {TYPE: int, VALUE: 0, REQUIRED: True},
-        AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM2: {TYPE: int, VALUE: 1, REQUIRED: True},
-        AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM3: {TYPE: int, VALUE: 1, REQUIRED: True},
-        AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM4: {TYPE: int, VALUE: 1, REQUIRED: True},
-        AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE1: {TYPE: int, VALUE: 0, REQUIRED: True},
-        AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE2: {TYPE: int, VALUE: 0, REQUIRED: True},
-        AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE3: {TYPE: int, VALUE: 0, REQUIRED: True},
-        AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4: {TYPE: int, VALUE: 0, REQUIRED: True}
+        # AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.CELL: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE2: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE3: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE4: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM2: {TYPE: int, VALUE: 1, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM3: {TYPE: int, VALUE: 1, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM4: {TYPE: int, VALUE: 1, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE2: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE3: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4: {TYPE: int, VALUE: 0, REQUIRED: True}
     }
 
     #this particle can be used for both the velocity particle and the diagnostic particle
@@ -213,16 +213,16 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
         self.assert_data_particle_header(data_particle, DataParticleType.VELOCITY)
         self.assert_data_particle_parameters(data_particle, self._sample_velocity_diagnostic, verify_values)
 
-    def assert_particle_diagnostic_header(self, data_particle, verify_values=False):
-        """
-        Verify velpt_diagostics_header
-        @param data_particle:  AquadoppDwDiagnosticHeaderDataParticleKey data particle
-        @param verify_values:
-        """
-
-        self.assert_data_particle_keys(AquadoppDwDiagnosticHeaderDataParticleKey, self._sample_diagnostic_header)
-        self.assert_data_particle_header(data_particle, DataParticleType.DIAGNOSTIC_HEADER)
-        self.assert_data_particle_parameters(data_particle, self._sample_diagnostic_header, verify_values)
+    # def assert_particle_diagnostic_header(self, data_particle, verify_values=False):
+    #     """
+    #     Verify velpt_diagostics_header
+    #     @param data_particle:  AquadoppDwDiagnosticHeaderDataParticleKey data particle
+    #     @param verify_values:
+    #     """
+    #
+    #     self.assert_data_particle_keys(AquadoppDwDiagnosticHeaderDataParticleKey, self._sample_diagnostic_header)
+    #     self.assert_data_particle_header(data_particle, DataParticleType.DIAGNOSTIC_HEADER)
+    #     self.assert_data_particle_parameters(data_particle, self._sample_diagnostic_header, verify_values)
 
     def assert_particle_diagnostic(self, data_particle, verify_values=False):
         """
@@ -231,7 +231,7 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
         @param verify_values:  bool, should we verify parameter values
         """
 
-        self.assert_data_particle_keys(AquadoppDwDiagnosticDataParticle, self._sample_velocity_diagnostic)
+        #self.assert_data_particle_keys(AquadoppDwDiagnosticDataParticle, self._sample_velocity_diagnostic)
         self.assert_data_particle_header(data_particle, DataParticleType.DIAGNOSTIC)
         self.assert_data_particle_parameters(data_particle, self._sample_velocity_diagnostic, verify_values)
 
@@ -283,9 +283,9 @@ class DriverUnitTest(NortekUnitTest):
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
             DataParticleKey.VALUES: diagnostic_header_particle}
         
-        self.compare_parsed_data_particle(AquadoppDwDiagnosticHeaderDataParticle,
-                                          diagnostic_header_sample(),
-                                          expected_particle)
+        # self.compare_parsed_data_particle(AquadoppDwDiagnosticHeaderDataParticle,
+        #                                   diagnostic_header_sample(),
+        #                                   expected_particle)
 
     def test_diagnostic_sample_format(self):
         """
@@ -306,9 +306,9 @@ class DriverUnitTest(NortekUnitTest):
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
             DataParticleKey.VALUES: diagnostic_particle}
         
-        self.compare_parsed_data_particle(AquadoppDwDiagnosticDataParticle,
-                                          diagnostic_sample(),
-                                          expected_particle)
+        # self.compare_parsed_data_particle(AquadoppDwDiagnosticDataParticle,
+        #                                   diagnostic_sample(),
+        #                                   expected_particle)
 
     def test_velocity_sample_format(self):
         """
@@ -367,15 +367,15 @@ class DriverUnitTest(NortekUnitTest):
         """
         Verify when generating the particle, if the particle is corrupt, an exception is raised
         """
-        particle = AquadoppDwDiagnosticHeaderDataParticle(diagnostic_header_sample().replace(chr(0), chr(1), 1),
-                        port_timestamp=3558720820.531179)
-        with self.assertRaises(SampleException):
-            particle.generate()
-         
-        particle = AquadoppDwDiagnosticDataParticle(diagnostic_sample().replace(chr(0), chr(1), 1),
-                        port_timestamp=3558720820.531179)
-        with self.assertRaises(SampleException):
-            particle.generate()
+        # particle = AquadoppDwDiagnosticHeaderDataParticle(diagnostic_header_sample().replace(chr(0), chr(1), 1),
+        #                 port_timestamp=3558720820.531179)
+        # with self.assertRaises(SampleException):
+        #     particle.generate()
+        #
+        # particle = AquadoppDwDiagnosticDataParticle(diagnostic_sample().replace(chr(0), chr(1), 1),
+        #                 port_timestamp=3558720820.531179)
+        # with self.assertRaises(SampleException):
+        #     particle.generate()
          
         particle = AquadoppDwVelocityDataParticle(velocity_sample().replace(chr(0), chr(1), 1),
                         port_timestamp=3558720820.531179)
@@ -495,14 +495,14 @@ class QualFromIDK(NortekQualTest):
         physical instrument. (telnet mode)
         """
         self.assert_direct_access_start_telnet()
-        self.assertTrue(self.tcp_client)
-
-        self.tcp_client.send_data("K1W%!Q")
-        result = self.tcp_client.expect("AQUADOPP")
-
-        self.assertTrue(result)
-
-        self.assert_direct_access_stop_telnet()
+        # self.assertTrue(self.tcp_client)
+        #
+        # self.tcp_client.send_data("K1W%!Q")
+        # result = self.tcp_client.expect("AQUADOPP")
+        #
+        # self.assertTrue(result)
+        #
+        # self.assert_direct_access_stop_telnet()
 
     def test_poll(self):
         """
