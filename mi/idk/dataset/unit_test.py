@@ -39,6 +39,7 @@ from mi.idk.instrument_agent_client import InstrumentAgentClient
 from mi.idk.instrument_agent_client import InstrumentAgentDataSubscribers
 from mi.idk.instrument_agent_client import InstrumentAgentEventSubscribers
 from mi.dataset.dataset_driver import DataSourceConfigKey, DriverParameter
+from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.instrument_driver import DriverEvent
 
 from interface.objects import ResourceAgentConnectionLostErrorEvent
@@ -191,13 +192,13 @@ class DataSetTestCase(MiIntTestCase):
         if not startup_config:
             raise IDKConfigMissing("Driver config missing 'startup_config'")
 
-        harvester_config = startup_config.get('harvester')
+        harvester_config = startup_config.get(DataSourceConfigKey.HARVESTER)
         if not harvester_config:
             raise IDKConfigMissing("Startup config missing 'harvester' config")
 
-        if "directory" in harvester_config:
+        if DataSetDriverConfigKeys.DIRECTORY in harvester_config:
             # there is just one harvester config
-            data_dir = harvester_config.get("directory")
+            data_dir = harvester_config.get(DataSetDriverConfigKeys.DIRECTORY)
             if not data_dir:
                 raise IDKConfigMissing("Harvester config missing 'directory'")
 
@@ -211,7 +212,7 @@ class DataSetTestCase(MiIntTestCase):
             # return an array of dirs if there are multiple harvester configs
             data_dir = []
             for key in harvester_config:
-                this_dir = harvester_config[key].get("directory")
+                this_dir = harvester_config[key].get(DataSetDriverConfigKeys.DIRECTORY)
                 if not this_dir:
                     raise IDKConfigMissing("Harvester config missing 'directory'")
 
@@ -237,7 +238,7 @@ class DataSetTestCase(MiIntTestCase):
         if not startup_config:
             raise IDKConfigMissing("Driver config missing 'startup_config'")
 
-        harvester_config = startup_config.get('harvester')
+        harvester_config = startup_config.get(DataSourceConfigKey.HARVESTER)
         if not harvester_config:
             raise IDKConfigMissing("Startup config missing 'harvester' config")
 
@@ -630,10 +631,10 @@ class DataSetIntegrationTestCase(DataSetTestCase):
         """
         self.clear_sample_data()
 
-        harvester_config = self._driver_config()['startup_config']['harvester']
+        harvester_config = self._driver_config()['startup_config'][DataSourceConfigKey.HARVESTER]
 
-        if 'pattern' in harvester_config:
-            pattern = harvester_config['pattern']
+        if DataSetDriverConfigKeys.PATTERN in harvester_config:
+            pattern = harvester_config[DataSetDriverConfigKeys.PATTERN]
             filename = pattern.replace("*", "foo")
             self.assertIsNotNone(pattern)
 
@@ -650,9 +651,9 @@ class DataSetIntegrationTestCase(DataSetTestCase):
 
             # there are multiple harvester configs, test each one
             for key in harvester_config:
-                pattern = harvester_config[key]['pattern']
+                pattern = harvester_config[key][DataSetDriverConfigKeys.PATTERN]
                 filename = pattern.replace("*", "foo")
-                file_dir = harvester_config[key]['directory']
+                file_dir = harvester_config[key][DataSetDriverConfigKeys.DIRECTORY]
                 self.assertIsNotNone(pattern)
                 self.assertIsNotNone(file_dir)
 
@@ -1411,15 +1412,16 @@ class DataSetQualificationTestCase(DataSetAgentTestCase):
 
         exception callback called.
         """
-        harvester_config = self._driver_config()['startup_config']['harvester']
-        if 'pattern' in harvester_config:
-            pattern = harvester_config[key]['pattern']
+        harvester_config = self._driver_config()['startup_config'][DataSourceConfigKey.HARVESTER]
+        log.debug('Harvester config %s', harvester_config)
+        if DataSetDriverConfigKeys.PATTERN in harvester_config:
+            pattern = harvester_config[DataSetDriverConfigKeys.PATTERN]
             filename = pattern.replace("*", "foo")
             self.assert_new_file_exception(filename)
         else:
             for key in harvester_config:
-                pattern = harvester_config[key]['pattern']
-                file_dir = harvester_config[key]['directory']
+                pattern = harvester_config[key][DataSetDriverConfigKeys.PATTERN]
+                file_dir = harvester_config[key][DataSetDriverConfigKeys.DIRECTORY]
                 filename = pattern.replace("*", "foo")
 
                 self.assert_new_file_exception(filename, file_dir)
