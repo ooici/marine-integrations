@@ -11,6 +11,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.parser.sio_mule_common import StateKey
 from mi.dataset.parser.ctdmo import CtdmoParser, CtdmoParserDataParticle
+from mi.dataset.parser.ctdmo import CtdmoOffsetParserDataParticle
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.exceptions import DatasetParserException
@@ -39,7 +40,8 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         ParserUnitTestCase.setUp(self)
         self.config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE: 'mi.dataset.parser.ctdmo',
-            DataSetDriverConfigKeys.PARTICLE_CLASS: 'CtdmoParserDataParticle',
+            DataSetDriverConfigKeys.PARTICLE_CLASS: ['CtdmoParserDataParticle',
+		                                     'CtdmoOffsetParserDataParticle'],
             'inductive_id': 55
             }
 
@@ -58,8 +60,17 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         self.particle_f = CtdmoParserDataParticle(b'51EFDF96\x37\x36\xe7\xe6\x89W9\x10A~\x82\x19\r')
         # packet 7 [7547-7737]
         self.particle_g = CtdmoParserDataParticle(b'51EFFBB6\x37\x32\t6F\x0c\xd5\x0fa\x9a\x82\x19\r')
+
+	# first offset at 9543
+	self.particle_a_offset = CtdmoOffsetParserDataParticle(b'51F050167\x00\x00\x00\x00\x13')
+
         # in long file, starts at 13453
         self.particle_z = CtdmoParserDataParticle(b'51F0A47673\xb9\xa6]\x93\xf2\x0f!C\x83\x19\r')
+
+	# in longest file second offset at 19047
+	self.particle_b_offset = CtdmoOffsetParserDataParticle(b'51F1A1967\x00\x00\x00\x00\x13')
+	# third offset at 30596
+	self.particle_c_offset = CtdmoOffsetParserDataParticle(b'51F2F3167\x00\x00\x00\x00\x13')
 
         self.state_callback_value = None
         self.publish_callback_value = None
@@ -159,11 +170,39 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result[1], self.particle_b)
         self.assertEqual(result[2], self.particle_c)
         self.assertEqual(result[3], self.particle_d)
+        self.assertEqual(result[9], self.particle_a_offset)
         self.assertEqual(result[-1], self.particle_z)
         self.assert_state([],
             [[0, 12], [336, 394], [5924,5927],  [6889, 6958], [8687,8756], 
                [8946,9522], [13615, 14000]])
         self.assertEqual(self.publish_callback_value[-1], self.particle_z)
+        self.stream_handle.close()
+        self.assertEqual(self.exception_callback_value, None)
+
+    def test_longest_for_co(self):
+        """
+        Test an even longer file which contains more of the CO samples
+        """
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
+                                               'node59p1_longest.dat'))
+        self.parser = CtdmoParser(self.config, None, self.stream_handle, 
+                                  self.state_callback, self.pub_callback, self.exception_callback) 
+
+        result = self.parser.get_records(34)
+        self.assertEqual(result[0], self.particle_a)
+        self.assertEqual(result[1], self.particle_b)
+        self.assertEqual(result[2], self.particle_c)
+        self.assertEqual(result[3], self.particle_d)
+        self.assertEqual(result[9], self.particle_a_offset)
+        self.assertEqual(result[12], self.particle_z)
+        self.assertEqual(result[21], self.particle_b_offset)
+        self.assertEqual(result[-1], self.particle_c_offset)
+
+        self.assert_state([],
+            [[0, 12], [336, 394], [5924,5927],  [6889, 6958], [8687,8756], 
+             [8946,9522], [14576,14647], [16375,16444], [18173,18240],
+             [20130,20199], [21927,21996], [29707,29776], [30648,30746]])
+
         self.stream_handle.close()
         self.assertEqual(self.exception_callback_value, None)
 
