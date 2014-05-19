@@ -546,18 +546,19 @@ class SingleConnectionInstrumentDriver(InstrumentDriver):
         if not isinstance(config, dict):
             raise InstrumentParameterException("Incompatible initialization parameters")
 
-        if(self._protocol):
+        if self._protocol:
             param_config = None
-            if(len(config)):
+            if config:
                 param_config = config
-            elif(len(self._startup_config)):
+            elif self._startup_config:
                 param_config = self._startup_config
 
-            if(param_config):
+            if param_config:
                 self._protocol.set_init_params(param_config)
                 self._protocol.initialize_scheduler()
-                
-        self._startup_config = config
+
+        if config:
+            self._startup_config = config
     
     def apply_startup_params(self):
         """
