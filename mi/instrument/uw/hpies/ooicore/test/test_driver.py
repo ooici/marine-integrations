@@ -14,6 +14,7 @@ USAGE:
 """
 from mi.core.exceptions import SampleException
 from mi.core.instrument.data_particle import RawDataParticle
+from mi.core.instrument.instrument_driver import DriverProtocolState
 
 __author__ = 'Dan Mergens'
 __license__ = 'Apache 2.0'
@@ -288,7 +289,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, UtilMixin):
         self.assert_enum_has_no_duplicates(Parameter())
         self.assert_enum_has_no_duplicates(Command())
 
-        # Test capabilities for duplicates, them verify that capabilities is a subset of proto events
+        # Test capabilities for duplicates, then verify that capabilities is a subset of proto events
         self.assert_enum_has_no_duplicates(Capability())
         self.assert_enum_complete(Capability(), ProtocolEvent())
 
@@ -339,6 +340,28 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, UtilMixin):
         self.assertEquals(sorted(driver_capabilities),
                           sorted(protocol._filter_capabilities(test_capabilities)))
 
+    def test_capabilities(self):
+        """
+        Verify the FSM reports capabilities as expected.  All states defined in this dict must
+        also be defined in the protocol FSM.
+        """
+        capabilities = {
+            ProtocolState.UNKNOWN: [ProtocolEvent.DISCOVER],
+            ProtocolState.COMMAND: [ProtocolEvent.GET,
+                                    ProtocolEvent.SET,
+                                    ProtocolEvent.START_AUTOSAMPLE,
+                                    ProtocolEvent.START_DIRECT,
+            ],
+            ProtocolState.AUTOSAMPLE: [ProtocolEvent.STOP_AUTOSAMPLE,
+            ],
+            ProtocolState.DIRECT_ACCESS: [ProtocolEvent.STOP_DIRECT,
+                                          ProtocolEvent.EXECUTE_DIRECT,
+            ],
+        }
+
+        driver = InstrumentDriver(self._got_data_event_callback)
+        self.assert_capabilities(driver, capabilities)
+
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -349,8 +372,119 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, UtilMixin):
 ###############################################################################
 @attr('INT', group='mi')
 class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
-    def setUp(self):
-        InstrumentDriverIntegrationTestCase.setUp(self)
+    def test_autosample_particle_generation(self):
+        """
+        Test that we can generate particles when in autosample.
+        To test status particle instrument must be off and powered on will test is waiting
+        """
+        # put driver into autosample mode
+        self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
+
+        self.assert_async_particle_generation(DataParticleType.MOTOR_CURRENT, self.assert_data_particle_sample,
+                                              timeout=20)
+        self.assert_async_particle_generation(DataParticleType.HPIES_STATUS, self.assert_data_particle_sample,
+                                              timeout=30)
+        self.assert_async_particle_generation(DataParticleType.ECHO_SOUNDING, self.assert_data_particle_sample,
+                                              timeout=100)
+        self.assert_async_particle_generation(DataParticleType.HORIZONTAL_FIELD, self.assert_data_particle_sample,
+                                              timeout=110)
+        # it can take 46 minutes for the first calibration status to occur - need to test in qual
+        # self.assert_async_particle_generation(DataParticleType.CALIBRATION_STATUS, self.assert_data_particle_sample,
+        #                                       timeout=30)
+        # self.assert_async_particle_generation(DataParticleType.HPIES_STATUS, self.assert_data_particle_sample,
+        #                                       timeout=30)
+
+        # take driver out of autosample mode
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+
+        # test that sample particle is not generated
+        log.debug("test_autosample_particle_generation: waiting 60 seconds for no instrument data")
+        self.clear_events()
+        self.assert_async_particle_not_generated(DataParticleType.MOTOR_CURRENT, timeout=60)
+        self.assert_async_particle_not_generated(DataParticleType.HPIES_STATUS, timeout=60)
+        self.assert_async_particle_not_generated(DataParticleType.ECHO_SOUNDING, timeout=60)
+        self.assert_async_particle_not_generated(DataParticleType.HORIZONTAL_FIELD, timeout=60)
+
+        # put driver back in autosample mode
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+
+        # test that sample particle is generated
+        log.debug("test_autosample_particle_generation: waiting 60 seconds for instrument data")
+        self.assert_async_particle_generation(DataParticleType.MOTOR_CURRENT, self.assert_data_particle_sample,
+                                              timeout=20)
+
+    def test_parameters(self):
+        """
+        Verify that we can set the parameters
+
+        1. Cannot set read only parameters
+        2. Can set read/write parameters
+        3. Can set read/write parameters w/direct access only
+        """
+        self.assert_initialize_driver()
+
+        # verify we cannot set readonly parameters
+        read_only_params = [
+            Parameter.SERIAL,
+            Parameter.DEBUG_LEVEL,
+            Parameter.CAL_HOLD,
+            Parameter.CAL_SKIP,
+            Parameter.INITIAL_COMPASS,
+            Parameter.INITIAL_COMPASS_DELAY,
+            Parameter.CONSOLE_TIMEOUT,
+            Parameter.WSRUN_DELAY,
+            Parameter.MOTOR_DIR_NHOLD,
+            Parameter.MOTOR_DIR_INIT,
+            Parameter.POWER_COMPASS_W_MOTOR,
+            Parameter.KEEP_AWAKE_W_MOTOR,
+            Parameter.RSN_CONFIG,
+            Parameter.INVERT_LED_DRIVERS,
+            Parameter.M1A_LED,
+            Parameter.M2A_LED,
+            Parameter.IES_TIME,
+            Parameter.ECHO_SAMPLES,
+            Parameter.WATER_DEPTH,
+            Parameter.ACOUSTIC_LOCKOUT,
+            Parameter.ACOUSTIC_OUTPUT,
+            Parameter.RELEASE_TIME,
+            Parameter.COLLECT_TELEMETRY,
+            Parameter.MISSION_STATEMENT,
+            Parameter.PT_SAMPLES,
+            Parameter.TEMP_COEFF_U0,
+            Parameter.TEMP_COEFF_Y1,
+            Parameter.TEMP_COEFF_Y2,
+            Parameter.TEMP_COEFF_Y3,
+            Parameter.PRES_COEFF_C1,
+            Parameter.PRES_COEFF_C2,
+            Parameter.PRES_COEFF_C3,
+            Parameter.PRES_COEFF_D1,
+            Parameter.PRES_COEFF_D2,
+            Parameter.PRES_COEFF_T1,
+            Parameter.PRES_COEFF_T2,
+            Parameter.PRES_COEFF_T3,
+            Parameter.PRES_COEFF_T4,
+            Parameter.PRES_COEFF_T5,
+            Parameter.BLILEY_0,
+            Parameter.BLILEY_1,
+            Parameter.BLILEY_2,
+            Parameter.BLILEY_3
+        ]
+        for param in read_only_params:
+            self.assert_set_exception(param)
+
+            # verify out-of-range exception on set - TODO - ranges have not yet been defined in IOS
+            # self.assert_set_exception(Parameter.WSRUN_PINCH, -1)
+            # self.assert_set_exception(Parameter.NFC_CALIBRATE, -1)
+            # self.assert_set_exception(Parameter.NHC_COMPASS, -1)
+            # self.assert_set_exception(Parameter.COMPASS_SAMPLES, -1)
+            # self.assert_set_exception(Parameter.COMPASS_DELAY, -1)
+            # self.assert_set_exception(Parameter.MOTOR_SAMPLES, -1)
+            # self.assert_set_exception(Parameter.EF_SAMPLES, -1)
+            # self.assert_set_exception(Parameter.CAL_SAMPLES, -1)
+            # self.assert_set_exception(Parameter.MOTOR_TIMEOUTS_1A, -1)
+            # self.assert_set_exception(Parameter.MOTOR_TIMEOUTS_1B, -1)
+            # self.assert_set_exception(Parameter.MOTOR_TIMEOUTS_2A, -1)
+            # self.assert_set_exception(Parameter.MOTOR_TIMEOUTS_2B, -1)
 
 
 ###############################################################################
@@ -377,11 +511,6 @@ class DriverQualificationTest(InstrumentDriverQualificationTestCase):
         ###
 
         self.assert_direct_access_stop_telnet()
-
-    def test_poll(self):
-        """
-        No polling for a single sample
-        """
 
     def test_autosample(self):
         """

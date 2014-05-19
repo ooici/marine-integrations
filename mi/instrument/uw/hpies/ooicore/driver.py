@@ -110,8 +110,8 @@ class ProtocolState(BaseEnum):
     COMMAND = DriverProtocolState.COMMAND
     AUTOSAMPLE = DriverProtocolState.AUTOSAMPLE
     DIRECT_ACCESS = DriverProtocolState.DIRECT_ACCESS
-    TEST = DriverProtocolState.TEST
-    CALIBRATE = DriverProtocolState.CALIBRATE
+    # TEST = DriverProtocolState.TEST  # no test defined
+    # CALIBRATE = DriverProtocolState.CALIBRATE  # instrument auto-calibrates
 
 
 class ProtocolEvent(BaseEnum):
@@ -125,7 +125,6 @@ class ProtocolEvent(BaseEnum):
     DISCOVER = DriverEvent.DISCOVER
     START_DIRECT = DriverEvent.START_DIRECT
     STOP_DIRECT = DriverEvent.STOP_DIRECT
-    ACQUIRE_SAMPLE = DriverEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = DriverEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = DriverEvent.STOP_AUTOSAMPLE
     EXECUTE_DIRECT = DriverEvent.EXECUTE_DIRECT
@@ -137,7 +136,6 @@ class Capability(BaseEnum):
     """
     Protocol events that should be exposed to users (subset of above).
     """
-    ACQUIRE_SAMPLE = ProtocolEvent.ACQUIRE_SAMPLE
     START_AUTOSAMPLE = ProtocolEvent.START_AUTOSAMPLE
     STOP_AUTOSAMPLE = ProtocolEvent.STOP_AUTOSAMPLE
     CLOCK_SYNC = ProtocolEvent.CLOCK_SYNC
@@ -886,6 +884,11 @@ class Protocol(CommandResponseInstrumentProtocol):
                 (ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct),
                 (ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct),
             },
+            ProtocolState.AUTOSAMPLE: {
+                (ProtocolEvent.ENTER, self._handler_autosample_enter),
+                (ProtocolEvent.EXIT, self._handler_autosample_exit),
+                (ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample),
+            },
         }
 
         for state in handlers:
@@ -1423,6 +1426,8 @@ class Protocol(CommandResponseInstrumentProtocol):
                              startup_param=False,
                              direct_access=False,
                              visibility=ParameterDictVisibility.READ_ONLY)
+        # TODO - missing Temperature offset - -0.51 deg C
+        # TODO - missing Pressure offset - 0.96 psi
         self._param_dict.add(Parameter.BLILEY_0,
                              r'B0 = %(float)s' % common_matches,
                              lambda match: float(match.group(1)),
