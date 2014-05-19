@@ -1,0 +1,8 @@
+driver_metadata:
+  author: Jeff Laughlin Consulting LLC
+  constructor: AntelopeOrbDataSetDriver
+  driver_name: antelope_orb
+  driver_path: antelope/orb
+  email: jeff@jefflaughlinconsulting.com
+  release_notes: Initial Release
+  version: 0.0.1
