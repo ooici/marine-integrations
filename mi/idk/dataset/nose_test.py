@@ -155,11 +155,31 @@ class NoseTest(mi.idk.nose_test.NoseTest):
         """
         self._log("Running ingestion test, directory: %s, runtime: %s" % (directory, runtime))
 
+        # the data source key is used to identify harvester / parser combinations in
+        # multiple harvester dataset driver configurations
+        data_source_key = None
+
+        # specific data source key can be provided using a ':' for testing multiple
+        # harvester drivers, i.e. my_data_source_key:/tmp/dir
+        # If there is no ':' then we assume only a single harvester config
+        (pre, sep, post) = directory.partition(':')
+
+        if len(post):
+            # found a ':', set the directory and data source key
+            ingest_dir = post
+            data_source_key = pre
+        else:
+            # no ':', this is just the directory
+            ingest_dir = pre
+
         # Dynamically load the driver test module so the IDK singleton is initialized
         test_module = __import__(self._driver_test_module())
 
         # Adjust the harvester config to point to the new directory
-        DataSetTestConfig().driver_startup_config['harvester']['directory'] = directory
+        if data_source_key is None:
+            DataSetTestConfig().driver_startup_config['harvester']['directory'] = ingest_dir
+        else:
+            DataSetTestConfig().driver_startup_config['harvester'][data_source_key]['directory'] = ingest_dir
 
         # Add ingestion parameters to the singleton
         DataSetTestConfig().initialize_ingester_test(directory, runtime)
