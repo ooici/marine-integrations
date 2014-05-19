@@ -14,9 +14,11 @@ __author__ = 'Jeff Laughlin <jeff@jefflaughlinconsulting.com>'
 __license__ = 'Apache 2.0'
 
 
-import logging
+import numpy as np
+
 from mi.core.log import get_logger
 log = get_logger()
+#import logging
 #log.setLevel(logging.TRACE)
 
 from mi.core.common import BaseEnum
@@ -25,7 +27,7 @@ from mi.core.exceptions import SampleException
 
 from mi.dataset.dataset_parser import Parser
 
-from mi.core.kudu.brttpkt import OrbReapThr, GetError
+from mi.core.kudu.brttpkt import OrbReapThr, Timeout, NoData
 import _Pkt as _pkt
 
 
@@ -84,6 +86,10 @@ class AntelopeOrbPacketParticle(DataParticle):
 
     _data_particle_type = DataParticleType.ANTELOPE_ORB_PACKET
 
+    def generate(self, sorted=False):
+        """NO JSON ALLOWED"""
+        return self.generate_dict()
+
     def _build_parsed_values(self):
         """
         Take something in the data format and turn it into
@@ -104,6 +110,9 @@ class AntelopeOrbPacketParticle(DataParticle):
             pkttype, pkt = _pkt._unstuffPkt(srcname, orbtimestamp, raw_packet)
             if pkttype < 0:
                 raise SampleException("Failed to unstuff ORB packet")
+
+            # Calculate sample timestamp
+            self.set_internal_timestamp(unix_time=_pkt._Pkt_time_get(pkt))
 
             result.append({vid: pk.ID, v: pktid})
             result.append({vid: pk.DB, v: _pkt._Pkt_db_get(pkt)})
@@ -134,7 +143,7 @@ class AntelopeOrbPacketParticle(DataParticle):
                 channel[ck.CHAN] = _pkt._PktChannel_chan_get(pktchan)
                 channel[ck.CUSER1] = _pkt._PktChannel_cuser1_get(pktchan)
                 channel[ck.CUSER2] = _pkt._PktChannel_cuser2_get(pktchan)
-                channel[ck.DATA] = _pkt._PktChannel_data_get(pktchan)
+                channel[ck.DATA] = np.array(_pkt._PktChannel_data_get(pktchan))
                 channel[ck.DUSER1] = _pkt._PktChannel_duser1_get(pktchan)
                 channel[ck.DUSER2] = _pkt._PktChannel_duser2_get(pktchan)
                 channel[ck.IUSER1] = _pkt._PktChannel_iuser1_get(pktchan)
@@ -171,15 +180,6 @@ class AntelopeOrbParser(Parser):
                  state_callback, publish_callback, exception_callback = None):
         super(AntelopeOrbParser, self).__init__(config,
                                            None,
-
-City Budget
-
-Nancy Wolfe – Park St
-
-My main concern with the city budget ( and I did vote for it) is with the police and particularly the fire department budget. How can Barre Town get along with only volunteer fireman which cost the town only $53,000 last year-- while, the City, with approximately the same # of people to protect, has the same number paid full time for a budget of $1,300,000. Why can't we have some volunteers so, instead of calling in 2 fireman every time a call comes in, we could have volunteers who wouldn't be paid for 2 hours even if the call turns out to be a false alarm? Is this all about unions? I have also noticed over the years that Montpelier has hired interns for a year in their various offices while Barre City is not able to do so because of union contract..
-
-Email Author Reply to Forum
- 
                                            state,
                                            None,
                                            state_callback,
@@ -189,21 +189,28 @@ Email Author Reply to Forum
         # NOTE Still need this?
         self.stop = False
 
-        self._state = {StateKey.TAFTER: 0}
-        if state:
-            self._state = state
+        if state is None:
+            state = {}
+        self._state = state
 
-        orbname = self._config[ParserConfigKey.ORBNAME]
-        select = self._config[ParserConfigKey.SELECT]
-        reject = self._config[ParserConfigKey.REJECT]
-        tafter = self._state[StateKey.TAFTER]
+        orbname = config[ParserConfigKey.ORBNAME]
+        select = config[ParserConfigKey.SELECT]
+        reject = config[ParserConfigKey.REJECT]
 
-        self._orbreapthr = OrbReapThr(orbname, select, reject, tafter, timeout=0, queuesize=100)
-        log.info("Connected to ORB %s %s %s" % (orbname, select, reject))
+        keys = (ParserConfigKey.ORBNAME, ParserConfigKey.SELECT, ParserConfigKey.REJECT)
+        if [orbname, select, reject] != [state.get(k) for k in keys]:
+            log.warning("orbname, select & reject changed; resetting tafter to 0")
+            state.update({k: config[k] for k in keys})
+            state[StateKey.TAFTER] = 0.0
+
+        tafter = state[StateKey.TAFTER]
+
+        self._orbreapthr = OrbReapThr(orbname, select, reject, float(tafter), timeout=0, queuesize=100)
+        log.info("Connected to ORB %s %s %s %s" % (orbname, select, reject, tafter))
 
     def kill_threads(self):
-        self.orbreapthr.stop_and_wait()
-        self.orbreapthr.destroy()
+        self._orbreapthr.stop_and_wait()
+        self._orbreapthr.destroy()
 
     def get_records(self):
         """
@@ -213,23 +220,24 @@ Email Author Reply to Forum
         @param num_records The number of records to gather
         @retval Return the list of particles requested, [] if none available
         """
+        log.trace("GET RECORDS")
         try:
             if self.stop:
                 return
             get_r = self._orbreapthr.get()
             pktid, srcname, orbtimestamp, raw_packet = get_r
-            # timestamp = ntp.now()
-            # make particle here
+            log.trace("get_r: %s %s %s %s", pktid, srcname, orbtimestamp, len(raw_packet))
             particle = AntelopeOrbPacketParticle(
                 get_r,
-                preferred_timestamp = DataParticleKey.INTERNAL_TIMESTAMP
+                preferred_timestamp = DataParticleKey.INTERNAL_TIMESTAMP,
+                new_sequence=False,
             )
             self._publish_sample(particle)
             # TODO rate limit state updates?
             self._state[StateKey.TAFTER] = orbtimestamp
             log.debug("State: ", self._state)
             self._state_callback(self._state, False) # push new state to driver
-        except (GetError), e:
+        except (Timeout, NoData), e:
             log.debug("orbreapthr.get exception %r" % type(e))
             return None
         return get_r
