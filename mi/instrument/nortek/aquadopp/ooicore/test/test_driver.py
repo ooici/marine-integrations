@@ -436,20 +436,20 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
 
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
                
-    def test_instrument_read_id(self):
-        """
-        Verify the reading ID, need to be implemented in the child class because each ID is unique to the
-        instrument.
-        """
-        self.assert_initialize_driver()
-
-        # command the instrument to read the ID.
-        response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
-
-        log.debug("read ID returned: %s", response)
-        self.assertTrue(re.search(r'AQD .*', response[1]))
-
-        self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
+    # def test_instrument_read_id(self):
+    #     """
+    #     Verify the reading ID, need to be implemented in the child class because each ID is unique to the
+    #     instrument.
+    #     """
+    #     self.assert_initialize_driver()
+    #
+    #     # command the instrument to read the ID.
+    #     response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
+    #
+    #     log.debug("read ID returned: %s", response)
+    #     self.assertTrue(re.search(r'AQD .*', response[1]))
+    #
+    #     self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
 
 
 ###############################################################################
@@ -458,36 +458,9 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class QualFromIDK(NortekQualTest):
+class QualFromIDK(NortekQualTest, AquadoppDriverTestMixinSub):
     def setUp(self):
         NortekQualTest.setUp(self)
-
-    def assert_sample_data_particle(self, sample):
-        """
-        Assert the Velocity data particle is the expected format
-        """
-        log.debug('assert_sample_data_particle: sample=%s', sample)
-        self.assertTrue(sample[DataParticleKey.STREAM_NAME], DataParticleType.VELOCITY)
-        self.assertTrue(sample[DataParticleKey.PKT_FORMAT_ID], DataParticleValue.JSON_DATA)
-        self.assertTrue(sample[DataParticleKey.PKT_VERSION], 1)
-        self.assertTrue(isinstance(sample[DataParticleKey.VALUES], list))
-        self.assertTrue(isinstance(sample.get(DataParticleKey.DRIVER_TIMESTAMP), float))
-        self.assertTrue(sample.get(DataParticleKey.PREFERRED_TIMESTAMP))
-        
-        values = sample['values']
-        value_ids = []
-        for value in values:
-            value_ids.append(value['value_id'])
-        if AquadoppDwVelocityDataParticleKey.TIMESTAMP in value_ids:
-            log.debug('assert_sample_data_particle: AquadoppDwVelocityDataParticle detected')
-            self.assertEqual(sorted(value_ids), sorted(AquadoppDwVelocityDataParticleKey.list()))
-            for value in values:
-                if value['value_id'] == AquadoppDwVelocityDataParticleKey.TIMESTAMP:
-                    self.assertTrue(isinstance(value['value'], str))
-                else:
-                    self.assertTrue(isinstance(value['value'], int))
-        else:
-            self.fail('assert_sample_data_particle: Unknown data particle')
 
     def test_direct_access_telnet_mode_driver(self):
         """
@@ -495,24 +468,24 @@ class QualFromIDK(NortekQualTest):
         physical instrument. (telnet mode)
         """
         self.assert_direct_access_start_telnet()
-        # self.assertTrue(self.tcp_client)
-        #
-        # self.tcp_client.send_data("K1W%!Q")
-        # result = self.tcp_client.expect("AQUADOPP")
-        #
-        # self.assertTrue(result)
-        #
-        # self.assert_direct_access_stop_telnet()
+        self.assertTrue(self.tcp_client)
+
+        self.tcp_client.send_data("K1W%!Q")
+        result = self.tcp_client.expect("AQUADOPP")
+
+        self.assertTrue(result)
+
+        self.assert_direct_access_stop_telnet()
 
     def test_poll(self):
         """
         Verify the driver can poll the instrument for a single sample
         """
-        self.assert_sample_polled(self.assert_sample_data_particle, DataParticleType.VELOCITY, timeout=10)
+        self.assert_sample_polled(self.assert_particle_velocity, DataParticleType.VELOCITY, timeout=10)
 
     def test_autosample(self):
         """
         Verify the driver can enter and exit autosample mode, while in autosample the driver will collect multiple
         samples.
         """
-        self.assert_sample_autosample(self.assert_sample_data_particle, DataParticleType.VELOCITY, timeout=10)
+        self.assert_sample_autosample(self.assert_particle_velocity, DataParticleType.VELOCITY, timeout=10)

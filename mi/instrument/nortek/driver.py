@@ -38,7 +38,7 @@ from mi.core.instrument.instrument_driver import DriverProtocolState
 from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 
-from mi.core.exceptions import ReadOnlyException, InstrumentCommandException, NotImplementedException
+from mi.core.exceptions import ReadOnlyException, InstrumentCommandException
 from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentTimeoutException
 from mi.core.exceptions import InstrumentProtocolException
@@ -46,7 +46,7 @@ from mi.core.exceptions import InstrumentParameterException
 from mi.core.exceptions import SampleException
 
 from mi.core.time import get_timestamp_delayed
-from mi.core.common import InstErrorCode, BaseEnum
+from mi.core.common import BaseEnum
 
 # newline.
 NEWLINE = '\n\r'
@@ -587,6 +587,7 @@ class Parameter(DriverParameter):
     USER_4_SPARE = 'spare_4'
     QUAL_CONSTANTS = NortekUserConfigDataParticleKey.FILTER_CONSTANTS
 
+
 class EngineeringParameter(DriverParameter):
     """
     Driver Parameters (aka, engineering parameters)
@@ -895,7 +896,7 @@ class NortekProtocolParameterDict(ProtocolParameterDict):
                 raise InstrumentParameterException('Unable to set parameter %s to %s: value not an integer' % (name, value))
         else:
             if not isinstance(value, str):
-                raise InstrumentParameterException('Unable to set parameter %s to %s: value not a string' %(name, value))
+                raise InstrumentParameterException('Unable to set parameter %s to %s: value not a string' % (name, value))
 
         if self._param_dict[name].description.visibility == ParameterDictVisibility.READ_ONLY:
             raise ReadOnlyException('Unable to set parameter %s to %s: parameter %s is read only' % (name, value, name))
@@ -1198,7 +1199,7 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.READ_MODE, self._handler_autosample_read_mode)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.STOP_AUTOSAMPLE, self._handler_autosample_stop_autosample)
         self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_CLOCK_SYNC, self._handler_autosample_clock_sync)
-        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS, self._handler_command_acquire_status)
+        self._protocol_fsm.add_handler(ProtocolState.AUTOSAMPLE, ProtocolEvent.SCHEDULED_ACQUIRE_STATUS, self._handler_autosample_acquire_status)
 
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.ENTER, self._handler_direct_access_enter)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
@@ -1524,6 +1525,44 @@ class NortekInstrumentProtocol(CommandResponseInstrumentProtocol):
         result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, expected_prompt=key, timeout=30, *args, **kwargs)
 
         return None, (None, result)
+
+    def _handler_autosample_acquire_status(self, *args, **kwargs):
+        log.debug('%% IN _handler_autosample_acquire_status')
+
+        self._connection.send(InstrumentCmds.SOFT_BREAK_FIRST_HALF)
+        time.sleep(.1)
+        ret_prompt = self._do_cmd_resp(InstrumentCmds.SOFT_BREAK_SECOND_HALF,
+                                       expected_prompt=[InstrumentPrompts.CONFIRMATION, InstrumentPrompts.COMMAND_MODE],
+                                       *args, **kwargs)
+
+        log.debug('_handler_autosample_stop_autosample, ret_prompt: %s', ret_prompt)
+
+        if ret_prompt == InstrumentPrompts.CONFIRMATION:
+            # Issue the confirmation command.
+            self._do_cmd_resp(InstrumentCmds.CONFIRMATION, *args, **kwargs)
+
+        #BV
+        self._handler_command_read_battery_voltage()
+
+        #RC
+        self._handler_command_read_clock()
+
+        #GP
+        self._handler_command_get_hw_config()
+
+        #GH
+        self._handler_command_get_head_config()
+
+        #GC
+        self._handler_command_get_user_config()
+
+        #ID
+        #self._handler_command_read_id()
+        self._do_cmd_resp(InstrumentCmds.READ_ID)
+
+        self._do_cmd_resp(InstrumentCmds.START_MEASUREMENT_WITHOUT_RECORDER, *args, **kwargs)
+
+        return None, (None, None)
 
     def _handler_command_acquire_status(self, *args, **kwargs):
         """

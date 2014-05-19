@@ -45,7 +45,7 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import SampleException
 
-from mi.instrument.nortek.driver import ProtocolState, TIMEOUT, EngineeringParameter
+from mi.instrument.nortek.driver import ProtocolState, TIMEOUT, EngineeringParameter, Capability
 from mi.instrument.nortek.driver import ProtocolEvent
 
 from mi.instrument.nortek.vector.ooicore.driver import DataParticleType
@@ -453,39 +453,7 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class QualFromIDK(NortekQualTest):
-    def assert_sample_data_particle(self, sample):
-        if not self.assertBaseSampleDataParticle(sample):  # Check the common types
-            values = sample['values']
-            log.debug('values = %s', values)
-            log.debug('Data Particle Key = %s', sample[DataParticleKey.STREAM_NAME])
-            value_ids = []
-            for value in values:
-                value_ids.append(value[DataParticleKey.VALUE_ID])
-            if sample[DataParticleKey.STREAM_NAME] == DataParticleType.VELOCITY:
-                log.debug('assertSampleDataParticle: VectorVelocityDataParticle detected')
-                self.assertEqual(sorted(value_ids),
-                                 sorted(VectorVelocityDataParticleKey.list()))
-                for value in values:
-                    self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-            elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.VELOCITY_HEADER:
-                log.debug('assertSampleDataParticle: VectorVelocityHeaderDataParticle detected')
-                self.assertEqual(sorted(value_ids),
-                                 sorted(VectorVelocityHeaderDataParticleKey.list()))
-                for value in values:
-                    if value[DataParticleKey.VALUE_ID] == VectorVelocityHeaderDataParticleKey.TIMESTAMP:
-                        self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
-                    else:
-                        self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
-            elif sample[DataParticleKey.STREAM_NAME] == DataParticleType.SYSTEM:
-                log.debug('assertSampleDataParticle: VectorSystemDataParticleKey detected')
-                self.assertEqual(sorted(value_ids),
-                                 sorted(VectorSystemDataParticleKey.list()))
-                for value in values:
-                    if value[DataParticleKey.VALUE_ID] == VectorSystemDataParticleKey.TIMESTAMP:
-                        self.assertTrue(isinstance(value[DataParticleKey.VALUE], str))
-                    else:
-                        self.assertTrue(isinstance(value[DataParticleKey.VALUE], int))
+class QualFromIDK(NortekQualTest, VectorDriverTestMixinSub):
 
     def test_direct_access_telnet_mode(self):
         """
@@ -502,24 +470,17 @@ class QualFromIDK(NortekQualTest):
 
     def test_poll(self):
         """
-        poll for a single sample
+        Verify data particles for a single sample that are specific to Vector
         """
-        #todo - fail
-        self.assert_sample_polled(self.assert_sample_data_particle, DataParticleType.VELOCITY, timeout=10)
-        log.debug('got velocity')
-        self.assert_sample_polled(self.assert_sample_data_particle, DataParticleType.VELOCITY_HEADER, timeout=10)
-        log.debug('got velocity header')
-        self.assert_sample_polled(self.assert_sample_data_particle, DataParticleType.SYSTEM, timeout=10)
-        log.debug('got system')
+        self.assert_sample_polled(self.assert_particle_velocity, DataParticleType.VELOCITY_HEADER, timeout=10)
+        self.assert_sample_polled(self.assert_particle_sample, DataParticleType.VELOCITY, timeout=10)
+        self.assert_sample_polled(self.assert_particle_system, DataParticleType.SYSTEM, timeout=60)
 
     def test_autosample(self):
         """
-        start and stop autosample and verify data particle
+        Verify data particles for autosampling that are specific to Vector
         """
-        #todo - fail
-        #self.assert_sample_autosample(self.assert_sample_data_particle, DataParticleType.VELOCITY, timeout=10)
-        log.debug('got velocity')
-        #self.assert_sample_autosample(self.assert_sample_data_particle, DataParticleType.VELOCITY_HEADER, timeout=10)
-        log.debug('got velocity header')
-        self.assert_sample_autosample(self.assert_sample_data_particle, DataParticleType.SYSTEM, timeout=60)
-        log.debug('got system')
+        self.assert_enter_command_mode()
+        self.assert_particle_polled(Capability.START_AUTOSAMPLE, self.assert_particle_velocity, DataParticleType.VELOCITY_HEADER)
+        self.assert_particle_async(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=10)
+        self.assert_particle_async(DataParticleType.SYSTEM, self.assert_particle_system, timeout=10)

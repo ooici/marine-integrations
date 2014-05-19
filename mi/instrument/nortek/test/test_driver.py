@@ -16,7 +16,6 @@ import json
 from nose.plugins.attrib import attr
 from mock import Mock
 
-from pyon.agent.agent import ResourceAgentEvent
 from pyon.agent.agent import ResourceAgentState
 
 from mi.core.log import get_logger; log = get_logger()
@@ -36,8 +35,8 @@ from mi.core.instrument.instrument_driver import ConfigMetadataKey
 from mi.core.instrument.protocol_cmd_dict import CommandDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictKey, ParameterDictType
 
-from mi.instrument.nortek.driver import NortekProtocolParameterDict, TIMEOUT, \
-    NortekParameterDictVal, EngineeringParameter, INTERVAL_TIME_REGEX
+from mi.instrument.nortek.driver import NortekProtocolParameterDict, TIMEOUT, NortekParameterDictVal, \
+    EngineeringParameter, INTERVAL_TIME_REGEX
 from mi.instrument.nortek.driver import NortekHardwareConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekHeadConfigDataParticleKey
 from mi.instrument.nortek.driver import NortekUserConfigDataParticleKey
@@ -72,8 +71,8 @@ InstrumentDriverTestCase.initialize(
 
     driver_startup_config={
         DriverConfigKey.PARAMETERS:
-            {EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:10',
-             EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:10'}}
+            {EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
+             EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:00'}}
 )
 
 
@@ -321,7 +320,7 @@ def user_config2():
         0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0a, 0xff,
         0xcd, 0xff, 0x8b, 0x00, 0xe5, 0x00, 0xee, 0x00, 0x0b, 0x00, 0x84, 0xff, 0x3d, 0xff, 0xa7, 0xff]
-    
+
     user_config = ''
     for value in user_config_values:
         user_config += chr(value)
@@ -368,7 +367,7 @@ class DriverTestMixinSub(DriverTestMixin):
     }
 
     _id_parameter = {
-        NortekEngIdDataParticleKey.ID: {TYPE: str, VALUE: '', REQUIRED:True}
+        NortekEngIdDataParticleKey.ID: {TYPE: str, VALUE: '', REQUIRED: True}
     }
 
     _driver_parameters = {
@@ -584,6 +583,7 @@ class DriverTestMixinSub(DriverTestMixin):
         self.assert_data_particle_keys(NortekEngIdDataParticleKey, self._id_parameter)
         self.assert_data_particle_header(data_particle, NortekDataParticleType.ID_STRING)
         self.assert_data_particle_parameters(data_particle, self._id_parameter, verify_values)
+
 
 ###############################################################################
 #                                UNIT TESTS                                   #
@@ -958,7 +958,6 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         #test read only parameter
         self.assert_set_exception(Parameter.USER_4_SPARE, 'blah', exception_class=InstrumentParameterException)
 
-
     def test_instrument_clock_sync(self):
         """
         Verify the driver can sync the clock
@@ -1184,7 +1183,6 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
 
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 45)
 
-
     def test_direct_access_telnet_mode_autosample(self):
         """
         Verify Direct Access can start autosampling for the instrument, and if stopping DA, the
@@ -1195,10 +1193,12 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
 
         log.debug("DA Server Started. Put system into autosample")
         self.tcp_client.send_data("ST")
+        gevent.sleep(2)
         log.debug("DA autosample started")
 
         #Assert if stopping DA while autosampling, discover will put driver into Autosample state
         self.assert_direct_access_stop_telnet()
+        gevent.sleep(2)
         self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, timeout=10)
 
     def test_get_set_parameters(self):
@@ -1207,29 +1207,8 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
         """
         self.assert_enter_command_mode()
 
-        value_before_set = self.get_parameter(Parameter.BLANKING_DISTANCE)
-        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, 40)
-        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, value_before_set)
-
-        value_before_set = self.get_parameter(Parameter.AVG_INTERVAL)
-        self.assert_set_parameter(Parameter.AVG_INTERVAL, 4)
-        self.assert_set_parameter(Parameter.AVG_INTERVAL, value_before_set)
-
-    def test_instrument_set_configuration(self):
-        """
-        Verify driver can set the instrument configuration
-        """
-        self.assert_enter_command_mode()
-
-        # command the instrument to set the user configuration.
-        cmd = AgentCommand(command=ResourceAgentEvent.EXECUTE_RESOURCE,
-                           args=[ProtocolEvent.SET_CONFIGURATION],
-                           kwargs={'user_configuration': base64.b64encode(user_config2())})
-        try:
-            self.instrument_agent_client.execute_agent(cmd)
-            pass
-        except Exception:
-            self.fail('test of set_configuration command failed')
+        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, 16)
+        self.assert_set_parameter(Parameter.AVG_INTERVAL, 32)
 
     def test_get_capabilities(self):
         """
@@ -1243,12 +1222,13 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
         capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.COMMAND)
         capabilities[AgentCapabilityType.AGENT_PARAMETER] = self._common_agent_parameters()
         capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [ProtocolEvent.ACQUIRE_SAMPLE,
-                                                   ProtocolEvent.GET,
-                                                   ProtocolEvent.SET,
-                                                   ProtocolEvent.ACQUIRE_STATUS,
-                                                   ProtocolEvent.CLOCK_SYNC,
-                                                   ProtocolEvent.START_AUTOSAMPLE,
-                                                   ProtocolEvent.START_DIRECT]
+                                                               ProtocolEvent.GET,
+                                                               ProtocolEvent.SET,
+                                                               ProtocolEvent.ACQUIRE_STATUS,
+                                                               ProtocolEvent.CLOCK_SYNC,
+                                                               ProtocolEvent.START_AUTOSAMPLE,
+                                                               ProtocolEvent.START_DIRECT,
+                                                               ProtocolEvent.STOP_AUTOSAMPLE]
         capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = None
         capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = self._driver_parameters.keys()
 
