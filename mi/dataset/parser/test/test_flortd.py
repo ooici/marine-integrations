@@ -42,22 +42,18 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
             }
 
         # first FL tag
-        self.timestamp1 = 3583610106.0
         self.particle_a = FlortdParserDataParticle(
             '51EF0E7507/23/13\t23:15:06\t700\t50\t695\t50\t460\t53\t545')
-        self.timestamp2 = 3583612806.0
+        self.particle_a_dash = FlortdParserDataParticle(
+            '51EF0E7507/23/13\t23:15:06\t700\t50\t--\t50\t460\t53\t545')
         self.particle_b = FlortdParserDataParticle(
             '51EF190107/24/13\t00:00:06\t700\t85\t695\t50\t460\t51\t548')
-        self.timestamp3 = 3583634405.0
         self.particle_c = FlortdParserDataParticle(
             '51EF6D6107/24/13\t06:00:05\t700\t78\t695\t72\t460\t51\t553')
-        self.timestamp4 = 3583656006.0
         self.particle_d = FlortdParserDataParticle(
             '51EFC1C207/24/13\t12:00:06\t700\t169\t695\t127\t460\t58\t553')
-        self.timestamp5 = 3583677606.0
         self.particle_e = FlortdParserDataParticle(
             '51F0162207/24/13\t18:00:06\t700\t262\t695\t84\t460\t55\t555')
-        self.timestamp6 = 3583699206.0
         self.particle_f = FlortdParserDataParticle(
             '51F06A8207/25/13\t00:00:06\t700\t159\t695\t95\t460\t59\t554')
 
@@ -125,6 +121,23 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(self.publish_callback_value[0], self.particle_a)
         self.assertEqual(self.publish_callback_value[1], self.particle_b)
         self.assertEqual(self.publish_callback_value[2], self.particle_c)
+
+    def test_dash(self):
+        """
+        Test that the particle with a field replaced by dashes is found
+        """
+        self.stream_handle = open(os.path.join(RESOURCE_PATH,
+                                               'node59p1_dash.dat'))
+        self.parser = FlortdParser(self.config, None, self.stream_handle,
+                                   self.state_callback, self.pub_callback, self.exception_callback)
+
+        result = self.parser.get_records(1)
+        self.assert_result(result,
+                           [[313,389,1,0]],
+                           [[0,69],[313,499]], self.particle_a_dash)
+        result = self.parser.get_records(1)
+        self.assert_result(result, [],
+                           [[0,69],[389,499]], self.particle_b)
 
     def test_long_stream(self):
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
