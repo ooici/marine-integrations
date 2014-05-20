@@ -22,10 +22,7 @@ USAGE:
 __author__ = 'Bill Bollenbacher'
 __license__ = 'Apache 2.0'
 
-from gevent import monkey;
-
-
-monkey.patch_all()
+from gevent import monkey; monkey.patch_all()
 import unittest
 import time
 import base64
@@ -33,13 +30,11 @@ import ntplib
 
 from nose.plugins.attrib import attr
 
-from mi.core.log import get_logger;
-
+from mi.core.log import get_logger
 log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
-from mi.idk.unit_test import DriverTestMixin
 from mi.idk.unit_test import ParameterTestConfigKey
 
 from mi.instrument.nortek.test.test_driver import head_config_sample
@@ -58,7 +53,7 @@ from mi.core.exceptions import InstrumentStateException
 from mi.core.exceptions import InstrumentCommandException
 from mi.core.exceptions import SampleException
 
-from mi.instrument.nortek.driver import ProtocolState
+from mi.instrument.nortek.driver import ProtocolState, TIMEOUT, EngineeringParameter, Capability
 from mi.instrument.nortek.driver import ProtocolEvent
 from mi.instrument.nortek.driver import Parameter
 from mi.instrument.nortek.driver import NortekDataParticleType
@@ -83,10 +78,10 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_name='nortek_vector_dw_ooicore_agent',
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={
-        DriverConfigKey.PARAMETERS: {
-            Parameter.AVG_INTERVAL: 61
-        }
-    }
+        DriverConfigKey.PARAMETERS:
+            {EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
+             EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:00',
+             Parameter.AVG_INTERVAL: 61}}
 )
 
 params_dict = {
@@ -131,110 +126,60 @@ params_dict = {
     Parameter.TRANSMIT_PULSE_LENGTH_SECOND_LAG: int,
     Parameter.QUAL_CONSTANTS: str}
 
-
-# velocity data particle & sample 
+# velocity data particle & sample
 def velocity_sample():
     sample_as_hex = "a51000db00008f10000049f041f72303303132120918d8f7"
     return sample_as_hex.decode('hex')
 
 # these values checkout against the sample above
-velocity_particle = [{DataParticleKey.VALUE_ID: \
-                          VectorVelocityDataParticleKey.ANALOG_INPUT2,
-                      DataParticleKey.VALUE: 0},
-                     {DataParticleKey.VALUE_ID: \
-                          VectorVelocityDataParticleKey.COUNT,
-                      DataParticleKey.VALUE: 219},
-                     {DataParticleKey.VALUE_ID: \
-                          VectorVelocityDataParticleKey.PRESSURE,
-                      DataParticleKey.VALUE: 4239},
-                     {DataParticleKey.VALUE_ID: \
-                          VectorVelocityDataParticleKey.ANALOG_INPUT1,
-                      DataParticleKey.VALUE: 0},
-                     {DataParticleKey.VALUE_ID: \
-                          VectorVelocityDataParticleKey.VELOCITY_BEAM1,
-                      DataParticleKey.VALUE: 61513},
-                     {DataParticleKey.VALUE_ID: \
-                          VectorVelocityDataParticleKey.VELOCITY_BEAM2,
-                      DataParticleKey.VALUE: 63297},
-                     {DataParticleKey.VALUE_ID: \
-                          VectorVelocityDataParticleKey.VELOCITY_BEAM3,
-                      DataParticleKey.VALUE: 803},
-                     {DataParticleKey.VALUE_ID: \
-                          VectorVelocityDataParticleKey.AMPLITUDE_BEAM1,
-                      DataParticleKey.VALUE: 48},
-                     {DataParticleKey.VALUE_ID: \
-                          VectorVelocityDataParticleKey.AMPLITUDE_BEAM2,
-                      DataParticleKey.VALUE: 49},
-                     {DataParticleKey.VALUE_ID: \
-                          VectorVelocityDataParticleKey.AMPLITUDE_BEAM3,
-                      DataParticleKey.VALUE: 50},
-                     {DataParticleKey.VALUE_ID: \
-                          VectorVelocityDataParticleKey.CORRELATION_BEAM1,
-                      DataParticleKey.VALUE: 18},
-                     {DataParticleKey.VALUE_ID: \
-                          VectorVelocityDataParticleKey.CORRELATION_BEAM2,
-                      DataParticleKey.VALUE: 9},
-                     {DataParticleKey.VALUE_ID: \
-                          VectorVelocityDataParticleKey.CORRELATION_BEAM3,
-                      DataParticleKey.VALUE: 24}]
+velocity_particle = [{DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.ANALOG_INPUT2, DataParticleKey.VALUE: 0},
+                     {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.COUNT, DataParticleKey.VALUE: 219},
+                     {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.PRESSURE, DataParticleKey.VALUE: 4239},
+                     {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.ANALOG_INPUT1, DataParticleKey.VALUE: 0},
+                     {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.VELOCITY_BEAM1, DataParticleKey.VALUE: 61513},
+                     {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.VELOCITY_BEAM2, DataParticleKey.VALUE: 63297},
+                     {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.VELOCITY_BEAM3, DataParticleKey.VALUE: 803},
+                     {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.AMPLITUDE_BEAM1, DataParticleKey.VALUE: 48},
+                     {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.AMPLITUDE_BEAM2, DataParticleKey.VALUE: 49},
+                     {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.AMPLITUDE_BEAM3, DataParticleKey.VALUE: 50},
+                     {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.CORRELATION_BEAM1, DataParticleKey.VALUE: 18},
+                     {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.CORRELATION_BEAM2, DataParticleKey.VALUE: 9},
+                     {DataParticleKey.VALUE_ID: VectorVelocityDataParticleKey.CORRELATION_BEAM3, DataParticleKey.VALUE: 24}]
 
-# velocity header data particle & sample 
+
+# velocity header data particle & sample
 def velocity_header_sample():
     sample_as_hex = "a512150012491711121270032f2f2e0002090d0000000000000000000000000000000000000000005d70"
     return sample_as_hex.decode('hex')
 
 # these values checkout against the sample above
-velocity_header_particle = [{DataParticleKey.VALUE_ID: \
-                                 VectorVelocityHeaderDataParticleKey.TIMESTAMP,
-                             DataParticleKey.VALUE: '17/12/2012 11:12:49'},
-                            {DataParticleKey.VALUE_ID: \
-                                 VectorVelocityHeaderDataParticleKey.NUMBER_OF_RECORDS,
-                             DataParticleKey.VALUE: 880},
-                            {DataParticleKey.VALUE_ID: \
-                                 VectorVelocityHeaderDataParticleKey.NOISE1,
-                             DataParticleKey.VALUE: 47},
-                            {DataParticleKey.VALUE_ID: \
-                                 VectorVelocityHeaderDataParticleKey.NOISE2,
-                             DataParticleKey.VALUE: 47},
-                            {DataParticleKey.VALUE_ID: \
-                                 VectorVelocityHeaderDataParticleKey.NOISE3,
-                             DataParticleKey.VALUE: 46},
-                            {DataParticleKey.VALUE_ID: \
-                                 VectorVelocityHeaderDataParticleKey.CORRELATION1,
-                             DataParticleKey.VALUE: 2},
-                            {DataParticleKey.VALUE_ID: \
-                                 VectorVelocityHeaderDataParticleKey.CORRELATION2,
-                             DataParticleKey.VALUE: 9},
-                            {DataParticleKey.VALUE_ID: \
-                                 VectorVelocityHeaderDataParticleKey.CORRELATION3,
-                             DataParticleKey.VALUE: 13}]
+velocity_header_particle = [{DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.TIMESTAMP, DataParticleKey.VALUE: '17/12/2012 11:12:49'},
+                            {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.NUMBER_OF_RECORDS, DataParticleKey.VALUE: 880},
+                            {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.NOISE1, DataParticleKey.VALUE: 47},
+                            {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.NOISE2, DataParticleKey.VALUE: 47},
+                            {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.NOISE3, DataParticleKey.VALUE: 46},
+                            {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.CORRELATION1, DataParticleKey.VALUE: 2},
+                            {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.CORRELATION2, DataParticleKey.VALUE: 9},
+                            {DataParticleKey.VALUE_ID: VectorVelocityHeaderDataParticleKey.CORRELATION3, DataParticleKey.VALUE: 13}]
 
-# system data particle & sample 
+
+# system data particle & sample
 def system_sample():
     sample_as_hex = "a5110e0003261317121294007c3b83041301cdfe0a08007b0000e4d9"
     return sample_as_hex.decode('hex')
 
 # these values checkout against the sample above
-system_particle = [{DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TIMESTAMP,
-                    DataParticleKey.VALUE: '13/12/2012 17:03:26'},
-                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.BATTERY,
-                    DataParticleKey.VALUE: 148},
-                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.SOUND_SPEED,
-                    DataParticleKey.VALUE: 15228},
-                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.HEADING,
-                    DataParticleKey.VALUE: 1155},
-                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.PITCH,
-                    DataParticleKey.VALUE: 275},
-                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ROLL,
-                    DataParticleKey.VALUE: 65229},
-                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TEMPERATURE,
-                    DataParticleKey.VALUE: 2058},
-                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ERROR,
-                    DataParticleKey.VALUE: 0},
-                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.STATUS,
-                    DataParticleKey.VALUE: 123},
-                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ANALOG_INPUT,
-                    DataParticleKey.VALUE: 0}]
+system_particle = [{DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TIMESTAMP, DataParticleKey.VALUE: '13/12/2012 17:03:26'},
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.BATTERY, DataParticleKey.VALUE: 148},
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.SOUND_SPEED, DataParticleKey.VALUE: 15228},
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.HEADING, DataParticleKey.VALUE: 1155},
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.PITCH, DataParticleKey.VALUE: 275},
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ROLL, DataParticleKey.VALUE: 65229},
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TEMPERATURE, DataParticleKey.VALUE: 2058},
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ERROR, DataParticleKey.VALUE: 0},
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.STATUS, DataParticleKey.VALUE: 123},
+                   {DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.ANALOG_INPUT, DataParticleKey.VALUE: 0}]
+
 
 #################################### RULES ####################################
 #                                                                             #
@@ -248,21 +193,18 @@ system_particle = [{DataParticleKey.VALUE_ID: VectorSystemDataParticleKey.TIMEST
 # Qualification tests are driven through the instrument_agent                 #
 #                                                                             #
 ###############################################################################
-
-
 ###############################################################################
-#                           DRIVER TEST MIXIN        		                  #
+#                           DRIVER TEST MIXIN                                 #
 #     Defines a set of constants and assert methods used for data particle    #
-#     verification 														      #
+#     verification                                                            #
 #                                                                             #
 #  In python, mixin classes are classes designed such that they wouldn't be   #
 #  able to stand on their own, but are inherited by other classes generally   #
 #  using multiple inheritance.                                                #
 #                                                                             #
 # This class defines a configuration structure for testing and common assert  #
-# methods for validating data particles.									  #
+# methods for validating data particles.                                      #
 ###############################################################################
-
 class VectorDriverTestMixinSub(DriverTestMixinSub):
     """
     Mixin class used for storing data particle constance and common data assertion methods.
@@ -320,8 +262,8 @@ class VectorDriverTestMixinSub(DriverTestMixinSub):
 
     def assert_particle_sample(self, data_particle, verify_values=False):
         """
-        Verify [flortd]_sample particle
-        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        Verify vel3d_cd_sample particle
+        @param data_particle:  VectorVelocityDataParticleKey data particle
         @param verify_values:  bool, should we verify parameter values
         """
 
@@ -329,11 +271,10 @@ class VectorDriverTestMixinSub(DriverTestMixinSub):
         self.assert_data_particle_header(data_particle, DataParticleType.VELOCITY)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
 
-
     def assert_particle_velocity(self, data_particle, verify_values=False):
         """
-        Verify [flortd]_sample particle
-        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        Verify veld3d_cd_velocity particle
+        @param data_particle:  VectorVelocityHeaderDataParticleKey data particle
         @param verify_values:  bool, should we verify parameter values
         """
 
@@ -341,11 +282,10 @@ class VectorDriverTestMixinSub(DriverTestMixinSub):
         self.assert_data_particle_header(data_particle, DataParticleType.VELOCITY_HEADER)
         self.assert_data_particle_parameters(data_particle, self._sample_parameters_02, verify_values)
 
-
     def assert_particle_system(self, data_particle, verify_values=False):
         """
-        Verify [flortd]_sample particle
-        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        Verify vel3d_cd_system particle
+        @param data_particle:  VectorSystemDataParticleKeydata particle
         @param verify_values:  bool, should we verify parameter values
         """
 
@@ -362,6 +302,13 @@ class VectorDriverTestMixinSub(DriverTestMixinSub):
 class UnitFromIDK(NortekUnitTest):
     def setUp(self):
         NortekUnitTest.setUp(self)
+
+    def test_driver_enums(self):
+        """
+        Verify driver specific enums have no duplicates
+        Base unit test driver will test enums specific for the base class.
+        """
+        self.assert_enum_has_no_duplicates(DataParticleType())
 
     def test_velocity_header_sample_format(self):
         """
@@ -459,31 +406,14 @@ class UnitFromIDK(NortekUnitTest):
         self.assert_chunker_sample(chunker, velocity_header_sample())
 
         # test fragmented data structures
-        sample = velocity_sample()
-        fragments = [sample[0:4], sample[4:10], sample[10:14], sample[14:]]
-        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
-
-        sample = system_sample()
-        fragments = [sample[0:5], sample[5:11], sample[11:15], sample[15:]]
-        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
-
-        sample = velocity_header_sample()
-        fragments = [sample[0:3], sample[3:11], sample[11:12], sample[12:]]
-        self.assert_chunker_fragmented_sample(chunker, fragments, sample)
+        self.assert_chunker_fragmented_sample(chunker, velocity_sample())
+        self.assert_chunker_fragmented_sample(chunker, system_sample())
+        self.assert_chunker_fragmented_sample(chunker, velocity_header_sample())
 
         # test combined data structures
-        self.assert_chunker_combined_sample(chunker,
-                                            velocity_sample(),
-                                            system_sample(),
-                                            velocity_header_sample())
-        self.assert_chunker_combined_sample(chunker,
-                                            velocity_header_sample(),
-                                            velocity_sample(),
-                                            system_sample())
-        self.assert_chunker_combined_sample(chunker,
-                                            velocity_header_sample(),
-                                            head_config_sample(),
-                                            system_sample())
+        self.assert_chunker_combined_sample(chunker, velocity_sample())
+        self.assert_chunker_combined_sample(chunker, system_sample())
+        self.assert_chunker_combined_sample(chunker, velocity_header_sample())
 
         # test data structures with noise
         self.assert_chunker_sample_with_noise(chunker, velocity_sample())
@@ -522,8 +452,8 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
     def setUp(self):
         NortekIntTest.setUp(self)
 
-    @unittest.skip('temp disable')
-    def test_command_acquire_sample(self):
+    # @unittest.skip('temp disable')
+    def test_autosample_read_mode(self):
         """
         Test acquire sample command and events.
         """
@@ -533,24 +463,49 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         2. command the instrument to ACQUIRESAMPLE
         3. verify the particle coming in
         """
+        self.assert_initialize_driver(ProtocolState.AUTOSAMPLE)
+        time.sleep(5)
+        self.assert_driver_command(ProtocolEvent.READ_MODE, state=ProtocolState.AUTOSAMPLE, delay=1)
+
+        # time.sleep(5)
+        # self.assert_driver_command(ProtocolEvent.READ_MODE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        time.sleep(3)
+        self.assert_driver_command(ProtocolEvent.READ_MODE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        time.sleep(1)
+        self.assert_driver_command(ProtocolEvent.READ_MODE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        time.sleep(3)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+
+    # @unittest.skip('temp disable')
+    def test_acquire_sample(self):
+        """
+        Test acquire sample command and events.
+
+        1. initialize the instrument to COMMAND state
+        2. command the instrument to ACQUIRESAMPLE
+        3. verify the particle coming in
+        """
         self.assert_initialize_driver(ProtocolState.COMMAND)
         # test acquire sample
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
         self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample)
 
-    @unittest.skip('temp disable')
+        # self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
+        # self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample)
+        #
+        # self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
+        # self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample)
+
+    # @unittest.skip('temp disable')
     def test_command_autosample(self):
         """
         Test autosample command and events.
-        """
 
-        """
         1. initialize the instrument to COMMAND state
         2. command the instrument to AUTOSAMPLE
         3. verify the particle coming in
         4. command the instrument back to COMMAND state
         """
-
         self.assert_initialize_driver(ProtocolState.COMMAND)
         # test autosample
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
@@ -559,7 +514,9 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
         self.assert_async_particle_generation(DataParticleType.VELOCITY_HEADER, self.assert_particle_velocity)
         self.assert_async_particle_generation(DataParticleType.SYSTEM, self.assert_particle_system)
         self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=45)
+
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+        # self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, delay=1)
 
 
     # def test_set_init_params(self):
@@ -854,7 +811,38 @@ class IntFromIDK(NortekIntTest, VectorDriverTestMixinSub):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class QualFromIDK(NortekQualTest):
+class QualFromIDK(NortekQualTest, VectorDriverTestMixinSub):
+
+    def test_direct_access_telnet_mode(self):
+        """
+        This test manually tests that the Instrument Driver properly supports direct access to the
+        physical instrument. (telnet mode)
+        """
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+
+        self.tcp_client.send_data("K1W%!Q")
+        self.tcp_client.expect("VECTOR")
+
+        self.assert_direct_access_stop_telnet()
+
+    def test_poll(self):
+        """
+        Verify data particles for a single sample that are specific to Vector
+        """
+        self.assert_sample_polled(self.assert_particle_velocity, DataParticleType.VELOCITY_HEADER, timeout=10)
+        self.assert_sample_polled(self.assert_particle_sample, DataParticleType.VELOCITY, timeout=10)
+        self.assert_sample_polled(self.assert_particle_system, DataParticleType.SYSTEM, timeout=60)
+
+    def test_autosample(self):
+        """
+        Verify data particles for autosampling that are specific to Vector
+        """
+        self.assert_enter_command_mode()
+        self.assert_particle_polled(Capability.START_AUTOSAMPLE, self.assert_particle_velocity, DataParticleType.VELOCITY_HEADER)
+        self.assert_particle_async(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=10)
+        self.assert_particle_async(DataParticleType.SYSTEM, self.assert_particle_system, timeout=10)
+
     def assertSampleDataParticle(self, sample):
         if not self.assertBaseSampleDataParticle(sample):  # Check the common types
             values = sample['values']
