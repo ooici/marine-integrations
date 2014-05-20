@@ -1215,10 +1215,18 @@ class GliderEngineeringParser(GliderParser):
         if not self._read_state[StateKey.SENT_METADATA] and self._header_dict != {}:
             # we haven't sent it yet and we have a header, send it now
             data_dict = self.get_header_info_dict()
-            timestamp = self.fileopen_str_to_timestamp(data_dict['glider_eng_fileopen_time']['Data'])
-            particle = self._extract_sample(EngineeringMetadataDataParticle, None, data_dict, timestamp)
-            self._read_state[StateKey.SENT_METADATA] = True
-            result_particles.append((particle, copy.copy(self._read_state)))
+            try:
+                timestamp = self.fileopen_str_to_timestamp(data_dict['glider_eng_fileopen_time']['Data'])
+                particle = self._extract_sample(EngineeringMetadataDataParticle, None, data_dict, timestamp)
+                self._read_state[StateKey.SENT_METADATA] = True
+                result_particles.append((particle, copy.copy(self._read_state)))
+            except ValueError:
+                # converting fileopen string to timestamp will throw a ValueError if the time is not parseable
+                log.warn("Unable to parse timestamp from file open time %s, not returning metadata particle",
+                         data_dict['glider_eng_fileopen_time']['Data'])
+                self._exception_callback(SampleException(
+                    "Unable to parse timestamp from file open time %s , not returning metadata particle" % \
+                    data_dict['glider_eng_fileopen_time']['Data']))
 
         # collect the non-data from the file
         (nd_timestamp, non_data, none_start, none_end) = self._chunker.get_next_non_data_with_index(clean=False)
@@ -1331,9 +1339,16 @@ class GliderEngineeringParser(GliderParser):
     def fileopen_str_to_timestamp(self, fileopen_str):
         """
         Parse the fileopen time into a timestamp
+        @param fileopen_str String parse the fileopen date from
+        @throws ValueError if the fileopen_str is unable to be parsed into a date/time
         """
-        converted_time = datetime.strptime(fileopen_str, "%a_%b_%d_%H:%M:%S_%Y")
-        log.debug('Converted string %s to time %s', fileopen_str, converted_time)
+        # if the day is only one digit, it is replaced with an _ rather than 0
+        try:
+            # first try 1 digit for the day
+            converted_time = datetime.strptime(fileopen_str, "%a_%b__%d_%H:%M:%S_%Y")
+        except ValueError as e:
+            # date might have two digits for the day, now try that
+            converted_time = datetime.strptime(fileopen_str, "%a_%b_%d_%H:%M:%S_%Y")
         localtime = time.mktime(converted_time.timetuple())
         utctime = localtime - time.timezone
         return ntplib.system_to_ntp_time(float(utctime))
