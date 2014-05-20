@@ -12,23 +12,21 @@ __license__ = 'Apache 2.0'
 
 import re
 
-from mi.core.log import get_logger; log = get_logger()
-
 from mi.core.common import BaseEnum
 
+from mi.core.log import get_logger
+log = get_logger()
+
 from mi.core.exceptions import SampleException
+
 from mi.core.instrument.chunker import StringChunker
+
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
-from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentPrompts, NortekProtocolParameterDict, \
-    USER_CONFIG_DATA_REGEX, HARDWARE_CONFIG_DATA_REGEX, HEAD_CONFIG_DATA_REGEX, NEWLINE, log_method, \
-    ACQUIRE_STATUS_REGEX, EngineeringParameter, BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, \
-    NortekEngBatteryDataParticle, NortekEngClockDataParticle, NortekEngIdDataParticle
-from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
-from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
-from mi.instrument.nortek.driver import NortekUserConfigDataParticle, NortekParameterDictVal, Parameter, \
-    RUN_CLOCK_SYNC_REGEX, NortekInstrumentDriver
-from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
-from mi.core.instrument.protocol_param_dict import ParameterDictType
+
+from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentPrompts, NortekProtocolParameterDict
+from mi.instrument.nortek.driver import NortekParameterDictVal, Parameter, NortekInstrumentDriver, NEWLINE
+
+from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, ParameterDictType
 
 VELOCITY_DATA_LEN = 42
 VELOCITY_DATA_SYNC_BYTES = '\xa5\x01\x15\x00'
@@ -53,6 +51,9 @@ DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN, re.DOTALL)
 
 
 class DataParticleType(BaseEnum):
+    """
+    List of data particles.  Names match those in the IOS, so need to overwrite definition in base class
+    """
     VELOCITY = 'velocity'
     DIAGNOSTIC = 'diagnostic'
     DIAGNOSTIC_HEADER = 'diagnostic_header'
@@ -84,7 +85,6 @@ class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
     """
     _data_particle_type = DataParticleType.DIAGNOSTIC_HEADER
 
-    @log_method
     def _build_parsed_values(self):
         """
         Take something in the diagnostic data header sample format and parse it into
@@ -141,34 +141,20 @@ class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
         if None == distance4:
             raise SampleException("No distance4 value parsed")
 
-        result = [{DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS,
-                   DataParticleKey.VALUE: records},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CELL,
-                   DataParticleKey.VALUE: cell},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE1,
-                   DataParticleKey.VALUE: noise1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE2,
-                   DataParticleKey.VALUE: noise2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE3,
-                   DataParticleKey.VALUE: noise3},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE4,
-                   DataParticleKey.VALUE: noise4},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM1,
-                   DataParticleKey.VALUE: proc_magn_beam1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM2,
-                   DataParticleKey.VALUE: proc_magn_beam2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM3,
-                   DataParticleKey.VALUE: proc_magn_beam3},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM4,
-                   DataParticleKey.VALUE: proc_magn_beam4},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE1,
-                   DataParticleKey.VALUE: distance1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE2,
-                   DataParticleKey.VALUE: distance2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE3,
-                   DataParticleKey.VALUE: distance3},
-                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4,
-                   DataParticleKey.VALUE: distance4}]
+        result = [{DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS, DataParticleKey.VALUE: records},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CELL, DataParticleKey.VALUE: cell},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE1, DataParticleKey.VALUE: noise1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE2, DataParticleKey.VALUE: noise2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE3, DataParticleKey.VALUE: noise3},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE4, DataParticleKey.VALUE: noise4},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM1, DataParticleKey.VALUE: proc_magn_beam1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM2, DataParticleKey.VALUE: proc_magn_beam2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM3, DataParticleKey.VALUE: proc_magn_beam3},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM4, DataParticleKey.VALUE: proc_magn_beam4},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE1, DataParticleKey.VALUE: distance1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE2, DataParticleKey.VALUE: distance2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE3, DataParticleKey.VALUE: distance3},
+                  {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4, DataParticleKey.VALUE: distance4}]
 
         return result
 
@@ -199,23 +185,24 @@ class AquadoppDwVelocityDataParticle(DataParticle):
     """
     _data_particle_type = DataParticleType.VELOCITY
 
-    @log_method
     def _build_parsed_values(self):
         """
-        Take something in the velocity data sample format and parse it into
+        Take the velocity data sample and parse it into
         values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
         match = VELOCITY_DATA_REGEX.match(self.raw_data)
 
         if not match:
-            raise SampleException("AquadoppDwVelocityDataParticle: No regex match of parsed sample data: [%s]",
-                                  self.raw_data)
+            raise SampleException("AquadoppDwVelocityDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
 
         result = self._build_particle(match)
         return result
 
     def _build_particle(self, match):
+        """
+        Build a particle.  Used for parsing Velocity and Diagnostic data
+        """
         timestamp = NortekProtocolParameterDict.convert_time(match.group(1))
         error = NortekProtocolParameterDict.convert_word_to_int(match.group(2))
         analog1 = NortekProtocolParameterDict.convert_word_to_int(match.group(3))
@@ -270,44 +257,25 @@ class AquadoppDwVelocityDataParticle(DataParticle):
         if None == amplitude_beam3:
             raise SampleException("No amplitude_beam3 value parsed")
 
-        result = [{DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.TIMESTAMP,
-                   DataParticleKey.VALUE: timestamp},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.ERROR,
-                   DataParticleKey.VALUE: error},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.ANALOG1,
-                   DataParticleKey.VALUE: analog1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.BATTERY_VOLTAGE,
-                   DataParticleKey.VALUE: battery_voltage},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.SOUND_SPEED_ANALOG2,
-                   DataParticleKey.VALUE: sound_speed},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.HEADING,
-                   DataParticleKey.VALUE: heading},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.PITCH,
-                   DataParticleKey.VALUE: pitch},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.ROLL,
-                   DataParticleKey.VALUE: roll},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.STATUS,
-                   DataParticleKey.VALUE: status},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.PRESSURE,
-                   DataParticleKey.VALUE: pressure},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.TEMPERATURE,
-                   DataParticleKey.VALUE: temperature},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.VELOCITY_BEAM1,
-                   DataParticleKey.VALUE: velocity_beam1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.VELOCITY_BEAM2,
-                   DataParticleKey.VALUE: velocity_beam2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.VELOCITY_BEAM3,
-                   DataParticleKey.VALUE: velocity_beam3},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM1,
-                   DataParticleKey.VALUE: amplitude_beam1},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM2,
-                   DataParticleKey.VALUE: amplitude_beam2},
-                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM3,
-                   DataParticleKey.VALUE: amplitude_beam3}]
+        result = [{DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.TIMESTAMP, DataParticleKey.VALUE: timestamp},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.ERROR, DataParticleKey.VALUE: error},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.ANALOG1, DataParticleKey.VALUE: analog1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.BATTERY_VOLTAGE, DataParticleKey.VALUE: battery_voltage},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.SOUND_SPEED_ANALOG2, DataParticleKey.VALUE: sound_speed},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.HEADING, DataParticleKey.VALUE: heading},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.PITCH, DataParticleKey.VALUE: pitch},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.ROLL, DataParticleKey.VALUE: roll},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.STATUS, DataParticleKey.VALUE: status},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.PRESSURE, DataParticleKey.VALUE: pressure},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.TEMPERATURE, DataParticleKey.VALUE: temperature},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.VELOCITY_BEAM1, DataParticleKey.VALUE: velocity_beam1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.VELOCITY_BEAM2, DataParticleKey.VALUE: velocity_beam2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.VELOCITY_BEAM3, DataParticleKey.VALUE: velocity_beam3},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM1, DataParticleKey.VALUE: amplitude_beam1},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM2, DataParticleKey.VALUE: amplitude_beam2},
+                  {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM3, DataParticleKey.VALUE: amplitude_beam3}]
 
         return result
-
-
 
 
 class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
@@ -317,7 +285,6 @@ class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
     """
     _data_particle_type = DataParticleType.DIAGNOSTIC
 
-    @log_method
     def _build_parsed_values(self):
         """
         Take something in the diagnostic data sample format and parse it into
@@ -343,7 +310,7 @@ class InstrumentDriver(NortekInstrumentDriver):
     Subclasses SingleConnectionInstrumentDriver with connection state
     machine.
     """
-    @log_method
+
     def __init__(self, evt_callback):
         """
         Driver constructor.
@@ -355,7 +322,7 @@ class InstrumentDriver(NortekInstrumentDriver):
     ########################################################################
     # Protocol builder.
     ########################################################################
-    @log_method
+
     def _build_protocol(self):
         """
         Construct the driver protocol state machine.
@@ -425,7 +392,6 @@ class Protocol(NortekInstrumentProtocol):
         Parameter.QUAL_CONSTANTS,
         ]
 
-    @log_method
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -443,17 +409,16 @@ class Protocol(NortekInstrumentProtocol):
     # overridden superclass methods
     ########################################################################
     @staticmethod
-    @log_method
     def chunker_sieve_function(raw_data, add_structs=[]):
         return NortekInstrumentProtocol.chunker_sieve_function(raw_data,
                                                                VECTOR_SAMPLE_STRUCTURES)
 
-    @log_method
     def _got_chunk(self, structure, timestamp):
         """
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
+
         self._extract_sample(AquadoppDwVelocityDataParticle, VELOCITY_DATA_REGEX, structure, timestamp)
         self._extract_sample(AquadoppDwDiagnosticDataParticle, DIAGNOSTIC_DATA_REGEX, structure, timestamp)
         self._extract_sample(AquadoppDwDiagnosticHeaderDataParticle, DIAGNOSTIC_DATA_HEADER_REGEX, structure, timestamp)
@@ -466,15 +431,13 @@ class Protocol(NortekInstrumentProtocol):
         # TODO change this to a init value that the base class can use
         return VELOCITY_DATA_SYNC_BYTES
 
-    @log_method
     def _build_param_dict(self):
         """
         Overwrite base classes method.
         Creates base class's param dictionary, then sets parameter values for those specific to this instrument.
         """
-
+        #TODO - THIS WILL NEED TO BE UPDATED ONCE THE IOS IS FINISHED!
         NortekInstrumentProtocol._build_param_dict(self)
-
 
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.NUMBER_SAMPLES_PER_BURST,
@@ -485,10 +448,4 @@ class Protocol(NortekInstrumentProtocol):
                                    type=ParameterDictType.INT,
                                    expiration=None,
                                    visibility=ParameterDictVisibility.READ_ONLY,
-                                   display_name="number samples per burst"
-                                   ))
-
-        # self._param_dict.set_value(EngineeringParameter.ACQUIRE_STATUS_INTERVAL,
-        #                            self._param_dict.get_default_value(EngineeringParameter.ACQUIRE_STATUS_INTERVAL))
-        # self._param_dict.set_value(EngineeringParameter.CLOCK_SYNC_INTERVAL,
-        #                            self._param_dict.get_default_value(EngineeringParameter.CLOCK_SYNC_INTERVAL))
+                                   display_name="number samples per burst"))
