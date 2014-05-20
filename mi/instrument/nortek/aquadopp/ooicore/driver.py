@@ -24,126 +24,32 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
 from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentPrompts, NortekProtocolParameterDict, \
-    USER_CONFIG_DATA_REGEX, HARDWARE_CONFIG_DATA_REGEX, HEAD_CONFIG_DATA_REGEX, NEWLINE, \
-    BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX, NortekEngBatteryDataParticle, NortekEngClockDataParticle, \
-    NortekEngIdDataParticle, InstrumentCmds, NortekDataParticleType
-from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
-from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
-from mi.instrument.nortek.driver import NortekUserConfigDataParticle, NortekParameterDictVal, Parameter, \
-    NortekInstrumentDriver
+    NortekDataParticleType, NEWLINE
+from mi.instrument.nortek.driver import NortekParameterDictVal, Parameter, NortekInstrumentDriver
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 
 VELOCITY_DATA_LEN = 42
 VELOCITY_HEADER_DATA_SYNC_BYTES = '\xa5\x01'
-# DIAGNOSTIC_DATA_HEADER_LEN = 36
-# DIAGNOSTIC_DATA_HEADER_SYNC_BYTES = '\xa5\x06\x12\x00'
-# DIAGNOSTIC_DATA_LEN = 42
-#DIAGNOSTIC_DATA_SYNC_BYTES = '\xa5\x80\x15\x00'
 
 VECTOR_SAMPLE_STRUCTURES = [[VELOCITY_HEADER_DATA_SYNC_BYTES, VELOCITY_DATA_LEN]]
-                            #[DIAGNOSTIC_DATA_HEADER_SYNC_BYTES, DIAGNOSTIC_DATA_HEADER_LEN],
-                            #[DIAGNOSTIC_DATA_SYNC_BYTES, DIAGNOSTIC_DATA_LEN]]
 
 VELOCITY_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})' \
                         r'(.{2})(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % VELOCITY_HEADER_DATA_SYNC_BYTES
 VELOCITY_DATA_REGEX = re.compile(VELOCITY_DATA_PATTERN, re.DOTALL)
-# DIAGNOSTIC_DATA_HEADER_PATTERN = r'^%s(.{2})(.{2})(.{1})(.{1})(.{1})(.{1})(.{2})(.{2})(.{2})(.{2})(.{2})' \
-#                                  r'(.{2})(.{2})(.{2})(.{8})' % DIAGNOSTIC_DATA_HEADER_SYNC_BYTES
-# DIAGNOSTIC_DATA_HEADER_REGEX = re.compile(DIAGNOSTIC_DATA_HEADER_PATTERN, re.DOTALL)
-# DIAGNOSTIC_DATA_PATTERN = r'^%s(.{6})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{2})(.{1})(.{1})(.{2})(.{2})(.{2})' \
-#                           r'(.{2})(.{2})(.{1})(.{1})(.{1})(.{3})' % DIAGNOSTIC_DATA_SYNC_BYTES
-# DIAGNOSTIC_DATA_REGEX = re.compile(DIAGNOSTIC_DATA_PATTERN, re.DOTALL)
-
 
 class DataParticleType(BaseEnum):
     """
-    List of data particles.  Names match those in the IOS, so need to overwrite definition in base class
+    List of data particles.  Names match those in the IOS, need to overwrite enum defined in base class
     """
     VELOCITY = 'velpt_velocity_data'
-    #DIAGNOSTIC = 'velpt_diagonstics_data'
-    #DIAGNOSTIC_HEADER = 'velpt_diagonstics_header'
     NortekDataParticleType.HARDWARE_CONFIG = 'velpt_hardware_configuration'
     NortekDataParticleType.HEAD_CONFIG = 'velpt_head_configuration'
     NortekDataParticleType.USER_CONFIG = 'velpt_user_configuration'
     NortekDataParticleType.CLOCK = 'vept_clock_data'
     NortekDataParticleType.BATTERY = 'velpt_battery_voltage'
     NortekDataParticleType.ID_STRING = 'velpt_identification_string'
-        
-
-###############################################################################
-# Data particles
-###############################################################################
-# class AquadoppDwDiagnosticHeaderDataParticleKey(BaseEnum):
-#     """
-#     Diagnostic Header data particles
-#     """
-#     RECORDS = "records_to_follow"
-#     CELL = "cell_number_diagnostics"
-#     NOISE1 = "noise_amplitude_beam1"
-#     NOISE2 = "noise_amplitude_beam2"
-#     NOISE3 = "noise_amplitude_beam3"
-#     NOISE4 = "noise_amplitude_beam4"
-#     PROCESSING_MAGNITUDE_BEAM1 = "processing_magnitude_beam1"
-#     PROCESSING_MAGNITUDE_BEAM2 = "processing_magnitude_beam2"
-#     PROCESSING_MAGNITUDE_BEAM3 = "processing_magnitude_beam3"
-#     PROCESSING_MAGNITUDE_BEAM4 = "processing_magnitude_beam4"
-#     DISTANCE1 = "distance_beam1"
-#     DISTANCE2 = "distance_beam2"
-#     DISTANCE3 = "distance_beam3"
-#     DISTANCE4 = "distance_beam4"
-#
-#
-# class AquadoppDwDiagnosticHeaderDataParticle(DataParticle):
-#     """
-#     Routine for parsing diagnostic data header into a data particle structure for the Aquadopp DW sensor.
-#     """
-#     _data_particle_type = DataParticleType.DIAGNOSTIC_HEADER
-#
-#     def _build_parsed_values(self):
-#         """
-#         Take something in the diagnostic data header sample format and parse it into
-#         values with appropriate tags.
-#         @throws SampleException If there is a problem with sample creation
-#         """
-#         match = DIAGNOSTIC_DATA_HEADER_REGEX.match(self.raw_data)
-#
-#         if not match:
-#             raise SampleException("AquadoppDwDiagnosticHeaderDataParticle: No regex match of parsed sample data: [%s]",
-#                                   self.raw_data)
-#
-#         records = NortekProtocolParameterDict.convert_word_to_int(match.group(1))
-#         cell = NortekProtocolParameterDict.convert_word_to_int(match.group(2))
-#         noise1 = ord(match.group(3))
-#         noise2 = ord(match.group(4))
-#         noise3 = ord(match.group(5))
-#         noise4 = ord(match.group(6))
-#         proc_magn_beam1 = NortekProtocolParameterDict.convert_word_to_int(match.group(7))
-#         proc_magn_beam2 = NortekProtocolParameterDict.convert_word_to_int(match.group(8))
-#         proc_magn_beam3 = NortekProtocolParameterDict.convert_word_to_int(match.group(9))
-#         proc_magn_beam4 = NortekProtocolParameterDict.convert_word_to_int(match.group(10))
-#         distance1 = NortekProtocolParameterDict.convert_word_to_int(match.group(11))
-#         distance2 = NortekProtocolParameterDict.convert_word_to_int(match.group(12))
-#         distance3 = NortekProtocolParameterDict.convert_word_to_int(match.group(13))
-#         distance4 = NortekProtocolParameterDict.convert_word_to_int(match.group(14))
-#
-#         result = [{DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS, DataParticleKey.VALUE: records},
-#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.CELL, DataParticleKey.VALUE: cell},
-#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE1, DataParticleKey.VALUE: noise1},
-#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE2, DataParticleKey.VALUE: noise2},
-#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE3, DataParticleKey.VALUE: noise3},
-#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.NOISE4, DataParticleKey.VALUE: noise4},
-#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM1, DataParticleKey.VALUE: proc_magn_beam1},
-#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM2, DataParticleKey.VALUE: proc_magn_beam2},
-#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM3, DataParticleKey.VALUE: proc_magn_beam3},
-#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM4, DataParticleKey.VALUE: proc_magn_beam4},
-#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE1, DataParticleKey.VALUE: distance1},
-#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE2, DataParticleKey.VALUE: distance2},
-#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE3, DataParticleKey.VALUE: distance3},
-#                   {DataParticleKey.VALUE_ID: AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4, DataParticleKey.VALUE: distance4}]
-#
-#         return result
 
     
 class AquadoppDwVelocityDataParticleKey(BaseEnum):
@@ -184,7 +90,7 @@ class AquadoppDwVelocityDataParticle(DataParticle):
         match = VELOCITY_DATA_REGEX.match(self.raw_data)
 
         if not match:
-            raise SampleException("AquadoppDwVelocityDataParticle: No regex match of parsed sample data: [%s]", self.raw_data)
+            raise SampleException("AquadoppDwVelocityDataParticle: No regex match of parsed sample data: [%r]", self.raw_data)
 
         result = self._build_particle(match)
         return result
@@ -233,29 +139,6 @@ class AquadoppDwVelocityDataParticle(DataParticle):
         return result
 
 
-# class AquadoppDwDiagnosticDataParticle(AquadoppDwVelocityDataParticle):
-#     """
-#     Routine for parsing diagnostic data into a data particle structure for the Aquadopp DW sensor.
-#     This structure is the same as the velocity data, so particle is built with the same method
-#     """
-#     _data_particle_type = DataParticleType.DIAGNOSTIC
-#
-#     def _build_parsed_values(self):
-#         """
-#         Take the diagnostic data sample and parse it into
-#         values with appropriate tags.
-#         @throws SampleException If there is a problem with sample creation
-#         """
-#         match = DIAGNOSTIC_DATA_REGEX.match(self.raw_data)
-#
-#         if not match:
-#             raise SampleException("AquadoppDwDiagnosticDataParticle: No regex match of parsed sample data: [%s]",
-#                                   self.raw_data)
-#
-#         result = self._build_particle(match)
-#         return result
-
-
 ###############################################################################
 # Driver
 ###############################################################################
@@ -292,7 +175,6 @@ class Protocol(NortekInstrumentProtocol):
     Instrument protocol class
     Subclasses NortekInstrumentProtocol
     """
-
     def __init__(self, prompts, newline, driver_event):
         """
         Protocol constructor.
@@ -311,34 +193,23 @@ class Protocol(NortekInstrumentProtocol):
     ########################################################################
     @staticmethod
     def chunker_sieve_function(raw_data, add_structs=[]):
-        return NortekInstrumentProtocol.chunker_sieve_function(raw_data,
-                                                               VECTOR_SAMPLE_STRUCTURES)
+        return NortekInstrumentProtocol.chunker_sieve_function(raw_data, VECTOR_SAMPLE_STRUCTURES)
 
     def _got_chunk(self, structure, timestamp):
         """
         The base class got_data has gotten a structure from the chunker.  Pass it to extract_sample
         with the appropriate particle objects and REGEXes.
         """
-
         self._extract_sample(AquadoppDwVelocityDataParticle, VELOCITY_DATA_REGEX, structure, timestamp)
-        # self._extract_sample(AquadoppDwDiagnosticDataParticle, DIAGNOSTIC_DATA_REGEX, structure, timestamp)
-        # self._extract_sample(AquadoppDwDiagnosticHeaderDataParticle, DIAGNOSTIC_DATA_HEADER_REGEX, structure, timestamp)
-        self._extract_sample(NortekUserConfigDataParticle, USER_CONFIG_DATA_REGEX, structure, timestamp)
-        self._extract_sample(NortekHardwareConfigDataParticle, HARDWARE_CONFIG_DATA_REGEX, structure, timestamp)
-        self._extract_sample(NortekHeadConfigDataParticle, HEAD_CONFIG_DATA_REGEX, structure, timestamp)
-
-        self._extract_sample(NortekEngBatteryDataParticle, BATTERY_DATA_REGEX, structure, timestamp)
-        self._extract_sample(NortekEngClockDataParticle, CLOCK_DATA_REGEX, structure, timestamp)
-        self._extract_sample(NortekEngIdDataParticle, ID_DATA_REGEX, structure, timestamp)
-
-    #def _parse_read_velocity(self, response, prompt):
+        self._got_chunk_base(structure, timestamp)
 
     ########################################################################
     # Command handlers.
     ########################################################################
     def _helper_get_data_key(self):
-        # override to pass the correct velocity data key per instrument
-
+        """
+        override to pass the correct velocity data key per instrument
+        """
         # TODO change this to a init value that the base class can use
         return VELOCITY_HEADER_DATA_SYNC_BYTES
 
@@ -350,6 +221,91 @@ class Protocol(NortekInstrumentProtocol):
         #TODO - THIS WILL NEED TO BE UPDATED ONCE THE IOS IS FINISHED!
         NortekInstrumentProtocol._build_param_dict(self)
 
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.TRANSMIT_PULSE_LENGTH,
+                                   r'^.{%s}(.{2}).*' % str(4),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="transmit pulse length",
+                                   default_value=125,
+                                   init_value=125,    # velpt was 125
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.BLANKING_DISTANCE,
+                                   r'^.{%s}(.{2}).*' % str(6),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="blanking distance",
+                                   default_value=3,
+                                   init_value=3,     # velpt was 3
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.TIME_BETWEEN_PINGS,
+                                   r'^.{%s}(.{2}).*' % str(10),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="time between pings",
+                                   default_value=None,
+                                   init_value=437,  # velpt doesnt like 44, try 437
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.TIME_BETWEEN_BURST_SEQUENCES,
+                                   r'^.{%s}(.{2}).*' % str(12),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="time between burst sequences",
+                                   default_value=0,
+                                   init_value=512,    # velpt doesnt like 0, try 512
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.NUMBER_PINGS,
+                                   r'^.{%s}(.{2}).*' % str(14),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="number pings",
+                                   default_value=0,
+                                   init_value=23,    #velpt 23
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.AVG_INTERVAL,
+                                   r'^.{%s}(.{2}).*' % str(16),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="avg interval",
+                                   default_value=1,   # velpt doesnt like 32, try 1
+                                   init_value=1,
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.MEASUREMENT_INTERVAL,
+                                   r'^.{%s}(.{2}).*' % str(38),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
+                                   display_name="measurement interval",
+                                   default_value=3600,
+                                   init_value=1,   # velpt doesn't like 3600, try 1
+                                   startup_param=True,
+                                   direct_access=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.NUMBER_SAMPLES_PER_BURST,
                                     r'^.{%s}(.{2}).*' % str(452),

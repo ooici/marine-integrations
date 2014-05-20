@@ -669,7 +669,7 @@ class NortekUnitTest(InstrumentDriverUnitTestCase):
         self.assert_chunker_combined_sample(chunker, head_config_sample())
         self.assert_chunker_combined_sample(chunker, user_config_sample())
 
-        # # test data structures with noise
+        # test data structures with noise
         self.assert_chunker_sample_with_noise(chunker, hw_config_sample())
         self.assert_chunker_sample_with_noise(chunker, head_config_sample())
         self.assert_chunker_sample_with_noise(chunker, user_config_sample())
@@ -924,8 +924,9 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
         values_before = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
         log.debug("VALUES_BEFORE = %s", values_before)
-        self.assertEquals(values_before[Parameter.MEASUREMENT_INTERVAL], 3600)
-        self.assertEquals(values_before[Parameter.NUMBER_SAMPLES_PER_BURST], 0)
+
+        self.assertEquals(values_before[Parameter.RECEIVE_LENGTH], 7)
+        self.assertEquals(values_before[Parameter.CORRELATION_THRESHOLD], 0)
 
         self.driver_client.cmd_dvr('set_init_params',
                                    {DriverConfigKey.PARAMETERS:
@@ -1026,18 +1027,20 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
 
         # test acquire status
         self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=1)
+
+        # don't need to assert the particles, acquire_status method already does that for us
         #BV
-        self.assert_async_particle_generation(NortekDataParticleType.BATTERY, self.assert_particle_battery)
-        #RC
-        self.assert_async_particle_generation(NortekDataParticleType.CLOCK, self.assert_particle_clock)
-        #GP
-        self.assert_async_particle_generation(NortekDataParticleType.HARDWARE_CONFIG, self.assert_particle_hardware)
-        #GH
-        self.assert_async_particle_generation(NortekDataParticleType.HEAD_CONFIG, self.assert_particle_head)
-        #GC
-        self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
-        #ID
-        #self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_id)
+        # self.assert_async_particle_generation(NortekDataParticleType.BATTERY, self.assert_particle_battery)
+        # #RC
+        #self.assert_async_particle_generation(NortekDataParticleType.CLOCK, self.assert_particle_clock)
+        # #GP
+        # self.assert_async_particle_generation(NortekDataParticleType.HARDWARE_CONFIG, self.assert_particle_hardware)
+        # #GH
+        # self.assert_async_particle_generation(NortekDataParticleType.HEAD_CONFIG, self.assert_particle_head)
+        # #GC
+        # self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
+        # #ID
+        # #self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_id)
 
     def test_direct_access(self):
         """
@@ -1207,8 +1210,11 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
         """
         self.assert_enter_command_mode()
 
-        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, 16)
-        self.assert_set_parameter(Parameter.AVG_INTERVAL, 32)
+        # self.assert_set_parameter(Parameter.BLANKING_DISTANCE, 16)
+        # self.assert_set_parameter(Parameter.AVG_INTERVAL, 32)
+
+        self.assert_set_parameter(Parameter.BLANKING_DISTANCE, 10)
+        self.assert_set_parameter(Parameter.AVG_INTERVAL, 1)
 
     def test_get_capabilities(self):
         """

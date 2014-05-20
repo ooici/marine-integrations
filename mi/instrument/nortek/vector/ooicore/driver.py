@@ -7,6 +7,7 @@ Release notes:
 
 Driver for vector
 """
+from mi.core.instrument.protocol_param_dict import ParameterDictType, ParameterDictVisibility
 
 __author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
@@ -18,27 +19,18 @@ from mi.core.common import BaseEnum
 from mi.core.exceptions import SampleException
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
-from mi.instrument.nortek.driver import NortekEngBatteryDataParticle, NortekEngClockDataParticle, \
-    NortekEngIdDataParticle, BATTERY_DATA_REGEX, CLOCK_DATA_REGEX, ID_DATA_REGEX
-from mi.instrument.nortek.driver import NortekDataParticleType
-from mi.instrument.nortek.driver import NortekHardwareConfigDataParticle
-from mi.instrument.nortek.driver import NortekHeadConfigDataParticle
-from mi.instrument.nortek.driver import NortekUserConfigDataParticle
+from mi.instrument.nortek.driver import NortekDataParticleType, NortekParameterDictVal, Parameter
 from mi.instrument.nortek.driver import NortekInstrumentDriver
 from mi.instrument.nortek.driver import NortekInstrumentProtocol
 from mi.instrument.nortek.driver import NortekProtocolParameterDict
 from mi.instrument.nortek.driver import InstrumentPrompts
 from mi.instrument.nortek.driver import NEWLINE
-from mi.instrument.nortek.driver import HARDWARE_CONFIG_DATA_REGEX
-from mi.instrument.nortek.driver import HEAD_CONFIG_DATA_REGEX
-from mi.instrument.nortek.driver import USER_CONFIG_DATA_REGEX
 
 from mi.core.instrument.chunker import StringChunker
 
 from mi.core.log import get_logger
 log = get_logger()
 
-#RESOURCE_FILE = 'mi/instrument/nortek/vector/ooicore/resource/strings.yml'
 VELOCITY_DATA_LEN = 24
 VELOCITY_DATA_SYNC_BYTES = '\xa5\x10'
 SYSTEM_DATA_LEN = 28
@@ -57,6 +49,7 @@ SYSTEM_DATA_REGEX = re.compile(SYSTEM_DATA_PATTERN, re.DOTALL)
 VELOCITY_HEADER_DATA_PATTERN = r'^%s(.{6})(.{2})(.{1})(.{1})(.{1}).{1}(.{1})(.{1})(.{1}).{23}' % VELOCITY_HEADER_DATA_SYNC_BYTES
 VELOCITY_HEADER_DATA_REGEX = re.compile(VELOCITY_HEADER_DATA_PATTERN, re.DOTALL)
 
+VECTOR_SAMPLE_REGEX = [VELOCITY_DATA_REGEX, SYSTEM_DATA_REGEX, VELOCITY_HEADER_DATA_REGEX]
 
 class DataParticleType(NortekDataParticleType):
     """
@@ -300,15 +293,12 @@ class Protocol(NortekInstrumentProtocol):
     def __init__(self, prompts, newline, driver_event):
         NortekInstrumentProtocol.__init__(self, prompts, newline, driver_event)
 
-        #InstrumentPrompts.Z_NACK  = '\x15\x15\x15'
-        
         # create chunker for processing instrument samples.
         self._chunker = StringChunker(Protocol.chunker_sieve_function)
         
     @staticmethod
     def chunker_sieve_function(raw_data, add_structs=[]):
-        return NortekInstrumentProtocol.chunker_sieve_function(raw_data,
-                                                               VECTOR_SAMPLE_STRUCTURES)
+        return NortekInstrumentProtocol.chunker_sieve_function(raw_data, VECTOR_SAMPLE_STRUCTURES)
 
     ########################################################################
     # overridden superclass methods
@@ -322,30 +312,8 @@ class Protocol(NortekInstrumentProtocol):
         self._extract_sample(VectorVelocityDataParticle, VELOCITY_DATA_REGEX, structure, timestamp)
         self._extract_sample(VectorSystemDataParticle, SYSTEM_DATA_REGEX, structure, timestamp)
         self._extract_sample(VectorVelocityHeaderDataParticle, VELOCITY_HEADER_DATA_REGEX, structure, timestamp)
-        self._extract_sample(NortekUserConfigDataParticle, USER_CONFIG_DATA_REGEX, structure, timestamp)
-        self._extract_sample(NortekHardwareConfigDataParticle, HARDWARE_CONFIG_DATA_REGEX, structure, timestamp)
-        self._extract_sample(NortekHeadConfigDataParticle, HEAD_CONFIG_DATA_REGEX, structure, timestamp)
-        self._extract_sample(NortekEngBatteryDataParticle, BATTERY_DATA_REGEX, structure, timestamp)
-        self._extract_sample(NortekEngClockDataParticle, CLOCK_DATA_REGEX, structure, timestamp)
-        self._extract_sample(NortekEngIdDataParticle, ID_DATA_REGEX, structure, timestamp)
 
-    ########################################################################
-    # Command handlers.
-    ########################################################################
-    # def _handler_command_acquire_sample(self, *args, **kwargs):
-    #     """
-    #     Acquire sample from vector.
-    #     @retval (next_state, (next_agent_state, result)) tuple, (None, sample dict).
-    #     @throws InstrumentTimeoutException if device cannot be woken for command.
-    #     @throws InstrumentProtocolException if command could not be built or misunderstood.
-    #     """
-    #     next_state = None
-    #     next_agent_state = None
-    #     result = None
-    #
-    #     result = self._do_cmd_resp(InstrumentCmds.ACQUIRE_DATA, expected_prompt=VELOCITY_DATA_SYNC_BYTES, timeout=30, *args, **kwargs)
-    #
-    #     return (next_state, (next_agent_state, result))
+        self._got_chunk_base(structure, timestamp)
 
     def _helper_get_data_key(self):
         # override to pass the correct velocity data key per instrument
@@ -358,4 +326,91 @@ class Protocol(NortekInstrumentProtocol):
     ########################################################################
     def _build_param_dict(self):
         NortekInstrumentProtocol._build_param_dict(self)
+
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.MEASUREMENT_INTERVAL,
+                                   r'^.{%s}(.{2}).*' % str(38),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.DIRECT_ACCESS,
+                                   display_name="measurement interval",
+                                   default_value=3600,
+                                   init_value=3600,   # velpt doesn't like 3600, try 1
+                                   startup_param=True,
+                                   direct_access=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.TIME_BETWEEN_PINGS,
+                                   r'^.{%s}(.{2}).*' % str(10),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="time between pings",
+                                   default_value=None,
+                                   init_value=44,  # velpt doesnt like 44, try 437
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.TIME_BETWEEN_BURST_SEQUENCES,
+                                   r'^.{%s}(.{2}).*' % str(12),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="time between burst sequences",
+                                   default_value=0,
+                                   init_value=0,    # velpt doesnt like 0, try 512
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.NUMBER_PINGS,
+                                   r'^.{%s}(.{2}).*' % str(14),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="number pings",
+                                   default_value=0,
+                                   init_value=0,    #velpt 23
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.AVG_INTERVAL,
+                                   r'^.{%s}(.{2}).*' % str(16),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="avg interval",
+                                   default_value=32,   # velpt doesnt like 32, try 1
+                                   init_value=32,
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.TRANSMIT_PULSE_LENGTH,
+                                   r'^.{%s}(.{2}).*' % str(4),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="transmit pulse length",
+                                   default_value=2,
+                                   init_value=2,    # velpt was 125
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.BLANKING_DISTANCE,
+                                   r'^.{%s}(.{2}).*' % str(6),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="blanking distance",
+                                   default_value=16,
+                                   init_value=16,     # velpt was 3
+                                   startup_param=True))
+
         #TODO - THIS WILL NEED TO BE UPDATED ONCE THE IOS IS FINISHED!
