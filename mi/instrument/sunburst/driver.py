@@ -1730,6 +1730,12 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         @param override_params_dict parameters to override in config string
         """
 
+        ## Build configuration string sequence.
+        ## configuration_string = self._build_configuration_string_specific()
+        configuration_string = self._build_configuration_string_base(
+            self._get_specific_configuration_string_parameters(),
+            override_params_dict)
+
         # Make sure automatic-status updates are off. This will stop the
         # broadcast of information while we are trying to get/set data.
         log.debug('SamiProtocol._set_configuration: STOP_STATUS_PERIODIC')
@@ -1750,12 +1756,6 @@ class SamiProtocol(CommandResponseInstrumentProtocol):
         log.debug('SamiProtocol._set_configuration: ERASE_ALL')
         #Erase memory before setting configuration
         self._do_cmd_direct(SamiInstrumentCommand.ERASE_ALL + NEWLINE)
-
-        ## Build configuration string sequence.
-        ## configuration_string = self._build_configuration_string_specific()
-        configuration_string = self._build_configuration_string_base(
-            self._get_specific_configuration_string_parameters(),
-            override_params_dict)
 
         log.debug('SamiProtocol._set_configuration: SET_CONFIG')
         self._do_cmd_resp(SamiInstrumentCommand.SET_CONFIG, timeout=TIMEOUT, response_regex=NEW_LINE_REGEX_MATCHER)
