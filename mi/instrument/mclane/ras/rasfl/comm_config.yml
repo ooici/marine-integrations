@@ -1,0 +1,8 @@
+comm:
+  command_port: 2103
+  data_port: 2104
+  device_addr: 10.180.80.164
+  device_port: 4001
+  host: localhost
+  method: ethernet
+  sniffer_port: 6003
