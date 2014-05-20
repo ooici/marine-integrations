@@ -1,7 +1,7 @@
 """
 @package mi.instrument.nortek.aquadopp.ooicore.test.test_driver
 @file /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/aquadopp/ooicore/driver.py
-@author Bill Bollenbacher
+@author Ronald Ronquillo
 @brief Test cases for ooicore driver
 
 USAGE:
@@ -19,7 +19,7 @@ USAGE:
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/aquadopp/ooicore -a QUAL
 """
 
-__author__ = 'Bill Bollenbacher'
+__author__ = 'Ronald Ronquillo'
 __license__ = 'Apache 2.0'
 
 from gevent import monkey; monkey.patch_all()
@@ -32,7 +32,8 @@ import base64
 
 from nose.plugins.attrib import attr
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+log = get_logger()
 
 # MI imports.
 from mi.idk.unit_test import InstrumentDriverTestCase
@@ -92,7 +93,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id='nortek_aquadopp_dw_ooicore',
     instrument_agent_name='nortek_aquadopp_dw_ooicore_agent',
     instrument_agent_packet_config=DataParticleType(),
-    driver_startup_config={Parameter.TRANSMIT_PULSE_LENGTH: 0x7d})
+    driver_startup_config={Parameter.TRANSMIT_PULSE_LENGTH: 0x2})
 
 params_dict = {
     Parameter.TRANSMIT_PULSE_LENGTH: int,
@@ -221,8 +222,8 @@ def velocity_sample():
     sample_as_hex = "a5011500101926221211000000009300f83b810628017f01002d0000e3094c0122ff9afe1e1416006093"
     return sample_as_hex.decode('hex')
 
-velocity_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:10:19'}, 
-                     {'value_id': 'error', 'value': 0}, 
+velocity_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:10:19'},
+                     {'value_id': 'error', 'value': 0},
                      {'value_id': 'analog1', 'value': 0}, 
                      {'value_id': 'battery_voltage', 'value': 147}, 
                      {'value_id': 'sound_speed_analog2', 'value': 15352}, 
@@ -245,19 +246,19 @@ def diagnostic_header_sample():
     sample_as_hex = "a5061200140001000000000011192622121100000000000000000000000000000000a108"
     return sample_as_hex.decode('hex')
 
-diagnostic_header_particle = [{'value_id': 'records', 'value': 20}, 
-                              {'value_id': 'cell', 'value': 1}, 
-                              {'value_id': 'noise1', 'value': 0}, 
-                              {'value_id': 'noise2', 'value': 0}, 
-                              {'value_id': 'noise3', 'value': 0}, 
-                              {'value_id': 'noise4', 'value': 0}, 
+diagnostic_header_particle = [{'value_id': 'records', 'value': 20},
+                              {'value_id': 'cell', 'value': 1},
+                              {'value_id': 'noise1', 'value': 0},
+                              {'value_id': 'noise2', 'value': 0},
+                              {'value_id': 'noise3', 'value': 0},
+                              {'value_id': 'noise4', 'value': 0},
                               {'value_id': 'processing_magnitude_beam1', 'value': 6417}, 
                               {'value_id': 'processing_magnitude_beam2', 'value': 8742}, 
                               {'value_id': 'processing_magnitude_beam3', 'value': 4370}, 
                               {'value_id': 'processing_magnitude_beam4', 'value': 0}, 
-                              {'value_id': 'distance1', 'value': 0}, 
-                              {'value_id': 'distance2', 'value': 0}, 
-                              {'value_id': 'distance3', 'value': 0}, 
+                              {'value_id': 'distance1', 'value': 0},
+                              {'value_id': 'distance2', 'value': 0},
+                              {'value_id': 'distance3', 'value': 0},
                               {'value_id': 'distance4', 'value': 0}]
 
 
@@ -266,7 +267,7 @@ def diagnostic_sample():
     sample_as_hex = "a5801500112026221211000000009300f83ba0065c0189fe002c0000e40904ffd8ffbdfa18131500490f"
     return sample_as_hex.decode('hex')
 
-diagnostic_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:11:20'}, 
+diagnostic_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:11:20'},
                        {'value_id': 'error', 'value': 0}, 
                        {'value_id': 'analog1', 'value': 0}, 
                        {'value_id': 'battery_voltage', 'value': 147}, 
@@ -285,20 +286,6 @@ diagnostic_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:11:20'}
                        {'value_id': 'amplitude_beam3', 'value': 21}]
 
 
-#################################### RULES ####################################
-#                                                                             #
-# Common capabilities in the base class                                       #
-#                                                                             #
-# Instrument specific stuff in the derived class                              #
-#                                                                             #
-# Generator spits out either stubs or comments describing test this here,     #
-# test that there.                                                            #
-#                                                                             #
-# Qualification tests are driven through the instrument_agent                 #
-#                                                                             #
-###############################################################################
-
-
 ###############################################################################
 #                           DRIVER TEST MIXIN        		                  #
 #     Defines a set of constants and assert methods used for data particle    #
@@ -311,7 +298,6 @@ diagnostic_particle = [{'value_id': 'timestamp', 'value': '26/11/2012 22:11:20'}
 # This class defines a configuration structure for testing and common assert  #
 # methods for validating data particles.									  #
 ###############################################################################
-
 class AquadoppDriverTestMixinSub(DriverTestMixinSub):
     """
     Mixin class used for storing data particle constance and common data assertion methods.
@@ -327,7 +313,25 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
     DEFAULT = ParameterTestConfigKey.DEFAULT
     STATES = ParameterTestConfigKey.STATES
 
-    _sample_parameters_01 = {
+    _sample_diagnostic_header = {
+        # AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.CELL: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE2: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE3: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE4: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM2: {TYPE: int, VALUE: 1, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM3: {TYPE: int, VALUE: 1, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM4: {TYPE: int, VALUE: 1, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE1: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE2: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE3: {TYPE: int, VALUE: 0, REQUIRED: True},
+        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4: {TYPE: int, VALUE: 0, REQUIRED: True}
+    }
+
+    #this particle can be used for both the velocity particle and the diagnostic particle
+    _sample_velocity_diagnostic = {
         AquadoppDwVelocityDataParticleKey.TIMESTAMP: {TYPE: unicode, VALUE: '', REQUIRED: True},
         AquadoppDwVelocityDataParticleKey.ERROR: {TYPE: int, VALUE: 0, REQUIRED: True},
         AquadoppDwVelocityDataParticleKey.ANALOG1: {TYPE: int, VALUE: 0, REQUIRED: True},
@@ -347,20 +351,52 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
         AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM3: {TYPE: int, VALUE: 0, REQUIRED: True}
     }
 
-    def assert_particle_sample(self, data_particle, verify_values=False):
+    def assert_particle_velocity(self, data_particle, verify_values=False):
         """
-        Verify [flortd]_sample particle
-        @param data_particle:  [FlortDSample]_ParticleKey data particle
+        Verify velpt_velocity_data
+        @param data_particle:  AquadoppDwVelocityDataParticleKey data particle
+        @param verify_values:
+        """
+
+        self.assert_data_particle_keys(AquadoppDwVelocityDataParticleKey, self._sample_velocity_diagnostic)
+        self.assert_data_particle_header(data_particle, DataParticleType.VELOCITY)
+        self.assert_data_particle_parameters(data_particle, self._sample_velocity_diagnostic, verify_values)
+
+    # def assert_particle_diagnostic_header(self, data_particle, verify_values=False):
+    #     """
+    #     Verify velpt_diagostics_header
+    #     @param data_particle:  AquadoppDwDiagnosticHeaderDataParticleKey data particle
+    #     @param verify_values:
+    #     """
+    #
+    #     self.assert_data_particle_keys(AquadoppDwDiagnosticHeaderDataParticleKey, self._sample_diagnostic_header)
+    #     self.assert_data_particle_header(data_particle, DataParticleType.DIAGNOSTIC_HEADER)
+    #     self.assert_data_particle_parameters(data_particle, self._sample_diagnostic_header, verify_values)
+
+    def assert_particle_diagnostic(self, data_particle, verify_values=False):
+        """
+        Verify velpt_diagonstics_data
+        @param data_particle:  AquadoppDwDiagnosticDataParticle data particle
         @param verify_values:  bool, should we verify parameter values
         """
 
-        log.debug("assert_particle_sample")
-
-        self.assert_data_particle_keys(AquadoppDwVelocityDataParticleKey, self._sample_parameters_01)
-        self.assert_data_particle_header(data_particle, DataParticleType.VELOCITY)
-        self.assert_data_particle_parameters(data_particle, self._sample_parameters_01, verify_values)
+        #self.assert_data_particle_keys(AquadoppDwDiagnosticDataParticle, self._sample_velocity_diagnostic)
+        self.assert_data_particle_header(data_particle, DataParticleType.DIAGNOSTIC)
+        self.assert_data_particle_parameters(data_particle, self._sample_velocity_diagnostic, verify_values)
 
 
+#################################### RULES ####################################
+#                                                                             #
+# Common capabilities in the base class                                       #
+#                                                                             #
+# Instrument specific stuff in the derived class                              #
+#                                                                             #
+# Generator spits out either stubs or comments describing test this here,     #
+# test that there.                                                            #
+#                                                                             #
+# Qualification tests are driven through the instrument_agent                 #
+#                                                                             #
+###############################################################################
 ###############################################################################
 #                                UNIT TESTS                                   #
 #         Unit tests test the method calls and parameters using Mock.         #
@@ -595,39 +631,45 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
     def setUp(self):
         NortekIntTest.setUp(self)
 
-    def test_command_acquire_sample(self):
+    def test_acquire_sample(self):
         """
-        Test acquire sample command and events.
-        """
-
-        """
+        Verify acquire sample command and events.
         1. initialize the instrument to COMMAND state
-        2. command the instrument to ACQUIRESAMPLE
+        2. command the driver to ACQUIRE SAMPLE
         3. verify the particle coming in
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
         # test acquire sample
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
-        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample)
+        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_velocity)
 
 
     # @unittest.skip('temp disable')
     def test_command_autosample(self):
         """
-        Test autosample command and events.
-        """
-
-        """
+        Verify autosample command and events.
         1. initialize the instrument to COMMAND state
-        2. command the instrument to AUTOSAMPLE
+        2. command the instrument to AUTOSAMPLE state
         3. verify the particle coming in
         4. command the instrument back to COMMAND state
+        5. verify the sampling is continuous by gathering several samples
         """
-
         self.assert_initialize_driver(ProtocolState.COMMAND)
+
         # test autosample
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_sample, timeout=45)
+
+        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_velocity, timeout=45)
+
+        # # wait for some samples to be generated
+        gevent.sleep(10)
+
+        # Verify we received at least 4 samples.
+        sample_events = [evt for evt in self.events if evt['type'] == DriverAsyncEvent.SAMPLE]
+        log.debug('test_instrument_acquire_sample: # 0f samples = %d', len(sample_events))
+        log.debug('samples=%s', sample_events)
+        self.assertTrue(len(sample_events) >= 4)
+
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
 
@@ -1313,10 +1355,10 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
 # testing device specific capabilities                                        #
 ###############################################################################
 @attr('QUAL', group='mi')
-class QualFromIDK(NortekQualTest):
+class QualFromIDK(NortekQualTest, AquadoppDriverTestMixinSub):
     def setUp(self):
         NortekQualTest.setUp(self)
-    
+
     def assert_execute_resource(self, command):
         """
         @brief send an execute_resource command and ensure no exceptions are raised
@@ -1460,15 +1502,19 @@ class QualFromIDK(NortekQualTest):
 
         gevent.sleep(600)  # wait for manual telnet session to be run
 
+
     def test_direct_access_telnet_mode(self):
         """
-        @brief This test manually tests that the Instrument Driver properly supports direct access to the physical instrument. (telnet mode)
+        Verify the Instrument Driver properly supports direct access to the
+        physical instrument. (telnet mode)
         """
         self.assert_direct_access_start_telnet()
         self.assertTrue(self.tcp_client)
 
         self.tcp_client.send_data("K1W%!Q")
-        self.tcp_client.expect("DW-AQUADOPP")
+        result = self.tcp_client.expect("AQUADOPP")
+
+        self.assertTrue(result)
 
         self.assert_direct_access_stop_telnet()
 
