@@ -878,7 +878,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             else:
                 prompt_list = expected_prompt
 
-        log.debug('_get_response: timeout=%s, prompt_list=%s, expected_prompt=%s, response_regex=%s, promptbuf=%s',
+        log.debug('_get_response: timeout=%s, prompt_list=%s, expected_prompt=%r, response_regex=%s, promptbuf=%s',
                   timeout, prompt_list, expected_prompt, response_regex, self._promptbuf)
         while True:
             if response_regex:
@@ -977,7 +977,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         # Wakeup the device, pass up exception if timeout
 
         prompt = self._wakeup(timeout)
-        
+
         # Clear line and prompt buffers for result.
         self._linebuf = ''
         self._promptbuf = ''
@@ -1078,7 +1078,7 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         data = port_agent_packet.get_data()
         timestamp = port_agent_packet.get_timestamp()
 
-        log.debug("Got Data: %s" % data)
+        log.debug("Got Data: %r" % data)
         log.debug("Add Port Agent Timestamp: %s" % timestamp)
 
         if data_length > 0:
@@ -1124,8 +1124,8 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
         self._promptbuf += data
         self._last_data_timestamp = time.time()
 
-        log.debug("LINE BUF: %s", self._linebuf)
-        log.debug("PROMPT BUF: %s", self._promptbuf)
+        log.debug("LINE BUF: %r", self._linebuf)
+        log.debug("PROMPT BUF: %r", self._promptbuf)
 
     ########################################################################
     # Wakeup helpers.
@@ -1161,8 +1161,8 @@ class CommandResponseInstrumentProtocol(InstrumentProtocol):
             log.debug("Prompts: %s", self._get_prompts())
 
             for item in self._get_prompts():
-                log.debug("buffer: %s", self._promptbuf)
-                log.debug("find prompt: %s", item)
+                log.debug("buffer: %r", self._promptbuf)
+                log.debug("find prompt: %r", item)
                 index = self._promptbuf.find(item)
                 log.debug("Got prompt (index: %s): %s ", index, repr(self._promptbuf))
                 if index >= 0:
