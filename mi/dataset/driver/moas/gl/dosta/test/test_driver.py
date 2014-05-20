@@ -32,32 +32,49 @@ from mi.idk.exceptions import SampleTimeout
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter
 
-from mi.dataset.driver.moas.gl.dosta.driver import DOSTADataSetDriver
+from mi.dataset.driver.moas.gl.dosta.driver import DOSTADataSetDriver, DataTypeKey
 
-from mi.dataset.parser.glider import DostaTelemeteredDataParticle
+from mi.dataset.parser.glider import DostaTelemeteredDataParticle, DostaRecoveredDataParticle
 
 from pyon.agent.agent import ResourceAgentState
 
 from interface.objects import ResourceAgentErrorEvent
 
+TELEMETERED_TEST_DIR = '/tmp/dostaTelemeteredTest'
+RECOVERED_TEST_DIR = '/tmp/dostaRecoveredTest'
 
 DataSetTestCase.initialize(
+
     driver_module='mi.dataset.driver.moas.gl.dosta.driver',
     driver_class="DOSTADataSetDriver",
-
-    agent_resource_id = '123xyz',
-    agent_name = 'Agent007',
-    agent_packet_config = DOSTADataSetDriver.stream_config(),
-    startup_config = {
-        DataSourceConfigKey.HARVESTER:
-        {
-            DataSetDriverConfigKeys.DIRECTORY: '/tmp/dostaTelemeteredTest',
-            DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dostaTelemeteredTest',
-            DataSetDriverConfigKeys.PATTERN: '*.mrg',
-            DataSetDriverConfigKeys.FREQUENCY: 1,
+    agent_resource_id='123xyz',
+    agent_name='Agent007',
+    agent_packet_config=DOSTADataSetDriver.stream_config(),
+    startup_config={
+        # WHAT SHOULD THE RESOURCE ID BE?  moas, gl, dosta?
+        DataSourceConfigKey.RESOURCE_ID: 'dosta',
+        DataSourceConfigKey.HARVESTER: {
+            DataTypeKey.GLIDER_TELEMETERED:
+            {
+                DataSetDriverConfigKeys.DIRECTORY: TELEMETERED_TEST_DIR,
+                DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dostaTelemeteredTest',
+                DataSetDriverConfigKeys.PATTERN: '*.mrg',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+            },
+            DataTypeKey.GLIDER_RECOVERED:
+            {
+                DataSetDriverConfigKeys.DIRECTORY: RECOVERED_TEST_DIR,
+                DataSetDriverConfigKeys.STORAGE_DIRECTORY: '/tmp/stored_dostaRecoveredTest',
+                DataSetDriverConfigKeys.PATTERN: '*.mrg',
+                DataSetDriverConfigKeys.FREQUENCY: 1,
+            }
         },
-        DataSourceConfigKey.PARSER: {}
+        DataSourceConfigKey.PARSER:
+            {
+            DataTypeKey.GLIDER_TELEMETERED: {}, DataTypeKey.GLIDER_RECOVERED: {}
+        }
     }
+
 )
 
 SAMPLE_STREAM = 'dosta_abcdjm_glider_instrument'
@@ -80,18 +97,41 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
 
         self.clear_async_data()
-        self.create_sample_data('single_dosta_record.mrg', "unit_363_2013_245_6_6.mrg")
-        self.assert_data(DostaTelemeteredDataParticle, 'single_dosta_record.mrg.result.yml', count=1, timeout=10)
-
-        self.clear_async_data()
-        self.create_sample_data('multiple_dosta_record.mrg', "unit_363_2013_245_7_6.mrg")
-        self.assert_data(DostaTelemeteredDataParticle, 'multiple_dosta_record.mrg.result.yml', count=4, timeout=10)
-
-        log.debug("Start second file ingestion")
-        # Verify sort order isn't ascii, but numeric
-        self.clear_async_data()
-        self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
-        self.assert_data(DostaTelemeteredDataParticle, count=60, timeout=30)
+        self.create_sample_data('single_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_6_6.mrg")
+        self.assert_data(DostaTelemeteredDataParticle,
+                         'single_dosta_record.mrg.result.yml',
+                         count=1, timeout=10)
+        #
+        # self.clear_async_data()
+        # self.create_sample_data('multiple_dosta_record.mrg', TELEMETERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
+        # self.assert_data(DostaTelemeteredDataParticle,
+        #                  'multiple_dosta_record.mrg.result.yml',
+        #                  count=4, timeout=10)
+        #
+        # self.clear_async_data()
+        # self.create_sample_data('single_dosta_record.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_6_6.mrg")
+        # self.assert_data(DostaRecoveredDataParticle,
+        #                  'single_dosta_record.mrg.result.yml',
+        #                  count=1, timeout=10)
+        #
+        # self.clear_async_data()
+        # self.create_sample_data('multiple_dosta_record.mrg', RECOVERED_TEST_DIR, "unit_363_2013_245_7_6.mrg")
+        # self.assert_data(DostaRecoveredDataParticle,
+        #                  'multiple_dosta_record.mrg.result.yml',
+        #                  count=4, timeout=10)
+        #
+        #
+        # log.debug("Start second file ingestion - Telemetered")
+        # # Verify sort order isn't ascii, but numeric
+        # self.clear_async_data()
+        # self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
+        # self.assert_data(DostaTelemeteredDataParticle, DostaRecoveredDataParticle, count=60, timeout=30)
+        #
+        # log.debug("Start second file ingestion - Recovered")
+        # # Verify sort order isn't ascii, but numeric
+        # self.clear_async_data()
+        # self.create_sample_data('unit_363_2013_245_6_6.mrg', "unit_363_2013_245_10_6.mrg")
+        # self.assert_data(DostaRecoveredDataParticle, count=60, timeout=30)
 
     def test_stop_resume(self):
         """

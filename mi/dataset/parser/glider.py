@@ -1256,7 +1256,7 @@ class GliderEngineeringParser(GliderParser):
                 self._read_state[StateKey.SENT_METADATA] = True
                 result_particles.append((particle, copy.copy(self._read_state)))
             except ValueError:
-                # converting fileopen string to timestamp will throw a ValueError if the time is not parseable
+                # converting fileopen string to timestamp will throw a ValueError if the time is not parse-able
                 log.warn("Unable to parse timestamp from file open time %s, not returning metadata particle",
                          data_dict['glider_eng_fileopen_time']['Data'])
                 self._exception_callback(SampleException(
