@@ -154,12 +154,27 @@ class NoseTest(mi.idk.nose_test.NoseTest):
         runtime is set then stop running after x seconds.
         """
         self._log("Running ingestion test, directory: %s, runtime: %s" % (directory, runtime))
+        harvester = None
+
+        # Specific harvester config can be provided using a :
+        # i.e. myharvester:/myharvetser/dir
+        # If there is no : then we assume only one harverster config
+        (pre, sep, post) = directory.partition(':')
+
+        if len(post):
+            dir = post
+            harvester = pre
+        else:
+            dir = pre
 
         # Dynamically load the driver test module so the IDK singleton is initialized
         test_module = __import__(self._driver_test_module())
 
         # Adjust the harvester config to point to the new directory
-        DataSetTestConfig().driver_startup_config['harvester']['directory'] = directory
+        if harvester is None:
+            DataSetTestConfig().driver_startup_config['harvester']['directory'] = dir
+        else:
+            DataSetTestConfig().driver_startup_config['harvester'][harvester]['directory'] = dir
 
         # Add ingestion parameters to the singleton
         DataSetTestConfig().initialize_ingester_test(directory, runtime)
