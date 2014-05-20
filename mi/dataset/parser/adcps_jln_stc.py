@@ -47,7 +47,7 @@ HEADER_FOOTER_MATCHER = re.compile(HEADER_FOOTER_REGEX, re.DOTALL)
 DATA_REGEX = b'(Record\[\d+\]:)([\x00-\xFF]+?)\r\n(Record|#End U)'
 DATA_MATCHER = re.compile(DATA_REGEX)
 
-DATA_REGEX_B = b'(Record\[\d+\]:)([\x00-\xFF]+?)\r\n'
+DATA_REGEX_B = b'(Record\[\d+\]:)([\x00-\xFF]*)(\x6e\x7f[\x00-\xFF]+?)\r\n'
 DATA_MATCHER_B = re.compile(DATA_REGEX_B)
 
 RX_FAILURE_REGEX = b'Record\[\d+\]:ReceiveFailure\r\n'
@@ -111,22 +111,22 @@ class AdcpsJlnStcInstrumentParserDataParticle(DataParticle):
         try:            
             record_str = match.group(1).strip('Record\[').strip('\]:')
 
-            fields = struct.unpack('<HHIBBBdhhhHIBBB', match.group(2)[0:34])
+            fields = struct.unpack('<HHIBBBdhhhHIBBB', match.group(3)[0:34])
 
             # ID field should always be 7F6E
             if fields[0] != int('0x7F6E', 16):
                 raise ValueError('ID field does not equal 7F6E.')
 
             num_bytes = fields[1]
-            if len(match.group(2)) - 2 != num_bytes:
+            if len(match.group(3)) - 2 != num_bytes:
                 raise ValueError('num bytes %d does not match data length %d'
-                          % (num_bytes, len(match.group(2)) - 2))
+                          % (num_bytes, len(match.group(3)) - 2))
 
             nbins = fields[14]
             if len(match.group(0)) < (36+(nbins*8)):
                 raise ValueError('Number of bins %d does not fit in data length %d'%(nbins,
                                                                                      len(match.group(0))))
-            date_fields = struct.unpack('HBBBBBB', match.group(2)[11:19])
+            date_fields = struct.unpack('HBBBBBB', match.group(3)[11:19])
 
             # create a string with the right number of shorts to unpack
             struct_format = '<'
@@ -134,10 +134,10 @@ class AdcpsJlnStcInstrumentParserDataParticle(DataParticle):
                 struct_format = struct_format + 'h'
 
             bin_len = nbins*2
-            adcps_jln_vel_error = struct.unpack(struct_format, match.group(2)[34:34+bin_len])
-            adcps_jln_vel_up = struct.unpack(struct_format, match.group(2)[(34+bin_len):(34+(bin_len*2))])
-            adcps_jln_vel_north = struct.unpack(struct_format, match.group(2)[(34+(bin_len*2)):(34+(bin_len*3))])
-            adcps_jln_vel_east = struct.unpack(struct_format, match.group(2)[(34+(bin_len*3)):(34+(bin_len*4))])      
+            adcps_jln_vel_error = struct.unpack(struct_format, match.group(3)[34:34+bin_len])
+            adcps_jln_vel_up = struct.unpack(struct_format, match.group(3)[(34+bin_len):(34+(bin_len*2))])
+            adcps_jln_vel_north = struct.unpack(struct_format, match.group(3)[(34+(bin_len*2)):(34+(bin_len*3))])
+            adcps_jln_vel_east = struct.unpack(struct_format, match.group(3)[(34+(bin_len*3)):(34+(bin_len*4))])      
                           
         except (ValueError, TypeError, IndexError) as ex:
             raise RecoverableSampleException("Error (%s) while decoding parameters in data: [0x%s]"
@@ -165,7 +165,6 @@ class AdcpsJlnStcInstrumentParserDataParticle(DataParticle):
                   self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_VEL_UP, adcps_jln_vel_up, list),
                   self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_VEL_NORTH, adcps_jln_vel_north, list),
                   self._encode_value(AdcpsJlnStcInstrumentParserDataParticleKey.ADCPS_JLN_VEL_EAST, adcps_jln_vel_east, list)]
-
         return result
     
     @staticmethod
@@ -375,11 +374,13 @@ class AdcpsJlnStcParser(BufferLoadingParser):
             if not match_rx_failure:
                 data_match = DATA_MATCHER_B.match(chunk)
                 if data_match:
-                    if len(data_match.group(2)) >= MIN_DATA_BYTES and self.compare_checksum(data_match.group(2)):
-                        # pull out the date string from the data
-                        date_str = AdcpsJlnStcInstrumentParserDataParticle.unpack_date(data_match.group(2)[11:19])
-
-                        # convert to ntp
+                    if data_match.group(2):
+                        # Unpexpected data exception. Extra bytes found prior to ID field = 7F6E. 
+                        self._exception_callback(UnexpectedDataException("Found unexpected data prior to ID field."))
+                    
+                    if len(data_match.group(3)) >= MIN_DATA_BYTES and self.compare_checksum(data_match.group(3)):
+                        # Pull out date string and convert to ntp
+                        date_str = AdcpsJlnStcInstrumentParserDataParticle.unpack_date(data_match.group(3)[11:19])
                         converted_time = float(parser.parse(date_str).strftime("%s.%f"))
                         adjusted_time = converted_time - time.timezone
                         self._timestamp = ntplib.system_to_ntp_time(adjusted_time)
@@ -396,12 +397,15 @@ class AdcpsJlnStcParser(BufferLoadingParser):
                             self._increment_state(len(chunk))
                             result_particles.append((sample, copy.copy(self._read_state)))
                     else:
-                        if len(data_match.group(2)) < MIN_DATA_BYTES:
+                        if len(data_match.group(3)) < MIN_DATA_BYTES:
                             log.info("Found record with not enough bytes 0x%s", binascii.hexlify(data_match.group(0)))
                             self._exception_callback(SampleException("Found record with not enough bytes 0x%s" % binascii.hexlify(data_match.group(0))))
                         else:
                             log.info("Found record whose checksum doesn't match 0x%s", binascii.hexlify(data_match.group(0)))
                             self._exception_callback(SampleException("Found record whose checksum doesn't match 0x%s" % binascii.hexlify(data_match.group(0))))
+                else:          
+                    # The record format is recognized but does not contain the expected ID = 7F6E. Skip this record and try parsing the next.
+                    self._exception_callback(SampleException("ID Field does not equal 7F6E. Skipping record."))
             else:
                 log.info("Found RecieveFailure record, ignoring")
 

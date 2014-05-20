@@ -24,7 +24,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 from mi.core.exceptions import SampleException, DatasetParserException, UnexpectedDataException
-from mi.dataset.dataset_parser import BufferLoadingFilenameParser
+from mi.dataset.dataset_parser import BufferLoadingParser
 from mi.core.instrument.chunker import StringChunker
 
 # This is an example of the input string
@@ -88,20 +88,18 @@ class RteODclParserDataParticle(DataParticle):
         log.debug('RteODclParserDataParticle: particle=%s', result)
         return result  
 
-class RteODclParser(BufferLoadingFilenameParser):
+class RteODclParser(BufferLoadingParser):
 
     def __init__(self,
                  config,
                  state,
                  stream_handle,
-                 file_name,
                  state_callback,
                  publish_callback,
                  exception_callback,
                  *args, **kwargs):
         super(RteODclParser, self).__init__(config,
                                             stream_handle,
-                                            file_name,
                                             state,
                                             partial(StringChunker.regex_sieve_function,
                                                     regex_list=[DATA_MATCHER, METADATA_MATCHER]),

@@ -31,7 +31,7 @@ class CgParserUnitTestCase(ParserUnitTestCase):
     """
     Cg_stc_eng_stc Parser unit test suite
     """
-    def state_callback(self, state, file_ingested, filename):
+    def state_callback(self, state, file_ingested):
         """ Call back method to watch what comes in via the position callback """
         self.state_callback_value = state
         self.file_ingested_value = file_ingested
@@ -364,7 +364,7 @@ class CgParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         stream_handle = open(os.path.join(RESOURCE_PATH, 'stc_status.txt'))
-        self.parser = CgStcEngStcParser(self.config, None, stream_handle, 'stc_status.txt',
+        self.parser = CgStcEngStcParser(self.config, None, stream_handle,
                                         self.state_callback, self.pub_callback,
                                         self.exception_callback)
 
@@ -385,7 +385,7 @@ class CgParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         stream_handle = open(os.path.join(RESOURCE_PATH, 'stc_status.txt'))
-        self.parser = CgStcEngStcParser(self.config, None, stream_handle, 'stc_status.txt',
+        self.parser = CgStcEngStcParser(self.config, None, stream_handle,
                                         self.state_callback, self.pub_callback,
                                         self.exception_callback)
 
@@ -407,7 +407,7 @@ class CgParserUnitTestCase(ParserUnitTestCase):
         a_dict = self.particle_a.generate_dict()
         
         stream_handle = open(os.path.join(RESOURCE_PATH, 'stc_status.txt'))
-        self.parser = CgStcEngStcParser(self.config, None, stream_handle, 'stc_status.txt',
+        self.parser = CgStcEngStcParser(self.config, None, stream_handle,
                                         self.state_callback, self.pub_callback,
                                         self.exception_callback)
 
@@ -431,7 +431,7 @@ class CgParserUnitTestCase(ParserUnitTestCase):
         """
         with self.assertRaises(SampleException):
             stream_handle = open(os.path.join(RESOURCE_PATH, 'stc_status_missing_time.txt'))
-            self.parser = CgStcEngStcParser(self.config, None, stream_handle, 'stc_status.txt',
+            self.parser = CgStcEngStcParser(self.config, None, stream_handle,
                                             self.state_callback, self.pub_callback,
                                             self.exception_callback)
             result = self.parser.get_records(1)
@@ -441,7 +441,7 @@ class CgParserUnitTestCase(ParserUnitTestCase):
         Create an encoding error in the data and make sure an encoding error shows up
         """
 	stream_handle = open(os.path.join(RESOURCE_PATH, 'stc_status_bad_encode.txt'))
-	self.parser = CgStcEngStcParser(self.config, None, stream_handle, 'stc_status.txt',
+	self.parser = CgStcEngStcParser(self.config, None, stream_handle,
 					self.state_callback, self.pub_callback,
 					self.exception_callback)
 	result = self.parser.get_records(1)

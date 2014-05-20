@@ -2,13 +2,13 @@
 
 header:
   particle_object: PhsenParserDataParticle
-  particle_type: phsen_parsed
+  particle_type: phsen_abcdef_sio_mule_instrument
 
 data:
   - _index: 1
-    internal_timestamp: '2013-07-25T11:59:59'
+    internal_timestamp: '2013-07-25T12:00:01'
+    controller_timestamp: 1374753601
     unique_id: 43
-    record_length: 231
     record_type: 10 
     record_time_1904_uint32: 3457598399
     thermistor_start: 2044
@@ -16,4 +16,4 @@ data:
     light_measurements: [3165, 1961, 2231, 2549, 3169, 1961, 2232, 2550, 3173, 1938, 2232, 2511, 3169, 1700, 2234, 2085, 3169, 1175, 2232, 1255, 3171, 723, 2231, 659, 3165, 501, 2227, 415, 3168, 429, 2233, 336, 3171, 432, 2226, 336, 3166, 482, 2227, 384, 3170, 567, 2231, 475, 3171, 676, 2231, 592, 3173, 796, 2233, 732, 3171, 922, 2229, 890, 3171, 1048, 2232, 1060, 3164, 1167, 2225, 1229, 3172, 1282, 2232, 1394, 3171, 1381, 2230, 1549, 3171, 1471, 2229, 1692, 3172, 1547, 2231, 1818, 3169, 1613, 2229, 1929, 3169, 1668, 2227, 2023, 3171, 1715, 2230, 2103]
     voltage_battery: 3111
     thermistor_end: 2048
-    checksum: 42
+    passed_checksum: True

@@ -60,7 +60,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM='adcps_parsed'
+SAMPLE_STREAM='adcps_jln_sio_mule_instrument'
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -88,7 +88,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data("node59p1_step1.dat", "node59p1.dat")
         self.assert_data(AdcpsParserDataParticle, 'test_data_1.txt.result.yml',
-                         count=1, timeout=10)
+                         count=2, timeout=10)
 
         # there is only one file we read from, this example 'appends' data to
         # the end of the node59p1.dat file, and the data from the new append
@@ -135,13 +135,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
-        self.memento = {DriverStateKey.FILE_SIZE: 1300,
+        self.memento = {"node59p1.dat": {DriverStateKey.FILE_SIZE: 1300,
                         DriverStateKey.FILE_CHECKSUM: 'e56e28e6bd67c6b00c6702c9f9a13f93',
                         DriverStateKey.FILE_MOD_DATE: mod_time,
                         DriverStateKey.PARSER_STATE: {'in_process_data': [],
-                                                     'unprocessed_data':[[0,32], [222,871], [1257,1300]],
-                                                     'timestamp': 3583725976.97
+                                                     'unprocessed_data':[[0,32], [607,678], [1254,1300]],
                                                      }
+                        }
         }
 
         self.driver = self._get_driver_object(config=driver_config)
@@ -172,14 +172,14 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data("node59p1_step2.dat", "node59p1.dat")
         self.assert_data(AdcpsParserDataParticle, 'test_data_1-2.txt.result.yml',
-                         count=2, timeout=10)
+                         count=3, timeout=10)
 
         # This file has had a section of AD data replaced with 0s, this should start a new
         # sequence for the data following the missing AD data
         self.clear_async_data()
         self.create_sample_data('node59p1_step3.dat', "node59p1.dat")
         self.assert_data(AdcpsParserDataParticle, 'test_data_3.txt.result.yml',
-                         count=1, timeout=10)
+                         count=4, timeout=10)
 
         # Now fill in the zeroed section from step3, this should just return the new
         # data with a new sequence flag
@@ -188,9 +188,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(AdcpsParserDataParticle, 'test_data_4.txt.result.yml',
                          count=1, timeout=10)
 
-        # start over now, using step 4, make sure sequence flags just account for
-        # missing data in file (there are some sections of bad data that don't
-        # match in headers, [0-32], [222-871], [1833-2000]
+        # start over now, using step 4
         self.driver.shutdown()
 
         # Reset the driver with no memento
@@ -202,7 +200,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.clear_async_data()
         self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
         self.assert_data(AdcpsParserDataParticle, 'test_data_1-4.txt.result.yml',
-                         count=4, timeout=10)
+                         count=8, timeout=10)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -258,7 +256,7 @@ class QualificationTest(DataSetQualificationTestCase):
 
         try:
             # Verify we get one sample
-            result = self.data_subscribers.get_samples(SAMPLE_STREAM, 1)
+            result = self.data_subscribers.get_samples(SAMPLE_STREAM, 2)
             log.info("RESULT: %s", result)
 
             # Verify values
@@ -274,7 +272,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.create_sample_data('node59p1_shorter.dat', "node59p1.dat")
         self.assert_initialize()
 
-        result = self.get_samples(SAMPLE_STREAM,12,30)
+        result = self.get_samples(SAMPLE_STREAM,29,30)
 
     def test_stop_start(self):
         """
@@ -293,7 +291,7 @@ class QualificationTest(DataSetQualificationTestCase):
         # Verify we get one sample
         try:
             # Read the first file and verify the data
-            result = self.get_samples(SAMPLE_STREAM, 2)
+            result = self.get_samples(SAMPLE_STREAM, 3)
             log.debug("RESULT: %s", result)
 
             # Verify values
@@ -302,14 +300,14 @@ class QualificationTest(DataSetQualificationTestCase):
 
             self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
             # Now read the first records of the second file then stop
-            result1 = self.get_samples(SAMPLE_STREAM, 1)
+            result1 = self.get_samples(SAMPLE_STREAM, 2)
             log.debug("RESULT 1: %s", result1)
             self.assert_stop_sampling()
             self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
             # Restart sampling and ensure we get the last 2 records of the file
             self.assert_start_sampling()
-            result2 = self.get_samples(SAMPLE_STREAM, 1)
+            result2 = self.get_samples(SAMPLE_STREAM, 3)
             log.debug("RESULT 2: %s", result2)
             result = result1
             result.extend(result2)
@@ -333,7 +331,7 @@ class QualificationTest(DataSetQualificationTestCase):
         self.assert_initialize()
 
         self.event_subscribers.clear_events()
-        result = self.get_samples(SAMPLE_STREAM, 11, 30)
+        result = self.get_samples(SAMPLE_STREAM, 28, 30)
         self.assert_sample_queue_size(SAMPLE_STREAM, 0)
 
         # Verify an event was raised and we are in our retry state

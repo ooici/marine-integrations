@@ -226,20 +226,26 @@ class IntegrationTest(DataSetIntegrationTestCase):
 
         # Create and store the new driver state
         state = {
-            "stc_status.txt": self.get_file_state(path_1, True),
-            "stc_status_second.txt": self.get_file_state(path_2, True),
-            "stc_status_third.txt": self.get_file_state(path_3, False),
-            "20140120_140004.mopak.log": self.get_file_state(path_4, False, 172),
-            "20140120_150004.mopak.log": self.get_file_state(path_5, False, 0),
-            "20140120_140004.rte.log": self.get_file_state(path_6, True, 549),
-            "20140120_150004.rte.log": self.get_file_state(path_7, False, 154)
+            DataTypeKey.CG_STC_ENG:{
+                "stc_status.txt": self.get_file_state(path_1, True),
+                "stc_status_second.txt": self.get_file_state(path_2, True),
+                "stc_status_third.txt": self.get_file_state(path_3, False)
+                },
+            DataTypeKey.MOPAK: {
+                "20140120_140004.mopak.log": self.get_file_state(path_4, False, 172),
+                "20140120_150004.mopak.log": self.get_file_state(path_5, False, 0)
+                },
+            DataTypeKey.RTE: {
+                "20140120_140004.rte.log": self.get_file_state(path_6, True, 549),
+                "20140120_150004.rte.log": self.get_file_state(path_7, False, 154)
+            }
         }
         log.debug('generated state %s', state)
-        state['20140120_140004.mopak.log']['parser_state'].update({StateKey.TIMER_START: 33456})
-        state['20140120_140004.mopak.log']['parser_state'].update({StateKey.TIMER_ROLLOVER: 0})
-        state['20140120_150004.mopak.log']['parser_state'].update({StateKey.TIMER_START: None})
-        state['20140120_150004.mopak.log']['parser_state'].update({StateKey.TIMER_ROLLOVER: 0})
-        state['20140120_150004.mopak.log']['parser_state'].update({StateKey.POSITION: 0})
+        state[DataTypeKey.MOPAK]['20140120_140004.mopak.log']['parser_state'].update({StateKey.TIMER_START: 33456})
+        state[DataTypeKey.MOPAK]['20140120_140004.mopak.log']['parser_state'].update({StateKey.TIMER_ROLLOVER: 0})
+        state[DataTypeKey.MOPAK]['20140120_150004.mopak.log']['parser_state'].update({StateKey.TIMER_START: None})
+        state[DataTypeKey.MOPAK]['20140120_150004.mopak.log']['parser_state'].update({StateKey.TIMER_ROLLOVER: 0})
+        state[DataTypeKey.MOPAK]['20140120_150004.mopak.log']['parser_state'].update({StateKey.POSITION: 0})
         log.debug('generated state after fields %s', state)
         self.driver = self._get_driver_object(memento=state)
 
@@ -275,13 +281,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data((MopakODclAccelParserDataParticle,
                           MopakODclRateParserDataParticle),
                           'first_mopak.result.yml', count=5, timeout=10)
-        self.assert_file_ingested("20140120_140004.mopak.log")
+        self.assert_file_ingested("20140120_140004.mopak.log", DataTypeKey.MOPAK)
         self.assert_data(RteODclParserDataParticle, 'first_rte.result.yml',
                          count=2, timeout=10)
-        self.assert_file_ingested("20140120_140004.rte.log")
+        self.assert_file_ingested("20140120_140004.rte.log", DataTypeKey.RTE)
         self.assert_data(CgStcEngStcParserDataParticle, 'stc_first.result.yml',
                          count=1, timeout=10)
-        self.assert_file_ingested("stc_status.txt")
+        self.assert_file_ingested("stc_status.txt", DataTypeKey.CG_STC_ENG)
 
         self.driver.stop_sampling()
         self.driver.start_sampling()
@@ -289,13 +295,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data((MopakODclAccelParserDataParticle,
                           MopakODclRateParserDataParticle),
                           'second_mopak.result.yml', count=2, timeout=10)
-        self.assert_file_ingested("20140120_150004.mopak.log")
+        self.assert_file_ingested("20140120_150004.mopak.log", DataTypeKey.MOPAK)
         self.assert_data(RteODclParserDataParticle, 'second_rte.result.yml',
                          count=2, timeout=10)
-        self.assert_file_ingested("20140120_150004.rte.log")
+        self.assert_file_ingested("20140120_150004.rte.log", DataTypeKey.RTE)
         self.assert_data(CgStcEngStcParserDataParticle, 'stc_second.result.yml',
                          count=1, timeout=10)
-        self.assert_file_ingested("stc_status_second.txt")
+        self.assert_file_ingested("stc_status_second.txt", DataTypeKey.CG_STC_ENG)
 
     def test_sample_exception_mopak(self):
         """
@@ -311,7 +317,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
                           MopakODclRateParserDataParticle),
                           'first_mopak.result.yml', count=5, timeout=10)
         self.assert_event('ResourceAgentErrorEvent')
-        self.assert_file_ingested("20140120_140004.mopak.log")
+        self.assert_file_ingested("20140120_140004.mopak.log", DataTypeKey.MOPAK)
 
     def test_sample_exception_eng(self):
         """
@@ -324,7 +330,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.driver.start_sampling()
         # an event catches the sample exception
         self.assert_event('ResourceAgentErrorEvent')
-        self.assert_file_ingested('stc_status_missing_time.txt')
+        self.assert_file_ingested('stc_status_missing_time.txt', DataTypeKey.CG_STC_ENG)
 
     def test_encoding_exception(self):
         self.create_sample_data_set_dir('stc_status_bad_encode.txt', '/tmp/dsatest1')
@@ -336,7 +342,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(CgStcEngStcParserDataParticle, 'stc_bad_encode.result.yml',
                          count=1, timeout=10)
         self.assert_event('ResourceAgentErrorEvent')
-        self.assert_file_ingested('stc_status_bad_encode.txt')
+        self.assert_file_ingested('stc_status_bad_encode.txt', DataTypeKey.CG_STC_ENG)
 
     def test_mopak_unexpected(self):
         self.create_sample_data_set_dir('20131209_103919.3dmgx3.log', '/tmp/dsatest2',
@@ -360,7 +366,7 @@ class IntegrationTest(DataSetIntegrationTestCase):
         # assert we get 5 samples then the file is ingested
         self.assert_data((MopakODclAccelParserDataParticle,
                           MopakODclRateParserDataParticle), None, count=5)
-        self.assert_file_ingested('20140313_191853.mopak.log')
+        self.assert_file_ingested('20140313_191853.mopak.log', DataTypeKey.MOPAK)
 
     def test_mopak_timer_reset(self):
         """
@@ -530,6 +536,18 @@ class IntegrationTest(DataSetIntegrationTestCase):
                          count=1, timeout=10)
         self.assert_data(CgStcEngStcParserDataParticle, 'stc_all.result.yml',
                          count=1, timeout=10)
+
+    def assert_file_ingested(self, filename, data_key):
+        """
+        Assert that a particular file was ingested
+        Need to override for multiple harvester since we have the additional data_key
+        If the ingested flag is not set in the driver state for this file, fail the test
+        @ param filename name of the file to check that it was ingested using the ingested flag
+        """
+        log.debug("last state callback result %s", self.state_callback_result[-1])
+        last_state = self.state_callback_result[-1][data_key]
+        if not filename in last_state or not last_state[filename]['ingested']:
+            self.fail("File %s was not ingested" % filename)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #

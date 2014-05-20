@@ -2,11 +2,12 @@
 
 header:
   particle_object: DostadParserDataParticle
-  particle_type: dostad_parsed
+  particle_type: dosta_ln_wfp_instrument
 
 data:
   - _index: 1
     internal_timestamp: '2013-07-24T06:00:01'
+    controller_timestamp: 1374645601
     product_number: 4831
     serial_number: 128
     serial_number: 128
@@ -22,6 +23,7 @@ data:
     raw_temperature: 444.4
   - _index: 2
     internal_timestamp: '2013-07-24T12:00:02'
+    controller_timestamp: 1374667202
     product_number: 4831
     serial_number: 128
     estimated_oxygen_concentration: 332.060
@@ -36,6 +38,7 @@ data:
     raw_temperature: 426.5
   - _index: 3
     internal_timestamp: '2013-07-24T18:00:02'
+    controller_timestamp: 1374688802
     product_number: 4831
     serial_number: 128
     estimated_oxygen_concentration: 354.515
@@ -50,6 +53,7 @@ data:
     raw_temperature: 490.0
   - _index: 4
     internal_timestamp: '2013-07-25T00:00:02'
+    controller_timestamp: 1374710402
     product_number: 4831
     serial_number: 128
     estimated_oxygen_concentration: 337.540
