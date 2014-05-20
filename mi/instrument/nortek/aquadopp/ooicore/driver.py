@@ -24,7 +24,7 @@ from mi.core.instrument.chunker import StringChunker
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey
 
 from mi.instrument.nortek.driver import NortekInstrumentProtocol, InstrumentPrompts, NortekProtocolParameterDict, \
-    NortekDataParticleType, NEWLINE
+    NortekDataParticleType, NEWLINE, ParameterUnits
 from mi.instrument.nortek.driver import NortekParameterDictVal, Parameter, NortekInstrumentDriver
 
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
@@ -87,6 +87,7 @@ class AquadoppDwVelocityDataParticle(DataParticle):
         values with appropriate tags.
         @throws SampleException If there is a problem with sample creation
         """
+        log.debug('AquadoppDwVelocityDataParticle: raw data =%r', self.raw_data)
         match = VELOCITY_DATA_REGEX.match(self.raw_data)
 
         if not match:
@@ -136,6 +137,7 @@ class AquadoppDwVelocityDataParticle(DataParticle):
                   {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM2, DataParticleKey.VALUE: amplitude_beam2},
                   {DataParticleKey.VALUE_ID: AquadoppDwVelocityDataParticleKey.AMPLITUDE_BEAM3, DataParticleKey.VALUE: amplitude_beam3}]
 
+        log.debug('AquadoppDwVelocityDataParticle: particle=%s', result)
         return result
 
 
@@ -231,7 +233,8 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.READ_WRITE,
                                    display_name="transmit pulse length",
                                    default_value=125,
-                                   init_value=125,    # velpt was 125
+                                   init_value=125,
+                                   units=ParameterUnits.CENTIMETERS,
                                    startup_param=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.BLANKING_DISTANCE,
@@ -243,7 +246,21 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.READ_WRITE,
                                    display_name="blanking distance",
                                    default_value=3,
-                                   init_value=3,     # velpt was 3
+                                   init_value=3,
+                                   units=ParameterUnits.CENTIMETERS,
+                                   startup_param=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.RECEIVE_LENGTH,
+                                   r'^.{%s}(.{2}).*' % str(8),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="receive length",
+                                   default_value=7,
+                                   init_value=7,
+                                   units=ParameterUnits.CENTIMETERS,
                                    startup_param=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.TIME_BETWEEN_PINGS,
@@ -255,7 +272,8 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.READ_WRITE,
                                    display_name="time between pings",
                                    default_value=None,
-                                   init_value=437,  # velpt doesnt like 44, try 437
+                                   init_value=437,
+                                   units=ParameterUnits.CENTIMETERS,
                                    startup_param=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.TIME_BETWEEN_BURST_SEQUENCES,
@@ -267,7 +285,8 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="time between burst sequences",
                                    default_value=0,
-                                   init_value=512,    # velpt doesnt like 0, try 512
+                                   init_value=512,
+                                   units=None,
                                    startup_param=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.NUMBER_PINGS,
@@ -279,7 +298,8 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="number pings",
                                    default_value=0,
-                                   init_value=23,    #velpt 23
+                                   init_value=23,
+                                   units=ParameterUnits.HERTZ,
                                    startup_param=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.AVG_INTERVAL,
@@ -290,8 +310,9 @@ class Protocol(NortekInstrumentProtocol):
                                    type=ParameterDictType.INT,
                                    visibility=ParameterDictVisibility.READ_WRITE,
                                    display_name="avg interval",
-                                   default_value=1,   # velpt doesnt like 32, try 1
+                                   default_value=1,
                                    init_value=1,
+                                   units=ParameterUnits.SECONDS,
                                    startup_param=True))
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.MEASUREMENT_INTERVAL,
@@ -303,7 +324,8 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.DIRECT_ACCESS,
                                    display_name="measurement interval",
                                    default_value=3600,
-                                   init_value=1,   # velpt doesn't like 3600, try 1
+                                   init_value=1,
+                                   units=ParameterUnits.SECONDS,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -319,4 +341,4 @@ class Protocol(NortekInstrumentProtocol):
                                     startup_param=False,
                                     direct_access=False))
 
-        self._param_dict.set_value(Parameter.NUMBER_SAMPLES_PER_BURST, 0)
+        #self._param_dict.set_value(Parameter.NUMBER_SAMPLES_PER_BURST, 0)

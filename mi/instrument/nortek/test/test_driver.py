@@ -1026,21 +1026,8 @@ class NortekIntTest(InstrumentDriverIntegrationTestCase, DriverTestMixinSub):
         self.assert_initialize_driver(ProtocolState.COMMAND)
 
         # test acquire status
-        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=1)
-
         # don't need to assert the particles, acquire_status method already does that for us
-        #BV
-        # self.assert_async_particle_generation(NortekDataParticleType.BATTERY, self.assert_particle_battery)
-        # #RC
-        #self.assert_async_particle_generation(NortekDataParticleType.CLOCK, self.assert_particle_clock)
-        # #GP
-        # self.assert_async_particle_generation(NortekDataParticleType.HARDWARE_CONFIG, self.assert_particle_hardware)
-        # #GH
-        # self.assert_async_particle_generation(NortekDataParticleType.HEAD_CONFIG, self.assert_particle_head)
-        # #GC
-        # self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user)
-        # #ID
-        # #self.assert_async_particle_generation(NortekDataParticleType.ID_STRING, self.assert_particle_id)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS, delay=1)
 
     def test_direct_access(self):
         """
@@ -1158,25 +1145,19 @@ class NortekQualTest(InstrumentDriverQualificationTestCase, DriverTestMixinSub):
 
         self.assert_direct_access_stop_telnet()
 
-        # # verify the setting got restored.
+        #verify the setting got restored.
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 10)
         self.assert_get_parameter(Parameter.DIAGNOSTIC_INTERVAL, 10800)
 
-        ###
         # Test direct access inactivity timeout
-        ###
         self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=90)
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
 
-        ###
         # Test session timeout without activity
-        ###
         self.assert_direct_access_start_telnet(inactivity_timeout=120, session_timeout=30)
         self.assert_state_change(ResourceAgentState.COMMAND, ProtocolState.COMMAND, 60)
 
-        ###
         # Test direct access session timeout with activity
-        ###
         self.assert_direct_access_start_telnet(inactivity_timeout=30, session_timeout=60)
         # Send some activity every 30 seconds to keep DA alive.
         for i in range(1, 2, 3):
