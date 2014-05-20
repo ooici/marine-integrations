@@ -195,29 +195,18 @@ class DataSetTestCase(MiIntTestCase):
         if not harvester_config:
             raise IDKConfigMissing("Startup config missing 'harvester' config")
 
-        configs = []
-        data_dirs = []
-        if isinstance(harvester_config, dict):
-            for key in harvester_config:
-                configs.append(harvester_config[key])
-        else:
-            configs.append(harvester_config)
+        data_dir = harvester_config.get("directory")
+        if not data_dir:
+            raise IDKConfigMissing("Harvester config missing 'directory'")
 
-        for config in configs:
-            data_dir = config.get("directory")
-            if not data_dir:
-                raise IDKConfigMissing("Harvester config missing 'directory'")
+        if not os.path.exists(data_dir):
+            log.debug("Creating data dir: %s", data_dir)
+            os.makedirs(data_dir)
 
-            if not os.path.exists(data_dir):
-                log.debug("Creating data dir: %s", data_dir)
-                os.makedirs(data_dir)
+        elif not os.path.isdir(data_dir):
+            raise IDKException("'data_dir' is not a directory")
 
-            elif not os.path.isdir(data_dir):
-                raise IDKException("'data_dir' is not a directory")
-
-            data_dirs.append(data_dir)
-
-        return data_dirs[0]
+        return data_dir
     
     def get_data_storage_dir(self):
         """
