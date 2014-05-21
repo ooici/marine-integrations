@@ -15,13 +15,16 @@ import re
 import time
 import string
 
-from mi.core.log import get_logger ; log = get_logger()
+from mi.core.log import get_logger
+
+log = get_logger()
 
 from mi.core.common import BaseEnum
 from mi.core.util import dict_equal
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_driver import DriverConfigKey
 from mi.core.instrument.instrument_driver import DriverEvent
 from mi.core.instrument.instrument_driver import DriverAsyncEvent
 from mi.core.instrument.instrument_driver import DriverProtocolState
@@ -29,6 +32,8 @@ from mi.core.instrument.instrument_driver import DriverParameter
 from mi.core.instrument.instrument_driver import ResourceAgentState
 from mi.core.instrument.data_particle import CommonDataParticleType
 from mi.core.instrument.chunker import StringChunker
+
+from mi.core.driver_scheduler import DriverSchedulerConfigKey, TriggerType
 
 from mi.core.exceptions import InstrumentProtocolException
 from mi.core.exceptions import InstrumentParameterException
@@ -54,7 +59,6 @@ SEND_OPTODE_COMMAND = "sendoptode="
 
 class ScheduledJob(BaseEnum):
     ACQUIRE_STATUS = 'acquire_status'
-    CONFIGURATION_DATA = "configuration_data"
     CLOCK_SYNC = 'clock_sync'
 
 class Command(BaseEnum):
@@ -154,6 +158,8 @@ class Parameter(DriverParameter):
     AUTO_RUN = "AutoRun"
     IGNORE_SWITCH = "IgnoreSwitch"
     LOGGING = "logging"
+    CLOCK_INTERVAL = "ClockInterval"
+    STATUS_INTERVAL = "StatusInterval"
 
 class ConfirmedParameter(BaseEnum):
     """
@@ -1151,8 +1157,57 @@ class SBE19Protocol(SBE16Protocol):
 
         self._chunker = StringChunker(self.sieve_function)
 
-        self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
-        self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        #Setup schedulable commands
+        self._setup_scheduler_config()
+
+    def _setup_scheduler_config(self):
+        """
+        Set up auto scheduler configuration.
+        """
+        log.debug("_setup_scheduler_config")
+        basetime = self._param_dict.get_current_timestamp()
+
+        clock_sync_interval = self._param_dict.get(Parameter.CLOCK_INTERVAL, basetime)
+        acquire_status_interval = self._param_dict.get(Parameter.STATUS_INTERVAL, basetime)
+
+        log.debug("clock sync interval: %s" % clock_sync_interval)
+        log.debug("status interval: %s" % acquire_status_interval)
+
+        if(clock_sync_interval != None):
+            clock_interval_seconds = self._get_seconds_from_time_string(clock_sync_interval)
+        else:
+            clock_interval_seconds = 0
+
+        if(acquire_status_interval != None):
+            status_interval_seconds = self._get_seconds_from_time_string(acquire_status_interval)
+        else:
+            status_interval_seconds = 0
+
+        config = {DriverConfigKey.SCHEDULER: {
+            ScheduledJob.CLOCK_SYNC: {
+                DriverSchedulerConfigKey.TRIGGER: {
+                    DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                    DriverSchedulerConfigKey.SECONDS: clock_interval_seconds
+                }
+            }, ScheduledJob.ACQUIRE_STATUS: {
+            DriverSchedulerConfigKey.TRIGGER: {
+                DriverSchedulerConfigKey.TRIGGER_TYPE: TriggerType.INTERVAL,
+                DriverSchedulerConfigKey.SECONDS: status_interval_seconds
+            }
+        },
+        }}
+
+        self.set_init_params(config)
+
+        # Start the scheduler if it is not running
+        if not self._scheduler:
+            self.initialize_scheduler()
+
+        #Schedule the Acquire Status and Clock Sync tasks
+        if(clock_interval_seconds > 0):
+            self._add_scheduler_event(ScheduledJob.CLOCK_SYNC, ProtocolEvent.SCHEDULED_CLOCK_SYNC)
+        if(status_interval_seconds > 0):
+            self._add_scheduler_event(ScheduledJob.ACQUIRE_STATUS, ProtocolEvent.ACQUIRE_STATUS)
 
 
     @staticmethod
@@ -1192,11 +1247,22 @@ class SBE19Protocol(SBE16Protocol):
             raise InstrumentParameterException('Set command requires a parameter dict.')
 
         #check values that the instrument doesn't validate
+        #handle special cases for driver specific parameters
         for (key, val) in params.iteritems():
             if(key == Parameter.PUMP_DELAY and (val < 0 or val > 600)):
                 raise InstrumentParameterException("pump delay out of range")
             elif(key == Parameter.NUM_AVG_SAMPLES and (val < 1 or val > 32767)):
                 raise InstrumentParameterException("num average samples out of range")
+
+            # set driver specific parameters
+            elif(key == Parameter.CLOCK_INTERVAL):
+                self._param_dict.set_value(Parameter.CLOCK_INTERVAL, val)
+                self._setup_scheduler_config()
+                return
+            elif(key == Parameter.STATUS_INTERVAL):
+                self._param_dict.set_value(Parameter.STATUS_INTERVAL, val)
+                self._setup_scheduler_config()
+                return
 
         self._verify_not_readonly(*args, **kwargs)
 
@@ -1955,6 +2021,29 @@ class SBE19Protocol(SBE16Protocol):
                              default_value = True,
                              visibility=ParameterDictVisibility.IMMUTABLE)
 
+        #Scheduling parameters (driver specific)
+        # Instrument is not aware of these
+        self._param_dict.add(Parameter.CLOCK_INTERVAL,
+                             'bogus',
+                             str,
+                             None,
+                             type=ParameterDictType.STRING,
+                             display_name="Clock Interval",
+                             startup_param = True,
+                             direct_access = False,
+                             default_value = "00:00:00",
+                             visibility=ParameterDictVisibility.READ_WRITE)
+        self._param_dict.add(Parameter.STATUS_INTERVAL,
+                             'bogus',
+                             str,
+                             None,
+                             type=ParameterDictType.STRING,
+                             display_name="Status Interval",
+                             startup_param = True,
+                             direct_access = False,
+                             default_value = "00:00:00",
+                             visibility=ParameterDictVisibility.READ_WRITE)
+
 
     def _got_chunk(self, chunk, timestamp):
         """
@@ -2008,6 +2097,13 @@ class SBE19Protocol(SBE16Protocol):
         """
         return time.strftime("%m%d%Y%H%M%S", time.strptime(date_time_string, "%Y-%m-%dT%H:%M:%S"))
 
+    @staticmethod
+    def _get_seconds_from_time_string(time_string):
+        """
+        extract the number of seconds from the specified time interval in "hh:mm:ss"
+        """
+        interval = time.strptime(time_string, "%H:%M:%S")
+        return interval.tm_hour*3600 + interval.tm_min*60 + interval.tm_sec
 
     @staticmethod
     def _output_format_string_2_int(format_string):
