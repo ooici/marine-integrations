@@ -1,8 +1,0 @@
-driver_metadata:
-  author: Maria Lutz
-  constructor: ADCPS_JLN__stc_imodem_DataSetDriver
-  driver_name: ADCPS_JLN__stc_imodem
-  driver_path: ADCPS_JLN/stc_imodem
-  email: mlutz@bbn.com
-  release_notes: Initial Release
-  version: 0.0.1

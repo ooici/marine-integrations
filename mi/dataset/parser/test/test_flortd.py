@@ -3,6 +3,7 @@
 import gevent
 import unittest
 import os
+import time
 from nose.plugins.attrib import attr
 
 from mi.core.log import get_logger ; log = get_logger()
@@ -43,45 +44,38 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         # first FL tag
         self.timestamp1 = 3583610106.0
         self.particle_a = FlortdParserDataParticle(
-            '07/23/13\t23:15:06\t700\t50\t695\t50\t460\t53\t545',
-              internal_timestamp=self.timestamp1)
+            '51EF0E7507/23/13\t23:15:06\t700\t50\t695\t50\t460\t53\t545')
         self.timestamp2 = 3583612806.0
         self.particle_b = FlortdParserDataParticle(
-            '07/24/13\t00:00:06\t700\t85\t695\t50\t460\t51\t548',
-              internal_timestamp=self.timestamp2)
+            '51EF190107/24/13\t00:00:06\t700\t85\t695\t50\t460\t51\t548')
         self.timestamp3 = 3583634405.0
         self.particle_c = FlortdParserDataParticle(
-            '07/24/13\t06:00:05\t700\t78\t695\t72\t460\t51\t553',
-              internal_timestamp=self.timestamp3)
+            '51EF6D6107/24/13\t06:00:05\t700\t78\t695\t72\t460\t51\t553')
         self.timestamp4 = 3583656006.0
         self.particle_d = FlortdParserDataParticle(
-            '07/24/13\t12:00:06\t700\t169\t695\t127\t460\t58\t553',
-              internal_timestamp=self.timestamp4)
+            '51EFC1C207/24/13\t12:00:06\t700\t169\t695\t127\t460\t58\t553')
         self.timestamp5 = 3583677606.0
         self.particle_e = FlortdParserDataParticle(
-            '07/24/13\t18:00:06\t700\t262\t695\t84\t460\t55\t555',
-              internal_timestamp=self.timestamp5)
+            '51F0162207/24/13\t18:00:06\t700\t262\t695\t84\t460\t55\t555')
         self.timestamp6 = 3583699206.0
         self.particle_f = FlortdParserDataParticle(
-            '07/25/13\t00:00:06\t700\t159\t695\t95\t460\t59\t554',
-              internal_timestamp=self.timestamp6)
+            '51F06A8207/25/13\t00:00:06\t700\t159\t695\t95\t460\t59\t554')
 
         self.state_callback_value = None
         self.publish_callback_value = None
         self.exception_callback_value = None
 
-    def assert_result(self, result, in_process_data, unprocessed_data, timestamp, particle):
+    def assert_result(self, result, in_process_data, unprocessed_data, particle):
         self.assertEqual(result, [particle])
-        self.assert_state(in_process_data, unprocessed_data, timestamp)
+        self.assert_state(in_process_data, unprocessed_data)
         self.assert_(isinstance(self.publish_callback_value, list))
         self.assertEqual(self.publish_callback_value[0], particle)
 
-    def assert_state(self, in_process_data, unprocessed_data, timestamp):
+    def assert_state(self, in_process_data, unprocessed_data):
         self.assertEqual(self.parser._state[StateKey.IN_PROCESS_DATA], in_process_data)
         self.assertEqual(self.parser._state[StateKey.UNPROCESSED_DATA], unprocessed_data)
         self.assertEqual(self.state_callback_value[StateKey.IN_PROCESS_DATA], in_process_data)
         self.assertEqual(self.state_callback_value[StateKey.UNPROCESSED_DATA], unprocessed_data)
-        self.assertEqual(self.state_callback_value[StateKey.TIMESTAMP], timestamp)
 
     def test_simple(self):
         """
@@ -93,23 +87,20 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         # just 1000 bytes, so even though the file is longer it only reads the first
         # 1000
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 1000]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
+            StateKey.IN_PROCESS_DATA:[]}
         self.parser = FlortdParser(self.config, self.state, self.stream_handle,
                                    self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
         self.assert_result(result,
                            [[314,390,1,0], [561,637,1,0]],
-                           [[0,69],[314,390],[561,637],[944,1000]], 
-                           self.timestamp3, self.particle_a)
+                           [[0,69],[314,390],[561,637],[944,1000]], self.particle_a)
         result = self.parser.get_records(1)
         self.assert_result(result, [[561,637,1,0]],
-                           [[0,69],[561,637],[944,1000]],
-                           self.timestamp3, self.particle_b)
+                           [[0,69],[561,637],[944,1000]], self.particle_b)
         result = self.parser.get_records(1)
         self.assert_result(result, [],
-                           [[0,69],[944,1000]], 
-                           self.timestamp3, self.particle_c)
+                           [[0,69],[944,1000]], self.particle_c)
 
         self.stream_handle.close()
 
@@ -119,7 +110,7 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         Assert that the results are those we expected.
         """
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 1000]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
+            StateKey.IN_PROCESS_DATA:[]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = FlortdParser(self.config, self.state, self.stream_handle,
@@ -130,8 +121,7 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result,
                          [self.particle_a, self.particle_b, self.particle_c])
         self.assert_state([],
-                        [[0,69],[944,1000]],
-                        self.timestamp3)
+                        [[0,69],[944,1000]])
         self.assertEqual(self.publish_callback_value[0], self.particle_a)
         self.assertEqual(self.publish_callback_value[1], self.particle_b)
         self.assertEqual(self.publish_callback_value[2], self.particle_c)
@@ -143,7 +133,7 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         data_len = len(data)
         self.stream_handle.seek(0)
         self.state = {StateKey.UNPROCESSED_DATA:[[0, data_len]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
+            StateKey.IN_PROCESS_DATA:[]}
         self.parser = FlortdParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
@@ -156,8 +146,7 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         self.assertEqual(result[-2], self.particle_e)
         self.assertEqual(result[-1], self.particle_f)
         self.assert_state([],
-            [[0, 69], [944, 2370], [2560, 2947], [3137, 4173], [4363, 4943], [5049, 5437], [5683, 6072], [8273, 9400]],
-            self.timestamp6)
+            [[0, 69], [1329,1332],[2294,2363],[4092,4161],[4351,4927], [9020,9400]])
         self.assertEqual(self.publish_callback_value[-2], self.particle_e)
         self.assertEqual(self.publish_callback_value[-1], self.particle_f)
 
@@ -166,8 +155,7 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         test starting a parser with a state in the middle of processing
         """
         new_state = {StateKey.IN_PROCESS_DATA:[],
-            StateKey.UNPROCESSED_DATA:[[0,69], [197,1000]],
-            StateKey.TIMESTAMP:self.timestamp1}
+            StateKey.UNPROCESSED_DATA:[[0,69], [197,1000]]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = FlortdParser(self.config, new_state, self.stream_handle,
@@ -175,11 +163,11 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         result = self.parser.get_records(1)
         self.assert_result(result, [[561,637,1,0]],
                            [[0,69],[561,637],[944,1000]],
-                           self.timestamp3, self.particle_b)
+                           self.particle_b)
         result = self.parser.get_records(1)
         self.assert_result(result, [],
                            [[0,69],[944,1000]],
-                           self.timestamp3, self.particle_c)
+                           self.particle_c)
 
 	self.stream_handle.close()
 
@@ -188,8 +176,7 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         test starting a parser with a state in the middle of processing
         """
         new_state = {StateKey.IN_PROCESS_DATA:[[314,390,1,0], [561,637,1,0]],
-            StateKey.UNPROCESSED_DATA:[[0,69],[314,390],[561,637],[944,6150]],
-            StateKey.TIMESTAMP:self.timestamp3}
+            StateKey.UNPROCESSED_DATA:[[0,69],[314,390],[561,637],[944,6150]]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
         self.parser = FlortdParser(self.config, new_state, self.stream_handle,
@@ -198,25 +185,22 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
 
         self.assert_result(result, [[561,637,1,0]],
                            [[0,69],[561,637],[944,6150]],
-                           self.timestamp2, self.particle_b)
+                           self.particle_b)
 
         result = self.parser.get_records(2)
         self.assertEqual(result[0], self.particle_c)
         self.assertEqual(result[1], self.particle_d)
         self.assert_state([],
-            [[0,69],[944, 2370], [2560, 2947], [3137, 4173], [4363, 4943], [5049,5437], [5683, 6072]],
-            self.timestamp4)
+            [[0,69],[1329,1332],[2294,2363],[4092,4161],[4351,4927], [6131,6150]])
         self.assertEqual(self.publish_callback_value[-1], self.particle_d)
 
     def test_set_state(self):
         """
         test changing the state after initializing
         """
-        self.state = {StateKey.UNPROCESSED_DATA:[[0, 1000]], StateKey.IN_PROCESS_DATA:[],
-            StateKey.TIMESTAMP:0.0}
+        self.state = {StateKey.UNPROCESSED_DATA:[[0, 1000]], StateKey.IN_PROCESS_DATA:[]}
         new_state = {StateKey.UNPROCESSED_DATA:[[0,69],[944,6150]],
-            StateKey.IN_PROCESS_DATA:[],
-            StateKey.TIMESTAMP:self.timestamp2}
+            StateKey.IN_PROCESS_DATA:[]}
 
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
@@ -225,8 +209,7 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         # there should only be 3 records, make sure we stop there
         result = self.parser.get_records(3)
         self.assert_state([],
-            [[0,69],[944,1000]],
-            self.timestamp3)
+            [[0,69],[944,1000]])
         result = self.parser.get_records(1)
         self.assertEqual(result, [])
 
@@ -234,8 +217,8 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         result = self.parser.get_records(1)
         self.stream_handle.close()
         self.assert_result(result, [],
-                           [[0,69],[944, 2370], [2560, 2947], [3137, 4173], [4363,4943], [5049,5437], [5683,6072]],
-                           self.timestamp4, self.particle_d)
+                           [[0,69], [1329,1332],[2294,2363],[4092,4161],[4351,4927], [6131,6150]],
+			   self.particle_d)
 
     def test_update(self):
         """
@@ -243,7 +226,7 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         then using the returned state make a new parser with the test data that has the 0s filled in
         """
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 6150]],
-            StateKey.IN_PROCESS_DATA:[], StateKey.TIMESTAMP:0.0}
+            StateKey.IN_PROCESS_DATA:[]}
         # this file has a block of FL data replaced by 0s
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_replaced.dat'))
@@ -251,13 +234,13 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
-        self.assert_result(result, [[561,637,1,0], [6072,6150,1,0]],
-                           [[0,69],[314,390],[561,637],[944, 2370],[2560,2947],[3137,4173],[4363,4943],[5049,5437],[5683,6150]],
-                           self.timestamp4, self.particle_a)
+        self.assert_result(result, [[561,637,1,0], [6053,6131,1,0]],
+                           [[0,69],[314,390],[561,637],[1329,1332],[2294,2363],[4092,4161],[4351,4927],[6053,6150]],
+                           self.particle_a)
         result = self.parser.get_records(1)
-        self.assert_result(result, [[6072,6150,1,0]],
-                           [[0,69],[314,390],[944, 2370],[2560,2947],[3137,4173],[4363,4943],[5049,5437],[5683,6150]],
-                           self.timestamp4, self.particle_c)
+        self.assert_result(result, [[6053,6131,1,0]],
+                           [[0,69],[314,390],[1329,1332],[2294,2363],[4092,4161],[4351,4927],[6053,6150]],
+                           self.particle_c)
         self.stream_handle.close()
 
         next_state = self.parser._state
@@ -271,12 +254,12 @@ class FlortdParserUnitTestCase(ParserUnitTestCase):
         # Once those are done, the un processed data will be checked
         result = self.parser.get_records(1)
         self.assert_result(result, [],
-                           [[0,69], [314,390], [944, 2370], [2560, 2947], [3137, 4173],[4363, 4943],[5049,5437],[5683,6072]],
-                           self.timestamp4, self.particle_d)
+                           [[0,69], [314,390], [1329,1332],[2294,2363],[4092,4161],[4351,4927],[6131,6150]],
+                           self.particle_d)
 
         # this should be the first of the newly filled in particles from
         result = self.parser.get_records(1)
         self.assert_result(result, [],
-                           [[0,69], [944, 2370], [2560, 2947], [3137, 4173],[4363, 4943],[5049,5437],[5683,6072]],
-                           self.timestamp2, self.particle_b)
+                           [[0,69], [1329,1332],[2294,2363],[4092,4161],[4351,4927],[6131,6150]],
+                           self.particle_b)
         self.stream_handle.close()

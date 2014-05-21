@@ -34,7 +34,7 @@ from mi.idk.dataset.unit_test import DataSetQualificationTestCase
 from mi.dataset.dataset_driver import DataSourceConfigKey, DataSetDriverConfigKeys
 from mi.dataset.dataset_driver import DriverParameter, DriverStateKey
 from mi.dataset.driver.mflm.dosta.driver import MflmDOSTADDataSetDriver
-from mi.dataset.parser.dostad import DostadParserDataParticle
+from mi.dataset.parser.dostad import DostadParserDataParticle, DataParticleType
 
 
 DataSetTestCase.initialize(
@@ -56,7 +56,7 @@ DataSetTestCase.initialize(
     }
 )
 
-SAMPLE_STREAM = 'dostad_parsed'
+SAMPLE_STREAM = 'dosta_ln_wfp_instrument'
 
 ###############################################################################
 #                            INTEGRATION TESTS                                #
@@ -196,12 +196,13 @@ class IntegrationTest(DataSetIntegrationTestCase):
         mod_time = os.path.getmtime(fullfile)
 
         # Create and store the new driver state
-        self.memento = {DriverStateKey.FILE_SIZE: 314,
-                        DriverStateKey.FILE_CHECKSUM: '515e5da08a6b4bb0d197e62c410da532',
-                        DriverStateKey.FILE_MOD_DATE: mod_time,
-                        DriverStateKey.PARSER_STATE: {'in_process_data': [],
-                                                     'unprocessed_data':[[0,69]],
-                                                     'timestamp': 3583581301.0}
+        self.memento = {"node59p1.dat":
+                            {DriverStateKey.FILE_SIZE: 314,
+                            DriverStateKey.FILE_CHECKSUM: '515e5da08a6b4bb0d197e62c410da532',
+                            DriverStateKey.FILE_MOD_DATE: mod_time,
+                            DriverStateKey.PARSER_STATE: {'in_process_data': [],
+                                                          'unprocessed_data':[[0,69]]}
+                            }
                         }
 
         self.driver = MflmDOSTADDataSetDriver(
@@ -239,23 +240,21 @@ class IntegrationTest(DataSetIntegrationTestCase):
         self.assert_data(DostadParserDataParticle, 'test_data_1-2.txt.result.yml',
                          count=2, timeout=40)
 
-        # This file has had a section of FL data replaced with 0s, this should start a new
-        # sequence for the data following the missing AD data
+        # This file has had a section of DO data replaced with 0s, this should start a new
+        # sequence for the data following the missing DO data
         self.clear_async_data()
         self.create_sample_data('node59p1_step3.dat', "node59p1.dat")
         self.assert_data(DostadParserDataParticle, 'test_data_3.txt.result.yml',
                          count=3, timeout=40)
 
         # Now fill in the zeroed section from step3, this should just return the new
-        # data with a new sequence flag
+        # data
         self.clear_async_data()
         self.create_sample_data('node59p1_step4.dat', "node59p1.dat")
         self.assert_data(DostadParserDataParticle, 'test_data_4.txt.result.yml',
                          count=1, timeout=40)
 
-        # start over now, using step 4, make sure sequence flags just account for
-        # missing data in file (there are some sections of bad data that don't
-        # match in headers
+        # start over now, using step 4
         self.driver.stop_sampling()
 
         # Reset the driver with no memento

@@ -12,17 +12,14 @@ unit test whenever we touch this code.
 __author__ = 'Bill French'
 __license__ = 'Apache 2.0'
 
-from os.path import basename, dirname
-from os import makedirs
-from os.path import exists
-import sys
+from mi.core.log import get_logger
+log = get_logger()
 
-from mi.core.log import get_logger ; log = get_logger()
-
+import mock
+import re
 from nose.plugins.attrib import attr
-import unittest
-from mi.core.unit_test import MiUnitTest
 
+from mi.core.unit_test import MiUnitTest
 from mi.core.tcp_client import TcpClient
 
 
@@ -36,47 +33,29 @@ class TestTCPClient(MiUnitTest):
         Setup the test case
         """
 
-    def test_remove_from_buffer(self):
-        """
-        Test the remove from buffer method.  Verify that all bytes before the match string are removed.
-        """
+    def test_expect(self):
         client = TcpClient()
-        target = "MATCH"
+        client.s = mock.Mock()
+        client.s.recv.return_value = 'abcdefghi'
 
-        # Remove with an None target
-        self.assertFalse(client.remove_from_buffer(None))
+        # true if string is found
+        self.assertTrue(client.expect('def'))
+        # buf should contain only the text following the expected string
+        self.assertEqual(client.buf, 'ghi')
 
-        # Remove with a zero length target
-        self.assertFalse(client.remove_from_buffer(""))
+    def test_expect_regex(self):
+        client = TcpClient()
+        client.s = mock.Mock()
+        client.s.recv.return_value = 'abcdefghi'
 
-        # Remove from buffer when buffer empty
-        client.buf = None
-        self.assertFalse(client.remove_from_buffer(target))
-        self.assertIsNone(client.buf)
+        # un-compiled regex
+        # expect_regex returns a match object
+        self.assertEqual(client.expect_regex('[def]{3}').group(), 'def')
+        # buf should contain only the text following the matched string
+        self.assertEqual(client.buf, 'ghi')
 
-        # Remove from buffer when target the only thing in the list
-        client.buf = target
-        self.assertTrue(client.remove_from_buffer(target))
-        self.assertEqual(len(client.buf), 0)
-
-        # Remove from buffer when target the last thing in the list
-        client.buf = "foo" + target
-        self.assertTrue(client.remove_from_buffer(target))
-        self.assertEqual(len(client.buf), 0)
-
-        # Remove from buffer when target in the middle
-        client.buf = "foo" + target + "remains"
-        self.assertTrue(client.remove_from_buffer(target))
-        self.assertEqual(client.buf, "remains")
-
-        # Remove from buffer when target not in the buff
-        client.buf = "target not in the list"
-        self.assertFalse(client.remove_from_buffer(target))
-        self.assertEqual(client.buf, "target not in the list")
-
-        # Remove from buffer when target in the list more than once        client.buf = "foo" + target + "remains"
-        client.buf = "foo" + target + "remains" + target
-        self.assertTrue(client.remove_from_buffer(target))
-        self.assertEqual(client.buf, "remains" + target)
-
-
+        # pre-compiled regex with groups
+        result = client.expect_regex(re.compile(r'(abc)(def)'))
+        self.assertEqual(result.group(1), 'abc')
+        self.assertEqual(result.group(2), 'def')
+        self.assertEqual(client.buf, 'ghi')
