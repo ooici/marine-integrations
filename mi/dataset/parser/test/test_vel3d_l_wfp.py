@@ -47,7 +47,7 @@ REC_RECORD_1 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x01\x02\x03\x01\x02'  \
-    '\xDD\x07\x00\x00\xCA\x42\x00\x00\x49\x43\x00\x80\x96\x43\x00\x40'  \
+    '\xD4\x07\x00\x00\xCA\x42\x00\x00\x49\x43\x00\x80\x96\x43\x00\x40'  \
     '\x7A\x44\x00\x20\xFA\x44\x00\x90\x3B\x45\x00\x44\x1C\x46\x00\x42'  \
     '\x9C\x46\x00\x62\xEA\x46\x00\x41\x1C\x47\x52\xE6\x3C\x32\x52\xE6'  \
     '\x54\xDF'
@@ -72,9 +72,9 @@ REC_RECORD_2 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x02\x03\x04\x02\x03'  \
-    '\xDD\x07\x00\x00\xCC\x42\x00\x00\x4A\x43\x00\x00\x97\x43\x00\x80'  \
+    '\xD4\x07\x00\x00\xCC\x42\x00\x00\x4A\x43\x00\x00\x97\x43\x00\x80'  \
     '\x7A\x44\x00\x40\xFA\x44\x00\xA0\x3B\x45\x00\x48\x1C\x46\x00\x44'  \
-    '\x9C\x46\x00\x64\xEA\x46\x00\x42\x1C\x47\x03\x04\x05\x03\x04\xDD'  \
+    '\x9C\x46\x00\x64\xEA\x46\x00\x42\x1C\x47\x03\x04\x05\x03\x04\xD4'  \
     '\x07\x00\x00\xCE\x42\x00\x00\x4B\x43\x00\x80\x97\x43\x00\xC0\x7A'  \
     '\x44\x00\x60\xFA\x44\x00\xB0\x3B\x45\x00\x4C\x1C\x46\x00\x46\x9C'  \
     '\x46\x00\x66\xEA\x46\x00\x43\x1C\x47\x52\xE6\x3C\x33\x52\xE6\x54'  \
@@ -100,12 +100,12 @@ REC_RECORD_3 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x04\x05\x06\x04\x05'  \
-    '\xDD\x07\x00\x00\xD0\x42\x00\x00\x4C\x43\x00\x00\x98\x43\x00\x00'  \
+    '\xD4\x07\x00\x00\xD0\x42\x00\x00\x4C\x43\x00\x00\x98\x43\x00\x00'  \
     '\x7B\x44\x00\x80\xFA\x44\x00\xC0\x3B\x45\x00\x50\x1C\x46\x00\x48'  \
-    '\x9C\x46\x00\x68\xEA\x46\x00\x44\x1C\x47\x05\x06\x07\x05\x06\xDD'  \
+    '\x9C\x46\x00\x68\xEA\x46\x00\x44\x1C\x47\x05\x06\x07\x05\x06\xD4'  \
     '\x07\x00\x00\xD2\x42\x00\x00\x4D\x43\x00\x80\x98\x43\x00\x40\x7B'  \
     '\x44\x00\xA0\xFA\x44\x00\xD0\x3B\x45\x00\x54\x1C\x46\x00\x4A\x9C'  \
-    '\x46\x00\x6A\xEA\x46\x00\x45\x1C\x47\x06\x07\x08\x06\x07\xDD\x07'  \
+    '\x46\x00\x6A\xEA\x46\x00\x45\x1C\x47\x06\x07\x08\x06\x07\xD4\x07'  \
     '\x00\x00\xD4\x42\x00\x00\x4E\x43\x00\x00\x99\x43\x00\x80\x7B\x44'  \
     '\x00\xC0\xFA\x44\x00\xE0\x3B\x45\x00\x58\x1C\x46\x00\x4C\x9C\x46'  \
     '\x00\x6C\xEA\x46\x00\x46\x1C\x47\x52\xE6\x3C\x34\x52\xE6\x54\xE1'
@@ -130,15 +130,15 @@ REC_RECORD_4 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x07\x08\x09\x07\x08'  \
-    '\xDD\x07\x00\x00\xD6\x42\x00\x00\x4F\x43\x00\x80\x99\x43\x00\xC0'  \
+    '\xD4\x07\x00\x00\xD6\x42\x00\x00\x4F\x43\x00\x80\x99\x43\x00\xC0'  \
     '\x7B\x44\x00\xE0\xFA\x44\x00\xF0\x3B\x45\x00\x5C\x1C\x46\x00\x4E'  \
-    '\x9C\x46\x00\x6E\xEA\x46\x00\x47\x1C\x47\x08\x09\x0A\x08\x09\xDD'  \
+    '\x9C\x46\x00\x6E\xEA\x46\x00\x47\x1C\x47\x08\x09\x0A\x08\x09\xD4'  \
     '\x07\x00\x00\xD8\x42\x00\x00\x50\x43\x00\x00\x9A\x43\x00\x00\x7C'  \
     '\x44\x00\x00\xFB\x44\x00\x00\x3C\x45\x00\x60\x1C\x46\x00\x50\x9C'  \
-    '\x46\x00\x70\xEA\x46\x00\x48\x1C\x47\x09\x0A\x0B\x09\x0A\xDD\x07'  \
+    '\x46\x00\x70\xEA\x46\x00\x48\x1C\x47\x09\x0A\x0B\x09\x0A\xD4\x07'  \
     '\x00\x00\xDA\x42\x00\x00\x51\x43\x00\x80\x9A\x43\x00\x40\x7C\x44'  \
     '\x00\x20\xFB\x44\x00\x10\x3C\x45\x00\x64\x1C\x46\x00\x52\x9C\x46'  \
-    '\x00\x72\xEA\x46\x00\x49\x1C\x47\x0A\x0B\x0C\x0A\x0B\xDD\x07\x00'  \
+    '\x00\x72\xEA\x46\x00\x49\x1C\x47\x0A\x0B\x0C\x0A\x0B\xD4\x07\x00'  \
     '\x00\xDC\x42\x00\x00\x52\x43\x00\x00\x9B\x43\x00\x80\x7C\x44\x00'  \
     '\x40\xFB\x44\x00\x20\x3C\x45\x00\x68\x1C\x46\x00\x54\x9C\x46\x00'  \
     '\x74\xEA\x46\x00\x4A\x1C\x47\x52\xE6\x3C\x35\x52\xE6\x54\xE2'
@@ -163,40 +163,41 @@ REC_RECORD_10 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x01\x02\x03\x01\x02'  \
-    '\xDD\x07\x00\x00\xCA\x42\x00\x00\x49\x43\x00\x80\x96\x43\x00\x40'  \
+    '\xD1\x07\x00\x00\xCA\x42\x00\x00\x49\x43\x00\x80\x96\x43\x00\x40'  \
     '\x7A\x44\x00\x20\xFA\x44\x00\x90\x3B\x45\x00\x44\x1C\x46\x00\x42'  \
-    '\x9C\x46\x00\x62\xEA\x46\x00\x41\x1C\x47\x02\x03\x04\x02\x03\xDD'  \
+    '\x9C\x46\x00\x62\xEA\x46\x00\x41\x1C\x47\x02\x03\x04\x02\x03\xD1'  \
     '\x07\x00\x00\xCC\x42\x00\x00\x4A\x43\x00\x00\x97\x43\x00\x80\x7A'  \
     '\x44\x00\x40\xFA\x44\x00\xA0\x3B\x45\x00\x48\x1C\x46\x00\x44\x9C'  \
-    '\x46\x00\x64\xEA\x46\x00\x42\x1C\x47\x03\x04\x05\x03\x04\xDD\x07'  \
+    '\x46\x00\x64\xEA\x46\x00\x42\x1C\x47\x03\x04\x05\x03\x04\xD1\x07'  \
     '\x00\x00\xCE\x42\x00\x00\x4B\x43\x00\x80\x97\x43\x00\xC0\x7A\x44'  \
     '\x00\x60\xFA\x44\x00\xB0\x3B\x45\x00\x4C\x1C\x46\x00\x46\x9C\x46'  \
-    '\x00\x66\xEA\x46\x00\x43\x1C\x47\x04\x05\x06\x04\x05\xDD\x07\x00'  \
+    '\x00\x66\xEA\x46\x00\x43\x1C\x47\x04\x05\x06\x04\x05\xD1\x07\x00'  \
     '\x00\xD0\x42\x00\x00\x4C\x43\x00\x00\x98\x43\x00\x00\x7B\x44\x00'  \
     '\x80\xFA\x44\x00\xC0\x3B\x45\x00\x50\x1C\x46\x00\x48\x9C\x46\x00'  \
-    '\x68\xEA\x46\x00\x44\x1C\x47\x05\x06\x07\x05\x06\xDD\x07\x00\x00'  \
+    '\x68\xEA\x46\x00\x44\x1C\x47\x05\x06\x07\x05\x06\xD1\x07\x00\x00'  \
     '\xD2\x42\x00\x00\x4D\x43\x00\x80\x98\x43\x00\x40\x7B\x44\x00\xA0'  \
     '\xFA\x44\x00\xD0\x3B\x45\x00\x54\x1C\x46\x00\x4A\x9C\x46\x00\x6A'  \
-    '\xEA\x46\x00\x45\x1C\x47\x06\x07\x08\x06\x07\xDD\x07\x00\x00\xD4'  \
+    '\xEA\x46\x00\x45\x1C\x47\x06\x07\x08\x06\x07\xD1\x07\x00\x00\xD4'  \
     '\x42\x00\x00\x4E\x43\x00\x00\x99\x43\x00\x80\x7B\x44\x00\xC0\xFA'  \
     '\x44\x00\xE0\x3B\x45\x00\x58\x1C\x46\x00\x4C\x9C\x46\x00\x6C\xEA'  \
-    '\x46\x00\x46\x1C\x47\x07\x08\x09\x07\x08\xDD\x07\x00\x00\xD6\x42'  \
+    '\x46\x00\x46\x1C\x47\x07\x08\x09\x07\x08\xD1\x07\x00\x00\xD6\x42'  \
     '\x00\x00\x4F\x43\x00\x80\x99\x43\x00\xC0\x7B\x44\x00\xE0\xFA\x44'  \
     '\x00\xF0\x3B\x45\x00\x5C\x1C\x46\x00\x4E\x9C\x46\x00\x6E\xEA\x46'  \
-    '\x00\x47\x1C\x47\x08\x09\x0A\x08\x09\xDD\x07\x00\x00\xD8\x42\x00'  \
+    '\x00\x47\x1C\x47\x08\x09\x0A\x08\x09\xD1\x07\x00\x00\xD8\x42\x00'  \
     '\x00\x50\x43\x00\x00\x9A\x43\x00\x00\x7C\x44\x00\x00\xFB\x44\x00'  \
     '\x00\x3C\x45\x00\x60\x1C\x46\x00\x50\x9C\x46\x00\x70\xEA\x46\x00'  \
-    '\x48\x1C\x47\x09\x0A\x0B\x09\x0A\xDD\x07\x00\x00\xDA\x42\x00\x00'  \
+    '\x48\x1C\x47\x09\x0A\x0B\x09\x0A\xD1\x07\x00\x00\xDA\x42\x00\x00'  \
     '\x51\x43\x00\x80\x9A\x43\x00\x40\x7C\x44\x00\x20\xFB\x44\x00\x10'  \
     '\x3C\x45\x00\x64\x1C\x46\x00\x52\x9C\x46\x00\x72\xEA\x46\x00\x49'  \
-    '\x1C\x47\x0A\x0B\x0C\x0A\x0B\xDD\x07\x00\x00\xDC\x42\x00\x00\x52'  \
+    '\x1C\x47\x0A\x0B\x0C\x0A\x0B\xD1\x07\x00\x00\xDC\x42\x00\x00\x52'  \
     '\x43\x00\x00\x9B\x43\x00\x80\x7C\x44\x00\x40\xFB\x44\x00\x20\x3C'  \
     '\x45\x00\x68\x1C\x46\x00\x54\x9C\x46\x00\x74\xEA\x46\x00\x4A\x1C'  \
     '\x47\x52\xE6\x3C\x32\x52\xE6\x54\xDF'
 
-# Recovered Record 2_3 has 2 SIO blocks, with 3 records in each block.
-REC_RECORD_2_3 = \
-    '\x00\x00\x01\xA4\x31\x32\x33\xFF\xFF\x00\x00\x58\x58\x58\x58\x58'  \
+# Recovered Record 2_10 has 2 SIO blocks, with 4 instrument records
+# in the first block and 6 instrument records in the second block.
+REC_RECORD_2_10 = \
+    '\x00\x00\x01\xD3\x31\x32\x33\xFF\xFF\x00\x00\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
@@ -214,16 +215,19 @@ REC_RECORD_2_3 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x01\x02\x03\x01\x02'  \
-    '\xDD\x07\x00\x00\xCA\x42\x00\x00\x49\x43\x00\x80\x96\x43\x00\x40'  \
+    '\xD2\x07\x00\x00\xCA\x42\x00\x00\x49\x43\x00\x80\x96\x43\x00\x40'  \
     '\x7A\x44\x00\x20\xFA\x44\x00\x90\x3B\x45\x00\x44\x1C\x46\x00\x42'  \
-    '\x9C\x46\x00\x62\xEA\x46\x00\x41\x1C\x47\x02\x03\x04\x02\x03\xDD'  \
+    '\x9C\x46\x00\x62\xEA\x46\x00\x41\x1C\x47\x02\x03\x04\x02\x03\xD2'  \
     '\x07\x00\x00\xCC\x42\x00\x00\x4A\x43\x00\x00\x97\x43\x00\x80\x7A'  \
     '\x44\x00\x40\xFA\x44\x00\xA0\x3B\x45\x00\x48\x1C\x46\x00\x44\x9C'  \
-    '\x46\x00\x64\xEA\x46\x00\x42\x1C\x47\x03\x04\x05\x03\x04\xDD\x07'  \
+    '\x46\x00\x64\xEA\x46\x00\x42\x1C\x47\x03\x04\x05\x03\x04\xD2\x07'  \
     '\x00\x00\xCE\x42\x00\x00\x4B\x43\x00\x80\x97\x43\x00\xC0\x7A\x44'  \
     '\x00\x60\xFA\x44\x00\xB0\x3B\x45\x00\x4C\x1C\x46\x00\x46\x9C\x46'  \
-    '\x00\x66\xEA\x46\x00\x43\x1C\x47\x52\xE6\x3C\x32\x52\xE6\x54\xDF'  \
-    '\x00\x00\x01\xA4\x31\x32\x33\xFF\xFF\x00\x00\x58\x58\x58\x58\x58'  \
+    '\x00\x66\xEA\x46\x00\x43\x1C\x47\x04\x05\x06\x04\x05\xD2\x07\x00'  \
+    '\x00\xD0\x42\x00\x00\x4C\x43\x00\x00\x98\x43\x00\x00\x7B\x44\x00'  \
+    '\x80\xFA\x44\x00\xC0\x3B\x45\x00\x50\x1C\x46\x00\x48\x9C\x46\x00'  \
+    '\x68\xEA\x46\x00\x44\x1C\x47\x52\xE6\x3C\x32\x52\xE6\x54\xDF' \
+    '\x00\x00\x02\x31\x31\x32\x33\xFF\xFF\x00\x00\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
@@ -240,147 +244,172 @@ REC_RECORD_2_3 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
-    '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x04\x05\x06\x04\x05'  \
-    '\xDD\x07\x00\x00\xD0\x42\x00\x00\x4C\x43\x00\x00\x98\x43\x00\x00'  \
-    '\x7B\x44\x00\x80\xFA\x44\x00\xC0\x3B\x45\x00\x50\x1C\x46\x00\x48'  \
-    '\x9C\x46\x00\x68\xEA\x46\x00\x44\x1C\x47\x05\x06\x07\x05\x06\xDD'  \
-    '\x07\x00\x00\xD2\x42\x00\x00\x4D\x43\x00\x80\x98\x43\x00\x40\x7B'  \
-    '\x44\x00\xA0\xFA\x44\x00\xD0\x3B\x45\x00\x54\x1C\x46\x00\x4A\x9C'  \
-    '\x46\x00\x6A\xEA\x46\x00\x45\x1C\x47\x06\x07\x08\x06\x07\xDD\x07'  \
-    '\x00\x00\xD4\x42\x00\x00\x4E\x43\x00\x00\x99\x43\x00\x80\x7B\x44'  \
-    '\x00\xC0\xFA\x44\x00\xE0\x3B\x45\x00\x58\x1C\x46\x00\x4C\x9C\x46'  \
-    '\x00\x6C\xEA\x46\x00\x46\x1C\x47\x52\xE6\x3C\x33\x52\xE6\x54\xE0'
+    '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x05\x06\x07\x05\x06'  \
+    '\xD2\x07\x00\x00\xD2\x42\x00\x00\x4D\x43\x00\x80\x98\x43\x00\x40'  \
+    '\x7B\x44\x00\xA0\xFA\x44\x00\xD0\x3B\x45\x00\x54\x1C\x46\x00\x4A'  \
+    '\x9C\x46\x00\x6A\xEA\x46\x00\x45\x1C\x47\x06\x07\x08\x06\x07\xD2'  \
+    '\x07\x00\x00\xD4\x42\x00\x00\x4E\x43\x00\x00\x99\x43\x00\x80\x7B'  \
+    '\x44\x00\xC0\xFA\x44\x00\xE0\x3B\x45\x00\x58\x1C\x46\x00\x4C\x9C'  \
+    '\x46\x00\x6C\xEA\x46\x00\x46\x1C\x47\x07\x08\x09\x07\x08\xD2\x07'  \
+    '\x00\x00\xD6\x42\x00\x00\x4F\x43\x00\x80\x99\x43\x00\xC0\x7B\x44'  \
+    '\x00\xE0\xFA\x44\x00\xF0\x3B\x45\x00\x5C\x1C\x46\x00\x4E\x9C\x46'  \
+    '\x00\x6E\xEA\x46\x00\x47\x1C\x47\x08\x09\x0A\x08\x09\xD2\x07\x00'  \
+    '\x00\xD8\x42\x00\x00\x50\x43\x00\x00\x9A\x43\x00\x00\x7C\x44\x00'  \
+    '\x00\xFB\x44\x00\x00\x3C\x45\x00\x60\x1C\x46\x00\x50\x9C\x46\x00'  \
+    '\x70\xEA\x46\x00\x48\x1C\x47\x09\x0A\x0B\x09\x0A\xD2\x07\x00\x00'  \
+    '\xDA\x42\x00\x00\x51\x43\x00\x80\x9A\x43\x00\x40\x7C\x44\x00\x20'  \
+    '\xFB\x44\x00\x10\x3C\x45\x00\x64\x1C\x46\x00\x52\x9C\x46\x00\x72'  \
+    '\xEA\x46\x00\x49\x1C\x47\x0A\x0B\x0C\x0A\x0B\xD2\x07\x00\x00\xDC'  \
+    '\x42\x00\x00\x52\x43\x00\x00\x9B\x43\x00\x80\x7C\x44\x00\x40\xFB'  \
+    '\x44\x00\x20\x3C\x45\x00\x68\x1C\x46\x00\x54\x9C\x46\x00\x74\xEA'  \
+    '\x46\x00\x4A\x1C\x47\x52\xE6\x3C\x33\x52\xE6\x54\xE0'
 
 # Recovered Expected results
-REC_EXPECTED_FIELDS_RECORD_1_1 = (1, 2, 3, 1, 2, 2013, 101.0, 201.0, 301.0,
+REC_EXPECTED_FIELDS_RECORD_1_1 = (1, 2, 3, 1, 2, 2004, 101.0, 201.0, 301.0,
                                   1001.0, 2001.0, 3001.0,
                                   10001.0, 20001.0, 30001.0, 40001.0)
 
 REC_EXPECTED_FIELDS_RECORD_1_META = (1390826719, 1390820402, 1390826719, 65535, 1)
 
 
-REC_EXPECTED_FIELDS_RECORD_2_1 = (2, 3, 4, 2, 3, 2013, 102.0, 202.0, 302.0,
+REC_EXPECTED_FIELDS_RECORD_2_1 = (2, 3, 4, 2, 3, 2004, 102.0, 202.0, 302.0,
                                   1002.0, 2002.0, 3002.0,
                                   10002.0, 20002.0, 30002.0, 40002.0)
 
-REC_EXPECTED_FIELDS_RECORD_2_2 = (3, 4, 5, 3, 4, 2013, 103.0, 203.0, 303.0,
+REC_EXPECTED_FIELDS_RECORD_2_2 = (3, 4, 5, 3, 4, 2004, 103.0, 203.0, 303.0,
                                   1003.0, 2003.0, 3003.0,
                                   10003.0, 20003.0, 30003.0, 40003.0)
 
 REC_EXPECTED_FIELDS_RECORD_2_META = (1390826720, 1390820403, 1390826720, 65535, 2)
 
 
-REC_EXPECTED_FIELDS_RECORD_3_1 = (4, 5, 6, 4, 5, 2013, 104.0, 204.0, 304.0,
+REC_EXPECTED_FIELDS_RECORD_3_1 = (4, 5, 6, 4, 5, 2004, 104.0, 204.0, 304.0,
                                   1004.0, 2004.0, 3004.0,
                                   10004.0, 20004.0, 30004.0, 40004.0)
 
-REC_EXPECTED_FIELDS_RECORD_3_2 = (5, 6, 7, 5, 6, 2013, 105.0, 205.0, 305.0,
+REC_EXPECTED_FIELDS_RECORD_3_2 = (5, 6, 7, 5, 6, 2004, 105.0, 205.0, 305.0,
                                   1005.0, 2005.0, 3005.0,
                                   10005.0, 20005.0, 30005.0, 40005.0)
 
-REC_EXPECTED_FIELDS_RECORD_3_3 = (6, 7, 8, 6, 7, 2013, 106.0, 206.0, 306.0,
+REC_EXPECTED_FIELDS_RECORD_3_3 = (6, 7, 8, 6, 7, 2004, 106.0, 206.0, 306.0,
                                   1006.0, 2006.0, 3006.0,
                                   10006.0, 20006.0, 30006.0, 40006.0)
 
 REC_EXPECTED_FIELDS_RECORD_3_META = (1390826721, 1390820404, 1390826721, 65535, 3)
 
 
-REC_EXPECTED_FIELDS_RECORD_4_1 = (7, 8, 9, 7, 8, 2013, 107.0, 207.0, 307.0,
+REC_EXPECTED_FIELDS_RECORD_4_1 = (7, 8, 9, 7, 8, 2004, 107.0, 207.0, 307.0,
                                   1007.0, 2007.0, 3007.0,
                                   10007.0, 20007.0, 30007.0, 40007.0)
 
-REC_EXPECTED_FIELDS_RECORD_4_2 = (8, 9, 10, 8, 9, 2013, 108.0, 208.0, 308.0,
+REC_EXPECTED_FIELDS_RECORD_4_2 = (8, 9, 10, 8, 9, 2004, 108.0, 208.0, 308.0,
                                   1008.0, 2008.0, 3008.0,
                                   10008.0, 20008.0, 30008.0, 40008.0)
 
-REC_EXPECTED_FIELDS_RECORD_4_3 = (9, 10, 11, 9, 10, 2013, 109.0, 209.0, 309.0,
+REC_EXPECTED_FIELDS_RECORD_4_3 = (9, 10, 11, 9, 10, 2004, 109.0, 209.0, 309.0,
                                   1009.0, 2009.0, 3009.0,
                                   10009.0, 20009.0, 30009.0, 40009.0)
 
-REC_EXPECTED_FIELDS_RECORD_4_4 = (10, 11, 12, 10, 11, 2013, 110.0, 210.0, 310.0,
+REC_EXPECTED_FIELDS_RECORD_4_4 = (10, 11, 12, 10, 11, 2004, 110.0, 210.0, 310.0,
                                   1010.0, 2010.0, 3010.0,
                                   10010.0, 20010.0, 30010.0, 40010.0)
 
 REC_EXPECTED_FIELDS_RECORD_4_META = (1390826722, 1390820405, 1390826722, 65535, 4)
 
 
-REC_EXPECTED_FIELDS_RECORD_10_1 = (1, 2, 3, 1, 2, 2013, 101.0, 201.0, 301.0,
+REC_EXPECTED_FIELDS_RECORD_10_1 = (1, 2, 3, 1, 2, 2001, 101.0, 201.0, 301.0,
                                    1001.0, 2001.0, 3001.0,
                                    10001.0, 20001.0, 30001.0, 40001.0)
 
-REC_EXPECTED_FIELDS_RECORD_10_2 = (2, 3, 4, 2, 3, 2013, 102.0, 202.0, 302.0,
+REC_EXPECTED_FIELDS_RECORD_10_2 = (2, 3, 4, 2, 3, 2001, 102.0, 202.0, 302.0,
                                    1002.0, 2002.0, 3002.0,
                                    10002.0, 20002.0, 30002.0, 40002.0)
 
-REC_EXPECTED_FIELDS_RECORD_10_3 = (3, 4, 5, 3, 4, 2013, 103.0, 203.0, 303.0,
+REC_EXPECTED_FIELDS_RECORD_10_3 = (3, 4, 5, 3, 4, 2001, 103.0, 203.0, 303.0,
                                    1003.0, 2003.0, 3003.0,
                                    10003.0, 20003.0, 30003.0, 40003.0)
 
-REC_EXPECTED_FIELDS_RECORD_10_4 = (4, 5, 6, 4, 5, 2013, 104.0, 204.0, 304.0,
+REC_EXPECTED_FIELDS_RECORD_10_4 = (4, 5, 6, 4, 5, 2001, 104.0, 204.0, 304.0,
                                    1004.0, 2004.0, 3004.0,
                                    10004.0, 20004.0, 30004.0, 40004.0)
 
-REC_EXPECTED_FIELDS_RECORD_10_5 = (5, 6, 7, 5, 6, 2013, 105.0, 205.0, 305.0,
+REC_EXPECTED_FIELDS_RECORD_10_5 = (5, 6, 7, 5, 6, 2001, 105.0, 205.0, 305.0,
                                    1005.0, 2005.0, 3005.0,
                                    10005.0, 20005.0, 30005.0, 40005.0)
 
-REC_EXPECTED_FIELDS_RECORD_10_6 = (6, 7, 8, 6, 7, 2013, 106.0, 206.0, 306.0,
+REC_EXPECTED_FIELDS_RECORD_10_6 = (6, 7, 8, 6, 7, 2001, 106.0, 206.0, 306.0,
                                    1006.0, 2006.0, 3006.0,
                                    10006.0, 20006.0, 30006.0, 40006.0)
 
-REC_EXPECTED_FIELDS_RECORD_10_7 = (7, 8, 9, 7, 8, 2013, 107.0, 207.0, 307.0,
+REC_EXPECTED_FIELDS_RECORD_10_7 = (7, 8, 9, 7, 8, 2001, 107.0, 207.0, 307.0,
                                    1007.0, 2007.0, 3007.0,
                                    10007.0, 20007.0, 30007.0, 40007.0)
 
-REC_EXPECTED_FIELDS_RECORD_10_8 = (8, 9, 10, 8, 9, 2013, 108.0, 208.0, 308.0,
+REC_EXPECTED_FIELDS_RECORD_10_8 = (8, 9, 10, 8, 9, 2001, 108.0, 208.0, 308.0,
                                    1008.0, 2008.0, 3008.0,
                                    10008.0, 20008.0, 30008.0, 40008.0)
 
-REC_EXPECTED_FIELDS_RECORD_10_9 = (9, 10, 11, 9, 10, 2013, 109.0, 209.0, 309.0,
+REC_EXPECTED_FIELDS_RECORD_10_9 = (9, 10, 11, 9, 10, 2001, 109.0, 209.0, 309.0,
                                    1009.0, 2009.0, 3009.0,
                                    10009.0, 20009.0, 30009.0, 40009.0)
 
-REC_EXPECTED_FIELDS_RECORD_10_10 = (10, 11, 12, 10, 11, 2013, 110.0, 210.0, 310.0,
+REC_EXPECTED_FIELDS_RECORD_10_10 = (10, 11, 12, 10, 11, 2001, 110.0, 210.0, 310.0,
                                     1010.0, 2010.0, 3010.0,
                                     10010.0, 20010.0, 30010.0, 40010.0)
 
 REC_EXPECTED_FIELDS_RECORD_10_META = (1390826719, 1390820402, 1390826719, 65535, 10)
 
 
-REC_EXPECTED_FIELDS_RECORD_2_3_1_1 = (1, 2, 3, 1, 2, 2013, 101.0, 201.0, 301.0,
+REC_EXPECTED_FIELDS_RECORD_2_10_1_1 = (1, 2, 3, 1, 2, 2002, 101.0, 201.0, 301.0,
                                       1001.0, 2001.0, 3001.0,
                                       10001.0, 20001.0, 30001.0, 40001.0)
 
-REC_EXPECTED_FIELDS_RECORD_2_3_1_2 = (2, 3, 4, 2, 3, 2013, 102.0, 202.0, 302.0,
+REC_EXPECTED_FIELDS_RECORD_2_10_1_2 = (2, 3, 4, 2, 3, 2002, 102.0, 202.0, 302.0,
                                       1002.0, 2002.0, 3002.0,
                                       10002.0, 20002.0, 30002.0, 40002.0)
 
-REC_EXPECTED_FIELDS_RECORD_2_3_1_3 = (3, 4, 5, 3, 4, 2013, 103.0, 203.0, 303.0,
+REC_EXPECTED_FIELDS_RECORD_2_10_1_3 = (3, 4, 5, 3, 4, 2002, 103.0, 203.0, 303.0,
                                       1003.0, 2003.0, 3003.0,
                                       10003.0, 20003.0, 30003.0, 40003.0)
 
-REC_EXPECTED_FIELDS_RECORD_2_3_META_1 = (1390826719, 1390820402, 1390826719, 65535, 3)
+REC_EXPECTED_FIELDS_RECORD_2_10_1_4 = (4, 5, 6, 4, 5, 2002, 104.0, 204.0, 304.0,
+                                       1004.0, 2004.0, 3004.0,
+                                       10004.0, 20004.0, 30004.0, 40004.0)
+
+REC_EXPECTED_FIELDS_RECORD_2_10_1_META = (1390826719, 1390820402, 1390826719, 65535, 4)
 
 
-REC_EXPECTED_FIELDS_RECORD_2_3_2_1 = (4, 5, 6, 4, 5, 2013, 104.0, 204.0, 304.0,
-                                      1004.0, 2004.0, 3004.0,
-                                      10004.0, 20004.0, 30004.0, 40004.0)
-
-REC_EXPECTED_FIELDS_RECORD_2_3_2_2 = (5, 6, 7, 5, 6, 2013, 105.0, 205.0, 305.0,
+REC_EXPECTED_FIELDS_RECORD_2_10_2_1 = (5, 6, 7, 5, 6, 2002, 105.0, 205.0, 305.0,
                                       1005.0, 2005.0, 3005.0,
                                       10005.0, 20005.0, 30005.0, 40005.0)
 
-REC_EXPECTED_FIELDS_RECORD_2_3_2_3 = (6, 7, 8, 6, 7, 2013, 106.0, 206.0, 306.0,
+REC_EXPECTED_FIELDS_RECORD_2_10_2_2 = (6, 7, 8, 6, 7, 2002, 106.0, 206.0, 306.0,
                                       1006.0, 2006.0, 3006.0,
                                       10006.0, 20006.0, 30006.0, 40006.0)
 
-REC_EXPECTED_FIELDS_RECORD_2_3_META_2 = (1390826720, 1390820403, 1390826720, 65535, 3)
+REC_EXPECTED_FIELDS_RECORD_2_10_2_3 = (7, 8, 9, 7, 8, 2002, 107.0, 207.0, 307.0,
+                                       1007.0, 2007.0, 3007.0,
+                                       10007.0, 20007.0, 30007.0, 40007.0)
+
+REC_EXPECTED_FIELDS_RECORD_2_10_2_4 = (8, 9, 10, 8, 9, 2002, 108.0, 208.0, 308.0,
+                                       1008.0, 2008.0, 3008.0,
+                                       10008.0, 20008.0, 30008.0, 40008.0)
+
+REC_EXPECTED_FIELDS_RECORD_2_10_2_5 = (9, 10, 11, 9, 10, 2002, 109.0, 209.0, 309.0,
+                                       1009.0, 2009.0, 3009.0,
+                                       10009.0, 20009.0, 30009.0, 40009.0)
+
+REC_EXPECTED_FIELDS_RECORD_2_10_2_6 = (10, 11, 12, 10, 11, 2002, 110.0, 210.0, 310.0,
+                                       1010.0, 2010.0, 3010.0,
+                                       10010.0, 20010.0, 30010.0, 40010.0)
+
+REC_EXPECTED_FIELDS_RECORD_2_10_2_META = (1390826720, 1390820403, 1390826720, 65535, 6)
 
 
 # Telemetered Record #1 has 1 SIO block with 1 instrument record.
 TEL_RECORD_1 = \
     '\x01\x57\x41\x31\x32\x33\x34\x35\x36\x39\x5F\x30\x31\x35\x34\x48'  \
-    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x31\x5F\x38\x39\x46\x32'  \
+    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x31\x5F\x30\x39\x44\x34'  \
     '\x02\x00\x00\x01\x46\x31\x32\x33\xFF\xFF\x00\x00\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
@@ -399,7 +428,7 @@ TEL_RECORD_1 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x01\x02\x03\x01'  \
-    '\x02\xDD\x07\x00\x00\xCA\x42\x00\x00\x49\x43\x00\x80\x96\x43\x00'  \
+    '\x02\xDE\x07\x00\x00\xCA\x42\x00\x00\x49\x43\x00\x80\x96\x43\x00'  \
     '\x40\x7A\x44\x00\x20\xFA\x44\x00\x90\x3B\x45\x00\x44\x1C\x46\x00'  \
     '\x42\x9C\x46\x00\x62\xEA\x46\x00\x41\x1C\x47\x52\xE6\x3C\x32\x52'  \
     '\xE6\x54\xDF\x00\x0A\x03'
@@ -407,7 +436,7 @@ TEL_RECORD_1 = \
 # Telemetered Record #2 has 1 SIO block with 2 instrument records.
 TEL_RECORD_2 = \
     '\x01\x57\x41\x31\x32\x33\x34\x35\x36\x39\x5F\x30\x31\x38\x31\x48'  \
-    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x32\x5F\x42\x41\x35\x41'  \
+    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x32\x5F\x37\x41\x43\x41'  \
     '\x02\x00\x00\x01\x75\x31\x32\x33\xFF\xFF\x00\x00\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
@@ -426,10 +455,10 @@ TEL_RECORD_2 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x02\x03\x04\x02'  \
-    '\x03\xDD\x07\x00\x00\xCC\x42\x00\x00\x4A\x43\x00\x00\x97\x43\x00'  \
+    '\x03\xDE\x07\x00\x00\xCC\x42\x00\x00\x4A\x43\x00\x00\x97\x43\x00'  \
     '\x80\x7A\x44\x00\x40\xFA\x44\x00\xA0\x3B\x45\x00\x48\x1C\x46\x00'  \
     '\x44\x9C\x46\x00\x64\xEA\x46\x00\x42\x1C\x47\x03\x04\x05\x03\x04'  \
-    '\xDD\x07\x00\x00\xCE\x42\x00\x00\x4B\x43\x00\x80\x97\x43\x00\xC0'  \
+    '\xDE\x07\x00\x00\xCE\x42\x00\x00\x4B\x43\x00\x80\x97\x43\x00\xC0'  \
     '\x7A\x44\x00\x60\xFA\x44\x00\xB0\x3B\x45\x00\x4C\x1C\x46\x00\x46'  \
     '\x9C\x46\x00\x66\xEA\x46\x00\x43\x1C\x47\x52\xE6\x3C\x33\x52\xE6'  \
     '\x54\xE0\x03'
@@ -437,7 +466,7 @@ TEL_RECORD_2 = \
 # Telemetered Record #3 has 1 SIO block with 3 instrument records.
 TEL_RECORD_3 = \
     '\x01\x57\x41\x31\x32\x33\x34\x35\x36\x39\x5F\x30\x31\x42\x32\x48'  \
-    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x33\x5F\x33\x35\x30\x35'  \
+    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x33\x5F\x37\x32\x42\x37'  \
     '\x02\x00\x00\x01\xA4\x31\x32\x33\xFF\xFF\x00\x00\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
@@ -456,22 +485,21 @@ TEL_RECORD_3 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x04\x05\x06\x04'  \
-    '\x05\xDD\x07\x00\x00\xD0\x42\x00\x00\x4C\x43\x00\x00\x98\x43\x00'  \
+    '\x05\xDE\x07\x00\x00\xD0\x42\x00\x00\x4C\x43\x00\x00\x98\x43\x00'  \
     '\x00\x7B\x44\x00\x80\xFA\x44\x00\xC0\x3B\x45\x00\x50\x1C\x46\x00'  \
     '\x48\x9C\x46\x00\x68\xEA\x46\x00\x44\x1C\x47\x05\x06\x07\x05\x06'  \
-    '\xDD\x07\x00\x00\xD2\x42\x00\x00\x4D\x43\x00\x80\x98\x43\x00\x40'  \
+    '\xDE\x07\x00\x00\xD2\x42\x00\x00\x4D\x43\x00\x80\x98\x43\x00\x40'  \
     '\x7B\x44\x00\xA0\xFA\x44\x00\xD0\x3B\x45\x00\x54\x1C\x46\x00\x4A'  \
-    '\x9C\x46\x00\x6A\xEA\x46\x00\x45\x1C\x47\x06\x07\x08\x06\x07\xDD'  \
+    '\x9C\x46\x00\x6A\xEA\x46\x00\x45\x1C\x47\x06\x07\x08\x06\x07\xDE'  \
     '\x07\x00\x00\xD4\x42\x00\x00\x4E\x43\x00\x00\x99\x43\x00\x80\x7B'  \
     '\x44\x00\xC0\xFA\x44\x00\xE0\x3B\x45\x00\x58\x1C\x46\x00\x4C\x9C'  \
     '\x46\x00\x6C\xEA\x46\x00\x46\x1C\x47\x52\xE6\x3C\x34\x52\xE6\x54'  \
     '\xE1\x00\x0C\x03'
 
-
 # Telemetered Record #4 has 1 SIO block with 4 instrument records.
 TEL_RECORD_4 = \
     '\x01\x57\x41\x31\x32\x33\x34\x35\x36\x39\x5F\x30\x31\x44\x46\x48'  \
-    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x34\x5F\x46\x39\x32\x41'  \
+    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x34\x5F\x45\x42\x30\x42'  \
     '\x02\x00\x00\x01\xD3\x31\x32\x33\xFF\xFF\x00\x00\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
@@ -490,15 +518,15 @@ TEL_RECORD_4 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x07\x08\x09\x07'  \
-    '\x08\xDD\x07\x00\x00\xD6\x42\x00\x00\x4F\x43\x00\x80\x99\x43\x00'  \
+    '\x08\xDE\x07\x00\x00\xD6\x42\x00\x00\x4F\x43\x00\x80\x99\x43\x00'  \
     '\xC0\x7B\x44\x00\xE0\xFA\x44\x00\xF0\x3B\x45\x00\x5C\x1C\x46\x00'  \
     '\x4E\x9C\x46\x00\x6E\xEA\x46\x00\x47\x1C\x47\x08\x09\x0A\x08\x09'  \
-    '\xDD\x07\x00\x00\xD8\x42\x00\x00\x50\x43\x00\x00\x9A\x43\x00\x00'  \
+    '\xDE\x07\x00\x00\xD8\x42\x00\x00\x50\x43\x00\x00\x9A\x43\x00\x00'  \
     '\x7C\x44\x00\x00\xFB\x44\x00\x00\x3C\x45\x00\x60\x1C\x46\x00\x50'  \
-    '\x9C\x46\x00\x70\xEA\x46\x00\x48\x1C\x47\x09\x0A\x0B\x09\x0A\xDD'  \
+    '\x9C\x46\x00\x70\xEA\x46\x00\x48\x1C\x47\x09\x0A\x0B\x09\x0A\xDE'  \
     '\x07\x00\x00\xDA\x42\x00\x00\x51\x43\x00\x80\x9A\x43\x00\x40\x7C'  \
     '\x44\x00\x20\xFB\x44\x00\x10\x3C\x45\x00\x64\x1C\x46\x00\x52\x9C'  \
-    '\x46\x00\x72\xEA\x46\x00\x49\x1C\x47\x0A\x0B\x0C\x0A\x0B\xDD\x07'  \
+    '\x46\x00\x72\xEA\x46\x00\x49\x1C\x47\x0A\x0B\x0C\x0A\x0B\xDE\x07'  \
     '\x00\x00\xDC\x42\x00\x00\x52\x43\x00\x00\x9B\x43\x00\x80\x7C\x44'  \
     '\x00\x40\xFB\x44\x00\x20\x3C\x45\x00\x68\x1C\x46\x00\x54\x9C\x46'  \
     '\x00\x74\xEA\x46\x00\x4A\x1C\x47\x52\xE6\x3C\x35\x52\xE6\x54\xE2'  \
@@ -507,7 +535,7 @@ TEL_RECORD_4 = \
 # Telemetered Record #10 has 1 SIO block with 10 instrument records.
 TEL_RECORD_10 = \
     '\x01\x57\x41\x31\x32\x33\x34\x35\x36\x39\x5F\x30\x32\x46\x42\x48'  \
-    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x31\x5F\x41\x33\x33\x35'  \
+    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x31\x5F\x45\x38\x33\x41'  \
     '\x02\x00\x00\x02\xED\x31\x32\x33\xFF\xFF\x00\x00\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
@@ -526,42 +554,43 @@ TEL_RECORD_10 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x01\x02\x03\x01'  \
-    '\x02\xDD\x07\x00\x00\xCA\x42\x00\x00\x49\x43\x00\x80\x96\x43\x00'  \
+    '\x02\xDB\x07\x00\x00\xCA\x42\x00\x00\x49\x43\x00\x80\x96\x43\x00'  \
     '\x40\x7A\x44\x00\x20\xFA\x44\x00\x90\x3B\x45\x00\x44\x1C\x46\x00'  \
     '\x42\x9C\x46\x00\x62\xEA\x46\x00\x41\x1C\x47\x02\x03\x04\x02\x03'  \
-    '\xDD\x07\x00\x00\xCC\x42\x00\x00\x4A\x43\x00\x00\x97\x43\x00\x80'  \
+    '\xDB\x07\x00\x00\xCC\x42\x00\x00\x4A\x43\x00\x00\x97\x43\x00\x80'  \
     '\x7A\x44\x00\x40\xFA\x44\x00\xA0\x3B\x45\x00\x48\x1C\x46\x00\x44'  \
-    '\x9C\x46\x00\x64\xEA\x46\x00\x42\x1C\x47\x03\x04\x05\x03\x04\xDD'  \
+    '\x9C\x46\x00\x64\xEA\x46\x00\x42\x1C\x47\x03\x04\x05\x03\x04\xDB'  \
     '\x07\x00\x00\xCE\x42\x00\x00\x4B\x43\x00\x80\x97\x43\x00\xC0\x7A'  \
     '\x44\x00\x60\xFA\x44\x00\xB0\x3B\x45\x00\x4C\x1C\x46\x00\x46\x9C'  \
-    '\x46\x00\x66\xEA\x46\x00\x43\x1C\x47\x04\x05\x06\x04\x05\xDD\x07'  \
+    '\x46\x00\x66\xEA\x46\x00\x43\x1C\x47\x04\x05\x06\x04\x05\xDB\x07'  \
     '\x00\x00\xD0\x42\x00\x00\x4C\x43\x00\x00\x98\x43\x00\x00\x7B\x44'  \
     '\x00\x80\xFA\x44\x00\xC0\x3B\x45\x00\x50\x1C\x46\x00\x48\x9C\x46'  \
-    '\x00\x68\xEA\x46\x00\x44\x1C\x47\x05\x06\x07\x05\x06\xDD\x07\x00'  \
+    '\x00\x68\xEA\x46\x00\x44\x1C\x47\x05\x06\x07\x05\x06\xDB\x07\x00'  \
     '\x00\xD2\x42\x00\x00\x4D\x43\x00\x80\x98\x43\x00\x40\x7B\x44\x00'  \
     '\xA0\xFA\x44\x00\xD0\x3B\x45\x00\x54\x1C\x46\x00\x4A\x9C\x46\x00'  \
-    '\x6A\xEA\x46\x00\x45\x1C\x47\x06\x07\x08\x06\x07\xDD\x07\x00\x00'  \
+    '\x6A\xEA\x46\x00\x45\x1C\x47\x06\x07\x08\x06\x07\xDB\x07\x00\x00'  \
     '\xD4\x42\x00\x00\x4E\x43\x00\x00\x99\x43\x00\x80\x7B\x44\x00\xC0'  \
     '\xFA\x44\x00\xE0\x3B\x45\x00\x58\x1C\x46\x00\x4C\x9C\x46\x00\x6C'  \
-    '\xEA\x46\x00\x46\x1C\x47\x07\x08\x09\x07\x08\xDD\x07\x00\x00\xD6'  \
+    '\xEA\x46\x00\x46\x1C\x47\x07\x08\x09\x07\x08\xDB\x07\x00\x00\xD6'  \
     '\x42\x00\x00\x4F\x43\x00\x80\x99\x43\x00\xC0\x7B\x44\x00\xE0\xFA'  \
     '\x44\x00\xF0\x3B\x45\x00\x5C\x1C\x46\x00\x4E\x9C\x46\x00\x6E\xEA'  \
-    '\x46\x00\x47\x1C\x47\x08\x09\x0A\x08\x09\xDD\x07\x00\x00\xD8\x42'  \
+    '\x46\x00\x47\x1C\x47\x08\x09\x0A\x08\x09\xDB\x07\x00\x00\xD8\x42'  \
     '\x00\x00\x50\x43\x00\x00\x9A\x43\x00\x00\x7C\x44\x00\x00\xFB\x44'  \
     '\x00\x00\x3C\x45\x00\x60\x1C\x46\x00\x50\x9C\x46\x00\x70\xEA\x46'  \
-    '\x00\x48\x1C\x47\x09\x0A\x0B\x09\x0A\xDD\x07\x00\x00\xDA\x42\x00'  \
+    '\x00\x48\x1C\x47\x09\x0A\x0B\x09\x0A\xDB\x07\x00\x00\xDA\x42\x00'  \
     '\x00\x51\x43\x00\x80\x9A\x43\x00\x40\x7C\x44\x00\x20\xFB\x44\x00'  \
     '\x10\x3C\x45\x00\x64\x1C\x46\x00\x52\x9C\x46\x00\x72\xEA\x46\x00'  \
-    '\x49\x1C\x47\x0A\x0B\x0C\x0A\x0B\xDD\x07\x00\x00\xDC\x42\x00\x00'  \
+    '\x49\x1C\x47\x0A\x0B\x0C\x0A\x0B\xDB\x07\x00\x00\xDC\x42\x00\x00'  \
     '\x52\x43\x00\x00\x9B\x43\x00\x80\x7C\x44\x00\x40\xFB\x44\x00\x20'  \
     '\x3C\x45\x00\x68\x1C\x46\x00\x54\x9C\x46\x00\x74\xEA\x46\x00\x4A'  \
     '\x1C\x47\x52\xE6\x3C\x32\x52\xE6\x54\xDF\x00\x0A\x03'
 
-# Telemetered Record 2_3 has 2 SIO blocks, with 3 records in each block.
-TEL_RECORD_2_3 = \
-    '\x01\x57\x41\x31\x32\x33\x34\x35\x36\x39\x5F\x30\x31\x42\x32\x48'  \
-    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x31\x5F\x41\x32\x31\x37'  \
-    '\x02\x00\x00\x01\xA4\x31\x32\x33\xFF\xFF\x00\x00\x58\x58\x58\x58'  \
+# Telemetered Record 2_10 has 2 SIO blocks, with 4 instrument records
+# in the first block and 6 instrument records in the second block.
+TEL_RECORD_2_10 = \
+    '\x01\x57\x41\x31\x32\x33\x34\x35\x36\x39\x5F\x30\x31\x45\x31\x48'  \
+    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x31\x5F\x30\x46\x42\x41'  \
+    '\x02\x00\x00\x01\xD3\x31\x32\x33\xFF\xFF\x00\x00\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
@@ -579,19 +608,22 @@ TEL_RECORD_2_3 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x01\x02\x03\x01'  \
-    '\x02\xDD\x07\x00\x00\xCA\x42\x00\x00\x49\x43\x00\x80\x96\x43\x00'  \
+    '\x02\xDC\x07\x00\x00\xCA\x42\x00\x00\x49\x43\x00\x80\x96\x43\x00'  \
     '\x40\x7A\x44\x00\x20\xFA\x44\x00\x90\x3B\x45\x00\x44\x1C\x46\x00'  \
     '\x42\x9C\x46\x00\x62\xEA\x46\x00\x41\x1C\x47\x02\x03\x04\x02\x03'  \
-    '\xDD\x07\x00\x00\xCC\x42\x00\x00\x4A\x43\x00\x00\x97\x43\x00\x80'  \
+    '\xDC\x07\x00\x00\xCC\x42\x00\x00\x4A\x43\x00\x00\x97\x43\x00\x80'  \
     '\x7A\x44\x00\x40\xFA\x44\x00\xA0\x3B\x45\x00\x48\x1C\x46\x00\x44'  \
-    '\x9C\x46\x00\x64\xEA\x46\x00\x42\x1C\x47\x03\x04\x05\x03\x04\xDD'  \
+    '\x9C\x46\x00\x64\xEA\x46\x00\x42\x1C\x47\x03\x04\x05\x03\x04\xDC'  \
     '\x07\x00\x00\xCE\x42\x00\x00\x4B\x43\x00\x80\x97\x43\x00\xC0\x7A'  \
     '\x44\x00\x60\xFA\x44\x00\xB0\x3B\x45\x00\x4C\x1C\x46\x00\x46\x9C'  \
-    '\x46\x00\x66\xEA\x46\x00\x43\x1C\x47\x52\xE6\x3C\x32\x52\xE6\x54'  \
-    '\xDF\x00\x0A\x03' \
-    '\x01\x57\x41\x31\x32\x33\x34\x35\x36\x39\x5F\x30\x31\x42\x30\x48'  \
-    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x32\x5F\x34\x37\x31\x38'  \
-    '\x02\x00\x00\x01\xA4\x31\x32\x33\xFF\xFF\x00\x00\x58\x58\x58\x58'  \
+    '\x46\x00\x66\xEA\x46\x00\x43\x1C\x47\x04\x05\x06\x04\x05\xDC\x07'  \
+    '\x00\x00\xD0\x42\x00\x00\x4C\x43\x00\x00\x98\x43\x00\x00\x7B\x44'  \
+    '\x00\x80\xFA\x44\x00\xC0\x3B\x45\x00\x50\x1C\x46\x00\x48\x9C\x46'  \
+    '\x00\x68\xEA\x46\x00\x44\x1C\x47\x52\xE6\x3C\x32\x52\xE6\x54\xDF'  \
+    '\x00\x0A\x03' \
+    '\x01\x57\x41\x31\x32\x33\x34\x35\x36\x39\x5F\x30\x32\x33\x44\x48'  \
+    '\x35\x31\x46\x33\x35\x38\x33\x42\x5F\x30\x32\x5F\x33\x44\x32\x33'  \
+    '\x02\x00\x00\x02\x31\x31\x32\x33\xFF\xFF\x00\x00\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
@@ -608,149 +640,173 @@ TEL_RECORD_2_3 = \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
     '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58'  \
-    '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x04\x05\x06\x04'  \
-    '\x05\xDD\x07\x00\x00\xD0\x42\x00\x00\x4C\x43\x00\x00\x98\x43\x00'  \
-    '\x00\x7B\x44\x00\x80\xFA\x44\x00\xC0\x3B\x45\x00\x50\x1C\x46\x00'  \
-    '\x48\x9C\x46\x00\x68\xEA\x46\x00\x44\x1C\x47\x05\x06\x07\x05\x06'  \
-    '\xDD\x07\x00\x00\xD2\x42\x00\x00\x4D\x43\x00\x80\x98\x43\x00\x40'  \
-    '\x7B\x44\x00\xA0\xFA\x44\x00\xD0\x3B\x45\x00\x54\x1C\x46\x00\x4A'  \
-    '\x9C\x46\x00\x6A\xEA\x46\x00\x45\x1C\x47\x06\x07\x08\x06\x07\xDD'  \
-    '\x07\x00\x00\xD4\x42\x00\x00\x4E\x43\x00\x00\x99\x43\x00\x80\x7B'  \
-    '\x44\x00\xC0\xFA\x44\x00\xE0\x3B\x45\x00\x58\x1C\x46\x00\x4C\x9C'  \
-    '\x46\x00\x6C\xEA\x46\x00\x46\x1C\x47\x52\xE6\x3C\x33\x52\xE6\x54'  \
-    '\xE0\x03'
+    '\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x58\x05\x06\x07\x05'  \
+    '\x06\xDC\x07\x00\x00\xD2\x42\x00\x00\x4D\x43\x00\x80\x98\x43\x00'  \
+    '\x40\x7B\x44\x00\xA0\xFA\x44\x00\xD0\x3B\x45\x00\x54\x1C\x46\x00'  \
+    '\x4A\x9C\x46\x00\x6A\xEA\x46\x00\x45\x1C\x47\x06\x07\x08\x06\x07'  \
+    '\xDC\x07\x00\x00\xD4\x42\x00\x00\x4E\x43\x00\x00\x99\x43\x00\x80'  \
+    '\x7B\x44\x00\xC0\xFA\x44\x00\xE0\x3B\x45\x00\x58\x1C\x46\x00\x4C'  \
+    '\x9C\x46\x00\x6C\xEA\x46\x00\x46\x1C\x47\x07\x08\x09\x07\x08\xDC'  \
+    '\x07\x00\x00\xD6\x42\x00\x00\x4F\x43\x00\x80\x99\x43\x00\xC0\x7B'  \
+    '\x44\x00\xE0\xFA\x44\x00\xF0\x3B\x45\x00\x5C\x1C\x46\x00\x4E\x9C'  \
+    '\x46\x00\x6E\xEA\x46\x00\x47\x1C\x47\x08\x09\x0A\x08\x09\xDC\x07'  \
+    '\x00\x00\xD8\x42\x00\x00\x50\x43\x00\x00\x9A\x43\x00\x00\x7C\x44'  \
+    '\x00\x00\xFB\x44\x00\x00\x3C\x45\x00\x60\x1C\x46\x00\x50\x9C\x46'  \
+    '\x00\x70\xEA\x46\x00\x48\x1C\x47\x09\x0A\x0B\x09\x0A\xDC\x07\x00'  \
+    '\x00\xDA\x42\x00\x00\x51\x43\x00\x80\x9A\x43\x00\x40\x7C\x44\x00'  \
+    '\x20\xFB\x44\x00\x10\x3C\x45\x00\x64\x1C\x46\x00\x52\x9C\x46\x00'  \
+    '\x72\xEA\x46\x00\x49\x1C\x47\x0A\x0B\x0C\x0A\x0B\xDC\x07\x00\x00'  \
+    '\xDC\x42\x00\x00\x52\x43\x00\x00\x9B\x43\x00\x80\x7C\x44\x00\x40'  \
+    '\xFB\x44\x00\x20\x3C\x45\x00\x68\x1C\x46\x00\x54\x9C\x46\x00\x74'  \
+    '\xEA\x46\x00\x4A\x1C\x47\x52\xE6\x3C\x33\x52\xE6\x54\xE0\x03'
 
 # Telemetered Expected results
-TEL_EXPECTED_FIELDS_RECORD_1_1 = (1, 2, 3, 1, 2, 2013, 101.0, 201.0, 301.0,
+TEL_EXPECTED_FIELDS_RECORD_1_1 = (1, 2, 3, 1, 2, 2014, 101.0, 201.0, 301.0,
                                   1001.0, 2001.0, 3001.0,
                                   10001.0, 20001.0, 30001.0, 40001.0)
 
-TEL_EXPECTED_FIELDS_RECORD_1_META = (1374902331, 1390820402, 1390826719, 65535, 1,
-                                     10, 1374902331)
+TEL_EXPECTED_FIELDS_RECORD_1_META = (1374902331, 1390820402, 1390826719, 65535,
+                                     1, 10, 1374902331)
 
 
-TEL_EXPECTED_FIELDS_RECORD_2_1 = (2, 3, 4, 2, 3, 2013, 102.0, 202.0, 302.0,
+TEL_EXPECTED_FIELDS_RECORD_2_1 = (2, 3, 4, 2, 3, 2014, 102.0, 202.0, 302.0,
                                   1002.0, 2002.0, 3002.0,
                                   10002.0, 20002.0, 30002.0, 40002.0)
 
-TEL_EXPECTED_FIELDS_RECORD_2_2 = (3, 4, 5, 3, 4, 2013, 103.0, 203.0, 303.0,
+TEL_EXPECTED_FIELDS_RECORD_2_2 = (3, 4, 5, 3, 4, 2014, 103.0, 203.0, 303.0,
                                   1003.0, 2003.0, 3003.0,
                                   10003.0, 20003.0, 30003.0, 40003.0)
 
-TEL_EXPECTED_FIELDS_RECORD_2_META = (1374902331, 1390820403, 1390826720, 65535, 2,
-                                     None, 1374902331)
+TEL_EXPECTED_FIELDS_RECORD_2_META = (1374902331, 1390820403, 1390826720, 65535,
+                                     2, None, 1374902331)
 
 
-TEL_EXPECTED_FIELDS_RECORD_3_1 = (4, 5, 6, 4, 5, 2013, 104.0, 204.0, 304.0,
+TEL_EXPECTED_FIELDS_RECORD_3_1 = (4, 5, 6, 4, 5, 2014, 104.0, 204.0, 304.0,
                                   1004.0, 2004.0, 3004.0,
                                   10004.0, 20004.0, 30004.0, 40004.0)
 
-TEL_EXPECTED_FIELDS_RECORD_3_2 = (5, 6, 7, 5, 6, 2013, 105.0, 205.0, 305.0,
+TEL_EXPECTED_FIELDS_RECORD_3_2 = (5, 6, 7, 5, 6, 2014, 105.0, 205.0, 305.0,
                                   1005.0, 2005.0, 3005.0,
                                   10005.0, 20005.0, 30005.0, 40005.0)
 
-TEL_EXPECTED_FIELDS_RECORD_3_3 = (6, 7, 8, 6, 7, 2013, 106.0, 206.0, 306.0,
+TEL_EXPECTED_FIELDS_RECORD_3_3 = (6, 7, 8, 6, 7, 2014, 106.0, 206.0, 306.0,
                                   1006.0, 2006.0, 3006.0,
                                   10006.0, 20006.0, 30006.0, 40006.0)
 
-TEL_EXPECTED_FIELDS_RECORD_3_META = (1374902331, 1390820404, 1390826721, 65535, 3,
-                                     12, 1374902331)
+TEL_EXPECTED_FIELDS_RECORD_3_META = (1374902331, 1390820404, 1390826721, 65535,
+                                     3, 12, 1374902331)
 
 
-TEL_EXPECTED_FIELDS_RECORD_4_1 = (7, 8, 9, 7, 8, 2013, 107.0, 207.0, 307.0,
+TEL_EXPECTED_FIELDS_RECORD_4_1 = (7, 8, 9, 7, 8, 2014, 107.0, 207.0, 307.0,
                                   1007.0, 2007.0, 3007.0,
                                   10007.0, 20007.0, 30007.0, 40007.0)
 
-TEL_EXPECTED_FIELDS_RECORD_4_2 = (8, 9, 10, 8, 9, 2013, 108.0, 208.0, 308.0,
+TEL_EXPECTED_FIELDS_RECORD_4_2 = (8, 9, 10, 8, 9, 2014, 108.0, 208.0, 308.0,
                                   1008.0, 2008.0, 3008.0,
                                   10008.0, 20008.0, 30008.0, 40008.0)
 
-TEL_EXPECTED_FIELDS_RECORD_4_3 = (9, 10, 11, 9, 10, 2013, 109.0, 209.0, 309.0,
+TEL_EXPECTED_FIELDS_RECORD_4_3 = (9, 10, 11, 9, 10, 2014, 109.0, 209.0, 309.0,
                                   1009.0, 2009.0, 3009.0,
                                   10009.0, 20009.0, 30009.0, 40009.0)
 
-TEL_EXPECTED_FIELDS_RECORD_4_4 = (10, 11, 12, 10, 11, 2013, 110.0, 210.0, 310.0,
+TEL_EXPECTED_FIELDS_RECORD_4_4 = (10, 11, 12, 10, 11, 2014, 110.0, 210.0, 310.0,
                                   1010.0, 2010.0, 3010.0,
                                   10010.0, 20010.0, 30010.0, 40010.0)
 
-TEL_EXPECTED_FIELDS_RECORD_4_META = (1374902331, 1390820405, 1390826722, 65535, 4,
-                                     None, 1374902331)
+TEL_EXPECTED_FIELDS_RECORD_4_META = (1374902331, 1390820405, 1390826722, 65535,
+                                     4, None, 1374902331)
 
 
-TEL_EXPECTED_FIELDS_RECORD_10_1 = (1, 2, 3, 1, 2, 2013, 101.0, 201.0, 301.0,
+TEL_EXPECTED_FIELDS_RECORD_10_1 = (1, 2, 3, 1, 2, 2011, 101.0, 201.0, 301.0,
                                    1001.0, 2001.0, 3001.0,
                                    10001.0, 20001.0, 30001.0, 40001.0)
 
-TEL_EXPECTED_FIELDS_RECORD_10_2 = (2, 3, 4, 2, 3, 2013, 102.0, 202.0, 302.0,
+TEL_EXPECTED_FIELDS_RECORD_10_2 = (2, 3, 4, 2, 3, 2011, 102.0, 202.0, 302.0,
                                    1002.0, 2002.0, 3002.0,
                                    10002.0, 20002.0, 30002.0, 40002.0)
 
-TEL_EXPECTED_FIELDS_RECORD_10_3 = (3, 4, 5, 3, 4, 2013, 103.0, 203.0, 303.0,
+TEL_EXPECTED_FIELDS_RECORD_10_3 = (3, 4, 5, 3, 4, 2011, 103.0, 203.0, 303.0,
                                    1003.0, 2003.0, 3003.0,
                                    10003.0, 20003.0, 30003.0, 40003.0)
 
-TEL_EXPECTED_FIELDS_RECORD_10_4 = (4, 5, 6, 4, 5, 2013, 104.0, 204.0, 304.0,
+TEL_EXPECTED_FIELDS_RECORD_10_4 = (4, 5, 6, 4, 5, 2011, 104.0, 204.0, 304.0,
                                    1004.0, 2004.0, 3004.0,
                                    10004.0, 20004.0, 30004.0, 40004.0)
 
-TEL_EXPECTED_FIELDS_RECORD_10_5 = (5, 6, 7, 5, 6, 2013, 105.0, 205.0, 305.0,
+TEL_EXPECTED_FIELDS_RECORD_10_5 = (5, 6, 7, 5, 6, 2011, 105.0, 205.0, 305.0,
                                    1005.0, 2005.0, 3005.0,
                                    10005.0, 20005.0, 30005.0, 40005.0)
 
-TEL_EXPECTED_FIELDS_RECORD_10_6 = (6, 7, 8, 6, 7, 2013, 106.0, 206.0, 306.0,
+TEL_EXPECTED_FIELDS_RECORD_10_6 = (6, 7, 8, 6, 7, 2011, 106.0, 206.0, 306.0,
                                    1006.0, 2006.0, 3006.0,
                                    10006.0, 20006.0, 30006.0, 40006.0)
 
-TEL_EXPECTED_FIELDS_RECORD_10_7 = (7, 8, 9, 7, 8, 2013, 107.0, 207.0, 307.0,
+TEL_EXPECTED_FIELDS_RECORD_10_7 = (7, 8, 9, 7, 8, 2011, 107.0, 207.0, 307.0,
                                    1007.0, 2007.0, 3007.0,
                                    10007.0, 20007.0, 30007.0, 40007.0)
 
-TEL_EXPECTED_FIELDS_RECORD_10_8 = (8, 9, 10, 8, 9, 2013, 108.0, 208.0, 308.0,
+TEL_EXPECTED_FIELDS_RECORD_10_8 = (8, 9, 10, 8, 9, 2011, 108.0, 208.0, 308.0,
                                    1008.0, 2008.0, 3008.0,
                                    10008.0, 20008.0, 30008.0, 40008.0)
 
-TEL_EXPECTED_FIELDS_RECORD_10_9 = (9, 10, 11, 9, 10, 2013, 109.0, 209.0, 309.0,
+TEL_EXPECTED_FIELDS_RECORD_10_9 = (9, 10, 11, 9, 10, 2011, 109.0, 209.0, 309.0,
                                    1009.0, 2009.0, 3009.0,
                                    10009.0, 20009.0, 30009.0, 40009.0)
 
-TEL_EXPECTED_FIELDS_RECORD_10_10 = (10, 11, 12, 10, 11, 2013, 110.0, 210.0, 310.0,
+TEL_EXPECTED_FIELDS_RECORD_10_10 = (10, 11, 12, 10, 11, 2011, 110.0, 210.0, 310.0,
                                     1010.0, 2010.0, 3010.0,
                                     10010.0, 20010.0, 30010.0, 40010.0)
 
-TEL_EXPECTED_FIELDS_RECORD_10_META = (1374902331, 1390820402, 1390826719, 65535, 10,
-                                      10, 1374902331)
+TEL_EXPECTED_FIELDS_RECORD_10_META = (1374902331, 1390820402, 1390826719, 65535,
+                                      10, 10, 1374902331)
 
 
-TEL_EXPECTED_FIELDS_RECORD_2_3_1_1 = (1, 2, 3, 1, 2, 2013, 101.0, 201.0, 301.0,
+TEL_EXPECTED_FIELDS_RECORD_2_10_1_1 = (1, 2, 3, 1, 2, 2012, 101.0, 201.0, 301.0,
                                       1001.0, 2001.0, 3001.0,
                                       10001.0, 20001.0, 30001.0, 40001.0)
 
-TEL_EXPECTED_FIELDS_RECORD_2_3_1_2 = (2, 3, 4, 2, 3, 2013, 102.0, 202.0, 302.0,
+TEL_EXPECTED_FIELDS_RECORD_2_10_1_2 = (2, 3, 4, 2, 3, 2012, 102.0, 202.0, 302.0,
                                       1002.0, 2002.0, 3002.0,
                                       10002.0, 20002.0, 30002.0, 40002.0)
 
-TEL_EXPECTED_FIELDS_RECORD_2_3_1_3 = (3, 4, 5, 3, 4, 2013, 103.0, 203.0, 303.0,
+TEL_EXPECTED_FIELDS_RECORD_2_10_1_3 = (3, 4, 5, 3, 4, 2012, 103.0, 203.0, 303.0,
                                       1003.0, 2003.0, 3003.0,
                                       10003.0, 20003.0, 30003.0, 40003.0)
 
-TEL_EXPECTED_FIELDS_RECORD_2_3_META_1 = (1374902331, 1390820402, 1390826719, 65535, 3,
-                                         10, 1374902331)
-
-
-TEL_EXPECTED_FIELDS_RECORD_2_3_2_1 = (4, 5, 6, 4, 5, 2013, 104.0, 204.0, 304.0,
+TEL_EXPECTED_FIELDS_RECORD_2_10_1_4 = (4, 5, 6, 4, 5, 2012, 104.0, 204.0, 304.0,
                                       1004.0, 2004.0, 3004.0,
                                       10004.0, 20004.0, 30004.0, 40004.0)
 
-TEL_EXPECTED_FIELDS_RECORD_2_3_2_2 = (5, 6, 7, 5, 6, 2013, 105.0, 205.0, 305.0,
+TEL_EXPECTED_FIELDS_RECORD_2_10_1_META = (1374902331, 1390820402, 1390826719, 65535,
+                                          4, 10, 1374902331)
+
+
+TEL_EXPECTED_FIELDS_RECORD_2_10_2_1 = (5, 6, 7, 5, 6, 2012, 105.0, 205.0, 305.0,
                                       1005.0, 2005.0, 3005.0,
                                       10005.0, 20005.0, 30005.0, 40005.0)
 
-TEL_EXPECTED_FIELDS_RECORD_2_3_2_3 = (6, 7, 8, 6, 7, 2013, 106.0, 206.0, 306.0,
+TEL_EXPECTED_FIELDS_RECORD_2_10_2_2 = (6, 7, 8, 6, 7, 2012, 106.0, 206.0, 306.0,
                                       1006.0, 2006.0, 3006.0,
                                       10006.0, 20006.0, 30006.0, 40006.0)
 
-TEL_EXPECTED_FIELDS_RECORD_2_3_META_2 = (1374902331, 1390820403, 1390826720,  65535, 3,
-                                         None, 1374902331)
+TEL_EXPECTED_FIELDS_RECORD_2_10_2_3 = (7, 8, 9, 7, 8, 2012, 107.0, 207.0, 307.0,
+                                       1007.0, 2007.0, 3007.0,
+                                       10007.0, 20007.0, 30007.0, 40007.0)
+
+TEL_EXPECTED_FIELDS_RECORD_2_10_2_4 = (8, 9, 10, 8, 9, 2012, 108.0, 208.0, 308.0,
+                                       1008.0, 2008.0, 3008.0,
+                                       10008.0, 20008.0, 30008.0, 40008.0)
+
+TEL_EXPECTED_FIELDS_RECORD_2_10_2_5 = (9, 10, 11, 9, 10, 2012, 109.0, 209.0, 309.0,
+                                       1009.0, 2009.0, 3009.0,
+                                       10009.0, 20009.0, 30009.0, 40009.0)
+
+TEL_EXPECTED_FIELDS_RECORD_2_10_2_6 = (10, 11, 12, 10, 11, 2012, 110.0, 210.0, 310.0,
+                                       1010.0, 2010.0, 3010.0,
+                                       10010.0, 20010.0, 30010.0, 40010.0)
+
+TEL_EXPECTED_FIELDS_RECORD_2_10_2_META = (1374902331, 1390820403, 1390826720,  65535,
+                                          6, None, 1374902331)
 
 
 # The list of generated tests are the suggested tests, but there may
@@ -771,64 +827,34 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         """
 
         self.rec_expected_particle_1_1 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_1_1, internal_timestamp=3566106123.0)
+            REC_EXPECTED_FIELDS_RECORD_1_1, internal_timestamp=3281994123.0)
 
         self.rec_expected_particle_2_1 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_2_1, internal_timestamp=3568874584.0)
+            REC_EXPECTED_FIELDS_RECORD_2_1, internal_timestamp=3284762584.0)
 
         self.rec_expected_particle_2_2 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_2_2, internal_timestamp=3571383845.0)
+            REC_EXPECTED_FIELDS_RECORD_2_2, internal_timestamp=3287358245.0)
 
         self.rec_expected_particle_3_1 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_3_1, internal_timestamp=3574152306.0)
+            REC_EXPECTED_FIELDS_RECORD_3_1, internal_timestamp=3290126706.0)
 
         self.rec_expected_particle_3_2 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_3_2, internal_timestamp=3576834367.0)
+            REC_EXPECTED_FIELDS_RECORD_3_2, internal_timestamp=3292808767.0)
 
         self.rec_expected_particle_3_3 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_3_3, internal_timestamp=3579602828.0)
+            REC_EXPECTED_FIELDS_RECORD_3_3, internal_timestamp=3295577228.0)
 
         self.rec_expected_particle_4_1 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_4_1, internal_timestamp=3582284889.0)
+            REC_EXPECTED_FIELDS_RECORD_4_1, internal_timestamp=3298259289.0)
 
         self.rec_expected_particle_4_2 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_4_2, internal_timestamp=3585053350.0)
+            REC_EXPECTED_FIELDS_RECORD_4_2, internal_timestamp=3301027750.0)
 
         self.rec_expected_particle_4_3 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_4_3, internal_timestamp=3587821811.0)
+            REC_EXPECTED_FIELDS_RECORD_4_3, internal_timestamp=3303796211.0)
 
         self.rec_expected_particle_4_4 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_4_4, internal_timestamp=3590503872.0)
-
-        self.rec_expected_particle_10_1 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_10_1, internal_timestamp=3566106123.0)
-
-        self.rec_expected_particle_10_2 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_10_2, internal_timestamp=3568874584.0)
-
-        self.rec_expected_particle_10_3 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_10_3, internal_timestamp=3571383845.0)
-
-        self.rec_expected_particle_10_4 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_10_4, internal_timestamp=3574152306.0)
-
-        self.rec_expected_particle_10_5 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_10_5, internal_timestamp=3576834367.0)
-
-        self.rec_expected_particle_10_6 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_10_6, internal_timestamp=3579602828.0)
-
-        self.rec_expected_particle_10_7 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_10_7, internal_timestamp=3582284889.0)
-
-        self.rec_expected_particle_10_8 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_10_8, internal_timestamp=3585053350.0)
-
-        self.rec_expected_particle_10_9 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_10_9, internal_timestamp=3587821811.0)
-
-        self.rec_expected_particle_10_10 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_10_10, internal_timestamp=3590503872.0)
+            REC_EXPECTED_FIELDS_RECORD_4_4, internal_timestamp=3306478272.0)
 
         self.rec_expected_particle_1_meta = Vel3dLWfpMetadataParticle(
             REC_EXPECTED_FIELDS_RECORD_1_META, internal_timestamp=3599815519.0)
@@ -842,33 +868,77 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         self.rec_expected_particle_4_meta = Vel3dLWfpMetadataParticle(
             REC_EXPECTED_FIELDS_RECORD_4_META, internal_timestamp=3599815522.0)
 
+
+        self.rec_expected_particle_10_1 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_10_1, internal_timestamp=3187386123.0)
+
+        self.rec_expected_particle_10_2 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_10_2, internal_timestamp=3190154584.0)
+
+        self.rec_expected_particle_10_3 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_10_3, internal_timestamp=3192663845.0)
+
+        self.rec_expected_particle_10_4 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_10_4, internal_timestamp=3195432306.0)
+
+        self.rec_expected_particle_10_5 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_10_5, internal_timestamp=3198114367.0)
+
+        self.rec_expected_particle_10_6 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_10_6, internal_timestamp=3200882828.0)
+
+        self.rec_expected_particle_10_7 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_10_7, internal_timestamp=3203564889.0)
+
+        self.rec_expected_particle_10_8 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_10_8, internal_timestamp=3206333350.0)
+
+        self.rec_expected_particle_10_9 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_10_9, internal_timestamp=3209101811.0)
+
+        self.rec_expected_particle_10_10 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_10_10, internal_timestamp=3211783872.0)
+
         self.rec_expected_particle_10_meta = Vel3dLWfpMetadataParticle(
             REC_EXPECTED_FIELDS_RECORD_10_META, internal_timestamp=3599815519.0)
+
         
         # The following are for the multiple block file.
-        self.rec_expected_particle_2_3_1_1 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_2_3_1_1, internal_timestamp=3566106123.0)
+        self.rec_expected_particle_2_10_1_1 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_2_10_1_1, internal_timestamp=3218922123.0)
         
-        self.rec_expected_particle_2_3_1_2 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_2_3_1_2, internal_timestamp=3568874584.0)
+        self.rec_expected_particle_2_10_1_2 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_2_10_1_2, internal_timestamp=3221690584.0)
 
-        self.rec_expected_particle_2_3_1_3 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_2_3_1_3, internal_timestamp=3571383845.0)
+        self.rec_expected_particle_2_10_1_3 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_2_10_1_3, internal_timestamp=3224199845.0)
 
-        self.rec_expected_particle_2_3_2_1 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_2_3_2_1, internal_timestamp=3574152306.0)
+        self.rec_expected_particle_2_10_1_4 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_2_10_1_4, internal_timestamp=3226968306.0)
 
-        self.rec_expected_particle_2_3_2_2 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_2_3_2_2, internal_timestamp=3576834367.0)
+        self.rec_expected_particle_2_10_2_1 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_2_10_2_1, internal_timestamp=3229650367.0)
 
-        self.rec_expected_particle_2_3_2_3 = Vel3dLWfpInstrumentParticle(
-            REC_EXPECTED_FIELDS_RECORD_2_3_2_3, internal_timestamp=3579602828.0)
+        self.rec_expected_particle_2_10_2_2 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_2_10_2_2, internal_timestamp=3232418828.0)
 
-        self.rec_expected_particle_2_3_meta_1 = Vel3dLWfpMetadataParticle(
-            REC_EXPECTED_FIELDS_RECORD_2_3_META_1, internal_timestamp=3599815519.0)
+        self.rec_expected_particle_2_10_2_3 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_2_10_2_3, internal_timestamp=3235100889.0)
 
-        self.rec_expected_particle_2_3_meta_2 = Vel3dLWfpMetadataParticle(
-            REC_EXPECTED_FIELDS_RECORD_2_3_META_2, internal_timestamp=3599815520.0)
+        self.rec_expected_particle_2_10_2_4 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_2_10_2_4, internal_timestamp=3237869350.0)
+
+        self.rec_expected_particle_2_10_2_5 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_2_10_2_5, internal_timestamp=3240637811.0)
+
+        self.rec_expected_particle_2_10_2_6 = Vel3dLWfpInstrumentParticle(
+            REC_EXPECTED_FIELDS_RECORD_2_10_2_6, internal_timestamp=3243319872.0)
+
+        self.rec_expected_particle_2_10_1_meta = Vel3dLWfpMetadataParticle(
+            REC_EXPECTED_FIELDS_RECORD_2_10_1_META, internal_timestamp=3599815519.0)
+
+        self.rec_expected_particle_2_10_2_meta = Vel3dLWfpMetadataParticle(
+            REC_EXPECTED_FIELDS_RECORD_2_10_2_META, internal_timestamp=3599815520.0)
 
     def create_tel_expected_results(self):
         """
@@ -877,64 +947,34 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         # The first number refers to the SIO record number.
         # The second number refers to the FSI record within the SIO block.
         self.tel_expected_particle_1_1 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_1_1, internal_timestamp=3566106123.0)
+            TEL_EXPECTED_FIELDS_RECORD_1_1, internal_timestamp=3597613323.0)
 
         self.tel_expected_particle_2_1 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_2_1, internal_timestamp=3568874584.0)
+            TEL_EXPECTED_FIELDS_RECORD_2_1, internal_timestamp=3600381784.0)
 
         self.tel_expected_particle_2_2 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_2_2, internal_timestamp=3571383845.0)
+            TEL_EXPECTED_FIELDS_RECORD_2_2, internal_timestamp=3602891045.0)
 
         self.tel_expected_particle_3_1 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_3_1, internal_timestamp=3574152306.0)
+            TEL_EXPECTED_FIELDS_RECORD_3_1, internal_timestamp=3605659506.0)
 
         self.tel_expected_particle_3_2 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_3_2, internal_timestamp=3576834367.0)
+            TEL_EXPECTED_FIELDS_RECORD_3_2, internal_timestamp=3608341567.0)
 
         self.tel_expected_particle_3_3 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_3_3, internal_timestamp=3579602828.0)
+            TEL_EXPECTED_FIELDS_RECORD_3_3, internal_timestamp=3611110028.0)
 
         self.tel_expected_particle_4_1 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_4_1, internal_timestamp=3582284889.0)
+            TEL_EXPECTED_FIELDS_RECORD_4_1, internal_timestamp=3613792089.0)
 
         self.tel_expected_particle_4_2 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_4_2, internal_timestamp=3585053350.0)
+            TEL_EXPECTED_FIELDS_RECORD_4_2, internal_timestamp=3616560550.0)
 
         self.tel_expected_particle_4_3 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_4_3, internal_timestamp=3587821811.0)
+            TEL_EXPECTED_FIELDS_RECORD_4_3, internal_timestamp=3619329011.0)
 
         self.tel_expected_particle_4_4 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_4_4, internal_timestamp=3590503872.0)
-
-        self.tel_expected_particle_10_1 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_10_1, internal_timestamp=3566106123.0)
-
-        self.tel_expected_particle_10_2 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_10_2, internal_timestamp=3568874584.0)
-
-        self.tel_expected_particle_10_3 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_10_3, internal_timestamp=3571383845.0)
-
-        self.tel_expected_particle_10_4 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_10_4, internal_timestamp=3574152306.0)
-
-        self.tel_expected_particle_10_5 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_10_5, internal_timestamp=3576834367.0)
-
-        self.tel_expected_particle_10_6 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_10_6, internal_timestamp=3579602828.0)
-
-        self.tel_expected_particle_10_7 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_10_7, internal_timestamp=3582284889.0)
-
-        self.tel_expected_particle_10_8 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_10_8, internal_timestamp=3585053350.0)
-
-        self.tel_expected_particle_10_9 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_10_9, internal_timestamp=3587821811.0)
-
-        self.tel_expected_particle_10_10 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_10_10, internal_timestamp=3590503872.0)
+            TEL_EXPECTED_FIELDS_RECORD_4_4, internal_timestamp=3622011072.0)
 
         self.tel_expected_particle_1_meta = Vel3dLWfpSioMuleMetadataParticle(
             TEL_EXPECTED_FIELDS_RECORD_1_META, internal_timestamp=3583891131.0)
@@ -948,33 +988,76 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         self.tel_expected_particle_4_meta = Vel3dLWfpSioMuleMetadataParticle(
             TEL_EXPECTED_FIELDS_RECORD_4_META, internal_timestamp=3583891131.0)
 
+
+        self.tel_expected_particle_10_1 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_10_1, internal_timestamp=3502918923.0)
+
+        self.tel_expected_particle_10_2 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_10_2, internal_timestamp=3505687384.0)
+
+        self.tel_expected_particle_10_3 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_10_3, internal_timestamp=3508196645.0)
+
+        self.tel_expected_particle_10_4 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_10_4, internal_timestamp=3510965106.0)
+
+        self.tel_expected_particle_10_5 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_10_5, internal_timestamp=3513647167.0)
+
+        self.tel_expected_particle_10_6 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_10_6, internal_timestamp=3516415628.0)
+
+        self.tel_expected_particle_10_7 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_10_7, internal_timestamp=3519097689.0)
+
+        self.tel_expected_particle_10_8 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_10_8, internal_timestamp=3521866150.0)
+
+        self.tel_expected_particle_10_9 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_10_9, internal_timestamp=3524634611.0)
+
+        self.tel_expected_particle_10_10 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_10_10, internal_timestamp=3527316672.0)
+
         self.tel_expected_particle_10_meta = Vel3dLWfpSioMuleMetadataParticle(
             TEL_EXPECTED_FIELDS_RECORD_10_META, internal_timestamp=3583891131.0)
 
         # The following are for the multiple SIO block file.
-        self.tel_expected_particle_2_3_1_1 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_2_3_1_1, internal_timestamp=3566106123.0)
+        self.tel_expected_particle_2_10_1_1 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_2_10_1_1, internal_timestamp=3534454923.0)
 
-        self.tel_expected_particle_2_3_1_2 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_2_3_1_2, internal_timestamp=3568874584.0)
+        self.tel_expected_particle_2_10_1_2 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_2_10_1_2, internal_timestamp=3537223384.0)
 
-        self.tel_expected_particle_2_3_1_3 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_2_3_1_3, internal_timestamp=3571383845.0)
+        self.tel_expected_particle_2_10_1_3 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_2_10_1_3, internal_timestamp=3539819045.0)
 
-        self.tel_expected_particle_2_3_2_1 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_2_3_2_1, internal_timestamp=3574152306.0)
+        self.tel_expected_particle_2_10_1_4 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_2_10_1_4, internal_timestamp=3542587506.0)
 
-        self.tel_expected_particle_2_3_2_2 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_2_3_2_2, internal_timestamp=3576834367.0)
+        self.tel_expected_particle_2_10_2_1 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_2_10_2_1, internal_timestamp=3545269567.0)
 
-        self.tel_expected_particle_2_3_2_3 = Vel3dLWfpInstrumentParticle(
-            TEL_EXPECTED_FIELDS_RECORD_2_3_2_3, internal_timestamp=3579602828.0)
+        self.tel_expected_particle_2_10_2_2 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_2_10_2_2, internal_timestamp=3548038028.0)
 
-        self.tel_expected_particle_2_3_meta_1 = Vel3dLWfpSioMuleMetadataParticle(
-            TEL_EXPECTED_FIELDS_RECORD_2_3_META_1, internal_timestamp=3583891131.0)
+        self.tel_expected_particle_2_10_2_3 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_2_10_2_3, internal_timestamp=3550720089.0)
 
-        self.tel_expected_particle_2_3_meta_2 = Vel3dLWfpSioMuleMetadataParticle(
-            TEL_EXPECTED_FIELDS_RECORD_2_3_META_2, internal_timestamp=3583891131.0)
+        self.tel_expected_particle_2_10_2_4 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_2_10_2_4, internal_timestamp=3553488550.0)
+
+        self.tel_expected_particle_2_10_2_5 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_2_10_2_5, internal_timestamp=3556257011.0)
+
+        self.tel_expected_particle_2_10_2_6 = Vel3dLWfpInstrumentParticle(
+            TEL_EXPECTED_FIELDS_RECORD_2_10_2_6, internal_timestamp=3558939072.0)
+
+        self.tel_expected_particle_2_10_1_meta = Vel3dLWfpSioMuleMetadataParticle(
+            TEL_EXPECTED_FIELDS_RECORD_2_10_1_META, internal_timestamp=3583891131.0)
+
+        self.tel_expected_particle_2_10_2_meta = Vel3dLWfpSioMuleMetadataParticle(
+            TEL_EXPECTED_FIELDS_RECORD_2_10_2_META, internal_timestamp=3583891131.0)
 
     def create_rec_parser(self, file_handle, new_state):
         """
@@ -1026,7 +1109,7 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
 
         self.tel_config = {
             DataSetDriverConfigKeys.PARTICLE_MODULE:
-                'mi.dataset.parser.vel3d_l_wfp_sio_mule',
+                'mi.dataset.parser.vel3d_l_wfp',
             DataSetDriverConfigKeys.PARTICLE_CLASS:
                 ['Vel3dLWfpInstrumentParticle',
                  'Vel3dLWfpSioMuleMetadataParticle']
@@ -1112,23 +1195,28 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         Test starting the parser in a state in the middle of processing
         """
         log.info("============ START RECOVERED MID STATE START ================")
-        log.info("Recovered Mid State length %d", len(REC_RECORD_2_3))
-        input_file = StringIO(REC_RECORD_2_3)
+        log.info("Recovered Mid State length %d", len(REC_RECORD_2_10))
+        input_file = StringIO(REC_RECORD_2_10)
 
         # Skip past the first block.
-        new_state = {Vel3dLWfpStateKey.POSITION: 432,
+        new_state = {Vel3dLWfpStateKey.POSITION: 479,
                      Vel3dLWfpStateKey.TIMESTAMP: 0.0}
         self.parser = self.create_rec_parser(input_file, new_state)
 
-        log.info("REC MID STATE VERIFY BLOCK 2, RECORDS 1-3 and METADATA")
-        result = self.parser.get_records(4)
-        self.assertEqual(result, [self.rec_expected_particle_2_3_2_1,
-                                  self.rec_expected_particle_2_3_2_2,
-                                  self.rec_expected_particle_2_3_2_3,
-                                  self.rec_expected_particle_2_3_meta_2])
+        log.info("REC MID STATE VERIFY BLOCK 2, RECORDS 1-6 and METADATA")
+        result = self.parser.get_records(7)
+        self.assertEqual(result, [self.rec_expected_particle_2_10_2_1,
+                                  self.rec_expected_particle_2_10_2_2,
+                                  self.rec_expected_particle_2_10_2_3,
+                                  self.rec_expected_particle_2_10_2_4,
+                                  self.rec_expected_particle_2_10_2_5,
+                                  self.rec_expected_particle_2_10_2_6,
+                                  self.rec_expected_particle_2_10_2_meta])
 
+        # Should be at EOF now, so position is the size of the file.
         log.info("REC MID STATE VERIFY STATE")
-        self.assertEqual(self.parser._state[Vel3dLWfpStateKey.POSITION], 864)
+        self.assertEqual(self.parser._state[Vel3dLWfpStateKey.POSITION],
+                         len(REC_RECORD_2_10))
 
         log.info("============ END RECOVERED MID STATE START ================")
 
@@ -1137,19 +1225,23 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         This function verifies that multiple blocks can be read.
         """
         log.info("============ START RECOVERED MULTIPLE BLOCKS ================")
-        log.info("Recovered Multiple Blocks length %d", len(REC_RECORD_2_3))
-        input_file = StringIO(REC_RECORD_2_3)
+        log.info("Recovered Multiple Blocks length %d", len(REC_RECORD_2_10))
+        input_file = StringIO(REC_RECORD_2_10)
         self.parser = self.create_rec_parser(input_file, self.state)
 
-        result = self.parser.get_records(8)
-        self.assertEqual(result, [self.rec_expected_particle_2_3_1_1,
-                                  self.rec_expected_particle_2_3_1_2,
-                                  self.rec_expected_particle_2_3_1_3,
-                                  self.rec_expected_particle_2_3_meta_1,
-                                  self.rec_expected_particle_2_3_2_1,
-                                  self.rec_expected_particle_2_3_2_2,
-                                  self.rec_expected_particle_2_3_2_3,
-                                  self.rec_expected_particle_2_3_meta_2])
+        result = self.parser.get_records(12)
+        self.assertEqual(result, [self.rec_expected_particle_2_10_1_1,
+                                  self.rec_expected_particle_2_10_1_2,
+                                  self.rec_expected_particle_2_10_1_3,
+                                  self.rec_expected_particle_2_10_1_4,
+                                  self.rec_expected_particle_2_10_1_meta,
+                                  self.rec_expected_particle_2_10_2_1,
+                                  self.rec_expected_particle_2_10_2_2,
+                                  self.rec_expected_particle_2_10_2_3,
+                                  self.rec_expected_particle_2_10_2_4,
+                                  self.rec_expected_particle_2_10_2_5,
+                                  self.rec_expected_particle_2_10_2_6,
+                                  self.rec_expected_particle_2_10_2_meta])
 
         log.info("============ END RECOVERED MULTIPLE BLOCKS ================")
 
@@ -1160,30 +1252,34 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         changed
         """
         log.info("============== START RECOVERED SET STATE ==================")
-        log.info("Recovered Set State length %d", len(REC_RECORD_2_3))
-        input_file = StringIO(REC_RECORD_2_3)
+        log.info("Recovered Set State length %d", len(REC_RECORD_2_10))
+        input_file = StringIO(REC_RECORD_2_10)
         self.parser = self.create_rec_parser(input_file, self.state)
 
         log.info("REC SET STATE VERIFY BLOCK 1 RECORDS 1-2")
         result = self.parser.get_records(2)
-        self.assertEqual(result, [self.rec_expected_particle_2_3_1_1,
-                                      self.rec_expected_particle_2_3_1_2])
+        self.assertEqual(result, [self.rec_expected_particle_2_10_1_1,
+                                  self.rec_expected_particle_2_10_1_2])
 
         # Skip past the other records in block 1.
         log.info("REC SET STATE RESET STATE")
-        new_state = {Vel3dLWfpStateKey.POSITION: 432,
+        new_state = {Vel3dLWfpStateKey.POSITION: 479,
                      Vel3dLWfpStateKey.TIMESTAMP: 0.0}
         self.parser.set_state(new_state)
 
         log.info("REC SET STATE VERIFY BLOCK 2 ALL RECORDS")
-        result = self.parser.get_records(4)
-        self.assertEqual(result, [self.rec_expected_particle_2_3_2_1,
-                                  self.rec_expected_particle_2_3_2_2,
-                                  self.rec_expected_particle_2_3_2_3,
-                                  self.rec_expected_particle_2_3_meta_2])
+        result = self.parser.get_records(7)
+        self.assertEqual(result, [self.rec_expected_particle_2_10_2_1,
+                                  self.rec_expected_particle_2_10_2_2,
+                                  self.rec_expected_particle_2_10_2_3,
+                                  self.rec_expected_particle_2_10_2_4,
+                                  self.rec_expected_particle_2_10_2_5,
+                                  self.rec_expected_particle_2_10_2_6,
+                                  self.rec_expected_particle_2_10_2_meta])
 
         log.info("REC SET STATE VERIFY STATE")
-        self.assertEqual(self.parser._state[Vel3dLWfpStateKey.POSITION], 864)
+        self.assertEqual(self.parser._state[Vel3dLWfpStateKey.POSITION],
+                         len(REC_RECORD_2_10))
 
         log.info("============== END RECOVERED SET STATE ==================")
 
@@ -1284,25 +1380,27 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         Test starting the parser in a state in the middle of processing
         """
         log.info("=========== START TELEMETERED MID STATE START ===============")
-        log.info("Telemetered Mid State length %d", len(TEL_RECORD_2_3))
-        input_file = StringIO(TEL_RECORD_2_3)
+        log.info("Telemetered Mid State length %d", len(TEL_RECORD_2_10))
+        input_file = StringIO(TEL_RECORD_2_10)
 
         # Skip past the first SIO block and
         # the first 2 instrument records in SIO block 2.
         new_state = {
-            StateKey.UNPROCESSED_DATA: [[468, 934]],
-            StateKey.IN_PROCESS_DATA: [[468, 934, 4, 2]]}
+            StateKey.UNPROCESSED_DATA: [[515, 1122]],
+            StateKey.IN_PROCESS_DATA: [[515, 1122, 6, 2]]}
         self.parser = self.create_tel_parser(input_file, new_state)
 
-        log.info("TEL MID STATE VERIFY RECORD 2_3")
+        log.info("TEL MID STATE VERIFY RECORD 2_10")
         result = self.parser.get_records(1)
-        self.verify_contents(result, self.tel_expected_particle_2_3_2_3)
+        self.verify_contents(result, self.tel_expected_particle_2_10_2_3)
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.tel_expected_particle_2_10_2_4)
 
         log.info("TEL MID STATE VERIFY STATE")
         self.assertEqual(self.parser._state[StateKey.IN_PROCESS_DATA],
-                        [[468, 934, 4, 3]])
+                        [[515, 1122, 6, 4]])
         self.assertEqual(self.parser._state[StateKey.UNPROCESSED_DATA],
-                         [[468, 934]])
+                         [[515, 1122]])
 
         log.info("=========== END TELEMETERED MID STATE START ===============")
 
@@ -1311,19 +1409,23 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         This function verifies that multiple SIO blocks can be read.
         """
         log.info("========== START TELEMETERED MULTIPLE SIO BLOCKS ==============")
-        log.info("Telemetered Multiple SIO Blocks length %d", len(TEL_RECORD_2_3))
-        input_file = StringIO(TEL_RECORD_2_3)
+        log.info("Telemetered Multiple SIO Blocks length %d", len(TEL_RECORD_2_10))
+        input_file = StringIO(TEL_RECORD_2_10)
         self.parser = self.create_tel_parser(input_file, self.state)
 
-        result = self.parser.get_records(8)
-        self.assertEqual(result, [self.tel_expected_particle_2_3_1_1,
-                                  self.tel_expected_particle_2_3_1_2,
-                                  self.tel_expected_particle_2_3_1_3,
-                                  self.tel_expected_particle_2_3_meta_1,
-                                  self.tel_expected_particle_2_3_2_1,
-                                  self.tel_expected_particle_2_3_2_2,
-                                  self.tel_expected_particle_2_3_2_3,
-                                  self.tel_expected_particle_2_3_meta_2])
+        result = self.parser.get_records(12)
+        self.assertEqual(result, [self.tel_expected_particle_2_10_1_1,
+                                  self.tel_expected_particle_2_10_1_2,
+                                  self.tel_expected_particle_2_10_1_3,
+                                  self.tel_expected_particle_2_10_1_4,
+                                  self.tel_expected_particle_2_10_1_meta,
+                                  self.tel_expected_particle_2_10_2_1,
+                                  self.tel_expected_particle_2_10_2_2,
+                                  self.tel_expected_particle_2_10_2_3,
+                                  self.tel_expected_particle_2_10_2_4,
+                                  self.tel_expected_particle_2_10_2_5,
+                                  self.tel_expected_particle_2_10_2_6,
+                                  self.tel_expected_particle_2_10_2_meta])
 
         log.info("========== END TELEMETERED MULTIPLE SIO BLOCKS ==============")
 
@@ -1334,40 +1436,44 @@ class Vel3dLWfpParserUnitTestCase(ParserUnitTestCase):
         changed
         """
         log.info("============== START TELEMETERED SET STATE ==================")
-        log.info("Telemetered Set State length %d", len(TEL_RECORD_2_3))
-        input_file = StringIO(TEL_RECORD_2_3)
+        log.info("Telemetered Set State length %d", len(TEL_RECORD_2_10))
+        input_file = StringIO(TEL_RECORD_2_10)
         self.parser = self.create_tel_parser(input_file, self.state)
 
         log.info("TEL SET STATE VERIFY RECORD 1_1")
         result = self.parser.get_records(1)
-        self.verify_contents(result, self.tel_expected_particle_2_3_1_1)
+        self.verify_contents(result, self.tel_expected_particle_2_10_1_1)
 
-        # Skip past the other 2 instrument records in SIO block 1.
+        # Skip past the other 3 instrument records in SIO block 1.
         # The next record that will be read is the metadata record.
+        log.info("TEL SET STATE SKIP IN SIO BLOCK 1")
         new_state = {
-            StateKey.UNPROCESSED_DATA: [[0, 934]],
-            StateKey.IN_PROCESS_DATA: [[0, 468, 4, 3], [468, 934, 4, 0]]}
+            StateKey.UNPROCESSED_DATA: [[0, 1122]],
+            StateKey.IN_PROCESS_DATA: [[0, 515, 5, 4], [515, 1122, None, 0]]}
         self.parser.set_state(new_state)
 
         log.info("TEL SET STATE VERIFY RECORD 1_META")
         result = self.parser.get_records(1)
-        self.verify_contents(result, self.tel_expected_particle_2_3_meta_1)
+        self.verify_contents(result, self.tel_expected_particle_2_10_1_meta)
 
         # Skip past the first instrument record in SIO block 2.
+        log.info("TEL SET STATE SKIP IN SIO BLOCK 2")
         new_state = {
-            StateKey.UNPROCESSED_DATA: [[468, 934]],
-            StateKey.IN_PROCESS_DATA: [[468, 934, 4, 1]]}
+            StateKey.UNPROCESSED_DATA: [[515, 1122]],
+            StateKey.IN_PROCESS_DATA: [[515, 1122, 7, 1]]}
         self.parser.set_state(new_state)
 
         log.info("TEL SET STATE VERIFY RECORD 2_2")
         result = self.parser.get_records(1)
-        self.verify_contents(result, self.tel_expected_particle_2_3_2_2)
+        self.verify_contents(result, self.tel_expected_particle_2_10_2_2)
+        result = self.parser.get_records(1)
+        self.verify_contents(result, self.tel_expected_particle_2_10_2_3)
 
         log.info("TEL SET STATE VERIFY STATE")
         self.assertEqual(self.parser._state[StateKey.IN_PROCESS_DATA],
-                        [[468, 934, 4, 2]])
+                        [[515, 1122, 7, 3]])
         self.assertEqual(self.parser._state[StateKey.UNPROCESSED_DATA],
-                         [[468, 934]])
+                         [[515, 1122]])
 
         log.info("============== END TELEMETERED SET STATE ==================")
 
