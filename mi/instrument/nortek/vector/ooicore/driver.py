@@ -320,8 +320,9 @@ class Protocol(NortekInstrumentProtocol):
         self._got_chunk_base(structure, timestamp)
 
     def _helper_get_data_key(self):
-        # override to pass the correct velocity data key per instrument
-
+        """
+        override to pass the correct velocity data key per instrument
+        """
         # TODO change this to a init value that the base class can use
         return VELOCITY_DATA_SYNC_BYTES
 
@@ -455,6 +456,7 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.READ_WRITE,
                                    display_name="bin length",
                                    default_value=7,
+                                   units=ParameterUnits.SECONDS,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -580,7 +582,6 @@ class Protocol(NortekInstrumentProtocol):
                                    display_name="number diag samples",
                                    startup_param=True,
                                    direct_access=True))
-
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.NUMBER_SAMPLES_PER_BURST,
                                    r'^.{%s}(.{2}).*' % str(452),
@@ -614,3 +615,41 @@ class Protocol(NortekInstrumentProtocol):
                                     display_name="sample rate",
                                     direct_access=True,
                                     value='8'))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.DIAGNOSTIC_INTERVAL,
+                                   r'^.{%s}(.{4}).*' % str(54),
+                                   lambda match: NortekProtocolParameterDict.convert_double_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.double_word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="diagnostic interval",
+                                   default_value=10800,
+                                   startup_param=True,
+                                   units=ParameterUnits.SECONDS,
+                                   direct_access=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.ADJUSTMENT_SOUND_SPEED,
+                                   r'^.{%s}(.{2}).*' % str(60),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.READ_WRITE,
+                                   display_name="adjustment sound speed",
+                                   units=ParameterUnits.METERS_PER_SECOND,
+                                   default_value=1525,
+                                   startup_param=True,
+                                   direct_access=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
+                                   r'^.{%s}(.{2}).*' % str(62),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="number samples diagnostic",
+                                   default_value=1,
+                                   startup_param=True,
+                                   direct_access=True))

@@ -225,6 +225,7 @@ class Protocol(NortekInstrumentProtocol):
         self._param_dict.add_parameter(
             NortekParameterDictVal(Parameter.TRANSMIT_PULSE_LENGTH,
                                    r'^.{%s}(.{2}).*' % str(4),
+                                   #lambda match: float(int(match.group(1)))*(10/6),
                                    lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
                                    NortekProtocolParameterDict.word_to_string,
                                    regex_flags=re.DOTALL,
@@ -244,7 +245,7 @@ class Protocol(NortekInstrumentProtocol):
                                    type=ParameterDictType.INT,
                                    visibility=ParameterDictVisibility.READ_WRITE,
                                    display_name="blanking distance",
-                                   default_value=3,
+                                   default_value=49,
                                    units=ParameterUnits.CENTIMETERS,
                                    startup_param=True,
                                    direct_access=True))
@@ -257,7 +258,7 @@ class Protocol(NortekInstrumentProtocol):
                                    type=ParameterDictType.INT,
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="receive length",
-                                   default_value=7,
+                                   default_value=32,
                                    units=ParameterUnits.CENTIMETERS,
                                    startup_param=True,
                                    direct_access=True))
@@ -271,6 +272,7 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="time between pings",
                                    units=ParameterUnits.CENTIMETERS,
+                                   default_value=437,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -295,7 +297,7 @@ class Protocol(NortekInstrumentProtocol):
                                    type=ParameterDictType.INT,
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="number pings",
-                                   default_value=23,
+                                   default_value=1,
                                    units=ParameterUnits.HERTZ,
                                    startup_param=True,
                                    direct_access=True))
@@ -347,6 +349,7 @@ class Protocol(NortekInstrumentProtocol):
                                    visibility=ParameterDictVisibility.IMMUTABLE,
                                    display_name="bin length",
                                    default_value=7,
+                                   units=ParameterUnits.SECONDS,
                                    startup_param=True,
                                    direct_access=True))
         self._param_dict.add_parameter(
@@ -516,3 +519,41 @@ class Protocol(NortekInstrumentProtocol):
                                     type=ParameterDictType.STRING,
                                     visibility=ParameterDictVisibility.READ_ONLY,
                                     display_name="user 2 spare"))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.DIAGNOSTIC_INTERVAL,
+                                   r'^.{%s}(.{4}).*' % str(54),
+                                   lambda match: NortekProtocolParameterDict.convert_double_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.double_word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="diagnostic interval",
+                                   default_value=11250,
+                                   startup_param=True,
+                                   units=ParameterUnits.MINUTE_INTERVAL,
+                                   direct_access=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.ADJUSTMENT_SOUND_SPEED,
+                                   r'^.{%s}(.{2}).*' % str(60),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="adjustment sound speed",
+                                   units=ParameterUnits.METERS_PER_SECOND,
+                                   default_value=1525,
+                                   startup_param=True,
+                                   direct_access=True))
+        self._param_dict.add_parameter(
+            NortekParameterDictVal(Parameter.NUMBER_SAMPLES_DIAGNOSTIC,
+                                   r'^.{%s}(.{2}).*' % str(62),
+                                   lambda match: NortekProtocolParameterDict.convert_word_to_int(match.group(1)),
+                                   NortekProtocolParameterDict.word_to_string,
+                                   regex_flags=re.DOTALL,
+                                   type=ParameterDictType.INT,
+                                   visibility=ParameterDictVisibility.IMMUTABLE,
+                                   display_name="number samples diagnostic",
+                                   default_value=20,
+                                   startup_param=True,
+                                   direct_access=True))
