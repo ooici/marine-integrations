@@ -23,7 +23,6 @@ __license__ = 'Apache 2.0'
 
 from gevent import monkey
 
-
 monkey.patch_all()
 import time
 import ntplib
@@ -45,7 +44,7 @@ from mi.core.instrument.chunker import StringChunker
 
 from mi.core.exceptions import SampleException
 
-from mi.instrument.nortek.driver import ProtocolState, TIMEOUT, EngineeringParameter, Capability
+from mi.instrument.nortek.driver import ProtocolState, TIMEOUT, EngineeringParameter, Capability, Parameter
 from mi.instrument.nortek.driver import ProtocolEvent
 
 from mi.instrument.nortek.vector.ooicore.driver import DataParticleType
@@ -69,7 +68,26 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_packet_config=DataParticleType(),
     driver_startup_config={
         DriverConfigKey.PARAMETERS:
-            {EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
+            {Parameter.TIME_BETWEEN_PINGS: 44,
+             Parameter.DEPLOYMENT_NAME: 'test',
+             Parameter.WRAP_MODE: 0,
+             Parameter.CLOCK_DEPLOY: '514920',
+             Parameter.ANALOG_INPUT_ADDR: 0,
+             Parameter.SW_VERSION: 13702,
+             Parameter.VELOCITY_ADJ_TABLE: 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
+                                           'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
+                                           'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
+                                           'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',
+             Parameter.COMMENTS: 'this is a test',
+             Parameter.WAVE_MEASUREMENT_MODE: 4615,
+             Parameter.DYN_PERCENTAGE_POSITION: 32768,
+             Parameter.WAVE_TRANSMIT_PULSE: 16384,
+             Parameter.WAVE_BLANKING_DISTANCE: 0,
+             Parameter.WAVE_CELL_SIZE: 0,
+             Parameter.NUMBER_DIAG_SAMPLES: 0,
+             Parameter.ANALOG_OUTPUT_SCALE: 6711,
+             Parameter.QUAL_CONSTANTS: 'notused1',
+             EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
              EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:00'}}
 )
 

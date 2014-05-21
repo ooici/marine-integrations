@@ -68,11 +68,7 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id='3DLE2A',
     instrument_agent_name='nortek_driver',
     instrument_agent_packet_config=NortekDataParticleType(),
-
-    driver_startup_config={
-        DriverConfigKey.PARAMETERS:
-            {EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
-             EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:00'}}
+    driver_startup_config={}
 )
 
 

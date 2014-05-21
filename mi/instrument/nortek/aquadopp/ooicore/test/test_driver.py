@@ -17,14 +17,13 @@ USAGE:
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/aquadopp/ooicore -a INT
        $ bin/nosetests -s -v /Users/Bill/WorkSpace/marine-integrations/mi/instrument/nortek/aquadopp/ooicore -a QUAL
 """
-import re
 from mi.instrument.ooici.mi.test_driver.test.test_driver import DriverTestMixinSub
 
 __author__ = 'Rachel Manoni'
 __license__ = 'Apache 2.0'
 
-from gevent import monkey; monkey.patch_all()
-import gevent
+from gevent import monkey
+monkey.patch_all()
 
 from nose.plugins.attrib import attr
 
@@ -33,7 +32,7 @@ log = get_logger()
 
 from mi.idk.unit_test import InstrumentDriverTestCase, ParameterTestConfigKey
 
-from mi.core.instrument.instrument_driver import DriverAsyncEvent, DriverConfigKey
+from mi.core.instrument.instrument_driver import DriverConfigKey
 
 from mi.core.instrument.data_particle import DataParticleKey, DataParticleValue
 from mi.core.instrument.chunker import StringChunker
@@ -42,14 +41,11 @@ from mi.core.exceptions import SampleException
 
 from mi.instrument.nortek.aquadopp.ooicore.driver import DataParticleType
 from mi.instrument.nortek.aquadopp.ooicore.driver import Protocol
-# from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticle
-# from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticHeaderDataParticleKey
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticle
 from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwVelocityDataParticleKey
-# from mi.instrument.nortek.aquadopp.ooicore.driver import AquadoppDwDiagnosticDataParticle
 
 from mi.instrument.nortek.test.test_driver import NortekUnitTest, NortekIntTest, NortekQualTest
-from mi.instrument.nortek.driver import ProtocolState, ProtocolEvent, NortekDataParticleType, TIMEOUT, ID_DATA_PATTERN
+from mi.instrument.nortek.driver import ProtocolState, ProtocolEvent, TIMEOUT, EngineeringParameter, Parameter
 
 ###
 #   Driver parameters for the tests
@@ -61,10 +57,19 @@ InstrumentDriverTestCase.initialize(
     instrument_agent_resource_id='nortek_aquadopp_dw_ooicore',
     instrument_agent_name='nortek_aquadopp_dw_ooicore_agent',
     instrument_agent_packet_config=DataParticleType(),
-    driver_startup_config={}
-        # DriverConfigKey.PARAMETERS:
-        #     {EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
-        #      EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:00'}}
+    driver_startup_config={
+        DriverConfigKey.PARAMETERS:
+            {Parameter.TIME_BETWEEN_PINGS: 437,
+             Parameter.DEPLOYMENT_NAME: 'test',
+             Parameter.VELOCITY_ADJ_TABLE: 'Aj0ePTk9Uz1uPYg9oj27PdQ97T0GPh4+Nj5OPmU+fT6TPqo+wD7WPuw+Aj8'
+                                           'XPyw/QT9VP2k/fT+RP6Q/uD/KP90/8D8CQBRAJkA3QElAWkBrQHxAjECcQK'
+                                           'xAvEDMQNtA6kD5QAhBF0ElQTNBQkFPQV1BakF4QYVBkkGeQatBt0HDQc9B20'
+                                           'HnQfJB/UEIQhNCHkIoQjNCPUJHQlFCW0JkQm5Cd0KAQolCkUKaQqJCqkKyQrpC',
+             Parameter.COMMENTS: 'this is a test',
+             Parameter.ANALOG_OUTPUT_SCALE: 6711,
+             Parameter.QUAL_CONSTANTS: 'notused1',
+             EngineeringParameter.CLOCK_SYNC_INTERVAL: '00:00:00',
+             EngineeringParameter.ACQUIRE_STATUS_INTERVAL: '00:00:00'}}
 )
 
 
@@ -90,51 +95,6 @@ velocity_particle = [{'value_id': 'date_time_string', 'value': '26/11/2012 22:10
                      {'value_id': 'amplitude_beam1', 'value': 30}, 
                      {'value_id': 'amplitude_beam2', 'value': 20}, 
                      {'value_id': 'amplitude_beam3', 'value': 22}]
-
-
-# diagnostic header data particle & sample 
-def diagnostic_header_sample():
-    sample_as_hex = "a5061200140001000000000011192622121100000000000000000000000000000000a108"
-    return sample_as_hex.decode('hex')
-
-diagnostic_header_particle = [{'value_id': 'records_to_follow', 'value': 20},
-                              {'value_id': 'cell_number_diagnostics', 'value': 1},
-                              {'value_id': 'noise_amplitude_beam1', 'value': 0},
-                              {'value_id': 'noise_amplitude_beam2', 'value': 0},
-                              {'value_id': 'noise_amplitude_beam3', 'value': 0},
-                              {'value_id': 'noise_amplitude_beam4', 'value': 0},
-                              {'value_id': 'processing_magnitude_beam1', 'value': 6417}, 
-                              {'value_id': 'processing_magnitude_beam2', 'value': 8742}, 
-                              {'value_id': 'processing_magnitude_beam3', 'value': 4370}, 
-                              {'value_id': 'processing_magnitude_beam4', 'value': 0}, 
-                              {'value_id': 'distance_beam1', 'value': 0},
-                              {'value_id': 'distance_beam2', 'value': 0},
-                              {'value_id': 'distance_beam3', 'value': 0},
-                              {'value_id': 'distance_beam4', 'value': 0}]
-
-
-# diagnostic data particle & sample 
-def diagnostic_sample():
-    sample_as_hex = "a5801500112026221211000000009300f83ba0065c0189fe002c0000e40904ffd8ffbdfa18131500490f"
-    return sample_as_hex.decode('hex')
-
-diagnostic_particle = [{'value_id': 'date_time_string', 'value': '26/11/2012 22:11:20'},
-                       {'value_id': 'error_code', 'value': 0},
-                       {'value_id': 'analog1', 'value': 0}, 
-                       {'value_id': 'battery_voltage', 'value': 147}, 
-                       {'value_id': 'sound_speed_analog2', 'value': 15352}, 
-                       {'value_id': 'heading', 'value': 1696}, 
-                       {'value_id': 'pitch', 'value': 348}, 
-                       {'value_id': 'roll', 'value': 65161}, 
-                       {'value_id': 'status', 'value': 44}, 
-                       {'value_id': 'pressure', 'value': 0}, 
-                       {'value_id': 'temperature', 'value': 2532}, 
-                       {'value_id': 'velocity_beam1', 'value': 65284}, 
-                       {'value_id': 'velocity_beam2', 'value': 65496}, 
-                       {'value_id': 'velocity_beam3', 'value': 64189}, 
-                       {'value_id': 'amplitude_beam1', 'value': 24},                        
-                       {'value_id': 'amplitude_beam2', 'value': 19}, 
-                       {'value_id': 'amplitude_beam3', 'value': 21}]
 
 
 ###############################################################################
@@ -164,23 +124,6 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
     DEFAULT = ParameterTestConfigKey.DEFAULT
     STATES = ParameterTestConfigKey.STATES
 
-    _sample_diagnostic_header = {
-        # AquadoppDwDiagnosticHeaderDataParticleKey.RECORDS: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.CELL: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE1: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE2: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE3: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.NOISE4: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM1: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM2: {TYPE: int, VALUE: 1, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM3: {TYPE: int, VALUE: 1, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.PROCESSING_MAGNITUDE_BEAM4: {TYPE: int, VALUE: 1, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE1: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE2: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE3: {TYPE: int, VALUE: 0, REQUIRED: True},
-        # AquadoppDwDiagnosticHeaderDataParticleKey.DISTANCE4: {TYPE: int, VALUE: 0, REQUIRED: True}
-    }
-
     #this particle can be used for both the velocity particle and the diagnostic particle
     _sample_velocity_diagnostic = {
         AquadoppDwVelocityDataParticleKey.TIMESTAMP: {TYPE: unicode, VALUE: '', REQUIRED: True},
@@ -208,31 +151,8 @@ class AquadoppDriverTestMixinSub(DriverTestMixinSub):
         @param data_particle:  AquadoppDwVelocityDataParticleKey data particle
         @param verify_values:
         """
-
         self.assert_data_particle_keys(AquadoppDwVelocityDataParticleKey, self._sample_velocity_diagnostic)
         self.assert_data_particle_header(data_particle, DataParticleType.VELOCITY)
-        self.assert_data_particle_parameters(data_particle, self._sample_velocity_diagnostic, verify_values)
-
-    # def assert_particle_diagnostic_header(self, data_particle, verify_values=False):
-    #     """
-    #     Verify velpt_diagostics_header
-    #     @param data_particle:  AquadoppDwDiagnosticHeaderDataParticleKey data particle
-    #     @param verify_values:
-    #     """
-    #
-    #     self.assert_data_particle_keys(AquadoppDwDiagnosticHeaderDataParticleKey, self._sample_diagnostic_header)
-    #     self.assert_data_particle_header(data_particle, DataParticleType.DIAGNOSTIC_HEADER)
-    #     self.assert_data_particle_parameters(data_particle, self._sample_diagnostic_header, verify_values)
-
-    def assert_particle_diagnostic(self, data_particle, verify_values=False):
-        """
-        Verify velpt_diagonstics_data
-        @param data_particle:  AquadoppDwDiagnosticDataParticle data particle
-        @param verify_values:  bool, should we verify parameter values
-        """
-
-        #self.assert_data_particle_keys(AquadoppDwDiagnosticDataParticle, self._sample_velocity_diagnostic)
-        self.assert_data_particle_header(data_particle, DataParticleType.DIAGNOSTIC)
         self.assert_data_particle_parameters(data_particle, self._sample_velocity_diagnostic, verify_values)
 
 
@@ -264,52 +184,6 @@ class DriverUnitTest(NortekUnitTest):
         """
         self.assert_enum_has_no_duplicates(DataParticleType())
 
-    def test_diagnostic_header_sample_format(self):
-        """
-        Verify driver can get diagnostic_header sample data out in a reasonable format.
-        Parsed is all we care about...raw is tested in the base DataParticle tests
-        """
-        port_timestamp = 3555423720.711772
-        driver_timestamp = 3555423722.711772
-
-        # construct the expected particle
-        expected_particle = {
-            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
-            DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: DataParticleType.DIAGNOSTIC_HEADER,
-            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
-            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
-            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
-            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: diagnostic_header_particle}
-        
-        # self.compare_parsed_data_particle(AquadoppDwDiagnosticHeaderDataParticle,
-        #                                   diagnostic_header_sample(),
-        #                                   expected_particle)
-
-    def test_diagnostic_sample_format(self):
-        """
-        Verify driver can get diagnostic sample data out in a reasonable format.
-        Parsed is all we care about...raw is tested in the base DataParticle tests
-        """
-        port_timestamp = 3555423720.711772
-        driver_timestamp = 3555423722.711772
-
-        # construct the expected particle
-        expected_particle = {
-            DataParticleKey.PKT_FORMAT_ID: DataParticleValue.JSON_DATA,
-            DataParticleKey.PKT_VERSION: 1,
-            DataParticleKey.STREAM_NAME: DataParticleType.DIAGNOSTIC,
-            DataParticleKey.PORT_TIMESTAMP: port_timestamp,
-            DataParticleKey.DRIVER_TIMESTAMP: driver_timestamp,
-            DataParticleKey.PREFERRED_TIMESTAMP: DataParticleKey.PORT_TIMESTAMP,
-            DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
-            DataParticleKey.VALUES: diagnostic_particle}
-        
-        # self.compare_parsed_data_particle(AquadoppDwDiagnosticDataParticle,
-        #                                   diagnostic_sample(),
-        #                                   expected_particle)
-
     def test_velocity_sample_format(self):
         """
         Verify driver can get velocity sample data out in a reasonable format.
@@ -329,9 +203,7 @@ class DriverUnitTest(NortekUnitTest):
             DataParticleKey.QUALITY_FLAG: DataParticleValue.OK,
             DataParticleKey.VALUES: velocity_particle}
         
-        self.compare_parsed_data_particle(AquadoppDwVelocityDataParticle,
-                                          velocity_sample(),
-                                          expected_particle)
+        self.compare_parsed_data_particle(AquadoppDwVelocityDataParticle, velocity_sample(), expected_particle)
 
     def test_chunker(self):
         """
@@ -343,42 +215,17 @@ class DriverUnitTest(NortekUnitTest):
         """
         chunker = StringChunker(Protocol.chunker_sieve_function)
 
-        # test complete data structures
         self.assert_chunker_sample(chunker, velocity_sample())
-        self.assert_chunker_sample(chunker, diagnostic_sample())
-        self.assert_chunker_sample(chunker, diagnostic_header_sample())
-
-        # test fragmented data structures
         self.assert_chunker_fragmented_sample(chunker, velocity_sample())
-        self.assert_chunker_fragmented_sample(chunker, diagnostic_sample())
-        self.assert_chunker_fragmented_sample(chunker, diagnostic_header_sample())
-
-        # test combined data structures
         self.assert_chunker_combined_sample(chunker, velocity_sample())
-        self.assert_chunker_combined_sample(chunker, diagnostic_sample())
-        self.assert_chunker_combined_sample(chunker, diagnostic_header_sample())
-
-        # test data structures with noise
         self.assert_chunker_sample_with_noise(chunker, velocity_sample())
-        self.assert_chunker_sample_with_noise(chunker, diagnostic_sample())
-        self.assert_chunker_sample_with_noise(chunker, diagnostic_header_sample())
 
     def test_corrupt_data_structures(self):
         """
         Verify when generating the particle, if the particle is corrupt, an exception is raised
         """
-        # particle = AquadoppDwDiagnosticHeaderDataParticle(diagnostic_header_sample().replace(chr(0), chr(1), 1),
-        #                 port_timestamp=3558720820.531179)
-        # with self.assertRaises(SampleException):
-        #     particle.generate()
-        #
-        # particle = AquadoppDwDiagnosticDataParticle(diagnostic_sample().replace(chr(0), chr(1), 1),
-        #                 port_timestamp=3558720820.531179)
-        # with self.assertRaises(SampleException):
-        #     particle.generate()
-         
-        particle = AquadoppDwVelocityDataParticle(velocity_sample().replace(chr(0), chr(1), 1),
-                        port_timestamp=3558720820.531179)
+        particle = AquadoppDwVelocityDataParticle(velocity_sample().replace(chr(0), chr(1), 1), port_timestamp=3558720820.531179)
+
         with self.assertRaises(SampleException):
             particle.generate()
 
@@ -404,7 +251,6 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         3. verify the particle coming in
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
-        # test acquire sample
         self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE, state=ProtocolState.COMMAND, delay=1)
         self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_velocity, timeout=TIMEOUT)
 
@@ -413,43 +259,14 @@ class IntFromIDK(NortekIntTest, AquadoppDriverTestMixinSub):
         Verify autosample command and events.
         1. initialize the instrument to COMMAND state
         2. command the instrument to AUTOSAMPLE state
-        3. verify the particle coming in
-        4. command the instrument back to COMMAND state
-        5. verify the sampling is continuous by gathering several samples
+        3. verify the particle coming in and the sampling is continuous (gather several samples)
+        4. stop AUTOSAMPLE
         """
         self.assert_initialize_driver(ProtocolState.COMMAND)
-
-        # test autosample
         self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
-
-        self.assert_async_particle_generation(NortekDataParticleType.USER_CONFIG, self.assert_particle_user, timeout=TIMEOUT)
-        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_velocity, timeout=TIMEOUT)
-
-        # # wait for some samples to be generated
-        gevent.sleep(10)
-
-        # Verify we received at least 4 samples.
-        sample_events = [evt for evt in self.events if evt['type'] == DriverAsyncEvent.SAMPLE]
-        log.debug('test_instrument_acquire_sample: # 0f samples = %d', len(sample_events))
-        log.debug('samples=%s', sample_events)
-        self.assertTrue(len(sample_events) >= 4)
-
+        self.assert_async_particle_generation(DataParticleType.VELOCITY, self.assert_particle_velocity,
+                                              particle_count=4, timeout=TIMEOUT)
         self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
-               
-    # def test_instrument_read_id(self):
-    #     """
-    #     Verify the reading ID, need to be implemented in the child class because each ID is unique to the
-    #     instrument.
-    #     """
-    #     self.assert_initialize_driver()
-    #
-    #     # command the instrument to read the ID.
-    #     response = self.driver_client.cmd_dvr('execute_resource', ProtocolEvent.READ_ID)
-    #
-    #     log.debug("read ID returned: %s", response)
-    #     self.assertTrue(re.search(r'AQD .*', response[1]))
-    #
-    #     self.assert_driver_command(ProtocolEvent.READ_ID, regex=ID_DATA_PATTERN)
 
 
 ###############################################################################
