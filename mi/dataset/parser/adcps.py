@@ -30,11 +30,11 @@ class DataParticleType(BaseEnum):
     SAMPLE = 'adcps_jln_sio_mule_instrument'
 
 class AdcpsParserDataParticleKey(BaseEnum):
-    CONTROLLER_TIMESTAMP = 'sio_controller_timestamp'
-    ENSEMBLE_NUMBER = 'ensemble_number'
-    UNIT_ID = 'unit_id'
-    FIRMWARE_VERSION = 'firmware_version'
-    FIRMWARE_REVISION = 'firmware_revision'
+    CONTROLLER_TIMESTAMP = 'controller_timestamp'
+    ADCPS_JLN_NUMBER = 'adcps_jln_number'
+    ADCPS_JLN_UNIT_ID = 'adcps_jln_unit_id'
+    ADCPS_JLN_FW_VERS = 'adcps_jln_fw_vers'
+    ADCPS_JLN_FW_REV = 'adcps_jln_fw_rev'
     ADCPS_JLN_YEAR = 'adcps_jln_year'
     ADCPS_JLN_MONTH = 'adcps_jln_month'
     ADCPS_JLN_DAY = 'adcps_jln_day'
@@ -54,10 +54,10 @@ class AdcpsParserDataParticleKey(BaseEnum):
     SUBSAMPLING_PARAMETER = 'subsampling_parameter'
     ADCPS_JLN_STARTBIN = 'adcps_jln_startbin'
     ADCPS_JLN_BINS = 'adcps_jln_bins'
-    ADCPS_JLN_COMPONENT1 = 'adcps_jln_component1' # error, east
-    ADCPS_JLN_COMPONENT2 = 'adcps_jln_component2' # up, was north
-    ADCPS_JLN_COMPONENT3 = 'adcps_jln_component3' # north, was up
-    ADCPS_JLN_COMPONENT4 = 'adcps_jln_component4' # east, was error
+    ADCPS_JLN_VEL_EAST = 'adcps_jln_vel_east'
+    ADCPS_JLN_VEL_NORTH = 'adcps_jln_vel_north'
+    ADCPS_JLN_VEL_UP = 'adcps_jln_vel_up'
+    ADCPS_JLN_VEL_ERROR = 'adcps_jln_vel_error'
 
 DATA_WRAPPER_REGEX = b'<Executing/>\x0d\x0a<SampleData ID=\'0x[0-9a-f]+\' LEN=\'[0-9]+\' ' \
                      'CRC=\'(0x[0-9a-f]+)\'>([\x00-\xFF]+)</SampleData>\x0d\x0a<Executed/>\x0d\x0a'
@@ -175,10 +175,10 @@ class AdcpsParserDataParticle(DataParticle):
     
             result = [self._encode_value(AdcpsParserDataParticleKey.CONTROLLER_TIMESTAMP, self.raw_data[0:8],
                                          AdcpsParserDataParticle.encode_int_16),
-                      self._encode_value(AdcpsParserDataParticleKey.ENSEMBLE_NUMBER, fields[2], int),
-                      self._encode_value(AdcpsParserDataParticleKey.UNIT_ID, fields[3], int),
-                      self._encode_value(AdcpsParserDataParticleKey.FIRMWARE_VERSION, fields[4], int),
-                      self._encode_value(AdcpsParserDataParticleKey.FIRMWARE_REVISION, fields[5], int),
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_NUMBER, fields[2], int),
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_UNIT_ID, fields[3], int),
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_FW_VERS, fields[4], int),
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_FW_REV, fields[5], int),
                       self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_YEAR, date_fields[0], int),
                       self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_MONTH, date_fields[1], int),
                       self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_DAY, date_fields[2], int),
@@ -198,10 +198,10 @@ class AdcpsParserDataParticle(DataParticle):
                       self._encode_value(AdcpsParserDataParticleKey.SUBSAMPLING_PARAMETER, (fields[12]&240) >> 4, int),
                       self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_STARTBIN, fields[13], int),
                       self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_BINS, fields[14], int),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_COMPONENT1, vel_err, list),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_COMPONENT2, vel_up, list),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_COMPONENT3, vel_north, list),
-                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_COMPONENT4, vel_east, list)]
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_VEL_ERROR, vel_err, list),
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_VEL_UP, vel_up, list),
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_VEL_NORTH, vel_north, list),
+                      self._encode_value(AdcpsParserDataParticleKey.ADCPS_JLN_VEL_EAST, vel_east, list)]
 
         log.trace('AdcpsParserDataParticle: particle=%s', result)
         return result
