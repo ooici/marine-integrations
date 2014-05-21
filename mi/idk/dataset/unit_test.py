@@ -285,7 +285,7 @@ class DataSetTestCase(MiIntTestCase):
             elif os.path.isdir(stored_data_dir):
                 remove_all_files(stored_data_dir)
 
-    def create_sample_data(self, filename, dest_filename=None, mode=0644, create=True):
+    def create_sample_data(self, filename, dest_filename=None, mode=0644, create=True, copy_metadata=True):
         """
         Search for a data file in the driver resource directory and if the file
         is not found there then search using the filename directly.  Then copy
@@ -297,6 +297,7 @@ class DataSetTestCase(MiIntTestCase):
         @param: dest_filename - name of the file when copied. default to filename
         @param: file mode
         @param: create an empty file in the destination if the source is not found
+        @param: copy_metadata - True to copy file metadata false to not copy metadata
         @return: path to file created
         """
         data_dir = self.create_data_dir()
@@ -322,13 +323,21 @@ class DataSetTestCase(MiIntTestCase):
             file = open(dest_path, 'w')
             file.close()
         else:
-            shutil.copy2(source_path, dest_path)
+            if copy_metadata:
+                # copy the file and its metadata
+                # this leaves the file modification time the same as the original file
+                shutil.copy2(source_path, dest_path)
+            else:
+                # copy the just the data
+                # this changes the file modification time to the time of the copy
+                shutil.copy(source_path, dest_path)
 
         os.chmod(dest_path, mode)
 
         return dest_path
 
-    def create_sample_data_set_dir(self, filename, dest_dir, dest_filename=None, mode=0644, create=True):
+    def create_sample_data_set_dir(self, filename, dest_dir, dest_filename=None,
+                                   mode=0644, create=True, copy_metadata=True):
         """
         Search for a data file in the driver resource directory and if the file
         is not found there then search using the filename directly.  Then copy
@@ -340,6 +349,7 @@ class DataSetTestCase(MiIntTestCase):
         @param: dest_filename - name of the file when copied. default to filename
         @param: file mode
         @param: create an empty file in the destination if the source is not found
+        @param: copy_metadata - True to copy file metadata false to not copy metadata
         @return: path to file created
         """
         if not os.path.exists(dest_dir):
@@ -370,7 +380,14 @@ class DataSetTestCase(MiIntTestCase):
             file = open(dest_path, 'w')
             file.close()
         else:
-            shutil.copy2(source_path, dest_path)
+            if copy_metadata:
+                # copy the file and its metadata
+                # this leaves the file modification time the same as the original file
+                shutil.copy2(source_path, dest_path)
+            else:
+                # copy the just the data
+                # this changes the file modification time to the time of the copy
+                shutil.copy(source_path, dest_path)
 
         os.chmod(dest_path, mode)
 
