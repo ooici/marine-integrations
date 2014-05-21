@@ -18,7 +18,6 @@ import string
 from mi.core.log import get_logger ; log = get_logger()
 
 from mi.core.common import BaseEnum
-from mi.core.util import dict_equal
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.instrument.instrument_fsm import InstrumentFSM
@@ -39,7 +38,6 @@ from xml.dom.minidom import parseString
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility
 from mi.core.instrument.protocol_param_dict import ParameterDictType
 
-from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Command
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ProtocolState
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19Protocol
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19CalibrationParticle
@@ -51,9 +49,7 @@ from mi.instrument.seabird.driver import SeaBirdInstrumentDriver
 
 from mi.instrument.seabird.driver import NEWLINE
 from mi.instrument.seabird.driver import TIMEOUT
-from mi.instrument.seabird.driver import DEFAULT_ENCODER_KEY
 
-import mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver
 
 WAKEUP_TIMEOUT = 60
 
@@ -74,7 +70,7 @@ class Command(BaseEnum):
 
 class Parameter(DriverParameter):
     """
-    Device specific parameters for SBE19.
+    Device specific parameters for SBE43.
     """
     DATE_TIME = "DateTime"
     PTYPE = "PType"
@@ -120,7 +116,7 @@ class ConfirmedParameter(BaseEnum):
 
 class ProtocolEvent(BaseEnum):
     """
-    Protocol events for SBE19. Cherry picked from DriverEvent enum.
+    Protocol events for SBE43. Cherry picked from DriverEvent enum.
     """
     ENTER = DriverEvent.ENTER
     EXIT = DriverEvent.EXIT
@@ -183,7 +179,7 @@ class SBE43DataParticle(SeaBirdParticle):
         @return: regex string
         """
         #ttttttccccccppppppvvvvvvvvvvvvoooooo
-        pattern = r'#? *' # patter may or may not start with a '
+        pattern = r'#? *' # pattern may or may not start with a '
         pattern += r'([0-9A-F]{6})' # temperature
         pattern += r'([0-9A-F]{6})' # conductivity
         pattern += r'([0-9A-F]{6})' # pressure
@@ -349,6 +345,8 @@ class SBE43StatusParticle(SeaBirdParticle):
         result.append(self._get_xml_parameter(element, SBE43StatusParticleKey.SAMPLES_FREE, int))
         result.append(self._get_xml_parameter(element, SBE43StatusParticleKey.SAMPLE_LENGTH, int))
         result.append(self._get_xml_parameter(element, SBE43StatusParticleKey.PROFILES, int))
+
+        log.debug("Status Particle: %s" % result)
 
         return result
 
@@ -648,6 +646,12 @@ class SBE43HardwareParticle(SeaBirdParticle):
 
         return result
 
+class SBE43CalibrationParticle(SBE19CalibrationParticle):
+    """
+    This data particle is identical to the corresponding one for CTDPF-Optode, except for the stream
+    name, which we specify here
+    """
+    _data_particle_type = DataParticleType.DEVICE_CALIBRATION
 
 ###############################################################################
 # Driver
@@ -741,7 +745,6 @@ class SBE43Protocol(SBE19Protocol):
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.EXECUTE_DIRECT, self._handler_direct_access_execute_direct)
         self._protocol_fsm.add_handler(ProtocolState.DIRECT_ACCESS, ProtocolEvent.STOP_DIRECT, self._handler_direct_access_stop_direct)
 
-
         # Construct the parameter dictionary containing device parameters,
         # current parameter values, and set formatting functions.
         self._build_driver_dict()
@@ -778,7 +781,6 @@ class SBE43Protocol(SBE19Protocol):
 
         self._chunker = StringChunker(self.sieve_function)
 
-
     @staticmethod
     def sieve_function(raw_data):
         """ The method that splits samples
@@ -789,7 +791,7 @@ class SBE43Protocol(SBE19Protocol):
 
         matchers.append(SBE43DataParticle.regex_compiled())
         matchers.append(SBE43HardwareParticle.regex_compiled())
-        matchers.append(SBE19CalibrationParticle.regex_compiled())
+        matchers.append(SBE43CalibrationParticle.regex_compiled())
         matchers.append(SBE43StatusParticle.regex_compiled())
         matchers.append(SBE43ConfigurationParticle.regex_compiled())
 
@@ -807,10 +809,44 @@ class SBE43Protocol(SBE19Protocol):
         """
         if not (self._extract_sample(SBE43HardwareParticle, SBE43HardwareParticle.regex_compiled(), chunk, timestamp) or
                 self._extract_sample(SBE43DataParticle, SBE43DataParticle.regex_compiled(), chunk, timestamp) or
-                self._extract_sample(SBE19CalibrationParticle, SBE19CalibrationParticle.regex_compiled(), chunk, timestamp) or
+                self._extract_sample(SBE43CalibrationParticle, SBE43CalibrationParticle.regex_compiled(), chunk, timestamp) or
                 self._extract_sample(SBE43ConfigurationParticle, SBE43ConfigurationParticle.regex_compiled(), chunk, timestamp) or
                 self._extract_sample(SBE43StatusParticle, SBE43StatusParticle.regex_compiled(), chunk, timestamp)):
             raise InstrumentProtocolException("Unhandled chunk %s" %chunk)
+
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        #check values that the instrument doesn't validate
+        #handle special cases for driver specific parameters
+        for (key, val) in params.iteritems():
+            if(key == Parameter.PUMP_DELAY and (val < 0 or val > 600)):
+                raise InstrumentParameterException("pump delay out of range")
+            elif(key == Parameter.NUM_AVG_SAMPLES and (val < 1 or val > 32767)):
+                raise InstrumentParameterException("num average samples out of range")
+
+        self._verify_not_readonly(*args, **kwargs)
+
+        for (key, val) in params.iteritems():
+            log.debug("KEY = %s VALUE = %s", key, val)
+
+            if(key in ConfirmedParameter.list()):
+                # We add a write delay here because this command has to be sent
+                # twice, the write delay allows it to process the first command
+                # before it receives the beginning of the second.
+                response = self._do_cmd_resp(Command.SET, key, val, write_delay=0.2)
+            else:
+                response = self._do_cmd_resp(Command.SET, key, val, **kwargs)
+
+        log.debug("set complete, update params")
+        self._update_params()
 
 
     ########################################################################
@@ -834,7 +870,7 @@ class SBE43Protocol(SBE19Protocol):
         result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE43ConfigurationParticle.regex_compiled(),
                                     timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE19CalibrationParticle.regex_compiled(),
+        result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE43CalibrationParticle.regex_compiled(),
                                     timeout=TIMEOUT)
         log.debug("_handler_command_acquire_status: GetCC Response: %s", result)
         result += self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT)
@@ -867,7 +903,7 @@ class SBE43Protocol(SBE19Protocol):
         result += self._do_cmd_resp(Command.GET_CD, response_regex=SBE43ConfigurationParticle.regex_compiled(),
                                     timeout=TIMEOUT)
         log.debug("_handler_autosample_acquire_status: GetCD Response: %s", result)
-        result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE19CalibrationParticle.regex_compiled(),
+        result += self._do_cmd_resp(Command.GET_CC, response_regex=SBE43CalibrationParticle.regex_compiled(),
                                     timeout=TIMEOUT)
         log.debug("_handler_autosample_acquire_status: GetCC Response: %s", result)
         result += self._do_cmd_resp(Command.GET_EC, timeout=TIMEOUT)
@@ -878,6 +914,30 @@ class SBE43Protocol(SBE19Protocol):
 
         return (next_state, (next_agent_state, result))
 
+    def _build_set_command(self, cmd, param, val):
+        """
+        Build handler for set commands. param=val followed by newline.
+        String val constructed by param dict formatting function.
+        @param param the parameter key to set.
+        @param val the parameter value to set.
+        @ retval The set command to be sent to the device.
+        @throws InstrumentProtocolException if the parameter is not valid or
+        if the formatting function could not accept the value passed.
+        """
+        try:
+            str_val = self._param_dict.format(param, val)
+
+            set_cmd = '%s=%s' % (param, str_val)
+            set_cmd = set_cmd + NEWLINE
+
+            # Some set commands need to be sent twice to confirm
+            if(param in ConfirmedParameter.list()):
+                set_cmd = set_cmd + set_cmd
+
+        except KeyError:
+            raise InstrumentParameterException('Unknown driver parameter %s' % param)
+
+        return set_cmd
 
     ########################################################################
     # response handlers.
@@ -1079,7 +1139,7 @@ class SBE43Protocol(SBE19Protocol):
                              default_value = False,
                              visibility=ParameterDictVisibility.IMMUTABLE)
         self._param_dict.add(Parameter.SBE63,
-                             r'SBE 63 = (yes|no)',
+                             r'SBE63 = (yes|no)',
                              lambda match : True if match.group(1) == 'yes' else False,
                              self._true_false_to_string,
                              type=ParameterDictType.BOOL,
