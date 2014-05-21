@@ -6,6 +6,14 @@ header:
 
 data:
   - _index: 1
+    internal_timestamp: '2013-07-24T10:00:01Z'
+    sio_controller_timestamp: 1374667638
+    inductive_id: 55
+    temperature: 225661
+    conductivity: 429641
+    pressure: 4155
+    ctd_time: 427975201
+  - _index: 2
     particle_object: CtdmoParserDataParticle
     particle_type: ctdmo_ghqr_sio_mule_instrument
     internal_timestamp: '2013-07-24T12:00:01'
@@ -15,7 +23,15 @@ data:
     conductivity: 428375
     pressure: 4153
     ctd_time: 427982401
-  - _index: 2
+  - _index: 3
+    internal_timestamp: '2013-07-24T14:00:01'
+    sio_controller_timestamp: 1374682038
+    inductive_id: 55
+    temperature: 204947
+    conductivity: 411148
+    pressure: 4053
+    ctd_time: 427989601
+  - _index: 4
     particle_object: CtdmoParserDataParticle
     particle_type: ctdmo_ghqr_sio_mule_instrument
     internal_timestamp: '2013-07-24T16:00:01'
@@ -25,7 +41,7 @@ data:
     conductivity: 417778
     pressure: 4046
     ctd_time: 427996801
-  - _index: 3
+  - _index: 5
     particle_object: CtdmoParserDataParticle
     particle_type: ctdmo_ghqr_sio_mule_instrument
     internal_timestamp: '2013-07-24T18:00:01'
@@ -35,7 +51,7 @@ data:
     conductivity: 410396
     pressure: 4002
     ctd_time: 428004001
-  - _index: 4
+  - _index: 6
     particle_object: CtdmoOffsetDataParticle
     particle_type: ctdmo_ghqr_sio_offset
     internal_timestamp: '2013-07-24T22:07:18'

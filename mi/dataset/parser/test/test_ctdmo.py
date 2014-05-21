@@ -11,7 +11,7 @@ from mi.core.log import get_logger ; log = get_logger()
 from mi.dataset.test.test_parser import ParserUnitTestCase
 from mi.dataset.parser.sio_mule_common import StateKey
 from mi.dataset.parser.ctdmo import CtdmoParser, CtdmoParserDataParticle
-from mi.dataset.parser.ctdmo import CtdmoOffsetParserDataParticle
+from mi.dataset.parser.ctdmo import CtdmoOffsetDataParticle
 from mi.dataset.dataset_driver import DataSetDriverConfigKeys
 from mi.core.instrument.data_particle import DataParticleKey
 from mi.core.exceptions import DatasetParserException
@@ -62,15 +62,15 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         self.particle_g = CtdmoParserDataParticle(b'51EFFBB6\x37\x32\t6F\x0c\xd5\x0fa\x9a\x82\x19\r')
 
 	# first offset at 9543
-	self.particle_a_offset = CtdmoOffsetParserDataParticle(b'51F050167\x00\x00\x00\x00\x13')
+	self.particle_a_offset = CtdmoOffsetDataParticle(b'51F050167\x00\x00\x00\x00\x13')
 
         # in long file, starts at 13453
         self.particle_z = CtdmoParserDataParticle(b'51F0A47673\xb9\xa6]\x93\xf2\x0f!C\x83\x19\r')
 
 	# in longest file second offset at 19047
-	self.particle_b_offset = CtdmoOffsetParserDataParticle(b'51F1A1967\x00\x00\x00\x00\x13')
+	self.particle_b_offset = CtdmoOffsetDataParticle(b'51F1A1967\x00\x00\x00\x00\x13')
 	# third offset at 30596
-	self.particle_c_offset = CtdmoOffsetParserDataParticle(b'51F2F3167\x00\x00\x00\x00\x13')
+	self.particle_c_offset = CtdmoOffsetDataParticle(b'51F2F3167\x00\x00\x00\x00\x13')
 
         self.state_callback_value = None
         self.publish_callback_value = None
@@ -188,14 +188,14 @@ class CtdmoParserUnitTestCase(ParserUnitTestCase):
         self.parser = CtdmoParser(self.config, None, self.stream_handle, 
                                   self.state_callback, self.pub_callback, self.exception_callback) 
 
-        result = self.parser.get_records(34)
+        result = self.parser.get_records(36)
         self.assertEqual(result[0], self.particle_a)
         self.assertEqual(result[1], self.particle_b)
         self.assertEqual(result[2], self.particle_c)
         self.assertEqual(result[3], self.particle_d)
         self.assertEqual(result[9], self.particle_a_offset)
         self.assertEqual(result[12], self.particle_z)
-        self.assertEqual(result[21], self.particle_b_offset)
+        self.assertEqual(result[22], self.particle_b_offset)
         self.assertEqual(result[-1], self.particle_c_offset)
 
         self.assert_state([],
