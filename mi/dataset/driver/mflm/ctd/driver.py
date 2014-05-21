@@ -17,6 +17,7 @@ from mi.dataset.harvester import SingleFileHarvester
 from mi.dataset.dataset_driver import HarvesterType, MultipleHarvesterDataSetDriver
 from mi.dataset.dataset_driver import DriverStateKey
 from mi.dataset.parser.ctdmo import CtdmoParser, CtdmoParserDataParticle
+from mi.dataset.parser.ctdmo import CtdmoOffsetDataParticle
 from mi.dataset.parser.sio_mule_common import StateKey
 
 class DataSourceKey(BaseEnum):
@@ -31,7 +32,8 @@ class MflmCTDMODataSetDriver(MultipleHarvesterDataSetDriver):
     @classmethod
     def stream_config(cls):
         # Once the recovered parser exists, particles should be added here
-        return [CtdmoParserDataParticle.type()]
+        return [CtdmoParserDataParticle.type(),
+                CtdmoOffsetDataParticle.type()]
 
     def __init__(self, config, memento, data_callback, state_callback, event_callback, exception_callback):
         # initialize the possible types of harvester/parser pairs for this driver
@@ -67,7 +69,8 @@ class MflmCTDMODataSetDriver(MultipleHarvesterDataSetDriver):
         config = self._parser_config[DataSourceKey.CTDMO_GHQR_SIO_MULE]
         config.update({
             'particle_module': 'mi.dataset.parser.ctdmo',
-            'particle_class': 'CtdmoParserDataParticle'
+            'particle_class': ['CtdmoParserDataParticle',
+                               'CtdmoOffsetDataParticle']
         })
         log.debug("MYCONFIG: %s", config)
         ctdmo_ghqr_sio_mule_parser = CtdmoParser(
