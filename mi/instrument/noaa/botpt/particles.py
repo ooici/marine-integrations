@@ -11,6 +11,7 @@ __license__ = 'Apache 2.0'
 
 import re
 import time
+
 from mi.core.common import BaseEnum
 from mi.core.instrument.data_particle import DataParticle
 from mi.core.instrument.data_particle import DataParticleKey
@@ -25,10 +26,10 @@ NANO = 'NANO'
 SYST = 'SYST'
 
 common_regex_items = {
-    'float': r'-?\d*\.\d*',
-    'int': r'-?\d+',
-    'date_time': r'\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}',
-    'word': r'\S+',
+    'float': r'\s*-?\d*\.\d*\s*',
+    'int': r'\s*-?\d+\s*',
+    'date_time': r'\s*\d{4}/\d{2}/\d{2}\s\d{2}:\d{2}:\d{2}\.?\d*\s*',
+    'word': r'\s*\S+\s*',
     'newline': NEWLINE
 }
 
@@ -36,11 +37,11 @@ sample_data = {
     IRIS: [
         'IRIS,2013/05/29 00:25:36, -0.0885, -0.7517,28.49,N8642',
         'IRIS,2013/05/29 00:25:34, -0.0882, -0.7524,28.45,N8642',
-        ],
+    ],
     HEAT: [
         'HEAT,2013/04/23 18:24:46,0000,0001,0025',
         'HEAT,2013/04/19 22:54:11,001,0001,0025',
-        ],
+    ],
     LILY: [
         'LILY,2013/06/24 23:22:00,-236.026,  25.666,194.25, 26.01,11.96,N9655',
         'LILY,2013/06/24 23:22:02,-236.051,  25.611,194.25, 26.02,11.96,N9655',
@@ -50,7 +51,7 @@ sample_data = {
         'LILY,2013/07/02 23:41:27,*  -5.296,  -2.640,185.18, 28.44,,Leveled!11.87,N9651',
         'LILY,2013/03/22 19:07:28,*-330.000,-330.000,185.45, -6.45,,X Axis out of range, switching to Y!11.37,N9651',
         'LILY,2013/03/22 19:07:29,*-330.000,-330.000,184.63, -6.43,,Y Axis out of range!11.34,N9651',
-        ],
+    ],
     NANO: [
         'NANO,V,2013/08/22 22:48:36.013,13.888533,26.147947328'
     ],
@@ -145,8 +146,8 @@ class IRISDataParticle(DataParticle):
         (?P<y_tilt>     %(float)s       ),
         (?P<temp>       %(float)s       ),
         (?P<serial>     %(word)s        )
-        %(newline)s
         ''' % common_regex_items
+        pattern = 'IRIS,(%(date_time)s),(%(float)s),(%(float)s)(%(float)s)(%(word)s)%(newline)s' % common_regex_items
 
         # pattern = r'IRIS,'  # pattern starts with IRIS '
         # pattern += r'(.*),'  # 1 time
@@ -225,7 +226,7 @@ class HEATDataParticle(DataParticle):
         (?P<date_time>  %(date_time)s ),
         (?P<x_tilt>     %(int)s       ),
         (?P<y_tilt>     %(int)s       ),
-        (?P<temp>       %(int)s       ),
+        (?P<temp>       %(int)s       )
         ''' % common_regex_items
         return pattern
         # pattern = r'HEAT,'  # pattern starts with HEAT '
@@ -317,7 +318,6 @@ class LILYDataParticle(DataParticle):
         (?P<temp>       %(float)s       ),
         (?P<volts>      %(float)s       ),
         (?P<serial>     %(word)s        )
-        %(newline)s
         ''' % common_regex_items
         return pattern
 
@@ -427,7 +427,6 @@ class LILYLevelingParticle(DataParticle):
         (?P<temp>       %(float)s       ),
         (?P<volts>      %(float)s|,\D*%(float)s ),  # leveling status stuffed here, mangled
         (?P<serial>     %(word)s        )
-        %(newline)s
         ''' % common_regex_items
         return pattern
 
@@ -521,7 +520,7 @@ class NANODataParticle(DataParticle):
         (?P<pps_sync>    V|P             ),
         (?P<date_time>  %(date_time)s   ),
         (?P<pressure>   %(float)s       ), # PSI
-        (?P<temp>       %(float)s       ), # deg C
+        (?P<temp>       %(float)s       )  # deg C
         %(newline)s
         ''' % common_regex_items
         return pattern
@@ -586,6 +585,7 @@ class NANODataParticle(DataParticle):
 
         return result
 
+
 if __name__ == '__main__':
     regexes = [
         LILYDataParticle.regex_compiled(),
@@ -594,9 +594,13 @@ if __name__ == '__main__':
         HEATDataParticle.regex_compiled(),
         IRISDataParticle.regex_compiled(),
     ]
-    for instrument, lines in sample_data:
+    for instrument, lines in sample_data.items():
         print instrument
         for line in lines:
+            line = line + NEWLINE
+            print line
             for regex in regexes:
-                if regex.match(line):
-                    print line, regex.pattern
+                #print regex.pattern, line
+                match = regex.search(line)
+                if match:
+                    print match.groups()
