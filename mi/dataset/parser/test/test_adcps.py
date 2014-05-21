@@ -186,7 +186,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
         # 5000
         self.state = {StateKey.UNPROCESSED_DATA:[[0, 5000]],
             StateKey.IN_PROCESS_DATA:[]}
-        self.parser = AdcpsParser(self.config, self.state, self.stream_handle, 
+        self.parser = AdcpsParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback)
 
         result = self.parser.get_records(1)
@@ -210,7 +210,7 @@ class AdcpsParserUnitTestCase(ParserUnitTestCase):
             StateKey.IN_PROCESS_DATA:[]}
         self.stream_handle = open(os.path.join(RESOURCE_PATH,
                                                'node59p1_shorter.dat'))
-        self.parser = AdcpsParser(self.config, self.state, self.stream_handle, 
+        self.parser = AdcpsParser(self.config, self.state, self.stream_handle,
                                   self.state_callback, self.pub_callback, self.exception_callback) 
 
         result = self.parser.get_records(5)
