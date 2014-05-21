@@ -25,11 +25,11 @@ from mi.core.exceptions import SampleException, RecoverableSampleException, Data
 from mi.core.instrument.data_particle import DataParticle, DataParticleKey, DataParticleValue
 
 class DataParticleType(BaseEnum):
-    CT = 'ctdmo_ghqr__mule_sio_instrument'
-    CO = 'ctdmo_ghqr__mule_sio_offset'
+    CT = 'ctdmo_ghqr_sio_mule_instrument'
+    CO = 'ctdmo_ghqr_sio_offset'
     
 class CtdmoParserDataParticleKey(BaseEnum):
-    CONTROLLER_TIMESTAMP = "controller_timestamp"
+    CONTROLLER_TIMESTAMP = "sio_controller_timestamp"
     INDUCTIVE_ID = "inductive_id"
     TEMPERATURE = "temperature"
     CONDUCTIVITY = "conductivity"
