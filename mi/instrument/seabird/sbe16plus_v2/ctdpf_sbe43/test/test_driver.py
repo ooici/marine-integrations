@@ -42,20 +42,19 @@ from mi.instrument.seabird.test.test_driver import SeaBirdIntegrationTest
 from mi.instrument.seabird.test.test_driver import SeaBirdQualificationTest
 from mi.instrument.seabird.test.test_driver import SeaBirdPublicationTest
 
-
-from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import DataParticleType
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ProtocolState
-from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ProtocolEvent
+
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Capability
-from mi.instrument.seabird.sbe16plus_v2.ctdpf_sbe43.driver import Parameter
-from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import ConfirmedParameter
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Command
 
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import SBE19CalibrationParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import Prompt
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver import NEWLINE
 
-
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_sbe43.driver import ProtocolEvent
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_sbe43.driver import Parameter
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_sbe43.driver import ConfirmedParameter
+from mi.instrument.seabird.sbe16plus_v2.ctdpf_sbe43.driver import DataParticleType
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_sbe43.driver import SBE43DataParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_sbe43.driver import SBE43ConfigurationParticleKey
 from mi.instrument.seabird.sbe16plus_v2.ctdpf_sbe43.driver import SBE43HardwareParticleKey
@@ -71,11 +70,11 @@ from pyon.agent.agent import ResourceAgentState
 #   Driver parameters for the tests
 ###
 InstrumentDriverTestCase.initialize(
-    driver_module='mi.instrument.seabird.sbe16plus_v2.ctdpf_jb.driver',
+    driver_module='mi.instrument.seabird.sbe16plus_v2.ctdpf_sbe43.driver',
     driver_class="InstrumentDriver",
 
     instrument_agent_resource_id = 'JI22B5',
-    instrument_agent_name = 'seabird_sbe16plus_v2_ctdpf_jb',
+    instrument_agent_name = 'seabird_sbe16plus_v2_ctdpf_sbe43',
     instrument_agent_packet_config = DataParticleType(),
 
     driver_startup_config = {}
@@ -149,7 +148,7 @@ class SBE43Mixin(DriverTestMixin):
     VALID_GETHD_RESPONSE =  "" + \
 "<HardwareData DeviceType = 'SBE19plus' SerialNumber = '01906914'>" + NEWLINE + \
 "   <Manufacturer>Sea-Bird Electronics, Inc.</Manufacturer>" + NEWLINE + \
-"   <FirmwareVersion>2.3</FirmwareVersion>" + NEWLINE + \
+"   <FirmwareVersion>2.5.2</FirmwareVersion>" + NEWLINE + \
 "   <FirmwareDate>16 March 2011 08:50</FirmwareDate>" + NEWLINE + \
 "   <CommandSetVersion>1.2</CommandSetVersion>" + NEWLINE + \
 "   <PCBAssembly PCBSerialNum = '49577' AssemblyNum = '41054H'/>" + NEWLINE + \
@@ -289,7 +288,7 @@ class SBE43Mixin(DriverTestMixin):
 "   </Battery>" + NEWLINE + \
 "   <DataChannels>" + NEWLINE + \
 "      <ExtVolt0>yes</ExtVolt0>" + NEWLINE + \
-"      <ExtVolt1>yes</ExtVolt1>" + NEWLINE + \
+"      <ExtVolt1>no</ExtVolt1>" + NEWLINE + \
 "      <ExtVolt2>no</ExtVolt2>" + NEWLINE + \
 "      <ExtVolt3>no</ExtVolt3>" + NEWLINE + \
 "      <ExtVolt4>no</ExtVolt4>" + NEWLINE + \
@@ -338,8 +337,8 @@ class SBE43Mixin(DriverTestMixin):
         'autorun = no, ignore magnetic switch = yes' + NEWLINE + \
         'battery type = alkaline, battery cutoff =  7.5 volts' + NEWLINE + \
         'pressure sensor = strain gauge, range = 508.0' + NEWLINE + \
-        'SBE 38 = no, WETLABS = no, OPTODE = no, SBE 63 = no, Gas Tension Device = no' + NEWLINE + \
-        'Ext Volt 0 = yes, Ext Volt 1 = yes' + NEWLINE + \
+        'SBE 38 = no, WETLABS = no, OPTODE = no, SBE63 = no, Gas Tension Device = no' + NEWLINE + \
+        'Ext Volt 0 = yes, Ext Volt 1 = no' + NEWLINE + \
         'Ext Volt 2 = no, Ext Volt 3 = no' + NEWLINE + \
         'Ext Volt 4 = no, Ext Volt 5 = no' + NEWLINE + \
         'echo characters = no' + NEWLINE + \
@@ -368,7 +367,7 @@ class SBE43Mixin(DriverTestMixin):
         SBE43ConfigurationParticleKey.BATTERY_TYPE: {TYPE: unicode, VALUE: "alkaline", REQUIRED: True},
         SBE43ConfigurationParticleKey.BATTERY_CUTOFF: {TYPE: float, VALUE: 7.5, REQUIRED: True},
         SBE43ConfigurationParticleKey.EXT_VOLT_0: {TYPE: bool, VALUE: True, REQUIRED: True},
-        SBE43ConfigurationParticleKey.EXT_VOLT_1: {TYPE: bool, VALUE: True, REQUIRED: True},
+        SBE43ConfigurationParticleKey.EXT_VOLT_1: {TYPE: bool, VALUE: False, REQUIRED: True},
         SBE43ConfigurationParticleKey.EXT_VOLT_2: {TYPE: bool, VALUE: False, REQUIRED: True},
         SBE43ConfigurationParticleKey.EXT_VOLT_3: {TYPE: bool, VALUE: False, REQUIRED: True},
         SBE43ConfigurationParticleKey.EXT_VOLT_4: {TYPE: bool, VALUE: False, REQUIRED: True},
@@ -402,7 +401,7 @@ class SBE43Mixin(DriverTestMixin):
 
     _hardware_parameters = {
         SBE43HardwareParticleKey.SERIAL_NUMBER: {TYPE: int, VALUE: 1906914, REQUIRED: True},
-        SBE43HardwareParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: '2.3', REQUIRED: True},
+        SBE43HardwareParticleKey.FIRMWARE_VERSION: {TYPE: unicode, VALUE: '2.5.2', REQUIRED: True},
         SBE43HardwareParticleKey.FIRMWARE_DATE: {TYPE: unicode, VALUE: '16 March 2011 08:50', REQUIRED: True},
         SBE43HardwareParticleKey.COMMAND_SET_VERSION: {TYPE: unicode, VALUE: '1.2', REQUIRED: True},
         SBE43HardwareParticleKey.PCB_SERIAL_NUMBER: {TYPE: list, VALUE: ['49577', '46750', '49374', '38071'], REQUIRED: True},
@@ -474,7 +473,7 @@ class SBE43Mixin(DriverTestMixin):
         Parameter.DATE_TIME : {TYPE: str, READONLY: True, DA: False, STARTUP: False},
         Parameter.PTYPE : {TYPE: int, READONLY: True, DA: True, STARTUP: True, DEFAULT: 1, VALUE: 1},
         Parameter.VOLT0 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: True, VALUE: True},
-        Parameter.VOLT1 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: True},
+        Parameter.VOLT1 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.VOLT2 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.VOLT3 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
         Parameter.VOLT4 : {TYPE: bool, READONLY: True, DA: True, STARTUP: True, DEFAULT: False, VALUE: False},
@@ -764,11 +763,190 @@ class SBE43UnitTestCase(SeaBirdUnitTest, SBE43Mixin):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class SBE19IntegrationTest(SeaBirdIntegrationTest, SBE43Mixin):
+class SBE43IntegrationTest(SeaBirdIntegrationTest, SBE43Mixin):
 
     def test_connection(self):
         self.assert_initialize_driver()
 
+    def test_set(self):
+        """
+        Test all set commands. Verify all exception cases.
+        """
+        self.assert_initialize_driver()
+
+        # Verify we can set all parameters in bulk
+        new_values = {
+            Parameter.PUMP_DELAY: 55,
+            Parameter.NUM_AVG_SAMPLES: 2
+        }
+        self.assert_set_bulk(new_values)
+
+        # Pump Delay: Range 0 - 600 seconds
+        self.assert_set(Parameter.PUMP_DELAY, 0)
+        self.assert_set(Parameter.PUMP_DELAY, 600)
+
+        # Test bad values
+        self.assert_set_exception(Parameter.PUMP_DELAY, -1)
+        self.assert_set_exception(Parameter.PUMP_DELAY, 601)
+        self.assert_set_exception(Parameter.PUMP_DELAY, 'bad')
+
+        # Num Avg Samples: Range 1 - 32767
+        self.assert_set(Parameter.NUM_AVG_SAMPLES, 1)
+        self.assert_set(Parameter.NUM_AVG_SAMPLES, 32767)
+
+        # Test bad values
+        self.assert_set_exception(Parameter.NUM_AVG_SAMPLES, 0)
+        self.assert_set_exception(Parameter.NUM_AVG_SAMPLES, 32768)
+        self.assert_set_exception(Parameter.NUM_AVG_SAMPLES, 'bad')
+
+        # Set params back to their default values
+        self.assert_set(Parameter.PUMP_DELAY, 60)
+        self.assert_set(Parameter.NUM_AVG_SAMPLES, 4)
+
+        # Attempt to set Read only params
+        self.assert_set_readonly(Parameter.PTYPE, 1)
+        self.assert_set_readonly(Parameter.VOLT0, False)
+        self.assert_set_readonly(Parameter.VOLT1, True)
+        self.assert_set_readonly(Parameter.VOLT2, True)
+        self.assert_set_readonly(Parameter.VOLT3, True)
+        self.assert_set_readonly(Parameter.VOLT4, True)
+        self.assert_set_readonly(Parameter.VOLT5, True)
+        self.assert_set_readonly(Parameter.SBE38, True)
+        self.assert_set_readonly(Parameter.SBE63, True)
+        self.assert_set_readonly(Parameter.WETLABS, True)
+        self.assert_set_readonly(Parameter.GTD, True)
+        self.assert_set_readonly(Parameter.DUAL_GTD, True)
+        self.assert_set_readonly(Parameter.OPTODE, False)
+        self.assert_set_readonly(Parameter.MIN_COND_FREQ, 400)
+        self.assert_set_readonly(Parameter.OUTPUT_FORMAT, 1)
+        self.assert_set_readonly(Parameter.LOGGING, True)
+        self.assert_set_readonly(Parameter.AUTO_RUN, True)
+        self.assert_set_readonly(Parameter.IGNORE_SWITCH, False)
+
+    def test_commands(self):
+        """
+        Run instrument commands from both command and streaming mode.
+        """
+        self.assert_initialize_driver()
+
+        ####
+        # First test in command mode
+        ####
+        self.assert_driver_command(ProtocolEvent.CLOCK_SYNC)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_SAMPLE)
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION)
+        self.assert_driver_command(ProtocolEvent.RESET_EC)
+
+        # Invalid command/state transition: try to stop autosampling in command mode
+        self.assert_driver_command_exception(ProtocolEvent.STOP_AUTOSAMPLE, exception_class=InstrumentCommandException)
+
+        ####
+        # Test in streaming mode
+        ####
+        # Put us in streaming
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+
+        self.assert_driver_command(ProtocolEvent.ACQUIRE_STATUS)
+        self.assert_driver_command(ProtocolEvent.GET_CONFIGURATION)
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+
+        ####
+        # Test a bad command
+        ####
+        self.assert_driver_command_exception('ima_bad_command', exception_class=InstrumentCommandException)
+
+    def test_parameters(self):
+        """
+        Test driver parameters and verify their type. Also verify the parameter values for startup
+        params.  This test confirms that parameters are being read/converted properly and that
+        the startup has been applied.
+        """
+        self.assert_initialize_driver()
+        reply = self.driver_client.cmd_dvr('get_resource', Parameter.ALL)
+        self.assert_driver_parameters(reply, True)
+
+    def test_startup_params(self):
+        """
+        Verify that startup parameters are applied correctly. Generally this
+        happens in the driver discovery method.
+        """
+
+        # Explicitly verify these values after discover.  They should match
+        # what the startup values should be
+        get_values = {
+            Parameter.PUMP_DELAY: 60,
+            Parameter.NUM_AVG_SAMPLES: 4
+        }
+
+        # Change the values of these parameters to something before the
+        # driver is reinitialized.  They should be blown away on reinit.
+        new_values = {
+            Parameter.PUMP_DELAY: 55,
+            Parameter.NUM_AVG_SAMPLES: 2
+        }
+
+        self.assert_initialize_driver()
+        self.assert_startup_parameters(self.assert_driver_parameters, new_values, get_values)
+
+        self.assert_set_bulk(new_values)
+
+         # Start autosample and try again
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_startup_parameters(self.assert_driver_parameters)
+        self.assert_current_state(ProtocolState.AUTOSAMPLE)
+
+        #stop autosampling
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
+
+    def test_status(self):
+        self.assert_initialize_driver()
+
+        # test acquire_status particles
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_status)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_HARDWARE, self.assert_particle_hardware)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CONFIGURATION, self.assert_particle_configuration)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
+
+    def test_configuration(self):
+        self.assert_initialize_driver()
+
+        # test get_configuration particle
+        self.assert_particle_generation(ProtocolEvent.GET_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
+
+    def test_polled(self):
+        """
+        Test that we can generate particles with commands while in command mode
+        """
+        self.assert_initialize_driver()
+
+        # test acquire_sample data particle
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_SAMPLE, DataParticleType.CTD_PARSED, self.assert_particle_sample)
+
+    def test_autosample(self):
+        """
+        Verify that we can enter streaming and that all particles are produced
+        properly.
+
+        Because we have to test for many different data particles we can't use
+        the common assert_sample_autosample method
+        """
+        self.assert_initialize_driver()
+
+        self.assert_driver_command(ProtocolEvent.START_AUTOSAMPLE, state=ProtocolState.AUTOSAMPLE, delay=1)
+        self.assert_async_particle_generation(DataParticleType.CTD_PARSED, self.assert_particle_sample, timeout=60)
+
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_STATUS, self.assert_particle_status)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_HARDWARE, self.assert_particle_hardware)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CONFIGURATION, self.assert_particle_configuration)
+        self.assert_particle_generation(ProtocolEvent.ACQUIRE_STATUS, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
+
+        self.assert_particle_generation(ProtocolEvent.GET_CONFIGURATION, DataParticleType.DEVICE_CALIBRATION, self.assert_particle_calibration)
+
+        self.assert_driver_command(ProtocolEvent.STOP_AUTOSAMPLE, state=ProtocolState.COMMAND, delay=1)
 
 ###############################################################################
 #                            QUALIFICATION TESTS                              #
@@ -777,6 +955,257 @@ class SBE19IntegrationTest(SeaBirdIntegrationTest, SBE43Mixin):
 # be tackled after all unit and integration tests are complete                #
 ###############################################################################
 @attr('QUAL', group='mi')
-class SBE19QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
+class SBE43QualificationTest(SeaBirdQualificationTest, SBE43Mixin):
     def setUp(self):
         SeaBirdQualificationTest.setUp(self)
+
+    @unittest.skip("pass")
+    def test_direct_access_telnet_mode(self):
+        """
+        @brief This test verifies that the Instrument Driver
+               properly supports direct access to the physical
+               instrument. (telnet mode)
+        """
+        ###
+        # First test direct access and exit with a go command
+        # call.  Also add a parameter change to verify DA
+        # parameters are restored on DA exit.
+        ###
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(Parameter.OUTPUT_FORMAT, 0)
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet()
+        self.tcp_client.send_data("%soutputformat=1%s" % (NEWLINE, NEWLINE))
+
+        #need to sleep as the instrument needs time to apply the new param value
+        time.sleep(5)
+
+        # Verfy the param value got changed on the instrument
+        self.tcp_client.send_data("%sGetCD%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.expect("<OutputFormat>converted HEX</OutputFormat>")
+        self.assert_direct_access_stop_telnet()
+
+        # verify the setting remained unchanged in the param dict
+        self.assert_enter_command_mode()
+        self.assert_get_parameter(Parameter.OUTPUT_FORMAT, 0)
+
+    @unittest.skip("pass")
+    def test_direct_access_telnet_mode_autosample(self):
+        """
+        @brief Same as the previous DA test except in this test
+               we force the instrument into streaming when in
+               DA.  Then we need to verify the transition back
+               to the driver works as expected.
+        """
+        ###
+        # First test direct access and exit with a go command
+        # call.  Also add a parameter change to verify DA
+        # parameters are restored on DA exit.
+        ###
+        self.assert_enter_command_mode()
+
+        # go into direct access, and muck up a setting.
+        self.assert_direct_access_start_telnet()
+        self.assertTrue(self.tcp_client)
+
+        #start logging
+        self.tcp_client.send_data("%sstartnow%s" % (NEWLINE, NEWLINE))
+        time.sleep(2)
+
+        #verify we're logging
+        self.tcp_client.send_data("%sGetSD%s" % (NEWLINE, NEWLINE))
+        self.tcp_client.expect("<LoggingState>logging</LoggingState>")
+
+        #Assert if stopping DA while autosampling, discover will put driver into Autosample state
+        self.assert_direct_access_stop_telnet()
+        self.assert_state_change(ResourceAgentState.STREAMING, ProtocolState.AUTOSAMPLE, timeout=10)
+
+        #now stop autosampling
+        self.assert_stop_autosample()
+
+
+    @unittest.skip("pass")
+    def test_direct_access_telnet_timeout(self):
+        """
+        Verify that direct access times out as expected and the agent transitions back to command mode.
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access
+        self.assert_direct_access_start_telnet(timeout=30)
+        self.assertTrue(self.tcp_client)
+
+        self.assert_state_change(ResourceAgentState.IDLE, ProtocolState.COMMAND, 180)
+
+
+    # Override this test because the base class contains too short a duration for the instrument to
+    # transition back to command mode.
+    def test_direct_access_telnet_closed(self):
+        """
+        Verify that a disconnection from the DA server transitions the agent back to
+        command mode.
+        """
+        self.assert_enter_command_mode()
+
+        # go into direct access
+        self.assert_direct_access_start_telnet(timeout=600)
+        self.assertTrue(self.tcp_client)
+        self.tcp_client.disconnect()
+
+        self.assert_state_change(ResourceAgentState.IDLE, ProtocolState.COMMAND, 120)
+
+    @unittest.skip("pass")
+    def test_poll(self):
+        '''
+        Verify that we can poll for a sample.  Take sample for this instrument
+        Also poll for other engineering data streams.
+        '''
+        self.assert_enter_command_mode()
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_SAMPLE, self.assert_particle_sample, DataParticleType.CTD_PARSED, sample_count=1, timeout=30)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status, DataParticleType.DEVICE_STATUS, sample_count=1, timeout=30)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_hardware, DataParticleType.DEVICE_HARDWARE, sample_count=1, timeout=30)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.DEVICE_CONFIGURATION, sample_count=1, timeout=30)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
+
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
+
+    @unittest.skip("pass")
+    def test_autosample(self):
+        """
+        Verify autosample works and data particles are created
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_start_autosample()
+        self.assert_particle_async(DataParticleType.CTD_PARSED, self.assert_particle_sample)
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status, DataParticleType.DEVICE_STATUS, sample_count=1, timeout=30)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_hardware, DataParticleType.DEVICE_HARDWARE, sample_count=1, timeout=30)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.DEVICE_CONFIGURATION, sample_count=1, timeout=30)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
+
+        # Stop autosample and do run a couple commands.
+        self.assert_stop_autosample()
+
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_status, DataParticleType.DEVICE_STATUS, sample_count=1, timeout=30)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_hardware, DataParticleType.DEVICE_HARDWARE, sample_count=1, timeout=30)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_configuration, DataParticleType.DEVICE_CONFIGURATION, sample_count=1, timeout=30)
+        self.assert_particle_polled(ProtocolEvent.ACQUIRE_STATUS, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
+
+        self.assert_particle_polled(ProtocolEvent.GET_CONFIGURATION, self.assert_particle_calibration, DataParticleType.DEVICE_CALIBRATION, sample_count=1, timeout=30)
+
+        # Restart autosample and gather a couple samples
+        self.assert_sample_autosample(self.assert_particle_sample, DataParticleType.CTD_PARSED)
+
+    @unittest.skip("pass")
+    def test_execute_clock_sync(self):
+        """
+        Verify we can synchronize the instrument internal clock
+        """
+        self.assert_enter_command_mode()
+
+        self.assert_execute_resource(ProtocolEvent.CLOCK_SYNC)
+
+        # get the time from the driver
+        check_new_params = self.instrument_agent_client.get_resource([Parameter.DATE_TIME])
+        # convert driver's time from formatted date/time string to seconds integer
+        instrument_time = time.mktime(time.strptime(check_new_params.get(Parameter.DATE_TIME).lower(), "%d %b %Y %H:%M:%S"))
+
+        # need to convert local machine's time to date/time string and back to seconds to 'drop' the DST attribute so test passes
+        # get time from local machine
+        lt = time.strftime("%d %b %Y %H:%M:%S", time.gmtime(time.mktime(time.localtime())))
+        # convert local time from formatted date/time string to seconds integer to drop DST
+        local_time = time.mktime(time.strptime(lt, "%d %b %Y %H:%M:%S"))
+
+        # Now verify that the time matches to within 15 seconds
+        self.assertLessEqual(abs(instrument_time - local_time), 15)
+
+    @unittest.skip("pass")
+    def test_get_set_parameters(self):
+        '''
+        verify that parameters can be set properly
+        '''
+        self.assert_enter_command_mode()
+
+        #attempt to change some parameters
+        self.assert_set_parameter(Parameter.NUM_AVG_SAMPLES, 2)
+        self.assert_set_parameter(Parameter.PUMP_DELAY, 55)
+
+        #set parameters back to their default values
+        self.assert_set_parameter(Parameter.NUM_AVG_SAMPLES, 4)
+        self.assert_set_parameter(Parameter.PUMP_DELAY, 60)
+
+        #get parameters and verify values
+        self.assert_get_parameter(Parameter.NUM_AVG_SAMPLES, 4)
+        self.assert_get_parameter(Parameter.PUMP_DELAY, 60)
+
+    @unittest.skip("pass")
+    def test_get_capabilities(self):
+        """
+        @brief Verify that the correct capabilities are returned from get_capabilities
+        at various driver/agent states.
+        """
+        self.assert_enter_command_mode()
+
+        ##################
+        #  Command Mode
+        ##################
+        capabilities = {
+            AgentCapabilityType.AGENT_COMMAND: self._common_agent_commands(ResourceAgentState.COMMAND),
+            AgentCapabilityType.AGENT_PARAMETER: self._common_agent_parameters(),
+            AgentCapabilityType.RESOURCE_COMMAND: [
+                ProtocolEvent.GET,
+                ProtocolEvent.SET,
+                ProtocolEvent.RESET_EC,
+                ProtocolEvent.CLOCK_SYNC,
+                ProtocolEvent.ACQUIRE_STATUS,
+                ProtocolEvent.START_AUTOSAMPLE,
+                ProtocolEvent.GET_CONFIGURATION,
+                ],
+            AgentCapabilityType.RESOURCE_INTERFACE: None,
+            AgentCapabilityType.RESOURCE_PARAMETER: self._driver_parameters.keys()
+        }
+
+        self.assert_capabilities(capabilities)
+
+        ##################
+        #  Streaming Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.STREAMING)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] =  [
+            ProtocolEvent.GET,
+            ProtocolEvent.STOP_AUTOSAMPLE,
+            ProtocolEvent.ACQUIRE_STATUS,
+            ProtocolEvent.GET_CONFIGURATION,
+            ]
+
+        self.assert_start_autosample()
+        self.assert_capabilities(capabilities)
+        self.assert_stop_autosample()
+
+        ##################
+        #  DA Mode
+        ##################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.DIRECT_ACCESS)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = self._common_da_resource_commands()
+
+        self.assert_direct_access_start_telnet()
+        self.assert_capabilities(capabilities)
+        self.assert_direct_access_stop_telnet()
+
+        #######################
+        #  Uninitialized Mode
+        #######################
+
+        capabilities[AgentCapabilityType.AGENT_COMMAND] = self._common_agent_commands(ResourceAgentState.UNINITIALIZED)
+        capabilities[AgentCapabilityType.RESOURCE_COMMAND] = []
+        capabilities[AgentCapabilityType.RESOURCE_INTERFACE] = []
+        capabilities[AgentCapabilityType.RESOURCE_PARAMETER] = []
+
+        self.assert_reset()
+        self.assert_capabilities(capabilities)
