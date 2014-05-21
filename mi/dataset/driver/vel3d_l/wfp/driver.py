@@ -13,23 +13,30 @@ __author__ = 'Steve Myerson (Raytheon)'
 __license__ = 'Apache 2.0'
 
 
-import string
+#import string
 
 from mi.core.common import BaseEnum
 from mi.core.log import get_logger; log = get_logger()
 
-from mi.dataset.dataset_driver import MultipleHarvesterDataSetDriver
-from mi.dataset.driver.mflm.driver import MflmDataSetDriver
-from mi.dataset.harvester import SingleDirectoryHarvester, SingleFileHarvester
+from mi.dataset.dataset_driver import \
+    HarvesterType, \
+    MultipleHarvesterDataSetDriver
+
+from mi.dataset.harvester import \
+    SingleDirectoryHarvester, \
+    SingleFileHarvester
 
 #
-# Telemetered data parser, Recovered data parser and associated particles
+# Vel3dLWfpParser - Recovered data parser (single directory)
+# Vel3dLWfpSioMuleParser - Telemetered data parser (single file)
+# Associated data particles
 #
 from mi.dataset.parser.vel3d_l_wfp import \
     Vel3dLWfpParser, \
     Vel3dLWfpSioMuleParser, \
     Vel3dLWfpInstrumentParticle, \
-    Vel3dLWfpMetadataParticle
+    Vel3dLWfpMetadataParticle, \
+    Vel3dLWfpSioMuleMetadataParticle
 
 
 class DataTypeKey(BaseEnum):
@@ -42,73 +49,70 @@ class Vel3dLWfp(MultipleHarvesterDataSetDriver):
     def __init__(self, config, memento, data_callback, state_callback,
                  event_callback, exception_callback):
 
-        data_keys = [DataTypeKey.VEL3D_L_WFP_SIO_MULE,
-                     DataTypeKey.VEL3D_L_WFP]
+        data_keys = [DataTypeKey.VEL3D_L_WFP, DataTypeKey.VEL3D_L_WFP_SIO_MULE]
+
+        harvester_type = {
+            DataTypeKey.VEL3D_L_WFP: HarvesterType.SINGLE_DIRECTORY,
+            DataTypeKey.VEL3D_L_WFP_SIO_MULE: HarvesterType.SINGLE_FILE
+        }
 
         super(Vel3dLWfp, self).__init__(config, memento, data_callback,
                                         state_callback, event_callback,
-                                        exception_callback, data_keys)
+                                        exception_callback,
+                                        data_keys, harvester_type)
     
     @classmethod
     def stream_config(cls):
         return [Vel3dLWfpInstrumentParticle.type(),
-                Vel3dLWfpMetadataParticle.type()]
+                Vel3dLWfpMetadataParticle.type(),
+                Vel3dLWfpSioMuleMetadataParticle.type()]
 
-    def _build_parser(self, parser_state, file_handle, filename=None, data_key=None):
+    def _build_parser(self, parser_state, file_handle, data_key=None):
         """
-        Build and return the parsers
+        Build and return the specified parser as indicated by the data_key.
         """
+        #
+        # If the key is VEL3D_L_WFP, build the WFP parser.
+        #
         if data_key == DataTypeKey.VEL3D_L_WFP:
-            log.info("XXXXXXXX  Build WFP parser")
-            parser = self.build_vel3d_l_wfp_parser(parser_state, file_handle)
+            config = self._parser_config
+            config.update({
+                'particle_module': 'mi.dataset.parser.vel3d_l_wfp',
+                'particle_class': ['Vel3dKWfpInstrumentParticle',
+                                   'Vel3dKWfpMetadataParticle']
+            })
+
+            log.info('BUILDING PARSER Vel3dLWfpParser')
+            parser = Vel3dLWfpParser(config, parser_state, file_handle,
+                lambda state, ingested:
+                    self._save_parser_state(state, data_key, ingested),
+                self._data_callback,
+                self._sample_exception_callback)
+
+        #
+        # If the key is VEL3D_L_WFP_SIO_MULE, build the WFP SIO Mule parser.
+        #
         elif data_key == DataTypeKey.VEL3D_L_WFP_SIO_MULE:
-            log.info("ZZZZZZZZ Build MULE Parser")
-            parser = self.build_vel3d_l_wfp_sio_mule_parser(parser_state, file_handle)
+            config = self._parser_config
+            config.update({
+                'particle_module': 'mi.dataset.parser.vel3d_l_wfp',
+                'particle_class': ['Vel3dKWfpInstrumentParticle',
+                                   'Vel3dLWfpSioMuleMetadataParticle']
+            })
+
+            log.info('BUILDING PARSER Vel3dLWfpSioMuleParser')
+            parser = Vel3dLWfpSioMuleParser(config, parser_state, file_handle,
+                lambda state:
+                    self._save_parser_state(state, data_key),
+                self._data_callback,
+                self._sample_exception_callback)
+
+        #
+        # If the key is one that we're not expecting, don't build any parser.
+        #
         else:
             parser = None
-        return parser
 
-    def build_vel3d_l_wfp_parser(self, parser_state, file_handle):
-        """
-        Build and return the vel3d_l_wfp parser
-        """
-        config = self._parser_config
-        config.update({
-            'particle_module': 'mi.dataset.parser.vel3d_l_wfp',
-            'particle_class': ['Vel3dKWfpInstrumentParticle',
-                               'Vel3dKWfpMetadataParticle']
-        })
-
-        log.debug("My Config: %s", config)
-        parser = Vel3dLWfpParser(
-            config,
-            parser_state,
-            file_handle,
-            self._save_parser_state,
-            self._data_callback,
-            self._exception_callback
-        )
-        return parser
-
-    def build_vel3d_l_wfp_sio_mule_parser(self, parser_state, file_handle):
-        """
-        Build and return the vel3d_l_wfp_sio_mule parser
-        """
-        config = self._parser_config
-        config.update({
-            'particle_module': 'mi.dataset.parser.vel3d_l_wfp_sio_mule',
-            'particle_class': ['Vel3dKWfpInstrumentParticle',
-                               'Vel3dKWfpMetadataParticle']
-        })
-        log.debug("My Config: %s", config)
-        parser = Vel3dLWfpSioMuleParser(
-            config,
-            parser_state,
-            file_handle,
-            self._save_parser_state,
-            self._data_callback,
-            self._exception_callback
-        )
         return parser
 
     def _build_harvester(self, driver_state):
@@ -116,41 +120,46 @@ class Vel3dLWfp(MultipleHarvesterDataSetDriver):
         Build and return the harvesters
         """
 
-        vel3d_l_wfp_harvester = SingleDirectoryHarvester(
-            self._harvester_config.get(DataTypeKey.VEL3D_L_WFP),
-            driver_state,
-            self._new_vel3d_l_wfp_file_callback,
-            self._modified_file_callback,
-            self._exception_callback
-        )
+        harvesters = []    # list of harvesters to be returned
 
-        log.info("XXXXXXXX  Build Harvester")
+        log.info('BUILD HARVESTER %s', self._harvester_config)
 
-        vel3d_l_wfp_sio_mule_harvester = SingleDirectoryHarvester(
-            self._harvester_config.get(DataTypeKey.VEL3D_L_WFP_SIO_MULE),
-            driver_state,
-            self._new_vel3d_l_wfp_sio_mule_file_callback,
-            self._modified_file_callback,
-            self._exception_callback
-        )
+        #
+        # Verify that the WFP harvester has been configured.
+        # If so, build the harvester and add it to the list of harvesters.
+        #
+        if DataTypeKey.VEL3D_L_WFP in self._harvester_config:
+            log.info('BUILDING WFP HARVESTER')
+            wfp_harvester = SingleDirectoryHarvester(
+                self._harvester_config.get(DataTypeKey.VEL3D_L_WFP),
+                driver_state[DataTypeKey.VEL3D_L_WFP],
+                lambda filename:
+                    self._new_file_callback(filename, DataTypeKey.VEL3D_L_WFP),
+                lambda modified:
+                    self._modified_file_callback(modified, DataTypeKey.VEL3D_L_WFP),
+                self._exception_callback)
 
-        self._harvester = [vel3d_l_wfp_harvester,
-                           vel3d_l_wfp_sio_mule_harvester]
+            if wfp_harvester is not None:
+                harvesters.append(wfp_harvester)
+                log.info('WFP HARVESTER BUILT')
 
-        return self._harvester
+        #
+        # Verify that the SIO Mule harvester has been configured.
+        # If so, build the harvester and add it to the list of harvesters.
+        #
+        if DataTypeKey.VEL3D_L_WFP_SIO_MULE in self._harvester_config:
+            log.info('BUILDING SIO HARVESTER')
+            sio_harvester = SingleFileHarvester(
+                self._harvester_config.get(DataTypeKey.VEL3D_L_WFP_SIO_MULE),
+                driver_state[DataTypeKey.VEL3D_L_WFP_SIO_MULE],
+                lambda file_state:
+                    self._file_changed_callback(file_state, DataTypeKey.VEL3D_L_WFP_SIO_MULE),
+                self._exception_callback)
 
-    def _new_vel3d_l_wfp_file_callback(self, file_name):
-        """
-        Callback used by the vel3d_l_wfp single directory harvester
-        called when a new file is detected.  Store the filename in a queue.
-        @param file_name: file name of the found file.
-        """
-        self._new_file_callback(file_name, DataTypeKey.VEL3D_L_WFP)
+            if sio_harvester is not None:
+                harvesters.append(sio_harvester)
+                log.info('SIO HARVESTER BUILT')
+            else:
+                log.info('SIO HARVESTER NOT BUILT')
 
-    def _new_vel3d_l_wfp_sio_mule_file_callback(self, file_name):
-        """
-        Callback used by the vel3d_l_wfp single directory harvester
-        called when a new file is detected.  Store the filename in a queue.
-        @param file_name: file name of the found file.
-        """
-        self._new_file_callback(file_name, DataTypeKey.VEL3D_L_WFP_SIO_MULE)
+        return harvesters
