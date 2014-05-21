@@ -12,7 +12,7 @@ USAGE:
        $ bin/test_driver -i [-t testname]
        $ bin/test_driver -q [-t testname]
 """
-from mi.core.exceptions import SampleException
+from mi.core.exceptions import SampleException, InstrumentCommandException
 from mi.core.instrument.data_particle import RawDataParticle
 from mi.core.instrument.instrument_driver import DriverProtocolState
 
@@ -47,7 +47,7 @@ from mi.core.instrument.chunker import StringChunker
 # from ion.agents.instrument.instrument_agent import InstrumentAgentState
 # from ion.agents.instrument.direct_access.direct_access_server import DirectAccessTypes
 
-from mi.instrument.uw.hpies.ooicore.driver import InstrumentDriver, HEFDataParticle
+from mi.instrument.uw.hpies.ooicore.driver import InstrumentDriver, HEFDataParticle, ParameterConstraints
 from mi.instrument.uw.hpies.ooicore.driver import DataParticleType
 from mi.instrument.uw.hpies.ooicore.driver import Command
 from mi.instrument.uw.hpies.ooicore.driver import ProtocolState
@@ -371,7 +371,7 @@ class DriverUnitTest(InstrumentDriverUnitTestCase, UtilMixin):
 #     and common for all drivers (minimum requirement for ION ingestion)      #
 ###############################################################################
 @attr('INT', group='mi')
-class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
+class DriverIntegrationTest(InstrumentDriverIntegrationTestCase, UtilMixin):
     def test_autosample_particle_generation(self):
         """
         Test that we can generate particles when in autosample.
@@ -380,13 +380,13 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         # put driver into autosample mode
         self.assert_initialize_driver(DriverProtocolState.AUTOSAMPLE)
 
-        self.assert_async_particle_generation(DataParticleType.MOTOR_CURRENT, self.assert_data_particle_sample,
+        self.assert_async_particle_generation(DataParticleType.MOTOR_CURRENT, self.assert_sample_data_particle,
                                               timeout=20)
-        self.assert_async_particle_generation(DataParticleType.HPIES_STATUS, self.assert_data_particle_sample,
+        self.assert_async_particle_generation(DataParticleType.HPIES_STATUS, self.assert_sample_data_particle,
                                               timeout=30)
-        self.assert_async_particle_generation(DataParticleType.ECHO_SOUNDING, self.assert_data_particle_sample,
+        self.assert_async_particle_generation(DataParticleType.ECHO_SOUNDING, self.assert_sample_data_particle,
                                               timeout=100)
-        self.assert_async_particle_generation(DataParticleType.HORIZONTAL_FIELD, self.assert_data_particle_sample,
+        self.assert_async_particle_generation(DataParticleType.HORIZONTAL_FIELD, self.assert_sample_data_particle,
                                               timeout=110)
         # it can take 46 minutes for the first calibration status to occur - need to test in qual
         # self.assert_async_particle_generation(DataParticleType.CALIBRATION_STATUS, self.assert_data_particle_sample,
@@ -472,19 +472,38 @@ class DriverIntegrationTest(InstrumentDriverIntegrationTestCase):
         for param in read_only_params:
             self.assert_set_exception(param)
 
-            # verify out-of-range exception on set - TODO - ranges have not yet been defined in IOS
-            # self.assert_set_exception(Parameter.WSRUN_PINCH, -1)
-            # self.assert_set_exception(Parameter.NFC_CALIBRATE, -1)
-            # self.assert_set_exception(Parameter.NHC_COMPASS, -1)
-            # self.assert_set_exception(Parameter.COMPASS_SAMPLES, -1)
-            # self.assert_set_exception(Parameter.COMPASS_DELAY, -1)
-            # self.assert_set_exception(Parameter.MOTOR_SAMPLES, -1)
-            # self.assert_set_exception(Parameter.EF_SAMPLES, -1)
-            # self.assert_set_exception(Parameter.CAL_SAMPLES, -1)
-            # self.assert_set_exception(Parameter.MOTOR_TIMEOUTS_1A, -1)
-            # self.assert_set_exception(Parameter.MOTOR_TIMEOUTS_1B, -1)
-            # self.assert_set_exception(Parameter.MOTOR_TIMEOUTS_2A, -1)
-            # self.assert_set_exception(Parameter.MOTOR_TIMEOUTS_2B, -1)
+    def test_out_of_range(self):
+        self.assert_initialize_driver()
+        constraints = ParameterConstraints.dict()
+        for parameter in constraints:
+            _, minimum, maximum = constraints[parameter]
+            self.assert_set_exception(parameter, minimum - 1)
+            self.assert_set_exception(parameter, maximum + 1)
+            self.assert_set_exception(parameter, 'expects int, not string!!')
+
+    def test_invalid_parameter(self):
+        self.assert_initialize_driver()
+        self.assert_set_exception('BOGUS', 'bogus parameter can not be set')
+
+    def test_invalid_command(self):
+        self.assert_initialize_driver()
+        self.assert_driver_command_exception('BOGUS_COMMAND', exception_class=InstrumentCommandException)
+
+    def test_incomplete_config(self):
+        # TODO - only required it is determined that some startup parameters are required
+        # startup_params = self.test_config.driver_startup_config[DriverConfigKey.PARAMETERS]
+        # old_value = startup_params[Parameter.CAL_SAMPLES]  # place a required parameter here
+        # try:
+        #     del (startup_params[Parameter.CAL_SAMPLES])
+        #     self.init_driver_process_client()
+        #     self.assert_initialize_driver()
+        #     self.assert_driver_command(Capability.START_AUTOSAMPLE)
+        #     self.assertTrue(False, msg='Failed to raise exception on missing parameter')
+        # except Exception as e:
+        #     self.assertTrue(self._driver_exception_match(e, InstrumentProtocolException))
+        # finally:
+        #     startup_params[Parameter.CAL_SAMPLES] = old_value
+        pass
 
 
 ###############################################################################

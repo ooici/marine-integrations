@@ -312,7 +312,7 @@ class GuiPart:
 
         B21e = Tkinter.Entry(master, width=10)
         B21e.grid(row=21, column=3, columnspan=1, sticky=Tkinter.W)
-        B21e.insert(0, 'mmmddx')
+        B21e.insert(0, 'yymmddx')
         B21e.focus_set()
 
         def B21_call_back():
@@ -529,7 +529,7 @@ class GuiPart:
         T15.grid(row=15, column=20, columnspan=1, sticky=Tkinter.W)
 
         T16 = Tkinter.Button(master, text='Cal Start', command=cal_start)
-        T16.grid(row=16, column=20, columnspan=1, sticky=Tkinter.E)
+        T16.grid(row=16, column=20, columnspan=1, sticky=Tkinter.W)
 
         T17 = Tkinter.Button(master, text='Cal Stop', command=cal_stop)
         T17.grid(row=17, column=20, columnspan=1, sticky=Tkinter.W)
@@ -685,17 +685,17 @@ class GuiPart:
 
 class ThreadedClient:
     '''
-    Launch the main part of the GUI and the worker thread. periodicCall and
-    endApplication could reside in the GUI part, but putting them here
-    means that you have all the thread controls in a single place.
-    '''
+  Launch the main part of the GUI and the worker thread. periodicCall and
+  endApplication could reside in the GUI part, but putting them here
+  means that you have all the thread controls in a single place.
+  '''
 
     def __init__(self, master):
         '''
-        Start the GUI and the asynchronous threads. We are in the main
-        (original) thread of the application, which will later be used by
-        the GUI. We spawn a new thread for the worker.
-        '''
+    Start the GUI and the asynchronous threads. We are in the main
+    (original) thread of the application, which will later be used by
+    the GUI. We spawn a new thread for the worker.
+    '''
         self.master = master
 
         # Create the queue
@@ -1044,7 +1044,7 @@ def ies_cmd(s):
 
 
 def lin_cmd(s):
-    if sys.platform == 'linux2':
+    if is_linux:
         print('lin_cmd(' + s + ')')
         args = shlex.split(s)
         print('args=', args)
@@ -2485,12 +2485,17 @@ if __name__ == '__main__':
         print('Win32: this_host=', this_host)
         stm_tty = 'COM1:'
 
-    elif sys.platform.find('linux') >= 0:
+    # elif sys.platform.find('linux') >= 0:
+    else:
         is_linux = True
         this_host = socket.gethostname().split('.')[0]
-        print('Linux: this_host:', this_host)
+        print('Linux or Mac')
+        print('  this_host=', this_host)
+        print('  sys.platform=', sys.platform)
 
-        if this_host.find('ohm') >= 0:
+        if this_host.find('dans-mbp') >= 0:
+            options.jbox_hostname = "localhost:9101"
+        elif this_host.find('ohm') >= 0:
             stm_tty = '/dev/ttyRP1'  # stm32 console
             tod_tty = '/dev/ttyRP2'  # time of day
             #   hef_tty = '/dev/ttyRP3' # hef console
@@ -2513,10 +2518,6 @@ if __name__ == '__main__':
         else:
             print('unknown this_host:', this_host)
             cleanup()
-
-    else:
-        print('unknown sys.platform=', sys.platform)
-        cleanup()
 
     coni = sys.stdin.fileno()
     cono = sys.stdout.fileno()
@@ -2577,12 +2578,12 @@ if __name__ == '__main__':
         aux_ser = None
 
     """
-    print('coni=',coni)
-    print('cono=',cono)
-    print('stm_ser=',stm_ser)
-    print('aux_ser=',aux_ser)
-    print('jbox_tcp=',jbox_tcp)
-    """
+  print('coni=',coni)
+  print('cono=',cono)
+  print('stm_ser=',stm_ser)
+  print('aux_ser=',aux_ser)
+  print('jbox_tcp=',jbox_tcp)
+  """
 
     date_begin = datetime.utcnow()
 

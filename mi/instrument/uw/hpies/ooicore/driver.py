@@ -9,9 +9,11 @@ initial_rev
 """
 import re
 
-from mi.core.exceptions import SampleException, InstrumentProtocolException
+from mi.core.exceptions import SampleException, InstrumentProtocolException, InstrumentParameterException, \
+    InstrumentTimeoutException
 from mi.core.instrument.driver_dict import DriverDictKey
 from mi.core.instrument.protocol_param_dict import ParameterDictVisibility, ParameterDictType
+from mi.core.util import dict_equal
 from mi.instrument.uw.hpies.crclib import crc3kerm
 
 
@@ -58,7 +60,7 @@ common_matches = {
 def build_command(address, command, *args):
     s = '#' + address + '_' + command
     s += " ".join([str(x) for x in args])
-    s = s + str.format('*{0:04x}', crc3kerm(s)) + '\r'
+    s = s + str.format('*{0:04x}', crc3kerm(s)) + NEWLINE
     return s
 
 
@@ -69,8 +71,10 @@ def valid_response(resp):
     @return - whether or not checksum matches data
     """
     pattern = re.compile(
-        r'^(?P<tod>%(tod)s) (?P<resp>%(data)s)\*(?P<crc>%(crc)s)' % common_matches)
+        r'(?P<resp>%(data)s)\*(?P<crc>%(crc)s)' % common_matches)
     matches = re.match(pattern, resp)
+    if not matches:  # skip any lines that do not have a checksum match
+        return True
     resp_crc = int(matches.group('crc'), 16)
     data = matches.group('resp')
     calc_crc = crc3kerm(data)
@@ -81,21 +85,21 @@ def stm_command(s, *args):
     """
     Create fully qualified STM command (add prefix and postfix the CRC).
     """
-    return build_command('1', s, args)
+    return build_command('1', s, *args)
 
 
 def hef_command(s, *args):
     """
     Create fully qualified HEF command (add prefix and postfix the CRC).
     """
-    return build_command('3', s, args)
+    return build_command('3', s, *args)
 
 
 def ies_command(s, *args):
     """
     Create fully qualified IES command (add prefix and postfix the CRC).
     """
-    return build_command('4', s, args)
+    return build_command('4', s, *args)
 
 
 ###
@@ -210,16 +214,37 @@ class Parameter(DriverParameter):
     PRES_COEFF_T4 = 'pressure coeff t4'  # default 151.539900
     PRES_COEFF_T5 = 'pressure coeff t5'  # default 0.00
 
+    TEMP_OFFSET = 'temp offset'  # default -0.51 degrees C
+    PRES_OFFSET = 'press offset'  # default 0.96 psi
+
     BLILEY_0 = 'bliley B0'  # -0.575100
     BLILEY_1 = 'bliley B1'  # -0.5282501
     BLILEY_2 = 'bliley B2'  # -0.013084390
     BLILEY_3 = 'bliley B3'  # 0.00004622697
 
 
+class ParameterConstraints(BaseEnum):
+    DEBUG_LEVEL = (int, 0, 3)
+    WSRUN_PINCH = (int, 1, 3600)
+    NFC_CALIBRATE = (int, 1, 3600)
+    NHC_COMPASS = (int, 1, 3600)
+    COMPASS_SAMPLES = (int, 1, 3600)
+    COMPASS_DELAY = (int, 1, 3600)
+    MOTOR_SAMPLES = (int, 1, 100)
+    EF_SAMPLES = (int, 1, 100)
+    CAL_SAMPLES = (int, 1, 100)
+    MOTOR_TIMEOUTS_1A = (int, 10, 1000)
+    MOTOR_TIMEOUTS_1B = (int, 10, 1000)
+    MOTOR_TIMEOUTS_2A = (int, 10, 1000)
+    MOTOR_TIMEOUTS_2B = (int, 10, 1000)
+
+
 class Prompt(BaseEnum):
     """
     Device I/O prompts
     """
+    DEFAULT = 'STM>'
+    HEF_PARAMS = '#3_params'
 
 
 class Command(BaseEnum):
@@ -239,6 +264,7 @@ class Command(BaseEnum):
     HEF_POWER_ON = 'hef_pwr_on'
     HEF_POWER_OFF = 'hef_pwr_off'
     HEF_WAKE = 'hef_wake'
+    HEF_PARAMS = 'params'
     SYNC_CLOCK = 'force_RTC_update'  # align STM clock to RSN date/time
 
     # HEF specific commands
@@ -246,12 +272,40 @@ class Command(BaseEnum):
     MISSION_START = 'mission start'
     MISSION_STOP = 'mission stop'
 
+    # The following are not implemented commands
     # 'term hef'  # change HEF parameters interactively
     # 'term ies'  # change IES parameters interactively
     # 'term tod'  # display RSN time of day
     # 'term aux'  # display IES AUX2 port
     # 'baud'  # display baud rate (serial RSN to STM)
     # 'baud #'  # set baud rate
+
+
+class Timeout(BaseEnum):
+    """
+    Timeouts for instrument commands
+    """
+    # STM commands
+    DEFAULT = 3
+    REBOOT = 3
+    ACQUISITION_START = 3
+    ACQUISITION_STOP = 1
+    IES_PORT_ON = 1
+    IES_PORT_OFF = 1
+    IES_POWER_ON = 1
+    IES_POWER_OFF = 1
+    HEF_PORT_ON = 1
+    HEF_PORT_OFF = 1
+    HEF_POWER_ON = 1
+    HEF_POWER_OFF = 1
+    HEF_WAKE = 1
+    HEF_PARAMS = 3
+    SYNC_CLOCK = 1
+
+    # HEF specific commands
+    PREFIX = 'prefix'
+    MISSION_START = 'mission start'
+    MISSION_STOP = 'mission stop'
 
 
 class Response(BaseEnum):
@@ -261,11 +315,15 @@ class Response(BaseEnum):
     TIMESTAMP = re.compile(r'^(?P<tod>%(tod)s)' % common_matches)
     UNKNOWN_COMMAND = re.compile(r'.*?unknown command: .*?')
     # Expected responses from HPIES
-    PROMPT = re.compile(r'^%(tod)s STM> .*?' % common_matches)
-    REBOOT = re.compile(r'.*?File system mounted.*?')
+    # PROMPT = re.compile(r'^%(tod)s STM> .*?' % common_matches)
+    PROMPT = re.compile(r'^STM> .*?' % common_matches)
+    REBOOT = re.compile(r'.*?File system mounted')
     ACQUISITION_START = re.compile(r'.*?opened ofile.*?')
     HEF_OPTO_ON = PROMPT
     HEF_POWER_ON = PROMPT
+    IES_POWER_ON = PROMPT  # about 15 seconds response time
+    ERROR = re.compile(r'.*?port.*?not open')
+    HEF_PARAMS = re.compile(r'^#3_ serno.*')
 
 
 ###
@@ -847,7 +905,7 @@ class Protocol(CommandResponseInstrumentProtocol):
     Instrument protocol class
     Subclasses CommandResponseInstrumentProtocol
     """
-    __metaclass__ = get_logging_metaclass(log_level='debug')
+    __metaclass__ = get_logging_metaclass(log_level='info')
 
     def __init__(self, prompts, newline, driver_event):
         """
@@ -904,6 +962,7 @@ class Protocol(CommandResponseInstrumentProtocol):
         for cmd in Command.list():
             self._add_build_handler(cmd, self._build_command)
             self._add_response_handler(cmd, self._check_command)
+        self._add_response_handler(Command.HEF_PARAMS, self._parse_hef_params_response)
 
         # Add sample handlers.
 
@@ -1485,14 +1544,43 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _wakeup(self, wakeup_timeout=10, response_timeout=3):
         """
-        Wakeup the instrument
-        @param wakeup_timeout The timeout to wake the device.
-        @param response_timeout The time to look for response to a wakeup attempt.
-        @throw InstrumentTimeoutException if the device could not be woken.
+        Override the default wakeup to do nothing. Instead, an explicit call to _hef_wakeup is required prior
+        to sending commands to the instrument.
         """
         pass
 
-    def _build_command(self, cmd, **kwargs):
+    def _hef_wakeup(self):
+        """
+        @ brief wakeup the instrument
+        The only current deterministic way to know if the instrument is awake is to see if it responds to a
+        parameter request. If it does not, it must be restarted.
+
+        MUST BE CALLED PRIOR TO SENDING A SERIES OF COMMANDS TO THE INSTRUMENT
+
+        @throw InstrumentTimeoutException if the device could not be woken.
+        """
+        # if we are able to get the parameters from the HEF, it is already awake
+        try:
+            self._do_cmd_no_resp(Command.HEF_WAKE)
+            self._do_cmd_resp(Command.HEF_PARAMS, expected_prompt=Prompt.HEF_PARAMS, timeout=Timeout.DEFAULT)
+
+        # otherwise, we need to restart
+        except InstrumentTimeoutException:
+            self._do_cmd_resp(Command.REBOOT, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
+            self._do_cmd_resp(Command.ACQUISITION_START, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
+            self._do_cmd_resp(Command.HEF_PORT_ON, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
+            self._do_cmd_resp(Command.HEF_POWER_ON, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
+            self._do_cmd_no_resp(Command.HEF_WAKE)
+            self._do_cmd_resp(Command.HEF_PARAMS, expected_prompt=Prompt.HEF_PARAMS, timeout=Timeout.DEFAULT)
+
+            log.critical('unable to establish communication with instrument')
+
+    def _build_command(self, cmd, *args):
+        """
+        @brief assemble command string to send to instrument
+        Called by _do_cmd_* functions to build a command string for @a cmd.
+        @retval command string to send to the instrument
+        """
         if cmd in (Command.REBOOT,
                    Command.ACQUISITION_START,
                    Command.ACQUISITION_STOP,
@@ -1506,11 +1594,12 @@ class Protocol(CommandResponseInstrumentProtocol):
                    Command.HEF_POWER_OFF,
                    Command.HEF_WAKE,
                    Command.SYNC_CLOCK):
-            return stm_command(cmd, *kwargs)
+            return stm_command(cmd, *args)
         elif cmd in (Command.PREFIX,
+                     Command.HEF_PARAMS,
                      Command.MISSION_START,
                      Command.MISSION_STOP):
-            return hef_command(cmd, *kwargs)
+            return hef_command(cmd, *args)
         raise InstrumentProtocolException('attempt to process unknown command: %r', cmd)
 
     def _check_command(self, resp, prompt):
@@ -1530,6 +1619,22 @@ class Protocol(CommandResponseInstrumentProtocol):
         """
         self._cmd_dict.add(Capability.START_AUTOSAMPLE, display_name='start autosample')
         self._cmd_dict.add(Capability.STOP_AUTOSAMPLE, display_name='stop autosample')
+
+    def _parse_hef_params_response(self, response, prompt):
+        """
+        @brief process the response for request to get HEF parameters
+        @param response command string
+        """
+        log.debug('parameter dictionary:\r%s' % self._param_dict)
+        if re.match(Response.ERROR, response):
+            raise InstrumentParameterException('unable to get parameters - data acquisition has not been started')
+
+        if re.match(Response.HEF_PARAMS, response):
+            log.debug('received parameter listing, updating parameters')
+            self._param_dict.update_many(response)
+            return True
+
+        return False
 
     ########################################################################
     # Unknown handlers.
@@ -1562,25 +1667,24 @@ class Protocol(CommandResponseInstrumentProtocol):
     def _handler_autosample_enter(self, *args, **kwargs):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
-        self._do_cmd_resp(Command.REBOOT)
-        self._do_cmd_resp(Command.ACQUISITION_START)
-        self._do_cmd_resp(Command.IES_PORT_ON)
-        self._do_cmd_resp(Command.IES_POWER_ON)
-        self._do_cmd_resp(Command.IES_PORT_OFF)
-        self._do_cmd_resp(Command.HEF_PORT_ON)
-        self._do_cmd_resp(Command.HEF_POWER_ON)
-        self._do_cmd_resp(Command.HEF_WAKE)
-        self._do_cmd_resp(Command.PREFIX, str(self._prefix))
-        self._do_cmd_resp(Command.MISSION_START)
+        self._hef_wakeup()
+        self._do_cmd_resp(Command.IES_PORT_ON, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
+        self._do_cmd_resp(Command.IES_POWER_ON, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
+        self._do_cmd_resp(Command.IES_PORT_OFF, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
+        self._do_cmd_resp(Command.PREFIX, str(self._prefix), expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
+        self._do_cmd_resp(Command.MISSION_START, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
 
     def _handler_autosample_stop_autosample(self, *args, **kwargs):
         """
         Process command to stop autosampling. Return to command state.
         """
-        self._do_cmd_resp(Command.MISSION_STOP)
-        self._do_cmd_resp(Command.ACQUISITION_STOP)
-        self._do_cmd_resp(Command.IES_PORT_OFF)
-        self._do_cmd_resp(Command.IES_POWER_OFF)
+        self._hef_wakeup()
+        self._do_cmd_resp(Command.MISSION_STOP, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
+        self._do_cmd_resp(Command.ACQUISITION_STOP, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
+        self._do_cmd_resp(Command.IES_PORT_OFF, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
+        self._do_cmd_resp(Command.IES_POWER_OFF, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
+        self._do_cmd_resp(Command.HEF_PORT_OFF, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
+        self._do_cmd_resp(Command.HEF_POWER_OFF, expected_prompt=Prompt.DEFAULT, timeout=Timeout.DEFAULT)
         self._prefix += 1
 
         return ProtocolState.COMMAND, (ResourceAgentState.COMMAND, None)
@@ -1608,14 +1712,50 @@ class Protocol(CommandResponseInstrumentProtocol):
 
     def _handler_command_get(self, *args, **kwargs):
         """
-        Get parameter
+        @ brief Get device parameters from the parameter dict
+        First we set a baseline timestamp that all data expirations will be calculated against.
+        Then we try to get parameter value.  If we catch an expired parameter then we will update
+        all parameters and get values using the original baseline time that we set at the beginning of this method.
+        Assuming our _update_params is updating all parameter values properly then we can
+        ensure that all data will be fresh.  Nobody likes stale data!
+        @param args[0] list of parameters to retrieve, or DriverParameter.ALL.
+        @raise InstrumentParameterException if missing or invalid parameter.
+        @raise InstrumentParameterExpirationException If we fail to update a parameter
+        on the second pass this exception will be raised on expired data
         """
-        return None, None
+        return self._handler_get(*args, **kwargs)
 
     def _handler_command_set(self, *args, **kwargs):
         """
-        Set instrument parameters
+        @ brief perform a set command
+        @param args[0] parameter : value dict.
+        @param args[1] parameter : startup parameters?
+        @retval (next_state, result) tuple, (None, None).
+        @throws InstrumentParameterException if missing set parameters, if set parameters not ALL and
+        not a dict, or if parameter can't be properly formatted.
+        @throws InstrumentTimeoutException if device cannot be woken for set command.
+        @throws InstrumentProtocolException if set command could not be built or misunderstood.
         """
+        startup = False
+
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('_handler_command_set Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        if not isinstance(params, dict):
+            raise InstrumentParameterException('Set parameters not a dict.')
+
+        # For each key, val in the dict, issue set command to device.
+        # Raise if the command not understood.
+        else:
+            self._set_params(params, startup)
+
         return None, None
 
     def _handler_command_start_autosample(self, *args, **kwargs):
@@ -1674,3 +1814,153 @@ class Protocol(CommandResponseInstrumentProtocol):
             self._param_dict.set_default(key)
         # TODO - self._update_params()
         pass
+
+    def apply_startup_params(self):
+        """
+        Apply all startup parameters.  First we check the instrument to see
+        if we need to set the parameters.  If they are they are set
+        correctly then we don't do anything.
+
+        If we need to set parameters then we might need to transition to
+        command first.  Then we will transition back when complete.
+
+        @todo: This feels odd.  It feels like some of this logic should
+               be handled by the state machine.  It's a pattern that we
+               may want to review.  I say this because this command
+               needs to be run from autosample or command mode.
+        @raise: InstrumentProtocolException if not in command or streaming
+        """
+        # Let's give it a try in unknown state
+        log.debug("CURRENT STATE: %s", self.get_current_state())
+        if (self.get_current_state() != DriverProtocolState.COMMAND and
+                    self.get_current_state() != DriverProtocolState.AUTOSAMPLE):
+            raise InstrumentProtocolException("Not in command or autosample state. Unable to apply startup params")
+
+        # If we are in streaming mode and our configuration on the
+        # instrument matches what we think it should be then we
+        # don't need to do anything.
+        if not self._instrument_config_dirty():
+            log.debug("configuration not dirty.  Nothing to do here")
+            return True
+
+        error = None
+
+        try:
+            log.debug("sbe apply_startup_params now")
+            self._apply_params()
+
+        # Catch all error so we can put ourself back into
+        # streaming.  Then rethrow the error
+        except Exception as e:
+            error = e
+
+        if error:
+            log.error("Error in apply_startup_params: %s", error)
+            raise error
+
+    def _instrument_config_dirty(self):
+        """
+        Read the startup config and compare that to what the instrument
+        is configured too.  If they differ then return True
+        @return: True if the startup config doesn't match the instrument
+        @raise: InstrumentParameterException
+        """
+        # Refresh the param dict cache
+
+        self._update_params()
+
+        startup_params = self._param_dict.get_startup_list()
+        log.debug("Startup Parameters: %s", startup_params)
+
+        for param in startup_params:
+            if self._param_dict.get(param) != self._param_dict.get_config_value(param):
+                log.debug("DIRTY: %s %s != %s", param, self._param_dict.get(param),
+                          self._param_dict.get_config_value(param))
+                return True
+
+        log.debug("Clean instrument config")
+        return False
+
+    def _update_params(self):
+        """
+        Update the parameter dictionary. Wake the device then issue
+        display status and display calibration commands. The parameter
+        dict will match line output and udpate itself.
+        @throws InstrumentTimeoutException if device cannot be timely woken.
+        @throws InstrumentProtocolException if ds/dc misunderstood.
+        """
+        # Get old param dict config.
+        old_config = self._param_dict.get_config()
+
+        # wakeup will update parameters
+        self._hef_wakeup()
+
+        # Get new param dict config. If it differs from the old config,
+        # tell driver superclass to publish a config change event.
+        new_config = self._param_dict.get_config()
+
+        log.debug("Old Config: %s", old_config)
+        log.debug("New Config: %s", new_config)
+        if not dict_equal(new_config, old_config) and self._protocol_fsm.get_current_state() != ProtocolState.UNKNOWN:
+            log.debug("parameters updated, sending event")
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+    def _another_function(self):
+        pass
+
+    def _set_params(self, *args, **kwargs):
+        """
+        Issue commands to the instrument to set various parameters
+        """
+        startup = False
+        try:
+            params = args[0]
+        except IndexError:
+            raise InstrumentParameterException('Set command requires a parameter dict.')
+
+        try:
+            startup = args[1]
+        except IndexError:
+            pass
+
+        old_config = self._param_dict.get_all()
+        # Only check for readonly parameters if we are not setting them from startup
+        if not startup:
+            readonly = self._param_dict.get_visibility_list(ParameterDictVisibility.READ_ONLY)
+
+            log.debug("set param, but check visibility first")
+            log.debug("Read only keys: %s", readonly)
+
+            for (key, val) in params.iteritems():
+                if key in readonly:
+                    raise InstrumentParameterException("Attempt to set read only parameter (%s)" % key)
+
+        constraints = ParameterConstraints.dict()
+        for key, val in params.iteritems():
+            if key in constraints:
+                var_type, min, max = constraints[key]
+                try:
+                    value = var_type(val)
+                except ValueError:
+                    raise InstrumentParameterException('type mismatch - %s is not of type %s' % (key, val))
+                if val < min or val > max:
+                    raise InstrumentParameterException('value out of range - parameter: %s value: %s [%s %s]' %
+                                                       (key, val, min, max))
+            if key in old_config:
+                self._param_dict.set_value(key, val)
+            else:
+                raise InstrumentParameterException('attempted to set unknown parameter: %s to %s' % (key, val))
+        new_config = self._param_dict.get_all()
+
+        if new_config != old_config:
+            self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+
+    def _apply_params(self):
+        """
+        apply startup parameters to the instrument.
+        @raise: InstrumentProtocolException if in wrong mode.
+        """
+        config = self.get_startup_config()
+        # Pass true to _set_params so we know these are startup values
+        self._set_params(config, True)
+

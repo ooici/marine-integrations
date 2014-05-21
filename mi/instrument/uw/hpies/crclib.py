@@ -1,7 +1,10 @@
 def crc3kerm(buf):
-    crcta = [0, 4225, 8450, 12675, 16900, 21125, 25350, 29575, \
+    """
+    Determine Kermit CRC checksum of data
+    """
+    crcta = [0, 4225, 8450, 12675, 16900, 21125, 25350, 29575,
              33800, 38025, 42250, 46475, 50700, 54925, 59150, 63375]
-    crctb = [0, 4489, 8978, 12955, 17956, 22445, 25910, 29887, \
+    crctb = [0, 4489, 8978, 12955, 17956, 22445, 25910, 29887,
              35912, 40385, 44890, 48851, 51820, 56293, 59774, 63735]
     crc = 0
     for i in range(0, len(buf)):
@@ -13,7 +16,7 @@ def crc3kerm(buf):
 
 
 def chksumnmea(s):
-    xor = 0;
+    xor = 0
     for i in range(0, len(s)):
-        xor ^= ord(s[i]);
+        xor ^= ord(s[i])
     return xor
