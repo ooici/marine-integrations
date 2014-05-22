@@ -21,7 +21,7 @@ from mi.core.exceptions import InstrumentParameterExpirationException
 
 from mi.core.log import get_logger; log = get_logger()
 
-from mi.core.instrument.instrument_fsm import InstrumentFSM
+from mi.core.instrument.instrument_fsm import ThreadSafeFSM
 
 from mi.core.instrument.instrument_protocol import CommandResponseInstrumentProtocol
 
@@ -114,10 +114,64 @@ class TeledyneParameter(DriverParameter):
     SAMPLE_AMBIENT_SOUND ='WQ'          # Sample Ambient sound
     TRANSDUCER_DEPTH ='ED'              # Transducer Depth
 
-    CLOCK_SYNCH_INTERVAL ='clock_synch_interval'
-    GET_STATUS_INTERVAL ='get_status_interval'
+    CLOCK_SYNCH_INTERVAL ='clockSynchInterval'
+    GET_STATUS_INTERVAL ='getStatusInterval'
 
+class TeledyneParameter2(DriverParameter):
+    """
+    Device parameters
+    """
+    #
+    # set-able parameters
+    #
+    SERIAL_DATA_OUT = 'CD_5th'              # 000 000 000 Serial Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
+    INSTRUMENT_ID = 'CI_5th'                # Int 0-255
+    XMIT_POWER = 'CQ_5th'                   # 0=Low, 255=High
+    SPEED_OF_SOUND = 'EC_5th'               # 1500  Speed Of Sound (m/s)
+    SALINITY = 'ES_5th'                     # 35 (0-40 pp thousand)
+    COORDINATE_TRANSFORMATION = 'EX_5th'    #
+    SENSOR_SOURCE = 'EZ_5th'                # Sensor Source (C;D;H;P;R;S;T)
+    TIME_PER_ENSEMBLE = 'TE_5th'            # 01:00:00.00 (hrs:min:sec.sec/100)
+    TIME_OF_FIRST_PING = 'TG_5th'           # ****/**/**,**:**:** (CCYY/MM/DD,hh:mm:ss)
+    TIME_PER_PING = 'TP_5th'                # 00:00.20  (min:sec.sec/100)
+    TIME = 'TT_5th'                         # 2013/02/26,05:28:23 (CCYY/MM/DD,hh:mm:ss)
+    FALSE_TARGET_THRESHOLD = 'WA_5th'       # 255,001 (Max)(0-255),Start Bin # <--------- TRICKY.... COMPLEX TYPE
+    BANDWIDTH_CONTROL = 'WB_5th'            # Bandwidth Control (0=Wid,1=Nar)
+    CORRELATION_THRESHOLD = 'WC_5th'        # 064  Correlation Threshold
+    SERIAL_OUT_FW_SWITCHES = 'WD_5th'       # 111100000  Data Out (Vel;Cor;Amp PG;St;P0 P1;P2;P3)
+    ERROR_VELOCITY_THRESHOLD = 'WE_5th'     # 5000  Error Velocity Threshold (0-5000 mm/s)
+    BLANK_AFTER_TRANSMIT = 'WF_5th'         # 0088  Blank After Transmit (cm)
+    CLIP_DATA_PAST_BOTTOM = 'WI_5th'        # 0 Clip Data Past Bottom (0=OFF,1=ON)
+    RECEIVER_GAIN_SELECT = 'WJ_5th'         # 1  Rcvr Gain Select (0=Low,1=High)
+    NUMBER_OF_DEPTH_CELLS = 'WN_5th'        # Number of depth cells (1-255)
+    PINGS_PER_ENSEMBLE = 'WP_5th'           # Pings per Ensemble (0-16384)
+    DEPTH_CELL_SIZE = 'WS_5th'              # 0800  Depth Cell Size (cm)
+    TRANSMIT_LENGTH = 'WT_5th'              # 0000 Transmit Length 0 to 3200(cm) 0 = Bin Length
+    PING_WEIGHT = 'WU_5th'                  # 0 Ping Weighting (0=Box,1=Triangle)
+    AMBIGUITY_VELOCITY = 'WV_5th'           # 175 Mode 1 Ambiguity Vel (cm/s radial)
 
+    #
+    # Workhorse parameters
+    #
+    SERIAL_FLOW_CONTROL = 'CF_5th'          # Flow Control
+    BANNER = 'CH_5th'                       # Banner
+    SLEEP_ENABLE = 'CL_5th'                 # SLEEP Enable
+    SAVE_NVRAM_TO_RECORDER = 'CN_5th'       # Save NVRAM to RECORD
+    POLLED_MODE = 'CP_5th'                  # Polled Mode
+    PITCH = 'EP_5th'                        # Pitch
+    ROLL = 'ER_5th'                         # Roll
+
+    LATENCY_TRIGGER = 'CX_5th'              #Latency Trigger
+    HEADING_ALIGNMENT = 'EA_5th'            # Heading Alignment
+    HEADING_BIAS = 'EB_5th'                 # Heading Bias
+    DATA_STREAM_SELECTION ='PD_5th'         # Data Stream selection
+    ENSEMBLE_PER_BURST ='TC_5th'            # Ensemble per Burst
+    BUFFERED_OUTPUT_PERIOD ='TX_5th'        # Buffered Output Period
+    SAMPLE_AMBIENT_SOUND ='WQ_5th'          # Sample Ambient sound
+    TRANSDUCER_DEPTH ='ED_5th'              # Transducer Depth
+
+    CLOCK_SYNCH_INTERVAL ='clockSynchInterval_5th'
+    GET_STATUS_INTERVAL ='getStatusInterval_5th'
 
 
 class TeledyneInstrumentCmds(BaseEnum):
@@ -276,7 +330,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self.last_wakeup = 0
 
         # Build ADCPT protocol state machine.
-        self._protocol_fsm = InstrumentFSM(TeledyneProtocolState, TeledyneProtocolEvent,
+        self._protocol_fsm = ThreadSafeFSM(TeledyneProtocolState, TeledyneProtocolEvent,
                             TeledyneProtocolEvent.ENTER, TeledyneProtocolEvent.EXIT)
 
         # Add event handlers for protocol state machine.
@@ -552,7 +606,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws: InstrumentProtocolException if in wrong mode.
         """
         log.debug("IN _apply_params")
+        log.error("Sung _apply_params before calling get_startup_config()")
         config = self.get_startup_config()
+        log.error("Sung _apply_params before calling get_startup_config(): %s", repr(config))
         # Pass true to _set_params so we know these are startup values
         self._set_params(config, True)
 
@@ -580,24 +636,31 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
             # Get old param dict config.
             old_config = self._param_dict.get_config()
+            log.error("Sung in update_params old config : %s", repr(old_config))
             kwargs['expected_prompt'] = TeledynePrompt.COMMAND
             cmds = self._get_params()
-
+            log.error("Sung in update_params cmd : %s", repr(cmds))
             results = ""
             for attr in sorted(cmds):
-                if attr not in ['dict', 'has', 'list', 'ALL', 'GET_STATUS_INTERVAL', 'CLOCK_SYNCH_INTERVAL']:
+                if attr not in ['dict', 'has', 'list', 'ALL','GET_STATUS_INTERVAL', 'CLOCK_SYNCH_INTERVAL' ]:
                     if not attr.startswith("_"):
                         key = self._getattr_key(attr)
+                        log.error("Sung in update_params before calling do_cmd_resp : %s", key)
                         result = self._do_cmd_resp(TeledyneInstrumentCmds.GET, key, **kwargs)
                         results += result + NEWLINE
+                        log.error("Sung in update_params result do_cmd_resp : %s", result)
 
             new_config = self._param_dict.get_config()
+            log.error("Sung in update_params new config : %s", repr(new_config))
+            log.error("Sung in update_params old config : %s", repr(old_config))
             if not dict_equal(new_config, old_config, ['TT']):
+                log.error("Sung in update_params new equal")
                 self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
 
         # Catch all error so we can put ourself back into
         # streaming.  Then rethrow the error
         except Exception as e:
+            log.error("Sung in update_params new equal exception")
             log.error("EXCEPTION WAS " + str(e))
             error = e
 
@@ -635,8 +698,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         log.trace("_set_params calling _verify_not_readonly ARGS = " + repr(args))
         self._verify_not_readonly(*args, **kwargs)
         for (key, val) in params.iteritems():
-            if key not in ['get_status_interval', 'clock_synch_interval']:
-                result = self._do_cmd_resp(TeledyneInstrumentCmds.SET, key, val, **kwargs)
+            if(key.find('_') ==-1): # Not found
+                if key not in [TeledyneParameter.CLOCK_SYNCH_INTERVAL,TeledyneParameter.GET_STATUS_INTERVAL]:
+                    result = self._do_cmd_resp(TeledyneInstrumentCmds.SET, key, val, **kwargs)
         log.trace("_set_params calling _update_params")
         self._update_params()
         return result
@@ -726,8 +790,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
 
         # Send a line return and wait a sec.
         log.debug('Sending wakeup. timeout=%s' % timeout)
+        log.error("Sung before send_wakeup in _wakeup")
         self._send_wakeup()
-
+        log.error("Sung after send_wakeup in _wakeup: ")
         while time.time() < endtime:
             time.sleep(0.05)
             for item in self._get_prompts():
@@ -771,18 +836,22 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @return: True - instrument logging, False - not logging
         """
         log.debug("in _is_logging")
+        log.error("Sung in _is_logging")
 
         self._linebuf = ""
         self._promptbuf = ""
 
         prompt = self._wakeup(timeout=3)
         #log.debug("********** GOT PROMPT" + repr(prompt))
+        log.error("Sung in _is_logging after wakeup")
         if TeledynePrompt.COMMAND == prompt:
             logging = False
             log.trace("COMMAND MODE!")
+            log.error("Sung COMMAND MODE!")
         else:
             logging = True
             log.trace("AUTOSAMPLE MODE!")
+            log.error("Sung AUTOSAMPLE MODE!")
 
         return logging
 
@@ -953,7 +1022,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         self._driver_event(DriverAsyncEvent.STATE_CHANGE)
 
         # start scheduled event for clock synch
-        clock_interval = self._param_dict.get(self._getattr_key('CLOCK_SYNCH_INTERVAL'))
+        clock_interval = self._param_dict.get(self._getattr_key(TeledyneParameter.CLOCK_SYNCH_INTERVAL))
         if clock_interval != '00:00:00':
             log.error("Sung start schedule")
             self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
@@ -992,8 +1061,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentStateException if the device response does not correspond to
         an expected state.
         """
+        log.error("Sung _handler_unknown_discover")
         (protocol_state, agent_state) = self._discover()
 
+        log.error("Sung _handler_unknown_discover, called discover")
         if(protocol_state == TeledyneProtocolState.COMMAND):
             agent_state = ResourceAgentState.IDLE
 
@@ -1331,6 +1402,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @throws InstrumentProtocolException if set command could not be built or misunderstood.
         """
         log.trace("IN _handler_command_set")
+        log.error("Sung IN _handler_command_set")
         next_state = None
         result = None
         startup = False
@@ -1354,10 +1426,10 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             if(TeledyneParameter.CLOCK_SYNCH_INTERVAL in params):
                 if(params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] != self._param_dict.get(TeledyneParameter.CLOCK_SYNCH_INTERVAL)) :
                     self._param_dict.set_value(TeledyneParameter.CLOCK_SYNCH_INTERVAL, params[TeledyneParameter.CLOCK_SYNCH_INTERVAL] )
-                    log.error("Sung start schedule")
                     self.start_scheduled_job(TeledyneParameter.CLOCK_SYNCH_INTERVAL, TeledyneScheduledJob.CLOCK_SYNC, TeledyneProtocolEvent.SCHEDULED_CLOCK_SYNC)
-                    result = self._set_params(params, startup)
                     self._driver_event(DriverAsyncEvent.CONFIG_CHANGE)
+            else:
+                 result = self._set_params(params, startup)
 
         return (next_state, result)
 
@@ -1506,6 +1578,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         an expected state.
         """
         log.debug("IN _discover")
+        log.error("Sung IN _discover")
         logging = self._is_logging()
         log.error("LOGGING = " + str(logging))
         if (logging == True):
@@ -1548,7 +1621,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
             set_cmd = set_cmd + NEWLINE
             log.trace("IN _build_set_command CMD = '%s'", set_cmd)
         except KeyError:
-            raise InstrumentParameterException('Unknown driver parameter %s' % param)
+            raise InstrumentParameterException('Unknown driver parameter. %s' % param)
 
         return set_cmd
 
@@ -1559,7 +1632,7 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         @param prompt prompt following command response.
         @throws InstrumentProtocolException if set command misunderstood.
         """
-
+        log.error("Sung parse_set_response %s", prompt)
         if prompt == TeledynePrompt.ERR:
             raise InstrumentParameterException('Protocol._parse_set_response : Set command not recognized: %s' % response)
 
@@ -1578,16 +1651,19 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         if the formatting function could not accept the value passed.
         """
 
+        log.error("Sung in build_get_command %s", cmd)
         kwargs['expected_prompt'] = TeledynePrompt.COMMAND + NEWLINE + TeledynePrompt.COMMAND
         try:
             self.get_param = param
             get_cmd = param + '?' + NEWLINE
         except KeyError:
-            raise InstrumentParameterException('Unknown driver parameter %s' % param)
+            raise InstrumentParameterException('Unknown driver parameter.. %s' % param)
 
+        log.error("Sung in build_get_command return %s", get_cmd)
         return get_cmd
 
     def _parse_get_response(self, response, prompt):
+        log.error("SUng parse_get_response")
         log.trace("GET RESPONSE = " + repr(response))
         if prompt == TeledynePrompt.ERR:
             raise InstrumentProtocolException('Protocol._parse_set_response : Set command not recognized: %s' % response)
@@ -1595,9 +1671,9 @@ class TeledyneProtocol(CommandResponseInstrumentProtocol):
         while (not response.endswith('\r\n>\r\n>')) or ('?' not in response):
             (prompt, response) = self._get_raw_response(30, TeledynePrompt.COMMAND)
             time.sleep(.05) # was 1
-
+        log.error("Sung parse_get_response %s", repr(response))
         self._param_dict.update(response)
-
+        log.error("Sung _parse_get_response param_dic  %s", repr(response))
         for line in response.split(NEWLINE):
             self._param_dict.update(line)
             if not "?" in line and ">" != line:
